@@ -5,6 +5,7 @@ import org.monogram.domain.models.MessageEntity
 
 interface MessageAiRepository {
     val textCompositionStyles: StateFlow<List<TextCompositionStyleModel>>
+    val supportsPromptBasedAi: Boolean
 
     suspend fun summarizeMessage(chatId: Long, messageId: Long, toLanguageCode: String = ""): String?
 
@@ -19,4 +20,10 @@ interface MessageAiRepository {
     ): FormattedTextResult?
 
     suspend fun fixTextWithAi(text: String, entities: List<MessageEntity>): FixedTextResult?
+
+    suspend fun generateTextWithAi(
+        prompt: String,
+        languageCode: String = "",
+        addEmojis: Boolean = false
+    ): FormattedTextResult?
 }

@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -136,7 +135,6 @@ fun AudioMessageBubble(
             Column(
                 modifier = Modifier
                     .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp)
-                    .width(IntrinsicSize.Max)
                     .widthIn(min = 184.dp, max = 300.dp)
             ) {
                 if (isGroup && !isOutgoing && !isSameSenderAbove) {
@@ -361,7 +359,6 @@ fun AudioAlbumBubble(
             Column(
                 modifier = Modifier
                     .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp)
-                    .width(IntrinsicSize.Max)
                     .widthIn(min = 200.dp, max = 300.dp)
             ) {
                 if (isGroup && !isOutgoing && !isSameSenderAbove) {

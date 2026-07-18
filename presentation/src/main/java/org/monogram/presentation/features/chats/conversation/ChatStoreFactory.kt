@@ -112,7 +112,12 @@ class ChatStoreFactory(
         CoroutineExecutor<Intent, Nothing, ChatComponent.State, Nothing, Label>() {
         override fun executeIntent(intent: Intent) {
             when (intent) {
-                is Intent.SendMessage -> component.handleSendMessage(intent.text, intent.entities, intent.sendOptions)
+                is Intent.SendMessage -> component.handleSendMessage(
+                    intent.text,
+                    intent.entities,
+                    intent.sendOptions,
+                    intent.parseMode
+                )
                 is Intent.SendSticker -> component.handleSendSticker(intent.stickerPath)
                 is Intent.SendPhoto -> component.handleSendPhoto(
                     photoPath = intent.photoPath,
@@ -202,7 +207,11 @@ class ChatStoreFactory(
                 }
 
                 is Intent.CancelEdit -> component._state.update { it.copy(editingMessage = null) }
-                is Intent.SaveEditedMessage -> component.handleSaveEditedMessage(intent.text, intent.entities)
+                is Intent.SaveEditedMessage -> component.handleSaveEditedMessage(
+                    intent.text,
+                    intent.entities,
+                    intent.parseMode
+                )
                 is Intent.OpenChecklistEditor -> component._state.update {
                     it.copy(
                         checklistMessage = intent.message,

@@ -47,8 +47,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
+import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.StickerModel
+import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.camera.CameraScreen
@@ -61,6 +63,7 @@ import org.monogram.presentation.features.chats.conversation.ui.inputbar.Compose
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ComposerBotState
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ComposerRowState
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ComposerSuggestionState
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.EditorParseMode
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.FullScreenEditorSheet
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.InputBarMode
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.RestrictedInputBar
@@ -70,6 +73,7 @@ import org.monogram.presentation.features.chats.conversation.ui.inputbar.Schedul
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.SlowModeInputBar
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.applyMentionSuggestion
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.buildEditingMessageTextValue
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.buildFullScreenEditorTextValue
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.buildScheduledDateEpochSeconds
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.copyUriToPendingAttachment
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.copyUriToTempDocumentPath
@@ -79,6 +83,7 @@ import org.monogram.presentation.features.chats.conversation.ui.inputbar.hasAllP
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.isInlineBotPrefillText
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.parseInlineQueryInput
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.rememberVoiceRecorder
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.toRichTextParseMode
 import org.monogram.presentation.features.chats.conversation.ui.message.getEmojiFontFamily
 import org.monogram.presentation.features.gallery.GalleryScreen
 import org.monogram.presentation.features.gallery.components.PollComposerSheet
@@ -221,6 +226,9 @@ internal fun ChatInputBar(
     var showCamera by remember { mutableStateOf(false) }
     var showPollComposer by rememberSaveable { mutableStateOf(false) }
     var showFullScreenEditor by rememberSaveable { mutableStateOf(false) }
+    var fullScreenEditorTextValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(textValue)
+    }
     var showSendOptionsSheet by rememberSaveable { mutableStateOf(false) }
     var attachmentPickerMode by remember { mutableStateOf(AttachmentPickerMode.Default) }
     var showScheduleDatePicker by rememberSaveable { mutableStateOf(false) }
@@ -379,13 +387,18 @@ internal fun ChatInputBar(
         }
     }
 
-    val sendWithOptions: (MessageSendOptions) -> Unit = sendWithOptions@{
-        if (isOverMessageLimit) return@sendWithOptions
-        val isTextEmpty = textValue.text.isBlank()
-        val captionEntities = extractEntities(textValue.annotatedString, knownCustomEmojis)
-        val isScheduling = it.scheduleDate != null
+    fun sendWithOptions(
+        options: MessageSendOptions,
+        value: TextFieldValue = textValue,
+        richTextParseMode: RichTextParseMode? = null
+    ) {
+        val isValueOverMessageLimit = value.text.length > maxMessageLength
+        if (isValueOverMessageLimit) return
+        val isTextEmpty = value.text.isBlank()
+        val captionEntities = extractEntities(value.annotatedString, knownCustomEmojis)
+        val isScheduling = options.scheduleDate != null
         var sentInstantMessage = false
-        val effectiveSendOptions = it.copy(
+        val effectiveSendOptions = options.copy(
             disableLinkPreview = state.isDraftLinkPreviewDisabledForSend,
             linkPreviewUrl = state.resolvedDraftLinkPreviewUrl ?: state.selectedDraftLinkPreviewUrl
         )
@@ -404,7 +417,7 @@ internal fun ChatInputBar(
         if (currentPendingAttachments.isNotEmpty() && canSendPendingAttachments) {
             actions.onSendAttachments(
                 currentPendingAttachments,
-                textValue.text,
+                value.text,
                 captionEntities,
                 effectiveSendOptions
             )
@@ -413,10 +426,11 @@ internal fun ChatInputBar(
             sentInstantMessage = !isScheduling
         } else if (state.editingMessage != null && canWriteText) {
             if (!isTextEmpty) {
-                actions.onSaveEdit(textValue.text, captionEntities)
+                textValue = value
+                actions.onSaveEdit(value.text, captionEntities, richTextParseMode)
             }
         } else if (canWriteText && !isTextEmpty) {
-            actions.onSend(textValue.text, captionEntities, effectiveSendOptions)
+            actions.onSend(value.text, captionEntities, effectiveSendOptions, richTextParseMode)
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
             sentInstantMessage = !isScheduling
@@ -503,6 +517,19 @@ internal fun ChatInputBar(
 
     val currentOnDraftChange by rememberUpdatedState(actions.onDraftChange)
     val currentOnTyping by rememberUpdatedState(actions.onTyping)
+    val openFullScreenEditor = {
+        val editingMessage = state.editingMessage
+        fullScreenEditorTextValue = if (
+            editingMessage != null &&
+            editingMessage.content is MessageContent.RichMessage
+        ) {
+            buildFullScreenEditorTextValue(editingMessage, knownCustomEmojis) ?: textValue
+        } else {
+            textValue
+        }
+        showFullScreenEditor = true
+    }
+
     LaunchedEffect(textValue.text) {
         if (textValue.text != state.draftText || state.editingMessage != null) {
             currentOnDraftChange(textValue.text)
@@ -516,14 +543,34 @@ internal fun ChatInputBar(
         val editingMessage = state.editingMessage
         if (editingMessage != null) {
             if (editingMessage.id != lastEditingMessageId) {
-                buildEditingMessageTextValue(editingMessage, knownCustomEmojis)?.let { newValue ->
-                    textValue = newValue
-                    focusRequester.requestFocus()
+                when (editingMessage.content) {
+                    is MessageContent.RichMessage -> {
+                        buildFullScreenEditorTextValue(
+                            editingMessage,
+                            knownCustomEmojis
+                        )?.let { newValue ->
+                            fullScreenEditorTextValue = newValue
+                            textValue = newValue
+                            showFullScreenEditor = true
+                        }
+                    }
+
+                    else -> {
+                        buildEditingMessageTextValue(
+                            editingMessage,
+                            knownCustomEmojis
+                        )?.let { newValue ->
+                            textValue = newValue
+                            fullScreenEditorTextValue = newValue
+                            focusRequester.requestFocus()
+                        }
+                    }
                 }
                 lastEditingMessageId = editingMessage.id
             }
         } else if (lastEditingMessageId != null) {
             textValue = TextFieldValue(state.draftText, TextRange(state.draftText.length))
+            fullScreenEditorTextValue = textValue
             lastEditingMessageId = null
             knownCustomEmojis.clear()
         }
@@ -569,6 +616,7 @@ internal fun ChatInputBar(
         } else if (showScheduledMessagesSheet) {
             showScheduledMessagesSheet = false
         } else if (showFullScreenEditor) {
+            textValue = fullScreenEditorTextValue
             showFullScreenEditor = false
         } else if (state.pendingMediaPaths.isNotEmpty()) {
             actions.onCancelMedia()
@@ -846,7 +894,7 @@ internal fun ChatInputBar(
                         },
                         onCommandClick = { command ->
                             if (isSlowModeActive || !canWriteText) return@ChatInputBarComposerSection
-                            actions.onSend("/$command", emptyList(), MessageSendOptions())
+                            actions.onSend("/$command", emptyList(), MessageSendOptions(), null)
                             textValue = TextFieldValue("")
                             activateSlowModeCooldown()
                         },
@@ -897,12 +945,12 @@ internal fun ChatInputBar(
                             }
                             isStickerMenuVisible = false
                         },
-                        onOpenFullScreenEditor = { showFullScreenEditor = true },
+                        onOpenFullScreenEditor = openFullScreenEditor,
                         onOpenScheduledMessages = {
                             actions.onRefreshScheduledMessages()
                             showScheduledMessagesSheet = true
                         },
-                        onSendWithOptions = sendWithOptions,
+                        onSendWithOptions = { options -> sendWithOptions(options) },
                         onShowSendOptionsMenu = {
                             openStickerMenuAfterKeyboardClosed = false
                             openKeyboardAfterStickerMenuClosed = false
@@ -983,22 +1031,34 @@ internal fun ChatInputBar(
 
             FullScreenEditorSheet(
                 visible = showFullScreenEditor,
-                textValue = textValue,
-                onTextValueChange = { textValue = it },
+                textValue = fullScreenEditorTextValue,
+                onTextValueChange = { fullScreenEditorTextValue = it },
                 canWriteText = canWriteText,
                 pendingMediaPaths = if (state.pendingMediaPaths.isNotEmpty()) state.pendingMediaPaths else state.pendingDocumentPaths,
                 knownCustomEmojis = knownCustomEmojis,
                 emojiFontFamily = emojiFontFamily,
                 isKeyboardVisible = isKeyboardVisible,
-                isOverMessageLimit = isOverMessageLimit,
-                currentMessageLength = currentMessageLength,
                 maxMessageLength = maxMessageLength,
+                initialParseMode = if (state.editingMessage?.content is MessageContent.RichMessage) {
+                    EditorParseMode.Markdown
+                } else {
+                    EditorParseMode.Plain
+                },
+                sendAsRichMessage = state.editingMessage?.content is MessageContent.RichMessage,
                 stickerRepository = stickerRepository,
                 isPremiumUser = state.isPremiumUser,
                 isSecretChat = state.isSecretChat,
-                onDismiss = { showFullScreenEditor = false },
-                onSend = {
-                    sendWithOptions(MessageSendOptions())
+                onDismiss = {
+                    textValue = fullScreenEditorTextValue
+                    showFullScreenEditor = false
+                },
+                onSend = { outgoingValue, parseMode ->
+                    sendWithOptions(
+                        MessageSendOptions(),
+                        outgoingValue,
+                        parseMode.toRichTextParseMode()
+                    )
+                    fullScreenEditorTextValue = TextFieldValue("")
                     showFullScreenEditor = false
                 },
                 onEditorFocus = { isStickerMenuVisible = false },

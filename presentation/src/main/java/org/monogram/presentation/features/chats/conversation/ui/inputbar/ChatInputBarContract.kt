@@ -18,6 +18,7 @@ import org.monogram.domain.models.ReplyMarkupModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WebPage
 import org.monogram.domain.repository.InlineBotResultsModel
+import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.share.PendingAttachment
 
@@ -62,7 +63,7 @@ data class ChatInputBarState(
 
 @Immutable
 internal data class ChatInputBarActions(
-    val onSend: (String, List<MessageEntity>, MessageSendOptions) -> Unit,
+    val onSend: (String, List<MessageEntity>, MessageSendOptions, RichTextParseMode?) -> Unit,
     val onStickerClick: (String) -> Unit = {},
     val onGifClick: (GifModel) -> Unit = {},
     val onAttachClick: () -> Unit = {},
@@ -70,7 +71,7 @@ internal data class ChatInputBarActions(
     val onSendVoice: (String, Int, ByteArray) -> Unit = { _, _, _ -> },
     val onCancelReply: () -> Unit = {},
     val onCancelEdit: () -> Unit = {},
-    val onSaveEdit: (String, List<MessageEntity>) -> Unit = { _, _ -> },
+    val onSaveEdit: (String, List<MessageEntity>, RichTextParseMode?) -> Unit = { _, _, _ -> },
     val onDraftChange: (String) -> Unit = {},
     val onSelectDraftLinkPreview: (String) -> Unit = {},
     val onDismissDraftLinkPreview: () -> Unit = {},

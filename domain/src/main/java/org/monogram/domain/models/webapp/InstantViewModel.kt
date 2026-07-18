@@ -27,7 +27,7 @@ sealed interface PageBlock {
     data class MathematicalExpression(val expression: String) : PageBlock
     data class Anchor(val name: String) : PageBlock
     data class ListBlock(val items: List<PageBlockListItem>) : PageBlock
-    data class BlockQuote(val text: RichText, val credit: RichText) : PageBlock
+    data class BlockQuote(val pageBlocks: List<PageBlock>, val credit: RichText) : PageBlock
     data class PullQuote(val text: RichText, val credit: RichText) : PageBlock
     data class AnimationBlock(
         val animation: WebPage.Animation,
@@ -36,6 +36,8 @@ sealed interface PageBlock {
     ) : PageBlock
 
     data class AudioBlock(val audio: WebPage.Audio, val caption: PageBlockCaption) : PageBlock
+    data class VoiceNoteBlock(val voiceNote: WebPage.VoiceNote, val caption: PageBlockCaption) :
+        PageBlock
     data class PhotoBlock(val photo: WebPage.Photo, val caption: PageBlockCaption, val url: String) : PageBlock
     data class VideoBlock(
         val video: WebPage.Video,
@@ -113,6 +115,10 @@ sealed interface RichText {
     data class Icon(val document: WebPage.Document, val width: Int, val height: Int) : RichText
     data class MathematicalExpression(val expression: String) : RichText
     data class Reference(val text: RichText, val anchorName: String, val url: String) : RichText
+    data class ReferenceLink(val text: RichText, val referenceName: String, val url: String) :
+        RichText
+
+    data class Diff(val text: RichText, val oldText: RichText) : RichText
     data class Anchor(val name: String) : RichText
     data class AnchorLink(val text: RichText, val anchorName: String, val url: String) : RichText
     data class Texts(val texts: List<RichText>) : RichText

@@ -6,11 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +26,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -75,7 +76,6 @@ internal fun QuoteBlock(
 
     Surface(
         modifier = Modifier
-            .height(IntrinsicSize.Min)
             .animateContentSize()
             .clickable(
                 interactionSource = null,
@@ -84,7 +84,17 @@ internal fun QuoteBlock(
             ) {
                 isCollapsed = !isCollapsed
             }
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .drawBehind {
+                val stripeWidth = 3.dp.toPx()
+                val stripeRadius = 999.dp.toPx()
+                drawRoundRect(
+                    color = stripeColor,
+                    topLeft = Offset(8.dp.toPx(), 10.dp.toPx()),
+                    size = Size(stripeWidth, size.height - 20.dp.toPx()),
+                    cornerRadius = CornerRadius(stripeRadius, stripeRadius)
+                )
+            },
         shape = RoundedCornerShape(12.dp),
         color = background
     ) {
@@ -92,16 +102,7 @@ internal fun QuoteBlock(
             modifier = Modifier.padding(start = 8.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Spacer(
-                Modifier
-                    .width(3.dp)
-                    .padding(vertical = 2.dp)
-                    .fillMaxHeight()
-                    .background(
-                        color = stripeColor,
-                        shape = RoundedCornerShape(999.dp)
-                    )
-            )
+            Spacer(modifier = Modifier.width(6.dp))
 
             val textModifier = Modifier
                 .weight(1f, fill = false)

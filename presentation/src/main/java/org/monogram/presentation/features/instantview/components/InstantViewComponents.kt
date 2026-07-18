@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.input.pointer.pointerInput
@@ -61,12 +62,28 @@ fun RichTextView(
     fontStyle: FontStyle? = null,
     color: Color = Color.Unspecified,
     textAlign: TextAlign? = null,
-    maxLines: Int = Int.MAX_VALUE
+    maxLines: Int = Int.MAX_VALUE,
+    onClick: ((Offset) -> Unit)? = null,
+    onLongClick: ((Offset) -> Unit)? = null
 ) {
     val onUrlClick = LocalOnUrlClick.current
     val linkColor = MaterialTheme.colorScheme.primary
     val annotatedString = remember(richText, linkColor) { renderRichText(richText, linkColor) }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val hasInteractiveAnnotations = remember(annotatedString) {
+        annotatedString.getStringAnnotations(tag = "URL", start = 0, end = annotatedString.length)
+            .isNotEmpty() ||
+                annotatedString.getStringAnnotations(
+                    tag = "EMAIL",
+                    start = 0,
+                    end = annotatedString.length
+                ).isNotEmpty() ||
+                annotatedString.getStringAnnotations(
+                    tag = "PHONE",
+                    start = 0,
+                    end = annotatedString.length
+                ).isNotEmpty()
+    }
 
     val scaledStyle = style.copy(
         fontSize = style.fontSize * textSizeMultiplier,
@@ -80,55 +97,75 @@ fun RichTextView(
     Text(
         text = annotatedString,
         style = scaledStyle,
-        modifier = modifier.pointerInput(annotatedString, onUrlClick) {
-            detectTapGestures { position ->
-                val layout = textLayoutResult ?: return@detectTapGestures
-                val offset = layout.getOffsetForPosition(position)
+        modifier = modifier.then(
+            if (hasInteractiveAnnotations || onClick != null || onLongClick != null) {
+                Modifier.pointerInput(annotatedString, onUrlClick, onClick, onLongClick) {
+                    detectTapGestures(
+                        onTap = { position ->
+                            val layout = textLayoutResult ?: run {
+                                onClick?.invoke(position)
+                                return@detectTapGestures
+                            }
+                            val offset = layout.getOffsetForPosition(position)
 
-                when {
-                    annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                        .firstOrNull() != null -> {
-                        val annotation = annotatedString.getStringAnnotations(
-                            tag = "URL",
-                            start = offset,
-                            end = offset
-                        )
-                            .first()
-                        onUrlClick(normalizeUrl(annotation.item))
-                    }
+                            val handled = when {
+                                annotatedString.getStringAnnotations(
+                                    tag = "URL",
+                                    start = offset,
+                                    end = offset
+                                )
+                                    .firstOrNull() != null -> {
+                                    val annotation = annotatedString.getStringAnnotations(
+                                        tag = "URL",
+                                        start = offset,
+                                        end = offset
+                                    ).first()
+                                    onUrlClick(normalizeUrl(annotation.item))
+                                    true
+                                }
 
-                    annotatedString.getStringAnnotations(
-                        tag = "EMAIL",
-                        start = offset,
-                        end = offset
+                                annotatedString.getStringAnnotations(
+                                    tag = "EMAIL",
+                                    start = offset,
+                                    end = offset
+                                ).firstOrNull() != null -> {
+                                    val annotation = annotatedString.getStringAnnotations(
+                                        tag = "EMAIL",
+                                        start = offset,
+                                        end = offset
+                                    ).first()
+                                    onUrlClick("mailto:${annotation.item}")
+                                    true
+                                }
+
+                                annotatedString.getStringAnnotations(
+                                    tag = "PHONE",
+                                    start = offset,
+                                    end = offset
+                                ).firstOrNull() != null -> {
+                                    val annotation = annotatedString.getStringAnnotations(
+                                        tag = "PHONE",
+                                        start = offset,
+                                        end = offset
+                                    ).first()
+                                    onUrlClick("tel:${annotation.item}")
+                                    true
+                                }
+
+                                else -> false
+                            }
+
+                            if (!handled) {
+                                onClick?.invoke(position)
+                            }
+                        },
+                        onLongPress = { position -> onLongClick?.invoke(position) }
                     )
-                        .firstOrNull() != null -> {
-                        val annotation = annotatedString.getStringAnnotations(
-                            tag = "EMAIL",
-                            start = offset,
-                            end = offset
-                        )
-                            .first()
-                        onUrlClick("mailto:${annotation.item}")
-                    }
-
-                    annotatedString.getStringAnnotations(
-                        tag = "PHONE",
-                        start = offset,
-                        end = offset
-                    )
-                        .firstOrNull() != null -> {
-                        val annotation = annotatedString.getStringAnnotations(
-                            tag = "PHONE",
-                            start = offset,
-                            end = offset
-                        )
-                            .first()
-                        onUrlClick("tel:${annotation.item}")
-                    }
                 }
+            } else {
+                Modifier
             }
-        },
+        ),
         maxLines = maxLines,
         onTextLayout = { textLayoutResult = it }
     )

@@ -2,6 +2,8 @@ package org.monogram.data.mapper.message
 
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.compat.legacyPrizeTonAmount
+import org.monogram.data.compat.legacyStakeTonAmount
 import org.monogram.data.mapper.SenderNameResolver
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.toDomainReplyMarkup
@@ -352,7 +354,11 @@ internal class MessagePersistenceMapper(
             is TdApi.MessageStakeDice -> CachedMessageContent(
                 "stake_dice",
                 "Staked dice",
-                encodeMeta(content.value, content.stakeToncoinAmount, content.prizeToncoinAmount)
+                encodeMeta(
+                    content.value,
+                    content.legacyStakeTonAmount(),
+                    content.legacyPrizeTonAmount()
+                )
             )
 
             is TdApi.MessageChecklist -> CachedMessageContent(
@@ -915,7 +921,10 @@ internal class MessagePersistenceMapper(
                     .joinToString(" ")
             }
 
-            is PageBlock.BlockQuote -> text.plainText()
+            is PageBlock.BlockQuote -> listOf(
+                pageBlocks.joinToString("\n") { it.plainText() },
+                credit.plainText()
+            ).filter { it.isNotBlank() }.joinToString("\n")
             is PageBlock.PullQuote -> text.plainText()
             is PageBlock.Details -> pageBlocks.joinToString("\n") { it.plainText() }
             is PageBlock.Table -> cells.joinToString("\n") { row ->
@@ -927,6 +936,7 @@ internal class MessagePersistenceMapper(
             is PageBlock.VideoBlock -> caption.text.plainText()
             is PageBlock.AnimationBlock -> caption.text.plainText()
             is PageBlock.AudioBlock -> caption.text.plainText()
+            is PageBlock.VoiceNoteBlock -> caption.text.plainText()
             is PageBlock.Collage -> caption.text.plainText()
             is PageBlock.Slideshow -> caption.text.plainText()
             is PageBlock.Embedded -> caption.text.plainText()
@@ -966,6 +976,8 @@ internal class MessagePersistenceMapper(
             is RichText.Icon -> ""
             is RichText.MathematicalExpression -> expression
             is RichText.Reference -> text.plainText()
+            is RichText.ReferenceLink -> text.plainText()
+            is RichText.Diff -> text.plainText()
             is RichText.Anchor -> ""
             is RichText.AnchorLink -> text.plainText()
             is RichText.Texts -> texts.joinToString("") { it.plainText() }
@@ -1115,10 +1127,14 @@ internal class MessagePersistenceMapper(
                     is TdApi.TextEntityTypeMention -> append("m")
                     is TdApi.TextEntityTypeMentionName -> append("mn,").append(type.userId)
                     is TdApi.TextEntityTypeHashtag -> append("h")
+                    is TdApi.TextEntityTypeCashtag -> append("ch")
                     is TdApi.TextEntityTypeBotCommand -> append("bc")
                     is TdApi.TextEntityTypeCustomEmoji -> append("ce,").append(type.customEmojiId)
                     is TdApi.TextEntityTypeEmailAddress -> append("em")
                     is TdApi.TextEntityTypePhoneNumber -> append("ph")
+                    is TdApi.TextEntityTypeBankCardNumber -> append("bn")
+                    is TdApi.TextEntityTypeDateTime -> append("dt,").append(type.unixTime)
+                    is TdApi.TextEntityTypeMediaTimestamp -> append("mt,").append(type.mediaTimestamp)
                     else -> append("?")
                 }
             }
@@ -1147,6 +1163,7 @@ internal class MessagePersistenceMapper(
                 "m" -> MessageEntityType.Mention
                 "mn" -> MessageEntityType.TextMention(parts.getOrNull(3)?.toLongOrNull() ?: 0L)
                 "h" -> MessageEntityType.Hashtag
+                "ch" -> MessageEntityType.Cashtag
                 "bc" -> MessageEntityType.BotCommand
                 "ce" -> MessageEntityType.CustomEmoji(
                     parts.getOrNull(3)?.toLongOrNull() ?: 0L,
@@ -1155,6 +1172,9 @@ internal class MessagePersistenceMapper(
 
                 "em" -> MessageEntityType.Email
                 "ph" -> MessageEntityType.PhoneNumber
+                "bn" -> MessageEntityType.BankCardNumber
+                "dt" -> MessageEntityType.DateTime(parts.getOrNull(3)?.toIntOrNull() ?: 0)
+                "mt" -> MessageEntityType.MediaTimestamp(parts.getOrNull(3)?.toIntOrNull() ?: 0)
                 else -> null
             } ?: return@mapNotNull null
 

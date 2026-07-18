@@ -178,11 +178,35 @@ fun AnnotatedString.Builder.appendRichText(richText: RichText, linkColor: Color)
         }
 
         is RichText.Reference -> {
+            withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
+                if (richText.url.isNotBlank()) {
+                    pushStringAnnotation(tag = "URL", annotation = richText.url)
+                }
+                appendRichText(richText.text, linkColor)
+                if (richText.url.isNotBlank()) {
+                    pop()
+                }
+            }
+        }
+
+        is RichText.ReferenceLink -> {
             pushStringAnnotation(tag = "URL", annotation = richText.url)
             withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
                 appendRichText(richText.text, linkColor)
             }
             pop()
+        }
+
+        is RichText.Diff -> {
+            withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough, color = Color.Gray)) {
+                appendRichText(richText.oldText, linkColor)
+            }
+            val newText = richTextPlainText(richText.text)
+            val oldText = richTextPlainText(richText.oldText)
+            if (oldText.isNotBlank() && newText.isNotBlank()) {
+                append(" -> ")
+            }
+            appendRichText(richText.text, linkColor)
         }
 
         is RichText.Subscript -> withStyle(SpanStyle(baselineShift = BaselineShift.Subscript)) {
@@ -213,7 +237,9 @@ fun PageBlock.containsText(query: String): Boolean {
         is PageBlock.Footer -> footer.containsText(query)
         is PageBlock.Thinking -> text.containsText(query)
         is PageBlock.MathematicalExpression -> expression.contains(query, ignoreCase = true)
-        is PageBlock.BlockQuote -> text.containsText(query) || credit.containsText(query)
+        is PageBlock.BlockQuote -> pageBlocks.any { it.containsText(query) } || credit.containsText(
+            query
+        )
         is PageBlock.PullQuote -> text.containsText(query) || credit.containsText(query)
         is PageBlock.ListBlock -> items.any { item ->
             item.label.contains(
@@ -250,6 +276,9 @@ fun PageBlock.containsText(query: String): Boolean {
 
         is PageBlock.Anchor -> name.contains(query, ignoreCase = true)
         is PageBlock.AudioBlock -> caption.text.containsText(query) || caption.credit.containsText(query)
+        is PageBlock.VoiceNoteBlock -> caption.text.containsText(query) || caption.credit.containsText(
+            query
+        )
         is PageBlock.Cover -> cover.containsText(query)
         PageBlock.Divider -> false
         is PageBlock.Embedded -> caption.text.containsText(query) || caption.credit.containsText(query) || url.contains(
@@ -319,6 +348,12 @@ fun RichText.containsText(query: String): Boolean {
             query,
             ignoreCase = true
         ) || url.contains(query, ignoreCase = true)
+        is RichText.ReferenceLink -> text.containsText(query) || referenceName.contains(
+            query,
+            ignoreCase = true
+        ) || url.contains(query, ignoreCase = true)
+
+        is RichText.Diff -> text.containsText(query) || oldText.containsText(query)
 
         is RichText.Subscript -> text.containsText(query)
         is RichText.Superscript -> text.containsText(query)

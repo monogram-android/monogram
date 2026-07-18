@@ -132,8 +132,8 @@ internal fun rememberChatInputBarActions(
         onDraftLinkPreviewAction
     ) {
         ChatInputBarActions(
-            onSend = { text, entities, options ->
-                component.onSendMessage(text, entities, options)
+            onSend = { text, entities, options, parseMode ->
+                component.onSendMessage(text, entities, options, parseMode)
             },
             onStickerClick = component::onSendSticker,
             onGifClick = component::onSendGif,
@@ -145,7 +145,9 @@ internal fun rememberChatInputBarActions(
             onSendVoice = component::onSendVoice,
             onCancelReply = component::onCancelReply,
             onCancelEdit = component::onCancelEdit,
-            onSaveEdit = component::onSaveEditedMessage,
+            onSaveEdit = { text, entities, parseMode ->
+                component.onSaveEditedMessage(text, entities, parseMode)
+            },
             onDraftChange = component::onDraftChange,
             onSelectDraftLinkPreview = component::onSelectDraftLinkPreview,
             onDismissDraftLinkPreview = component::onDismissDraftLinkPreview,

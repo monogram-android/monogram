@@ -206,14 +206,21 @@ class LinkHandlerRepositoryImpl(
         }
     }
 
-    private fun mapJoinResult(result: TdApi.ChatJoinResult): LinkAction = when (result) {
+    private suspend fun mapJoinResult(result: TdApi.ChatJoinResult): LinkAction = when (result) {
         is TdApi.ChatJoinResultSuccess -> LinkAction.OpenChat(result.chatId)
         is TdApi.ChatJoinResultRequestSent -> LinkAction.JoinChatRequestSent()
-        is TdApi.ChatJoinResultGuardBotApprovalRequired -> LinkAction.JoinChatApprovalRequired(
-            chatId = 0L,
-            url = result.url.url,
-            queryId = result.queryId
-        )
+        is TdApi.ChatJoinResultGuardBotApprovalRequired -> {
+            val url = remote.getGuardBotWebAppUrl(result.queryId)?.url
+            if (url.isNullOrBlank()) {
+                LinkAction.None
+            } else {
+                LinkAction.JoinChatApprovalRequired(
+                    chatId = 0L,
+                    url = url,
+                    queryId = result.queryId
+                )
+            }
+        }
 
         is TdApi.ChatJoinResultDeclined -> LinkAction.JoinChatDeclined
         else -> LinkAction.None

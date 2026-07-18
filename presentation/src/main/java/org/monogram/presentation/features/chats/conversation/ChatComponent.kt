@@ -27,6 +27,7 @@ import org.monogram.domain.models.WebPage
 import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.core.util.AppPreferences
@@ -50,7 +51,8 @@ interface ChatComponent {
     fun onSendMessage(
         text: String,
         entities: List<MessageEntity> = emptyList(),
-        sendOptions: MessageSendOptions = MessageSendOptions()
+        sendOptions: MessageSendOptions = MessageSendOptions(),
+        parseMode: RichTextParseMode? = null
     )
 
     fun onSendSticker(stickerPath: String)
@@ -113,7 +115,11 @@ interface ChatComponent {
     fun onDeleteMessage(message: MessageModel, revoke: Boolean = false)
     fun onEditMessage(message: MessageModel)
     fun onCancelEdit()
-    fun onSaveEditedMessage(text: String, entities: List<MessageEntity> = emptyList())
+    fun onSaveEditedMessage(
+        text: String,
+        entities: List<MessageEntity> = emptyList(),
+        parseMode: RichTextParseMode? = null
+    )
     fun onOpenChecklistEditor(message: MessageModel? = null)
     fun onSaveChecklistDraft(draft: ChecklistDraft)
     fun onToggleChecklistTask(messageId: Long, taskId: Int, isDone: Boolean)

@@ -664,6 +664,13 @@ data class WebPage(
         val fileId: Int
     )
 
+    data class VoiceNote(
+        val path: String?,
+        val duration: Int,
+        val mimeType: String?,
+        val fileId: Int
+    )
+
     data class Document(
         val path: String?,
         val fileName: String?,
@@ -754,6 +761,9 @@ sealed interface MessageEntityType {
     object Hashtag : MessageEntityType
 
     @Serializable
+    object Cashtag : MessageEntityType
+
+    @Serializable
     object BotCommand : MessageEntityType
 
     @Serializable
@@ -767,6 +777,12 @@ sealed interface MessageEntityType {
 
     @Serializable
     object BankCardNumber : MessageEntityType
+
+    @Serializable
+    data class DateTime(val unixTime: Int) : MessageEntityType
+
+    @Serializable
+    data class MediaTimestamp(val mediaTimestampSeconds: Int) : MessageEntityType
 
     @Serializable
     data class CustomEmoji(val emojiId: Long, val path: String? = null) : MessageEntityType

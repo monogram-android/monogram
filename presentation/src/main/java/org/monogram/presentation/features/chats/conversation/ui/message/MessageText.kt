@@ -35,7 +35,7 @@ import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.repository.TelegramLinkRepository
-import org.monogram.presentation.features.chats.conversation.ui.message.model.isBlockElement
+import org.monogram.presentation.features.chats.conversation.ui.message.model.topLevelBlockEntities
 
 internal data class MessageTextLayoutInfo(
     val width: Int,
@@ -70,7 +70,7 @@ internal fun MessageText(
     val linkHandler = LocalLinkHandler.current
 
     val blockEntities = entities
-        .filter { it.type.isBlockElement() }
+        .topLevelBlockEntities()
         .sortedBy { it.offset }
 
     Column(modifier = modifier) {
@@ -322,6 +322,16 @@ private fun DefaultTextRender(
                                     "URL" -> {
                                         val url = normalizeUrl(annotation.item)
                                         linkHandler(url)
+                                        consumed = true
+                                    }
+
+                                    "EMAIL" -> {
+                                        uriHandler.openUri("mailto:${annotation.item}")
+                                        consumed = true
+                                    }
+
+                                    "PHONE" -> {
+                                        uriHandler.openUri("tel:${annotation.item}")
                                         consumed = true
                                     }
 

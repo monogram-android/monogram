@@ -1,6 +1,7 @@
 package org.monogram.data.mapper.user
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.buildBotCommand
 import org.monogram.domain.models.*
 
 internal fun encodeChatAdministratorRights(rights: TdApi.ChatAdministratorRights?): String? {
@@ -153,7 +154,7 @@ internal fun decodeBotInfoCommands(data: String?): Array<TdApi.BotCommand> {
         if (commandSeparator < 0) return@mapNotNull null
         val command = item.substring(0, commandSeparator).unescapeStorage()
         val description = item.substring(commandSeparator + 1).unescapeStorage()
-        TdApi.BotCommand(command, description)
+        buildBotCommand(command, description)
     }.toTypedArray()
 }
 

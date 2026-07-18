@@ -14,12 +14,17 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
-import org.monogram.core.telegram.TelegramLinkDomains
 import org.koin.compose.koinInject
-import org.monogram.domain.models.*
+import org.monogram.core.telegram.TelegramLinkDomains
+import org.monogram.domain.models.MessageEntityType
+import org.monogram.domain.models.RichText
+import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.UserStatusType
+import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 fun formatLastSeen(lastSeen: Long?, context: Context, timeFormat: String): String {
     if (lastSeen == null || lastSeen <= 0L) return context.getString(R.string.last_seen_recently)
@@ -109,6 +114,7 @@ fun buildRichText(
                 is MessageEntityType.Url -> SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
                 is MessageEntityType.Mention -> SpanStyle(color = linkColor)
                 is MessageEntityType.Hashtag -> SpanStyle(color = linkColor)
+                is MessageEntityType.Cashtag -> SpanStyle(color = linkColor)
                 is MessageEntityType.BotCommand -> SpanStyle(color = linkColor)
                 is MessageEntityType.Email -> SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
                 is MessageEntityType.PhoneNumber -> SpanStyle(
@@ -117,6 +123,15 @@ fun buildRichText(
                 )
 
                 is MessageEntityType.BankCardNumber -> SpanStyle(
+                    color = linkColor,
+                    textDecoration = TextDecoration.Underline
+                )
+                is MessageEntityType.DateTime -> SpanStyle(
+                    color = linkColor,
+                    textDecoration = TextDecoration.Underline
+                )
+
+                is MessageEntityType.MediaTimestamp -> SpanStyle(
                     color = linkColor,
                     textDecoration = TextDecoration.Underline
                 )

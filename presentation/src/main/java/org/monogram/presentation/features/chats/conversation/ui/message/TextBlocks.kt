@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.presentation.features.chats.conversation.ui.message.model.blockFor
-import org.monogram.presentation.features.chats.conversation.ui.message.model.inlineEntitiesForBlock
+import org.monogram.presentation.features.chats.conversation.ui.message.model.entitiesForBlock
 
 @Composable
 internal fun TextBlocks(
@@ -15,16 +15,23 @@ internal fun TextBlocks(
 ) {
     when (val type = entity.type) {
         is MessageEntityType.Pre -> {
-            CodeBlock(
-                text = text blockFor entity,
-                language = type.language,
-                isOutgoing = isOutgoing
-            )
+            if (type.language.equals("table", ignoreCase = true)) {
+                MarkdownTableBlock(
+                    text = text blockFor entity,
+                    isOutgoing = isOutgoing
+                )
+            } else {
+                CodeBlock(
+                    text = text blockFor entity,
+                    language = type.language,
+                    isOutgoing = isOutgoing
+                )
+            }
         }
         is MessageEntityType.BlockQuote -> {
             QuoteBlock(
                 text = text blockFor entity,
-                entities = entities.inlineEntitiesForBlock(entity),
+                entities = entities.entitiesForBlock(entity),
                 isOutgoing = isOutgoing,
                 expandable = false,
             )
@@ -32,7 +39,7 @@ internal fun TextBlocks(
         is MessageEntityType.BlockQuoteExpandable -> {
             QuoteBlock(
                 text = text blockFor entity,
-                entities = entities.inlineEntitiesForBlock(entity),
+                entities = entities.entitiesForBlock(entity),
                 isOutgoing = isOutgoing,
                 expandable = true,
             )

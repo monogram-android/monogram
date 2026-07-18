@@ -58,6 +58,7 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.PaymentRepository
 import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PrivacyRepository
+import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserRepository
@@ -680,8 +681,9 @@ class DefaultChatComponent(
     override fun onSendMessage(
         text: String,
         entities: List<MessageEntity>,
-        sendOptions: MessageSendOptions
-    ) = store.accept(ChatStore.Intent.SendMessage(text, entities, sendOptions))
+        sendOptions: MessageSendOptions,
+        parseMode: RichTextParseMode?
+    ) = store.accept(ChatStore.Intent.SendMessage(text, entities, sendOptions, parseMode))
 
     override fun onSendSticker(stickerPath: String) = store.accept(ChatStore.Intent.SendSticker(stickerPath))
     override fun onSendPhoto(
@@ -772,8 +774,11 @@ class DefaultChatComponent(
 
     override fun onEditMessage(message: MessageModel) = store.accept(ChatStore.Intent.EditMessage(message))
 
-    override fun onSaveEditedMessage(text: String, entities: List<MessageEntity>) =
-        store.accept(ChatStore.Intent.SaveEditedMessage(text, entities))
+    override fun onSaveEditedMessage(
+        text: String,
+        entities: List<MessageEntity>,
+        parseMode: RichTextParseMode?
+    ) = store.accept(ChatStore.Intent.SaveEditedMessage(text, entities, parseMode))
 
     override fun onOpenChecklistEditor(message: MessageModel?) =
         run {

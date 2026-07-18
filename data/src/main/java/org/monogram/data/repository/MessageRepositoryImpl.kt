@@ -23,6 +23,8 @@ import org.monogram.data.BuildConfig
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.compat.buildDraftMessageTextContent
 import org.monogram.data.compat.buildTdChatPermissions
+import org.monogram.data.compat.generateTextWithAi
+import org.monogram.data.compat.isPromptBasedAiSupported
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.cache.ChatLocalDataSource
@@ -74,6 +76,8 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.MessageThreadContext
 import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.ProfileMediaFilter
+import org.monogram.domain.repository.RichTextParseMode
+import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.domain.repository.SearchChatMessagesResult
 import org.monogram.domain.repository.TextCompositionStyleModel
 import java.io.File
@@ -98,7 +102,7 @@ internal class MessageRepositoryImpl(
     private val stickerPathDao: StickerPathDao,
     private val keyValueDao: KeyValueDao,
     private val textCompositionStyleDao: TextCompositionStyleDao
-) : MessageRepository {
+) : MessageRepository, RichTextParsingRepository {
     private data class RichMessageCacheKey(val chatId: Long, val messageId: Long)
 
     private val fixedDraftLinkPreviewFetcher = FixedDraftLinkPreviewFetcher(
@@ -124,6 +128,7 @@ internal class MessageRepositoryImpl(
     override val pinnedMessageFlow = messageRemoteDataSource.pinnedMessageFlow
     override val mediaUpdateFlow = messageRemoteDataSource.mediaUpdateFlow
     override val textCompositionStyles = _textCompositionStyles.asStateFlow()
+    override val supportsPromptBasedAi = isPromptBasedAiSupported()
 
     init {
         scope.launch(dispatcherProvider.io) {
@@ -392,7 +397,8 @@ internal class MessageRepositoryImpl(
         threadId: Long?,
         sendOptions: MessageSendOptions,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode
     ) {
         messageRemoteDataSource.sendRichMessage(
             chatId = chatId,
@@ -401,7 +407,8 @@ internal class MessageRepositoryImpl(
             threadId = threadId,
             sendOptions = sendOptions,
             isRtl = isRtl,
-            detectAutomaticBlocks = detectAutomaticBlocks
+            detectAutomaticBlocks = detectAutomaticBlocks,
+            parseMode = parseMode
         )
     }
 
@@ -616,14 +623,16 @@ internal class MessageRepositoryImpl(
         messageId: Long,
         markdown: String,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode
     ) {
         messageRemoteDataSource.editRichMessage(
             chatId = chatId,
             messageId = messageId,
             markdown = markdown,
             isRtl = isRtl,
-            detectAutomaticBlocks = detectAutomaticBlocks
+            detectAutomaticBlocks = detectAutomaticBlocks,
+            parseMode = parseMode
         )
     }
 
@@ -947,6 +956,25 @@ internal class MessageRepositoryImpl(
             }
         }
 
+    override suspend fun parseTextEntities(
+        text: String,
+        mode: RichTextParseMode
+    ): FormattedTextResult = withContext(dispatcherProvider.io) {
+        val result = gateway.execute(
+            TdApi.ParseTextEntities(
+                text,
+                when (mode) {
+                    RichTextParseMode.Markdown -> TdApi.TextParseModeMarkdown(2)
+                    RichTextParseMode.Html -> TdApi.TextParseModeHTML()
+                }
+            )
+        )
+        FormattedTextResult(
+            text = result.text,
+            entities = result.entities.orEmpty().mapNotNull { it.toDomainMessageEntity() }
+        )
+    }
+
     override suspend fun composeTextWithAi(
         text: String,
         entities: List<MessageEntity>,
@@ -1022,11 +1050,14 @@ internal class MessageRepositoryImpl(
                 is MessageEntityType.Mention -> TdApi.TextEntityTypeMention()
                 is MessageEntityType.TextMention -> TdApi.TextEntityTypeMentionName(value.userId)
                 is MessageEntityType.Hashtag -> TdApi.TextEntityTypeHashtag()
+                is MessageEntityType.Cashtag -> TdApi.TextEntityTypeCashtag()
                 is MessageEntityType.BotCommand -> TdApi.TextEntityTypeBotCommand()
                 is MessageEntityType.Url -> TdApi.TextEntityTypeUrl()
                 is MessageEntityType.Email -> TdApi.TextEntityTypeEmailAddress()
                 is MessageEntityType.PhoneNumber -> TdApi.TextEntityTypePhoneNumber()
                 is MessageEntityType.BankCardNumber -> TdApi.TextEntityTypeBankCardNumber()
+                is MessageEntityType.DateTime -> TdApi.TextEntityTypeDateTime(value.unixTime, null)
+                is MessageEntityType.MediaTimestamp -> TdApi.TextEntityTypeMediaTimestamp(value.mediaTimestampSeconds)
                 is MessageEntityType.CustomEmoji -> TdApi.TextEntityTypeCustomEmoji(value.emojiId)
                 is MessageEntityType.Other -> return@mapNotNull null
             }
@@ -1051,11 +1082,14 @@ internal class MessageRepositoryImpl(
             is TdApi.TextEntityTypeMention -> MessageEntityType.Mention
             is TdApi.TextEntityTypeMentionName -> MessageEntityType.TextMention(value.userId)
             is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
+            is TdApi.TextEntityTypeCashtag -> MessageEntityType.Cashtag
             is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
             is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
             is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
             is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
             is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
+            is TdApi.TextEntityTypeDateTime -> MessageEntityType.DateTime(value.unixTime)
+            is TdApi.TextEntityTypeMediaTimestamp -> MessageEntityType.MediaTimestamp(value.mediaTimestamp)
             is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(value.customEmojiId)
             else -> return null
         }
@@ -1916,6 +1950,18 @@ internal class MessageRepositoryImpl(
                 )
             }
         }
+    }
+
+    override suspend fun generateTextWithAi(
+        prompt: String,
+        languageCode: String,
+        addEmojis: Boolean
+    ): FormattedTextResult? = withContext(dispatcherProvider.io) {
+        gateway.generateTextWithAi(
+            prompt = prompt,
+            languageCode = languageCode,
+            addEmojis = addEmojis
+        )
     }
 
     private inline fun <T> traceSection(section: String, block: () -> T): T {

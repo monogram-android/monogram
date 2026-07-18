@@ -14,6 +14,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.StickerFormat
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.webapp.toEditorMarkdown
 import org.monogram.presentation.core.util.copyUriToTempDocumentFile
 import org.monogram.presentation.core.util.copyUriToTempMediaFile
 import org.monogram.presentation.features.share.PendingAttachment
@@ -107,6 +108,25 @@ internal fun buildEditingMessageTextValue(
         entities = entities,
         knownCustomEmojis = knownCustomEmojis
     )
+}
+
+internal fun buildFullScreenEditorTextValue(
+    message: MessageModel,
+    knownCustomEmojis: MutableMap<Long, StickerModel>
+): TextFieldValue? {
+    return when (val content = message.content) {
+        is MessageContent.RichMessage -> {
+            knownCustomEmojis.clear()
+            val markdown = content.markdownSource?.takeIf { it.isNotBlank() }
+                ?: content.blocks.toEditorMarkdown()
+            TextFieldValue(
+                text = markdown,
+                selection = TextRange(markdown.length)
+            )
+        }
+
+        else -> buildEditingMessageTextValue(message, knownCustomEmojis)
+    }
 }
 
 internal fun buildTextFieldValueFromTextAndEntities(

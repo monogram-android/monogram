@@ -27,7 +27,12 @@ import org.monogram.data.compat.buildInputDocument
 import org.monogram.data.compat.buildInputPhoto
 import org.monogram.data.compat.buildInputPollOption
 import org.monogram.data.compat.buildInputPollTypeQuiz
+import org.monogram.data.compat.buildInputSticker
 import org.monogram.data.compat.buildInputVideo
+import org.monogram.data.compat.buildInputVideoNote
+import org.monogram.data.compat.buildInputVoiceNote
+import org.monogram.data.compat.buildRichMessageSourceHtml
+import org.monogram.data.compat.buildRichMessageSourceMarkdown
 import org.monogram.data.compat.extractTextDraft
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
@@ -35,7 +40,6 @@ import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.WebPageMapper
-import org.monogram.data.mapper.toApi
 import org.monogram.data.repository.DraftLinkPreviewResolver
 import org.monogram.domain.models.DraftLinkPreview
 import org.monogram.domain.models.DraftLinkPreviewRequest
@@ -59,6 +63,7 @@ import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.ReadUpdate
+import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.SearchChatMessagesResult
 import org.monogram.domain.repository.UserRepository
 import java.util.concurrent.ConcurrentHashMap
@@ -827,10 +832,12 @@ class TdMessageRemoteDataSource(
         threadId: Long?,
         sendOptions: MessageSendOptions,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode
     ): TdApi.Message? {
         val content = buildInputMessageRichMessage(
             markdown = markdown,
+            parseMode = parseMode,
             isRtl = isRtl ?: shouldRenderRtl(markdown),
             detectAutomaticBlocks = detectAutomaticBlocks,
             clearDraft = true
@@ -1013,9 +1020,8 @@ class TdMessageRemoteDataSource(
 
     override suspend fun sendSticker(chatId: Long, stickerPath: String, replyToMsgId: Long?, threadId: Long?): TdApi.Message? {
         val content = TdApi.InputMessageSticker().apply {
-            this.sticker = TdApi.InputFileLocal(stickerPath)
-            this.width = 512
-            this.height = 512
+            sticker = buildInputSticker(TdApi.InputFileLocal(stickerPath), 512, 512)
+            emoji = ""
         }
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
@@ -1161,9 +1167,7 @@ class TdMessageRemoteDataSource(
         threadId: Long?
     ): TdApi.Message? {
         val content = TdApi.InputMessageVideoNote().apply {
-            this.videoNote = TdApi.InputFileLocal(videoPath)
-            this.duration = duration
-            this.length = length
+            videoNote = buildInputVideoNote(TdApi.InputFileLocal(videoPath), duration, length)
         }
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
@@ -1187,9 +1191,7 @@ class TdMessageRemoteDataSource(
         threadId: Long?
     ): TdApi.Message? {
         val content = TdApi.InputMessageVoiceNote().apply {
-            this.voiceNote = TdApi.InputFileLocal(voicePath)
-            this.duration = duration
-            this.waveform = waveform
+            voiceNote = buildInputVoiceNote(TdApi.InputFileLocal(voicePath), duration, waveform)
         }
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
@@ -1259,10 +1261,12 @@ class TdMessageRemoteDataSource(
         messageId: Long,
         markdown: String,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode
     ): TdApi.Message? {
         val content = buildInputMessageRichMessage(
             markdown = markdown,
+            parseMode = parseMode,
             isRtl = isRtl ?: shouldRenderRtl(markdown),
             detectAutomaticBlocks = detectAutomaticBlocks,
             clearDraft = false
@@ -1352,16 +1356,17 @@ class TdMessageRemoteDataSource(
 
     private fun buildInputMessageRichMessage(
         markdown: String,
+        parseMode: RichTextParseMode,
         isRtl: Boolean,
         detectAutomaticBlocks: Boolean,
         clearDraft: Boolean
     ): TdApi.InputMessageRichMessage {
+        val source = when (parseMode) {
+            RichTextParseMode.Markdown -> buildRichMessageSourceMarkdown(markdown)
+            RichTextParseMode.Html -> buildRichMessageSourceHtml(markdown)
+        }
         return TdApi.InputMessageRichMessage(
-            TdApi.InputRichMessage(
-                TdApi.RichMessageSourceMarkdown(markdown),
-                isRtl,
-                detectAutomaticBlocks
-            ),
+            TdApi.InputRichMessage(source, isRtl, detectAutomaticBlocks),
             clearDraft
         )
     }
@@ -1427,11 +1432,14 @@ class TdMessageRemoteDataSource(
             is MessageEntityType.Mention -> TdApi.TextEntityTypeMention()
             is MessageEntityType.TextMention -> TdApi.TextEntityTypeMentionName(value.userId)
             is MessageEntityType.Hashtag -> TdApi.TextEntityTypeHashtag()
+            is MessageEntityType.Cashtag -> TdApi.TextEntityTypeCashtag()
             is MessageEntityType.BotCommand -> TdApi.TextEntityTypeBotCommand()
             is MessageEntityType.Url -> TdApi.TextEntityTypeUrl()
             is MessageEntityType.Email -> TdApi.TextEntityTypeEmailAddress()
             is MessageEntityType.PhoneNumber -> TdApi.TextEntityTypePhoneNumber()
             is MessageEntityType.BankCardNumber -> TdApi.TextEntityTypeBankCardNumber()
+            is MessageEntityType.DateTime -> TdApi.TextEntityTypeDateTime(value.unixTime, null)
+            is MessageEntityType.MediaTimestamp -> TdApi.TextEntityTypeMediaTimestamp(value.mediaTimestampSeconds)
             is MessageEntityType.CustomEmoji -> TdApi.TextEntityTypeCustomEmoji(value.emojiId)
             is MessageEntityType.Other -> return null
         }
@@ -1580,11 +1588,7 @@ class TdMessageRemoteDataSource(
         url: String,
         theme: ThemeParams?
     ): WebAppInfoModel? {
-        val parameters = TdApi.WebAppOpenParameters().apply {
-            this.applicationName = "android"
-            this.mode = TdApi.WebAppOpenModeFullSize()
-            this.theme = theme?.toApi()
-        }
+        val parameters = buildDefaultWebAppOpenParameters(theme)
 
         val isMenuUrl = url.startsWith("menu://")
         val normalizedUrl = if (isMenuUrl) url.removePrefix("menu://") else url

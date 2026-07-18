@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.KeyboardButtonModel
 import org.monogram.domain.models.LinkPreviewTarget
+import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.ReplyMarkupModel
@@ -150,7 +151,9 @@ internal fun ChatInputBarComposerSection(
             canPasteMediaFromClipboard = canPasteMediaFromClipboard,
             pendingMediaPaths = attachments.pendingMediaPaths,
             pendingDocumentPaths = attachments.pendingDocumentPaths,
-            showExpandEditorAction = rowState.textValue.text.contains('\n') || rowState.textValue.text.length > 150
+            showExpandEditorAction = rowState.editingMessage?.content is MessageContent.RichMessage ||
+                    rowState.textValue.text.contains('\n') ||
+                    rowState.textValue.text.length > 150
         )
     }
     val sendButtonState = remember(
@@ -405,7 +408,7 @@ private fun ComposerMainRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ComposerInputSlot(

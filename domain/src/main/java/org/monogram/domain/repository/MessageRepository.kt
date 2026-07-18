@@ -182,7 +182,8 @@ interface MessageRepository :
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions(),
         isRtl: Boolean? = null,
-        detectAutomaticBlocks: Boolean = true
+        detectAutomaticBlocks: Boolean = true,
+        parseMode: RichTextParseMode = RichTextParseMode.Markdown
     )
 
     suspend fun sendSticker(chatId: Long, stickerPath: String, replyToMsgId: Long? = null, threadId: Long? = null)
@@ -326,7 +327,8 @@ interface MessageRepository :
         messageId: Long,
         markdown: String,
         isRtl: Boolean? = null,
-        detectAutomaticBlocks: Boolean = true
+        detectAutomaticBlocks: Boolean = true,
+        parseMode: RichTextParseMode = RichTextParseMode.Markdown
     )
     suspend fun editMessageCaption(chatId: Long, messageId: Long, newCaption: String, entities: List<MessageEntity> = emptyList())
     suspend fun editChecklistMessage(chatId: Long, messageId: Long, checklistDraft: ChecklistDraft)

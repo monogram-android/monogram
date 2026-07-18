@@ -19,6 +19,7 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.PollDraft
+import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 import org.monogram.presentation.features.chats.conversation.editor.video.VideoQuality
@@ -154,14 +155,35 @@ private inline fun DefaultChatComponent.launchPendingAttachmentSend(
 internal fun DefaultChatComponent.handleSendMessage(
     text: String,
     entities: List<MessageEntity>,
-    sendOptions: MessageSendOptions = MessageSendOptions()
+    sendOptions: MessageSendOptions = MessageSendOptions(),
+    parseMode: RichTextParseMode? = null
 ) {
     scope.launch {
         val currentState = _state.value
         val replyId = currentState.replyMessage?.id
         val threadId = currentState.effectiveThreadId()
         val targetChatId = currentState.effectiveThreadChatId(chatId)
-        repositoryMessage.sendMessage(targetChatId, text, replyId, entities, threadId, sendOptions)
+        if (parseMode == null) {
+            repositoryMessage.sendMessage(
+                targetChatId,
+                text,
+                replyId,
+                entities,
+                threadId,
+                sendOptions
+            )
+        } else {
+            repositoryMessage.sendRichMessage(
+                chatId = targetChatId,
+                markdown = text,
+                replyToMsgId = replyId,
+                threadId = threadId,
+                sendOptions = sendOptions,
+                isRtl = null,
+                detectAutomaticBlocks = true,
+                parseMode = parseMode
+            )
+        }
         onCancelReply()
         if (sendOptions.scheduleDate == null) {
             clearDraftLinkPreviewAfterSend()

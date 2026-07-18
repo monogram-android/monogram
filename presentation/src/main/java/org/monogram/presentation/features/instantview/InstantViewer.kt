@@ -17,25 +17,22 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,7 +41,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -109,6 +105,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -131,6 +131,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.WebPage
+import org.monogram.domain.models.webapp.HorizontalAlignment
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.PageBlock
 import org.monogram.domain.models.webapp.PageBlockCaption
@@ -551,6 +552,7 @@ internal fun PageBlock.stableBlockSignature(): String {
         is PageBlock.VideoBlock -> "video:${video.fileId}:${caption.stableCaptionSignature()}:${video.duration}"
         is PageBlock.AnimationBlock -> "animation:${animation.fileId}:${caption.stableCaptionSignature()}:${animation.duration}"
         is PageBlock.AudioBlock -> "audio:${audio.fileId}:${audio.title.orEmpty()}"
+        is PageBlock.VoiceNoteBlock -> "voice:${voiceNote.fileId}:${voiceNote.duration}:${caption.stableCaptionSignature()}"
         is PageBlock.Embedded -> "embedded:$url:${posterPhoto?.fileId ?: 0}"
         is PageBlock.EmbeddedPost -> "embedded_post:$author:$date:${authorPhoto?.fileId ?: 0}"
         is PageBlock.Details -> "details:${richTextPlainText(header)}:${pageBlocks.joinToString("|") { it.stableBlockSignature() }}"
@@ -573,12 +575,30 @@ internal fun PageBlock.stableBlockSignature(): String {
 
 private fun PageBlockCaption.stableCaptionSignature(): String = renderedTextOrNull().orEmpty()
 
+internal fun resolveInstantViewTableWidth(
+    availableWidth: androidx.compose.ui.unit.Dp,
+    columnCount: Int
+): androidx.compose.ui.unit.Dp {
+    val columnSpacing = 8.dp
+    val minColumnWidth = 120.dp
+    val minTableWidth =
+        minColumnWidth * columnCount + columnSpacing * (columnCount - 1).coerceAtLeast(0)
+    return if (availableWidth.value.isFinite()) {
+        maxOf(availableWidth, minTableWidth)
+    } else {
+        minTableWidth
+    }
+}
+
 @Composable
 fun InstantViewBlock(
     block: PageBlock,
     textSizeMultiplier: Float,
     searchQuery: String = "",
     stateKeyPrefix: String = "instant_view_block",
+    useMessageQuoteStyle: Boolean = false,
+    onRichTextTap: ((Offset) -> Unit)? = null,
+    onRichTextLongPress: ((Offset) -> Unit)? = null,
     onOpenPhotoFullscreen: (WebPage.Photo, PageBlockCaption) -> Unit = { _, _ -> },
     onOpenVideoFullscreen: (String?, Int, Boolean, String?) -> Unit = { _, _, _, _ -> },
     onOpenFileExternally: (String?, Int) -> Unit = { _, _ -> }
@@ -594,14 +614,18 @@ fun InstantViewBlock(
             style = MaterialTheme.typography.displaySmall,
             textSizeMultiplier = textSizeMultiplier,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            onClick = onRichTextTap,
+            onLongClick = onRichTextLongPress
         )
 
         is PageBlock.Subtitle -> RichTextView(
             richText = block.subtitle,
             style = MaterialTheme.typography.headlineSmall,
             textSizeMultiplier = textSizeMultiplier,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
+            onClick = onRichTextTap,
+            onLongClick = onRichTextLongPress
         )
 
         is PageBlock.AuthorDate -> {
@@ -619,7 +643,9 @@ fun InstantViewBlock(
                     style = MaterialTheme.typography.labelLarge,
                     textSizeMultiplier = textSizeMultiplier,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    onClick = onRichTextTap,
+                    onLongClick = onRichTextLongPress
                 )
 
                 if (dateStr != null) {
@@ -645,7 +671,9 @@ fun InstantViewBlock(
             textSizeMultiplier = textSizeMultiplier,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 16.dp),
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            onClick = onRichTextTap,
+            onLongClick = onRichTextLongPress
         )
 
         is PageBlock.Subheader -> RichTextView(
@@ -654,7 +682,9 @@ fun InstantViewBlock(
             textSizeMultiplier = textSizeMultiplier,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            onClick = onRichTextTap,
+            onLongClick = onRichTextLongPress
         )
 
         is PageBlock.SectionHeading -> RichTextView(
@@ -670,7 +700,9 @@ fun InstantViewBlock(
             textSizeMultiplier = textSizeMultiplier,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 8.dp),
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            onClick = onRichTextTap,
+            onLongClick = onRichTextLongPress
         )
 
         is PageBlock.Kicker -> RichTextView(
@@ -678,14 +710,18 @@ fun InstantViewBlock(
             style = MaterialTheme.typography.labelLarge,
             textSizeMultiplier = textSizeMultiplier,
             color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            onClick = onRichTextTap,
+            onLongClick = onRichTextLongPress
         )
 
         is PageBlock.Paragraph -> RichTextView(
             richText = block.text,
             style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 32.sp),
             textSizeMultiplier = textSizeMultiplier,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            onClick = onRichTextTap,
+            onLongClick = onRichTextLongPress
         )
 
         is PageBlock.Preformatted -> Surface(
@@ -698,7 +734,9 @@ fun InstantViewBlock(
                 style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 textSizeMultiplier = textSizeMultiplier,
                 modifier = Modifier.padding(16.dp),
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                onClick = onRichTextTap,
+                onLongClick = onRichTextLongPress
             )
         }
 
@@ -706,7 +744,9 @@ fun InstantViewBlock(
             richText = block.footer,
             style = MaterialTheme.typography.bodySmall,
             textSizeMultiplier = textSizeMultiplier,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            onClick = onRichTextTap,
+            onLongClick = onRichTextLongPress
         )
 
         is PageBlock.Thinking -> Surface(
@@ -718,7 +758,9 @@ fun InstantViewBlock(
                 style = MaterialTheme.typography.bodyMedium,
                 textSizeMultiplier = textSizeMultiplier,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                onClick = onRichTextTap,
+                onLongClick = onRichTextLongPress
             )
         }
 
@@ -824,8 +866,7 @@ fun InstantViewBlock(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 2.dp
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
                 Column {
                     ListItem(
@@ -856,6 +897,64 @@ fun InstantViewBlock(
                         },
                         trailingContent = {
                             val duration = block.audio.duration
+                            Text(
+                                "${duration / 60}:${(duration % 60).toString().padStart(2, '0')}",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                    PageBlockCaptionView(
+                        block.caption,
+                        textSizeMultiplier,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+
+        is PageBlock.VoiceNoteBlock -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Column {
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            onOpenFileExternally(block.voiceNote.path, block.voiceNote.fileId)
+                        },
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.instant_view_voice_note),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        supportingContent = block.voiceNote.mimeType?.takeIf { it.isNotBlank() }
+                            ?.let { mimeType ->
+                                { Text(mimeType) }
+                            },
+                        leadingContent = {
+                            IconButton(
+                                onClick = {
+                                    onOpenFileExternally(
+                                        block.voiceNote.path,
+                                        block.voiceNote.fileId
+                                    )
+                                },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Rounded.PlayArrow,
+                                    contentDescription = stringResource(R.string.instant_view_play)
+                                )
+                            }
+                        },
+                        trailingContent = {
+                            val duration = block.voiceNote.duration
                             Text(
                                 "${duration / 60}:${(duration % 60).toString().padStart(2, '0')}",
                                 style = MaterialTheme.typography.labelMedium
@@ -909,8 +1008,7 @@ fun InstantViewBlock(
         is PageBlock.EmbeddedPost -> {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -951,6 +1049,9 @@ fun InstantViewBlock(
                             textSizeMultiplier = textSizeMultiplier,
                             searchQuery = searchQuery,
                             stateKeyPrefix = "$blockStateKey:list:$index",
+                            useMessageQuoteStyle = useMessageQuoteStyle,
+                            onRichTextTap = onRichTextTap,
+                            onRichTextLongPress = onRichTextLongPress,
                             onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                             onOpenVideoFullscreen = onOpenVideoFullscreen,
                             onOpenFileExternally = onOpenFileExternally
@@ -962,32 +1063,87 @@ fun InstantViewBlock(
         }
 
         is PageBlock.BlockQuote -> {
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)) {
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp))
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    RichTextView(
-                        richText = block.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        textSizeMultiplier = textSizeMultiplier,
-                        fontStyle = FontStyle.Italic,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+            val quoteStripeColor = MaterialTheme.colorScheme.primary
+            val quoteContent: @Composable () -> Unit = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    block.pageBlocks.forEachIndexed { index, innerBlock ->
+                        InstantViewBlock(
+                            block = innerBlock,
+                            textSizeMultiplier = textSizeMultiplier,
+                            searchQuery = searchQuery,
+                            stateKeyPrefix = "$blockStateKey:quote:$index",
+                            useMessageQuoteStyle = useMessageQuoteStyle,
+                            onRichTextTap = onRichTextTap,
+                            onRichTextLongPress = onRichTextLongPress,
+                            onOpenPhotoFullscreen = onOpenPhotoFullscreen,
+                            onOpenVideoFullscreen = onOpenVideoFullscreen,
+                            onOpenFileExternally = onOpenFileExternally
+                        )
+                    }
                     if (block.credit !is RichText.Plain || (block.credit as RichText.Plain).text.isNotEmpty()) {
                         RichTextView(
                             richText = block.credit,
                             style = MaterialTheme.typography.labelMedium,
                             textSizeMultiplier = textSizeMultiplier,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp)
+                            modifier = Modifier.padding(top = 4.dp),
+                            onClick = onRichTextTap,
+                            onLongClick = onRichTextLongPress
                         )
+                    }
+                }
+            }
+
+            if (useMessageQuoteStyle) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .drawBehind {
+                            val stripeWidth = 3.dp.toPx()
+                            val stripeRadius = 999.dp.toPx()
+                            drawRoundRect(
+                                color = quoteStripeColor.copy(alpha = 0.82f),
+                                topLeft = Offset(8.dp.toPx(), 10.dp.toPx()),
+                                size = Size(stripeWidth, size.height - 20.dp.toPx()),
+                                cornerRadius = CornerRadius(stripeRadius, stripeRadius)
+                            )
+                        },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 18.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)
+                    ) {
+                        quoteContent()
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .drawBehind {
+                            val stripeWidth = 4.dp.toPx()
+                            val stripeRadius = 2.dp.toPx()
+                            drawRoundRect(
+                                color = quoteStripeColor,
+                                topLeft = Offset.Zero,
+                                size = Size(stripeWidth, size.height),
+                                cornerRadius = CornerRadius(stripeRadius, stripeRadius)
+                            )
+                        }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp)
+                    ) {
+                        quoteContent()
                     }
                 }
             }
@@ -1006,7 +1162,9 @@ fun InstantViewBlock(
                     textSizeMultiplier = textSizeMultiplier,
                     fontStyle = FontStyle.Italic,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    onClick = onRichTextTap,
+                    onLongClick = onRichTextLongPress
                 )
                 if (block.credit !is RichText.Plain || (block.credit as RichText.Plain).text.isNotEmpty()) {
                     RichTextView(
@@ -1014,7 +1172,9 @@ fun InstantViewBlock(
                         style = MaterialTheme.typography.labelMedium,
                         textSizeMultiplier = textSizeMultiplier,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 12.dp)
+                        modifier = Modifier.padding(top = 12.dp),
+                        onClick = onRichTextTap,
+                        onLongClick = onRichTextLongPress
                     )
                 }
             }
@@ -1022,7 +1182,10 @@ fun InstantViewBlock(
 
         is PageBlock.ListBlock -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             block.items.forEach { item ->
-                Row(verticalAlignment = Alignment.Top) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top
+                ) {
                     Text(
                         text = if (item.label.isNotEmpty()) "${item.label} " else "• ",
                         style = MaterialTheme.typography.bodyLarge.copy(
@@ -1031,13 +1194,19 @@ fun InstantViewBlock(
                         modifier = Modifier.padding(end = 8.dp),
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         item.pageBlocks.forEachIndexed { index, innerBlock ->
                             InstantViewBlock(
                                 block = innerBlock,
                                 textSizeMultiplier = textSizeMultiplier,
                                 searchQuery = searchQuery,
                                 stateKeyPrefix = "$blockStateKey:list_item:$index",
+                                useMessageQuoteStyle = useMessageQuoteStyle,
+                                onRichTextTap = onRichTextTap,
+                                onRichTextLongPress = onRichTextLongPress,
                                 onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                                 onOpenVideoFullscreen = onOpenVideoFullscreen,
                                 onOpenFileExternally = onOpenFileExternally
@@ -1053,6 +1222,9 @@ fun InstantViewBlock(
             textSizeMultiplier = textSizeMultiplier,
             searchQuery = searchQuery,
             stateKeyPrefix = "$blockStateKey:cover",
+            useMessageQuoteStyle = useMessageQuoteStyle,
+            onRichTextTap = onRichTextTap,
+            onRichTextLongPress = onRichTextLongPress,
             onOpenPhotoFullscreen = onOpenPhotoFullscreen,
             onOpenVideoFullscreen = onOpenVideoFullscreen,
             onOpenFileExternally = onOpenFileExternally
@@ -1071,8 +1243,7 @@ fun InstantViewBlock(
             Surface(
                 modifier = Modifier.animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessLow)),
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 1.dp
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
                 Column {
                     Row(
@@ -1088,7 +1259,9 @@ fun InstantViewBlock(
                                 richText = block.header,
                                 style = MaterialTheme.typography.titleMedium,
                                 textSizeMultiplier = textSizeMultiplier,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                onClick = onRichTextTap,
+                                onLongClick = onRichTextLongPress
                             )
                         }
                         Icon(
@@ -1109,6 +1282,9 @@ fun InstantViewBlock(
                                     textSizeMultiplier = textSizeMultiplier,
                                     searchQuery = searchQuery,
                                     stateKeyPrefix = "$blockStateKey:details:$index",
+                                    useMessageQuoteStyle = useMessageQuoteStyle,
+                                    onRichTextTap = onRichTextTap,
+                                    onRichTextLongPress = onRichTextLongPress,
                                     onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                                     onOpenVideoFullscreen = onOpenVideoFullscreen,
                                     onOpenFileExternally = onOpenFileExternally
@@ -1128,6 +1304,9 @@ fun InstantViewBlock(
                         textSizeMultiplier = textSizeMultiplier,
                         searchQuery = searchQuery,
                         stateKeyPrefix = "$blockStateKey:collage:$index",
+                        useMessageQuoteStyle = useMessageQuoteStyle,
+                        onRichTextTap = onRichTextTap,
+                        onRichTextLongPress = onRichTextLongPress,
                         onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                         onOpenVideoFullscreen = onOpenVideoFullscreen,
                         onOpenFileExternally = onOpenFileExternally
@@ -1145,6 +1324,9 @@ fun InstantViewBlock(
                         textSizeMultiplier = textSizeMultiplier,
                         searchQuery = searchQuery,
                         stateKeyPrefix = "$blockStateKey:slideshow:$index",
+                        useMessageQuoteStyle = useMessageQuoteStyle,
+                        onRichTextTap = onRichTextTap,
+                        onRichTextLongPress = onRichTextLongPress,
                         onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                         onOpenVideoFullscreen = onOpenVideoFullscreen,
                         onOpenFileExternally = onOpenFileExternally
@@ -1155,51 +1337,101 @@ fun InstantViewBlock(
         }
 
         is PageBlock.Table -> {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val tableWidth = remember(block.cells, maxWidth) {
+                    resolveInstantViewTableWidth(
+                        availableWidth = maxWidth,
+                        columnCount = block.cells.maxOfOrNull { row ->
+                            row.sumOf { it.colspan.coerceAtLeast(1) }
+                        } ?: 1
+                    )
+                }
+                val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                Box(
                     modifier = Modifier
                         .horizontalScroll(rememberScrollState())
-                        .padding(16.dp)
                 ) {
-                    if (block.caption !is RichText.Plain || (block.caption as RichText.Plain).text.isNotEmpty()) {
-                        RichTextView(
-                            richText = block.caption,
-                            style = MaterialTheme.typography.titleSmall,
-                            textSizeMultiplier = textSizeMultiplier,
-                            modifier = Modifier.padding(bottom = 12.dp),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    block.cells.forEachIndexed { index, row ->
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            row.forEach { cell ->
-                                Box(
-                                    modifier = Modifier
-                                        .widthIn(min = 120.dp * cell.colspan)
-                                        .border(
-                                            width = if (block.isBordered) 1.dp else 0.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant
+                    Column(
+                        modifier = Modifier
+                            .width(tableWidth)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                            .padding(12.dp)
+                    ) {
+                        if (block.caption !is RichText.Plain || (block.caption as RichText.Plain).text.isNotEmpty()) {
+                            RichTextView(
+                                richText = block.caption,
+                                style = MaterialTheme.typography.titleSmall,
+                                textSizeMultiplier = textSizeMultiplier,
+                                modifier = Modifier.padding(bottom = 10.dp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                onClick = onRichTextTap,
+                                onLongClick = onRichTextLongPress
+                            )
+                        }
+                        block.cells.forEachIndexed { index, row ->
+                            val rowBackground = when {
+                                row.any { it.isHeader } -> MaterialTheme.colorScheme.surfaceContainerHighest
+                                block.isStriped && index % 2 == 1 -> MaterialTheme.colorScheme.surfaceContainer
+                                else -> Color.Transparent
+                            }
+                            val isLastRow = index == block.cells.lastIndex
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .drawBehind {
+                                        if (!isLastRow) {
+                                            val lineWidth = 1.dp.toPx()
+                                            drawLine(
+                                                color = dividerColor,
+                                                start = Offset(0f, size.height - lineWidth / 2f),
+                                                end = Offset(
+                                                    size.width,
+                                                    size.height - lineWidth / 2f
+                                                ),
+                                                strokeWidth = lineWidth
+                                            )
+                                        }
+                                    },
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                row.forEachIndexed { cellIndex, cell ->
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(cell.colspan.toFloat())
+                                            .background(rowBackground)
+                                            .drawBehind {
+                                                val lineWidth = 1.dp.toPx()
+                                                if (cellIndex < row.lastIndex) {
+                                                    drawLine(
+                                                        color = dividerColor,
+                                                        start = Offset(
+                                                            size.width - lineWidth / 2f,
+                                                            0f
+                                                        ),
+                                                        end = Offset(
+                                                            size.width - lineWidth / 2f,
+                                                            size.height
+                                                        ),
+                                                        strokeWidth = lineWidth
+                                                    )
+                                                }
+                                            }
+                                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                                    ) {
+                                        RichTextView(
+                                            richText = cell.text,
+                                            style = if (cell.isHeader) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium,
+                                            textSizeMultiplier = textSizeMultiplier,
+                                            fontWeight = if (cell.isHeader) FontWeight.Bold else FontWeight.Normal,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            textAlign = cell.align.toTextAlign(),
+                                            onClick = onRichTextTap,
+                                            onLongClick = onRichTextLongPress
                                         )
-                                        .background(
-                                            if (cell.isHeader) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent
-                                        )
-                                        .padding(8.dp)
-                                ) {
-                                    RichTextView(
-                                        richText = cell.text,
-                                        style = if (cell.isHeader) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium,
-                                        textSizeMultiplier = textSizeMultiplier,
-                                        fontWeight = if (cell.isHeader) FontWeight.Bold else FontWeight.Normal,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    }
                                 }
                             }
-                        }
-                        if (index < block.cells.size - 1 && !block.isBordered) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
                 }
@@ -1213,14 +1445,15 @@ fun InstantViewBlock(
                     style = MaterialTheme.typography.titleMedium,
                     textSizeMultiplier = textSizeMultiplier,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    onClick = onRichTextTap,
+                    onLongClick = onRichTextLongPress
                 )
                 block.articles.forEach { article ->
                     Card(
                         onClick = { onUrlClick(normalizeUrl(article.url)) },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                     ) {
                         ListItem(
                             headlineContent = {
@@ -1340,6 +1573,14 @@ private sealed interface InstantViewFullscreenMedia {
         val fileId: Int,
         val supportsStreaming: Boolean
     ) : InstantViewFullscreenMedia
+}
+
+private fun HorizontalAlignment.toTextAlign(): TextAlign {
+    return when (this) {
+        HorizontalAlignment.LEFT -> TextAlign.Left
+        HorizontalAlignment.CENTER -> TextAlign.Center
+        HorizontalAlignment.RIGHT -> TextAlign.Right
+    }
 }
 
 @Composable

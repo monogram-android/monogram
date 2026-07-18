@@ -1,6 +1,7 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.WebPage
 import org.monogram.domain.models.webapp.HorizontalAlignment
 import org.monogram.domain.models.webapp.InstantViewModel
@@ -12,6 +13,7 @@ import org.monogram.domain.models.webapp.PageBlockRelatedArticle
 import org.monogram.domain.models.webapp.PageBlockTableCell
 import org.monogram.domain.models.webapp.RichText
 import org.monogram.domain.models.webapp.VerticalAlignment
+import org.monogram.domain.models.webapp.toEditorMarkdown
 
 fun map(iv: TdApi.WebPageInstantView, url: String): InstantViewModel {
     return iv.toInstantViewModel(url)
@@ -21,14 +23,16 @@ fun TdApi.RichMessage.toDomainRichMessage(
     chatId: Long,
     messageId: Long,
     markdownSource: String? = null
-) = org.monogram.domain.models.MessageContent.RichMessage(
-    blocks = blocks.orEmpty().map { it.toPageBlock() },
-    isRtl = isRtl,
-    isFull = isFull,
-    chatId = chatId,
-    messageId = messageId,
-    markdownSource = markdownSource
-)
+) = blocks.orEmpty().map { it.toPageBlock() }.let { pageBlocks ->
+    MessageContent.RichMessage(
+        blocks = pageBlocks,
+        isRtl = isRtl,
+        isFull = isFull,
+        chatId = chatId,
+        messageId = messageId,
+        markdownSource = markdownSource ?: pageBlocks.toEditorMarkdown()
+    )
+}
 
 private fun TdApi.WebPageInstantView.toInstantViewModel(url: String): InstantViewModel {
     return InstantViewModel(
@@ -52,7 +56,14 @@ fun TdApi.PageBlock?.toPageBlock(): PageBlock {
         is TdApi.PageBlockSectionHeading -> PageBlock.SectionHeading(text.toRichText(), size)
         is TdApi.PageBlockKicker -> PageBlock.Kicker(kicker.toRichText())
         is TdApi.PageBlockParagraph -> PageBlock.Paragraph(text.toRichText())
-        is TdApi.PageBlockPreformatted -> PageBlock.Preformatted(text.toRichText(), language)
+        is TdApi.PageBlockPreformatted -> {
+            val table = if (language.equals("table", ignoreCase = true)) {
+                text.toRichText().toPlainText().toRichMessageTable()
+            } else {
+                null
+            }
+            table ?: PageBlock.Preformatted(text.toRichText(), language)
+        }
         is TdApi.PageBlockFooter -> PageBlock.Footer(footer.toRichText())
         is TdApi.PageBlockThinking -> PageBlock.Thinking(text.toRichText())
         is TdApi.PageBlockDivider -> PageBlock.Divider
@@ -61,19 +72,20 @@ fun TdApi.PageBlock?.toPageBlock(): PageBlock {
         is TdApi.PageBlockList -> PageBlock.ListBlock(
             items.orEmpty().map { it.toPageBlockListItem() })
         is TdApi.PageBlockBlockQuote -> PageBlock.BlockQuote(
-            blocks.orEmpty().firstOrNull().toPageBlock().let { block ->
-                when (block) {
-                    is PageBlock.Paragraph -> block.text
-                    is PageBlock.Preformatted -> block.text
-                    else -> RichText.Plain("")
-                }
-            },
-            credit.toRichText()
+            pageBlocks = blocks.orEmpty().map { it.toPageBlock() },
+            credit = credit.toRichText()
         )
         is TdApi.PageBlockPullQuote -> PageBlock.PullQuote(text.toRichText(), credit.toRichText())
         is TdApi.PageBlockAnimation -> animation?.let { PageBlock.AnimationBlock(it.toAnimation(), caption.toCaption(), needAutoplay) }
             ?: PageBlock.Unsupported(this::class.simpleName.orEmpty())
         is TdApi.PageBlockAudio -> audio?.let { PageBlock.AudioBlock(it.toAudio(), caption.toCaption()) }
+            ?: PageBlock.Unsupported(this::class.simpleName.orEmpty())
+        is TdApi.PageBlockVoiceNote -> voiceNote?.let {
+            PageBlock.VoiceNoteBlock(
+                it.toVoiceNote(),
+                caption.toCaption()
+            )
+        }
             ?: PageBlock.Unsupported(this::class.simpleName.orEmpty())
         is TdApi.PageBlockPhoto -> photo?.let { PageBlock.PhotoBlock(it.toPhoto(), caption.toCaption(), url) }
             ?: PageBlock.Unsupported(this::class.simpleName.orEmpty())
@@ -176,7 +188,13 @@ fun TdApi.RichText?.toRichText(): RichText = when (this) {
 
         is TdApi.RichTextMathematicalExpression -> RichText.MathematicalExpression(expression)
         is TdApi.RichTextReference -> RichText.Reference(text.toRichText(), name, "")
-        is TdApi.RichTextReferenceLink -> RichText.Reference(text.toRichText(), referenceName, url)
+        is TdApi.RichTextReferenceLink -> RichText.ReferenceLink(
+            text = text.toRichText(),
+            referenceName = referenceName,
+            url = url
+        )
+
+        is TdApi.RichTextDiff -> RichText.Diff(text.toRichText(), oldText.toRichText())
         is TdApi.RichTextAnchor -> RichText.Anchor(name)
         is TdApi.RichTextAnchorLink -> RichText.AnchorLink(text.toRichText(), anchorName, url)
         is TdApi.RichTexts -> RichText.Texts(texts.orEmpty().map { it.toRichText() })
@@ -235,6 +253,107 @@ private fun TdApi.Photo.toPhoto(): WebPage.Photo {
     )
 }
 
+private fun RichText.toPlainText(): String {
+    return when (this) {
+        is RichText.Plain -> text
+        is RichText.Bold -> text.toPlainText()
+        is RichText.Italic -> text.toPlainText()
+        is RichText.Underline -> text.toPlainText()
+        is RichText.Strikethrough -> text.toPlainText()
+        is RichText.Spoiler -> text.toPlainText()
+        is RichText.DateTime -> text.toPlainText()
+        is RichText.Mention -> text.toPlainText()
+        is RichText.Hashtag -> text.toPlainText()
+        is RichText.Cashtag -> text.toPlainText()
+        is RichText.BotCommand -> text.toPlainText()
+        is RichText.Fixed -> text.toPlainText()
+        is RichText.MentionName -> text.toPlainText()
+        is RichText.Url -> text.toPlainText()
+        is RichText.EmailAddress -> text.toPlainText()
+        is RichText.BankCardNumber -> text.toPlainText()
+        is RichText.Subscript -> text.toPlainText()
+        is RichText.Superscript -> text.toPlainText()
+        is RichText.Marked -> text.toPlainText()
+        is RichText.PhoneNumber -> text.toPlainText()
+        is RichText.CustomEmoji -> alternativeText
+        is RichText.Icon -> ""
+        is RichText.MathematicalExpression -> expression
+        is RichText.Reference -> text.toPlainText()
+        is RichText.ReferenceLink -> text.toPlainText()
+        is RichText.Diff -> text.toPlainText()
+        is RichText.Anchor -> ""
+        is RichText.AnchorLink -> text.toPlainText()
+        is RichText.Texts -> texts.joinToString("") { it.toPlainText() }
+    }
+}
+
+private fun String.toRichMessageTable(): PageBlock.Table? {
+    val rows = parseRichMessageTableRows() ?: return null
+    if (rows.size < 2) return null
+
+    return PageBlock.Table(
+        caption = RichText.Plain(""),
+        cells = rows.mapIndexed { rowIndex, row ->
+            row.map { cell ->
+                PageBlockTableCell(
+                    text = RichText.Plain(cell),
+                    isHeader = rowIndex == 0,
+                    colspan = 1,
+                    rowspan = 1,
+                    align = HorizontalAlignment.LEFT,
+                    valign = VerticalAlignment.TOP
+                )
+            }
+        },
+        isBordered = true,
+        isStriped = false
+    )
+}
+
+private fun String.parseRichMessageTableRows(): List<List<String>>? {
+    val lines = lineSequence()
+        .map { it.trimEnd() }
+        .filter { it.isNotBlank() }
+        .toList()
+    if (lines.isEmpty()) return null
+
+    val boxRows = lines.filter { it.contains('│') }
+    if (boxRows.size >= 2) {
+        return boxRows.mapNotNull { line -> parseDelimitedTableRow(line, '│') }
+            .takeIf { it.size >= 2 && it.allSameSize() }
+    }
+
+    val pipeRows = lines
+        .filterNot { isMarkdownTableSeparatorRow(it) }
+        .filter { it.contains('|') }
+    return pipeRows.mapNotNull { line -> parseDelimitedTableRow(line, '|') }
+        .takeIf { it.size >= 2 && it.allSameSize() }
+}
+
+private fun parseDelimitedTableRow(line: String, delimiter: Char): List<String>? {
+    val parts = line.split(delimiter)
+        .map { it.trim() }
+    val normalized = when {
+        parts.size >= 2 && parts.first().isEmpty() && parts.last().isEmpty() -> parts.drop(1)
+            .dropLast(1)
+
+        else -> parts
+    }
+    if (normalized.size < 2) return null
+    return normalized
+}
+
+private fun List<List<String>>.allSameSize(): Boolean {
+    val firstSize = firstOrNull()?.size ?: return false
+    return all { it.size == firstSize }
+}
+
+private fun isMarkdownTableSeparatorRow(line: String): Boolean {
+    val compact = line.trim()
+    if (compact.isEmpty()) return false
+    return compact.all { it == '|' || it == ':' || it == '-' || it.isWhitespace() }
+}
+
 private fun TdApi.Animation.toAnimation() = WebPage.Animation(
     path = animation.local.path.takeIf { isValidFilePath(it) },
     width = width,
@@ -252,6 +371,13 @@ private fun TdApi.Audio.toAudio() = WebPage.Audio(
     title = title,
     performer = performer,
     fileId = audio.id
+)
+
+private fun TdApi.VoiceNote.toVoiceNote() = WebPage.VoiceNote(
+    path = voice.local.path.takeIf { isValidFilePath(it) },
+    duration = duration,
+    mimeType = mimeType,
+    fileId = voice.id
 )
 
 private fun TdApi.Video.toVideo() = WebPage.Video(

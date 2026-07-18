@@ -15,3 +15,21 @@ internal fun buildInputDocument(
 
 internal fun buildInputAnimation(file: TdApi.InputFile): TdApi.InputAnimation =
     TdApi.InputAnimation(file, null, intArrayOf(), 0, 0, 0)
+
+internal fun buildInputSticker(
+    file: TdApi.InputFile,
+    width: Int,
+    height: Int
+): TdApi.InputSticker = TdApi.InputSticker(file, null, width, height)
+
+internal fun buildInputVideoNote(
+    file: TdApi.InputFile,
+    duration: Int,
+    length: Int
+): TdApi.InputVideoNote = TdApi.InputVideoNote(file, null, duration, length)
+
+internal fun buildInputVoiceNote(
+    file: TdApi.InputFile,
+    duration: Int,
+    waveform: ByteArray
+): TdApi.InputVoiceNote = TdApi.InputVoiceNote(file, duration, waveform)

@@ -17,11 +17,9 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -131,6 +129,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.WebPage
+import org.monogram.domain.models.webapp.HorizontalAlignment
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.PageBlock
 import org.monogram.domain.models.webapp.PageBlockCaption
@@ -551,6 +550,7 @@ internal fun PageBlock.stableBlockSignature(): String {
         is PageBlock.VideoBlock -> "video:${video.fileId}:${caption.stableCaptionSignature()}:${video.duration}"
         is PageBlock.AnimationBlock -> "animation:${animation.fileId}:${caption.stableCaptionSignature()}:${animation.duration}"
         is PageBlock.AudioBlock -> "audio:${audio.fileId}:${audio.title.orEmpty()}"
+        is PageBlock.VoiceNoteBlock -> "voice:${voiceNote.fileId}:${voiceNote.duration}:${caption.stableCaptionSignature()}"
         is PageBlock.Embedded -> "embedded:$url:${posterPhoto?.fileId ?: 0}"
         is PageBlock.EmbeddedPost -> "embedded_post:$author:$date:${authorPhoto?.fileId ?: 0}"
         is PageBlock.Details -> "details:${richTextPlainText(header)}:${pageBlocks.joinToString("|") { it.stableBlockSignature() }}"
@@ -824,8 +824,7 @@ fun InstantViewBlock(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 2.dp
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
                 Column {
                     ListItem(
@@ -856,6 +855,64 @@ fun InstantViewBlock(
                         },
                         trailingContent = {
                             val duration = block.audio.duration
+                            Text(
+                                "${duration / 60}:${(duration % 60).toString().padStart(2, '0')}",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                    PageBlockCaptionView(
+                        block.caption,
+                        textSizeMultiplier,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+
+        is PageBlock.VoiceNoteBlock -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Column {
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            onOpenFileExternally(block.voiceNote.path, block.voiceNote.fileId)
+                        },
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.instant_view_voice_note),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        supportingContent = block.voiceNote.mimeType?.takeIf { it.isNotBlank() }
+                            ?.let { mimeType ->
+                                { Text(mimeType) }
+                            },
+                        leadingContent = {
+                            IconButton(
+                                onClick = {
+                                    onOpenFileExternally(
+                                        block.voiceNote.path,
+                                        block.voiceNote.fileId
+                                    )
+                                },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Rounded.PlayArrow,
+                                    contentDescription = stringResource(R.string.instant_view_play)
+                                )
+                            }
+                        },
+                        trailingContent = {
+                            val duration = block.voiceNote.duration
                             Text(
                                 "${duration / 60}:${(duration % 60).toString().padStart(2, '0')}",
                                 style = MaterialTheme.typography.labelMedium
@@ -909,8 +966,7 @@ fun InstantViewBlock(
         is PageBlock.EmbeddedPost -> {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1071,8 +1127,7 @@ fun InstantViewBlock(
             Surface(
                 modifier = Modifier.animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessLow)),
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 1.dp
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
                 Column {
                     Row(
@@ -1156,7 +1211,7 @@ fun InstantViewBlock(
 
         is PageBlock.Table -> {
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
@@ -1174,18 +1229,17 @@ fun InstantViewBlock(
                         )
                     }
                     block.cells.forEachIndexed { index, row ->
+                        val rowBackground = when {
+                            row.any { it.isHeader } -> MaterialTheme.colorScheme.surfaceContainerHighest
+                            block.isStriped && index % 2 == 1 -> MaterialTheme.colorScheme.surfaceContainer
+                            else -> Color.Transparent
+                        }
                         Row(modifier = Modifier.fillMaxWidth()) {
                             row.forEach { cell ->
                                 Box(
                                     modifier = Modifier
                                         .widthIn(min = 120.dp * cell.colspan)
-                                        .border(
-                                            width = if (block.isBordered) 1.dp else 0.dp,
-                                            color = MaterialTheme.colorScheme.outlineVariant
-                                        )
-                                        .background(
-                                            if (cell.isHeader) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent
-                                        )
+                                        .background(rowBackground)
                                         .padding(8.dp)
                                 ) {
                                     RichTextView(
@@ -1193,12 +1247,13 @@ fun InstantViewBlock(
                                         style = if (cell.isHeader) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium,
                                         textSizeMultiplier = textSizeMultiplier,
                                         fontWeight = if (cell.isHeader) FontWeight.Bold else FontWeight.Normal,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        textAlign = cell.align.toTextAlign()
                                     )
                                 }
                             }
                         }
-                        if (index < block.cells.size - 1 && !block.isBordered) {
+                        if (index < block.cells.size - 1) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
@@ -1219,8 +1274,7 @@ fun InstantViewBlock(
                     Card(
                         onClick = { onUrlClick(normalizeUrl(article.url)) },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                     ) {
                         ListItem(
                             headlineContent = {
@@ -1340,6 +1394,14 @@ private sealed interface InstantViewFullscreenMedia {
         val fileId: Int,
         val supportsStreaming: Boolean
     ) : InstantViewFullscreenMedia
+}
+
+private fun HorizontalAlignment.toTextAlign(): TextAlign {
+    return when (this) {
+        HorizontalAlignment.LEFT -> TextAlign.Left
+        HorizontalAlignment.CENTER -> TextAlign.Center
+        HorizontalAlignment.RIGHT -> TextAlign.Right
+    }
 }
 
 @Composable

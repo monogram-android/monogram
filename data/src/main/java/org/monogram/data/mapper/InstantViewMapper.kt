@@ -75,6 +75,13 @@ fun TdApi.PageBlock?.toPageBlock(): PageBlock {
             ?: PageBlock.Unsupported(this::class.simpleName.orEmpty())
         is TdApi.PageBlockAudio -> audio?.let { PageBlock.AudioBlock(it.toAudio(), caption.toCaption()) }
             ?: PageBlock.Unsupported(this::class.simpleName.orEmpty())
+        is TdApi.PageBlockVoiceNote -> voiceNote?.let {
+            PageBlock.VoiceNoteBlock(
+                it.toVoiceNote(),
+                caption.toCaption()
+            )
+        }
+            ?: PageBlock.Unsupported(this::class.simpleName.orEmpty())
         is TdApi.PageBlockPhoto -> photo?.let { PageBlock.PhotoBlock(it.toPhoto(), caption.toCaption(), url) }
             ?: PageBlock.Unsupported(this::class.simpleName.orEmpty())
         is TdApi.PageBlockVideo -> video?.let { PageBlock.VideoBlock(it.toVideo(), caption.toCaption(), needAutoplay, isLooped) }
@@ -176,7 +183,13 @@ fun TdApi.RichText?.toRichText(): RichText = when (this) {
 
         is TdApi.RichTextMathematicalExpression -> RichText.MathematicalExpression(expression)
         is TdApi.RichTextReference -> RichText.Reference(text.toRichText(), name, "")
-        is TdApi.RichTextReferenceLink -> RichText.Reference(text.toRichText(), referenceName, url)
+        is TdApi.RichTextReferenceLink -> RichText.ReferenceLink(
+            text = text.toRichText(),
+            referenceName = referenceName,
+            url = url
+        )
+
+        is TdApi.RichTextDiff -> RichText.Diff(text.toRichText(), oldText.toRichText())
         is TdApi.RichTextAnchor -> RichText.Anchor(name)
         is TdApi.RichTextAnchorLink -> RichText.AnchorLink(text.toRichText(), anchorName, url)
         is TdApi.RichTexts -> RichText.Texts(texts.orEmpty().map { it.toRichText() })
@@ -252,6 +265,13 @@ private fun TdApi.Audio.toAudio() = WebPage.Audio(
     title = title,
     performer = performer,
     fileId = audio.id
+)
+
+private fun TdApi.VoiceNote.toVoiceNote() = WebPage.VoiceNote(
+    path = voice.local.path.takeIf { isValidFilePath(it) },
+    duration = duration,
+    mimeType = mimeType,
+    fileId = voice.id
 )
 
 private fun TdApi.Video.toVideo() = WebPage.Video(

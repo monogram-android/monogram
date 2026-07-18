@@ -2512,6 +2512,7 @@
     <string name="instant_view_play_video">Play Video</string>
     <string name="instant_view_play_animation">Play Animation</string>
     <string name="instant_view_audio">Audio</string>
+    <string name="instant_view_voice_note">Voice note</string>
     <string name="instant_view_unknown_artist">Unknown Artist</string>
     <string name="instant_view_play">Play</string>
     <string name="instant_view_open">Open</string>

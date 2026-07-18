@@ -52,6 +52,8 @@ internal fun Array<TdApi.TextEntity>?.toDomainEntities(): List<MessageEntity> {
             is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
             is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
             is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
+            is TdApi.TextEntityTypeDateTime -> MessageEntityType.DateTime(entityType.unixTime)
+            is TdApi.TextEntityTypeMediaTimestamp -> MessageEntityType.MediaTimestamp(entityType.mediaTimestamp)
             is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(entityType.customEmojiId)
             is TdApi.TextEntityTypeBlockQuote -> MessageEntityType.BlockQuote
             is TdApi.TextEntityTypeExpandableBlockQuote -> MessageEntityType.BlockQuoteExpandable

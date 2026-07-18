@@ -126,6 +126,15 @@ fun buildRichText(
                     color = linkColor,
                     textDecoration = TextDecoration.Underline
                 )
+                is MessageEntityType.DateTime -> SpanStyle(
+                    color = linkColor,
+                    textDecoration = TextDecoration.Underline
+                )
+
+                is MessageEntityType.MediaTimestamp -> SpanStyle(
+                    color = linkColor,
+                    textDecoration = TextDecoration.Underline
+                )
 
                 is MessageEntityType.TextMention -> SpanStyle(color = linkColor)
                 is MessageEntityType.CustomEmoji -> null

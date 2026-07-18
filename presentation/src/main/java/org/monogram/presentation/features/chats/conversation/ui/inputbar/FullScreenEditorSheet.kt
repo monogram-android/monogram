@@ -52,7 +52,6 @@ import androidx.compose.material.icons.outlined.FormatClear
 import androidx.compose.material.icons.outlined.FormatItalic
 import androidx.compose.material.icons.outlined.FormatStrikethrough
 import androidx.compose.material.icons.outlined.FormatUnderlined
-import androidx.compose.material.icons.outlined.Functions
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Translate
@@ -2488,18 +2487,6 @@ private fun FullScreenEditorMarkupTools(
                     ),
                     true,
                     onPre
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.Functions,
-                    stringResource(R.string.editor_latex),
-                    true,
-                    onLatex
-                )
-                FullScreenEditorTokenToolButton(
-                    "$$",
-                    stringResource(R.string.editor_latex_block),
-                    true,
-                    onBlockLatex
                 )
                 FullScreenEditorTokenToolButton(
                     "H1",

@@ -1049,6 +1049,8 @@ internal class MessageRepositoryImpl(
                 is MessageEntityType.Email -> TdApi.TextEntityTypeEmailAddress()
                 is MessageEntityType.PhoneNumber -> TdApi.TextEntityTypePhoneNumber()
                 is MessageEntityType.BankCardNumber -> TdApi.TextEntityTypeBankCardNumber()
+                is MessageEntityType.DateTime -> TdApi.TextEntityTypeDateTime(value.unixTime, null)
+                is MessageEntityType.MediaTimestamp -> TdApi.TextEntityTypeMediaTimestamp(value.mediaTimestampSeconds)
                 is MessageEntityType.CustomEmoji -> TdApi.TextEntityTypeCustomEmoji(value.emojiId)
                 is MessageEntityType.Other -> return@mapNotNull null
             }
@@ -1079,6 +1081,8 @@ internal class MessageRepositoryImpl(
             is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
             is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
             is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
+            is TdApi.TextEntityTypeDateTime -> MessageEntityType.DateTime(value.unixTime)
+            is TdApi.TextEntityTypeMediaTimestamp -> MessageEntityType.MediaTimestamp(value.mediaTimestamp)
             is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(value.customEmojiId)
             else -> return null
         }

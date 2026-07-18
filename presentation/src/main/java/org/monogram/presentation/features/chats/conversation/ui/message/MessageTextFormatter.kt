@@ -410,6 +410,78 @@ fun buildAnnotatedMessageTextWithEmoji(
                         )
                     }
 
+                    is MessageEntityType.BotCommand -> {
+                        addStyle(SpanStyle(color = linkColor), start, end)
+                        addStringAnnotation(
+                            "COPY",
+                            text.safeSubstring(safeStart, safeEnd),
+                            start,
+                            end
+                        )
+                    }
+
+                    is MessageEntityType.Email -> {
+                        val email = text.safeSubstring(safeStart, safeEnd)
+                        addStyle(
+                            SpanStyle(
+                                color = linkColor,
+                                textDecoration = TextDecoration.Underline
+                            ), start, end
+                        )
+                        addStringAnnotation("EMAIL", email, start, end)
+                    }
+
+                    is MessageEntityType.PhoneNumber -> {
+                        val phone = text.safeSubstring(safeStart, safeEnd)
+                        addStyle(
+                            SpanStyle(
+                                color = linkColor,
+                                textDecoration = TextDecoration.Underline
+                            ), start, end
+                        )
+                        addStringAnnotation("PHONE", phone, start, end)
+                    }
+
+                    is MessageEntityType.BankCardNumber -> {
+                        addStyle(
+                            SpanStyle(
+                                color = linkColor,
+                                textDecoration = TextDecoration.Underline
+                            ), start, end
+                        )
+                        addStringAnnotation(
+                            "COPY",
+                            text.safeSubstring(safeStart, safeEnd),
+                            start,
+                            end
+                        )
+                    }
+
+                    is MessageEntityType.DateTime -> {
+                        addStyle(
+                            SpanStyle(
+                                color = linkColor,
+                                textDecoration = TextDecoration.Underline
+                            ), start, end
+                        )
+                        addStringAnnotation("DATE_TIME", type.unixTime.toString(), start, end)
+                    }
+
+                    is MessageEntityType.MediaTimestamp -> {
+                        addStyle(
+                            SpanStyle(
+                                color = linkColor,
+                                textDecoration = TextDecoration.Underline
+                            ), start, end
+                        )
+                        addStringAnnotation(
+                            "MEDIA_TIMESTAMP",
+                            type.mediaTimestampSeconds.toString(),
+                            start,
+                            end
+                        )
+                    }
+
                     else -> {}
                 }
             }

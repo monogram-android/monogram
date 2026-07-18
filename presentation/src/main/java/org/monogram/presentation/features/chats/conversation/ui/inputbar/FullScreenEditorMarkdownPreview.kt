@@ -135,6 +135,15 @@ private fun MessageEntityType.toPreviewStyle(primaryColor: Color): SpanStyle? {
             color = primaryColor,
             textDecoration = TextDecoration.Underline
         )
+        is MessageEntityType.DateTime -> SpanStyle(
+            color = primaryColor,
+            textDecoration = TextDecoration.Underline
+        )
+
+        is MessageEntityType.MediaTimestamp -> SpanStyle(
+            color = primaryColor,
+            textDecoration = TextDecoration.Underline
+        )
         else -> null
     }
 }

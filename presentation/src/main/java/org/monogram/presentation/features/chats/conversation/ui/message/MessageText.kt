@@ -325,6 +325,16 @@ private fun DefaultTextRender(
                                         consumed = true
                                     }
 
+                                    "EMAIL" -> {
+                                        uriHandler.openUri("mailto:${annotation.item}")
+                                        consumed = true
+                                    }
+
+                                    "PHONE" -> {
+                                        uriHandler.openUri("tel:${annotation.item}")
+                                        consumed = true
+                                    }
+
                                     "SPOILER", "SPOILER_REVEALED", "SPOILER_UNREVEALED" -> {
                                         annotation.item.toIntOrNull()?.let {
                                             onSpoilerClick(it)

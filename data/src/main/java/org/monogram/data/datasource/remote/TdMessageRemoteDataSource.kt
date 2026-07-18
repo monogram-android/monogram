@@ -1431,6 +1431,8 @@ class TdMessageRemoteDataSource(
             is MessageEntityType.Email -> TdApi.TextEntityTypeEmailAddress()
             is MessageEntityType.PhoneNumber -> TdApi.TextEntityTypePhoneNumber()
             is MessageEntityType.BankCardNumber -> TdApi.TextEntityTypeBankCardNumber()
+            is MessageEntityType.DateTime -> TdApi.TextEntityTypeDateTime(value.unixTime, null)
+            is MessageEntityType.MediaTimestamp -> TdApi.TextEntityTypeMediaTimestamp(value.mediaTimestampSeconds)
             is MessageEntityType.CustomEmoji -> TdApi.TextEntityTypeCustomEmoji(value.emojiId)
             is MessageEntityType.Other -> return null
         }

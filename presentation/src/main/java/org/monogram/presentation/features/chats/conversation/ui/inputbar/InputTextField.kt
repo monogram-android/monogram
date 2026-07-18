@@ -95,6 +95,8 @@ private const val ENTITY_URL = "url"
 private const val ENTITY_EMAIL = "email"
 private const val ENTITY_PHONE_NUMBER = "phone_number"
 private const val ENTITY_BANK_CARD_NUMBER = "bank_card_number"
+private const val ENTITY_DATE_TIME = "date_time"
+private const val ENTITY_MEDIA_TIMESTAMP = "media_timestamp"
 
 private object RichMenuActionBold
 private object RichMenuActionItalic
@@ -307,7 +309,7 @@ fun InputTextField(
     Box(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
-                .padding(vertical = 10.dp)
+                .padding(vertical = 8.dp)
                 .heightIn(max = maxEditorHeight)
                 .verticalScroll(scrollState),
             contentAlignment = Alignment.CenterStart
@@ -850,6 +852,8 @@ internal fun richEntityToAnnotation(type: MessageEntityType): String? {
         is MessageEntityType.Email -> ENTITY_EMAIL
         is MessageEntityType.PhoneNumber -> ENTITY_PHONE_NUMBER
         is MessageEntityType.BankCardNumber -> ENTITY_BANK_CARD_NUMBER
+        is MessageEntityType.DateTime -> "$ENTITY_DATE_TIME:${type.unixTime}"
+        is MessageEntityType.MediaTimestamp -> "$ENTITY_MEDIA_TIMESTAMP:${type.mediaTimestampSeconds}"
         else -> null
     }
 }
@@ -875,6 +879,13 @@ internal fun decodeRichEntity(value: String): MessageEntityType? {
         value == ENTITY_EMAIL -> MessageEntityType.Email
         value == ENTITY_PHONE_NUMBER -> MessageEntityType.PhoneNumber
         value == ENTITY_BANK_CARD_NUMBER -> MessageEntityType.BankCardNumber
+        value.startsWith("$ENTITY_DATE_TIME:") -> MessageEntityType.DateTime(
+            value.substringAfter(':').toIntOrNull() ?: 0
+        )
+
+        value.startsWith("$ENTITY_MEDIA_TIMESTAMP:") -> MessageEntityType.MediaTimestamp(
+            value.substringAfter(':').toIntOrNull() ?: 0
+        )
         else -> null
     }
 }
@@ -923,6 +934,16 @@ private fun MessageEntityType.toEditorStyle(primaryColor: Color): SpanStyle? {
         )
 
         is MessageEntityType.BankCardNumber -> SpanStyle(
+            color = primaryColor,
+            textDecoration = TextDecoration.Underline
+        )
+
+        is MessageEntityType.DateTime -> SpanStyle(
+            color = primaryColor,
+            textDecoration = TextDecoration.Underline
+        )
+
+        is MessageEntityType.MediaTimestamp -> SpanStyle(
             color = primaryColor,
             textDecoration = TextDecoration.Underline
         )

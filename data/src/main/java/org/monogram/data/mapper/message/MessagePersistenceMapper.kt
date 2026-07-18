@@ -933,6 +933,7 @@ internal class MessagePersistenceMapper(
             is PageBlock.VideoBlock -> caption.text.plainText()
             is PageBlock.AnimationBlock -> caption.text.plainText()
             is PageBlock.AudioBlock -> caption.text.plainText()
+            is PageBlock.VoiceNoteBlock -> caption.text.plainText()
             is PageBlock.Collage -> caption.text.plainText()
             is PageBlock.Slideshow -> caption.text.plainText()
             is PageBlock.Embedded -> caption.text.plainText()
@@ -972,6 +973,8 @@ internal class MessagePersistenceMapper(
             is RichText.Icon -> ""
             is RichText.MathematicalExpression -> expression
             is RichText.Reference -> text.plainText()
+            is RichText.ReferenceLink -> text.plainText()
+            is RichText.Diff -> text.plainText()
             is RichText.Anchor -> ""
             is RichText.AnchorLink -> text.plainText()
             is RichText.Texts -> texts.joinToString("") { it.plainText() }
@@ -1126,6 +1129,9 @@ internal class MessagePersistenceMapper(
                     is TdApi.TextEntityTypeCustomEmoji -> append("ce,").append(type.customEmojiId)
                     is TdApi.TextEntityTypeEmailAddress -> append("em")
                     is TdApi.TextEntityTypePhoneNumber -> append("ph")
+                    is TdApi.TextEntityTypeBankCardNumber -> append("bn")
+                    is TdApi.TextEntityTypeDateTime -> append("dt,").append(type.unixTime)
+                    is TdApi.TextEntityTypeMediaTimestamp -> append("mt,").append(type.mediaTimestamp)
                     else -> append("?")
                 }
             }
@@ -1163,6 +1169,9 @@ internal class MessagePersistenceMapper(
 
                 "em" -> MessageEntityType.Email
                 "ph" -> MessageEntityType.PhoneNumber
+                "bn" -> MessageEntityType.BankCardNumber
+                "dt" -> MessageEntityType.DateTime(parts.getOrNull(3)?.toIntOrNull() ?: 0)
+                "mt" -> MessageEntityType.MediaTimestamp(parts.getOrNull(3)?.toIntOrNull() ?: 0)
                 else -> null
             } ?: return@mapNotNull null
 

@@ -23,6 +23,8 @@ import org.monogram.data.BuildConfig
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.compat.buildDraftMessageTextContent
 import org.monogram.data.compat.buildTdChatPermissions
+import org.monogram.data.compat.generateTextWithAi
+import org.monogram.data.compat.isPromptBasedAiSupported
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.cache.ChatLocalDataSource
@@ -126,6 +128,7 @@ internal class MessageRepositoryImpl(
     override val pinnedMessageFlow = messageRemoteDataSource.pinnedMessageFlow
     override val mediaUpdateFlow = messageRemoteDataSource.mediaUpdateFlow
     override val textCompositionStyles = _textCompositionStyles.asStateFlow()
+    override val supportsPromptBasedAi = isPromptBasedAiSupported()
 
     init {
         scope.launch(dispatcherProvider.io) {
@@ -1943,6 +1946,18 @@ internal class MessageRepositoryImpl(
                 )
             }
         }
+    }
+
+    override suspend fun generateTextWithAi(
+        prompt: String,
+        languageCode: String,
+        addEmojis: Boolean
+    ): FormattedTextResult? = withContext(dispatcherProvider.io) {
+        gateway.generateTextWithAi(
+            prompt = prompt,
+            languageCode = languageCode,
+            addEmojis = addEmojis
+        )
     }
 
     private inline fun <T> traceSection(section: String, block: () -> T): T {

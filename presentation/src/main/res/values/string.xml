@@ -1557,8 +1557,8 @@
     <string name="action_apply">Apply</string>
     <string name="action_done">Done</string>
     <string name="action_refresh">Refresh</string>
-    <string name="action_open_fullscreen_editor">Fullscreen editor</string>
-    <string name="fullscreen_editor_title">Editor</string>
+    <string name="action_open_fullscreen_editor">Open fullscreen</string>
+    <string name="fullscreen_editor_title">Compose</string>
     <string name="action_send_silent">Send silently</string>
     <string name="action_schedule_message">Schedule message</string>
     <string name="action_scheduled_messages">Scheduled messages</string>
@@ -1697,9 +1697,11 @@
     <string name="editor_action_cut">Cut</string>
     <string name="editor_action_paste">Paste</string>
     <string name="editor_ai">AI</string>
-    <string name="editor_ai_title">AI editor</string>
+    <string name="editor_ai_title">AI tools</string>
+    <string name="editor_ai_subtitle">Translate, rewrite, or fix text</string>
     <string name="editor_ai_tab_translate">Translate</string>
     <string name="editor_ai_tab_stylize">Stylize</string>
+    <string name="editor_ai_tab_generate">Generate</string>
     <string name="editor_ai_tab_fix">Fix</string>
     <string name="editor_ai_original">Original</string>
     <string name="editor_ai_result">Result</string>
@@ -1707,7 +1709,9 @@
     <string name="editor_ai_apply_result">Apply result</string>
     <string name="editor_ai_run_translate">Translate text</string>
     <string name="editor_ai_run_stylize">Apply style</string>
+    <string name="editor_ai_run_generate">Generate text</string>
     <string name="editor_ai_run_fix">Fix text</string>
+    <string name="editor_ai_prompt_label">Prompt</string>
     <string name="editor_ai_target_language">Target language</string>
     <string name="editor_ai_select_language">Select language</string>
     <string name="editor_ai_language_not_found">No languages found</string>
@@ -1721,8 +1725,10 @@
     <string name="editor_ai_add_emojis">Add emojis</string>
     <string name="editor_ai_loading">Processing...</string>
     <string name="editor_ai_error_empty">Enter text to use AI</string>
+    <string name="editor_ai_error_empty_prompt">Enter a prompt to generate text</string>
     <string name="editor_ai_error_flood">Too many AI requests. Telegram Premium may be required.</string>
     <string name="editor_ai_error_generic">AI processing failed</string>
+    <string name="editor_ai_prompt_placeholder">Describe what to generate…</string>
     <string name="action_insert">Insert</string>
     <string name="action_previous">Prev</string>
     <string name="action_next">Next</string>

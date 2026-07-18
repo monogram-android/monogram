@@ -3,7 +3,6 @@ package org.monogram.presentation.core.ui
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -19,7 +18,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import org.monogram.presentation.core.ui.ItemPosition
 
 @Composable
 fun SettingsTextField(
@@ -29,6 +27,7 @@ fun SettingsTextField(
     icon: ImageVector,
     position: ItemPosition,
     modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
     enabled: Boolean = true,
     singleLine: Boolean = false,
     minLines: Int = 1,
@@ -59,7 +58,7 @@ fun SettingsTextField(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = containerColor,
         shape = shape,
         modifier = modifier.fillMaxWidth()
     ) {

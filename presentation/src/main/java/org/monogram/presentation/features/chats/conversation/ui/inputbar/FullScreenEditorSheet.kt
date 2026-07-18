@@ -11,7 +11,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,33 +26,18 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.Subject
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.outlined.AlternateEmail
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.ContentCut
-import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.FormatBold
-import androidx.compose.material.icons.outlined.FormatClear
-import androidx.compose.material.icons.outlined.FormatItalic
-import androidx.compose.material.icons.outlined.FormatStrikethrough
-import androidx.compose.material.icons.outlined.FormatUnderlined
 import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -95,7 +79,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -144,9 +127,10 @@ import org.monogram.presentation.features.stickers.ui.menu.StickerEmojiMenu
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.util.Locale
 
-private enum class AiEditorMode {
+internal enum class AiEditorMode {
     Translate,
     Stylize,
+    Generate,
     Fix
 }
 
@@ -257,6 +241,7 @@ fun FullScreenEditorSheet(
     var fontScale by remember { mutableFloatStateOf(1f) }
     var showAiSheet by rememberSaveable { mutableStateOf(false) }
     var aiTranslateLanguage by rememberSaveable { mutableStateOf("") }
+    var aiPrompt by rememberSaveable { mutableStateOf("") }
     var aiSelectedStyle by rememberSaveable { mutableStateOf("") }
     var aiAddEmojis by rememberSaveable { mutableStateOf(false) }
     var aiMode by rememberSaveable { mutableStateOf(AiEditorMode.Stylize) }
@@ -271,6 +256,7 @@ fun FullScreenEditorSheet(
     val snippetProvider: EditorSnippetProvider = koinInject()
     val messageRepository: MessageAiRepository = koinInject()
     val richTextParsingRepository: RichTextParsingRepository = koinInject()
+    val supportsPromptBasedAi = messageRepository.supportsPromptBasedAi
     val textCompositionStyles by messageRepository.textCompositionStyles.collectAsState()
     val effectiveAiStyles = remember(textCompositionStyles) {
         if (textCompositionStyles.isEmpty()) DEFAULT_AI_STYLES else textCompositionStyles
@@ -610,9 +596,16 @@ fun FullScreenEditorSheet(
         aiResultText = buildPreviewForDisplay(mappedTextValue.annotatedString)
     }
 
-    fun runAiRequest(request: suspend () -> FormattedTextResult?) {
-        if (textValue.text.isBlank()) {
+    fun runAiRequest(
+        requireText: Boolean = true,
+        request: suspend () -> FormattedTextResult?
+    ) {
+        if (requireText && textValue.text.isBlank()) {
             aiErrorMessage = context.getString(R.string.editor_ai_error_empty)
+            return
+        }
+        if (!requireText && aiPrompt.isBlank()) {
+            aiErrorMessage = context.getString(R.string.editor_ai_error_empty_prompt)
             return
         }
 
@@ -736,15 +729,12 @@ fun FullScreenEditorSheet(
                     .padding(16.dp)
                     .imePadding()
             ) {
-                FullScreenEditorHeader(isDisplayOverMessageLimit, isSending, onDismiss, onSendClick)
-                FullScreenEditorTopActions(
+                FullScreenEditorHeader(
+                    isOverLimit = isDisplayOverMessageLimit,
+                    isSending = isSending,
                     canUndo = undoStack.isNotEmpty(),
                     canRedo = redoStack.isNotEmpty(),
-                    isPreviewMode = isPreviewMode,
-                    parseMode = parseMode,
-                    showFindReplace = showFindReplace,
-                    fontScale = fontScale,
-                    showAiAction = canUseAi,
+                    onDismiss = onDismiss,
                     onUndo = {
                         if (undoStack.isNotEmpty()) {
                             val previous = undoStack.removeAt(undoStack.lastIndex)
@@ -759,6 +749,14 @@ fun FullScreenEditorSheet(
                             onTextValueChange(next)
                         }
                     },
+                    onSend = onSendClick
+                )
+                FullScreenEditorTopActions(
+                    isPreviewMode = isPreviewMode,
+                    parseMode = parseMode,
+                    showFindReplace = showFindReplace,
+                    fontScale = fontScale,
+                    showAiAction = canUseAi,
                     onTogglePreview = { isPreviewMode = !isPreviewMode },
                     onParseModeChange = { parseMode = it },
                     onToggleFindReplace = { showFindReplace = !showFindReplace },
@@ -801,6 +799,8 @@ fun FullScreenEditorSheet(
                         onClose = { showFindReplace = false }
                     )
                 }
+
+                Spacer(modifier = Modifier.height(if (showFindReplace) 14.dp else 10.dp))
 
                 Row(
                     modifier = Modifier
@@ -1308,7 +1308,7 @@ fun FullScreenEditorSheet(
     }
 
     if (showAiSheet) {
-        FullScreenEditorAiSheet(
+        FullScreenEditorAiSheetContent(
             visible = showAiSheet,
             mode = aiMode,
             loading = aiLoading,
@@ -1317,6 +1317,7 @@ fun FullScreenEditorSheet(
             stickerRepository = stickerRepository,
             selectedStyleName = aiSelectedStyle,
             translateLanguage = aiTranslateLanguage,
+            prompt = aiPrompt,
             addEmojis = aiAddEmojis,
             emojiFontFamily = emojiFontFamily,
             inlineContent = previewInlineContent,
@@ -1324,6 +1325,7 @@ fun FullScreenEditorSheet(
             resultText = aiResultText,
             resultPlainText = aiResultTextValue?.text,
             showDiffMode = aiShowDiffMode,
+            supportsPromptBasedAi = supportsPromptBasedAi,
             onDismiss = {
                 showAiSheet = false
                 aiErrorMessage = null
@@ -1348,6 +1350,13 @@ fun FullScreenEditorSheet(
             },
             onTranslateLanguageChange = {
                 aiTranslateLanguage = it
+                aiErrorMessage = null
+                aiShowDiffMode = true
+                aiResultText = null
+                aiResultTextValue = null
+            },
+            onPromptChange = {
+                aiPrompt = it
                 aiErrorMessage = null
                 aiShowDiffMode = true
                 aiResultText = null
@@ -1380,6 +1389,14 @@ fun FullScreenEditorSheet(
                             entities = entities,
                             translateToLanguageCode = "",
                             styleName = selectedStyle,
+                            addEmojis = aiAddEmojis
+                        )
+                    }
+
+                    AiEditorMode.Generate -> runAiRequest(requireText = false) {
+                        messageRepository.generateTextWithAi(
+                            prompt = aiPrompt.trim(),
+                            languageCode = aiTranslateLanguage.ifBlank { Locale.getDefault().language },
                             addEmojis = aiAddEmojis
                         )
                     }
@@ -1447,164 +1464,6 @@ private fun FullScreenEditorSystemBars() {
     }
 }
 
-@Composable
-private fun FullScreenEditorHeader(
-    isOverLimit: Boolean,
-    isSending: Boolean,
-    onDismiss: () -> Unit,
-    onSend: () -> Unit
-) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onDismiss) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.action_cancel),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-        Text(
-            text = stringResource(R.string.fullscreen_editor_title),
-            style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.weight(1f)
-        )
-        IconButton(onClick = onSend, enabled = !isOverLimit && !isSending) {
-            Icon(
-                imageVector = Icons.Filled.Check,
-                contentDescription = stringResource(R.string.action_send),
-                tint = if (isOverLimit || isSending) {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                } else {
-                    MaterialTheme.colorScheme.primary
-                }
-            )
-        }
-    }
-}
-
-@Composable
-private fun FullScreenEditorTopActions(
-    canUndo: Boolean,
-    canRedo: Boolean,
-    isPreviewMode: Boolean,
-    parseMode: EditorParseMode,
-    showFindReplace: Boolean,
-    fontScale: Float,
-    showAiAction: Boolean,
-    onUndo: () -> Unit,
-    onRedo: () -> Unit,
-    onTogglePreview: () -> Unit,
-    onParseModeChange: (EditorParseMode) -> Unit,
-    onToggleFindReplace: () -> Unit,
-    onTemplatesClick: () -> Unit,
-    onAiClick: () -> Unit,
-    onZoomOut: () -> Unit,
-    onZoomIn: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        TextButton(onClick = onUndo, enabled = canUndo) {
-            Text(text = stringResource(R.string.editor_undo))
-        }
-        TextButton(onClick = onRedo, enabled = canRedo) {
-            Text(text = stringResource(R.string.editor_redo))
-        }
-        if (showAiAction) {
-            TextButton(onClick = onAiClick) {
-                Icon(
-                    imageVector = Icons.Outlined.AutoAwesome,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(text = stringResource(R.string.editor_ai))
-            }
-        }
-        TextButton(onClick = onTogglePreview) {
-            Text(
-                text = if (isPreviewMode) {
-                    stringResource(R.string.editor_mode_edit)
-                } else {
-                    stringResource(R.string.editor_mode_preview)
-                }
-            )
-        }
-        FullScreenEditorParseModeButton(
-            selected = parseMode == EditorParseMode.Plain,
-            icon = Icons.Outlined.TextFields,
-            label = stringResource(R.string.editor_parse_mode_plain),
-            onClick = { onParseModeChange(EditorParseMode.Plain) }
-        )
-        FullScreenEditorParseModeButton(
-            selected = parseMode == EditorParseMode.Markdown,
-            icon = Icons.AutoMirrored.Outlined.Subject,
-            label = stringResource(R.string.editor_parse_mode_markdown),
-            onClick = { onParseModeChange(EditorParseMode.Markdown) }
-        )
-        FullScreenEditorParseModeButton(
-            selected = parseMode == EditorParseMode.Html,
-            icon = Icons.Outlined.Code,
-            label = stringResource(R.string.editor_parse_mode_html),
-            onClick = { onParseModeChange(EditorParseMode.Html) }
-        )
-        TextButton(onClick = onToggleFindReplace) {
-            Text(
-                text = if (showFindReplace) {
-                    stringResource(R.string.action_close)
-                } else {
-                    stringResource(R.string.editor_find)
-                }
-            )
-        }
-        TextButton(onClick = onTemplatesClick) {
-            Text(text = stringResource(R.string.editor_templates))
-        }
-        TextButton(onClick = onZoomOut, enabled = fontScale > 0.8f) {
-            Text(text = stringResource(R.string.editor_zoom_out))
-        }
-        TextButton(onClick = onZoomIn, enabled = fontScale < 1.6f) {
-            Text(text = stringResource(R.string.editor_zoom_in))
-        }
-    }
-}
-
-@Composable
-private fun FullScreenEditorParseModeButton(
-    selected: Boolean,
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(999.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FullScreenEditorAiSheet(
@@ -1644,6 +1503,7 @@ private fun FullScreenEditorAiSheet(
     val runButtonText = when (mode) {
         AiEditorMode.Translate -> stringResource(R.string.editor_ai_run_translate)
         AiEditorMode.Stylize -> stringResource(R.string.editor_ai_run_stylize)
+        AiEditorMode.Generate -> stringResource(R.string.editor_ai_run_generate)
         AiEditorMode.Fix -> stringResource(R.string.editor_ai_run_fix)
     }
     val sectionTitleStyle = MaterialTheme.typography.labelLarge
@@ -1932,6 +1792,7 @@ private fun FullScreenEditorAiSheet(
                             }
                         }
 
+                        AiEditorMode.Generate -> Unit
                         AiEditorMode.Fix -> Unit
                     }
                 }
@@ -2199,638 +2060,3 @@ private fun AiStyleChip(
     }
 }
 
-@Composable
-private fun FullScreenEditorMetaPill(text: String, color: Color, contentColor: Color) {
-    Surface(color = color, shape = RoundedCornerShape(999.dp)) {
-        Text(
-            text = text,
-            color = contentColor,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-        )
-    }
-}
-
-@Composable
-private fun FullScreenEditorToolButton(icon: ImageVector, hint: String, enabled: Boolean = true, onClick: () -> Unit) {
-    val context = LocalContext.current
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .combinedClickable(
-                enabled = enabled,
-                onClick = onClick,
-                onLongClick = { Toast.makeText(context, hint, Toast.LENGTH_SHORT).show() })
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            icon,
-            contentDescription = hint,
-            tint = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                alpha = 0.38f
-            )
-        )
-    }
-}
-
-@Composable
-private fun FullScreenEditorTools(
-    hasSelection: Boolean,
-    canCopy: Boolean,
-    canCut: Boolean,
-    canPaste: Boolean,
-    onCopy: () -> Unit,
-    onCut: () -> Unit,
-    onPaste: () -> Unit,
-    onBold: () -> Unit,
-    onItalic: () -> Unit,
-    onUnderline: () -> Unit,
-    onStrike: () -> Unit,
-    onSpoiler: () -> Unit,
-    onCode: () -> Unit,
-    onLink: () -> Unit,
-    onMention: () -> Unit,
-    onPre: () -> Unit,
-    onClear: () -> Unit,
-    onEmoji: () -> Unit
-) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Surface(
-            modifier = Modifier
-                .weight(1f)
-                .height(58.dp),
-            shape = RoundedCornerShape(32.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                FullScreenEditorToolButton(
-                    Icons.Outlined.ContentCopy,
-                    stringResource(R.string.editor_action_copy),
-                    canCopy,
-                    onCopy
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.ContentCut,
-                    stringResource(R.string.editor_action_cut),
-                    canCut,
-                    onCut
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.ContentPaste,
-                    stringResource(R.string.editor_action_paste),
-                    canPaste,
-                    onPaste
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.FormatBold,
-                    stringResource(R.string.rich_text_bold),
-                    hasSelection,
-                    onBold
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.FormatItalic,
-                    stringResource(R.string.rich_text_italic),
-                    hasSelection,
-                    onItalic
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.FormatUnderlined,
-                    stringResource(R.string.rich_text_underline),
-                    hasSelection,
-                    onUnderline
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.FormatStrikethrough,
-                    stringResource(R.string.rich_text_strikethrough),
-                    hasSelection,
-                    onStrike
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.VisibilityOff,
-                    stringResource(R.string.rich_text_spoiler),
-                    hasSelection,
-                    onSpoiler
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.Code,
-                    stringResource(R.string.rich_text_code),
-                    hasSelection,
-                    onCode
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.Link,
-                    stringResource(R.string.rich_text_link),
-                    hasSelection,
-                    onLink
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.AlternateEmail,
-                    stringResource(R.string.rich_text_mention),
-                    true,
-                    onMention
-                )
-                FullScreenEditorToolButton(
-                    Icons.AutoMirrored.Outlined.Subject,
-                    stringResource(R.string.rich_text_pre),
-                    hasSelection,
-                    onPre
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.FormatClear,
-                    stringResource(R.string.rich_text_clear),
-                    hasSelection,
-                    onClear
-                )
-            }
-        }
-        Spacer(modifier = Modifier.width(10.dp))
-        Surface(
-            modifier = Modifier.size(58.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest
-        ) {
-            IconButton(onClick = onEmoji) {
-                Text(
-                    text = "☺",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FullScreenEditorMarkupTools(
-    mode: EditorParseMode,
-    canCopy: Boolean,
-    canCut: Boolean,
-    canPaste: Boolean,
-    onCopy: () -> Unit,
-    onCut: () -> Unit,
-    onPaste: () -> Unit,
-    onBold: () -> Unit,
-    onItalic: () -> Unit,
-    onUnderline: () -> Unit,
-    onStrike: () -> Unit,
-    onSpoiler: () -> Unit,
-    onCode: () -> Unit,
-    onLink: () -> Unit,
-    onQuote: () -> Unit,
-    onPre: () -> Unit,
-    onLatex: () -> Unit,
-    onBlockLatex: () -> Unit,
-    onHeading1: () -> Unit,
-    onHeading2: () -> Unit,
-    onHeading3: () -> Unit,
-    onBulletList: () -> Unit,
-    onNumberedList: () -> Unit,
-    onDivider: () -> Unit,
-    onTable: () -> Unit
-) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Surface(
-            modifier = Modifier
-                .weight(1f)
-                .height(58.dp),
-            shape = RoundedCornerShape(32.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                FullScreenEditorToolButton(
-                    Icons.Outlined.ContentCopy,
-                    stringResource(R.string.editor_action_copy),
-                    canCopy,
-                    onCopy
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.ContentCut,
-                    stringResource(R.string.editor_action_cut),
-                    canCut,
-                    onCut
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.ContentPaste,
-                    stringResource(R.string.editor_action_paste),
-                    canPaste,
-                    onPaste
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.FormatBold,
-                    stringResource(R.string.rich_text_bold),
-                    true,
-                    onBold
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.FormatItalic,
-                    stringResource(R.string.rich_text_italic),
-                    true,
-                    onItalic
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.FormatUnderlined,
-                    stringResource(R.string.rich_text_underline),
-                    true,
-                    onUnderline
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.FormatStrikethrough,
-                    stringResource(R.string.rich_text_strikethrough),
-                    true,
-                    onStrike
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.VisibilityOff,
-                    stringResource(R.string.rich_text_spoiler),
-                    true,
-                    onSpoiler
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.Code,
-                    stringResource(R.string.rich_text_code),
-                    true,
-                    onCode
-                )
-                FullScreenEditorToolButton(
-                    Icons.Outlined.Link,
-                    stringResource(R.string.rich_text_link),
-                    true,
-                    onLink
-                )
-                FullScreenEditorToolButton(
-                    Icons.AutoMirrored.Outlined.Subject,
-                    stringResource(R.string.rich_text_blockquote),
-                    true,
-                    onQuote
-                )
-                FullScreenEditorToolButton(
-                    Icons.AutoMirrored.Outlined.Subject,
-                    if (mode == EditorParseMode.Markdown) stringResource(R.string.rich_text_pre) else stringResource(
-                        R.string.editor_html_pre
-                    ),
-                    true,
-                    onPre
-                )
-                FullScreenEditorTokenToolButton(
-                    "H1",
-                    stringResource(R.string.editor_heading_1),
-                    true,
-                    onHeading1
-                )
-                FullScreenEditorTokenToolButton(
-                    "H2",
-                    stringResource(R.string.editor_heading_2),
-                    true,
-                    onHeading2
-                )
-                FullScreenEditorTokenToolButton(
-                    "H3",
-                    stringResource(R.string.editor_heading_3),
-                    true,
-                    onHeading3
-                )
-                FullScreenEditorTokenToolButton(
-                    "UL",
-                    stringResource(R.string.editor_bulleted_list),
-                    true,
-                    onBulletList
-                )
-                FullScreenEditorTokenToolButton(
-                    "OL",
-                    stringResource(R.string.editor_numbered_list),
-                    true,
-                    onNumberedList
-                )
-                FullScreenEditorTokenToolButton(
-                    "HR",
-                    stringResource(R.string.editor_divider),
-                    true,
-                    onDivider
-                )
-                FullScreenEditorTokenToolButton(
-                    "Tbl",
-                    stringResource(R.string.editor_table),
-                    true,
-                    onTable
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FullScreenEditorTokenToolButton(
-    label: String,
-    hint: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit
-) {
-    val context = LocalContext.current
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .combinedClickable(
-                enabled = enabled,
-                onClick = onClick,
-                onLongClick = { Toast.makeText(context, hint, Toast.LENGTH_SHORT).show() })
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                alpha = 0.38f
-            )
-        )
-    }
-}
-
-private fun currentTextUrl(value: TextFieldValue): String? {
-    val range = normalizedSelection(value.selection) ?: return null
-    return value.annotatedString.getStringAnnotations(RICH_ENTITY_TAG, range.start, range.end)
-        .firstOrNull { decodeRichEntity(it.item) is MessageEntityType.TextUrl }
-        ?.let { decodeRichEntity(it.item) as? MessageEntityType.TextUrl }
-        ?.url
-}
-
-private fun currentPreLanguage(value: TextFieldValue): String {
-    val range = normalizedSelection(value.selection) ?: return ""
-    return value.annotatedString.getStringAnnotations(RICH_ENTITY_TAG, range.start, range.end)
-        .firstOrNull { decodeRichEntity(it.item) is MessageEntityType.Pre }
-        ?.let { decodeRichEntity(it.item) as? MessageEntityType.Pre }
-        ?.language
-        .orEmpty()
-}
-
-private fun selectedTextOrNull(value: TextFieldValue): String? {
-    val selection = normalizedSelection(value.selection) ?: return null
-    return value.text.substring(selection.start, selection.end)
-}
-
-private fun replaceSelection(value: TextFieldValue, replacement: String): TextFieldValue {
-    val rawSelection = if (value.selection.start <= value.selection.end) {
-        value.selection
-    } else {
-        TextRange(value.selection.end, value.selection.start)
-    }
-    val maxLength = value.annotatedString.length
-    val selection = TextRange(
-        start = rawSelection.start.coerceIn(0, maxLength),
-        end = rawSelection.end.coerceIn(0, maxLength)
-    )
-    val newAnnotated = buildAnnotatedString {
-        append(value.annotatedString.subSequence(0, selection.start))
-        append(replacement)
-        append(value.annotatedString.subSequence(selection.end, value.annotatedString.length))
-    }
-    val cursor = selection.start + replacement.length
-    return value.copy(annotatedString = newAnnotated, selection = TextRange(cursor, cursor))
-}
-
-private fun insertSnippetAtSelection(value: TextFieldValue, snippet: String): TextFieldValue {
-    if (snippet.isBlank()) return value
-    val rawSelection = if (value.selection.start <= value.selection.end) {
-        value.selection
-    } else {
-        TextRange(value.selection.end, value.selection.start)
-    }
-    val maxLength = value.annotatedString.length
-    val selection = TextRange(
-        start = rawSelection.start.coerceIn(0, maxLength),
-        end = rawSelection.end.coerceIn(0, maxLength)
-    )
-    val newAnnotated = buildAnnotatedString {
-        append(value.annotatedString.subSequence(0, selection.start))
-        append(snippet)
-        append(value.annotatedString.subSequence(selection.end, value.annotatedString.length))
-    }
-    val cursor = selection.start + snippet.length
-    return value.copy(annotatedString = newAnnotated, selection = TextRange(cursor, cursor))
-}
-
-private fun normalizedSelection(selection: TextRange): TextRange? {
-    if (selection.start == selection.end) return null
-    return if (selection.start <= selection.end) selection else TextRange(selection.end, selection.start)
-}
-
-private fun normalizeEditorUrl(raw: String): String? {
-    val trimmed = raw.trim()
-    if (trimmed.isEmpty()) return null
-    return if (trimmed.contains("://")) trimmed else "https://$trimmed"
-}
-
-private fun insertMentionAtSelection(value: TextFieldValue): TextFieldValue {
-    val rawSelection = if (value.selection.start <= value.selection.end) value.selection else TextRange(
-        value.selection.end,
-        value.selection.start
-    )
-    val maxLength = value.annotatedString.length
-    val selection = TextRange(
-        start = rawSelection.start.coerceIn(0, maxLength),
-        end = rawSelection.end.coerceIn(0, maxLength)
-    )
-    val insertion =
-        if (selection.start == selection.end) "@" else "@${value.text.substring(selection.start, selection.end)}"
-    val newAnnotated = buildAnnotatedString {
-        append(value.annotatedString.subSequence(0, selection.start))
-        append(insertion)
-        append(value.annotatedString.subSequence(selection.end, value.annotatedString.length))
-    }
-    val newCursor = selection.start + insertion.length
-    return value.copy(annotatedString = newAnnotated, selection = TextRange(newCursor, newCursor))
-}
-
-private fun wrapSelectionWith(
-    value: TextFieldValue,
-    prefix: String,
-    suffix: String,
-    placeholder: String = "text"
-): TextFieldValue {
-    val rawSelection =
-        if (value.selection.start <= value.selection.end) value.selection else TextRange(
-            value.selection.end,
-            value.selection.start
-        )
-    val maxLength = value.annotatedString.length
-    val selection = TextRange(
-        start = rawSelection.start.coerceIn(0, maxLength),
-        end = rawSelection.end.coerceIn(0, maxLength)
-    )
-    val selected = value.text.substring(selection.start, selection.end)
-    val content = selected.ifEmpty { placeholder }
-    val replacement = prefix + content + suffix
-    val newAnnotated = buildAnnotatedString {
-        append(value.annotatedString.subSequence(0, selection.start))
-        append(replacement)
-        append(value.annotatedString.subSequence(selection.end, value.annotatedString.length))
-    }
-    val contentStart = selection.start + prefix.length
-    val contentEnd = contentStart + content.length
-    return value.copy(
-        annotatedString = newAnnotated,
-        selection = TextRange(contentStart, contentEnd)
-    )
-}
-
-private fun prefixSelectionLines(value: TextFieldValue, prefix: String): TextFieldValue {
-    val rawSelection =
-        if (value.selection.start <= value.selection.end) value.selection else TextRange(
-            value.selection.end,
-            value.selection.start
-        )
-    val maxLength = value.annotatedString.length
-    val selection = TextRange(
-        start = rawSelection.start.coerceIn(0, maxLength),
-        end = rawSelection.end.coerceIn(0, maxLength)
-    )
-    val selected = value.text.substring(selection.start, selection.end).ifEmpty { "quote" }
-    val replacement = selected
-        .split('\n')
-        .joinToString("\n") { line -> if (line.startsWith(prefix)) line else prefix + line }
-    val newAnnotated = buildAnnotatedString {
-        append(value.annotatedString.subSequence(0, selection.start))
-        append(replacement)
-        append(value.annotatedString.subSequence(selection.end, value.annotatedString.length))
-    }
-    return value.copy(
-        annotatedString = newAnnotated,
-        selection = TextRange(selection.start, selection.start + replacement.length)
-    )
-}
-
-private fun applyMarkdownLink(value: TextFieldValue, url: String): TextFieldValue {
-    val label = selectedTextOrNull(value).orEmpty().ifBlank { "link" }
-    return replaceSelection(value, "[$label]($url)")
-}
-
-private fun applyHtmlLink(value: TextFieldValue, url: String): TextFieldValue {
-    val label = selectedTextOrNull(value).orEmpty().ifBlank { "link" }
-    return replaceSelection(value, "<a href=\"$url\">$label</a>")
-}
-
-private fun applyMarkdownPre(value: TextFieldValue, language: String): TextFieldValue {
-    val selected = selectedTextOrNull(value).orEmpty().ifBlank { "code" }
-    val info = language.trim()
-    val prefix = if (info.isBlank()) "```\n" else "```$info\n"
-    return replaceSelection(value, prefix + selected + "\n```")
-}
-
-private fun applyHtmlPre(value: TextFieldValue, language: String): TextFieldValue {
-    val selected = selectedTextOrNull(value).orEmpty().ifBlank { "code" }
-    val info = language.trim()
-    val openTag = if (info.isBlank()) "<pre>" else "<pre language=\"$info\">"
-    return replaceSelection(value, openTag + selected + "</pre>")
-}
-
-private fun applyMarkupHeading(
-    value: TextFieldValue,
-    mode: EditorParseMode,
-    level: Int
-): TextFieldValue {
-    val safeLevel = level.coerceIn(1, 6)
-    return when (mode) {
-        EditorParseMode.Markdown -> prefixSelectionLines(value, "#".repeat(safeLevel) + " ")
-        EditorParseMode.Html -> wrapSelectionWith(
-            value,
-            "<h$safeLevel>",
-            "</h$safeLevel>",
-            "Heading $safeLevel"
-        )
-
-        EditorParseMode.Plain -> value
-    }
-}
-
-private fun applyMarkupBulletList(value: TextFieldValue, mode: EditorParseMode): TextFieldValue {
-    return when (mode) {
-        EditorParseMode.Markdown -> prefixSelectionLines(value, "- ")
-        EditorParseMode.Html -> applyHtmlList(value, ordered = false)
-        EditorParseMode.Plain -> value
-    }
-}
-
-private fun applyMarkupNumberedList(value: TextFieldValue, mode: EditorParseMode): TextFieldValue {
-    return when (mode) {
-        EditorParseMode.Markdown -> applyMarkdownOrderedList(value)
-        EditorParseMode.Html -> applyHtmlList(value, ordered = true)
-        EditorParseMode.Plain -> value
-    }
-}
-
-private fun applyMarkupDivider(value: TextFieldValue, mode: EditorParseMode): TextFieldValue {
-    return when (mode) {
-        EditorParseMode.Markdown -> replaceSelection(value, "\n---\n")
-        EditorParseMode.Html -> replaceSelection(value, "\n<hr>\n")
-        EditorParseMode.Plain -> value
-    }
-}
-
-private fun applyMarkupTable(value: TextFieldValue, mode: EditorParseMode): TextFieldValue {
-    return when (mode) {
-        EditorParseMode.Markdown -> replaceSelection(
-            value,
-            "| Column 1 | Column 2 |\n| --- | --- |\n| Value 1 | Value 2 |"
-        )
-
-        EditorParseMode.Html -> replaceSelection(
-            value,
-            "<table>\n<tr><th>Column 1</th><th>Column 2</th></tr>\n<tr><td>Value 1</td><td>Value 2</td></tr>\n</table>"
-        )
-
-        EditorParseMode.Plain -> value
-    }
-}
-
-private fun applyMarkdownOrderedList(value: TextFieldValue): TextFieldValue {
-    val rawSelection =
-        if (value.selection.start <= value.selection.end) value.selection else TextRange(
-            value.selection.end,
-            value.selection.start
-        )
-    val maxLength = value.annotatedString.length
-    val selection = TextRange(
-        start = rawSelection.start.coerceIn(0, maxLength),
-        end = rawSelection.end.coerceIn(0, maxLength)
-    )
-    val selected = value.text.substring(selection.start, selection.end).ifEmpty { "item" }
-    val replacement = selected
-        .split('\n')
-        .mapIndexed { index, line -> "${index + 1}. $line" }
-        .joinToString("\n")
-    val newAnnotated = buildAnnotatedString {
-        append(value.annotatedString.subSequence(0, selection.start))
-        append(replacement)
-        append(value.annotatedString.subSequence(selection.end, value.annotatedString.length))
-    }
-    return value.copy(
-        annotatedString = newAnnotated,
-        selection = TextRange(selection.start, selection.start + replacement.length)
-    )
-}
-
-private fun applyHtmlList(value: TextFieldValue, ordered: Boolean): TextFieldValue {
-    val tag = if (ordered) "ol" else "ul"
-    val selected = selectedTextOrNull(value).orEmpty().ifBlank { "item" }
-    val items = selected
-        .split('\n')
-        .joinToString("\n") { line -> "<li>${line.ifBlank { "item" }}</li>" }
-    return replaceSelection(value, "<$tag>\n$items\n</$tag>")
-}

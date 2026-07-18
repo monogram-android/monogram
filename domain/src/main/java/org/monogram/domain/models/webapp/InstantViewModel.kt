@@ -27,7 +27,7 @@ sealed interface PageBlock {
     data class MathematicalExpression(val expression: String) : PageBlock
     data class Anchor(val name: String) : PageBlock
     data class ListBlock(val items: List<PageBlockListItem>) : PageBlock
-    data class BlockQuote(val text: RichText, val credit: RichText) : PageBlock
+    data class BlockQuote(val pageBlocks: List<PageBlock>, val credit: RichText) : PageBlock
     data class PullQuote(val text: RichText, val credit: RichText) : PageBlock
     data class AnimationBlock(
         val animation: WebPage.Animation,

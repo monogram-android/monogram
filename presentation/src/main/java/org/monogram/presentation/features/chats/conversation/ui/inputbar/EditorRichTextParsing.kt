@@ -4,6 +4,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import org.monogram.domain.models.MessageEntityType
+import org.monogram.domain.repository.RichTextParseMode
 
 internal const val LATEX_TAG = "latex_expression"
 internal const val EDITOR_HEADING_TAG = "editor_heading"
@@ -40,6 +41,14 @@ internal fun applyHtmlFormatting(value: TextFieldValue): TextFieldValue {
     return applyEditorFormatting(value, EditorParseMode.Html)
 }
 
+internal fun EditorParseMode.toRichTextParseMode(): RichTextParseMode? {
+    return when (this) {
+        EditorParseMode.Plain -> null
+        EditorParseMode.Markdown -> RichTextParseMode.Markdown
+        EditorParseMode.Html -> RichTextParseMode.Html
+    }
+}
+
 internal fun normalizeEditorMarkupForSending(text: String, mode: EditorParseMode): String {
     return when (mode) {
         EditorParseMode.Plain -> text
@@ -55,6 +64,7 @@ internal class MarkdownRichTextParser(private val source: AnnotatedString) {
     private var index = 0
     private var lineStart = true
     private var activeQuote: MarkdownQuote? = null
+    private var quoteLineOpen = false
     private var activeHeading: MarkdownHeading? = null
 
     fun parse(): AnnotatedString {
@@ -62,7 +72,12 @@ internal class MarkdownRichTextParser(private val source: AnnotatedString) {
             if (tryAppendEscapedChar()) continue
             if (activeInlineCode() && tryToggleInlineMarker(codeOnly = true)) continue
             if (tryAppendFenceBlock()) continue
-            if (lineStart && tryOpenQuote()) continue
+            if (lineStart && tryAppendQuotedTable()) continue
+            if (lineStart && tryAppendQuoteLine()) continue
+            if (lineStart && activeQuote != null && !quoteLineOpen) {
+                closeActiveQuote()
+                continue
+            }
             if (lineStart && tryOpenHeading()) continue
             if (lineStart && tryAppendDivider()) continue
             if (lineStart && tryAppendTable()) continue
@@ -126,6 +141,83 @@ internal class MarkdownRichTextParser(private val source: AnnotatedString) {
         activeQuote = MarkdownQuote(start = builder.length, type = type)
         index += if (type is MessageEntityType.BlockQuoteExpandable) 4 else 2
         lineStart = false
+        return true
+    }
+
+    private fun tryAppendQuoteLine(): Boolean {
+        val (prefixLength, type) = when {
+            input.startsWith(">>> ", index) -> 4 to MessageEntityType.BlockQuoteExpandable
+            input.startsWith("> ", index) -> 2 to MessageEntityType.BlockQuote
+            input.startsWith(">", index) -> 1 to MessageEntityType.BlockQuote
+            else -> return false
+        }
+
+        if (activeQuote == null) {
+            activeQuote = MarkdownQuote(start = builder.length, type = type)
+        } else if (type is MessageEntityType.BlockQuoteExpandable && activeQuote?.type != type) {
+            activeQuote = activeQuote?.copy(type = type)
+        }
+
+        quoteLineOpen = true
+        index += prefixLength
+        lineStart = true
+        return true
+    }
+
+    private fun tryAppendQuotedTable(): Boolean {
+        val prefix = quotePrefixAt(index) ?: return false
+        val headerEnd = currentLineEnd(index)
+        if (headerEnd >= input.length) return false
+        val separatorStart = headerEnd + 1
+        val separatorEnd = currentLineEnd(separatorStart)
+
+        val headerLine = input.substring(index, headerEnd).removePrefix(prefix)
+        val separatorLine = input.substring(separatorStart, separatorEnd).removePrefix(prefix)
+        val headerCells = parseMarkdownTableCells(headerLine) ?: return false
+        val separatorCells = parseMarkdownTableSeparator(
+            line = separatorLine,
+            expectedColumns = headerCells.size
+        ) ?: return false
+        if (separatorCells.size != headerCells.size) return false
+
+        val quoteType = if (prefix.startsWith(">>>")) {
+            MessageEntityType.BlockQuoteExpandable
+        } else {
+            MessageEntityType.BlockQuote
+        }
+        if (activeQuote == null) {
+            activeQuote = MarkdownQuote(start = builder.length, type = quoteType)
+        } else if (quoteType is MessageEntityType.BlockQuoteExpandable && activeQuote?.type != quoteType) {
+            activeQuote = activeQuote?.copy(type = quoteType)
+        }
+
+        val rows = mutableListOf(headerCells)
+        var cursor = if (separatorEnd < input.length) separatorEnd + 1 else separatorEnd
+        while (cursor < input.length) {
+            val rowEnd = currentLineEnd(cursor)
+            val rowPrefix = quotePrefixAt(cursor) ?: break
+            val cells = parseMarkdownTableCells(
+                input.substring(cursor, rowEnd).removePrefix(rowPrefix)
+            ) ?: break
+            if (cells.size != headerCells.size) break
+            rows += cells
+            cursor = if (rowEnd < input.length) rowEnd + 1 else rowEnd
+        }
+
+        val formattedTable = formatMarkdownTable(rows)
+        if (formattedTable.isBlank()) return false
+
+        val start = builder.length
+        builder.appendText(formattedTable, index)
+        val end = builder.length
+        builder.addRichEntity(start, end, MessageEntityType.Pre("table"))
+
+        if (cursor < input.length && builder.lastChar != '\n') {
+            builder.appendChar('\n', cursor - 1)
+        }
+        index = cursor
+        lineStart = index >= input.length || input.getOrNull(index - 1) == '\n'
+        quoteLineOpen = false
         return true
     }
 
@@ -193,9 +285,11 @@ internal class MarkdownRichTextParser(private val source: AnnotatedString) {
         val separatorStart = headerEnd + 1
         val separatorEnd = currentLineEnd(separatorStart)
 
-        val headerCells = parseMarkdownTableCells(input.substring(index, headerEnd)) ?: return false
+        val headerCells =
+            parseMarkdownTableCells(input.substring(index, headerEnd).stripQuotePrefix())
+                ?: return false
         val separatorCells = parseMarkdownTableSeparator(
-            line = input.substring(separatorStart, separatorEnd),
+            line = input.substring(separatorStart, separatorEnd).stripQuotePrefix(),
             expectedColumns = headerCells.size
         ) ?: return false
         if (separatorCells.size != headerCells.size) return false
@@ -204,7 +298,8 @@ internal class MarkdownRichTextParser(private val source: AnnotatedString) {
         var cursor = if (separatorEnd < input.length) separatorEnd + 1 else separatorEnd
         while (cursor < input.length) {
             val rowEnd = currentLineEnd(cursor)
-            val cells = parseMarkdownTableCells(input.substring(cursor, rowEnd)) ?: break
+            val cells =
+                parseMarkdownTableCells(input.substring(cursor, rowEnd).stripQuotePrefix()) ?: break
             if (cells.size != headerCells.size) break
             rows += cells
             cursor = if (rowEnd < input.length) rowEnd + 1 else rowEnd
@@ -347,8 +442,8 @@ internal class MarkdownRichTextParser(private val source: AnnotatedString) {
     private fun appendInputChar(sourceIndex: Int) {
         val char = input[sourceIndex]
         if (char == '\n') {
-            closeActiveQuote()
             closeActiveHeading()
+            quoteLineOpen = false
         }
         builder.appendChar(char, sourceIndex)
         lineStart = char == '\n'
@@ -361,6 +456,7 @@ internal class MarkdownRichTextParser(private val source: AnnotatedString) {
             builder.addRichEntity(quote.start, end, quote.type)
         }
         activeQuote = null
+        quoteLineOpen = false
     }
 
     private fun closeActiveHeading() {
@@ -380,6 +476,24 @@ internal class MarkdownRichTextParser(private val source: AnnotatedString) {
     private fun currentLineEnd(fromIndex: Int): Int {
         val newlineIndex = input.indexOf('\n', startIndex = fromIndex)
         return if (newlineIndex == -1) input.length else newlineIndex
+    }
+
+    private fun String.stripQuotePrefix(): String {
+        return when {
+            startsWith(">>> ") -> substring(4)
+            startsWith("> ") -> substring(2)
+            startsWith(">") -> substring(1)
+            else -> this
+        }
+    }
+
+    private fun quotePrefixAt(startIndex: Int): String? {
+        return when {
+            input.startsWith(">>> ", startIndex) -> ">>> "
+            input.startsWith("> ", startIndex) -> "> "
+            input.startsWith(">", startIndex) -> ">"
+            else -> null
+        }
     }
 }
 

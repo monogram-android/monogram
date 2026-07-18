@@ -33,7 +33,10 @@ private fun PageBlock.toEditorPlainText(): String {
                 .joinToString(" ")
         }
 
-        is PageBlock.BlockQuote -> listOf(text.toEditorPlainText(), credit.toEditorPlainText())
+        is PageBlock.BlockQuote -> listOf(
+            pageBlocks.toEditorPlainText(),
+            credit.toEditorPlainText()
+        )
             .filter { it.isNotBlank() }
             .joinToString("\n")
 

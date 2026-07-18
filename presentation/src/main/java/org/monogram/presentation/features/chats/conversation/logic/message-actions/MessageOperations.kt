@@ -11,6 +11,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ChecklistDraft
+import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
@@ -70,10 +71,21 @@ internal fun DefaultChatComponent.handleDeleteMessage(message: MessageModel, rev
     }
 }
 
-internal fun DefaultChatComponent.handleSaveEditedMessage(text: String, entities: List<MessageEntity>) {
+internal fun DefaultChatComponent.handleSaveEditedMessage(
+    text: String,
+    entities: List<MessageEntity>,
+    parseMode: RichTextParseMode?
+) {
     val editingMsg = _state.value.editingMessage ?: return
     scope.launch {
         when (editingMsg.content) {
+            is MessageContent.RichMessage -> repositoryMessage.editRichMessage(
+                chatId = chatId,
+                messageId = editingMsg.id,
+                markdown = text,
+                parseMode = parseMode ?: RichTextParseMode.Markdown
+            )
+
             is MessageContent.Photo,
             is MessageContent.Video,
             is MessageContent.Document,

@@ -7,7 +7,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +28,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -100,16 +100,26 @@ internal fun MessageBubbleContainer(
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
-    val maxWidth = remember(isLandscape, screenWidth) {
-        if (isLandscape) {
-            (screenWidth * 0.6f).coerceAtMost(450.dp)
-        } else {
-            (screenWidth * 0.85f).coerceAtMost(360.dp)
-        }
+    val isOutgoing = msg.isOutgoing
+    val contentPrefersExpandedWidth = remember(msg.content) {
+        msg.content.prefersExpandedBubbleWidth()
     }
 
-    val isOutgoing = msg.isOutgoing
+    val maxWidth = remember(
+        isLandscape,
+        screenWidth,
+        contentPrefersExpandedWidth,
+        behavior.isGroup,
+        isOutgoing
+    ) {
+        resolveMessageBubbleMaxWidth(
+            screenWidth = screenWidth,
+            isLandscape = isLandscape,
+            prefersExpandedWidth = contentPrefersExpandedWidth,
+            hasLeadingAvatar = behavior.isGroup && !isOutgoing
+        )
+    }
+
     val topSpacing = if (!senderGrouping.isSameSenderAbove) 8.dp else 2.dp
     val dragOffsetX = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
@@ -159,9 +169,6 @@ internal fun MessageBubbleContainer(
                 layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
             )
         }
-    }
-    val contentPrefersExpandedWidth = remember(msg.content) {
-        msg.content.prefersExpandedBubbleWidth()
     }
 
     MessageBubbleGestureLayer(
@@ -223,15 +230,11 @@ internal fun MessageBubbleContainer(
                             }
                     ) {
                         MessageBubbleContentHost(
-                            modifier = Modifier
-                                .then(
-                                    if (contentPrefersExpandedWidth) {
-                                        Modifier.fillMaxWidth()
-                                    } else {
-                                        Modifier.width(IntrinsicSize.Max)
-                                    }
-                                )
-                                .widthIn(max = maxWidth),
+                            modifier = (if (contentPrefersExpandedWidth) {
+                                Modifier.fillMaxWidth()
+                            } else {
+                                Modifier
+                            }).widthIn(max = maxWidth),
                             msg = msg,
                             newerMsg = newerMsg,
                             isOutgoing = isOutgoing,
@@ -511,7 +514,7 @@ private fun MessageContentSelector(
         modifier = if (contentPrefersExpandedWidth) {
             Modifier.fillMaxWidth()
         } else {
-            Modifier.width(IntrinsicSize.Max)
+            Modifier
         },
         horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
     ) {
@@ -555,7 +558,12 @@ private fun MessageContentSelector(
                     onLongClick = onBubbleLongClick,
                     onLinkPreviewAction = onLinkPreviewAction,
                     toProfile = toProfile,
-                    onForwardOriginClick = onForwardOriginClick
+                    onForwardOriginClick = onForwardOriginClick,
+                    modifier = if (contentPrefersExpandedWidth) {
+                        Modifier.fillMaxWidth()
+                    } else {
+                        Modifier
+                    }
                 )
             }
 
@@ -884,4 +892,28 @@ private fun MessageReplyMarkup(
 }
 
 private fun androidx.compose.ui.geometry.Size.toOffset() = Offset(width, height)
+
+internal fun resolveMessageBubbleMaxWidth(
+    screenWidth: Dp,
+    isLandscape: Boolean,
+    prefersExpandedWidth: Boolean,
+    hasLeadingAvatar: Boolean
+): Dp {
+    val availableWidth = (screenWidth - if (hasLeadingAvatar) 48.dp else 0.dp)
+        .coerceAtLeast(0.dp)
+
+    return if (prefersExpandedWidth) {
+        if (isLandscape) {
+            (availableWidth * 0.92f).coerceAtMost(600.dp)
+        } else {
+            (availableWidth * 0.94f).coerceAtMost(500.dp)
+        }
+    } else {
+        if (isLandscape) {
+            (availableWidth * 0.6f).coerceAtMost(450.dp)
+        } else {
+            (availableWidth * 0.85f).coerceAtMost(360.dp)
+        }
+    }
+}
 

@@ -237,7 +237,9 @@ fun PageBlock.containsText(query: String): Boolean {
         is PageBlock.Footer -> footer.containsText(query)
         is PageBlock.Thinking -> text.containsText(query)
         is PageBlock.MathematicalExpression -> expression.contains(query, ignoreCase = true)
-        is PageBlock.BlockQuote -> text.containsText(query) || credit.containsText(query)
+        is PageBlock.BlockQuote -> pageBlocks.any { it.containsText(query) } || credit.containsText(
+            query
+        )
         is PageBlock.PullQuote -> text.containsText(query) || credit.containsText(query)
         is PageBlock.ListBlock -> items.any { item ->
             item.label.contains(

@@ -5,12 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,6 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -83,62 +84,64 @@ internal fun LinkPreview(
                     else colorScheme.onSurface.copy(alpha = 0.05f)
                 )
         ) {
-            Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                Box(
-                    modifier = Modifier
-                        .width(3.dp)
-                        .fillMaxHeight()
-                        .background(borderColor)
-                )
-                Column(modifier = Modifier.padding(8.dp)) {
-                    if (resolved.isSmallMedia) {
-                        Row {
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .previewTapTarget(
-                                        onTap = { onAction(resolved.primaryAction) },
-                                        onLongClick = onLongClick
-                                    )
-                            ) {
-                                LinkPreviewTextContent(
-                                    meta = resolved.meta,
-                                    isOutgoing = isOutgoing
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            LinkPreviewSmallImage(
-                                thumbnailData = resolved.thumbnailData,
-                                thumbnailCacheKey = resolved.thumbnailCacheKey,
-                                onTap = { onAction(resolved.mediaAction) },
-                                onLongClick = onLongClick
-                            )
-                        }
-                    } else {
+            Column(
+                modifier = Modifier
+                    .drawBehind {
+                        drawRect(
+                            color = borderColor,
+                            topLeft = Offset.Zero,
+                            size = Size(3.dp.toPx(), size.height)
+                        )
+                    }
+                    .padding(start = 11.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
+            ) {
+                if (resolved.isSmallMedia) {
+                    Row {
                         Column(
-                            modifier = Modifier.previewTapTarget(
-                                onTap = { onAction(resolved.primaryAction) },
-                                onLongClick = onLongClick
-                            )
+                            modifier = Modifier
+                                .weight(1f)
+                                .previewTapTarget(
+                                    onTap = { onAction(resolved.primaryAction) },
+                                    onLongClick = onLongClick
+                                )
                         ) {
                             LinkPreviewTextContent(
                                 meta = resolved.meta,
                                 isOutgoing = isOutgoing
                             )
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        LinkPreviewSmallImage(
+                            thumbnailData = resolved.thumbnailData,
+                            thumbnailCacheKey = resolved.thumbnailCacheKey,
+                            onTap = { onAction(resolved.mediaAction) },
+                            onLongClick = onLongClick
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.previewTapTarget(
+                            onTap = { onAction(resolved.primaryAction) },
+                            onLongClick = onLongClick
+                        )
+                    ) {
+                        LinkPreviewTextContent(
+                            meta = resolved.meta,
+                            isOutgoing = isOutgoing
+                        )
+                    }
 
-                        if (resolved.hasMedia) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            LinkPreviewLargeMedia(
-                                thumbnailData = resolved.thumbnailData,
-                                thumbnailCacheKey = resolved.thumbnailCacheKey,
-                                aspectRatio = resolved.aspectRatio,
-                                showPlayOverlay = resolved.showPlayOverlay,
-                                duration = webPage.duration,
-                                onTap = { onAction(resolved.mediaAction) },
-                                onLongClick = onLongClick
-                            )
-                        }
+                    if (resolved.hasMedia) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinkPreviewLargeMedia(
+                            thumbnailData = resolved.thumbnailData,
+                            thumbnailCacheKey = resolved.thumbnailCacheKey,
+                            aspectRatio = resolved.aspectRatio,
+                            showPlayOverlay = resolved.showPlayOverlay,
+                            duration = webPage.duration,
+                            onTap = { onAction(resolved.mediaAction) },
+                            onLongClick = onLongClick
+                        )
                     }
                 }
             }

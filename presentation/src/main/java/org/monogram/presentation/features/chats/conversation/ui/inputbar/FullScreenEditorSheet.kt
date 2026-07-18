@@ -1,7 +1,6 @@
 package org.monogram.presentation.features.chats.conversation.ui.inputbar
 
 import android.content.ClipData
-import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -81,6 +80,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -111,7 +111,6 @@ import org.monogram.domain.repository.EditorSnippet
 import org.monogram.domain.repository.EditorSnippetProvider
 import org.monogram.domain.repository.FormattedTextResult
 import org.monogram.domain.repository.MessageAiRepository
-import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.TextCompositionStyleModel
@@ -201,7 +200,7 @@ private fun resolveAiStyleTitle(style: TextCompositionStyleModel): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FullScreenEditorSheet(
+internal fun FullScreenEditorSheet(
     visible: Boolean,
     textValue: TextFieldValue,
     onTextValueChange: (TextFieldValue) -> Unit,
@@ -211,11 +210,13 @@ fun FullScreenEditorSheet(
     emojiFontFamily: FontFamily,
     isKeyboardVisible: Boolean,
     maxMessageLength: Int,
+    initialParseMode: EditorParseMode,
+    sendAsRichMessage: Boolean,
     stickerRepository: StickerRepository,
     isPremiumUser: Boolean,
     isSecretChat: Boolean,
     onDismiss: () -> Unit,
-    onSend: (TextFieldValue) -> Unit,
+    onSend: (TextFieldValue, EditorParseMode) -> Unit,
     onEditorFocus: () -> Unit,
     onDraftAutosave: (String) -> Unit = {}
 ) {
@@ -231,7 +232,7 @@ fun FullScreenEditorSheet(
     var showLanguageDialog by rememberSaveable { mutableStateOf(false) }
     var languageValue by rememberSaveable { mutableStateOf("") }
     var isPreviewMode by rememberSaveable { mutableStateOf(false) }
-    var parseMode by rememberSaveable { mutableStateOf(EditorParseMode.Plain) }
+    var parseMode by rememberSaveable { mutableStateOf(initialParseMode) }
     var showFindReplace by rememberSaveable { mutableStateOf(false) }
     var findQuery by rememberSaveable { mutableStateOf("") }
     var replaceValue by rememberSaveable { mutableStateOf("") }
@@ -641,6 +642,7 @@ fun FullScreenEditorSheet(
             undoStack.clear()
             redoStack.clear()
             showAutoSaved = false
+            parseMode = initialParseMode
             aiErrorMessage = null
             aiShowDiffMode = true
             aiResultText = null
@@ -673,44 +675,10 @@ fun FullScreenEditorSheet(
             if (outgoingValue != textValue) {
                 onTextValueChange(outgoingValue)
             }
-            onSend(outgoingValue)
+            onSend(outgoingValue, parseMode)
         }
 
-        when (parseMode) {
-            EditorParseMode.Plain -> sendResolvedValue(textValue)
-            EditorParseMode.Markdown, EditorParseMode.Html -> {
-                aiScope.launch {
-                    isSending = true
-                    runCatching {
-                        val normalizedText =
-                            normalizeEditorMarkupForSending(textValue.text, parseMode)
-                        richTextParsingRepository.parseTextEntities(
-                            text = normalizedText,
-                            mode = when (parseMode) {
-                                EditorParseMode.Markdown -> RichTextParseMode.Markdown
-                                EditorParseMode.Html -> RichTextParseMode.Html
-                                EditorParseMode.Plain -> error("Plain mode is handled separately")
-                            }
-                        )
-                    }.onSuccess { result ->
-                        sendResolvedValue(
-                            buildTextFieldValueFromTextAndEntities(
-                                text = result.text,
-                                entities = result.entities,
-                                knownCustomEmojis = knownCustomEmojis
-                            )
-                        )
-                    }.onFailure {
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.editor_parse_error),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    isSending = false
-                }
-            }
-        }
+        sendResolvedValue(textValue)
     }
 
     Dialog(
@@ -1555,7 +1523,7 @@ private fun FullScreenEditorAiSheet(
     }
     val actionButtonText = if (resultText != null) stringResource(R.string.editor_ai_apply_result) else runButtonText
     val languageOptions = remember { buildAiLanguageOptions() }
-    val fallbackLanguageCode = Locale.getDefault().language.ifBlank { "en" }
+    val fallbackLanguageCode = LocalLocale.current.platformLocale.language.ifBlank { "en" }
     val selectedLanguageCode = translateLanguage.ifBlank { fallbackLanguageCode }
     val selectedLanguage = languageOptions.firstOrNull { it.code == selectedLanguageCode }
     var languageMenuExpanded by remember { mutableStateOf(false) }

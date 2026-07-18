@@ -31,6 +31,7 @@ import org.monogram.data.compat.buildInputSticker
 import org.monogram.data.compat.buildInputVideo
 import org.monogram.data.compat.buildInputVideoNote
 import org.monogram.data.compat.buildInputVoiceNote
+import org.monogram.data.compat.buildRichMessageSourceHtml
 import org.monogram.data.compat.buildRichMessageSourceMarkdown
 import org.monogram.data.compat.extractTextDraft
 import org.monogram.data.gateway.TdLibException
@@ -62,6 +63,7 @@ import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.ReadUpdate
+import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.SearchChatMessagesResult
 import org.monogram.domain.repository.UserRepository
 import java.util.concurrent.ConcurrentHashMap
@@ -830,10 +832,12 @@ class TdMessageRemoteDataSource(
         threadId: Long?,
         sendOptions: MessageSendOptions,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode
     ): TdApi.Message? {
         val content = buildInputMessageRichMessage(
             markdown = markdown,
+            parseMode = parseMode,
             isRtl = isRtl ?: shouldRenderRtl(markdown),
             detectAutomaticBlocks = detectAutomaticBlocks,
             clearDraft = true
@@ -1257,10 +1261,12 @@ class TdMessageRemoteDataSource(
         messageId: Long,
         markdown: String,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode
     ): TdApi.Message? {
         val content = buildInputMessageRichMessage(
             markdown = markdown,
+            parseMode = parseMode,
             isRtl = isRtl ?: shouldRenderRtl(markdown),
             detectAutomaticBlocks = detectAutomaticBlocks,
             clearDraft = false
@@ -1350,16 +1356,17 @@ class TdMessageRemoteDataSource(
 
     private fun buildInputMessageRichMessage(
         markdown: String,
+        parseMode: RichTextParseMode,
         isRtl: Boolean,
         detectAutomaticBlocks: Boolean,
         clearDraft: Boolean
     ): TdApi.InputMessageRichMessage {
+        val source = when (parseMode) {
+            RichTextParseMode.Markdown -> buildRichMessageSourceMarkdown(markdown)
+            RichTextParseMode.Html -> buildRichMessageSourceHtml(markdown)
+        }
         return TdApi.InputMessageRichMessage(
-            TdApi.InputRichMessage(
-                buildRichMessageSourceMarkdown(markdown),
-                isRtl,
-                detectAutomaticBlocks
-            ),
+            TdApi.InputRichMessage(source, isRtl, detectAutomaticBlocks),
             clearDraft
         )
     }

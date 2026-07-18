@@ -3,9 +3,7 @@ package org.monogram.presentation.features.chats.conversation.ui.message
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -140,7 +138,6 @@ internal fun RichMessageBubble(
 
     Column(
         modifier = modifier
-            .width(IntrinsicSize.Max)
             .widthIn(min = 120.dp),
         horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
     ) {
@@ -187,6 +184,9 @@ internal fun RichMessageBubble(
                                 block = renderModel.block,
                                 textSizeMultiplier = (fontSize / 16f).coerceIn(0.75f, 1.5f),
                                 stateKeyPrefix = renderModel.stateKeyPrefix,
+                                useMessageQuoteStyle = true,
+                                onRichTextTap = onClick,
+                                onRichTextLongPress = onLongClick,
                                 onOpenPhotoFullscreen = { photo, caption ->
                                     openRichPhoto(
                                         photo = photo,

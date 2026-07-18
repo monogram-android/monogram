@@ -397,7 +397,8 @@ internal class MessageRepositoryImpl(
         threadId: Long?,
         sendOptions: MessageSendOptions,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode
     ) {
         messageRemoteDataSource.sendRichMessage(
             chatId = chatId,
@@ -406,7 +407,8 @@ internal class MessageRepositoryImpl(
             threadId = threadId,
             sendOptions = sendOptions,
             isRtl = isRtl,
-            detectAutomaticBlocks = detectAutomaticBlocks
+            detectAutomaticBlocks = detectAutomaticBlocks,
+            parseMode = parseMode
         )
     }
 
@@ -621,14 +623,16 @@ internal class MessageRepositoryImpl(
         messageId: Long,
         markdown: String,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode
     ) {
         messageRemoteDataSource.editRichMessage(
             chatId = chatId,
             messageId = messageId,
             markdown = markdown,
             isRtl = isRtl,
-            detectAutomaticBlocks = detectAutomaticBlocks
+            detectAutomaticBlocks = detectAutomaticBlocks,
+            parseMode = parseMode
         )
     }
 

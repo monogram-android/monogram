@@ -19,6 +19,7 @@ import org.monogram.domain.models.webapp.WebAppInfoModel
 import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.ReadUpdate
+import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.SearchChatMessagesResult
 
 interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
@@ -83,7 +84,8 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         threadId: Long?,
         sendOptions: MessageSendOptions,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode = RichTextParseMode.Markdown
     ): TdApi.Message?
 
     suspend fun sendPhoto(
@@ -191,7 +193,8 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         messageId: Long,
         markdown: String,
         isRtl: Boolean?,
-        detectAutomaticBlocks: Boolean
+        detectAutomaticBlocks: Boolean,
+        parseMode: RichTextParseMode = RichTextParseMode.Markdown
     ): TdApi.Message?
     suspend fun editMessageCaption(chatId: Long, messageId: Long, caption: String, entities: List<MessageEntity>): TdApi.Message?
     suspend fun getFullRichMessage(chatId: Long, messageId: Long): TdApi.RichMessage?

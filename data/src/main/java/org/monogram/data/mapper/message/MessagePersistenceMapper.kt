@@ -921,7 +921,10 @@ internal class MessagePersistenceMapper(
                     .joinToString(" ")
             }
 
-            is PageBlock.BlockQuote -> text.plainText()
+            is PageBlock.BlockQuote -> listOf(
+                pageBlocks.joinToString("\n") { it.plainText() },
+                credit.plainText()
+            ).filter { it.isNotBlank() }.joinToString("\n")
             is PageBlock.PullQuote -> text.plainText()
             is PageBlock.Details -> pageBlocks.joinToString("\n") { it.plainText() }
             is PageBlock.Table -> cells.joinToString("\n") { row ->

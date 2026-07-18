@@ -52,7 +52,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -430,12 +429,6 @@ internal fun FullScreenEditorAiSheetContent(
                                     modifier = Modifier.padding(12.dp),
                                     verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Text(
-                                        text = stringResource(R.string.editor_ai_target_language),
-                                        style = sectionTitleStyle,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
                                     Box {
                                         Surface(
                                             modifier = Modifier.fillMaxWidth(),
@@ -545,12 +538,6 @@ internal fun FullScreenEditorAiSheetContent(
                                         modifier = Modifier.padding(12.dp),
                                         verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Text(
-                                            text = stringResource(R.string.editor_ai_target_language),
-                                            style = sectionTitleStyle,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
                                         Box {
                                             Surface(
                                                 modifier = Modifier.fillMaxWidth(),
@@ -637,21 +624,14 @@ internal fun FullScreenEditorAiSheetContent(
                                             }
                                         }
 
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = stringResource(R.string.editor_ai_add_emojis),
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-                                            Switch(
-                                                checked = addEmojis,
-                                                onCheckedChange = onAddEmojisChange,
-                                                enabled = !loading
-                                            )
-                                        }
+                                        AiCompactToggleTile(
+                                            icon = Icons.Outlined.EmojiEmotions,
+                                            title = stringResource(R.string.editor_ai_add_emojis),
+                                            checked = addEmojis,
+                                            iconColor = MaterialTheme.colorScheme.primary,
+                                            enabled = !loading,
+                                            onCheckedChange = onAddEmojisChange
+                                        )
                                     }
                                 }
                             }

@@ -284,7 +284,8 @@ internal fun ChatContentBody(
                         )
                     }
                 } else {
-                    content?.fileId?.takeIf { it != 0 }?.let(component::onDownloadFile)
+                    content?.fileId?.takeIf { it != 0 }
+                        ?.let { component.onDownloadFile(it, userInitiated = true) }
                 }
                 Unit
             }
@@ -314,7 +315,7 @@ internal fun ChatContentBody(
                             else -> 0
                         }
                         if (fileId != 0) {
-                            component.onDownloadFile(fileId)
+                            component.onDownloadFile(fileId, userInitiated = true)
                         }
                     }
                 }
@@ -349,7 +350,7 @@ internal fun ChatContentBody(
                         component.downloadUtils.openFile(validPath)
                     }
                 } else {
-                    component.onDownloadFile(document.fileId)
+                    component.onDownloadFile(document.fileId, userInitiated = true)
                 }
             }
             Unit
@@ -369,7 +370,7 @@ internal fun ChatContentBody(
                         caption = audio.caption
                     )
                 } else {
-                    component.onDownloadFile(audio.fileId)
+                    component.onDownloadFile(audio.fileId, userInitiated = true)
                 }
             }
             Unit

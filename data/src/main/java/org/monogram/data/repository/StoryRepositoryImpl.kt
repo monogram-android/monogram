@@ -661,7 +661,11 @@ class StoryRepositoryImpl(
                 priority = priority,
                 offset = 0,
                 limit = 0,
-                synchronous = synchronous
+                synchronous = synchronous,
+                // Opening a story is an explicit user action. Story files are not registered
+                // per-message, so calculatePriority() cannot lift them -- without this they rank
+                // below every scrolled-past thumbnail and are the only work the drop guard sheds.
+                userInitiated = true
             )
         }.onFailure {
             Log.d(

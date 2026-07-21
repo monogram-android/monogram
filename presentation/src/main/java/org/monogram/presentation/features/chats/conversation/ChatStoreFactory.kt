@@ -284,7 +284,7 @@ class ChatStoreFactory(
                     else it.copy(scrollToMessageId = null, pendingScrollCommand = null)
                 }
                 is Intent.ScrollToBottom -> component.scrollToBottomInternal()
-                is Intent.DownloadFile -> component.handleDownloadFile(intent.fileId)
+                is Intent.DownloadFile -> component.handleDownloadFile(intent.fileId, intent.userInitiated)
                 is Intent.DownloadHighRes -> component.handleDownloadHighRes(intent.messageId)
 
                 is Intent.CancelDownloadFile -> component.handleCancelDownloadFile(intent.fileId)

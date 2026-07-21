@@ -896,9 +896,16 @@ internal class MessageRepositoryImpl(
         }
     }
 
-    override fun downloadFile(fileId: Int, priority: Int, offset: Long, limit: Long, synchronous: Boolean) {
+    override fun downloadFile(
+        fileId: Int,
+        priority: Int,
+        offset: Long,
+        limit: Long,
+        synchronous: Boolean,
+        userInitiated: Boolean
+    ) {
         scope.launch {
-            fileDataSource.downloadFile(fileId, priority, offset, limit, synchronous)
+            fileDataSource.downloadFile(fileId, priority, offset, limit, synchronous, userInitiated)
         }
     }
 

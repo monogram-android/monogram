@@ -293,7 +293,12 @@ internal fun DefaultChatComponent.loadMessages(
     loadSource: String = "manual"
 ) {
     val state = _state.value
-    if (state.isLoading) return
+    // A forced load must be able to pre-empt one already in flight. handleTopicClick() clears
+    // `messages` and sets `viewportPhase = Initializing` before calling this, so dropping the
+    // call here left the screen permanently blank with nothing to re-trigger it: tapping a topic
+    // while the forum root was still loading (~2s) was silently ignored.
+    // cancelAllLoadingJobs() below tears down the in-flight load, so pre-empting is safe.
+    if (state.isLoading && !force) return
     if (!force && state.messages.size >= PAGE_SIZE && state.currentTopicId == null) return
 
     cancelAllLoadingJobs()
@@ -432,7 +437,12 @@ internal fun DefaultChatComponent.loadMessages(
                 phase = "chat_open_total_end",
                 durationMs = System.currentTimeMillis() - openStartedAt
             )
-            _state.update { it.copy(isLoading = false) }
+            // Only clear the flag if this job finished on its own. cancelAllLoadingJobs() cancels
+            // without joining, so a pre-empted job's finally runs *after* the replacement job has
+            // already set isLoading = true -- clearing it here would clobber the live load.
+            if (isActive) {
+                _state.update { it.copy(isLoading = false) }
+            }
             ChatConversationLog.logViewportState(
                 event = "load_messages_finished",
                 state = _state.value,

@@ -1,10 +1,13 @@
 package org.monogram.data.datasource
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeout
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
+
+private const val SYNCHRONOUS_DOWNLOAD_TIMEOUT_MS = 60_000L
 
 class TdFileDataSource(
     private val gateway: TelegramGateway,
@@ -15,7 +18,8 @@ class TdFileDataSource(
         priority: Int,
         offset: Long,
         limit: Long,
-        synchronous: Boolean
+        synchronous: Boolean,
+        userInitiated: Boolean
     ): TdApi.File? {
         return downloadFile(
             fileId = fileId,
@@ -23,7 +27,8 @@ class TdFileDataSource(
             offset = offset,
             limit = limit,
             synchronous = synchronous,
-            type = FileDownloadQueue.DownloadType.DEFAULT
+            type = FileDownloadQueue.DownloadType.DEFAULT,
+            userInitiated = userInitiated
         )
     }
 
@@ -33,7 +38,8 @@ class TdFileDataSource(
         offset: Long,
         limit: Long,
         synchronous: Boolean,
-        type: FileDownloadQueue.DownloadType
+        type: FileDownloadQueue.DownloadType,
+        userInitiated: Boolean
     ): TdApi.File? {
         fileDownloadQueue.clearSuppression(fileId)
         fileDownloadQueue.enqueue(
@@ -43,10 +49,17 @@ class TdFileDataSource(
             offset,
             limit,
             synchronous,
-            ignoreSuppression = true
+            ignoreSuppression = true,
+            userInitiated = userInitiated
         )
         if (synchronous) {
-            coRunCatching { fileDownloadQueue.waitForDownload(fileId).await() }
+            // Bounded: the queue can legitimately decline to enqueue (cooldown, suppression),
+            // and an unbounded await here left story loads hanging forever when it did.
+            coRunCatching {
+                withTimeout(SYNCHRONOUS_DOWNLOAD_TIMEOUT_MS) {
+                    fileDownloadQueue.waitForDownload(fileId).await()
+                }
+            }
         }
         return getFile(fileId)
     }

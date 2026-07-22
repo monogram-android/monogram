@@ -51,8 +51,11 @@ class FileDownloadQueue(
             if (this.isManual != other.isManual) return if (this.isManual) -1 else 1
             val p = other.priority.compareTo(priority)
             if (p != 0) return p
-            val a = availableAt.compareTo(other.availableAt)
-            return if (a != 0) a else createdAt.compareTo(other.createdAt)
+            // Match TDLib: among equal priorities the most recent request wins (LIFO).
+            // `availableAt` is deliberately not a ranking key -- it expresses readiness
+            // (backoff/cooldown) and is already enforced as a filter in dispatchTasks().
+            // Ranking by it would keep this ordering FIFO and defeat the recency rule.
+            return other.createdAt.compareTo(createdAt)
         }
     }
 
@@ -76,17 +79,19 @@ class FileDownloadQueue(
 
     @Volatile
     private var activeChatId: Long = 0L
-    @Volatile
-    private var lastTaskStartAt: Long = 0L
 
-    private val startGapMs = 160L
+    // TDLib has no concurrent-download cap of its own: it self-regulates with a 2 MiB in-flight
+    // byte budget per (DC, size-class) and orders equal priorities LIFO. Keeping these caps tight
+    // only withholds requests from that scheduler, so they are sized to stay out of its way.
     private val notFoundCooldownMs = TimeUnit.MINUTES.toMillis(2)
-    private val maxTotalParallelDownloads = 10
-    private val maxVideoParallelDownloads = 3
-    private val maxGifParallelDownloads = 2
-    private val maxDefaultParallelDownloads = 4
-    private val maxPendingDefaultAutoDownloads = 10
-    private val maxStickerParallelDownloads = 5
+    private val maxTotalParallelDownloads = 48
+    // Video stays low deliberately: a large file monopolises TDLib's byte window anyway, so
+    // extra video slots add queueing without throughput.
+    private val maxVideoParallelDownloads = 4
+    private val maxGifParallelDownloads = 4
+    private val maxDefaultParallelDownloads = 32
+    private val maxPendingDefaultAutoDownloads = 64
+    private val maxStickerParallelDownloads = 16
     private val stickerStallMs = 20_000L
     private val defaultStallMs = 35_000L
     private val stalledRecoveryCooldownMs = 12_000L
@@ -176,19 +181,22 @@ class FileDownloadQueue(
             }
         }
 
+        // No inter-start gap: awaiting one here serialised every start and, because `trigger` is
+        // CONFLATED, an urgent enqueue arriving mid-dispatch could have its wake-up coalesced
+        // away. TDLib already paces part issuance itself (DelayDispatcher, 50ms -> 3ms ramp).
         for (task in tasksToStart) {
-            throttleTaskStart()
             scope.launch(dispatcherProvider.io) {
                 processDownload(task)
             }
         }
-    }
 
-    private suspend fun throttleTaskStart() {
-        val now = System.currentTimeMillis()
-        val waitMs = (lastTaskStartAt + startGapMs - now).coerceAtLeast(0L)
-        if (waitMs > 0) delay(waitMs)
-        lastTaskStartAt = System.currentTimeMillis()
+        // A conflated trigger can drop a wake-up that arrived while we were dispatching, which
+        // would strand ready work until the 15s stall sweep. Re-arm only when this pass actually
+        // started something and more is waiting -- gating on progress keeps this from spinning
+        // when the backlog is blocked purely by slot exhaustion.
+        if (tasksToStart.isNotEmpty() && pendingRequests.isNotEmpty()) {
+            trigger.trySend(Unit)
+        }
     }
 
     private suspend fun processDownload(req: DownloadRequest) {
@@ -535,14 +543,18 @@ class FileDownloadQueue(
         offset: Long = 0,
         limit: Long = 0,
         synchronous: Boolean = false,
-        ignoreSuppression: Boolean = false
+        ignoreSuppression: Boolean = false,
+        userInitiated: Boolean = false
     ) {
         scope.launch(dispatcherProvider.default) {
             if (!ignoreSuppression && suppressedAutoDownloadIds.contains(fileId)) {
                 return@launch
             }
 
-            val isManualRequest = priority >= 32
+            // User intent is an explicit signal, not something inferred from a magic priority.
+            // It used to be `priority >= 32`, but viewport auto-download also passes 32, so every
+            // thumbnail scrolled past was marked "manual" and became un-evictable.
+            val isManualRequest = userInitiated
             if (isManualRequest) manualDownloadIds.add(fileId)
 
             val cooldownUntil = notFoundCooldownUntil[fileId]
@@ -592,7 +604,13 @@ class FileDownloadQueue(
                 val active = activeRequests[fileId]
                 if (active != null) {
                     val merged = mergeRequests(active, req)
-                    val shouldKick = merged != active || cache.fileCache[fileId]?.local?.isDownloadingActive != true
+                    // Always re-send on user action. FileManager::download_impl runs with
+                    // force_update_priority=true and ResourceManager::add_node inserts before
+                    // equals, so re-issuing DownloadFile -- even at an unchanged priority --
+                    // moves the file to the head of TDLib's queue. It is a free bump-to-front.
+                    val shouldKick = userInitiated ||
+                        merged != active ||
+                        cache.fileCache[fileId]?.local?.isDownloadingActive != true
                     if (shouldKick) {
                         activeRequests[fileId] = merged
                         scope.launch(dispatcherProvider.io) {
@@ -613,15 +631,33 @@ class FileDownloadQueue(
                     return@launch
                 }
 
+                // A genuinely user-initiated request must reach TDLib immediately rather than
+                // queueing behind background work. TDLib imposes no concurrency cap and orders
+                // equal priorities LIFO, so handing it straight over makes the newest action win.
+                // This intentionally lets activeRequests exceed maxTotalParallelDownloads;
+                // dispatchTasks() recomputes its counters per pass and simply admits nothing new
+                // until the set drains.
+                if (userInitiated) {
+                    pendingRequests.remove(fileId)
+                    activeRequests[fileId] = req
+                    scope.launch(dispatcherProvider.io) {
+                        processDownload(req)
+                    }
+                    return@launch
+                }
+
                 val pending = pendingRequests[fileId]
                 if (pending != null) {
                     pendingRequests[fileId] = mergeRequests(pending, req)
                 } else {
-                    if (!isManual && resolvedType == DownloadType.DEFAULT) {
+                    // Never silently drop a synchronous request: callers await waitForDownload(),
+                    // and abandoning it here leaves that deferred uncompleted forever.
+                    if (!isManual && !synchronous && resolvedType == DownloadType.DEFAULT) {
                         val pendingDefaultCount = pendingRequests.values.count {
                             !it.isManual && it.type == DownloadType.DEFAULT
                         }
                         if (req.priority < 32 && pendingDefaultCount >= maxPendingDefaultAutoDownloads) {
+                            downloadWaiters.remove(fileId)?.cancel()
                             return@launch
                         }
                     }
@@ -714,8 +750,11 @@ class FileDownloadQueue(
         var max = 1
         val type = fileDownloadTypes[fileId]
 
+        // Priority only does work when values differ. These used to saturate at 32 -- the same
+        // value as an explicit user action -- which left TDLib nothing to arbitrate and reduced
+        // every scheduling decision to the tie-break. 32 is now reserved for real user intent.
         if (type == DownloadType.STICKER || type == DownloadType.VIDEO_NOTE) {
-            max = 32
+            max = 8
         }
 
         messages.forEach { (chatId, msgId) ->
@@ -724,9 +763,9 @@ class FileDownloadQueue(
 
             var p = 1
             if (isVisible) {
-                p = if (chatId == activeChatId) 32 else 24
-            } else if (isNearby) {
                 p = if (chatId == activeChatId) 16 else 8
+            } else if (isNearby) {
+                p = if (chatId == activeChatId) 4 else 2
             }
 
             max = maxOf(max, p)
@@ -755,9 +794,15 @@ class FileDownloadQueue(
 
     private fun cancelIrrelevantDownloads() {
         scope.launch(dispatcherProvider.default) {
-            val toCancel = mutableListOf<Int>()
+            // Scan active downloads too, not just pending ones. An in-flight download that the
+            // user has scrolled past used to hold its slot until completion or the 3-minute
+            // timeout, which is what let stale work block foreground requests.
+            val toCancel = LinkedHashSet<Int>()
 
             for ((fileId, _) in pendingRequests) {
+                if (!isStillRelevant(fileId)) toCancel.add(fileId)
+            }
+            for ((fileId, _) in activeRequests) {
                 if (!isStillRelevant(fileId)) toCancel.add(fileId)
             }
 

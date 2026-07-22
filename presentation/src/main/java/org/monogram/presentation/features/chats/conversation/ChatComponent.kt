@@ -140,7 +140,7 @@ interface ChatComponent {
     fun onViewportSettled()
     fun onMessageViewportChanged(visibleMessageIds: Set<Long>, nearbyMessageIds: Set<Long>)
     fun onScrollToBottom()
-    fun onDownloadFile(fileId: Int)
+    fun onDownloadFile(fileId: Int, userInitiated: Boolean = false)
     fun onDownloadHighRes(messageId: Long)
     fun onCancelDownloadFile(fileId: Int)
     fun updateScrollPosition(messageId: Long)

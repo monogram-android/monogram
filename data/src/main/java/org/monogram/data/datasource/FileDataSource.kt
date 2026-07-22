@@ -5,14 +5,23 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.data.infra.FileDownloadQueue
 
 interface FileDataSource {
-    suspend fun downloadFile(fileId: Int, priority: Int, offset: Long, limit: Long, synchronous: Boolean): TdApi.File?
     suspend fun downloadFile(
         fileId: Int,
         priority: Int,
         offset: Long,
         limit: Long,
         synchronous: Boolean,
-        type: FileDownloadQueue.DownloadType
+        userInitiated: Boolean = false
+    ): TdApi.File?
+
+    suspend fun downloadFile(
+        fileId: Int,
+        priority: Int,
+        offset: Long,
+        limit: Long,
+        synchronous: Boolean,
+        type: FileDownloadQueue.DownloadType,
+        userInitiated: Boolean = false
     ): TdApi.File?
     suspend fun cancelDownload(fileId: Int): TdApi.Ok?
     suspend fun getFile(fileId: Int): TdApi.File?

@@ -876,9 +876,9 @@ class DefaultChatComponent(
 
     override fun onScrollToBottom() = store.accept(ChatStore.Intent.ScrollToBottom)
 
-    override fun onDownloadFile(fileId: Int) {
+    override fun onDownloadFile(fileId: Int, userInitiated: Boolean) {
         AutoDownloadSuppression.clear(fileId)
-        store.accept(ChatStore.Intent.DownloadFile(fileId))
+        store.accept(ChatStore.Intent.DownloadFile(fileId, userInitiated))
     }
 
     override fun onDownloadHighRes(messageId: Long) = store.accept(ChatStore.Intent.DownloadHighRes(messageId))

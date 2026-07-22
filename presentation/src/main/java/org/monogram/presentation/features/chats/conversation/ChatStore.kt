@@ -111,7 +111,7 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         object ScrollToMessageConsumed : Intent()
         object ScrollCommandConsumed : Intent()
         object ScrollToBottom : Intent()
-        data class DownloadFile(val fileId: Int) : Intent()
+        data class DownloadFile(val fileId: Int, val userInitiated: Boolean = false) : Intent()
         data class DownloadHighRes(val messageId: Long) : Intent()
         data class CancelDownloadFile(val fileId: Int) : Intent()
         data class UpdateScrollPosition(val messageId: Long) : Intent()

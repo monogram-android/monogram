@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.monogram.domain.models.AttachMenuBotModel
 import org.monogram.domain.models.ChatViewportCacheEntry
@@ -128,10 +129,45 @@ class CachePreferences(private val context: Context) : CacheProvider {
 
         val legacy = prefs.getLong("chat_scroll_$chatId", 0L)
         return if (legacy == 0L) {
-            ChatViewportCacheEntry(atBottom = true)
+            ChatViewportCacheEntry(atBottom = true, readFully = true)
         } else {
-            ChatViewportCacheEntry(anchorMessageId = legacy, anchorOffsetPx = 0, atBottom = false)
+            ChatViewportCacheEntry(
+                anchorMessageId = legacy,
+                anchorOffsetPx = 0,
+                atBottom = false,
+                readFully = false
+            )
         }
+    }
+
+    override fun saveChatListScrollPosition(folderId: Int, index: Int, offset: Int) {
+        prefs.edit()
+            .putString(
+                chatListScrollKey(folderId),
+                Json.encodeToString(ChatListScrollPosition(index, offset))
+            )
+            .apply()
+    }
+
+    override fun getChatListScrollPosition(folderId: Int): Pair<Int, Int>? {
+        val raw = prefs.getString(chatListScrollKey(folderId), null) ?: return null
+        val decoded = runCatching {
+            Json.decodeFromString<ChatListScrollPosition>(raw)
+        }.getOrNull() ?: return null
+        return decoded.index to decoded.offset
+    }
+
+    override fun getChatListScrollPositions(): Map<Int, Pair<Int, Int>> {
+        return prefs.all.entries.mapNotNull { (key, value) ->
+            if (!key.startsWith(CHAT_LIST_SCROLL_PREFIX)) return@mapNotNull null
+            val folderId =
+                key.removePrefix(CHAT_LIST_SCROLL_PREFIX).toIntOrNull() ?: return@mapNotNull null
+            val raw = value as? String ?: return@mapNotNull null
+            val decoded = runCatching {
+                Json.decodeFromString<ChatListScrollPosition>(raw)
+            }.getOrNull() ?: return@mapNotNull null
+            folderId to (decoded.index to decoded.offset)
+        }.toMap()
     }
 
     override fun setSavedGifs(gifs: List<GifModel>) {
@@ -166,9 +202,18 @@ class CachePreferences(private val context: Context) : CacheProvider {
 
     companion object {
         private const val KEY_SAVED_GIFS = "saved_gifs"
+        private const val CHAT_LIST_SCROLL_PREFIX = "chat_list_scroll_"
 
         private fun chatViewportKey(chatId: Long, threadId: Long?): String {
             return "chat_viewport_${chatId}_${threadId ?: 0L}"
         }
+
+        private fun chatListScrollKey(folderId: Int): String = "$CHAT_LIST_SCROLL_PREFIX$folderId"
     }
 }
+
+@Serializable
+private data class ChatListScrollPosition(
+    val index: Int,
+    val offset: Int
+)

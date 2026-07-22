@@ -300,9 +300,12 @@ internal fun ChatContentEffects(
                         animated = false
                     )
                 } else {
-                    val groupedIndex = groupedMessageIndexById[command.anchorMessageId]
+                    val anchorCandidateIds =
+                        listOf(command.anchorMessageId) + command.anchorAliasIds
+                    val groupedIndex =
+                        anchorCandidateIds.firstNotNullOfOrNull(groupedMessageIndexById::get)
                         ?: awaitGroupedIndex(
-                            messageId = command.anchorMessageId,
+                            messageIds = anchorCandidateIds,
                             groupedMessageIndexByIdProvider = { groupedMessageIndexById }
                         )
                         ?: -1
@@ -314,6 +317,11 @@ internal fun ChatContentEffects(
                             targetIndex = targetIndex,
                             anchorOffsetPx = command.anchorOffsetPx
                         )
+                    } else if (
+                        command.topEndMessageId != null &&
+                        groupedMessages.firstOrNull()?.firstMessageId == command.topEndMessageId
+                    ) {
+                        scrollState.scrollToChatStartStaged(animated = false)
                     } else {
                         scrollState.scrollToChatBottomStaged(
                             isComments = isComments,
@@ -494,6 +502,7 @@ internal fun ChatContentEffects(
                 conversationItems = conversationItems,
                 isComments = isComments,
                 isLatestLoaded = state.isLatestLoaded,
+                isOldestLoaded = state.isOldestLoaded,
                 isLoadingOlder = state.isLoadingOlder,
                 isLoadingNewer = state.isLoadingNewer,
                 isAtBottom = state.isAtBottom,
@@ -531,6 +540,7 @@ internal fun ChatContentEffects(
                 conversationItems = conversationItems,
                 isComments = isComments,
                 isLatestLoaded = state.isLatestLoaded,
+                isOldestLoaded = state.isOldestLoaded,
                 isLoadingOlder = state.isLoadingOlder,
                 isLoadingNewer = state.isLoadingNewer,
                 isAtBottom = state.isAtBottom,

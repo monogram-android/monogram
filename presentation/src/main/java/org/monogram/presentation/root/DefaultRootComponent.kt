@@ -835,9 +835,9 @@ class DefaultRootComponent(
                         scope.launch {
                             val me = userRepository.getMe()
                             if (config.chatId == me.id) {
-                                navigation.push(Config.EditProfile)
+                                navigation.bringToFront(Config.EditProfile)
                             } else {
-                                navigation.push(Config.ChatEdit(config.chatId))
+                                navigation.bringToFront(Config.ChatEdit(config.chatId))
                             }
                         }
                     },

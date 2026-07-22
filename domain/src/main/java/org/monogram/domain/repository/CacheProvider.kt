@@ -37,6 +37,9 @@ interface CacheProvider {
 
     fun saveChatViewport(chatId: Long, threadId: Long?, viewport: ChatViewportCacheEntry)
     fun getChatViewport(chatId: Long, threadId: Long?): ChatViewportCacheEntry?
+    fun saveChatListScrollPosition(folderId: Int, index: Int, offset: Int)
+    fun getChatListScrollPosition(folderId: Int): Pair<Int, Int>?
+    fun getChatListScrollPositions(): Map<Int, Pair<Int, Int>>
 
     fun setSavedGifs(gifs: List<GifModel>)
 

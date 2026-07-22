@@ -1,6 +1,8 @@
 package org.monogram.presentation.features.profile
 
 import androidx.annotation.StringRes
+import org.monogram.domain.models.ChatFullInfoModel
+import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ProfileTabType
 import org.monogram.domain.repository.ChatMembersFilter
 import org.monogram.domain.repository.ProfileMediaFilter
@@ -130,6 +132,43 @@ fun buildInitialVisibleProfileTabSpecs(
     }
 
     return supportedTabs.filter { it.key in visibleKeys }
+}
+
+fun shouldShowMembersTab(
+    chat: ChatModel?,
+    fullInfo: ChatFullInfoModel?,
+    resolvedMemberCount: Int
+): Boolean {
+    val chatModel = chat ?: return false
+    if (!chatModel.isGroup && !chatModel.isChannel) return false
+
+    val hasMemberData = fullInfo?.canGetMembers == true || resolvedMemberCount > 0
+    if (!hasMemberData) return false
+
+    return when {
+        chatModel.isChannel -> chatModel.isAdmin
+        chatModel.isGroup -> fullInfo?.hasHiddenMembers != true || chatModel.isAdmin
+        else -> false
+    }
+}
+
+fun shouldShowAdminsTab(
+    chat: ChatModel?,
+    fullInfo: ChatFullInfoModel?
+): Boolean {
+    val chatModel = chat ?: return false
+    if (!chatModel.isGroup && !chatModel.isChannel) return false
+    return chatModel.isAdmin || (fullInfo?.administratorCount ?: 0) > 0
+}
+
+fun shouldShowModerationTab(
+    chat: ChatModel?,
+    memberCount: Int
+): Boolean {
+    val chatModel = chat ?: return false
+    if (!chatModel.isGroup && !chatModel.isChannel) return false
+    if (!chatModel.isAdmin) return false
+    return memberCount > 0
 }
 
 fun ProfileTabType?.toProfileTabKeyOrNull(): ProfileTabKey? =

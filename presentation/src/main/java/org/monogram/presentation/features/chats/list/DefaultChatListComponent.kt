@@ -94,6 +94,7 @@ class DefaultChatListComponent(
     private val attachMenuBotRepository: AttachMenuBotRepository = container.repositories.attachMenuBotRepository
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
     private val storyRepository: StoryRepository = container.repositories.storyRepository
+    private val cacheProvider = container.cacheProvider
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     private val messageDisplayer = container.utils.messageDisplayer()
 
@@ -102,7 +103,8 @@ class DefaultChatListComponent(
             isForwarding = isForwarding,
             isShareTargetMode = isShareTargetMode,
             projectChannelSubscriptionState = appPreferences.projectChannelSubscriptionState(),
-            isLoadingByFolder = mapOf(-1 to true)
+            isLoadingByFolder = mapOf(-1 to true),
+            scrollPositions = cacheProvider.getChatListScrollPositions()
         )
     )
     private val _uiState = MutableStateFlow(_state.value.toUiState())
@@ -1432,6 +1434,7 @@ class DefaultChatListComponent(
         store.accept(ChatListStore.Intent.UpdateScrollPosition(folderId, index, offset))
 
     internal fun handleUpdateScrollPosition(folderId: Int, index: Int, offset: Int) {
+        cacheProvider.saveChatListScrollPosition(folderId, index, offset)
         _state.update {
             val newPositions = it.scrollPositions.toMutableMap()
             newPositions[folderId] = index to offset

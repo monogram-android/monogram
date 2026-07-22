@@ -561,7 +561,8 @@ internal fun rememberChatChromeState(
         state.webViewUrl,
         state.instantViewUrl,
         state.youtubeUrl,
-        state.isSearchActive
+        state.isSearchActive,
+        state.lastSavedViewport?.returnToMessageIds
     ) {
         derivedStateOf {
             editingPhotoPath != null ||
@@ -579,7 +580,8 @@ internal fun rememberChatChromeState(
                     state.webViewUrl != null ||
                     state.instantViewUrl != null ||
                     state.youtubeUrl != null ||
-                    state.isSearchActive
+                    state.isSearchActive ||
+                    !state.lastSavedViewport?.returnToMessageIds.isNullOrEmpty()
         }
     }
 

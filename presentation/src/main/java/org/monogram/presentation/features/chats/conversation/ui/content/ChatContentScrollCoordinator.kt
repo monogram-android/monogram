@@ -319,6 +319,22 @@ internal suspend fun awaitGroupedIndex(
     }
 }
 
+internal suspend fun awaitGroupedIndex(
+    messageIds: List<Long>,
+    groupedMessageIndexByIdProvider: () -> Map<Long, Int>,
+    timeoutMs: Long = 1200L
+): Int? {
+    if (messageIds.isEmpty()) return null
+    return withTimeoutOrNull(timeoutMs) {
+        snapshotFlow {
+            val indexById = groupedMessageIndexByIdProvider()
+            messageIds.firstNotNullOfOrNull(indexById::get)
+        }
+            .filterNotNull()
+            .first()
+    }
+}
+
 internal suspend fun LazyListState.restoreViewportAtIndex(
     targetIndex: Int,
     anchorOffsetPx: Int
@@ -399,13 +415,14 @@ internal fun buildViewportSnapshot(
     conversationItems: List<ConversationListItem>,
     isComments: Boolean,
     isLatestLoaded: Boolean,
+    isOldestLoaded: Boolean,
     isLoadingOlder: Boolean,
     isLoadingNewer: Boolean,
     isAtBottom: Boolean,
     showNavPadding: Boolean
 ): ChatViewportCacheEntry? {
     if (groupedMessages.isEmpty()) {
-        return ChatViewportCacheEntry(atBottom = true)
+        return ChatViewportCacheEntry(atBottom = true, readFully = true)
     }
 
     val atBottomNow = scrollState.isAtBottom(
@@ -413,7 +430,11 @@ internal fun buildViewportSnapshot(
         isLatestLoaded = isLatestLoaded
     )
     if (atBottomNow) {
-        return ChatViewportCacheEntry(atBottom = true)
+        return ChatViewportCacheEntry(
+            atBottom = true,
+            readFully = true,
+            topEndMessageId = groupedMessages.firstOrNull()?.firstMessageId?.takeIf { isOldestLoaded }
+        )
     }
 
     val leadingItems = chatContentLeadingItemsCount(
@@ -436,19 +457,34 @@ internal fun buildViewportSnapshot(
         }
     } ?: return null
 
-    val anchorMessageId = when (
+    val anchorEntry = when (
         val item = conversationItems.getOrNull(
             lazyIndexToGroupedIndex(anchorItem.index, leadingItems)
         )
     ) {
-        is ConversationListItem.Grouped -> item.groupedMessageItem.firstMessageId
+        is ConversationListItem.Grouped -> item.groupedMessageItem
         else -> null
     } ?: return null
 
+    val anchorMessageId = anchorEntry.firstMessageId
+    val anchorAliasIds = when (anchorEntry) {
+        is GroupedMessageItem.Single -> emptyList()
+        is GroupedMessageItem.Album -> anchorEntry.messages.map { it.id }
+            .filterNot { it == anchorMessageId }
+    }
+    val anchorChatId = when (anchorEntry) {
+        is GroupedMessageItem.Single -> anchorEntry.message.chatId
+        is GroupedMessageItem.Album -> anchorEntry.messages.firstOrNull()?.chatId
+    }
+
     return ChatViewportCacheEntry(
         anchorMessageId = anchorMessageId,
+        anchorAliasIds = anchorAliasIds,
         anchorOffsetPx = anchorItem.offset - info.viewportStartOffset,
-        atBottom = false
+        atBottom = false,
+        readFully = false,
+        topEndMessageId = groupedMessages.firstOrNull()?.firstMessageId?.takeIf { isOldestLoaded },
+        anchorChatId = anchorChatId
     )
 }
 

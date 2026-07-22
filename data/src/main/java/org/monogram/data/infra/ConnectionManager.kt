@@ -73,6 +73,8 @@ class ConnectionManager(
     private var failureStreak = 0
     private var lastEffectiveNetworkType: ProxyNetworkType? = null
     private var lastObservedNetworkSnapshot = networkSnapshotProvider.snapshot.value
+    private var lastTypedConnectionState: TdApi.ConnectionState? = null
+    private var lastTypedConnectionStateAtMs: Long = 0L
 
     private val reconnectRequests = Channel<ReconnectRequest>(
         capacity = 32,
@@ -122,6 +124,8 @@ class ConnectionManager(
     private fun observeConnectionState() {
         scope.launch(dispatchers.default) {
             updates.connectionState.collect { update ->
+                lastTypedConnectionState = update.state
+                lastTypedConnectionStateAtMs = System.currentTimeMillis()
                 handleConnectionState(update.state, "update")
             }
         }
@@ -355,9 +359,33 @@ class ConnectionManager(
             return null
         }
 
+        val typedState = lastTypedConnectionState
+        if (typedState != null) {
+            if (!sameConnectionStateKind(typedState, state)) {
+                Log.w(
+                    tag,
+                    "Connection probe mismatch typed=${typedState.javaClass.simpleName} probe=${state.javaClass.simpleName} reason=$reason"
+                )
+            }
+
+            val typedAgeMs = System.currentTimeMillis() - lastTypedConnectionStateAtMs
+            if (typedAgeMs in 0..TYPED_CONNECTION_PROBE_GRACE_MS) {
+                Log.d(
+                    tag,
+                    "Ignoring probed connection state ${state.javaClass.simpleName} because recent typed state ${typedState.javaClass.simpleName} is authoritative ($typedAgeMs ms, reason=$reason)"
+                )
+                return typedState
+            }
+        }
+
         handleConnectionState(state, "probe:$reason")
         return state
     }
+
+    private fun sameConnectionStateKind(
+        first: TdApi.ConnectionState,
+        second: TdApi.ConnectionState
+    ): Boolean = first.constructor == second.constructor
 
     private suspend fun maybeAdjustProxyOnFailures(reason: String) {
         val isAutoBestEnabled = appPreferences.isAutoBestProxyEnabled.value
@@ -724,6 +752,7 @@ class ConnectionManager(
     companion object {
         private const val MAX_RETRY_DELAY_MS = 60_000L
         private const val RECONNECT_COALESCE_WINDOW_MS = 350L
+        private const val TYPED_CONNECTION_PROBE_GRACE_MS = 15_000L
         private const val FAILURE_THRESHOLD_FOR_PROXY_REAPPLY = 3
     }
 }

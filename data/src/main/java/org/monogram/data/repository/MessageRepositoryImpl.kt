@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
 import org.json.JSONArray
@@ -112,6 +114,8 @@ internal class MessageRepositoryImpl(
     )
     private val fullRichMessageCache =
         ConcurrentHashMap<RichMessageCacheKey, MessageContent.RichMessage>()
+    private val chatOpenOwnershipMutex = Mutex()
+    private val chatOpenOwnershipRegistry = ChatOpenOwnershipRegistry()
 
     private val _textCompositionStyles = MutableStateFlow<List<TextCompositionStyleModel>>(emptyList())
     private val hardResetFlagKey = "cache_hard_reset_v2"
@@ -353,29 +357,88 @@ internal class MessageRepositoryImpl(
         return true
     }
 
-    override suspend fun openChat(chatId: Long) {
-        messageRemoteDataSource.setChatOpened(chatId)
-        try {
-            gateway.execute(TdApi.OpenChat(chatId))
-        } catch (e: Exception) {
-            Log.e("MessageRepository", "Error opening chat $chatId", e)
-            if (chatId > 0) {
+    override suspend fun openChat(chatId: Long, ownerTag: String) {
+        val normalizedOwnerTag = ownerTag.ifBlank { "unknown" }
+        val ownershipChange = chatOpenOwnershipMutex.withLock {
+            chatOpenOwnershipRegistry.acquire(chatId, normalizedOwnerTag)
+        }
+
+        when (ownershipChange.transition) {
+            ChatOpenOwnershipTransition.AcquiredFirstOwner -> {
+                messageRemoteDataSource.setChatOpened(chatId)
                 try {
-                    gateway.execute(TdApi.CreatePrivateChat(chatId, false))
                     gateway.execute(TdApi.OpenChat(chatId))
-                } catch (e2: Exception) {
-                    Log.e("MessageRepository", "Failed to create and open private chat $chatId", e2)
+                } catch (e: Exception) {
+                    Log.e(
+                        "MessageRepository",
+                        "Error opening chat $chatId owner=$normalizedOwnerTag owners=${ownershipChange.owners}",
+                        e
+                    )
+                    if (chatId > 0) {
+                        try {
+                            gateway.execute(TdApi.CreatePrivateChat(chatId, false))
+                            gateway.execute(TdApi.OpenChat(chatId))
+                        } catch (e2: Exception) {
+                            Log.e(
+                                "MessageRepository",
+                                "Failed to create and open private chat $chatId owner=$normalizedOwnerTag owners=${ownershipChange.owners}",
+                                e2
+                            )
+                        }
+                    }
                 }
             }
+
+            ChatOpenOwnershipTransition.AddedOwner,
+            ChatOpenOwnershipTransition.DuplicateOwner -> {
+                Log.d(
+                    "MessageRepository",
+                    "Chat $chatId already open owner=$normalizedOwnerTag transition=${ownershipChange.transition} owners=${ownershipChange.owners}"
+                )
+            }
+
+            ChatOpenOwnershipTransition.ReleasedOwner,
+            ChatOpenOwnershipTransition.ReleasedLastOwner,
+            ChatOpenOwnershipTransition.MissingOwner -> Unit
         }
     }
 
-    override suspend fun closeChat(chatId: Long) {
-        messageRemoteDataSource.setChatClosed(chatId)
-        try {
-            gateway.execute(TdApi.CloseChat(chatId))
-        } catch (e: Exception) {
-            Log.e("MessageRepository", "Error closing chat $chatId", e)
+    override suspend fun closeChat(chatId: Long, ownerTag: String) {
+        val normalizedOwnerTag = ownerTag.ifBlank { "unknown" }
+        val ownershipChange = chatOpenOwnershipMutex.withLock {
+            chatOpenOwnershipRegistry.release(chatId, normalizedOwnerTag)
+        }
+
+        when (ownershipChange.transition) {
+            ChatOpenOwnershipTransition.ReleasedLastOwner -> {
+                messageRemoteDataSource.setChatClosed(chatId)
+                try {
+                    gateway.execute(TdApi.CloseChat(chatId))
+                } catch (e: Exception) {
+                    Log.e(
+                        "MessageRepository",
+                        "Error closing chat $chatId owner=$normalizedOwnerTag",
+                        e
+                    )
+                }
+            }
+
+            ChatOpenOwnershipTransition.ReleasedOwner,
+            ChatOpenOwnershipTransition.DuplicateOwner,
+            ChatOpenOwnershipTransition.AddedOwner,
+            ChatOpenOwnershipTransition.AcquiredFirstOwner -> {
+                Log.d(
+                    "MessageRepository",
+                    "Chat $chatId remains open after close owner=$normalizedOwnerTag transition=${ownershipChange.transition} owners=${ownershipChange.owners}"
+                )
+            }
+
+            ChatOpenOwnershipTransition.MissingOwner -> {
+                Log.w(
+                    "MessageRepository",
+                    "Ignoring closeChat for chat $chatId owner=$normalizedOwnerTag because owner was not registered"
+                )
+            }
         }
     }
 

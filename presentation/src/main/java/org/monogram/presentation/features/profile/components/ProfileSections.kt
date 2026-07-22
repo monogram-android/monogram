@@ -36,12 +36,10 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.rounded.AlternateEmail
 import androidx.compose.material.icons.rounded.AssignmentTurnedIn
-import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.ForwardToInbox
-import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.LocationOn
@@ -104,7 +102,6 @@ import org.monogram.core.telegram.TelegramLinkDomains
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
 import org.monogram.presentation.core.ui.StyledQRCode
 import org.monogram.presentation.core.ui.generatePureBitmap
@@ -789,106 +786,6 @@ fun ProfileInfoSection(
         }
     }
 
-    if (chat?.isAdmin == true && isGroupOrChannel) {
-        managementItems.add { pos ->
-            SettingsTile(
-                icon = Icons.Rounded.History,
-                title = stringResource(R.string.recent_actions_title),
-                subtitle = stringResource(R.string.recent_actions_subtitle),
-                iconColor = MaterialTheme.colorScheme.secondary,
-                position = pos,
-                onClick = onShowLogs
-            )
-        }
-    }
-
-    if (chat?.isAdmin == true && pendingJoinRequestCount > 0) {
-        managementItems.add { pos ->
-            SettingsTile(
-                icon = Icons.Rounded.AssignmentTurnedIn,
-                title = stringResource(R.string.profile_chat_join_requests),
-                subtitle = pluralStringResource(
-                    R.plurals.profile_chat_join_requests_count,
-                    pendingJoinRequestCount,
-                    pendingJoinRequestCount
-                ),
-                iconColor = Color(0xFF8E24AA),
-                position = pos,
-                onClick = { }
-            )
-        }
-    }
-
-    val hasStatisticsAccess = isGroupOrChannel && fullInfo?.canGetStatistics == true
-    if (hasStatisticsAccess) {
-        managementItems.add { pos ->
-            SettingsTile(
-                icon = Icons.Rounded.BarChart,
-                title = stringResource(R.string.statistics_title),
-                subtitle = stringResource(R.string.statistics_subtitle),
-                iconColor = Color(0xFF00BCD4),
-                position = pos,
-                onClick = { onShowStatistics() }
-            )
-        }
-    }
-
-    if (canToggleJoinToSendMessages) {
-        managementItems.add { pos ->
-            SettingsSwitchTile(
-                icon = Icons.AutoMirrored.Rounded.Login,
-                title = stringResource(R.string.permission_join_to_send_messages),
-                subtitle = stringResource(R.string.permission_join_to_send_messages_subtitle),
-                checked = chat?.joinToSendMessages == true,
-                iconColor = Color(0xFF43A047),
-                position = pos,
-                onCheckedChange = onToggleJoinToSendMessages
-            )
-        }
-    }
-
-    if (canToggleJoinByRequest) {
-        managementItems.add { pos ->
-            SettingsSwitchTile(
-                icon = Icons.Rounded.AssignmentTurnedIn,
-                title = stringResource(R.string.profile_chat_join_by_request),
-                subtitle = stringResource(R.string.profile_chat_join_by_request_subtitle),
-                checked = chat?.joinByRequest == true,
-                iconColor = Color(0xFF00897B),
-                position = pos,
-                onCheckedChange = onToggleJoinByRequest
-            )
-        }
-    }
-
-    if (canToggleHiddenMembers) {
-        managementItems.add { pos ->
-            SettingsSwitchTile(
-                icon = Icons.Rounded.Person,
-                title = stringResource(R.string.profile_chat_hidden_members),
-                subtitle = stringResource(R.string.profile_chat_hidden_members_subtitle),
-                checked = fullInfo?.hasHiddenMembers == true,
-                iconColor = MaterialTheme.colorScheme.secondary,
-                position = pos,
-                onCheckedChange = onToggleHiddenMembers
-            )
-        }
-    }
-
-    if (canToggleAggressiveAntiSpam) {
-        managementItems.add { pos ->
-            SettingsSwitchTile(
-                icon = Icons.Rounded.Shield,
-                title = stringResource(R.string.profile_chat_anti_spam),
-                subtitle = stringResource(R.string.profile_chat_anti_spam_subtitle),
-                checked = fullInfo?.hasAggressiveAntiSpamEnabled == true,
-                iconColor = MaterialTheme.colorScheme.tertiary,
-                position = pos,
-                onCheckedChange = onToggleAggressiveAntiSpam
-            )
-        }
-    }
-
     if (!isGroupOrChannel && isCurrentUser && fullInfo != null) {
         if (fullInfo.setChatBackground) {
             detailsItems.add { pos ->
@@ -1042,21 +939,6 @@ fun ProfileInfoSection(
                 iconColor = Color(0xFF5E35B1),
                 position = pos,
                 onClick = { }
-            )
-        }
-    }
-
-    val hasRevenueAccess = chat?.isChannel == true && fullInfo?.canGetRevenueStatistics == true
-
-    if (hasRevenueAccess) {
-        managementItems.add { pos ->
-            SettingsTile(
-                icon = Icons.Rounded.Payments,
-                title = stringResource(R.string.revenue_title),
-                subtitle = stringResource(R.string.revenue_subtitle),
-                iconColor = Color(0xFFFF9800),
-                position = pos,
-                onClick = { onShowRevenueStatistics() }
             )
         }
     }

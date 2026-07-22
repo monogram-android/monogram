@@ -27,7 +27,11 @@ class ChatInitialLoadPolicyTest {
             chatId = 1L,
             effectiveThreadId = 2L,
             explicitMessageId = 10L,
-            savedViewport = ChatViewportCacheEntry(20L, 4, false),
+            savedViewport = ChatViewportCacheEntry(
+                anchorMessageId = 20L,
+                anchorOffsetPx = 4,
+                atBottom = false
+            ),
             firstUnreadMessageId = 30L,
             unreadCount = 1,
             rootMessageId = 40L
@@ -42,7 +46,11 @@ class ChatInitialLoadPolicyTest {
             chatId = 1L,
             effectiveThreadId = 2L,
             explicitMessageId = null,
-            savedViewport = ChatViewportCacheEntry(20L, 4, false),
+            savedViewport = ChatViewportCacheEntry(
+                anchorMessageId = 20L,
+                anchorOffsetPx = 4,
+                atBottom = false
+            ),
             firstUnreadMessageId = null,
             unreadCount = 0,
             rootMessageId = null
@@ -51,7 +59,11 @@ class ChatInitialLoadPolicyTest {
             chatId = 1L,
             effectiveThreadId = 2L,
             explicitMessageId = null,
-            savedViewport = ChatViewportCacheEntry(21L, 4, false),
+            savedViewport = ChatViewportCacheEntry(
+                anchorMessageId = 21L,
+                anchorOffsetPx = 4,
+                atBottom = false
+            ),
             firstUnreadMessageId = null,
             unreadCount = 0,
             rootMessageId = null
@@ -66,7 +78,11 @@ class ChatInitialLoadPolicyTest {
             chatId = 1L,
             effectiveThreadId = null,
             explicitMessageId = null,
-            savedViewport = ChatViewportCacheEntry(42L, 0, false),
+            savedViewport = ChatViewportCacheEntry(
+                anchorMessageId = 42L,
+                anchorOffsetPx = 0,
+                atBottom = false
+            ),
             firstUnreadMessageId = null,
             unreadCount = 0,
             rootMessageId = null
@@ -75,7 +91,11 @@ class ChatInitialLoadPolicyTest {
             chatId = 1L,
             effectiveThreadId = null,
             explicitMessageId = 42L,
-            savedViewport = ChatViewportCacheEntry(42L, 0, false),
+            savedViewport = ChatViewportCacheEntry(
+                anchorMessageId = 42L,
+                anchorOffsetPx = 0,
+                atBottom = false
+            ),
             firstUnreadMessageId = null,
             unreadCount = 0,
             rootMessageId = null

@@ -29,18 +29,25 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
+import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.AssignmentTurnedIn
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.BrokenImage
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.PermMedia
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RemoveRedEye
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.CircularProgressIndicator
@@ -93,6 +100,7 @@ import org.monogram.presentation.core.media.VideoStickerPlayer
 import org.monogram.presentation.core.media.VideoType
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
+import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
 import org.monogram.presentation.core.ui.rememberShimmerBrush
 import org.monogram.presentation.core.util.DateFormatManager
@@ -125,7 +133,14 @@ fun LazyGridScope.profileMediaSection(
     onSearchDismissed: () -> Unit = {},
     onOpenActiveStory: (Int) -> Unit = {},
     onOpenPostedStory: (Int) -> Unit = {},
-    onOpenArchive: () -> Unit = {}
+    onOpenArchive: () -> Unit = {},
+    onShowLogs: () -> Unit = {},
+    onShowStatistics: () -> Unit = {},
+    onShowRevenueStatistics: () -> Unit = {},
+    onToggleJoinToSendMessages: (Boolean) -> Unit = {},
+    onToggleJoinByRequest: (Boolean) -> Unit = {},
+    onToggleHiddenMembers: (Boolean) -> Unit = {},
+    onToggleAggressiveAntiSpam: (Boolean) -> Unit = {}
 ) {
     if (tabs.isEmpty()) return
 
@@ -230,22 +245,36 @@ fun LazyGridScope.profileMediaSection(
         ProfileTabKey.MEMBERS,
         ProfileTabKey.ADMINS,
         ProfileTabKey.RESTRICTED,
-        ProfileTabKey.BANNED -> membersList(
-            members = selectedMembersTab.visibleItems,
-            isLoading = selectedMembersTab.isLoadingInitial ||
-                    (selectedMembersTab.isSearching && selectedMembersTab.visibleItems.isEmpty()),
-            canLoadMore = selectedMembersTab.canLoadMore &&
-                    !selectedMembersTab.isSearching &&
-                    !selectedMembersTab.isSearchResultsVisible,
-            onLoadMore = onLoadMore,
-            onMemberClick = onMemberClick,
-            onMemberLongClick = onMemberLongClick,
-            emptyTextRes = if (selectedMembersTab.isSearchResultsVisible) {
-                R.string.no_results_found
-            } else {
-                R.string.empty_members
+        ProfileTabKey.BANNED -> {
+            if (selectedTab.key == ProfileTabKey.ADMINS) {
+                adminToolsSection(
+                    state = state,
+                    onShowLogs = onShowLogs,
+                    onShowStatistics = onShowStatistics,
+                    onShowRevenueStatistics = onShowRevenueStatistics,
+                    onToggleJoinToSendMessages = onToggleJoinToSendMessages,
+                    onToggleJoinByRequest = onToggleJoinByRequest,
+                    onToggleHiddenMembers = onToggleHiddenMembers,
+                    onToggleAggressiveAntiSpam = onToggleAggressiveAntiSpam
+                )
             }
-        )
+            membersList(
+                members = selectedMembersTab.visibleItems,
+                isLoading = selectedMembersTab.isLoadingInitial ||
+                        (selectedMembersTab.isSearching && selectedMembersTab.visibleItems.isEmpty()),
+                canLoadMore = selectedMembersTab.canLoadMore &&
+                        !selectedMembersTab.isSearching &&
+                        !selectedMembersTab.isSearchResultsVisible,
+                onLoadMore = onLoadMore,
+                onMemberClick = onMemberClick,
+                onMemberLongClick = onMemberLongClick,
+                emptyTextRes = if (selectedMembersTab.isSearchResultsVisible) {
+                    R.string.no_results_found
+                } else {
+                    R.string.empty_members
+                }
+            )
+        }
 
         ProfileTabKey.SIMILAR -> chatsList(
             chats = state.relatedChats,
@@ -393,6 +422,175 @@ fun LazyGridScope.profileMediaSection(
                 }
             }
         }
+    }
+}
+
+private fun LazyGridScope.adminToolsSection(
+    state: ProfileComponent.State,
+    onShowLogs: () -> Unit,
+    onShowStatistics: () -> Unit,
+    onShowRevenueStatistics: () -> Unit,
+    onToggleJoinToSendMessages: (Boolean) -> Unit,
+    onToggleJoinByRequest: (Boolean) -> Unit,
+    onToggleHiddenMembers: (Boolean) -> Unit,
+    onToggleAggressiveAntiSpam: (Boolean) -> Unit
+) {
+    val chat = state.chat ?: return
+    val fullInfo = state.fullInfo
+    val isGroupOrChannel = chat.isGroup || chat.isChannel
+    if (!isGroupOrChannel || !chat.isAdmin) return
+
+    val pendingJoinRequestCount = chat.pendingJoinRequestCount
+    val hasStatisticsAccess = fullInfo?.canGetStatistics == true
+    val hasRevenueAccess = chat.isChannel && fullInfo?.canGetRevenueStatistics == true
+    val canToggleJoinToSendMessages = chat.isGroup
+    val canToggleJoinByRequest =
+        chat.isGroup &&
+                chat.isSupergroup &&
+                !chat.isChannel &&
+                !chat.isAdministeredDirectMessagesGroup
+    val canToggleHiddenMembers = fullInfo?.canHideMembers == true
+    val canToggleAggressiveAntiSpam = fullInfo?.canToggleAggressiveAntiSpam == true
+
+    val items = mutableListOf<@Composable (ItemPosition) -> Unit>()
+
+    items += { pos ->
+        SettingsTile(
+            icon = Icons.Rounded.History,
+            title = stringResource(R.string.recent_actions_title),
+            subtitle = stringResource(R.string.recent_actions_subtitle),
+            iconColor = MaterialTheme.colorScheme.secondary,
+            position = pos,
+            onClick = onShowLogs
+        )
+    }
+
+    if (pendingJoinRequestCount > 0) {
+        items += { pos ->
+            SettingsTile(
+                icon = Icons.Rounded.AssignmentTurnedIn,
+                title = stringResource(R.string.profile_chat_join_requests),
+                subtitle = pluralStringResource(
+                    R.plurals.profile_chat_join_requests_count,
+                    pendingJoinRequestCount,
+                    pendingJoinRequestCount
+                ),
+                iconColor = Color(0xFF8E24AA),
+                position = pos,
+                onClick = { }
+            )
+        }
+    }
+
+    if (hasStatisticsAccess) {
+        items += { pos ->
+            SettingsTile(
+                icon = Icons.Rounded.BarChart,
+                title = stringResource(R.string.statistics_title),
+                subtitle = stringResource(R.string.statistics_subtitle),
+                iconColor = Color(0xFF00BCD4),
+                position = pos,
+                onClick = onShowStatistics
+            )
+        }
+    }
+
+    if (hasRevenueAccess) {
+        items += { pos ->
+            SettingsTile(
+                icon = Icons.Rounded.Payments,
+                title = stringResource(R.string.revenue_title),
+                subtitle = stringResource(R.string.revenue_subtitle),
+                iconColor = Color(0xFFFF9800),
+                position = pos,
+                onClick = onShowRevenueStatistics
+            )
+        }
+    }
+
+    if (canToggleJoinToSendMessages) {
+        items += { pos ->
+            SettingsSwitchTile(
+                icon = Icons.AutoMirrored.Rounded.Login,
+                title = stringResource(R.string.permission_join_to_send_messages),
+                subtitle = stringResource(R.string.permission_join_to_send_messages_subtitle),
+                checked = chat.joinToSendMessages,
+                iconColor = Color(0xFF43A047),
+                position = pos,
+                onCheckedChange = onToggleJoinToSendMessages
+            )
+        }
+    }
+
+    if (canToggleJoinByRequest) {
+        items += { pos ->
+            SettingsSwitchTile(
+                icon = Icons.Rounded.AssignmentTurnedIn,
+                title = stringResource(R.string.profile_chat_join_by_request),
+                subtitle = stringResource(R.string.profile_chat_join_by_request_subtitle),
+                checked = chat.joinByRequest,
+                iconColor = Color(0xFF00897B),
+                position = pos,
+                onCheckedChange = onToggleJoinByRequest
+            )
+        }
+    }
+
+    if (canToggleHiddenMembers) {
+        items += { pos ->
+            SettingsSwitchTile(
+                icon = Icons.Rounded.Person,
+                title = stringResource(R.string.profile_chat_hidden_members),
+                subtitle = stringResource(R.string.profile_chat_hidden_members_subtitle),
+                checked = fullInfo?.hasHiddenMembers == true,
+                iconColor = MaterialTheme.colorScheme.secondary,
+                position = pos,
+                onCheckedChange = onToggleHiddenMembers
+            )
+        }
+    }
+
+    if (canToggleAggressiveAntiSpam) {
+        items += { pos ->
+            SettingsSwitchTile(
+                icon = Icons.Rounded.Shield,
+                title = stringResource(R.string.profile_chat_anti_spam),
+                subtitle = stringResource(R.string.profile_chat_anti_spam_subtitle),
+                checked = fullInfo?.hasAggressiveAntiSpamEnabled == true,
+                iconColor = MaterialTheme.colorScheme.tertiary,
+                position = pos,
+                onCheckedChange = onToggleAggressiveAntiSpam
+            )
+        }
+    }
+
+    if (items.isEmpty()) return
+
+    item(span = { GridItemSpan(3) }, key = "admin_tools_section") {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.profile_section_management),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+            )
+            items.forEachIndexed { index, content ->
+                content(index.toItemPosition(items.size))
+            }
+        }
+    }
+}
+
+private fun Int.toItemPosition(total: Int): ItemPosition {
+    return when {
+        total <= 1 -> ItemPosition.STANDALONE
+        this == 0 -> ItemPosition.TOP
+        this == total - 1 -> ItemPosition.BOTTOM
+        else -> ItemPosition.MIDDLE
     }
 }
 

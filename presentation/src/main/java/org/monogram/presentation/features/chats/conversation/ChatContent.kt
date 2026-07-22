@@ -658,6 +658,7 @@ fun ChatContent(
                     else if (state.webViewUrl != null) component.onDismissWebView()
                     else if (state.isSearchActive) component.onSearchToggle()
                     else if (state.currentTopicId != null) component.onTopicClick(0)
+                    else component.onBackClicked()
                 }
             )
         }

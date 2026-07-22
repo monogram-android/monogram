@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.chats.conversation.logic
 
 import org.monogram.domain.models.ChatViewportCacheEntry
+import org.monogram.presentation.features.chats.conversation.ChatConversationLog
 import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.ScrollAlign
 
@@ -54,7 +55,16 @@ internal fun InitialChatScrollTarget.perfTargetName(): String = when (this) {
     is InitialChatScrollTarget.Comments -> origin.perfName("comments")
 }
 
+private fun ChatViewportCacheEntry.primaryAnchorMessageId(): Long? {
+    return anchorMessageId ?: anchorAliasIds.firstOrNull()
+}
+
+private fun ChatViewportCacheEntry.isCompatibleWith(chatId: Long): Boolean {
+    return anchorChatId == null || anchorChatId == chatId
+}
+
 internal fun resolveInitialChatScrollTarget(
+    chatId: Long,
     explicitMessageId: Long?,
     savedViewport: ChatViewportCacheEntry?,
     firstUnreadMessageId: Long?,
@@ -62,6 +72,18 @@ internal fun resolveInitialChatScrollTarget(
     backfillUnreadThreshold: Int = 50,
     isComments: Boolean
 ): InitialChatScrollTarget {
+    val normalizedSavedViewport = savedViewport?.takeIf { it.isCompatibleWith(chatId) }
+    if (savedViewport != null && normalizedSavedViewport == null) {
+        runCatching {
+            ChatConversationLog.logViewport(
+                chatId = chatId,
+                threadId = null,
+                event = "saved_viewport_ignored_chat_mismatch",
+                extra = "savedChatId=${savedViewport.anchorChatId ?: 0L} savedAnchor=${savedViewport.primaryAnchorMessageId() ?: 0L}"
+            )
+        }
+    }
+
     if (explicitMessageId != null) {
         return InitialChatScrollTarget.AroundMessage(
             messageId = explicitMessageId,
@@ -76,32 +98,42 @@ internal fun resolveInitialChatScrollTarget(
         )
     }
 
-    val savedAnchorId = savedViewport?.anchorMessageId
-    if (savedViewport != null && !savedViewport.atBottom && savedAnchorId != null) {
+    val savedAnchorId = normalizedSavedViewport?.primaryAnchorMessageId()
+    if (normalizedSavedViewport != null &&
+        !normalizedSavedViewport.atBottom &&
+        !normalizedSavedViewport.readFully &&
+        savedAnchorId != null
+    ) {
         return InitialChatScrollTarget.AroundMessage(
             messageId = savedAnchorId,
             origin = InitialChatScrollTargetOrigin.SavedViewport,
             highlight = false,
             command = ChatScrollCommand.RestoreViewport(
                 anchorMessageId = savedAnchorId,
-                anchorOffsetPx = savedViewport.anchorOffsetPx,
-                atBottom = false
+                anchorAliasIds = normalizedSavedViewport.anchorAliasIds,
+                anchorOffsetPx = normalizedSavedViewport.anchorOffsetPx,
+                atBottom = false,
+                readFully = normalizedSavedViewport.readFully,
+                topEndMessageId = normalizedSavedViewport.topEndMessageId
             )
         )
     }
 
     if (isComments) {
         return InitialChatScrollTarget.Comments(
-            origin = if (savedViewport != null) {
+            origin = if (normalizedSavedViewport != null) {
                 InitialChatScrollTargetOrigin.CommentsSavedViewport
             } else {
                 InitialChatScrollTargetOrigin.CommentsStart
             },
-            command = savedViewport?.let {
+            command = normalizedSavedViewport?.let {
                 ChatScrollCommand.RestoreViewport(
-                    anchorMessageId = it.anchorMessageId,
+                    anchorMessageId = it.primaryAnchorMessageId(),
+                    anchorAliasIds = it.anchorAliasIds,
                     anchorOffsetPx = it.anchorOffsetPx,
-                    atBottom = it.atBottom
+                    atBottom = it.atBottom,
+                    readFully = it.readFully,
+                    topEndMessageId = it.topEndMessageId
                 )
             } ?: ChatScrollCommand.ScrollToStart(animated = false)
         )
@@ -122,28 +154,34 @@ internal fun resolveInitialChatScrollTarget(
         )
     }
 
-    if (savedViewport != null && savedViewport.atBottom) {
+    if (normalizedSavedViewport != null && normalizedSavedViewport.atBottom) {
         return InitialChatScrollTarget.Bottom(
             origin = InitialChatScrollTargetOrigin.BottomSavedViewport,
             command = ChatScrollCommand.RestoreViewport(
-                anchorMessageId = savedViewport.anchorMessageId,
-                anchorOffsetPx = savedViewport.anchorOffsetPx,
-                atBottom = true
+                anchorMessageId = normalizedSavedViewport.primaryAnchorMessageId(),
+                anchorAliasIds = normalizedSavedViewport.anchorAliasIds,
+                anchorOffsetPx = normalizedSavedViewport.anchorOffsetPx,
+                atBottom = true,
+                readFully = normalizedSavedViewport.readFully,
+                topEndMessageId = normalizedSavedViewport.topEndMessageId
             )
         )
     }
 
     return InitialChatScrollTarget.Bottom(
-        origin = if (savedViewport != null) {
+        origin = if (normalizedSavedViewport != null) {
             InitialChatScrollTargetOrigin.BottomSavedViewport
         } else {
             InitialChatScrollTargetOrigin.BottomFallback
         },
-        command = savedViewport?.let {
+        command = normalizedSavedViewport?.let {
             ChatScrollCommand.RestoreViewport(
-                anchorMessageId = it.anchorMessageId,
+                anchorMessageId = it.primaryAnchorMessageId(),
+                anchorAliasIds = it.anchorAliasIds,
                 anchorOffsetPx = it.anchorOffsetPx,
-                atBottom = it.atBottom
+                atBottom = it.atBottom,
+                readFully = it.readFully,
+                topEndMessageId = it.topEndMessageId
             )
         } ?: ChatScrollCommand.ScrollToBottom(animated = false)
     )

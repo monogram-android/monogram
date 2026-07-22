@@ -104,8 +104,8 @@ interface MessageRepository :
         fromMessageId: Long,
         limit: Int
     ): List<MessageModel>
-    suspend fun openChat(chatId: Long)
-    suspend fun closeChat(chatId: Long)
+    suspend fun openChat(chatId: Long, ownerTag: String = "unknown")
+    suspend fun closeChat(chatId: Long, ownerTag: String = "unknown")
 
     suspend fun sendVideoNote(
         chatId: Long,

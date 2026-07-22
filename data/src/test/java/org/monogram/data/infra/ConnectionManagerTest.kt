@@ -206,6 +206,27 @@ class ConnectionManagerTest {
         assertEquals(ConnectionStatus.Connected, connectionManager.connectionStateFlow.value)
     }
 
+    @Test
+    fun `recent typed connection state stays authoritative over probe mismatch`() = runManagerTest {
+        authFlow.emit(
+            TdApi.UpdateAuthorizationState(TdApi.AuthorizationStateReady())
+        )
+        foregroundTracker.setForeground(true)
+        networkProvider.update(
+            NetworkSnapshot(true, true, ProxyNetworkType.WIFI, 1)
+        )
+        scope.flush()
+
+        connectionFlow.value = TdApi.UpdateConnectionState(TdApi.ConnectionStateReady())
+        scope.flush()
+
+        chatRemoteSource.currentConnectionState = TdApi.ConnectionStateWaitingForNetwork()
+        connectionManager.retryConnection()
+        scope.advanceAndFlush(500L)
+
+        assertEquals(ConnectionStatus.Connected, connectionManager.connectionStateFlow.value)
+    }
+
     @org.junit.Ignore("Broken by recent proxy refactor in develop")
     @Test
     fun `repeated failure threshold triggers proxy smart switch but single reconnect does not`() =

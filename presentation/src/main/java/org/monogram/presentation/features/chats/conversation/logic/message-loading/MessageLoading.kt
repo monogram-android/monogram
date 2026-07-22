@@ -362,6 +362,7 @@ internal fun DefaultChatComponent.loadMessages(
                 }
 
             val target = resolveInitialChatScrollTarget(
+                chatId = targetChatId,
                     explicitMessageId = currentState.scrollToMessageId,
                     savedViewport = savedViewport,
                     firstUnreadMessageId = firstUnreadId,
@@ -373,7 +374,7 @@ internal fun DefaultChatComponent.loadMessages(
                 event = "load_messages_target_resolved",
                 state = _state.value,
                 componentInstanceId = componentInstanceId,
-                extra = "source=$loadSource target=${target.perfTargetName()} targetChatId=$targetChatId targetAnchor=${target.anchorMessageId ?: 0L} savedAnchor=${savedViewport?.anchorMessageId ?: 0L} firstUnreadId=${firstUnreadId ?: 0L}"
+                extra = "source=$loadSource target=${target.perfTargetName()} targetChatId=$targetChatId targetAnchor=${target.anchorMessageId ?: 0L} savedAnchor=${savedViewport?.anchorMessageId ?: savedViewport?.anchorAliasIds?.firstOrNull() ?: 0L} firstUnreadId=${firstUnreadId ?: 0L}"
             )
             ChatOpenPerfBridge.updateTarget(chatId, threadId, target.perfTargetName())
             activeLoadSession = ConversationLoadSession(

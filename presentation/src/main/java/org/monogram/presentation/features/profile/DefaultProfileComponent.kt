@@ -157,14 +157,23 @@ class DefaultProfileComponent(
                 val supportedTabs = buildProfileTabSpecs(
                     isGroupOrChannel = isGroupOrChannel,
                     preferredTabKey = preferredTabKey,
-                    showMembers = isGroupOrChannel &&
-                            (fullInfo?.canGetMembers == true || resolvedMemberCount > 0),
-                    showAdministrators = isGroupOrChannel &&
-                            (fullInfo?.administratorCount ?: 0) > 0,
-                    showRestricted = isGroupOrChannel &&
-                            (fullInfo?.restrictedCount ?: 0) > 0,
-                    showBanned = isGroupOrChannel &&
-                            (fullInfo?.bannedCount ?: 0) > 0,
+                    showMembers = shouldShowMembersTab(
+                        chat = chat,
+                        fullInfo = fullInfo,
+                        resolvedMemberCount = resolvedMemberCount
+                    ),
+                    showAdministrators = shouldShowAdminsTab(
+                        chat = chat,
+                        fullInfo = fullInfo
+                    ),
+                    showRestricted = shouldShowModerationTab(
+                        chat = chat,
+                        memberCount = fullInfo?.restrictedCount ?: 0
+                    ),
+                    showBanned = shouldShowModerationTab(
+                        chat = chat,
+                        memberCount = fullInfo?.bannedCount ?: 0
+                    ),
                     showSimilarChats = currentSimilarChats.isNotEmpty()
                 )
                 val visibleTabs = buildInitialVisibleProfileTabSpecs(
@@ -614,14 +623,23 @@ class DefaultProfileComponent(
         return buildProfileTabSpecs(
             isGroupOrChannel = isGroupOrChannel,
             preferredTabKey = fullInfo?.mainProfileTab.toProfileTabKeyOrNull(),
-            showMembers = isGroupOrChannel &&
-                    (fullInfo?.canGetMembers == true || resolvedMemberCount > 0),
-            showAdministrators = isGroupOrChannel &&
-                    (fullInfo?.administratorCount ?: 0) > 0,
-            showRestricted = isGroupOrChannel &&
-                    (fullInfo?.restrictedCount ?: 0) > 0,
-            showBanned = isGroupOrChannel &&
-                    (fullInfo?.bannedCount ?: 0) > 0,
+            showMembers = shouldShowMembersTab(
+                chat = chat,
+                fullInfo = fullInfo,
+                resolvedMemberCount = resolvedMemberCount
+            ),
+            showAdministrators = shouldShowAdminsTab(
+                chat = chat,
+                fullInfo = fullInfo
+            ),
+            showRestricted = shouldShowModerationTab(
+                chat = chat,
+                memberCount = fullInfo?.restrictedCount ?: 0
+            ),
+            showBanned = shouldShowModerationTab(
+                chat = chat,
+                memberCount = fullInfo?.bannedCount ?: 0
+            ),
             showSimilarChats = similarChats.isNotEmpty()
         )
     }

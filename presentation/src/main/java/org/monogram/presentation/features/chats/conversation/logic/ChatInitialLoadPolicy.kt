@@ -13,6 +13,7 @@ internal fun buildChatInitialLoadKey(
     rootMessageId: Long?
 ): ChatInitialLoadKey {
     val target = resolveInitialChatScrollTarget(
+        chatId = chatId,
         explicitMessageId = explicitMessageId,
         savedViewport = savedViewport,
         firstUnreadMessageId = firstUnreadMessageId,

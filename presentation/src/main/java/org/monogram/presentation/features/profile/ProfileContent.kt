@@ -433,7 +433,14 @@ fun ProfileContent(component: ProfileComponent) {
                         onSearchDismissed = component::onSearchDismissed,
                         onOpenActiveStory = component::onOpenActiveStory,
                         onOpenPostedStory = component::onOpenPostedStory,
-                        onOpenArchive = component::onOpenStoryArchive
+                        onOpenArchive = component::onOpenStoryArchive,
+                        onShowLogs = component::onShowLogs,
+                        onShowStatistics = component::onShowStatistics,
+                        onShowRevenueStatistics = component::onShowRevenueStatistics,
+                        onToggleJoinToSendMessages = component::onToggleJoinToSendMessages,
+                        onToggleJoinByRequest = component::onToggleJoinByRequest,
+                        onToggleHiddenMembers = component::onToggleHiddenMembers,
+                        onToggleAggressiveAntiSpam = component::onToggleAggressiveAntiSpam
                     )
 
                     item(span = { GridItemSpan(3) }) {

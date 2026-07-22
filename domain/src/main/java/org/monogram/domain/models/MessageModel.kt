@@ -134,6 +134,7 @@ sealed interface MessageContent {
         val height: Int,
         val caption: String = "",
         val entities: List<MessageEntity> = emptyList(),
+        val showCaptionAboveMedia: Boolean = false,
         val isUploading: Boolean = false,
         val uploadProgress: Float = 0f,
         val isDownloading: Boolean = false,
@@ -160,6 +161,7 @@ sealed interface MessageContent {
             if (fileId != other.fileId) return false
             if (originalFileId != other.originalFileId) return false
             if (hasSpoiler != other.hasSpoiler) return false
+            if (showCaptionAboveMedia != other.showCaptionAboveMedia) return false
             if (path != other.path) return false
             if (thumbnailPath != other.thumbnailPath) return false
             if (caption != other.caption) return false
@@ -179,6 +181,7 @@ sealed interface MessageContent {
             result = 31 * result + downloadError.hashCode()
             result = 31 * result + fileId
             result = 31 * result + hasSpoiler.hashCode()
+            result = 31 * result + showCaptionAboveMedia.hashCode()
             result = 31 * result + (path?.hashCode() ?: 0)
             result = 31 * result + (thumbnailPath?.hashCode() ?: 0)
             result = 31 * result + caption.hashCode()
@@ -196,6 +199,7 @@ sealed interface MessageContent {
         val duration: Int,
         val caption: String = "",
         val entities: List<MessageEntity> = emptyList(),
+        val showCaptionAboveMedia: Boolean = false,
         val isUploading: Boolean = false,
         val uploadProgress: Float = 0f,
         val isDownloading: Boolean = false,
@@ -223,6 +227,7 @@ sealed interface MessageContent {
             if (fileId != other.fileId) return false
             if (supportsStreaming != other.supportsStreaming) return false
             if (hasSpoiler != other.hasSpoiler) return false
+            if (showCaptionAboveMedia != other.showCaptionAboveMedia) return false
             if (path != other.path) return false
             if (thumbnailPath != other.thumbnailPath) return false
             if (caption != other.caption) return false
@@ -244,6 +249,7 @@ sealed interface MessageContent {
             result = 31 * result + fileId
             result = 31 * result + supportsStreaming.hashCode()
             result = 31 * result + hasSpoiler.hashCode()
+            result = 31 * result + showCaptionAboveMedia.hashCode()
             result = 31 * result + (path?.hashCode() ?: 0)
             result = 31 * result + (thumbnailPath?.hashCode() ?: 0)
             result = 31 * result + caption.hashCode()
@@ -363,6 +369,7 @@ sealed interface MessageContent {
         val height: Int,
         val caption: String = "",
         val entities: List<MessageEntity> = emptyList(),
+        val showCaptionAboveMedia: Boolean = false,
         val isUploading: Boolean = false,
         val uploadProgress: Float = 0f,
         val isDownloading: Boolean = false,
@@ -387,6 +394,7 @@ sealed interface MessageContent {
             if (downloadError != other.downloadError) return false
             if (fileId != other.fileId) return false
             if (hasSpoiler != other.hasSpoiler) return false
+            if (showCaptionAboveMedia != other.showCaptionAboveMedia) return false
             if (path != other.path) return false
             if (caption != other.caption) return false
             if (entities != other.entities) return false
@@ -405,6 +413,7 @@ sealed interface MessageContent {
             result = 31 * result + downloadError.hashCode()
             result = 31 * result + fileId
             result = 31 * result + hasSpoiler.hashCode()
+            result = 31 * result + showCaptionAboveMedia.hashCode()
             result = 31 * result + (path?.hashCode() ?: 0)
             result = 31 * result + caption.hashCode()
             result = 31 * result + entities.hashCode()

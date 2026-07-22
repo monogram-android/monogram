@@ -210,8 +210,12 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
             } else {
                 mergedMessage
             }
-            val old = messageMap.put(msg.id, restoredMessage)
-            if (old != restoredMessage) {
+            val contentSafeMessage = state.preservePendingEditedContent(
+                incomingMessage = restoredMessage,
+                previousMessage = previous
+            )
+            val old = messageMap.put(msg.id, contentSafeMessage)
+            if (old != contentSafeMessage) {
                 hasChanges = true
             }
         }
@@ -1615,7 +1619,10 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                     val currentMessages = currentState.messages.toMutableList()
                     val removed = currentMessages.removeAll { messageIds.contains(it.id) }
                     if (removed) {
-                        currentState.copy(messages = currentMessages)
+                        currentState.copy(
+                            messages = currentMessages,
+                            pendingEditedMessageIds = currentState.pendingEditedMessageIds - messageIds.toSet()
+                        )
                     } else {
                         currentState
                     }
@@ -1627,59 +1634,64 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
     repositoryMessage.messageEditedFlow
         .onEach { message ->
             if (_state.value.isMessageInActiveThread(chatId, message) || message.chatId == chatId) {
-                val now = System.currentTimeMillis()
-                val suppressUntil = reactionUpdateSuppressedUntil[message.id]
-                val suppressReactionUpdate = suppressUntil != null && now < suppressUntil
+                messageMutex.withLock {
+                    val targetMessageId = resolveRemappedMessageId(message.id)
+                    _state.update { currentState ->
+                        val now = System.currentTimeMillis()
+                        val suppressUntil = reactionUpdateSuppressedUntil[targetMessageId]
+                        val suppressReactionUpdate = suppressUntil != null && now < suppressUntil
 
-                if (!suppressReactionUpdate && suppressUntil != null) {
-                    reactionUpdateSuppressedUntil.remove(message.id, suppressUntil)
-                }
-
-                updateMessageContent(message.id) { current ->
-                    val mediaSafeMessage = when {
-                        current.content is MessageContent.Photo && message.content is MessageContent.Photo -> {
-                            val currentPhoto = current.content as MessageContent.Photo
-                            val incomingPhoto = message.content as MessageContent.Photo
-                            if (currentPhoto.fileId == incomingPhoto.fileId) {
-                                val resolvedPath = incomingPhoto.path ?: currentPhoto.path
-                                message.copy(
-                                    content = incomingPhoto.copy(
-                                        path = resolvedPath,
-                                        thumbnailPath = incomingPhoto.thumbnailPath ?: currentPhoto.thumbnailPath
-                                    )
-                                )
-                            } else {
-                                message
-                            }
+                        if (!suppressReactionUpdate && suppressUntil != null) {
+                            reactionUpdateSuppressedUntil.remove(targetMessageId, suppressUntil)
                         }
 
-                        current.content is MessageContent.Video && message.content is MessageContent.Video -> {
-                            val currentVideo = current.content as MessageContent.Video
-                            val incomingVideo = message.content as MessageContent.Video
-                            if (currentVideo.fileId == incomingVideo.fileId) {
-                                val resolvedPath = incomingVideo.path ?: currentVideo.path
-                                message.copy(
-                                    content = incomingVideo.copy(
-                                        path = resolvedPath,
-                                        thumbnailPath = incomingVideo.thumbnailPath ?: currentVideo.thumbnailPath
-                                    )
-                                )
-                            } else {
-                                message
+                        currentState.withUpdatedMessage(targetMessageId) { current ->
+                            val mediaSafeMessage = when {
+                                current.content is MessageContent.Photo && message.content is MessageContent.Photo -> {
+                                    val currentPhoto = current.content as MessageContent.Photo
+                                    val incomingPhoto = message.content as MessageContent.Photo
+                                    if (currentPhoto.fileId == incomingPhoto.fileId) {
+                                        message.copy(
+                                            content = incomingPhoto.copy(
+                                                path = incomingPhoto.path ?: currentPhoto.path,
+                                                thumbnailPath = incomingPhoto.thumbnailPath
+                                                    ?: currentPhoto.thumbnailPath
+                                            )
+                                        )
+                                    } else {
+                                        message
+                                    }
+                                }
+
+                                current.content is MessageContent.Video && message.content is MessageContent.Video -> {
+                                    val currentVideo = current.content as MessageContent.Video
+                                    val incomingVideo = message.content as MessageContent.Video
+                                    if (currentVideo.fileId == incomingVideo.fileId) {
+                                        message.copy(
+                                            content = incomingVideo.copy(
+                                                path = incomingVideo.path ?: currentVideo.path,
+                                                thumbnailPath = incomingVideo.thumbnailPath
+                                                    ?: currentVideo.thumbnailPath
+                                            )
+                                        )
+                                    } else {
+                                        message
+                                    }
+                                }
+
+                                else -> message
                             }
-                        }
 
-                        else -> message
-                    }
+                            when {
+                                suppressReactionUpdate -> mediaSafeMessage.copy(reactions = current.reactions)
+                                reactionsSemanticEqual(
+                                    current.reactions,
+                                    mediaSafeMessage.reactions
+                                ) -> mediaSafeMessage.copy(reactions = current.reactions)
 
-                    when {
-                        suppressReactionUpdate -> mediaSafeMessage.copy(reactions = current.reactions)
-                        reactionsSemanticEqual(
-                            current.reactions,
-                            mediaSafeMessage.reactions
-                        ) -> mediaSafeMessage.copy(reactions = current.reactions)
-
-                        else -> mediaSafeMessage
+                                else -> mediaSafeMessage
+                            }
+                        }.clearPendingEditedMessage(targetMessageId)
                     }
                 }
                 handleEditedRichMessage(message)
@@ -1824,26 +1836,13 @@ private fun DefaultChatComponent.updateFullScreenImagePath(messageId: Long, newP
 
 private inline fun DefaultChatComponent.updateMessageContent(
     messageId: Long,
-    crossinline transform: (MessageModel) -> MessageModel
+    noinline transform: (MessageModel) -> MessageModel
 ) {
     scope.launch {
         messageMutex.withLock {
             val targetMessageId = resolveRemappedMessageId(messageId)
             _state.update { currentState ->
-                val currentMessages = currentState.messages.toMutableList()
-                val index = currentMessages.indexOfFirst { it.id == targetMessageId }
-                if (index != -1) {
-                    val currentMessage = currentMessages[index]
-                    val updatedMessage = transform(currentMessage)
-                    if (updatedMessage != currentMessage) {
-                        currentMessages[index] = updatedMessage
-                        currentState.copy(messages = currentMessages)
-                    } else {
-                        currentState
-                    }
-                } else {
-                    currentState
-                }
+                currentState.withUpdatedMessage(targetMessageId, transform)
             }
         }
     }

@@ -69,7 +69,7 @@ fun PaidMediaMessageBubble(
             }
             msg.replyToMsg?.let { ReplyContent(it, isOutgoing, onClick = { onLongClick() }) }
 
-            if (content.caption.isNotBlank()) {
+            if (content.caption.isNotBlank() && content.showCaptionAboveMedia) {
                 MessageText(
                     text = buildAnnotatedMessageTextWithEmoji(content.caption, content.entities),
                     rawText = content.caption,
@@ -97,6 +97,16 @@ fun PaidMediaMessageBubble(
                         }
                     )
                 }
+            }
+
+            if (content.caption.isNotBlank() && !content.showCaptionAboveMedia) {
+                MessageText(
+                    text = buildAnnotatedMessageTextWithEmoji(content.caption, content.entities),
+                    rawText = content.caption,
+                    inlineContent = rememberMessageInlineContent(content.entities, 16f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    entities = content.entities
+                )
             }
         }
     }

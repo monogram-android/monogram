@@ -192,6 +192,7 @@ interface MessageRepository :
         photoPath: String,
         caption: String = "",
         captionEntities: List<MessageEntity> = emptyList(),
+        showCaptionAboveMedia: Boolean = false,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()
@@ -202,6 +203,7 @@ interface MessageRepository :
         videoPath: String,
         caption: String = "",
         captionEntities: List<MessageEntity> = emptyList(),
+        showCaptionAboveMedia: Boolean = false,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()
@@ -246,6 +248,7 @@ interface MessageRepository :
         gifPath: String,
         caption: String = "",
         captionEntities: List<MessageEntity> = emptyList(),
+        showCaptionAboveMedia: Boolean = false,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()
@@ -305,6 +308,7 @@ interface MessageRepository :
         paths: List<String>,
         caption: String = "",
         captionEntities: List<MessageEntity> = emptyList(),
+        showCaptionAboveMedia: Boolean = false,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()

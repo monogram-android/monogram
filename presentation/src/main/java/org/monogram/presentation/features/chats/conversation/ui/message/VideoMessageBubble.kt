@@ -216,6 +216,70 @@ fun VideoMessageBubble(
                     }
                 }
 
+                    @Composable
+                    fun CaptionSection() {
+                        val timeColor = if (isOutgoing) {
+                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
+                                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)
+                                .zIndex(1f)
+                        ) {
+                            val renderData = rememberMessageTextRenderData(
+                                text = content.caption,
+                                entities = content.entities,
+                                allowBigEmoji = false,
+                                isOutgoing = isOutgoing,
+                                revealedSpoilers = revealedSpoilers,
+                                fontSize = fontSize
+                            )
+
+                            if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                                BigEmojiContent(
+                                    items = renderData.bigEmojiItems,
+                                    sizeDp = fontSize * 5f,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                            } else {
+                                MessageText(
+                                    text = renderData.annotatedText,
+                                    rawText = content.caption,
+                                    inlineContent = renderData.inlineContent,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontSize = fontSize.sp,
+                                        letterSpacing = letterSpacing.sp,
+                                        lineHeight = (fontSize * 1.375f).sp
+                                    ),
+                                    modifier = Modifier.padding(bottom = 4.dp),
+                                    onSpoilerClick = { index ->
+                                        if (revealedSpoilers.contains(index)) {
+                                            revealedSpoilers.remove(index)
+                                        } else {
+                                            revealedSpoilers.add(index)
+                                        }
+                                    },
+                                    onClick = { offset -> onLongClickState(layoutTracker.videoPosition + offset) },
+                                    onLongClick = { offset -> onLongClickState(layoutTracker.videoPosition + offset) }
+                                )
+                            }
+                            if (showMetadata) {
+                                Box(modifier = Modifier.align(Alignment.End)) {
+                                    MessageMetadata(msg, isOutgoing, timeColor)
+                                }
+                            }
+                        }
+                    }
+
+                    if (content.caption.isNotEmpty() && content.showCaptionAboveMedia) {
+                        CaptionSection()
+                    }
+
                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                         val mediaHeight = resolveMediaBubbleHeight(
                             containerWidth = bubbleWidth,
@@ -393,62 +457,8 @@ fun VideoMessageBubble(
                 }
                     }
 
-                if (content.caption.isNotEmpty()) {
-                    val timeColor = if (isOutgoing)
-                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)
-                            .zIndex(1f)
-                    ) {
-                        val renderData = rememberMessageTextRenderData(
-                            text = content.caption,
-                            entities = content.entities,
-                            allowBigEmoji = false,
-                            isOutgoing = isOutgoing,
-                            revealedSpoilers = revealedSpoilers,
-                            fontSize = fontSize
-                        )
-
-                        if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
-                            BigEmojiContent(
-                                items = renderData.bigEmojiItems,
-                                sizeDp = fontSize * 5f,
-                                modifier = Modifier.padding(bottom = 4.dp)
-                            )
-                        } else {
-                            MessageText(
-                                text = renderData.annotatedText,
-                                rawText = content.caption,
-                                inlineContent = renderData.inlineContent,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontSize = fontSize.sp,
-                                    letterSpacing = letterSpacing.sp,
-                                    lineHeight = (fontSize * 1.375f).sp
-                                ),
-                                modifier = Modifier.padding(bottom = 4.dp),
-                                onSpoilerClick = { index ->
-                                    if (revealedSpoilers.contains(index)) {
-                                        revealedSpoilers.remove(index)
-                                    } else {
-                                        revealedSpoilers.add(index)
-                                    }
-                                },
-                                onClick = { offset -> onLongClickState(layoutTracker.videoPosition + offset) },
-                                onLongClick = { offset -> onLongClickState(layoutTracker.videoPosition + offset) }
-                            )
-                        }
-                        if (showMetadata) {
-                            Box(modifier = Modifier.align(Alignment.End)) {
-                                MessageMetadata(msg, isOutgoing, timeColor)
-                            }
-                        }
-                    }
+                    if (content.caption.isNotEmpty() && !content.showCaptionAboveMedia) {
+                        CaptionSection()
                 }
             }
             }

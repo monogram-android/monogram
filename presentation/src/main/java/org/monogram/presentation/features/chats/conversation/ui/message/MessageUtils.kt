@@ -64,6 +64,7 @@ import kotlin.math.pow
 val LocalLinkHandler = staticCompositionLocalOf<(String) -> Unit> {
     { _ -> }
 }
+val LocalPendingEditedMessageIds = staticCompositionLocalOf<Set<Long>> { emptySet() }
 
 fun formatTime(ts: Int, timeFormat: String): String =
     SimpleDateFormat(timeFormat, Locale.getDefault()).format(Date(ts.toLong() * 1000))
@@ -267,6 +268,8 @@ fun MessageMetadata(
     contentColor: Color
 ) {
     val context = LocalContext.current
+    val pendingEditedMessageIds = LocalPendingEditedMessageIds.current
+    val isEditPending = msg.id in pendingEditedMessageIds
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -286,7 +289,14 @@ fun MessageMetadata(
             )
         }
 
-        if (msg.editDate > 0) {
+        if (isEditPending) {
+            Icon(
+                imageVector = Icons.Default.Schedule,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = contentColor
+            )
+        } else if (msg.editDate > 0) {
             Icon(
                 imageVector = Icons.Default.Edit,
                 contentDescription = stringResource(R.string.info_edited),

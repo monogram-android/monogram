@@ -77,24 +77,40 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
     parseMode: RichTextParseMode?
 ) {
     val editingMsg = _state.value.editingMessage ?: return
+    val targetChatId = editingMsg.chatId
+    val optimisticMessage = editingMsg.withOptimisticEdit(text, entities)
+    _state.update { state ->
+        state.withPendingEditedMessage(optimisticMessage)
+    }
+
     scope.launch {
-        when (editingMsg.content) {
-            is MessageContent.RichMessage -> repositoryMessage.editRichMessage(
-                chatId = chatId,
-                messageId = editingMsg.id,
-                markdown = text,
-                parseMode = parseMode ?: RichTextParseMode.Markdown
-            )
+        runCatching {
+            when (editingMsg.content) {
+                is MessageContent.RichMessage -> repositoryMessage.editRichMessage(
+                    chatId = targetChatId,
+                    messageId = editingMsg.id,
+                    markdown = text,
+                    parseMode = parseMode ?: RichTextParseMode.Markdown
+                )
 
-            is MessageContent.Photo,
-            is MessageContent.Video,
-            is MessageContent.Document,
-            is MessageContent.Audio,
-            is MessageContent.Gif -> repositoryMessage.editMessageCaption(chatId, editingMsg.id, text, entities)
+                is MessageContent.Photo,
+                is MessageContent.Video,
+                is MessageContent.Document,
+                is MessageContent.Audio,
+                is MessageContent.Gif -> repositoryMessage.editMessageCaption(
+                    targetChatId,
+                    editingMsg.id,
+                    text,
+                    entities
+                )
 
-            else -> repositoryMessage.editMessage(chatId, editingMsg.id, text, entities)
+                else -> repositoryMessage.editMessage(targetChatId, editingMsg.id, text, entities)
+            }
+        }.onFailure {
+            _state.update { state ->
+                state.withRevertedPendingEditedMessage(editingMsg)
+            }
         }
-        onCancelEdit()
     }
 }
 
@@ -107,7 +123,11 @@ internal fun DefaultChatComponent.handleSaveChecklistDraft(draft: ChecklistDraft
     if (checklistMessage != null) {
         _state.update { state ->
             state.withUpdatedChecklistDraft(checklistMessage.id, draft)
-                .copy(checklistMessage = null, checklistDraft = null)
+                .copy(
+                    checklistMessage = null,
+                    checklistDraft = null,
+                    pendingEditedMessageIds = state.pendingEditedMessageIds + checklistMessage.id
+                )
         }
     } else {
         _state.update { state -> state.copy(checklistMessage = null, checklistDraft = null) }
@@ -136,6 +156,11 @@ internal fun DefaultChatComponent.handleSaveChecklistDraft(draft: ChecklistDraft
         }.onSuccess {
             Log.d("ChecklistFlow", "save_draft_success messageId=${checklistMessage?.id}")
         }.onFailure { error ->
+            if (checklistMessage != null) {
+                _state.update { state ->
+                    state.withRevertedPendingEditedMessage(checklistMessage)
+                }
+            }
             Log.e("ChecklistFlow", "save_draft_failed messageId=${checklistMessage?.id}", error)
         }
     }

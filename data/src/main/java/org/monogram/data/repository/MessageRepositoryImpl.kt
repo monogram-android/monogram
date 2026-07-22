@@ -421,6 +421,7 @@ internal class MessageRepositoryImpl(
         photoPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -430,6 +431,7 @@ internal class MessageRepositoryImpl(
             photoPath = photoPath,
             caption = caption,
             captionEntities = captionEntities,
+            showCaptionAboveMedia = showCaptionAboveMedia,
             replyToMsgId = replyToMsgId,
             threadId = threadId,
             sendOptions = sendOptions
@@ -441,6 +443,7 @@ internal class MessageRepositoryImpl(
         videoPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -450,6 +453,7 @@ internal class MessageRepositoryImpl(
             videoPath = videoPath,
             caption = caption,
             captionEntities = captionEntities,
+            showCaptionAboveMedia = showCaptionAboveMedia,
             replyToMsgId = replyToMsgId,
             threadId = threadId,
             sendOptions = sendOptions
@@ -523,6 +527,7 @@ internal class MessageRepositoryImpl(
         gifPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -532,6 +537,7 @@ internal class MessageRepositoryImpl(
             gifPath = gifPath,
             caption = caption,
             captionEntities = captionEntities,
+            showCaptionAboveMedia = showCaptionAboveMedia,
             replyToMsgId = replyToMsgId,
             threadId = threadId,
             sendOptions = sendOptions
@@ -543,6 +549,7 @@ internal class MessageRepositoryImpl(
         paths: List<String>,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -552,6 +559,7 @@ internal class MessageRepositoryImpl(
             paths = paths,
             caption = caption,
             captionEntities = captionEntities,
+            showCaptionAboveMedia = showCaptionAboveMedia,
             replyToMsgId = replyToMsgId,
             threadId = threadId,
             sendOptions = sendOptions

@@ -93,6 +93,7 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         photoPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -103,6 +104,7 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         videoPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -147,6 +149,7 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         gifPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -157,6 +160,7 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         paths: List<String>,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions

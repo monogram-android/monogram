@@ -120,6 +120,7 @@ fun ChannelPhotoMessageBubble(
     }
 
     val hasCaption = content.caption.isNotEmpty()
+    val showCaptionAboveMedia = hasCaption && content.showCaptionAboveMedia
 
     LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
         if (content.path.isNullOrBlank() && !content.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
@@ -168,6 +169,74 @@ fun ChannelPhotoMessageBubble(
                     }
                 }
 
+                @Composable
+                fun CaptionSection() {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 4.dp)
+                            .zIndex(1f)
+                    ) {
+                        val renderData = rememberMessageTextRenderData(
+                            text = content.caption,
+                            entities = content.entities,
+                            allowBigEmoji = false,
+                            isOutgoing = false,
+                            revealedSpoilers = revealedSpoilers,
+                            fontSize = fontSize
+                        )
+
+                        if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                            BigEmojiContent(
+                                items = renderData.bigEmojiItems,
+                                sizeDp = fontSize * 5f
+                            )
+                        } else {
+                            MessageText(
+                                text = renderData.annotatedText,
+                                rawText = content.caption,
+                                inlineContent = renderData.inlineContent,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = fontSize.sp,
+                                    letterSpacing = letterSpacing.sp,
+                                    lineHeight = (fontSize * 1.35f).sp
+                                ),
+                                onSpoilerClick = { index ->
+                                    if (revealedSpoilers.contains(index)) {
+                                        revealedSpoilers.remove(index)
+                                    } else {
+                                        revealedSpoilers.add(index)
+                                    }
+                                },
+                                onClick = { offset -> onLongClick(imagePosition + offset) },
+                                onLongClick = { offset -> onLongClick(imagePosition + offset) }
+                            )
+                        }
+
+                        if (showMetadata) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 2.dp),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                MessageMetadata(
+                                    msg = msg,
+                                    isOutgoing = msg.isOutgoing,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        alpha = 0.8f
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (showCaptionAboveMedia) {
+                    CaptionSection()
+                }
+
                 val mediaRatio = if (content.width > 0 && content.height > 0) {
                     (content.width.toFloat() / content.height.toFloat()).coerceIn(0.5f, 2f)
                 } else 1f
@@ -180,10 +249,18 @@ fun ChannelPhotoMessageBubble(
                             .fillMaxWidth()
                             .height(mediaHeight)
                             .clip(
-                                if (hasCaption) RoundedCornerShape(
-                                    topStart = topStart,
-                                    topEnd = topEnd
-                                ) else bubbleShape
+                                when {
+                                    !hasCaption -> bubbleShape
+                                    showCaptionAboveMedia -> RoundedCornerShape(
+                                        bottomStart = bottomStart,
+                                        bottomEnd = if (showComments && msg.canGetMessageThread) 4.dp else bottomEnd
+                                    )
+
+                                    else -> RoundedCornerShape(
+                                        topStart = topStart,
+                                        topEnd = topEnd
+                                    )
+                                }
                             )
                             .clipToBounds()
                             .onGloballyPositioned { imagePosition = it.positionInWindow() }
@@ -280,65 +357,8 @@ fun ChannelPhotoMessageBubble(
                 }
 
                 // Caption Section
-                if (hasCaption) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 4.dp)
-                            .zIndex(1f)
-                    ) {
-                        val renderData = rememberMessageTextRenderData(
-                            text = content.caption,
-                            entities = content.entities,
-                            allowBigEmoji = false,
-                            isOutgoing = false,
-                            revealedSpoilers = revealedSpoilers,
-                            fontSize = fontSize
-                        )
-
-                        if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
-                            BigEmojiContent(
-                                items = renderData.bigEmojiItems,
-                                sizeDp = fontSize * 5f
-                            )
-                        } else {
-                            MessageText(
-                                text = renderData.annotatedText,
-                                rawText = content.caption,
-                                inlineContent = renderData.inlineContent,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontSize = fontSize.sp,
-                                    letterSpacing = letterSpacing.sp,
-                                    lineHeight = (fontSize * 1.35f).sp
-                                ),
-                                onSpoilerClick = { index ->
-                                    if (revealedSpoilers.contains(index)) {
-                                        revealedSpoilers.remove(index)
-                                    } else {
-                                        revealedSpoilers.add(index)
-                                    }
-                                },
-                                onClick = { offset -> onLongClick(imagePosition + offset) },
-                                onLongClick = { offset -> onLongClick(imagePosition + offset) }
-                            )
-                        }
-
-                        if (showMetadata) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 2.dp),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                MessageMetadata(
-                                    msg = msg,
-                                    isOutgoing = msg.isOutgoing,
-                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-                    }
+                if (hasCaption && !showCaptionAboveMedia) {
+                    CaptionSection()
                 }
             }
         }

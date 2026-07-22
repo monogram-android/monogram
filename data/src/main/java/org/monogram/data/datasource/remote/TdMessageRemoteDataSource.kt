@@ -815,14 +815,18 @@ class TdMessageRemoteDataSource(
         }
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
-        val req = TdApi.SendMessage().apply {
-            this.chatId = chatId
-            this.topicId = topicId
-            this.replyTo = replyTo
-            this.inputMessageContent = content
-            this.options = sendOptions.toTdMessageSendOptions()
+        var lastMessage: TdApi.Message? = null
+        explodeTextContent(content, MAX_TEXT_MESSAGE_CODE_POINTS).forEach { messageContent ->
+            val req = TdApi.SendMessage().apply {
+                this.chatId = chatId
+                this.topicId = topicId
+                this.replyTo = replyTo
+                this.inputMessageContent = messageContent
+                this.options = sendOptions.toTdMessageSendOptions()
+            }
+            lastMessage = safeExecute(req)
         }
-        return safeExecute(req)
+        return lastMessage
     }
 
     override suspend fun sendRichMessage(
@@ -863,6 +867,7 @@ class TdMessageRemoteDataSource(
         photoPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -870,7 +875,7 @@ class TdMessageRemoteDataSource(
         val content = TdApi.InputMessagePhoto(
             buildInputPhoto(TdApi.InputFileLocal(photoPath)),
             TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption)),
-            false,
+            showCaptionAboveMedia,
             null,
             false
         )
@@ -899,6 +904,7 @@ class TdMessageRemoteDataSource(
         videoPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -906,7 +912,7 @@ class TdMessageRemoteDataSource(
         val content = TdApi.InputMessageVideo(
             buildInputVideo(TdApi.InputFileLocal(videoPath)),
             TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption)),
-            false,
+            showCaptionAboveMedia,
             null,
             false
         )
@@ -1068,6 +1074,7 @@ class TdMessageRemoteDataSource(
         gifPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -1075,7 +1082,7 @@ class TdMessageRemoteDataSource(
         val content = TdApi.InputMessageAnimation(
             buildInputAnimation(TdApi.InputFileLocal(gifPath)),
             TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption)),
-            false,
+            showCaptionAboveMedia,
             false
         )
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
@@ -1101,6 +1108,7 @@ class TdMessageRemoteDataSource(
         paths: List<String>,
         caption: String,
         captionEntities: List<MessageEntity>,
+        showCaptionAboveMedia: Boolean,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions
@@ -1120,14 +1128,14 @@ class TdMessageRemoteDataSource(
                 if (isVideo) TdApi.InputMessageVideo(
                     buildInputVideo(TdApi.InputFileLocal(path)),
                     cap,
-                    false,
+                    index == 0 && showCaptionAboveMedia,
                     null,
                     false
                 )
                 else TdApi.InputMessagePhoto(
                     buildInputPhoto(TdApi.InputFileLocal(path)),
                     cap,
-                    false,
+                    index == 0 && showCaptionAboveMedia,
                     null,
                     false
                 )
@@ -1285,6 +1293,7 @@ class TdMessageRemoteDataSource(
     }
 
     override suspend fun editMessageCaption(chatId: Long, messageId: Long, caption: String, entities: List<MessageEntity>): TdApi.Message? {
+        val showCaptionAboveMedia = resolveShowCaptionAboveMedia(chatId, messageId)
         val req = TdApi.EditMessageCaption().apply {
             this.chatId = chatId
             this.messageId = messageId
@@ -1293,7 +1302,7 @@ class TdMessageRemoteDataSource(
                 caption,
                 entities.toTdTextEntities(caption)
             )
-            this.showCaptionAboveMedia = false
+            this.showCaptionAboveMedia = showCaptionAboveMedia
         }
         return safeExecute(req)
     }
@@ -1445,6 +1454,181 @@ class TdMessageRemoteDataSource(
         }
 
         return TdApi.TextEntity(start, safeLength, tdType)
+    }
+
+    private fun explodeTextContent(
+        content: TdApi.InputMessageText,
+        maxCodePointCount: Int
+    ): List<TdApi.InputMessageText> {
+        val formattedText = content.text ?: return listOf(content)
+        if (formattedText.text.codePointCount(0, formattedText.text.length) <= maxCodePointCount) {
+            return listOf(content)
+        }
+
+        val chunks = mutableListOf<TdApi.InputMessageText>()
+        val text = formattedText.text
+        val textLength = text.length
+        var start = 0
+        var end = 0
+        var currentCodePointCount = 0
+
+        while (start < textLength) {
+            val codePoint = text.codePointAt(end)
+            currentCodePointCount++
+            end += Character.charCount(codePoint)
+            if (currentCodePointCount == maxCodePointCount || end == textLength) {
+                var chunkEnd = end
+                if (chunkEnd < textLength) {
+                    chunkEnd = findChunkBoundary(text, start, chunkEnd)
+                    if (chunkEnd <= start) {
+                        chunkEnd = end
+                    }
+                }
+                val chunkText = formattedText.substring(start, chunkEnd)
+                val isFirstChunk = chunks.isEmpty()
+                chunks += TdApi.InputMessageText().apply {
+                    this.text = chunkText
+                    this.linkPreviewOptions = content.linkPreviewOptions
+                    this.clearDraft = isFirstChunk && content.clearDraft
+                }
+                start = chunkEnd
+                end = chunkEnd
+                currentCodePointCount = 0
+            }
+        }
+
+        return chunks
+    }
+
+    private fun TdApi.FormattedText.substring(start: Int, end: Int): TdApi.FormattedText {
+        val chunkText = text.substring(start, end)
+        val chunkEntities = entities.orEmpty()
+            .mapNotNull { entity ->
+                val entityStart = maxOf(entity.offset, start)
+                val entityEnd = minOf(entity.offset + entity.length, end)
+                if (entityEnd <= entityStart) return@mapNotNull null
+                TdApi.TextEntity(
+                    entityStart - start,
+                    entityEnd - entityStart,
+                    entity.type
+                )
+            }
+            .sortedWith(compareBy<TdApi.TextEntity> { it.offset }.thenByDescending { it.length })
+            .toTypedArray()
+        return TdApi.FormattedText(chunkText, chunkEntities)
+    }
+
+    private fun findChunkBoundary(text: String, start: Int, candidateEnd: Int): Int {
+        val searchStart = candidateEnd - (candidateEnd - start) / 3
+        var lastWhitespace = -1
+        var lastSplitter = -1
+        for (index in (candidateEnd - 1) downTo searchStart) {
+            val char = text[index]
+            if (char == '\n' && index > start) return index
+            if (lastWhitespace == -1 && char.isWhitespace()) {
+                lastWhitespace = index
+            }
+            if (lastSplitter == -1 && isChunkSplitter(char)) {
+                lastSplitter = index
+            }
+        }
+        return when {
+            lastWhitespace > start -> lastWhitespace
+            lastSplitter > start -> lastSplitter
+            else -> candidateEnd
+        }
+    }
+
+    private fun isChunkSplitter(char: Char): Boolean {
+        return char in charArrayOf('.', ',', '!', '?', ';', ':', ')', ']', '}', '/', '\\', '-', '>')
+    }
+
+    private fun resolveShowCaptionAboveMedia(chatId: Long, messageId: Long): Boolean {
+        val content = cache.getMessage(chatId, messageId)?.content ?: return false
+        return when (content) {
+            is TdApi.MessagePhoto -> content.showCaptionAboveMedia
+            is TdApi.MessageVideo -> content.showCaptionAboveMedia
+            is TdApi.MessageAnimation -> content.showCaptionAboveMedia
+            else -> false
+        }
+    }
+
+    private fun applyReactionDelta(
+        existing: TdApi.MessageReactions?,
+        actorId: TdApi.MessageSender?,
+        oldReactionTypes: Array<out TdApi.ReactionType>,
+        newReactionTypes: Array<out TdApi.ReactionType>
+    ): TdApi.MessageReactions {
+        val mutableReactions = existing?.reactions.orEmpty()
+            .map { reaction ->
+                TdApi.MessageReaction().apply {
+                    type = reaction.type
+                    totalCount = reaction.totalCount
+                    isChosen = reaction.isChosen
+                    usedSenderId = reaction.usedSenderId
+                    recentSenderIds = reaction.recentSenderIds?.clone() ?: emptyArray()
+                }
+            }
+            .associateByTo(linkedMapOf(), ::reactionKey)
+
+        oldReactionTypes.forEach { reactionType ->
+            val key = reactionKey(reactionType)
+            val current = mutableReactions[key] ?: return@forEach
+            current.totalCount = (current.totalCount - 1).coerceAtLeast(0)
+            if (actorId != null) {
+                current.recentSenderIds = current.recentSenderIds.orEmpty()
+                    .filterNot { sameSender(it, actorId) }
+                    .toTypedArray()
+            }
+            if (current.totalCount == 0) {
+                mutableReactions.remove(key)
+            }
+        }
+
+        newReactionTypes.forEach { reactionType ->
+            val key = reactionKey(reactionType)
+            val current = mutableReactions.getOrPut(key) {
+                TdApi.MessageReaction().apply {
+                    type = reactionType
+                    totalCount = 0
+                    isChosen = false
+                    usedSenderId = null
+                    recentSenderIds = emptyArray()
+                }
+            }
+            current.totalCount += 1
+            if (actorId != null) {
+                current.recentSenderIds = (
+                        listOf(actorId) + current.recentSenderIds.orEmpty()
+                            .filterNot { sameSender(it, actorId) }
+                            .take(3)
+                        ).toTypedArray()
+            }
+        }
+
+        return TdApi.MessageReactions().apply {
+            reactions = mutableReactions.values.toTypedArray()
+            areTags = existing?.areTags ?: false
+            paidReactors = existing?.paidReactors ?: emptyArray()
+            canGetAddedReactions = existing?.canGetAddedReactions ?: false
+        }
+    }
+
+    private fun reactionKey(reaction: TdApi.MessageReaction): String = reactionKey(reaction.type)
+
+    private fun reactionKey(reaction: TdApi.ReactionType): String = when (reaction) {
+        is TdApi.ReactionTypeEmoji -> "emoji:${reaction.emoji}"
+        is TdApi.ReactionTypeCustomEmoji -> "custom:${reaction.customEmojiId}"
+        is TdApi.ReactionTypePaid -> "paid"
+        else -> reaction.javaClass.simpleName
+    }
+
+    private fun sameSender(first: TdApi.MessageSender, second: TdApi.MessageSender): Boolean {
+        return when {
+            first is TdApi.MessageSenderUser && second is TdApi.MessageSenderUser -> first.userId == second.userId
+            first is TdApi.MessageSenderChat && second is TdApi.MessageSenderChat -> first.chatId == second.chatId
+            else -> false
+        }
     }
 
     private suspend fun resolveTopicId(chatId: Long, threadId: Long?): TdApi.MessageTopic? {
@@ -1836,10 +2020,31 @@ class TdMessageRemoteDataSource(
                 refreshMessageDebounced(update.chatId, update.messageId)
             }
             is TdApi.UpdateMessageReaction -> {
-                // Bots receive delta-only reaction updates, so avoid rereads here.
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    val interactionInfo = message.interactionInfo ?: TdApi.MessageInteractionInfo()
+                    interactionInfo.reactions = applyReactionDelta(
+                        existing = interactionInfo.reactions,
+                        actorId = update.actorId,
+                        oldReactionTypes = update.oldReactionTypes.orEmpty(),
+                        newReactionTypes = update.newReactionTypes.orEmpty()
+                    )
+                    message.interactionInfo = interactionInfo
+                }
+                refreshMessageDebounced(update.chatId, update.messageId)
             }
             is TdApi.UpdateMessageReactions -> {
-                // Bots receive reaction payloads that don't justify a full message reread.
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    val interactionInfo = message.interactionInfo ?: TdApi.MessageInteractionInfo()
+                    val existingReactions = interactionInfo.reactions
+                    interactionInfo.reactions = TdApi.MessageReactions().apply {
+                        reactions = update.reactions
+                        areTags = existingReactions?.areTags ?: false
+                        paidReactors = existingReactions?.paidReactors ?: emptyArray()
+                        canGetAddedReactions = existingReactions?.canGetAddedReactions ?: false
+                    }
+                    message.interactionInfo = interactionInfo
+                }
+                refreshMessageDebounced(update.chatId, update.messageId)
             }
             is TdApi.UpdateMessageMentionRead -> {
                 cache.updateMessage(update.chatId, update.messageId) { message ->
@@ -2229,5 +2434,6 @@ class TdMessageRemoteDataSource(
     private companion object {
         private val MISSING_MESSAGE_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(2)
         private const val DRAFT_LINK_PREVIEW_TAG = "DraftLinkPreview"
+        private const val MAX_TEXT_MESSAGE_CODE_POINTS = 4096
     }
 }

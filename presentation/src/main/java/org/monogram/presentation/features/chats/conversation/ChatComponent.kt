@@ -301,6 +301,7 @@ interface ChatComponent {
         val editingMessage: MessageModel? = null,
         val checklistMessage: MessageModel? = null,
         val checklistDraft: ChecklistDraft? = null,
+        val pendingEditedMessageIds: Set<Long> = emptySet(),
         val editRequestTime: Long = 0L,
         val draftText: String = "",
         val draftLinkTargets: List<LinkPreviewTarget> = emptyList(),

@@ -210,6 +210,7 @@ internal fun RichMessageBubble(
                 }
 
                 MessageFooterRow(
+                    messageId = msg.id,
                     timeText = timeText,
                     color = timeColor,
                     isEdited = msg.editDate > 0,

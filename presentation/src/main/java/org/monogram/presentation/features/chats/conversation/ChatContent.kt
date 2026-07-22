@@ -66,6 +66,7 @@ import org.monogram.presentation.features.chats.conversation.ui.content.remember
 import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.chats.conversation.ui.message.LocalLinkHandler
 import org.monogram.presentation.features.chats.conversation.ui.message.LocalMessageRenderDependencies
+import org.monogram.presentation.features.chats.conversation.ui.message.LocalPendingEditedMessageIds
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewImageViewerRequest
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewVideoViewerRequest
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberChatMessageRenderDependencies
@@ -385,6 +386,7 @@ fun ChatContent(
     CompositionLocalProvider(
         LocalLinkHandler provides { component.onLinkClick(it) },
         LocalMessageRenderDependencies provides messageRenderDependencies,
+        LocalPendingEditedMessageIds provides state.pendingEditedMessageIds,
         LocalVoicePlaybackController provides voicePlaybackController
     ) {
         val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }

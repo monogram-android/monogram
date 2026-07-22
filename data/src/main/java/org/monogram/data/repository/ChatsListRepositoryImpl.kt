@@ -1002,8 +1002,20 @@ class ChatsListRepositoryImpl(
         chatRemoteSource.setChatSignMessages(chatId, signMessages)
     }
 
+    override suspend fun setChatHasHiddenMembers(chatId: Long, hasHiddenMembers: Boolean) {
+        chatRemoteSource.setChatHasHiddenMembers(chatId, hasHiddenMembers)
+    }
+
+    override suspend fun setChatHasAggressiveAntiSpamEnabled(chatId: Long, enabled: Boolean) {
+        chatRemoteSource.setChatHasAggressiveAntiSpamEnabled(chatId, enabled)
+    }
+
     override suspend fun setChatJoinToSendMessages(chatId: Long, joinToSendMessages: Boolean) {
         chatRemoteSource.setChatJoinToSendMessages(chatId, joinToSendMessages)
+    }
+
+    override suspend fun setChatJoinByRequest(chatId: Long, joinByRequest: Boolean) {
+        chatRemoteSource.setChatJoinByRequest(chatId, joinByRequest)
     }
 
     override suspend fun setChatAvailableReactions(chatId: Long, availableReactions: List<String>) {

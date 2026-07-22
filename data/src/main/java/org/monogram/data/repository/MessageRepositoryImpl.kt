@@ -1243,6 +1243,12 @@ internal class MessageRepositoryImpl(
         )
     }
 
+    override suspend fun getChatMessageByDate(chatId: Long, dateEpochSeconds: Int): MessageModel? {
+        return withContext(dispatcherProvider.io) {
+            messageRemoteDataSource.getChatMessageByDate(chatId, dateEpochSeconds)
+        }
+    }
+
     override fun updateVisibleRange(chatId: Long, visibleMessageIds: List<Long>, nearbyMessageIds: List<Long>) {
         messageRemoteDataSource.updateVisibleRange(chatId, visibleMessageIds, nearbyMessageIds)
     }

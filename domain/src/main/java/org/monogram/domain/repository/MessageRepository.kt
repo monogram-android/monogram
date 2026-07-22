@@ -160,6 +160,7 @@ interface MessageRepository :
     ): List<MessageModel>
 
     suspend fun getMessagesAround(chatId: Long, messageId: Long, limit: Int, threadId: Long? = null): List<MessageModel>
+    suspend fun getChatMessageByDate(chatId: Long, dateEpochSeconds: Int): MessageModel?
 
     suspend fun getMessageThreadContext(chatId: Long, messageId: Long): MessageThreadContext?
 

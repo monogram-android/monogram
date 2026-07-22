@@ -177,6 +177,7 @@
     <string name="no_messages_yet">No messages yet</string>
     <string name="cd_pinned">Pinned</string>
     <string name="cd_mentions">Mentions</string>
+    <string name="cd_reactions">Reactions</string>
     <string name="archived_chats_subtitle">Hidden from the main list</string>
     <string name="no_chats_yet">No chats yet</string>
     <string name="start_new_conversation">Start a new conversation</string>
@@ -282,6 +283,13 @@
     <string name="profile_restriction_title">Restrictions</string>
     <string name="profile_chat_tools">Chat tools</string>
     <string name="profile_chat_anti_spam">Aggressive anti-spam</string>
+    <string name="profile_chat_anti_spam_subtitle">Automatically filter suspicious joins and spam activity</string>
+    <string name="profile_chat_hidden_members">Hidden members</string>
+    <string name="profile_chat_hidden_members_subtitle">Hide the member list from regular participants</string>
+    <string name="profile_chat_join_by_request">Join by request</string>
+    <string name="profile_chat_join_by_request_subtitle">Require admins to approve new members before they can join</string>
+    <string name="profile_chat_join_requests">Join requests</string>
+    <string name="profile_common_groups">Groups in common</string>
     <string name="profile_chat_sponsored_messages">Sponsored messages enabled</string>
     <string name="profile_chat_direct_messages">Direct messages linked</string>
     <string name="profile_chat_boosts_format">%1$d boosts from you</string>
@@ -504,6 +512,14 @@
     <plurals name="service_message_seconds">
         <item quantity="one">%1$d second</item>
         <item quantity="other">%1$d seconds</item>
+    </plurals>
+    <plurals name="profile_chat_join_requests_count">
+        <item quantity="one">%1$d pending approval</item>
+        <item quantity="other">%1$d pending approvals</item>
+    </plurals>
+    <plurals name="profile_common_groups_count">
+        <item quantity="one">%1$d shared group</item>
+        <item quantity="other">%1$d shared groups</item>
     </plurals>
     <string name="menu_save_to_downloads">Save to Downloads</string>
     <string name="menu_cocoon">Cocoon</string>
@@ -1989,12 +2005,17 @@
     <string name="tab_media">Media</string>
     <string name="tab_stories">Stories</string>
     <string name="tab_members">Members</string>
+    <string name="tab_admins">Admins</string>
+    <string name="tab_restricted">Restricted</string>
+    <string name="tab_banned">Banned</string>
+    <string name="tab_similar">Similar</string>
     <string name="tab_files">Files</string>
     <string name="tab_music">Audio</string>
     <string name="tab_voice">Voice</string>
     <string name="tab_links">Links</string>
     <string name="tab_gifs">GIFs</string>
     <string name="empty_members">No members found</string>
+    <string name="empty_similar_chats">No similar chats found</string>
     <string name="empty_media">No media found</string>
     <string name="empty_stories">No stories found</string>
     <string name="empty_music">No audio found</string>

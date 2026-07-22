@@ -373,7 +373,7 @@ internal fun DefaultChatComponent.loadMessages(
                 event = "load_messages_target_resolved",
                 state = _state.value,
                 componentInstanceId = componentInstanceId,
-                extra = "source=$loadSource target=${target.perfTargetName()} targetChatId=$targetChatId savedAnchor=${savedViewport?.anchorMessageId ?: 0L} firstUnreadId=${firstUnreadId ?: 0L}"
+                extra = "source=$loadSource target=${target.perfTargetName()} targetChatId=$targetChatId targetAnchor=${target.anchorMessageId ?: 0L} savedAnchor=${savedViewport?.anchorMessageId ?: 0L} firstUnreadId=${firstUnreadId ?: 0L}"
             )
             ChatOpenPerfBridge.updateTarget(chatId, threadId, target.perfTargetName())
             activeLoadSession = ConversationLoadSession(
@@ -386,7 +386,7 @@ internal fun DefaultChatComponent.loadMessages(
                 phase = "chat_open_total_start",
                 source = loadSource,
                 target = target.perfTargetName(),
-                anchorId = savedViewport?.anchorMessageId
+                anchorId = target.anchorMessageId ?: savedViewport?.anchorMessageId
             )
 
             when (target) {

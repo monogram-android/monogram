@@ -52,6 +52,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
@@ -81,7 +82,6 @@ import org.monogram.presentation.features.profile.components.ProfileTOSDialog
 import org.monogram.presentation.features.profile.components.ProfileTopBar
 import org.monogram.presentation.features.profile.components.StatisticsViewer
 import org.monogram.presentation.features.profile.components.profileMediaSection
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -182,7 +182,6 @@ fun ProfileContent(component: ProfileComponent) {
         else if (state.selectedLocation != null) component.onDismissLocation()
     }
 
-    val searchNotImplemented = stringResource(R.string.search_not_implemented)
     val linkCopied = stringResource(R.string.link_copied)
     val userIdCopied = stringResource(R.string.logs_user_id_copied)
 
@@ -234,6 +233,7 @@ fun ProfileContent(component: ProfileComponent) {
     val canLeaveTopBar = !isCurrentUserProfile && exitAction == ChatExitAction.Leave
     val canDeleteTopBar = !isCurrentUserProfile && exitAction == ChatExitAction.Delete
     val isActionPending = state.actionState is ChatActionState.Pending
+    val canSearchTopBar = state.selectedTabKey.isMemberTab()
     var showLeaveSheet by remember { mutableStateOf(false) }
     var showDeleteChatSheet by remember { mutableStateOf(false) }
     var showBlockSheet by remember { mutableStateOf(false) }
@@ -252,7 +252,7 @@ fun ProfileContent(component: ProfileComponent) {
                     isBot = isBot,
                     isScam = isScam,
                     isFake = isFake,
-                    canSearch = false,
+                    canSearch = canSearchTopBar,
                     canShare = canShareTopBar,
                     canEdit = canEditTopBar,
                     canEditContact = canEditContactTopBar,
@@ -262,7 +262,7 @@ fun ProfileContent(component: ProfileComponent) {
                     isBlocked = state.isBlocked,
                     canLeave = canLeaveTopBar,
                     canDeleteChat = canDeleteTopBar,
-                    onSearch = { Toast.makeText(context, searchNotImplemented, Toast.LENGTH_SHORT).show() },
+                    onSearch = component::onSearch,
                     onShare = {
                         when {
                             shareUsername != null -> {
@@ -402,6 +402,10 @@ fun ProfileContent(component: ProfileComponent) {
                                     onShowStatistics = component::onShowStatistics,
                                     onShowRevenueStatistics = component::onShowRevenueStatistics,
                                     onLinkedChatClick = component::onLinkedChatClick,
+                                    onToggleJoinToSendMessages = component::onToggleJoinToSendMessages,
+                                    onToggleJoinByRequest = component::onToggleJoinByRequest,
+                                    onToggleHiddenMembers = component::onToggleHiddenMembers,
+                                    onToggleAggressiveAntiSpam = component::onToggleAggressiveAntiSpam,
                                     onShowPermissions = component::onShowPermissions,
                                     onAcceptTOS = component::onAcceptTOS,
                                     onLocationClick = component::onLocationClick
@@ -421,9 +425,12 @@ fun ProfileContent(component: ProfileComponent) {
                         onLoadMore = component::onLoadMoreMedia,
                         onMemberClick = component::onMemberClick,
                         onMemberLongClick = component::onMemberLongClick,
+                        onChatClick = component::onRelatedChatClick,
                         onLoadMedia = { msg ->
                             component.onDownloadMedia(msg)
                         },
+                        onSearchQueryChanged = component::onSearchQueryChanged,
+                        onSearchDismissed = component::onSearchDismissed,
                         onOpenActiveStory = component::onOpenActiveStory,
                         onOpenPostedStory = component::onOpenPostedStory,
                         onOpenArchive = component::onOpenStoryArchive

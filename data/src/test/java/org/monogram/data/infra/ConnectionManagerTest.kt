@@ -400,8 +400,22 @@ class ConnectionManagerTest {
         ) = Unit
 
         override suspend fun setChatSignMessages(chatId: Long, signMessages: Boolean) = Unit
+        override suspend fun setChatHasHiddenMembers(
+            chatId: Long,
+            hasHiddenMembers: Boolean
+        ) {
+        }
+
+        override suspend fun setChatHasAggressiveAntiSpamEnabled(
+            chatId: Long,
+            enabled: Boolean
+        ) {
+        }
+
         override suspend fun setChatJoinToSendMessages(chatId: Long, joinToSendMessages: Boolean) =
             Unit
+
+        override suspend fun setChatJoinByRequest(chatId: Long, joinByRequest: Boolean) = Unit
 
         override suspend fun setChatAvailableReactions(
             chatId: Long,

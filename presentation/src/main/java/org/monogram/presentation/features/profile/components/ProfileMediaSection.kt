@@ -25,11 +25,14 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.BrokenImage
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Mic
@@ -37,17 +40,21 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PermMedia
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RemoveRedEye
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -55,12 +62,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +82,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.koin.compose.koinInject
+import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.GroupMemberModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -89,6 +102,7 @@ import org.monogram.presentation.features.profile.ProfileComponent
 import org.monogram.presentation.features.profile.ProfileTabContentType
 import org.monogram.presentation.features.profile.ProfileTabKey
 import org.monogram.presentation.features.profile.ProfileTabSpec
+import org.monogram.presentation.features.profile.isMemberTab
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.io.File
 
@@ -105,7 +119,10 @@ fun LazyGridScope.profileMediaSection(
     onLoadMore: () -> Unit,
     onMemberClick: (Long) -> Unit = {},
     onMemberLongClick: (Long) -> Unit = {},
+    onChatClick: (Long) -> Unit = {},
     onLoadMedia: (MessageModel) -> Unit = {},
+    onSearchQueryChanged: (String) -> Unit = {},
+    onSearchDismissed: () -> Unit = {},
     onOpenActiveStory: (Int) -> Unit = {},
     onOpenPostedStory: (Int) -> Unit = {},
     onOpenArchive: () -> Unit = {}
@@ -115,7 +132,7 @@ fun LazyGridScope.profileMediaSection(
     val selectedIndex = tabs.indexOfFirst { it.key == selectedTabKey }.takeIf { it >= 0 } ?: 0
     val selectedTab = tabs.getOrElse(selectedIndex) { tabs.first() }
     val selectedMessageTab = state.messageTabState(selectedTab.key)
-    val selectedMembersTab = state.membersTab
+    val selectedMembersTab = state.memberTabState(selectedTab.key)
 
     stickyHeader {
         Surface(
@@ -180,6 +197,15 @@ fun LazyGridScope.profileMediaSection(
                         }
                     }
                 }
+
+                if (selectedTab.key.isMemberTab() && selectedMembersTab.isSearchActive) {
+                    ProfileMemberSearchField(
+                        query = selectedMembersTab.searchQuery,
+                        isSearching = selectedMembersTab.isSearching,
+                        onQueryChange = onSearchQueryChanged,
+                        onDismiss = onSearchDismissed
+                    )
+                }
             }
         }
     }
@@ -201,13 +227,30 @@ fun LazyGridScope.profileMediaSection(
             onLoadMedia = onLoadMedia
         )
 
-        ProfileTabKey.MEMBERS -> membersList(
-            members = state.members,
-            isLoading = selectedMembersTab.isLoadingInitial,
-            canLoadMore = selectedMembersTab.canLoadMore,
+        ProfileTabKey.MEMBERS,
+        ProfileTabKey.ADMINS,
+        ProfileTabKey.RESTRICTED,
+        ProfileTabKey.BANNED -> membersList(
+            members = selectedMembersTab.visibleItems,
+            isLoading = selectedMembersTab.isLoadingInitial ||
+                    (selectedMembersTab.isSearching && selectedMembersTab.visibleItems.isEmpty()),
+            canLoadMore = selectedMembersTab.canLoadMore &&
+                    !selectedMembersTab.isSearching &&
+                    !selectedMembersTab.isSearchResultsVisible,
             onLoadMore = onLoadMore,
             onMemberClick = onMemberClick,
-            onMemberLongClick = onMemberLongClick
+            onMemberLongClick = onMemberLongClick,
+            emptyTextRes = if (selectedMembersTab.isSearchResultsVisible) {
+                R.string.no_results_found
+            } else {
+                R.string.empty_members
+            }
+        )
+
+        ProfileTabKey.SIMILAR -> chatsList(
+            chats = state.relatedChats,
+            isLoading = state.isSimilarChatsLoading,
+            onChatClick = onChatClick
         )
 
         ProfileTabKey.FILES -> filesList(
@@ -254,7 +297,12 @@ fun LazyGridScope.profileMediaSection(
     val itemCount = when (selectedTab.key) {
         ProfileTabKey.STORIES -> 0
         ProfileTabKey.MEDIA -> state.mediaMessages.size
-        ProfileTabKey.MEMBERS -> state.members.size
+        ProfileTabKey.MEMBERS,
+        ProfileTabKey.ADMINS,
+        ProfileTabKey.RESTRICTED,
+        ProfileTabKey.BANNED -> selectedMembersTab.visibleItems.size
+
+        ProfileTabKey.SIMILAR -> state.relatedChats.size
         ProfileTabKey.FILES -> state.fileMessages.size
         ProfileTabKey.MUSIC -> state.musicMessages.size
         ProfileTabKey.VOICE -> state.voiceMessages.size
@@ -263,14 +311,15 @@ fun LazyGridScope.profileMediaSection(
     }
     val shouldAutoLoadMore = when (selectedTab.key) {
         ProfileTabKey.STORIES -> false
-        ProfileTabKey.MEMBERS -> {
+        ProfileTabKey.SIMILAR -> false
+        else -> if (selectedTab.key.isMemberTab()) {
             selectedMembersTab.canLoadMore &&
+                    !selectedMembersTab.isSearching &&
+                    !selectedMembersTab.isSearchResultsVisible &&
                     !selectedMembersTab.isLoadingInitial &&
                     !selectedMembersTab.isLoadingNext &&
-                    selectedMembersTab.items.isNotEmpty()
-        }
-
-        else -> {
+                    selectedMembersTab.visibleItems.isNotEmpty()
+        } else {
             selectedMessageTab.canLoadMore &&
                     !selectedMessageTab.isLoadingInitial &&
                     !selectedMessageTab.isLoadingNext &&
@@ -288,11 +337,11 @@ fun LazyGridScope.profileMediaSection(
     }
 
     val showMembersPaginationSkeleton =
-        selectedTab.key == ProfileTabKey.MEMBERS &&
+        selectedTab.key.isMemberTab() &&
                 selectedMembersTab.isLoadingNext &&
-                selectedMembersTab.items.isNotEmpty()
+                selectedMembersTab.visibleItems.isNotEmpty()
     val showMediaPaginationSkeleton =
-        selectedTab.key != ProfileTabKey.MEMBERS &&
+        !selectedTab.key.isMemberTab() &&
                 selectedTab.key != ProfileTabKey.STORIES &&
                 selectedMessageTab.isLoadingNext &&
                 selectedMessageTab.items.isNotEmpty()
@@ -347,6 +396,81 @@ fun LazyGridScope.profileMediaSection(
     }
 }
 
+private fun LazyGridScope.chatsList(
+    chats: List<ChatModel>,
+    isLoading: Boolean,
+    onChatClick: (Long) -> Unit
+) {
+    val uniqueChats = chats.distinctBy { it.id }
+
+    if (uniqueChats.isEmpty()) {
+        item(span = { GridItemSpan(3) }, key = "similar_chats_empty") {
+            if (isLoading) {
+                val shimmer = rememberShimmerBrush()
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    repeat(4) {
+                        MemberListSkeletonRow(shimmer = shimmer)
+                    }
+                }
+            } else {
+                EmptyState(stringResource(R.string.empty_similar_chats))
+            }
+        }
+        return
+    }
+
+    itemsIndexed(
+        uniqueChats,
+        key = { _, chat -> "similar_${chat.id}" },
+        span = { _, _ -> GridItemSpan(3) }
+    ) { _, chat ->
+        Column {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = chat.title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                supportingContent = {
+                    val subtitle = when {
+                        chat.memberCount > 0 -> pluralStringResource(
+                            R.plurals.members_count_format,
+                            chat.memberCount,
+                            chat.memberCount
+                        )
+
+                        !chat.username.isNullOrBlank() -> "@${chat.username}"
+                        !chat.description.isNullOrBlank() -> chat.description.orEmpty()
+                        else -> stringResource(R.string.tab_similar)
+                    }
+                    Text(
+                        text = subtitle,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                leadingContent = {
+                    Avatar(
+                        path = chat.avatarPath,
+                        fallbackPath = chat.personalAvatarPath,
+                        name = chat.title,
+                        size = 42.dp,
+                        isOnline = false
+                    )
+                },
+                modifier = Modifier.clickable { onChatClick(chat.id) }
+            )
+            HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
+        }
+    }
+}
+
 @Composable
 private fun ScrollableRow(
     modifier: Modifier = Modifier,
@@ -359,6 +483,89 @@ private fun ScrollableRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         content()
+    }
+}
+
+@Composable
+private fun ProfileMemberSearchField(
+    query: String,
+    isSearching: Boolean,
+    onQueryChange: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                TextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    placeholder = {
+                        Text(stringResource(R.string.search_hint))
+                    },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = stringResource(R.string.search)
+                        )
+                    },
+                    trailingIcon = {
+                        when {
+                            isSearching -> {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+
+                            query.isNotEmpty() -> {
+                                IconButton(onClick = { onQueryChange("") }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = stringResource(R.string.clear)
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent
+                    )
+                )
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.close_button)
+                )
+            }
+        }
     }
 }
 
@@ -580,7 +787,8 @@ private fun LazyGridScope.membersList(
     canLoadMore: Boolean,
     onLoadMore: () -> Unit,
     onMemberClick: (Long) -> Unit,
-    onMemberLongClick: (Long) -> Unit
+    onMemberLongClick: (Long) -> Unit,
+    emptyTextRes: Int
 ) {
     val uniqueMembers = members.distinctBy { it.user.id }
 
@@ -596,7 +804,7 @@ private fun LazyGridScope.membersList(
             }
         } else {
             item(span = { GridItemSpan(3) }) {
-                EmptyState(stringResource(R.string.empty_members))
+                EmptyState(stringResource(emptyTextRes))
             }
         }
     } else {

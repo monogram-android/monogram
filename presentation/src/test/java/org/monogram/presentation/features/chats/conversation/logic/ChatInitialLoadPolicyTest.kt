@@ -11,9 +11,10 @@ class ChatInitialLoadPolicyTest {
         val key = buildChatInitialLoadKey(
             chatId = 1L,
             effectiveThreadId = null,
-            initialMessageId = null,
+            explicitMessageId = null,
             savedViewport = null,
             firstUnreadMessageId = null,
+            unreadCount = 0,
             rootMessageId = null
         )
 
@@ -25,9 +26,10 @@ class ChatInitialLoadPolicyTest {
         val key = buildChatInitialLoadKey(
             chatId = 1L,
             effectiveThreadId = 2L,
-            initialMessageId = 10L,
+            explicitMessageId = 10L,
             savedViewport = ChatViewportCacheEntry(20L, 4, false),
             firstUnreadMessageId = 30L,
+            unreadCount = 1,
             rootMessageId = 40L
         )
 
@@ -39,20 +41,52 @@ class ChatInitialLoadPolicyTest {
         val previous = buildChatInitialLoadKey(
             chatId = 1L,
             effectiveThreadId = 2L,
-            initialMessageId = null,
+            explicitMessageId = null,
             savedViewport = ChatViewportCacheEntry(20L, 4, false),
             firstUnreadMessageId = null,
+            unreadCount = 0,
             rootMessageId = null
         )
         val next = buildChatInitialLoadKey(
             chatId = 1L,
             effectiveThreadId = 2L,
-            initialMessageId = null,
+            explicitMessageId = null,
             savedViewport = ChatViewportCacheEntry(21L, 4, false),
             firstUnreadMessageId = null,
+            unreadCount = 0,
             rootMessageId = null
         )
 
         assertTrue(shouldStartInitialLoad(previous, next, hasStartedForCurrentContext = true))
+    }
+
+    @Test
+    fun `same anchor with different source starts a new initial load`() {
+        val savedViewportKey = buildChatInitialLoadKey(
+            chatId = 1L,
+            effectiveThreadId = null,
+            explicitMessageId = null,
+            savedViewport = ChatViewportCacheEntry(42L, 0, false),
+            firstUnreadMessageId = null,
+            unreadCount = 0,
+            rootMessageId = null
+        )
+        val explicitMessageKey = buildChatInitialLoadKey(
+            chatId = 1L,
+            effectiveThreadId = null,
+            explicitMessageId = 42L,
+            savedViewport = ChatViewportCacheEntry(42L, 0, false),
+            firstUnreadMessageId = null,
+            unreadCount = 0,
+            rootMessageId = null
+        )
+
+        assertTrue(
+            shouldStartInitialLoad(
+                savedViewportKey,
+                explicitMessageKey,
+                hasStartedForCurrentContext = true
+            )
+        )
     }
 }

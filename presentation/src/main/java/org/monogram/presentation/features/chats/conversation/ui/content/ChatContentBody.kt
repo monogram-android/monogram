@@ -15,7 +15,10 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,11 +32,11 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.AddReaction
+import androidx.compose.material.icons.rounded.AlternateEmail
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -53,6 +56,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -215,6 +220,10 @@ internal fun ChatContentBody(
     isVisible: Boolean,
     showInitialLoading: Boolean,
     showScrollToBottomButton: Boolean,
+    showUnreadShortcutButtons: Boolean,
+    unreadMentionCount: Int,
+    unreadReactionCount: Int,
+    showReactions: Boolean,
     isRecordingVideo: Boolean,
     isAnyViewerOpen: Boolean,
     showAllSearchResults: Boolean,
@@ -402,6 +411,10 @@ internal fun ChatContentBody(
     val onForwardOriginClick: (ForwardInfo) -> Unit = remember(component) {
         { forwardInfo -> component.onForwardOriginClick(forwardInfo) }
     }
+    val showMentionButton = showUnreadShortcutButtons && unreadMentionCount > 0
+    val showReactionButton = showUnreadShortcutButtons && showReactions && unreadReactionCount > 0
+    val showBottomActionStack =
+        !state.isSearchActive && (showScrollToBottomButton || showMentionButton || showReactionButton)
 
     Box(
         modifier = Modifier
@@ -513,72 +526,56 @@ internal fun ChatContentBody(
             }
 
             AnimatedVisibility(
-                visible = showScrollToBottomButton && !state.isSearchActive,
+                visible = showBottomActionStack,
                 enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(16.dp)
             ) {
-                Box {
-                    FloatingActionButton(
-                        onClick = component::onScrollToBottom,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        elevation = FloatingActionButtonDefaults.elevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 0.dp,
-                            focusedElevation = 0.dp,
-                            hoveredElevation = 0.dp
-                        ),
-                        shape = CircleShape,
-                        modifier = Modifier.size(48.dp)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    UnreadShortcutButton(
+                        visible = showReactionButton,
+                        count = unreadReactionCount,
+                        contentDescription = stringResource(R.string.cd_reactions),
+                        onClick = component::onScrollToNextUnreadReaction,
+                        onLongClick = component::onClearUnreadReactions
                     ) {
                         Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = stringResource(R.string.cd_scroll_to_bottom),
-                            modifier = Modifier.size(24.dp)
+                            imageVector = Icons.Rounded.AddReaction,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    AnimatedVisibility(
-                        visible = state.unreadCount > 0,
-                        enter = scaleIn() + fadeIn(),
-                        exit = scaleOut() + fadeOut(),
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .offset(y = (-8).dp)
+                    UnreadShortcutButton(
+                        visible = showMentionButton,
+                        count = unreadMentionCount,
+                        contentDescription = stringResource(R.string.cd_mentions),
+                        onClick = component::onScrollToNextUnreadMention,
+                        onLongClick = component::onClearUnreadMentions
                     ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape,
-                            shadowElevation = 4.dp
-                        ) {
-                            AnimatedContent(
-                                targetState = state.unreadCount,
-                                transitionSpec = {
-                                    if (targetState > initialState) {
-                                        (slideInVertically { height -> height } + fadeIn()).togetherWith(
-                                            slideOutVertically { height -> -height } + fadeOut()
-                                        )
-                                    } else {
-                                        (slideInVertically { height -> -height } + fadeIn()).togetherWith(
-                                            slideOutVertically { height -> height } + fadeOut()
-                                        )
-                                    }.using(SizeTransform(clip = false))
-                                },
-                                label = "UnreadCountAnimation"
-                            ) { count ->
-                                Text(
-                                    text = if (count > 999) "999+" else count.toString(),
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.AlternateEmail,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    UnreadShortcutButton(
+                        visible = showScrollToBottomButton,
+                        count = state.unreadCount,
+                        contentDescription = stringResource(R.string.cd_scroll_to_bottom),
+                        onClick = component::onScrollToBottom
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }
@@ -615,6 +612,90 @@ internal fun ChatContentBody(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun UnreadShortcutButton(
+    visible: Boolean,
+    count: Int,
+    contentDescription: String,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    icon: @Composable () -> Unit
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
+    ) {
+        Box {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = CircleShape,
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .size(48.dp)
+                    .semantics { this.contentDescription = contentDescription }
+                    .combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    icon()
+                }
+            }
+
+            AnimatedVisibility(
+                visible = count > 0,
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = (-8).dp)
+            ) {
+                UnreadShortcutBadge(count)
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnreadShortcutBadge(count: Int) {
+    Surface(
+        color = MaterialTheme.colorScheme.primary,
+        shape = CircleShape,
+        shadowElevation = 4.dp
+    ) {
+        AnimatedContent(
+            targetState = count,
+            transitionSpec = {
+                if (targetState > initialState) {
+                    (slideInVertically { height -> height } + fadeIn()).togetherWith(
+                        slideOutVertically { height -> -height } + fadeOut()
+                    )
+                } else {
+                    (slideInVertically { height -> -height } + fadeIn()).togetherWith(
+                        slideOutVertically { height -> height } + fadeOut()
+                    )
+                }.using(SizeTransform(clip = false))
+            },
+            label = "UnreadCountAnimation"
+        ) { value ->
+            Text(
+                text = if (value > 999) "999+" else value.toString(),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp
+                ),
+                color = MaterialTheme.colorScheme.onPrimary
+            )
         }
     }
 }

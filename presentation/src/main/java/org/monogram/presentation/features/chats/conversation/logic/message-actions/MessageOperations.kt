@@ -52,6 +52,62 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
     }
 }
 
+internal fun DefaultChatComponent.handleScrollToNextUnreadMention() {
+    handleUnreadShortcut(UnreadShortcutType.Mention)
+}
+
+internal fun DefaultChatComponent.handleClearUnreadMentions() {
+    clearUnreadShortcut(UnreadShortcutType.Mention)
+}
+
+internal fun DefaultChatComponent.handleScrollToNextUnreadReaction() {
+    handleUnreadShortcut(UnreadShortcutType.Reaction)
+}
+
+internal fun DefaultChatComponent.handleClearUnreadReactions() {
+    clearUnreadShortcut(UnreadShortcutType.Reaction)
+}
+
+private fun DefaultChatComponent.handleUnreadShortcut(type: UnreadShortcutType) {
+    val currentState = _state.value
+    when (
+        val action = resolveUnreadShortcutAction(
+            messages = currentState.messages,
+            targetChatId = activeThreadChatId(),
+            isLatestLoaded = currentState.isLatestLoaded,
+            isOldestLoaded = currentState.isOldestLoaded,
+            type = type
+        )
+    ) {
+        is UnreadShortcutAction.ScrollToMessage -> scrollToMessageInternal(action.messageId)
+        UnreadShortcutAction.LoadNewer -> scrollToBottomInternal()
+        UnreadShortcutAction.LoadOlder -> loadMoreMessages()
+        UnreadShortcutAction.None -> Unit
+    }
+}
+
+private fun DefaultChatComponent.clearUnreadShortcut(type: UnreadShortcutType) {
+    val targetChatId = activeThreadChatId()
+    val hasUnread = when (type) {
+        UnreadShortcutType.Mention -> _state.value.unreadMentionCount > 0
+        UnreadShortcutType.Reaction -> _state.value.unreadReactionCount > 0
+    }
+    if (!hasUnread) return
+
+    _state.update { currentState ->
+        currentState.clearUnreadShortcut(
+            targetChatId = targetChatId,
+            type = type
+        )
+    }
+    scope.launch {
+        when (type) {
+            UnreadShortcutType.Mention -> repositoryMessage.markAllMentionsAsRead(targetChatId)
+            UnreadShortcutType.Reaction -> repositoryMessage.markAllReactionsAsRead(targetChatId)
+        }
+    }
+}
+
 internal fun DefaultChatComponent.handleDeleteMessage(message: MessageModel, revoke: Boolean = false) {
     val messageIdsToDelete = if (message.mediaAlbumId != 0L) {
         _state.value.messages

@@ -80,8 +80,10 @@ import org.monogram.presentation.features.chats.conversation.logic.loadWallpaper
 import org.monogram.presentation.features.chats.conversation.logic.observePreferences
 import org.monogram.presentation.features.chats.conversation.logic.observeSponsoredMessagePolicy
 import org.monogram.presentation.features.chats.conversation.logic.observeUserUpdates
+import org.monogram.presentation.features.chats.conversation.logic.perfTargetName
 import org.monogram.presentation.features.chats.conversation.logic.refreshDraftLinkPreviewOnPhotoDownloadIfNeeded
 import org.monogram.presentation.features.chats.conversation.logic.refreshSponsoredMessageAfterMediaDownload
+import org.monogram.presentation.features.chats.conversation.logic.resolveInitialChatScrollTarget
 import org.monogram.presentation.features.chats.conversation.logic.setupMessageCollectors
 import org.monogram.presentation.features.chats.conversation.logic.setupPinnedMessageCollector
 import org.monogram.presentation.features.chats.conversation.logic.shouldStartInitialLoad
@@ -623,14 +625,24 @@ class DefaultChatComponent(
         if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return
 
         val savedViewport = cacheProvider.getChatViewport(chatId, currentState.effectiveThreadId())
-        val loadKey = buildChatInitialLoadKey(
-            chatId = chatId,
-            effectiveThreadId = currentState.effectiveThreadId(),
-            initialMessageId = initialMessageId,
+        val predictedTarget = resolveInitialChatScrollTarget(
+            explicitMessageId = initialMessageId,
             savedViewport = savedViewport,
             firstUnreadMessageId = currentState.unreadSeparatorLastReadInboxMessageId.takeIf {
                 currentState.unreadSeparatorCount > 0
             },
+            unreadCount = currentState.unreadSeparatorCount,
+            isComments = currentState.rootMessage != null
+        )
+        val loadKey = buildChatInitialLoadKey(
+            chatId = chatId,
+            effectiveThreadId = currentState.effectiveThreadId(),
+            explicitMessageId = initialMessageId,
+            savedViewport = savedViewport,
+            firstUnreadMessageId = currentState.unreadSeparatorLastReadInboxMessageId.takeIf {
+                currentState.unreadSeparatorCount > 0
+            },
+            unreadCount = currentState.unreadSeparatorCount,
             rootMessageId = currentState.rootMessage?.id
         )
         if (!shouldStartInitialLoad(lastStartedLoadKey, loadKey, hasStartedInitialLoadForContext)) {
@@ -642,13 +654,14 @@ class DefaultChatComponent(
             event = "request_initial_load",
             state = currentState,
             componentInstanceId = componentInstanceId,
-            extra = "source=$source savedViewportAnchor=${savedViewport?.anchorMessageId ?: 0L}"
+            extra = "source=$source target=${predictedTarget.perfTargetName()} targetAnchor=${predictedTarget.anchorMessageId ?: 0L} savedViewportAnchor=${savedViewport?.anchorMessageId ?: 0L}"
         )
         ChatConversationLog.logPerf(
             component = this,
             phase = "initial_load_trigger",
             source = source,
-            anchorId = savedViewport?.anchorMessageId
+            target = predictedTarget.perfTargetName(),
+            anchorId = predictedTarget.anchorMessageId
         )
         loadMessages(loadSource = source)
     }
@@ -875,6 +888,15 @@ class DefaultChatComponent(
     }
 
     override fun onScrollToBottom() = store.accept(ChatStore.Intent.ScrollToBottom)
+    override fun onScrollToNextUnreadMention() =
+        store.accept(ChatStore.Intent.ScrollToNextUnreadMention)
+
+    override fun onClearUnreadMentions() = store.accept(ChatStore.Intent.ClearUnreadMentions)
+
+    override fun onScrollToNextUnreadReaction() =
+        store.accept(ChatStore.Intent.ScrollToNextUnreadReaction)
+
+    override fun onClearUnreadReactions() = store.accept(ChatStore.Intent.ClearUnreadReactions)
 
     override fun onDownloadFile(fileId: Int, userInitiated: Boolean) {
         AutoDownloadSuppression.clear(fileId)

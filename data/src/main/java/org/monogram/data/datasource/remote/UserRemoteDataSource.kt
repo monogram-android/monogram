@@ -20,6 +20,7 @@ interface UserRemoteDataSource {
     suspend fun setCloseFriendIds(userIds: LongArray)
     suspend fun sharePhoneNumber(userId: Long)
     suspend fun searchPublicChat(username: String): TdApi.Chat?
+    suspend fun getSimilarChatIds(chatId: Long): LongArray
     suspend fun getChatMember(chatId: Long, userId: Long): TdApi.ChatMember?
     suspend fun getSupergroupMembers(
         supergroupId: Long,

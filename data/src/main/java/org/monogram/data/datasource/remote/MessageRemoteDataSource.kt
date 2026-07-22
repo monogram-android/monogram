@@ -293,6 +293,7 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         limit: Int,
         threadId: Long? = null
     ): List<MessageModel>
+    suspend fun getChatMessageByDate(chatId: Long, dateEpochSeconds: Int): MessageModel?
 
     suspend fun getRemoteMessagesAround(
         chatId: Long,

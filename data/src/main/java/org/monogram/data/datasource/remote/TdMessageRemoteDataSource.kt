@@ -781,6 +781,32 @@ class TdMessageRemoteDataSource(
         }
     }
 
+    override suspend fun getChatMessageByDate(chatId: Long, dateEpochSeconds: Int): MessageModel? {
+        val message =
+            safeExecute(TdApi.GetChatMessageByDate(chatId, dateEpochSeconds)) ?: return null
+        cache.putMessage(message)
+
+        val chat = getChat(chatId)
+        val lastReadInbox = chat?.lastReadInboxMessageId ?: 0L
+        val lastReadOutbox = chat?.lastReadOutboxMessageId ?: 0L
+
+        return try {
+            withTimeout(5000) {
+                messageMapper.mapMessageToModelSync(
+                    message,
+                    lastReadInbox,
+                    lastReadOutbox,
+                    isChatOpen = true
+                )
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e("TdMessageRemote", "Error mapping dated message ${message.id}", e)
+            createFallbackMessage(message)
+        }
+    }
+
     private fun createFallbackMessage(msg: TdApi.Message): MessageModel = MessageModel(
         id = msg.id,
         date = msg.date,

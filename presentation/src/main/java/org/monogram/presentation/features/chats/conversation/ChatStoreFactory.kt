@@ -19,6 +19,8 @@ import org.monogram.presentation.features.chats.conversation.logic.handleCancelD
 import org.monogram.presentation.features.chats.conversation.logic.handleClearHistory
 import org.monogram.presentation.features.chats.conversation.logic.handleClearMessages
 import org.monogram.presentation.features.chats.conversation.logic.handleClearSelection
+import org.monogram.presentation.features.chats.conversation.logic.handleClearUnreadMentions
+import org.monogram.presentation.features.chats.conversation.logic.handleClearUnreadReactions
 import org.monogram.presentation.features.chats.conversation.logic.handleClosePoll
 import org.monogram.presentation.features.chats.conversation.logic.handleCommentsClick
 import org.monogram.presentation.features.chats.conversation.logic.handleConfirmRestrict
@@ -55,6 +57,8 @@ import org.monogram.presentation.features.chats.conversation.logic.handleRestore
 import org.monogram.presentation.features.chats.conversation.logic.handleRetractVote
 import org.monogram.presentation.features.chats.conversation.logic.handleSaveChecklistDraft
 import org.monogram.presentation.features.chats.conversation.logic.handleSaveEditedMessage
+import org.monogram.presentation.features.chats.conversation.logic.handleScrollToNextUnreadMention
+import org.monogram.presentation.features.chats.conversation.logic.handleScrollToNextUnreadReaction
 import org.monogram.presentation.features.chats.conversation.logic.handleSearchDateRangeChange
 import org.monogram.presentation.features.chats.conversation.logic.handleSearchNextResult
 import org.monogram.presentation.features.chats.conversation.logic.handleSearchPreviousResult
@@ -284,6 +288,10 @@ class ChatStoreFactory(
                     else it.copy(scrollToMessageId = null, pendingScrollCommand = null)
                 }
                 is Intent.ScrollToBottom -> component.scrollToBottomInternal()
+                is Intent.ScrollToNextUnreadMention -> component.handleScrollToNextUnreadMention()
+                is Intent.ClearUnreadMentions -> component.handleClearUnreadMentions()
+                is Intent.ScrollToNextUnreadReaction -> component.handleScrollToNextUnreadReaction()
+                is Intent.ClearUnreadReactions -> component.handleClearUnreadReactions()
                 is Intent.DownloadFile -> component.handleDownloadFile(intent.fileId, intent.userInitiated)
                 is Intent.DownloadHighRes -> component.handleDownloadHighRes(intent.messageId)
 

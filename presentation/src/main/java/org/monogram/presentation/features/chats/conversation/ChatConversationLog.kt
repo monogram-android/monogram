@@ -17,10 +17,10 @@ internal data class ConversationLoadSession(
 internal data class ChatInitialLoadKey(
     val chatId: Long,
     val effectiveThreadId: Long?,
-    val initialMessageId: Long?,
-    val savedViewportAnchorMessageId: Long?,
-    val firstUnreadMessageId: Long?,
-    val rootMessageId: Long?
+    val rootMessageId: Long?,
+    val initialTarget: String,
+    val initialAnchorMessageId: Long?,
+    val backfillNewerAfterInitialLoad: Boolean
 )
 
 internal object ChatConversationLog {

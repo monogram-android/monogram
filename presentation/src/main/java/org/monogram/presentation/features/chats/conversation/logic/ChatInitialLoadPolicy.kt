@@ -6,18 +6,28 @@ import org.monogram.presentation.features.chats.conversation.ChatInitialLoadKey
 internal fun buildChatInitialLoadKey(
     chatId: Long,
     effectiveThreadId: Long?,
-    initialMessageId: Long?,
+    explicitMessageId: Long?,
     savedViewport: ChatViewportCacheEntry?,
     firstUnreadMessageId: Long?,
+    unreadCount: Int = 0,
     rootMessageId: Long?
 ): ChatInitialLoadKey {
+    val target = resolveInitialChatScrollTarget(
+        explicitMessageId = explicitMessageId,
+        savedViewport = savedViewport,
+        firstUnreadMessageId = firstUnreadMessageId,
+        unreadCount = unreadCount,
+        isComments = rootMessageId != null
+    )
+
     return ChatInitialLoadKey(
         chatId = chatId,
         effectiveThreadId = effectiveThreadId,
-        initialMessageId = initialMessageId,
-        savedViewportAnchorMessageId = savedViewport?.anchorMessageId,
-        firstUnreadMessageId = firstUnreadMessageId,
-        rootMessageId = rootMessageId
+        rootMessageId = rootMessageId,
+        initialTarget = target.perfTargetName(),
+        initialAnchorMessageId = target.anchorMessageId,
+        backfillNewerAfterInitialLoad =
+            (target as? InitialChatScrollTarget.AroundMessage)?.backfillNewerAfterInitialLoad == true
     )
 }
 

@@ -72,7 +72,9 @@ class ChatMapper(
         hasAutomaticTranslation: Boolean = false,
         personalAvatarPath: String? = null,
         signMessages: Boolean = false,
-        joinToSendMessages: Boolean = false
+        joinToSendMessages: Boolean = false,
+        pendingJoinRequestCount: Int = 0,
+        joinByRequest: Boolean = false
     ): ChatModel {
         val permissions = chat.permissions.toDomainChatPermissions()
         val isChannel = chat.type.isChannelType()
@@ -124,6 +126,7 @@ class ChatMapper(
             lastMessageSenderName = lastMessageSenderName,
             lastMessagePreviewPath = lastMessagePreviewPath,
             lastMessagePreviewPaths = lastMessagePreviewPaths,
+            joinByRequest = joinByRequest,
             isMuted = isMuted,
             isMarkedAsUnread = chat.isMarkedAsUnread,
             hasProtectedContent = chat.hasProtectedContent,
@@ -131,6 +134,7 @@ class ChatMapper(
             hasAutomaticTranslation = hasAutomaticTranslation,
             signMessages = signMessages,
             joinToSendMessages = joinToSendMessages,
+            pendingJoinRequestCount = pendingJoinRequestCount,
             availableReactions = availableReactions,
             messageAutoDeleteTime = chat.messageAutoDeleteTime,
             canBeDeletedOnlyForSelf = chat.canBeDeletedOnlyForSelf,

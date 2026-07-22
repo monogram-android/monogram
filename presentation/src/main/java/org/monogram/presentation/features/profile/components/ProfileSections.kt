@@ -91,6 +91,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -103,6 +104,7 @@ import org.monogram.core.telegram.TelegramLinkDomains
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
+import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
 import org.monogram.presentation.core.ui.StyledQRCode
 import org.monogram.presentation.core.ui.generatePureBitmap
@@ -336,6 +338,10 @@ fun ProfileInfoSection(
     onOpenMiniApp: (String, String, Long) -> Unit = { _, _, _ -> },
     onSendMessage: () -> Unit = {},
     onToggleMute: () -> Unit = {},
+    onToggleJoinToSendMessages: (Boolean) -> Unit = {},
+    onToggleJoinByRequest: (Boolean) -> Unit = {},
+    onToggleHiddenMembers: (Boolean) -> Unit = {},
+    onToggleAggressiveAntiSpam: (Boolean) -> Unit = {},
     onShowQRCode: () -> Unit = {},
     onEdit: () -> Unit = {},
     exitAction: ChatExitAction = ChatExitAction.None,
@@ -427,6 +433,18 @@ fun ProfileInfoSection(
         isGroupOrChannel -> chat?.isAdmin == true || chat?.permissions?.canChangeInfo == true
         else -> false
     }
+    val canToggleJoinToSendMessages = chat?.isGroup == true && canEdit
+    val canToggleJoinByRequest =
+        chat?.isGroup == true &&
+                chat.isSupergroup &&
+                !chat.isChannel &&
+                chat.isAdmin &&
+                !chat.isAdministeredDirectMessagesGroup
+    val canToggleHiddenMembers = isGroupOrChannel && fullInfo?.canHideMembers == true
+    val canToggleAggressiveAntiSpam =
+        isGroupOrChannel && fullInfo?.canToggleAggressiveAntiSpam == true
+    val pendingJoinRequestCount = chat?.pendingJoinRequestCount ?: 0
+    val commonGroupsCount = fullInfo?.commonGroupsCount ?: 0
 
     if (!isCurrentUser) {
         ProfileQuickActions(
@@ -474,6 +492,23 @@ fun ProfileInfoSection(
                 title = stringResource(R.string.personal_photo_title),
                 subtitle = stringResource(R.string.personal_photo_subtitle),
                 iconColor = MaterialTheme.colorScheme.primary,
+                position = pos,
+                onClick = { }
+            )
+        }
+    }
+
+    if (!isGroupOrChannel && commonGroupsCount > 0) {
+        detailsItems.add { pos ->
+            SettingsTile(
+                icon = Icons.AutoMirrored.Filled.Chat,
+                title = stringResource(R.string.profile_common_groups),
+                subtitle = pluralStringResource(
+                    R.plurals.profile_common_groups_count,
+                    commonGroupsCount,
+                    commonGroupsCount
+                ),
+                iconColor = MaterialTheme.colorScheme.secondary,
                 position = pos,
                 onClick = { }
             )
@@ -767,6 +802,23 @@ fun ProfileInfoSection(
         }
     }
 
+    if (chat?.isAdmin == true && pendingJoinRequestCount > 0) {
+        managementItems.add { pos ->
+            SettingsTile(
+                icon = Icons.Rounded.AssignmentTurnedIn,
+                title = stringResource(R.string.profile_chat_join_requests),
+                subtitle = pluralStringResource(
+                    R.plurals.profile_chat_join_requests_count,
+                    pendingJoinRequestCount,
+                    pendingJoinRequestCount
+                ),
+                iconColor = Color(0xFF8E24AA),
+                position = pos,
+                onClick = { }
+            )
+        }
+    }
+
     val hasStatisticsAccess = isGroupOrChannel && fullInfo?.canGetStatistics == true
     if (hasStatisticsAccess) {
         managementItems.add { pos ->
@@ -777,6 +829,62 @@ fun ProfileInfoSection(
                 iconColor = Color(0xFF00BCD4),
                 position = pos,
                 onClick = { onShowStatistics() }
+            )
+        }
+    }
+
+    if (canToggleJoinToSendMessages) {
+        managementItems.add { pos ->
+            SettingsSwitchTile(
+                icon = Icons.AutoMirrored.Rounded.Login,
+                title = stringResource(R.string.permission_join_to_send_messages),
+                subtitle = stringResource(R.string.permission_join_to_send_messages_subtitle),
+                checked = chat?.joinToSendMessages == true,
+                iconColor = Color(0xFF43A047),
+                position = pos,
+                onCheckedChange = onToggleJoinToSendMessages
+            )
+        }
+    }
+
+    if (canToggleJoinByRequest) {
+        managementItems.add { pos ->
+            SettingsSwitchTile(
+                icon = Icons.Rounded.AssignmentTurnedIn,
+                title = stringResource(R.string.profile_chat_join_by_request),
+                subtitle = stringResource(R.string.profile_chat_join_by_request_subtitle),
+                checked = chat?.joinByRequest == true,
+                iconColor = Color(0xFF00897B),
+                position = pos,
+                onCheckedChange = onToggleJoinByRequest
+            )
+        }
+    }
+
+    if (canToggleHiddenMembers) {
+        managementItems.add { pos ->
+            SettingsSwitchTile(
+                icon = Icons.Rounded.Person,
+                title = stringResource(R.string.profile_chat_hidden_members),
+                subtitle = stringResource(R.string.profile_chat_hidden_members_subtitle),
+                checked = fullInfo?.hasHiddenMembers == true,
+                iconColor = MaterialTheme.colorScheme.secondary,
+                position = pos,
+                onCheckedChange = onToggleHiddenMembers
+            )
+        }
+    }
+
+    if (canToggleAggressiveAntiSpam) {
+        managementItems.add { pos ->
+            SettingsSwitchTile(
+                icon = Icons.Rounded.Shield,
+                title = stringResource(R.string.profile_chat_anti_spam),
+                subtitle = stringResource(R.string.profile_chat_anti_spam_subtitle),
+                checked = fullInfo?.hasAggressiveAntiSpamEnabled == true,
+                iconColor = MaterialTheme.colorScheme.tertiary,
+                position = pos,
+                onCheckedChange = onToggleAggressiveAntiSpam
             )
         }
     }
@@ -826,13 +934,26 @@ fun ProfileInfoSection(
     }
 
     if (isGroupOrChannel && fullInfo != null) {
-        if (fullInfo.hasAggressiveAntiSpamEnabled) {
+        if (fullInfo.hasAggressiveAntiSpamEnabled && !canToggleAggressiveAntiSpam) {
             detailsItems.add { pos ->
                 SettingsTile(
                     icon = Icons.Rounded.Shield,
                     title = stringResource(R.string.profile_chat_anti_spam),
-                    subtitle = stringResource(R.string.profile_chat_tools),
+                    subtitle = stringResource(R.string.profile_chat_anti_spam_subtitle),
                     iconColor = MaterialTheme.colorScheme.tertiary,
+                    position = pos,
+                    onClick = { }
+                )
+            }
+        }
+
+        if (fullInfo.hasHiddenMembers && !canToggleHiddenMembers) {
+            detailsItems.add { pos ->
+                SettingsTile(
+                    icon = Icons.Rounded.Person,
+                    title = stringResource(R.string.profile_chat_hidden_members),
+                    subtitle = stringResource(R.string.profile_chat_hidden_members_subtitle),
+                    iconColor = MaterialTheme.colorScheme.secondary,
                     position = pos,
                     onClick = { }
                 )
@@ -880,6 +1001,32 @@ fun ProfileInfoSection(
                 title = stringResource(R.string.protected_content_title),
                 subtitle = stringResource(R.string.protected_content_subtitle),
                 iconColor = Color(0xFF7E57C2),
+                position = pos,
+                onClick = { }
+            )
+        }
+    }
+
+    if (chat?.isGroup == true && chat.joinToSendMessages && !canToggleJoinToSendMessages) {
+        detailsItems.add { pos ->
+            SettingsTile(
+                icon = Icons.AutoMirrored.Rounded.Login,
+                title = stringResource(R.string.permission_join_to_send_messages),
+                subtitle = stringResource(R.string.permission_join_to_send_messages_subtitle),
+                iconColor = Color(0xFF43A047),
+                position = pos,
+                onClick = { }
+            )
+        }
+    }
+
+    if (chat?.joinByRequest == true && !canToggleJoinByRequest) {
+        detailsItems.add { pos ->
+            SettingsTile(
+                icon = Icons.Rounded.AssignmentTurnedIn,
+                title = stringResource(R.string.profile_chat_join_by_request),
+                subtitle = stringResource(R.string.profile_chat_join_by_request_subtitle),
+                iconColor = Color(0xFF00897B),
                 position = pos,
                 onClick = { }
             )

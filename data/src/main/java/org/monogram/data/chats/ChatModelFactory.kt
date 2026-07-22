@@ -83,6 +83,7 @@ class ChatModelFactory(
         var personalAvatarPath: String? = null
         var signMessages = false
         var joinToSendMessages = false
+        var joinByRequest = false
 
         val isArchived = chat.positions.any { it.list is TdApi.ChatListArchive }
 
@@ -143,6 +144,7 @@ class ChatModelFactory(
                     hasAutomaticTranslation = it.hasAutomaticTranslation
                     signMessages = it.signMessages
                     joinToSendMessages = it.joinToSendMessages
+                    joinByRequest = it.joinByRequest
                 }
                     ?: if (allowRemoteLookups && !cache.isSupergroupTemporarilyMissing(type.supergroupId)) lazyLoad(
                         cache.pendingSupergroups,
@@ -383,7 +385,9 @@ class ChatModelFactory(
             hasAutomaticTranslation = hasAutomaticTranslation,
             personalAvatarPath = personalAvatarPath,
             signMessages = signMessages,
-            joinToSendMessages = joinToSendMessages
+            joinToSendMessages = joinToSendMessages,
+            pendingJoinRequestCount = chat.pendingJoinRequests?.totalCount ?: 0,
+            joinByRequest = joinByRequest
         )
     }
 

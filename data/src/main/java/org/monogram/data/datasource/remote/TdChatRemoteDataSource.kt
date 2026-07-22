@@ -9,8 +9,8 @@ import org.monogram.data.compat.buildSearchPublicChats
 import org.monogram.data.compat.buildTdChatPermissions
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
-import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.repository.TelegramLinkRepository
 
 class TdChatRemoteSource(
     private val gateway: TelegramGateway,
@@ -118,6 +118,27 @@ class TdChatRemoteSource(
         }
     }
 
+    override suspend fun setChatHasHiddenMembers(chatId: Long, hasHiddenMembers: Boolean) {
+        coRunCatching {
+            val chat = gateway.execute(TdApi.GetChat(chatId))
+            val supergroupId = (chat.type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: return
+            gateway.execute(TdApi.ToggleSupergroupHasHiddenMembers(supergroupId, hasHiddenMembers))
+        }
+    }
+
+    override suspend fun setChatHasAggressiveAntiSpamEnabled(chatId: Long, enabled: Boolean) {
+        coRunCatching {
+            val chat = gateway.execute(TdApi.GetChat(chatId))
+            val supergroupId = (chat.type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: return
+            gateway.execute(
+                TdApi.ToggleSupergroupHasAggressiveAntiSpamEnabled(
+                    supergroupId,
+                    enabled
+                )
+            )
+        }
+    }
+
     override suspend fun setChatJoinToSendMessages(chatId: Long, joinToSendMessages: Boolean) {
         coRunCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
@@ -126,6 +147,22 @@ class TdChatRemoteSource(
                 TdApi.ToggleSupergroupJoinToSendMessages(
                     supergroupId,
                     joinToSendMessages
+                )
+            )
+        }
+    }
+
+    override suspend fun setChatJoinByRequest(chatId: Long, joinByRequest: Boolean) {
+        coRunCatching {
+            val chat = gateway.execute(TdApi.GetChat(chatId))
+            val supergroupId = (chat.type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: return
+            val fullInfo = gateway.execute(TdApi.GetSupergroupFullInfo(supergroupId))
+            gateway.execute(
+                TdApi.ToggleSupergroupJoinByRequest(
+                    supergroupId,
+                    joinByRequest,
+                    fullInfo.guardBotUserId,
+                    true
                 )
             )
         }

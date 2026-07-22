@@ -376,6 +376,10 @@ fun ChatContent(
             component.onDismissPinnedMessages()
         }
     }
+    val showUnreadShortcutButtons =
+        !state.viewAsTopics &&
+                state.currentTopicId == null &&
+                state.rootMessage == null
     val bottomContentPadding =
         if (state.rootMessage != null && (chromeState.showInputBar || chromeState.showJoinButton)) {
             120.dp
@@ -520,6 +524,10 @@ fun ChatContent(
                             isVisible = isVisible,
                             showInitialLoading = showInitialLoading,
                             showScrollToBottomButton = showScrollToBottomButton,
+                            showUnreadShortcutButtons = showUnreadShortcutButtons,
+                            unreadMentionCount = state.unreadMentionCount,
+                            unreadReactionCount = state.unreadReactionCount,
+                            showReactions = state.showReactions,
                             isRecordingVideo = isRecordingVideo,
                             isAnyViewerOpen = isAnyViewerOpen,
                             showAllSearchResults = showAllSearchResults,

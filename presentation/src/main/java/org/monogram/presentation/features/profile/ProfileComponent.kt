@@ -23,6 +23,9 @@ interface ProfileComponent {
 
     fun onBack()
     fun onTabSelected(tabKey: ProfileTabKey)
+    fun onSearch()
+    fun onSearchQueryChanged(query: String)
+    fun onSearchDismissed()
     fun onMessageClick(message: MessageModel)
     fun onMessageLongClick(message: MessageModel)
     fun onAvatarClick()
@@ -46,10 +49,15 @@ interface ProfileComponent {
     fun onDismissMiniApp()
     fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?)
     fun onToggleMute()
+    fun onToggleJoinToSendMessages(enabled: Boolean)
+    fun onToggleJoinByRequest(enabled: Boolean)
+    fun onToggleHiddenMembers(enabled: Boolean)
+    fun onToggleAggressiveAntiSpam(enabled: Boolean)
     fun onEdit()
     fun onShowQRCode()
     fun onDismissQRCode()
     fun onSendMessage()
+    fun onRelatedChatClick(chatId: Long)
     fun onToggleBlockUser()
     fun onDeleteChat()
     fun onEditContact()
@@ -107,7 +115,10 @@ interface ProfileComponent {
         val visibleTabs: List<ProfileTabSpec> = emptyList(),
         val selectedTabKey: ProfileTabKey = ProfileTabKey.STORIES,
         val messageTabs: Map<ProfileTabKey, MessageTabState> = defaultMessageTabStates(),
-        val membersTab: MembersTabState = MembersTabState(),
+        val memberTabs: Map<ProfileTabKey, MembersTabState> = defaultMemberTabStates(),
+        val similarChats: List<ChatModel> = emptyList(),
+        val isSimilarChatsLoading: Boolean = false,
+        val hasLoadedSimilarChats: Boolean = false,
 
         val profilePhotos: List<String> = emptyList(),
         val personalAvatarPath: String? = null,
@@ -190,6 +201,9 @@ interface ProfileComponent {
         fun messageTabState(key: ProfileTabKey): MessageTabState =
             messageTabs[key] ?: MessageTabState()
 
+        fun memberTabState(key: ProfileTabKey): MembersTabState =
+            memberTabs[key] ?: MembersTabState()
+
         val mediaMessages: List<MessageModel>
             get() = messageTabState(ProfileTabKey.MEDIA).items
 
@@ -209,7 +223,10 @@ interface ProfileComponent {
             get() = messageTabState(ProfileTabKey.GIFS).items
 
         val members: List<GroupMemberModel>
-            get() = membersTab.items
+            get() = memberTabState(ProfileTabKey.MEMBERS).items
+
+        val relatedChats: List<ChatModel>
+            get() = similarChats
     }
 
     data class LocationData(
@@ -233,8 +250,18 @@ interface ProfileComponent {
         val isLoadingNext: Boolean = false,
         val canLoadMore: Boolean = true,
         val nextOffset: Int = 0,
-        val hasLoaded: Boolean = false
-    )
+        val hasLoaded: Boolean = false,
+        val searchQuery: String = "",
+        val searchResults: List<GroupMemberModel> = emptyList(),
+        val isSearchActive: Boolean = false,
+        val isSearching: Boolean = false
+    ) {
+        val visibleItems: List<GroupMemberModel>
+            get() = if (searchQuery.isBlank()) items else searchResults
+
+        val isSearchResultsVisible: Boolean
+            get() = searchQuery.isNotBlank()
+    }
 }
 
 private fun defaultMessageTabStates(): Map<ProfileTabKey, ProfileComponent.MessageTabState> =
@@ -247,3 +274,11 @@ private fun defaultMessageTabStates(): Map<ProfileTabKey, ProfileComponent.Messa
         ProfileTabKey.LINKS,
         ProfileTabKey.GIFS
     ).associateWith { ProfileComponent.MessageTabState() }
+
+internal fun defaultMemberTabStates(): Map<ProfileTabKey, ProfileComponent.MembersTabState> =
+    listOf(
+        ProfileTabKey.MEMBERS,
+        ProfileTabKey.ADMINS,
+        ProfileTabKey.RESTRICTED,
+        ProfileTabKey.BANNED
+    ).associateWith { ProfileComponent.MembersTabState() }

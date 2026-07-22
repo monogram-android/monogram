@@ -164,6 +164,9 @@ class ChatUpdateHandler(
             is TdApi.UpdateFile -> {
                 if (fileManager.handleFileUpdate(update.file)) {
                     val chatId = fileManager.getChatIdByPhotoId(update.file.id)
+                    if (chatId != null) {
+                        onSaveChat(chatId)
+                    }
                     onScheduleUpdate(chatId)
                     onRefreshForumTopics()
                 }
@@ -192,6 +195,7 @@ class ChatUpdateHandler(
                 cache.putUser(update.user)
                 val privateChatId = cache.userIdToChatId[update.user.id]
                 if (privateChatId != null) {
+                    onSaveChat(privateChatId)
                     onTriggerUpdate(privateChatId)
                 }
                 onRefreshForumTopics()

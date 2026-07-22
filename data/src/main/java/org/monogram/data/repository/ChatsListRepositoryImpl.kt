@@ -344,18 +344,17 @@ class ChatsListRepositoryImpl(
                 return@coRunCatching
             }
 
-            if (!shouldEmitList(folderId, newList)) {
-                return@coRunCatching
-            }
-
             if (newList.isEmpty() && cache.activeListPositions.isNotEmpty()) {
                 Log.w(
                     TAG,
                     "Rebuild produced empty list with non-empty active positions: folder=$folderId list=${activeChatList.debugName()} positions=${cache.activeListPositions.size} chats=${cache.allChats.size} limit=$limit"
                 )
+                scheduleRecoveryIfNeeded("rebuild_empty_with_positions:$folderId")
             }
 
-            emitListUpdate(folderId, newList)
+            if (shouldEmitList(folderId, newList)) {
+                emitListUpdate(folderId, newList)
+            }
             persistenceManager.persistChatModels(newList, activeChatList)
         }.onFailure { error ->
             Log.e(TAG, "Error rebuilding chat list", error)

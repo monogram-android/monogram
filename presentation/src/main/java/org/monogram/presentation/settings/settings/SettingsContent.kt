@@ -81,9 +81,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -121,8 +121,8 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
 import org.monogram.presentation.core.ui.ItemPosition
@@ -233,7 +233,7 @@ fun SettingsContent(component: SettingsComponent) {
         stop = expandedColor,
         fraction = collapsingToolbarState.toolbarState.progress
     )
-    lerp(
+    val topBarContainerColor = lerp(
         start = collapsedColor,
         stop = Color.Transparent,
         fraction = collapsingToolbarState.toolbarState.progress
@@ -541,8 +541,8 @@ fun SettingsContent(component: SettingsComponent) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
+                    containerColor = topBarContainerColor,
+                    scrolledContainerColor = topBarContainerColor
                 )
             )
         }

@@ -11,14 +11,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import org.drinkless.tdlib.TdApi
 import org.json.JSONObject
+import org.monogram.data.di.TdNotificationManager
+import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.push.PushSyncTrigger
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
 
 class BaseFcmPushService(
     private val context: Context,
     private val gateway: TelegramGateway,
-    private val appPreferences: AppPreferencesProvider
+    private val appPreferences: AppPreferencesProvider,
+    private val notificationManager: TdNotificationManager,
+    private val pushSyncTrigger: PushSyncTrigger
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -51,16 +56,31 @@ class BaseFcmPushService(
             val jsonPayload = json.toString()
             if (jsonPayload.isBlank()) return
 
-            wakeLock.acquire(10_000L)
+            wakeLock.acquire(PUSH_WAKE_LOCK_MS)
             scope.launch {
+                val notificationStateVersion = notificationManager.currentNotificationStateVersion()
                 try {
-                    withTimeout(8_000L) {
+                    withTimeout(PROCESS_PUSH_TIMEOUT_MS) {
                         gateway.execute(TdApi.ProcessPushNotification(jsonPayload))
                     }
                     Log.d(TAG, "ProcessPushNotification success")
+                    val updated = notificationManager.awaitNotificationStateChange(
+                        afterVersion = notificationStateVersion,
+                        timeoutMs = NOTIFICATION_SETTLE_TIMEOUT_MS
+                    )
+                    if (!updated) {
+                        Log.w(
+                            TAG,
+                            "No notification-state update after push, requesting sync fallback"
+                        )
+                        pushSyncTrigger.requestSync("fcm_push_settle_timeout")
+                    }
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
                     Log.e(TAG, "Error processing push", e)
+                    if (!e.isAuthRelatedPushError()) {
+                        pushSyncTrigger.requestSync("fcm_push_process_error")
+                    }
                 } finally {
                     if (wakeLock.isHeld) {
                         wakeLock.release()
@@ -96,7 +116,19 @@ class BaseFcmPushService(
         }
     }
 
+    private fun Throwable.isAuthRelatedPushError(): Boolean {
+        val tdError = (this as? TdLibException)?.error ?: return false
+        val message = tdError.message.orEmpty().lowercase()
+        return tdError.code == 401 ||
+                message.contains("unauthorized") ||
+                message.contains("authorization") ||
+                message.contains("not logged in")
+    }
+
     private companion object {
         const val TAG = "FcmPushService"
+        const val PUSH_WAKE_LOCK_MS = 15_000L
+        const val PROCESS_PUSH_TIMEOUT_MS = 8_000L
+        const val NOTIFICATION_SETTLE_TIMEOUT_MS = 2_500L
     }
 }

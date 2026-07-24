@@ -17,6 +17,7 @@ import android.graphics.Paint
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.os.Build
+import android.os.SystemClock
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.StyleSpan
@@ -33,17 +34,22 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.NotificationSettingDao
 import org.monogram.data.db.model.NotificationSettingEntity
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.notifications.NotificationMuteDecision
 import org.monogram.data.notifications.NotificationMuteResolver
 import org.monogram.data.notifications.NotificationScopeState
+import org.monogram.data.notifications.TdlibNotificationStateStore
 import org.monogram.data.push.FcmRuntime
 import org.monogram.data.push.UnifiedPushManager
 import org.monogram.data.service.NotificationDismissReceiver
@@ -56,11 +62,13 @@ import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.StringProvider
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.coroutines.resume
 import kotlin.math.min
 
 class TdNotificationManager(
     private val context: Context,
     private val gateway: TelegramGateway,
+    private val updates: UpdateDispatcher,
     private val appPreferences: AppPreferencesProvider,
     private val notificationSettingsRepository: NotificationSettingsRepository,
     private val notificationSettingDao: NotificationSettingDao,
@@ -72,11 +80,13 @@ class TdNotificationManager(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager = NotificationManagerCompat.from(context)
+    private val notificationStateVersion = MutableStateFlow(0L)
     private val userCache = ConcurrentHashMap<Long, TdApi.User>()
     private val chatCache = ConcurrentHashMap<Long, TdApi.Chat>()
     private val messagesHistory = ConcurrentHashMap<Long, CopyOnWriteArrayList<NotificationHistoryEntry>>()
     private val lastMessageIds = ConcurrentHashMap<Long, Long>()
     private val activeNotifications = ConcurrentHashMap<Long, MutableSet<Int>>()
+    private val nativeNotificationStateStore = TdlibNotificationStateStore()
     private val bitmapCache = object : LruCache<Int, Bitmap>(5 * 1024 * 1024) {
         override fun sizeOf(key: Int, value: Bitmap): Int {
             return value.byteCount
@@ -131,6 +141,8 @@ class TdNotificationManager(
         scope.launch {
             gateway.isAuthenticated.collect { authenticated ->
                 if (authenticated) {
+                    nativeNotificationStateStore.reset()
+                    clearAllRenderedNotifications()
                     loadedScopeSettings.clear()
                     scopeNotificationsEnabled.clear()
                     refreshMyUserId()
@@ -142,65 +154,78 @@ class TdNotificationManager(
         }
 
         scope.launch {
-            gateway.updates.collect { update ->
-                when (update) {
-                    is TdApi.UpdateNewMessage -> {
-                        val senderDebug = senderIdToDebug(update.message.senderId)
-                        Log.d(
-                            TAG,
-                            "UpdateNewMessage chatId=${update.message.chatId} messageId=${update.message.id} " +
-                                    "outgoing=${update.message.isOutgoing} sender=$senderDebug"
-                        )
-                        handleNewMessage(update.message)
+            updates.newMessage.collect { update ->
+                if (nativeNotificationStateStore.hasNativeSync()) {
+                    return@collect
+                }
+
+                val senderDebug = senderIdToDebug(update.message.senderId)
+                Log.d(
+                    TAG,
+                    "UpdateNewMessage fallback chatId=${update.message.chatId} messageId=${update.message.id} " +
+                            "outgoing=${update.message.isOutgoing} sender=$senderDebug"
+                )
+                handleNewMessage(update.message)
+            }
+        }
+
+        scope.launch {
+            updates.activeNotifications.collect { update ->
+                handleActiveNotifications(update)
+            }
+        }
+
+        scope.launch {
+            updates.notificationGroup.collect { update ->
+                handleNotificationGroupUpdate(update)
+            }
+        }
+
+        scope.launch {
+            updates.notification.collect { update ->
+                handleNotificationUpdate(update)
+            }
+        }
+
+        scope.launch {
+            updates.user.collect { update ->
+                userCache[update.user.id] = update.user
+            }
+        }
+
+        scope.launch {
+            updates.file.collect { update ->
+                handleFileUpdate(update.file)
+            }
+        }
+
+        scope.launch {
+            updates.chatNotificationSettings.collect { update ->
+                updateChatNotificationSettings(update.chatId, update.notificationSettings)
+                chatCache[update.chatId]?.let { chat ->
+                    chatCache[update.chatId] = chat.apply {
+                        notificationSettings = update.notificationSettings
                     }
-                    is TdApi.UpdateUser -> userCache[update.user.id] = update.user
-                    is TdApi.UpdateFile -> {
-                        val file = update.file
-                        val local = file.local
-                        val localPath = local?.path
-                        if (local?.isDownloadingCompleted == true && !localPath.isNullOrEmpty()) {
-                            val callbacks = synchronized(activeDownloads) {
-                                activeDownloads.remove(file.id)
-                            }
-                            if (callbacks != null) {
-                                scope.launch(Dispatchers.IO) {
-                                    val bitmap = try {
-                                        BitmapFactory.decodeFile(localPath)
-                                    } catch (e: Exception) {
-                                        null
-                                    }
-                                    if (bitmap != null) {
-                                        bitmapCache.put(file.id, bitmap)
-                                    }
-                                    callbacks.forEach { it(bitmap) }
-                                }
-                            }
-                        }
+                }
+            }
+        }
+
+        scope.launch {
+            updates.chatReadInbox.collect { update ->
+                clearHistory(update.chatId)
+            }
+        }
+
+        scope.launch {
+            updates.option.collect { update ->
+                if (update.name == "is_authenticated" && (update.value as? TdApi.OptionValueBoolean)?.value == true) {
+                    refreshMyUserId()
+                    updatePushRegistration()
+                } else if (update.name == "my_id") {
+                    val id = (update.value as? TdApi.OptionValueInteger)?.value ?: 0L
+                    if (id > 0L) {
+                        myUserId = id
                     }
-                    is TdApi.UpdateChatNotificationSettings -> {
-                        updateChatNotificationSettings(update.chatId, update.notificationSettings)
-                        chatCache[update.chatId]?.let { chat ->
-                            chatCache[update.chatId] = chat.apply {
-                                notificationSettings = update.notificationSettings
-                            }
-                        }
-                    }
-                    is TdApi.UpdateChatReadInbox -> {
-                        clearHistory(update.chatId)
-                        updateSummary()
-                    }
-                    is TdApi.UpdateOption -> {
-                        if (update.name == "is_authenticated" && (update.value as? TdApi.OptionValueBoolean)?.value == true) {
-                            refreshMyUserId()
-                            updatePushRegistration()
-                        } else if (update.name == "my_id") {
-                            val id = (update.value as? TdApi.OptionValueInteger)?.value ?: 0L
-                            if (id > 0L) {
-                                myUserId = id
-                            }
-                        }
-                    }
-                    else -> {}
                 }
             }
         }
@@ -382,6 +407,14 @@ class TdNotificationManager(
         return resolveMuteDecision(chat).isMuted
     }
 
+    fun currentNotificationStateVersion(): Long = notificationStateVersion.value
+
+    suspend fun awaitNotificationStateChange(afterVersion: Long, timeoutMs: Long): Boolean {
+        return withTimeoutOrNull(timeoutMs) {
+            notificationStateVersion.first { it > afterVersion }
+        } != null
+    }
+
     private fun resolveMuteDecision(chat: TdApi.Chat): NotificationMuteDecision {
         return muteResolver.resolve(
             chat = chat,
@@ -394,6 +427,11 @@ class TdNotificationManager(
     }
 
     fun clearHistory(chatId: Long) {
+        nativeNotificationStateStore.clearChat(chatId)
+        clearRenderedHistory(chatId)
+    }
+
+    private fun clearRenderedHistory(chatId: Long) {
         messagesHistory.remove(chatId)
         lastMessageIds.remove(chatId)
         activeNotifications.remove(chatId)?.forEach { notificationId ->
@@ -403,7 +441,19 @@ class TdNotificationManager(
         updateSummary()
     }
 
+    private fun clearAllRenderedNotifications() {
+        messagesHistory.keys.toList().forEach { chatId ->
+            clearRenderedHistory(chatId)
+        }
+        notificationManager.cancel(SUMMARY_ID)
+    }
+
     fun removeNotification(chatId: Long, notificationId: Int) {
+        nativeNotificationStateStore.removeNotification(chatId, notificationId)
+        removeRenderedNotification(chatId, notificationId)
+    }
+
+    private fun removeRenderedNotification(chatId: Long, notificationId: Int) {
         activeNotifications[chatId]?.remove(notificationId)
         notificationManager.cancel(notificationId)
 
@@ -421,6 +471,104 @@ class TdNotificationManager(
             }
         }
         updateSummary()
+    }
+
+    private suspend fun handleActiveNotifications(update: TdApi.UpdateActiveNotifications) {
+        markNotificationStateChanged()
+        nativeNotificationStateStore.replaceAll(update).forEach { chatId ->
+            renderNativeNotifications(chatId)
+        }
+    }
+
+    private suspend fun handleNotificationGroupUpdate(update: TdApi.UpdateNotificationGroup) {
+        markNotificationStateChanged()
+        nativeNotificationStateStore.apply(update).forEach { chatId ->
+            renderNativeNotifications(chatId)
+        }
+    }
+
+    private suspend fun handleNotificationUpdate(update: TdApi.UpdateNotification) {
+        markNotificationStateChanged()
+        nativeNotificationStateStore.apply(update).forEach { chatId ->
+            renderNativeNotifications(chatId)
+        }
+    }
+
+    private fun markNotificationStateChanged() {
+        notificationStateVersion.value = SystemClock.elapsedRealtime()
+    }
+
+    private fun handleFileUpdate(file: TdApi.File) {
+        val local = file.local
+        val localPath = local?.path
+        if (local?.isDownloadingCompleted != true || localPath.isNullOrEmpty()) {
+            return
+        }
+
+        val callbacks = synchronized(activeDownloads) {
+            activeDownloads.remove(file.id)
+        } ?: return
+
+        scope.launch(Dispatchers.IO) {
+            val bitmap = try {
+                BitmapFactory.decodeFile(localPath)
+            } catch (_: Exception) {
+                null
+            }
+            if (bitmap != null) {
+                bitmapCache.put(file.id, bitmap)
+            }
+            callbacks.forEach { it(bitmap) }
+        }
+    }
+
+    private suspend fun renderNativeNotifications(chatId: Long) {
+        val notifications = nativeNotificationStateStore.getChatNotifications(chatId)
+        if (notifications.isEmpty()) {
+            clearRenderedHistory(chatId)
+            return
+        }
+
+        val chat = getChatSuspend(chatId)
+        if (chat == null) {
+            Log.d(TAG, "Skip native notification render: chat unavailable, chatId=$chatId")
+            clearRenderedHistory(chatId)
+            return
+        }
+
+        val chatType = chat.type
+        if (chatType == null) {
+            Log.w(TAG, "Skip native notification render: chat type unavailable, chatId=$chatId")
+            clearRenderedHistory(chatId)
+            return
+        }
+
+        if (resolveMuteDecision(chat).isMuted) {
+            clearRenderedHistory(chatId)
+            return
+        }
+
+        val isMember = withTimeoutOrNull(1_500L) { checkMembership(chat) } ?: true
+        if (!isMember) {
+            Log.d(TAG, "Skip native notification render: user is not a member, chatId=$chatId")
+            clearRenderedHistory(chatId)
+            return
+        }
+
+        val resolvedEntries = notifications.mapNotNull { notification ->
+            resolveNotificationHistoryEntry(chat, notification)
+        }
+        if (resolvedEntries.isEmpty()) {
+            clearRenderedHistory(chatId)
+            return
+        }
+
+        replaceNotificationHistory(
+            chatId = chatId,
+            chatType = chatType,
+            historyEntries = resolvedEntries,
+            chatIcon = resolvedEntries.lastOrNull()?.senderBitmap
+        )
     }
 
     private fun handleNewMessage(message: TdApi.Message) {
@@ -564,7 +712,8 @@ class TdNotificationManager(
                     val result = gateway.execute(TdApi.GetBasicGroup(chatType.basicGroupId))
                     result.status is TdApi.ChatMemberStatusMember ||
                             result.status is TdApi.ChatMemberStatusCreator ||
-                            result.status is TdApi.ChatMemberStatusAdministrator
+                            result.status is TdApi.ChatMemberStatusAdministrator ||
+                            (result.status as? TdApi.ChatMemberStatusRestricted)?.isMember == true
                 }.getOrDefault(true)
             }
             is TdApi.ChatTypeSupergroup -> {
@@ -575,12 +724,39 @@ class TdNotificationManager(
                     val result = gateway.execute(TdApi.GetSupergroup(chatType.supergroupId))
                     result.status is TdApi.ChatMemberStatusMember ||
                             result.status is TdApi.ChatMemberStatusCreator ||
-                            result.status is TdApi.ChatMemberStatusAdministrator
+                            result.status is TdApi.ChatMemberStatusAdministrator ||
+                            (result.status as? TdApi.ChatMemberStatusRestricted)?.isMember == true
                 }.getOrDefault(true)
             }
 
             else -> true
         }
+    }
+
+    private fun replaceNotificationHistory(
+        chatId: Long,
+        chatType: TdApi.ChatType,
+        historyEntries: List<NotificationHistoryEntry>,
+        chatIcon: Bitmap?
+    ) {
+        val trimmedHistory = historyEntries.takeLast(10)
+        if (trimmedHistory.isEmpty()) {
+            clearRenderedHistory(chatId)
+            return
+        }
+
+        messagesHistory[chatId] = CopyOnWriteArrayList(trimmedHistory)
+        lastMessageIds[chatId] = trimmedHistory.maxOf { it.messageId }
+        activeNotifications[chatId] = ConcurrentHashMap.newKeySet<Int>().apply {
+            add(notificationIdForChat(chatId))
+        }
+
+        postHistoryNotification(
+            chatId = chatId,
+            chatType = chatType,
+            historySnapshot = trimmedHistory,
+            chatIcon = chatIcon
+        )
     }
 
     fun appendMessageToNotification(
@@ -627,10 +803,35 @@ class TdNotificationManager(
             history.removeAt(0)
         }
 
+        replaceNotificationHistory(
+            chatId = chatId,
+            chatType = chatType,
+            historyEntries = history.toList(),
+            chatIcon = chatIcon
+        )
+    }
+
+    private fun postHistoryNotification(
+        chatId: Long,
+        chatType: TdApi.ChatType,
+        historySnapshot: List<NotificationHistoryEntry>,
+        chatIcon: Bitmap?
+    ) {
+        val latestEntry = historySnapshot.lastOrNull() ?: run {
+            clearRenderedHistory(chatId)
+            return
+        }
         val notificationId = notificationIdForChat(chatId)
+        val channelId = when (chatType) {
+            is TdApi.ChatTypePrivate -> CHANNEL_PRIVATE
+            is TdApi.ChatTypeBasicGroup -> CHANNEL_GROUPS
+            is TdApi.ChatTypeSupergroup -> if (chatType.isChannel) CHANNEL_CHANNELS else CHANNEL_GROUPS
+            else -> CHANNEL_OTHER
+        }
+
         Log.d(
             TAG,
-            "Notification history updated chatId=$chatId size=${history.size} notificationId=$notificationId"
+            "Notification history updated chatId=$chatId size=${historySnapshot.size} notificationId=$notificationId"
         )
 
         activeNotifications.getOrPut(chatId) { ConcurrentHashMap.newKeySet() }.add(notificationId)
@@ -642,7 +843,6 @@ class TdNotificationManager(
 
         val myself = Person.Builder().setName(stringProvider.getString("notification_person_me")).build()
         val messagingStyle = NotificationCompat.MessagingStyle(myself)
-        val historySnapshot = history.toList()
         historySnapshot.forEach { entry ->
             val personBuilder = Person.Builder()
                 .setName(entry.senderName)
@@ -668,11 +868,12 @@ class TdNotificationManager(
         }
         messagingStyle.isGroupConversation = isGroup
 
-        val chatTitle = chatCache[chatId]?.title ?: senderName
+        val chatTitle = chatCache[chatId]?.title ?: latestEntry.senderName
         if (isGroup) {
             messagingStyle.conversationTitle = chatTitle
         }
 
+        val latestText = latestEntry.text
         val priority = when (appPreferences.notificationPriority.value) {
             0 -> NotificationCompat.PRIORITY_LOW
             2 -> NotificationCompat.PRIORITY_HIGH
@@ -696,7 +897,7 @@ class TdNotificationManager(
             readAction?.let { builder.addAction(it) }
 
             builder.setContentTitle(chatTitle)
-            builder.setContentText(text)
+            builder.setContentText(latestText)
 
             if (appPreferences.inAppSounds.value) {
                 builder.setDefaults(NotificationCompat.DEFAULT_SOUND)
@@ -733,7 +934,7 @@ class TdNotificationManager(
                 chatId = chatId,
                 chatType = chatType,
                 title = chatTitle,
-                text = text,
+                text = latestText,
                 channelId = channelId,
                 notificationId = notificationId,
                 pendingIntent = pendingIntent,
@@ -1019,6 +1220,59 @@ class TdNotificationManager(
         }
     }
 
+    private suspend fun resolveNotificationHistoryEntry(
+        chat: TdApi.Chat,
+        notification: TdApi.Notification
+    ): NotificationHistoryEntry? {
+        return when (val notificationType = notification.type) {
+            is TdApi.NotificationTypeNewMessage -> {
+                val message = notificationType.message ?: return null
+                val text = if (appPreferences.showSenderOnly.value) {
+                    stringProvider.getString("notification_new_message")
+                } else {
+                    getMessageText(message.content)
+                }
+                if (text.isBlank()) {
+                    return null
+                }
+
+                val (senderName, senderBitmap) = resolveSenderSuspend(
+                    senderId = message.senderId,
+                    chat = chat,
+                    onlyIfLocal = true
+                )
+                NotificationHistoryEntry(
+                    messageId = message.id,
+                    senderName = senderName,
+                    text = text,
+                    timestamp = notification.date.toLong() * 1000L,
+                    senderBitmap = senderBitmap
+                )
+            }
+
+            is TdApi.NotificationTypeNewPushMessage -> {
+                val senderName = notificationType.senderName
+                    ?.takeIf { it.isNotBlank() }
+                    ?: chat.title?.takeIf { it.isNotBlank() }
+                    ?: stringProvider.getString("unknown_user")
+                NotificationHistoryEntry(
+                    messageId = notification.id.toLong(),
+                    senderName = senderName,
+                    text = getPushMessageText(notificationType.content),
+                    timestamp = notification.date.toLong() * 1000L
+                )
+            }
+
+            else -> NotificationHistoryEntry(
+                messageId = notification.id.toLong(),
+                senderName = chat.title?.takeIf { it.isNotBlank() }
+                    ?: stringProvider.getString("unknown_user"),
+                text = stringProvider.getString("notification_new_message"),
+                timestamp = notification.date.toLong() * 1000L
+            )
+        }
+    }
+
     private fun getMessageText(content: TdApi.MessageContent?): String {
         fun withDetails(base: String, details: String?): String {
             val cleanDetails = details?.trim().orEmpty()
@@ -1055,6 +1309,93 @@ class TdNotificationManager(
             )
             is TdApi.MessagePoll -> withDetails("📊 ${stringProvider.getString("logs_media_poll")}", content.poll?.question?.text)
             else -> stringProvider.getString("reply_content_message")
+        }
+    }
+
+    private fun getPushMessageText(content: TdApi.PushMessageContent?): String {
+        return when (content) {
+            is TdApi.PushMessageContentText -> sanitizeSpoilers(content.text?.let {
+                TdApi.FormattedText(
+                    it,
+                    null
+                )
+            })
+
+            is TdApi.PushMessageContentPhoto -> {
+                val caption = content.caption?.trim().orEmpty()
+                if (caption.isBlank()) {
+                    stringProvider.getString("logs_media_photo")
+                } else {
+                    "📷 ${stringProvider.getString("logs_media_photo")} $caption"
+                }
+            }
+
+            is TdApi.PushMessageContentVideo -> {
+                val caption = content.caption?.trim().orEmpty()
+                if (caption.isBlank()) {
+                    stringProvider.getString("logs_media_video")
+                } else {
+                    "📹 ${stringProvider.getString("logs_media_video")} $caption"
+                }
+            }
+
+            is TdApi.PushMessageContentVoiceNote -> "🎤 ${stringProvider.getString("logs_media_voice")}"
+            is TdApi.PushMessageContentAudio -> {
+                val title = content.audio?.title?.trim().orEmpty()
+                if (title.isBlank()) {
+                    stringProvider.getString("logs_media_audio")
+                } else {
+                    "🎵 ${stringProvider.getString("logs_media_audio")} $title"
+                }
+            }
+
+            is TdApi.PushMessageContentDocument -> {
+                val fileName = content.document?.fileName?.trim().orEmpty()
+                if (fileName.isBlank()) {
+                    stringProvider.getString("logs_media_document")
+                } else {
+                    "📄 ${stringProvider.getString("logs_media_document")} $fileName"
+                }
+            }
+
+            is TdApi.PushMessageContentContact -> content.name.ifBlank {
+                stringProvider.getString("logs_media_contact")
+            }
+
+            is TdApi.PushMessageContentSticker -> stringProvider.getString("reply_content_sticker")
+            is TdApi.PushMessageContentPoll -> content.question.ifBlank {
+                stringProvider.getString("logs_media_poll")
+            }
+
+            is TdApi.PushMessageContentChatChangeTitle -> content.title.ifBlank {
+                stringProvider.getString("notification_new_message")
+            }
+
+            is TdApi.PushMessageContentChatAddMembers -> content.memberName.ifBlank {
+                stringProvider.getString("notification_new_message")
+            }
+
+            is TdApi.PushMessageContentBasicGroupChatCreate,
+            is TdApi.PushMessageContentVideoChatStarted,
+            is TdApi.PushMessageContentVideoChatEnded,
+            is TdApi.PushMessageContentInviteVideoChatParticipants,
+            is TdApi.PushMessageContentChatChangePhoto,
+            is TdApi.PushMessageContentChatSetBackground,
+            is TdApi.PushMessageContentChatSetTheme,
+            is TdApi.PushMessageContentChatDeleteMember,
+            is TdApi.PushMessageContentChatJoinByLink,
+            is TdApi.PushMessageContentChatJoinByRequest,
+            is TdApi.PushMessageContentRecurringPayment,
+            is TdApi.PushMessageContentSuggestProfilePhoto,
+            is TdApi.PushMessageContentSuggestBirthdate,
+            is TdApi.PushMessageContentProximityAlertTriggered,
+            is TdApi.PushMessageContentChecklistTasksAdded,
+            is TdApi.PushMessageContentChecklistTasksDone,
+            is TdApi.PushMessageContentPollOptionAdded,
+            is TdApi.PushMessageContentMessageForwards,
+            is TdApi.PushMessageContentMediaAlbum -> stringProvider.getString("notification_new_message")
+
+            else -> stringProvider.getString("notification_new_message")
         }
     }
 
@@ -1207,6 +1548,18 @@ class TdNotificationManager(
                 downloadFile(chat.photo?.small, onlyIfLocal) { bitmap ->
                     callback(fallbackName, bitmap)
                 }
+            }
+        }
+    }
+
+    private suspend fun resolveSenderSuspend(
+        senderId: TdApi.MessageSender?,
+        chat: TdApi.Chat,
+        onlyIfLocal: Boolean = false
+    ): Pair<String, Bitmap?> = suspendCancellableCoroutine { continuation ->
+        resolveSender(senderId, chat, onlyIfLocal) { senderName, senderBitmap ->
+            if (continuation.isActive) {
+                continuation.resume(senderName to senderBitmap)
             }
         }
     }

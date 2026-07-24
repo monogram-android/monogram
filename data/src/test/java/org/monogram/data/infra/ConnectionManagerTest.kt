@@ -539,6 +539,10 @@ class ConnectionManagerTest {
     ) : UpdateDispatcher {
         override val all: Flow<TdApi.Update> = MutableSharedFlow()
         override val newMessage: Flow<TdApi.UpdateNewMessage> = MutableSharedFlow()
+        override val activeNotifications: Flow<TdApi.UpdateActiveNotifications> =
+            MutableSharedFlow()
+        override val notificationGroup: Flow<TdApi.UpdateNotificationGroup> = MutableSharedFlow()
+        override val notification: Flow<TdApi.UpdateNotification> = MutableSharedFlow()
         override val messageEdited: Flow<TdApi.UpdateMessageEdited> = MutableSharedFlow()
         override val messageContent: Flow<TdApi.UpdateMessageContent> = MutableSharedFlow()
         override val messageSendSucceeded: Flow<TdApi.UpdateMessageSendSucceeded> =
@@ -569,6 +573,7 @@ class ConnectionManagerTest {
         override val userPrivacySettingRules: Flow<TdApi.UpdateUserPrivacySettingRules> =
             MutableSharedFlow()
         override val file: Flow<TdApi.UpdateFile> = MutableSharedFlow()
+        override val option: Flow<TdApi.UpdateOption> = MutableSharedFlow()
         override val installedStickerSets: Flow<TdApi.UpdateInstalledStickerSets> =
             MutableSharedFlow()
         override val newChat: Flow<TdApi.UpdateNewChat> = MutableSharedFlow()

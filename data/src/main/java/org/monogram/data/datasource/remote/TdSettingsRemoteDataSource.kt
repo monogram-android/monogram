@@ -50,6 +50,9 @@ class TdSettingsRemoteDataSource(
     override suspend fun getStorageStatistics(chatLimit: Int): TdApi.StorageStatistics? =
         coRunCatching { gateway.execute(TdApi.GetStorageStatistics(chatLimit)) }.getOrNull()
 
+    override suspend fun getStorageStatisticsFast(): TdApi.StorageStatisticsFast? =
+        coRunCatching { gateway.execute(TdApi.GetStorageStatisticsFast()) }.getOrNull()
+
     override suspend fun getNetworkStatistics(): TdApi.NetworkStatistics? =
         coRunCatching {
             Log.d("NetworkStats", "Fetching network statistics...")
@@ -128,7 +131,7 @@ class TdSettingsRemoteDataSource(
         chatIds: LongArray?,
         returnDeletedFileStatistics: Boolean,
         chatLimit: Int
-    ): Boolean =
+    ): TdApi.StorageStatistics? =
         coRunCatching {
             gateway.execute(
                 TdApi.OptimizeStorage(
@@ -143,8 +146,7 @@ class TdSettingsRemoteDataSource(
                     chatLimit
                 )
             )
-            true
-        }.getOrDefault(false)
+        }.getOrNull()
 
     override suspend fun resetNetworkStatistics(): Boolean =
         coRunCatching {

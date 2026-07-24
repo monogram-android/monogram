@@ -865,6 +865,16 @@
     <string name="auto_clear_cache_title">Хранить медиа</string>
     <string name="storage_optimizer_title">Оптимизатор хранилища</string>
     <string name="storage_optimizer_subtitle">Фоновая очистка памяти</string>
+    <string name="storage_breakdown_header">Разбивка хранилища</string>
+    <string name="storage_breakdown_tdlib_media">Медиакэш TDLib</string>
+    <string name="storage_breakdown_tdlib_database">База данных TDLib</string>
+    <string name="storage_breakdown_tdlib_logs">Логи TDLib</string>
+    <string name="storage_breakdown_language_pack">База данных языковых пакетов</string>
+    <string name="storage_breakdown_app_temp">Временный кэш приложения</string>
+    <string name="storage_cleanup_result_freed">Освобождено %1$s</string>
+    <string name="storage_cleanup_result_partial">Освобождено %1$s, но очистку TDLib не удалось полностью подтвердить.</string>
+    <string name="storage_cleanup_result_empty">Кэшированные файлы не были удалены.</string>
+    <string name="storage_cleanup_result_failed">Не удалось подтвердить очистку кэша.</string>
     <string name="detailed_usage_header">Подробности</string>
     <string name="storage_clean_title">Память свободна</string>
     <string name="storage_clean_description">Кэшированные файлы не найдены.</string>

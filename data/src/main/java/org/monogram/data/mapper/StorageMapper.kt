@@ -7,18 +7,20 @@ import org.monogram.domain.models.StorageUsageModel
 import org.monogram.domain.repository.StringProvider
 
 class StorageMapper(private val stringProvider: StringProvider) {
-    fun mapToDomain(_statistics: TdApi.StorageStatistics, chatStats: List<ChatStorageUsageModel>): StorageUsageModel {
+    fun mapToDomain(
+        statistics: TdApi.StorageStatistics,
+        chatStats: List<ChatStorageUsageModel>
+    ): StorageUsageModel {
         val filteredChats = chatStats.filter { it.size > 0L }
         return StorageUsageModel(
-            totalSize = filteredChats.sumOf { it.size },
-            fileCount = filteredChats.sumOf { it.fileCount },
+            totalSize = statistics.size,
+            fileCount = statistics.count,
             chatStats = filteredChats
         )
     }
 
     fun mapChatStatsToDomain(stats: TdApi.StorageStatisticsByChat, chatTitle: String): ChatStorageUsageModel {
-        val removableStats = stats.byFileType.filterNot { isNonRemovableFileType(it.fileType) }
-        val mappedFileTypes = removableStats.map { mapFileTypeStatsToDomain(it) }
+        val mappedFileTypes = stats.byFileType.map { mapFileTypeStatsToDomain(it) }
         return ChatStorageUsageModel(
             chatId = stats.chatId,
             chatTitle = chatTitle,
@@ -34,17 +36,6 @@ class StorageMapper(private val stringProvider: StringProvider) {
             size = stats.size,
             fileCount = stats.count
         )
-    }
-
-    private fun isNonRemovableFileType(fileType: TdApi.FileType): Boolean {
-        return when (fileType) {
-            is TdApi.FileTypeSticker,
-            is TdApi.FileTypeThumbnail,
-            is TdApi.FileTypeProfilePhoto,
-            is TdApi.FileTypeWallpaper -> true
-
-            else -> false
-        }
     }
 
     fun mapFileTypeToDomain(fileType: TdApi.FileType): String {

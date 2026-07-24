@@ -1309,6 +1309,16 @@
     <string name="auto_clear_cache_title">Auto-Clear Cache</string>
     <string name="storage_optimizer_title">Storage Optimizer</string>
     <string name="storage_optimizer_subtitle">Background storage optimization</string>
+    <string name="storage_breakdown_header">Storage Breakdown</string>
+    <string name="storage_breakdown_tdlib_media">TDLib media cache</string>
+    <string name="storage_breakdown_tdlib_database">TDLib database</string>
+    <string name="storage_breakdown_tdlib_logs">TDLib logs</string>
+    <string name="storage_breakdown_language_pack">Language pack database</string>
+    <string name="storage_breakdown_app_temp">App temporary cache</string>
+    <string name="storage_cleanup_result_freed">Freed %1$s</string>
+    <string name="storage_cleanup_result_partial">Freed %1$s, but TDLib cleanup couldn\'t be fully confirmed.</string>
+    <string name="storage_cleanup_result_empty">No cached files were removed.</string>
+    <string name="storage_cleanup_result_failed">Cache cleanup couldn\'t be confirmed.</string>
     <string name="detailed_usage_header">Detailed Usage</string>
     <string name="storage_clean_title">Storage is Clean</string>
     <string name="storage_clean_description">No cached files found.</string>

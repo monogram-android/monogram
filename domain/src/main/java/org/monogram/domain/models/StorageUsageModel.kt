@@ -6,6 +6,19 @@ data class StorageUsageModel(
     val chatStats: List<ChatStorageUsageModel>
 )
 
+data class StorageUsageBreakdownModel(
+    val tdlibMediaSize: Long,
+    val tdlibDatabaseSize: Long,
+    val tdlibLogsSize: Long,
+    val languagePackDatabaseSize: Long
+)
+
+data class StorageCleanupResultModel(
+    val tdlibFreedSize: Long,
+    val tdlibFreedFileCount: Int,
+    val tdlibCleanupSucceeded: Boolean
+)
+
 data class ChatStorageUsageModel(
     val chatId: Long,
     val chatTitle: String = "",

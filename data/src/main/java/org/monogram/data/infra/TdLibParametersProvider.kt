@@ -27,6 +27,7 @@ class TdLibParametersProvider(
             useMessageDatabase = true
             useFileDatabase = true
             useChatInfoDatabase = true
+            useSecretChats = true
         }
     }
 

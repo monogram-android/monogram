@@ -1,11 +1,11 @@
 package org.monogram.data.repository
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -142,6 +142,9 @@ private class FakeUpdateDispatcher : UpdateDispatcher {
     override val all: Flow<TdApi.Update> = MutableSharedFlow()
     override val authorizationState: Flow<TdApi.UpdateAuthorizationState> = MutableSharedFlow()
     override val newMessage: Flow<TdApi.UpdateNewMessage> = MutableSharedFlow()
+    override val activeNotifications: Flow<TdApi.UpdateActiveNotifications> = MutableSharedFlow()
+    override val notificationGroup: Flow<TdApi.UpdateNotificationGroup> = MutableSharedFlow()
+    override val notification: Flow<TdApi.UpdateNotification> = MutableSharedFlow()
     override val messageEdited: Flow<TdApi.UpdateMessageEdited> = MutableSharedFlow()
     override val messageContent: Flow<TdApi.UpdateMessageContent> = MutableSharedFlow()
     override val messageSendSucceeded: Flow<TdApi.UpdateMessageSendSucceeded> = MutableSharedFlow()
@@ -171,6 +174,7 @@ private class FakeUpdateDispatcher : UpdateDispatcher {
     override val userPrivacySettingRules: Flow<TdApi.UpdateUserPrivacySettingRules> =
         MutableSharedFlow()
     override val file: Flow<TdApi.UpdateFile> = MutableSharedFlow()
+    override val option: Flow<TdApi.UpdateOption> = MutableSharedFlow()
     override val connectionState: Flow<TdApi.UpdateConnectionState> = MutableSharedFlow()
     override val installedStickerSets: Flow<TdApi.UpdateInstalledStickerSets> = MutableSharedFlow()
     override val newChat: Flow<TdApi.UpdateNewChat> = MutableSharedFlow()

@@ -8,16 +8,54 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.SdStorage
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,10 +71,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.ChatStorageUsageModel
+import org.monogram.domain.models.StorageUsageBreakdownModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsTile
-import java.util.*
+import java.util.Locale
 import kotlin.math.roundToInt
 
 private val ChartColors = listOf(
@@ -121,6 +160,22 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                                 totalFileCount = usage.fileCount,
                                 chatStats = usage.chatStats
                             )
+                        }
+                    }
+
+                    if (state.breakdown != null || !state.appTempUsage.isEmpty) {
+                        item {
+                            SectionHeader(stringResource(R.string.storage_breakdown_header))
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                shape = RoundedCornerShape(24.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                StorageBreakdownCard(
+                                    breakdown = state.breakdown,
+                                    appTempUsage = state.appTempUsage
+                                )
+                            }
                         }
                     }
 
@@ -680,6 +735,61 @@ private fun SectionHeader(text: String) {
 }
 
 private data class ChartSegment(val value: Long, val count: Int, val color: Color, val label: String)
+
+@Composable
+private fun StorageBreakdownCard(
+    breakdown: StorageUsageBreakdownModel?,
+    appTempUsage: AppTempCacheUsage
+) {
+    val rows = buildList {
+        if (breakdown != null) {
+            add(
+                stringResource(R.string.storage_breakdown_tdlib_media) to breakdown.tdlibMediaSize
+            )
+            add(
+                stringResource(R.string.storage_breakdown_tdlib_database) to breakdown.tdlibDatabaseSize
+            )
+            add(
+                stringResource(R.string.storage_breakdown_tdlib_logs) to breakdown.tdlibLogsSize
+            )
+            add(
+                stringResource(R.string.storage_breakdown_language_pack) to breakdown.languagePackDatabaseSize
+            )
+        }
+        if (!appTempUsage.isEmpty) {
+            add(
+                stringResource(R.string.storage_breakdown_app_temp) to appTempUsage.size
+            )
+        }
+    }.filter { it.second > 0L }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        rows.forEachIndexed { index, (label, size) ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = formatSize(size),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            if (index < rows.lastIndex) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+            }
+        }
+    }
+}
 
 private fun formatFileType(type: String): String {
     return type.replace("FileType", "")

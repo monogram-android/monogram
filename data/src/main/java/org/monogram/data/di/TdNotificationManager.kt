@@ -17,7 +17,6 @@ import android.graphics.Paint
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.os.Build
-import android.os.SystemClock
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.StyleSpan
@@ -62,6 +61,7 @@ import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.StringProvider
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 import kotlin.math.min
 
@@ -81,6 +81,7 @@ class TdNotificationManager(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager = NotificationManagerCompat.from(context)
     private val notificationStateVersion = MutableStateFlow(0L)
+    private val notificationStateCounter = AtomicLong(0L)
     private val userCache = ConcurrentHashMap<Long, TdApi.User>()
     private val chatCache = ConcurrentHashMap<Long, TdApi.Chat>()
     private val messagesHistory = ConcurrentHashMap<Long, CopyOnWriteArrayList<NotificationHistoryEntry>>()
@@ -154,78 +155,11 @@ class TdNotificationManager(
         }
 
         scope.launch {
-            updates.newMessage.collect { update ->
-                if (nativeNotificationStateStore.hasNativeSync()) {
-                    return@collect
-                }
-
-                val senderDebug = senderIdToDebug(update.message.senderId)
-                Log.d(
-                    TAG,
-                    "UpdateNewMessage fallback chatId=${update.message.chatId} messageId=${update.message.id} " +
-                            "outgoing=${update.message.isOutgoing} sender=$senderDebug"
-                )
-                handleNewMessage(update.message)
-            }
-        }
-
-        scope.launch {
-            updates.activeNotifications.collect { update ->
-                handleActiveNotifications(update)
-            }
-        }
-
-        scope.launch {
-            updates.notificationGroup.collect { update ->
-                handleNotificationGroupUpdate(update)
-            }
-        }
-
-        scope.launch {
-            updates.notification.collect { update ->
-                handleNotificationUpdate(update)
-            }
-        }
-
-        scope.launch {
-            updates.user.collect { update ->
-                userCache[update.user.id] = update.user
-            }
-        }
-
-        scope.launch {
-            updates.file.collect { update ->
-                handleFileUpdate(update.file)
-            }
-        }
-
-        scope.launch {
-            updates.chatNotificationSettings.collect { update ->
-                updateChatNotificationSettings(update.chatId, update.notificationSettings)
-                chatCache[update.chatId]?.let { chat ->
-                    chatCache[update.chatId] = chat.apply {
-                        notificationSettings = update.notificationSettings
-                    }
-                }
-            }
-        }
-
-        scope.launch {
-            updates.chatReadInbox.collect { update ->
-                clearHistory(update.chatId)
-            }
-        }
-
-        scope.launch {
-            updates.option.collect { update ->
-                if (update.name == "is_authenticated" && (update.value as? TdApi.OptionValueBoolean)?.value == true) {
-                    refreshMyUserId()
-                    updatePushRegistration()
-                } else if (update.name == "my_id") {
-                    val id = (update.value as? TdApi.OptionValueInteger)?.value ?: 0L
-                    if (id > 0L) {
-                        myUserId = id
-                    }
+            updates.all.collect { update ->
+                runCatching {
+                    handleCoreUpdate(update)
+                }.onFailure {
+                    Log.e(TAG, "Failed to handle update ${update.javaClass.simpleName}", it)
                 }
             }
         }
@@ -263,6 +197,42 @@ class TdNotificationManager(
                     )
                     updatePushRegistration()
                 }
+            }
+        }
+    }
+
+    private suspend fun handleCoreUpdate(update: TdApi.Update) {
+        when (update) {
+            is TdApi.UpdateActiveNotifications -> handleActiveNotifications(update)
+            is TdApi.UpdateNotificationGroup -> handleNotificationGroupUpdate(update)
+            is TdApi.UpdateNotification -> handleNotificationUpdate(update)
+            is TdApi.UpdateUser -> userCache[update.user.id] = update.user
+            is TdApi.UpdateFile -> handleFileUpdate(update.file)
+            is TdApi.UpdateChatNotificationSettings -> {
+                updateChatNotificationSettings(update.chatId, update.notificationSettings)
+                chatCache[update.chatId]?.let { chat ->
+                    chatCache[update.chatId] = chat.apply {
+                        notificationSettings = update.notificationSettings
+                    }
+                }
+            }
+
+            is TdApi.UpdateChatReadInbox -> clearHistory(update.chatId)
+            is TdApi.UpdateOption -> handleOptionUpdate(update)
+        }
+    }
+
+    private suspend fun handleOptionUpdate(update: TdApi.UpdateOption) {
+        if (update.name == "is_authenticated" && (update.value as? TdApi.OptionValueBoolean)?.value == true) {
+            refreshMyUserId()
+            updatePushRegistration()
+            return
+        }
+
+        if (update.name == "my_id") {
+            val id = (update.value as? TdApi.OptionValueInteger)?.value ?: 0L
+            if (id > 0L) {
+                myUserId = id
             }
         }
     }
@@ -495,7 +465,7 @@ class TdNotificationManager(
     }
 
     private fun markNotificationStateChanged() {
-        notificationStateVersion.value = SystemClock.elapsedRealtime()
+        notificationStateVersion.value = notificationStateCounter.incrementAndGet()
     }
 
     private fun handleFileUpdate(file: TdApi.File) {
@@ -571,135 +541,6 @@ class TdNotificationManager(
         )
     }
 
-    private fun handleNewMessage(message: TdApi.Message) {
-        Log.d(
-            TAG,
-            "handleNewMessage enter chatId=${message.chatId} messageId=${message.id} outgoing=${message.isOutgoing} " +
-                    "content=${message.content?.javaClass?.simpleName ?: "null"}"
-        )
-
-        if (message.isOutgoing) {
-            Log.d(
-                TAG,
-                "Skip notification: outgoing message, chatId=${message.chatId}, messageId=${message.id}"
-            )
-            return
-        }
-
-        val messageContent = message.content
-        if (messageContent == null) {
-            Log.w(TAG, "Skipping notification for message ${message.id}: content is null")
-            return
-        }
-
-        val senderId = message.senderId
-        if (senderId == null) {
-            Log.w(TAG, "Skipping notification for message ${message.id}: senderId is null")
-            return
-        }
-
-        if (senderId is TdApi.MessageSenderUser && senderId.userId != 0L && senderId.userId == myUserId) {
-            Log.d(
-                TAG,
-                "Skip notification: sender is self, chatId=${message.chatId}, messageId=${message.id}"
-            )
-            return
-        }
-
-        val lastId = lastMessageIds[message.chatId]
-        if (lastId != null && message.id <= lastId) {
-            Log.d(
-                TAG,
-                "Skip notification: stale/duplicate message, chatId=${message.chatId}, messageId=${message.id}, lastId=$lastId"
-            )
-            return
-        }
-        lastMessageIds[message.chatId] = message.id
-
-        scope.launch {
-            val chat = getChatSuspend(message.chatId)
-            if (chat == null) {
-                Log.d(
-                    TAG,
-                    "Skip notification: chat unavailable, chatId=${message.chatId}, messageId=${message.id}"
-                )
-                return@launch
-            }
-
-            val chatType = chat.type
-            if (chatType == null) {
-                Log.w(TAG, "Skipping notification for chat ${chat.id}: chat type is null")
-                return@launch
-            }
-
-            val isMember = withTimeoutOrNull(1_500L) { checkMembership(chat) } ?: true
-            if (!isMember) {
-                Log.d(TAG, "Skipping notification for chat ${chat.id}: user is not a member")
-                return@launch
-            }
-
-            val muteDecision = resolveMuteDecision(chat)
-            if (muteDecision.isMuted) {
-                Log.d(
-                    TAG,
-                    "Skip notification: muted reason=${muteDecision.reason} scope=${muteDecision.scope} " +
-                            "muteFor=${muteDecision.muteFor} useDefault=${muteDecision.useDefault} " +
-                            "chatId=${chat.id} messageId=${message.id}"
-                )
-                return@launch
-            }
-
-            val contentText =
-                if (appPreferences.showSenderOnly.value) stringProvider.getString("notification_new_message") else getMessageText(
-                    messageContent
-                )
-
-            if (contentText.isBlank()) {
-                Log.d(
-                    TAG,
-                    "Skip notification: empty content text, chatId=${chat.id}, messageId=${message.id}"
-                )
-                return@launch
-            }
-
-            val timestamp = message.date.toLong() * 1000
-            val shouldPreloadAvatar =
-                !appPreferences.isPowerSavingMode.value && !appPreferences.batteryOptimizationEnabled.value
-
-            resolveSender(senderId, chat, true) { senderName, senderBitmap ->
-                Log.d(
-                    TAG,
-                    "Resolved sender for notification chatId=${chat.id} messageId=${message.id} " +
-                            "senderName=$senderName hasBitmap=${senderBitmap != null}"
-                )
-
-                Log.d(
-                    TAG,
-                    "Append notification chatId=${chat.id} messageId=${message.id} " +
-                            "chatType=${chatType.javaClass.simpleName} text=${
-                                previewText(
-                                    contentText
-                                )
-                            }"
-                )
-                appendMessageToNotification(
-                    chatId = chat.id,
-                    messageId = message.id,
-                    chatType = chatType,
-                    senderName = senderName,
-                    senderBitmap = senderBitmap,
-                    chatIcon = senderBitmap,
-                    text = contentText,
-                    timestamp = timestamp
-                )
-
-                if (shouldPreloadAvatar && senderBitmap == null) {
-                    preloadNotificationAssets(senderId, chat)
-                }
-            }
-        }
-    }
-
     private suspend fun checkMembership(chat: TdApi.Chat): Boolean {
         val chatType = chat.type ?: return true
         return when (chatType) {
@@ -755,58 +596,6 @@ class TdNotificationManager(
             chatId = chatId,
             chatType = chatType,
             historySnapshot = trimmedHistory,
-            chatIcon = chatIcon
-        )
-    }
-
-    fun appendMessageToNotification(
-        chatId: Long,
-        messageId: Long,
-        chatType: TdApi.ChatType,
-        senderName: String,
-        senderBitmap: Bitmap?,
-        chatIcon: Bitmap?,
-        text: String,
-        timestamp: Long
-    ) {
-        if (text.isBlank()) {
-            Log.d(
-                TAG,
-                "Skip appendMessageToNotification: blank text, chatId=$chatId, messageId=$messageId"
-            )
-            return
-        }
-
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "Skip appendMessageToNotification: missing POST_NOTIFICATIONS permission")
-            return
-        }
-
-        val channelId = when (chatType) {
-            is TdApi.ChatTypePrivate -> CHANNEL_PRIVATE
-            is TdApi.ChatTypeBasicGroup -> CHANNEL_GROUPS
-            is TdApi.ChatTypeSupergroup -> if (chatType.isChannel) CHANNEL_CHANNELS else CHANNEL_GROUPS
-            else -> CHANNEL_OTHER
-        }
-
-        val history = messagesHistory.getOrPut(chatId) { CopyOnWriteArrayList() }
-        history.add(
-            NotificationHistoryEntry(
-                messageId = messageId,
-                senderName = senderName,
-                text = text,
-                timestamp = timestamp,
-                senderBitmap = senderBitmap
-            )
-        )
-        if (history.size > 10) {
-            history.removeAt(0)
-        }
-
-        replaceNotificationHistory(
-            chatId = chatId,
-            chatType = chatType,
-            historyEntries = history.toList(),
             chatIcon = chatIcon
         )
     }
@@ -1083,18 +872,6 @@ class TdNotificationManager(
     private fun notificationIdForChat(chatId: Long): Int {
         val hash = (chatId xor (chatId ushr 32)).toInt()
         return if (hash == SUMMARY_ID) SUMMARY_ID + 1 else hash
-    }
-
-    private fun senderIdToDebug(senderId: TdApi.MessageSender?): String = when (senderId) {
-        null -> "null"
-        is TdApi.MessageSenderUser -> "user:${senderId.userId}"
-        is TdApi.MessageSenderChat -> "chat:${senderId.chatId}"
-        else -> senderId.javaClass.simpleName
-    }
-
-    private fun previewText(text: String, max: Int = 80): String {
-        val normalized = text.replace('\n', ' ').trim()
-        return if (normalized.length <= max) normalized else normalized.take(max) + "..."
     }
 
     private fun getCircularBitmap(bitmap: Bitmap): Bitmap {

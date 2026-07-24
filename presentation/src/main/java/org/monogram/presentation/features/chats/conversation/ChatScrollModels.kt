@@ -7,8 +7,11 @@ sealed interface ChatScrollCommand {
     @Immutable
     data class RestoreViewport(
         val anchorMessageId: Long?,
+        val anchorAliasIds: List<Long> = emptyList(),
         val anchorOffsetPx: Int,
-        val atBottom: Boolean
+        val atBottom: Boolean,
+        val readFully: Boolean = atBottom,
+        val topEndMessageId: Long? = null
     ) : ChatScrollCommand
 
     @Immutable

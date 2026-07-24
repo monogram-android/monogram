@@ -17,10 +17,10 @@ internal data class ConversationLoadSession(
 internal data class ChatInitialLoadKey(
     val chatId: Long,
     val effectiveThreadId: Long?,
-    val initialMessageId: Long?,
-    val savedViewportAnchorMessageId: Long?,
-    val firstUnreadMessageId: Long?,
-    val rootMessageId: Long?
+    val rootMessageId: Long?,
+    val initialTarget: String,
+    val initialAnchorMessageId: Long?,
+    val backfillNewerAfterInitialLoad: Boolean
 )
 
 internal object ChatConversationLog {
@@ -95,6 +95,12 @@ internal object ChatConversationLog {
                 append(" oldestLoaded=").append(state.isOldestLoaded)
                 append(" scrollToMessageId=").append(state.scrollToMessageId ?: 0L)
                 append(" savedAnchor=").append(state.lastSavedViewport?.anchorMessageId ?: 0L)
+                append(" savedAliases=").append(state.lastSavedViewport?.anchorAliasIds?.size ?: 0)
+                append(" savedReadFully=").append(state.lastSavedViewport?.readFully ?: false)
+                append(" savedTopEnd=").append(state.lastSavedViewport?.topEndMessageId ?: 0L)
+                append(" savedReturnStack=").append(
+                    state.lastSavedViewport?.returnToMessageIds?.size ?: 0
+                )
                 append(" currentTopicId=").append(state.currentTopicId ?: 0L)
                 append(" rootMessageId=").append(state.rootMessage?.id ?: 0L)
                 if (!extra.isNullOrBlank()) {
@@ -188,7 +194,8 @@ internal object ChatConversationLog {
                 componentInstanceId = component.componentInstanceId,
                 source = source ?: session?.source,
                 target = target ?: session?.target,
-                anchorId = anchorId ?: state.lastSavedViewport?.anchorMessageId,
+                anchorId = anchorId ?: state.lastSavedViewport?.anchorMessageId
+                ?: state.lastSavedViewport?.anchorAliasIds?.firstOrNull(),
                 messagesBefore = messagesBefore ?: state.messages.size,
                 messagesAfter = messagesAfter ?: state.messages.size,
                 unreadCount = state.unreadSeparatorCount,

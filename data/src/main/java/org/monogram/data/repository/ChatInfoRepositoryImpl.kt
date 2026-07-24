@@ -104,6 +104,13 @@ class ChatInfoRepositoryImpl(
         return chat.toDomain()
     }
 
+    override suspend fun getSimilarChatIds(chatId: Long): List<Long> {
+        return remote.getSimilarChatIds(chatId)
+            .filter { it != 0L && it != chatId }
+            .distinct()
+            .toList()
+    }
+
     override suspend fun getChatMembers(
         chatId: Long,
         offset: Int,

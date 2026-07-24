@@ -8,6 +8,7 @@ import org.monogram.domain.models.GroupMemberModel
 interface ChatInfoRepository {
     suspend fun getChatFullInfo(chatId: Long): ChatFullInfoModel?
     suspend fun searchPublicChat(username: String): ChatModel?
+    suspend fun getSimilarChatIds(chatId: Long): List<Long>
     suspend fun getChatMembers(
         chatId: Long,
         offset: Int,

@@ -35,6 +35,7 @@ data class ChatModel(
     val hasAutomaticTranslation: Boolean = false,
     val signMessages: Boolean = false,
     val joinToSendMessages: Boolean = false,
+    val pendingJoinRequestCount: Int = 0,
     val availableReactions: ChatAvailableReactionsModel = ChatAvailableReactionsModel.All,
     val messageAutoDeleteTime: Int = 0,
     val canBeDeletedOnlyForSelf: Boolean = false,
@@ -82,6 +83,7 @@ data class ChatModel(
     val lastMessageSenderName: String = "",
     val lastMessagePreviewPath: String? = null,
     val lastMessagePreviewPaths: List<String> = emptyList(),
+    val joinByRequest: Boolean = false,
 )
 
 @Serializable

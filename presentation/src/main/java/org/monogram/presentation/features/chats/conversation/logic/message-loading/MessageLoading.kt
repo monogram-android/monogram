@@ -210,8 +210,12 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
             } else {
                 mergedMessage
             }
-            val old = messageMap.put(msg.id, restoredMessage)
-            if (old != restoredMessage) {
+            val contentSafeMessage = state.preservePendingEditedContent(
+                incomingMessage = restoredMessage,
+                previousMessage = previous
+            )
+            val old = messageMap.put(msg.id, contentSafeMessage)
+            if (old != contentSafeMessage) {
                 hasChanges = true
             }
         }
@@ -358,6 +362,7 @@ internal fun DefaultChatComponent.loadMessages(
                 }
 
             val target = resolveInitialChatScrollTarget(
+                chatId = targetChatId,
                     explicitMessageId = currentState.scrollToMessageId,
                     savedViewport = savedViewport,
                     firstUnreadMessageId = firstUnreadId,
@@ -369,7 +374,7 @@ internal fun DefaultChatComponent.loadMessages(
                 event = "load_messages_target_resolved",
                 state = _state.value,
                 componentInstanceId = componentInstanceId,
-                extra = "source=$loadSource target=${target.perfTargetName()} targetChatId=$targetChatId savedAnchor=${savedViewport?.anchorMessageId ?: 0L} firstUnreadId=${firstUnreadId ?: 0L}"
+                extra = "source=$loadSource target=${target.perfTargetName()} targetChatId=$targetChatId targetAnchor=${target.anchorMessageId ?: 0L} savedAnchor=${savedViewport?.anchorMessageId ?: savedViewport?.anchorAliasIds?.firstOrNull() ?: 0L} firstUnreadId=${firstUnreadId ?: 0L}"
             )
             ChatOpenPerfBridge.updateTarget(chatId, threadId, target.perfTargetName())
             activeLoadSession = ConversationLoadSession(
@@ -382,7 +387,7 @@ internal fun DefaultChatComponent.loadMessages(
                 phase = "chat_open_total_start",
                 source = loadSource,
                 target = target.perfTargetName(),
-                anchorId = savedViewport?.anchorMessageId
+                anchorId = target.anchorMessageId ?: savedViewport?.anchorMessageId
             )
 
             when (target) {
@@ -776,6 +781,19 @@ internal fun DefaultChatComponent.requestMessageHighlight(messageId: Long) {
     }
 }
 
+internal enum class ScrollToBottomHandling {
+    Runtime,
+    ReloadLatestWindow
+}
+
+internal fun ChatComponent.State.resolveScrollToBottomHandling(): ScrollToBottomHandling {
+    return if (messages.isNotEmpty() && isLatestLoaded) {
+        ScrollToBottomHandling.Runtime
+    } else {
+        ScrollToBottomHandling.ReloadLatestWindow
+    }
+}
+
 internal fun ChatComponent.State.enqueueRuntimeScrollToBottom(
     animated: Boolean = true
 ): ChatComponent.State {
@@ -1059,70 +1077,13 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
         componentInstanceId = componentInstanceId,
         extra = "isComments=$isComments"
     )
-    if (currentState.messages.isNotEmpty() && currentState.isLatestLoaded) {
+    if (currentState.resolveScrollToBottomHandling() == ScrollToBottomHandling.Runtime) {
         _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
         ChatConversationLog.logViewportState(
             event = "scroll_to_bottom_runtime_enqueued",
             state = _state.value,
             componentInstanceId = componentInstanceId
         )
-        return
-    }
-    if (currentState.messages.isNotEmpty() && !currentState.isLatestLoaded) {
-        _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
-        ChatConversationLog.logViewportState(
-            event = "scroll_to_bottom_partial_runtime_enqueued",
-            state = _state.value,
-            componentInstanceId = componentInstanceId
-        )
-        if (loadNewerJob?.isActive == true || currentState.isLoadingNewer) return
-        loadNewerJob = scope.launch {
-            _state.update { it.copy(isLoadingNewer = true) }
-            ChatConversationLog.logViewportState(
-                event = "scroll_to_bottom_load_newer_start",
-                state = _state.value,
-                componentInstanceId = componentInstanceId
-            )
-            try {
-                var reachedLatest = false
-                repeat(20) {
-                    if (reachedLatest || _state.value.isLatestLoaded) {
-                        reachedLatest = true
-                        return@repeat
-                    }
-                    reachedLatest = loadNewerMessagesPage()
-                }
-                if (reachedLatest || _state.value.isLatestLoaded) {
-                    _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
-                    ChatConversationLog.logViewportState(
-                        event = "scroll_to_bottom_load_newer_enqueued",
-                        state = _state.value,
-                        componentInstanceId = componentInstanceId
-                    )
-                }
-            } catch (e: Exception) {
-                ChatConversationLog.logViewportState(
-                    event = "scroll_to_bottom_load_newer_failed",
-                    state = _state.value,
-                    componentInstanceId = componentInstanceId,
-                    extra = "error=${e.javaClass.simpleName}"
-                )
-                Log.e(
-                    "DefaultChatComponent",
-                    "Failed to load newer messages before scroll to bottom",
-                    e
-                )
-                lastLoadedNewerId = 0L
-            } finally {
-                inFlightNewerAnchorId = 0L
-                _state.update { it.copy(isLoadingNewer = false) }
-                ChatConversationLog.logViewportState(
-                    event = "scroll_to_bottom_load_newer_finish",
-                    state = _state.value,
-                    componentInstanceId = componentInstanceId
-                )
-            }
-        }
         return
     }
     if (currentState.isLoading) return
@@ -1615,7 +1576,10 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                     val currentMessages = currentState.messages.toMutableList()
                     val removed = currentMessages.removeAll { messageIds.contains(it.id) }
                     if (removed) {
-                        currentState.copy(messages = currentMessages)
+                        currentState.copy(
+                            messages = currentMessages,
+                            pendingEditedMessageIds = currentState.pendingEditedMessageIds - messageIds.toSet()
+                        )
                     } else {
                         currentState
                     }
@@ -1627,59 +1591,64 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
     repositoryMessage.messageEditedFlow
         .onEach { message ->
             if (_state.value.isMessageInActiveThread(chatId, message) || message.chatId == chatId) {
-                val now = System.currentTimeMillis()
-                val suppressUntil = reactionUpdateSuppressedUntil[message.id]
-                val suppressReactionUpdate = suppressUntil != null && now < suppressUntil
+                messageMutex.withLock {
+                    val targetMessageId = resolveRemappedMessageId(message.id)
+                    _state.update { currentState ->
+                        val now = System.currentTimeMillis()
+                        val suppressUntil = reactionUpdateSuppressedUntil[targetMessageId]
+                        val suppressReactionUpdate = suppressUntil != null && now < suppressUntil
 
-                if (!suppressReactionUpdate && suppressUntil != null) {
-                    reactionUpdateSuppressedUntil.remove(message.id, suppressUntil)
-                }
-
-                updateMessageContent(message.id) { current ->
-                    val mediaSafeMessage = when {
-                        current.content is MessageContent.Photo && message.content is MessageContent.Photo -> {
-                            val currentPhoto = current.content as MessageContent.Photo
-                            val incomingPhoto = message.content as MessageContent.Photo
-                            if (currentPhoto.fileId == incomingPhoto.fileId) {
-                                val resolvedPath = incomingPhoto.path ?: currentPhoto.path
-                                message.copy(
-                                    content = incomingPhoto.copy(
-                                        path = resolvedPath,
-                                        thumbnailPath = incomingPhoto.thumbnailPath ?: currentPhoto.thumbnailPath
-                                    )
-                                )
-                            } else {
-                                message
-                            }
+                        if (!suppressReactionUpdate && suppressUntil != null) {
+                            reactionUpdateSuppressedUntil.remove(targetMessageId, suppressUntil)
                         }
 
-                        current.content is MessageContent.Video && message.content is MessageContent.Video -> {
-                            val currentVideo = current.content as MessageContent.Video
-                            val incomingVideo = message.content as MessageContent.Video
-                            if (currentVideo.fileId == incomingVideo.fileId) {
-                                val resolvedPath = incomingVideo.path ?: currentVideo.path
-                                message.copy(
-                                    content = incomingVideo.copy(
-                                        path = resolvedPath,
-                                        thumbnailPath = incomingVideo.thumbnailPath ?: currentVideo.thumbnailPath
-                                    )
-                                )
-                            } else {
-                                message
+                        currentState.withUpdatedMessage(targetMessageId) { current ->
+                            val mediaSafeMessage = when {
+                                current.content is MessageContent.Photo && message.content is MessageContent.Photo -> {
+                                    val currentPhoto = current.content as MessageContent.Photo
+                                    val incomingPhoto = message.content as MessageContent.Photo
+                                    if (currentPhoto.fileId == incomingPhoto.fileId) {
+                                        message.copy(
+                                            content = incomingPhoto.copy(
+                                                path = incomingPhoto.path ?: currentPhoto.path,
+                                                thumbnailPath = incomingPhoto.thumbnailPath
+                                                    ?: currentPhoto.thumbnailPath
+                                            )
+                                        )
+                                    } else {
+                                        message
+                                    }
+                                }
+
+                                current.content is MessageContent.Video && message.content is MessageContent.Video -> {
+                                    val currentVideo = current.content as MessageContent.Video
+                                    val incomingVideo = message.content as MessageContent.Video
+                                    if (currentVideo.fileId == incomingVideo.fileId) {
+                                        message.copy(
+                                            content = incomingVideo.copy(
+                                                path = incomingVideo.path ?: currentVideo.path,
+                                                thumbnailPath = incomingVideo.thumbnailPath
+                                                    ?: currentVideo.thumbnailPath
+                                            )
+                                        )
+                                    } else {
+                                        message
+                                    }
+                                }
+
+                                else -> message
                             }
-                        }
 
-                        else -> message
-                    }
+                            when {
+                                suppressReactionUpdate -> mediaSafeMessage.copy(reactions = current.reactions)
+                                reactionsSemanticEqual(
+                                    current.reactions,
+                                    mediaSafeMessage.reactions
+                                ) -> mediaSafeMessage.copy(reactions = current.reactions)
 
-                    when {
-                        suppressReactionUpdate -> mediaSafeMessage.copy(reactions = current.reactions)
-                        reactionsSemanticEqual(
-                            current.reactions,
-                            mediaSafeMessage.reactions
-                        ) -> mediaSafeMessage.copy(reactions = current.reactions)
-
-                        else -> mediaSafeMessage
+                                else -> mediaSafeMessage
+                            }
+                        }.clearPendingEditedMessage(targetMessageId)
                     }
                 }
                 handleEditedRichMessage(message)
@@ -1824,26 +1793,13 @@ private fun DefaultChatComponent.updateFullScreenImagePath(messageId: Long, newP
 
 private inline fun DefaultChatComponent.updateMessageContent(
     messageId: Long,
-    crossinline transform: (MessageModel) -> MessageModel
+    noinline transform: (MessageModel) -> MessageModel
 ) {
     scope.launch {
         messageMutex.withLock {
             val targetMessageId = resolveRemappedMessageId(messageId)
             _state.update { currentState ->
-                val currentMessages = currentState.messages.toMutableList()
-                val index = currentMessages.indexOfFirst { it.id == targetMessageId }
-                if (index != -1) {
-                    val currentMessage = currentMessages[index]
-                    val updatedMessage = transform(currentMessage)
-                    if (updatedMessage != currentMessage) {
-                        currentMessages[index] = updatedMessage
-                        currentState.copy(messages = currentMessages)
-                    } else {
-                        currentState
-                    }
-                } else {
-                    currentState
-                }
+                currentState.withUpdatedMessage(targetMessageId, transform)
             }
         }
     }

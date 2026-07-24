@@ -80,8 +80,11 @@ import org.monogram.presentation.features.chats.conversation.logic.loadWallpaper
 import org.monogram.presentation.features.chats.conversation.logic.observePreferences
 import org.monogram.presentation.features.chats.conversation.logic.observeSponsoredMessagePolicy
 import org.monogram.presentation.features.chats.conversation.logic.observeUserUpdates
+import org.monogram.presentation.features.chats.conversation.logic.perfTargetName
+import org.monogram.presentation.features.chats.conversation.logic.pushViewportReturnTarget
 import org.monogram.presentation.features.chats.conversation.logic.refreshDraftLinkPreviewOnPhotoDownloadIfNeeded
 import org.monogram.presentation.features.chats.conversation.logic.refreshSponsoredMessageAfterMediaDownload
+import org.monogram.presentation.features.chats.conversation.logic.resolveInitialChatScrollTarget
 import org.monogram.presentation.features.chats.conversation.logic.setupMessageCollectors
 import org.monogram.presentation.features.chats.conversation.logic.setupPinnedMessageCollector
 import org.monogram.presentation.features.chats.conversation.logic.shouldStartInitialLoad
@@ -96,6 +99,7 @@ import kotlin.math.abs
 
 private const val VIEWPORT_PERSIST_DEBOUNCE_MS = 750L
 private const val VIEWPORT_OFFSET_DELTA_THRESHOLD_PX = 8
+private const val MAX_RETURN_TO_MESSAGE_IDS = 16
 private const val RICH_PREFETCH_PARALLELISM = 3
 
 internal fun shouldRepairUnexpectedChatReset(
@@ -449,7 +453,7 @@ class DefaultChatComponent(
                     state = _state.value,
                     componentInstanceId = componentInstanceId
                 )
-                repositoryMessage.closeChat(chatId)
+                repositoryMessage.closeChat(chatId, ownerTag = componentInstanceId)
             }
         }
 
@@ -586,7 +590,7 @@ class DefaultChatComponent(
                     }
                 }
             }
-            repositoryMessage.openChat(chatId)
+            repositoryMessage.openChat(chatId, ownerTag = componentInstanceId)
             ChatConversationLog.logViewport(
                 chatId = chatId,
                 threadId = _state.value.currentMessageThreadId ?: _state.value.currentTopicId,
@@ -607,13 +611,9 @@ class DefaultChatComponent(
         val currentState = _state.value
         if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return
 
-        if (!currentState.viewAsTopics) {
-            if (initialMessageId != null) {
-                scrollToMessage(initialMessageId)
-            } else if (currentState.messages.isEmpty()) {
-                requestInitialLoad(source = "lifecycle_resume")
-            }
-        } else if (currentState.messages.isEmpty() && currentState.currentTopicId == null) {
+        if (currentState.messages.isEmpty() &&
+            (!currentState.viewAsTopics || currentState.currentTopicId == null)
+        ) {
             requestInitialLoad(source = "lifecycle_resume")
         }
     }
@@ -623,14 +623,25 @@ class DefaultChatComponent(
         if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return
 
         val savedViewport = cacheProvider.getChatViewport(chatId, currentState.effectiveThreadId())
-        val loadKey = buildChatInitialLoadKey(
+        val predictedTarget = resolveInitialChatScrollTarget(
             chatId = chatId,
-            effectiveThreadId = currentState.effectiveThreadId(),
-            initialMessageId = initialMessageId,
+            explicitMessageId = initialMessageId,
             savedViewport = savedViewport,
             firstUnreadMessageId = currentState.unreadSeparatorLastReadInboxMessageId.takeIf {
                 currentState.unreadSeparatorCount > 0
             },
+            unreadCount = currentState.unreadSeparatorCount,
+            isComments = currentState.rootMessage != null
+        )
+        val loadKey = buildChatInitialLoadKey(
+            chatId = chatId,
+            effectiveThreadId = currentState.effectiveThreadId(),
+            explicitMessageId = initialMessageId,
+            savedViewport = savedViewport,
+            firstUnreadMessageId = currentState.unreadSeparatorLastReadInboxMessageId.takeIf {
+                currentState.unreadSeparatorCount > 0
+            },
+            unreadCount = currentState.unreadSeparatorCount,
             rootMessageId = currentState.rootMessage?.id
         )
         if (!shouldStartInitialLoad(lastStartedLoadKey, loadKey, hasStartedInitialLoadForContext)) {
@@ -642,13 +653,14 @@ class DefaultChatComponent(
             event = "request_initial_load",
             state = currentState,
             componentInstanceId = componentInstanceId,
-            extra = "source=$source savedViewportAnchor=${savedViewport?.anchorMessageId ?: 0L}"
+            extra = "source=$source target=${predictedTarget.perfTargetName()} targetAnchor=${predictedTarget.anchorMessageId ?: 0L} savedViewportAnchor=${savedViewport?.anchorMessageId ?: 0L}"
         )
         ChatConversationLog.logPerf(
             component = this,
             phase = "initial_load_trigger",
             source = source,
-            anchorId = savedViewport?.anchorMessageId
+            target = predictedTarget.perfTargetName(),
+            anchorId = predictedTarget.anchorMessageId
         )
         loadMessages(loadSource = source)
     }
@@ -875,6 +887,15 @@ class DefaultChatComponent(
     }
 
     override fun onScrollToBottom() = store.accept(ChatStore.Intent.ScrollToBottom)
+    override fun onScrollToNextUnreadMention() =
+        store.accept(ChatStore.Intent.ScrollToNextUnreadMention)
+
+    override fun onClearUnreadMentions() = store.accept(ChatStore.Intent.ClearUnreadMentions)
+
+    override fun onScrollToNextUnreadReaction() =
+        store.accept(ChatStore.Intent.ScrollToNextUnreadReaction)
+
+    override fun onClearUnreadReactions() = store.accept(ChatStore.Intent.ClearUnreadReactions)
 
     override fun onDownloadFile(fileId: Int, userInitiated: Boolean) {
         AutoDownloadSuppression.clear(fileId)
@@ -893,7 +914,8 @@ class DefaultChatComponent(
             ChatViewportCacheEntry(
                 anchorMessageId = messageId,
                 anchorOffsetPx = 0,
-                atBottom = messageId == 0L
+                atBottom = messageId == 0L,
+                readFully = messageId == 0L
             )
         )
     }
@@ -1054,7 +1076,10 @@ class DefaultChatComponent(
     override fun onCopyLink(localClipboard: Clipboard) =
         store.accept(ChatStore.Intent.CopyLink(localClipboard))
 
-    override fun scrollToMessage(messageId: Long) = store.accept(ChatStore.Intent.ScrollToMessage(messageId))
+    override fun scrollToMessage(messageId: Long) {
+        rememberReturnTargetBeforeJump(messageId)
+        store.accept(ChatStore.Intent.ScrollToMessage(messageId))
+    }
     override fun onBotCommandClick(command: String) = store.accept(ChatStore.Intent.BotCommandClick(command))
     override fun onShowBotCommands() = store.accept(ChatStore.Intent.ShowBotCommands)
     override fun onDismissBotCommands() = store.accept(ChatStore.Intent.DismissBotCommands)
@@ -1239,7 +1264,27 @@ class DefaultChatComponent(
     ): Boolean {
         previous ?: return true
         return previous.anchorMessageId != next.anchorMessageId ||
+                previous.anchorAliasIds != next.anchorAliasIds ||
                 previous.atBottom != next.atBottom ||
+                previous.readFully != next.readFully ||
+                previous.topEndMessageId != next.topEndMessageId ||
+                previous.returnToMessageIds != next.returnToMessageIds ||
+                previous.anchorChatId != next.anchorChatId ||
                 abs(previous.anchorOffsetPx - next.anchorOffsetPx) > VIEWPORT_OFFSET_DELTA_THRESHOLD_PX
+    }
+
+    private fun rememberReturnTargetBeforeJump(targetMessageId: Long) {
+        val currentViewport = _state.value.lastSavedViewport ?: return
+        val returnTarget = currentViewport.anchorMessageId
+            ?: currentViewport.anchorAliasIds.firstOrNull()
+            ?: return
+        if (returnTarget == targetMessageId) return
+
+        val updatedViewport = pushViewportReturnTarget(
+            viewport = currentViewport,
+            returnTargetMessageId = returnTarget,
+            maxSize = MAX_RETURN_TO_MESSAGE_IDS
+        ) ?: return
+        updateViewport(updatedViewport)
     }
 }

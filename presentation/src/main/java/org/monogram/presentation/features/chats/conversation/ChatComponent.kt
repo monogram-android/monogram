@@ -140,6 +140,10 @@ interface ChatComponent {
     fun onViewportSettled()
     fun onMessageViewportChanged(visibleMessageIds: Set<Long>, nearbyMessageIds: Set<Long>)
     fun onScrollToBottom()
+    fun onScrollToNextUnreadMention()
+    fun onClearUnreadMentions()
+    fun onScrollToNextUnreadReaction()
+    fun onClearUnreadReactions()
     fun onDownloadFile(fileId: Int, userInitiated: Boolean = false)
     fun onDownloadHighRes(messageId: Long)
     fun onCancelDownloadFile(fileId: Int)
@@ -301,6 +305,7 @@ interface ChatComponent {
         val editingMessage: MessageModel? = null,
         val checklistMessage: MessageModel? = null,
         val checklistDraft: ChecklistDraft? = null,
+        val pendingEditedMessageIds: Set<Long> = emptySet(),
         val editRequestTime: Long = 0L,
         val draftText: String = "",
         val draftLinkTargets: List<LinkPreviewTarget> = emptyList(),

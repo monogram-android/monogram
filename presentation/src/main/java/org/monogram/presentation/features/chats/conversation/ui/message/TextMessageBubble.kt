@@ -143,6 +143,7 @@ internal fun TextMessageBubble(
 
                 val footerRow: @Composable (Modifier) -> Unit = { footerModifier ->
                     MessageFooterRow(
+                        messageId = msg.id,
                         timeText = timeText,
                         color = timeColor,
                         isEdited = msg.editDate > 0,

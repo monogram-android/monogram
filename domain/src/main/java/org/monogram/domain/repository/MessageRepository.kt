@@ -104,8 +104,8 @@ interface MessageRepository :
         fromMessageId: Long,
         limit: Int
     ): List<MessageModel>
-    suspend fun openChat(chatId: Long)
-    suspend fun closeChat(chatId: Long)
+    suspend fun openChat(chatId: Long, ownerTag: String = "unknown")
+    suspend fun closeChat(chatId: Long, ownerTag: String = "unknown")
 
     suspend fun sendVideoNote(
         chatId: Long,
@@ -160,6 +160,7 @@ interface MessageRepository :
     ): List<MessageModel>
 
     suspend fun getMessagesAround(chatId: Long, messageId: Long, limit: Int, threadId: Long? = null): List<MessageModel>
+    suspend fun getChatMessageByDate(chatId: Long, dateEpochSeconds: Int): MessageModel?
 
     suspend fun getMessageThreadContext(chatId: Long, messageId: Long): MessageThreadContext?
 
@@ -192,6 +193,7 @@ interface MessageRepository :
         photoPath: String,
         caption: String = "",
         captionEntities: List<MessageEntity> = emptyList(),
+        showCaptionAboveMedia: Boolean = false,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()
@@ -202,6 +204,7 @@ interface MessageRepository :
         videoPath: String,
         caption: String = "",
         captionEntities: List<MessageEntity> = emptyList(),
+        showCaptionAboveMedia: Boolean = false,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()
@@ -246,6 +249,7 @@ interface MessageRepository :
         gifPath: String,
         caption: String = "",
         captionEntities: List<MessageEntity> = emptyList(),
+        showCaptionAboveMedia: Boolean = false,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()
@@ -305,6 +309,7 @@ interface MessageRepository :
         paths: List<String>,
         caption: String = "",
         captionEntities: List<MessageEntity> = emptyList(),
+        showCaptionAboveMedia: Boolean = false,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()

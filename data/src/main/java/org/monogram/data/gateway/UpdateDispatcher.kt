@@ -11,6 +11,9 @@ interface UpdateDispatcher {
 
     // Messages
     val newMessage: Flow<TdApi.UpdateNewMessage>
+    val activeNotifications: Flow<TdApi.UpdateActiveNotifications>
+    val notificationGroup: Flow<TdApi.UpdateNotificationGroup>
+    val notification: Flow<TdApi.UpdateNotification>
     val messageEdited: Flow<TdApi.UpdateMessageEdited>
     val messageContent: Flow<TdApi.UpdateMessageContent>
     val messageSendSucceeded: Flow<TdApi.UpdateMessageSendSucceeded>
@@ -43,6 +46,7 @@ interface UpdateDispatcher {
     val file: Flow<TdApi.UpdateFile>
 
     // Connection
+    val option: Flow<TdApi.UpdateOption>
     val connectionState: Flow<TdApi.UpdateConnectionState>
     val installedStickerSets: Flow<TdApi.UpdateInstalledStickerSets>
     val newChat: Flow<TdApi.UpdateNewChat>

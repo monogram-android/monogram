@@ -8,6 +8,7 @@ interface SettingsRemoteDataSource {
     suspend fun getActiveSessions(): TdApi.Sessions?
     suspend fun getInstalledBackgrounds(forDarkTheme: Boolean): TdApi.Backgrounds?
     suspend fun getStorageStatistics(chatLimit: Int): TdApi.StorageStatistics?
+    suspend fun getStorageStatisticsFast(): TdApi.StorageStatisticsFast?
     suspend fun getNetworkStatistics(): TdApi.NetworkStatistics?
     suspend fun getOption(name: String): TdApi.OptionValue?
     suspend fun getChatNotificationSettingsExceptions(
@@ -44,7 +45,7 @@ interface SettingsRemoteDataSource {
         chatIds: LongArray?,
         returnDeletedFileStatistics: Boolean,
         chatLimit: Int
-    ): Boolean
+    ): TdApi.StorageStatistics?
     suspend fun resetNetworkStatistics(): Boolean
 
     // Files

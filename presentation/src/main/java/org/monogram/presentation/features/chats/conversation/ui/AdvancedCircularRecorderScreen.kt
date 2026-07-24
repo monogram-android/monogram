@@ -293,7 +293,7 @@ fun NativeCircularCameraContent(
         } catch (e: Exception) { e.printStackTrace() }
 
         coroutineScope.launch(Dispatchers.IO) {
-            val finalFile = File(context.filesDir, "CIRCLE_FULL_${System.currentTimeMillis()}.mp4")
+            val finalFile = File(context.cacheDir, "CIRCLE_FULL_${System.currentTimeMillis()}.mp4")
             try {
                 val segmentsToProcess = ArrayList(recordedSegments)
                 val transcoder = CircularTranscoder(segmentsToProcess, sessionAudioFile, finalFile)

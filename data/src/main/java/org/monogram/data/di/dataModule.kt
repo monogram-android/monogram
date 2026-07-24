@@ -643,7 +643,10 @@ val dataModule = module {
             chatsRemote = get(),
             dispatchers = get(),
             storageMapper = get(),
-            stringProvider = get()
+            stringProvider = get(),
+            chatLocalDataSource = get(),
+            userLocalDataSource = get(),
+            stickerLocalDataSource = get()
         )
     }
 
@@ -946,6 +949,7 @@ val dataModule = module {
     single(createdAtStart = true) {
         TdNotificationManager(
             androidContext(),
+            get(),
             get(),
             get(),
             get(),

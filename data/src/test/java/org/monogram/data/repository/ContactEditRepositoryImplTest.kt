@@ -143,6 +143,7 @@ private class FakeUserRemoteDataSource(
 
     override suspend fun sharePhoneNumber(userId: Long) = Unit
     override suspend fun searchPublicChat(username: String): TdApi.Chat? = null
+    override suspend fun getSimilarChatIds(chatId: Long): LongArray = longArrayOf()
     override suspend fun getChatMember(chatId: Long, userId: Long): TdApi.ChatMember? = null
     override suspend fun getSupergroupMembers(
         supergroupId: Long,

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,7 @@ import org.monogram.presentation.R
 
 @Composable
 internal fun MessageFooterRow(
+    messageId: Long,
     timeText: String,
     color: Color,
     isEdited: Boolean,
@@ -31,6 +33,7 @@ internal fun MessageFooterRow(
     modifier: Modifier = Modifier,
     viewsText: String? = null
 ) {
+    val isEditPending = messageId in LocalPendingEditedMessageIds.current
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
@@ -51,7 +54,15 @@ internal fun MessageFooterRow(
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        if (isEdited) {
+        if (isEditPending) {
+            Icon(
+                imageVector = Icons.Default.Schedule,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = color
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        } else if (isEdited) {
             Icon(
                 imageVector = Icons.Default.Edit,
                 contentDescription = stringResource(R.string.info_edited),

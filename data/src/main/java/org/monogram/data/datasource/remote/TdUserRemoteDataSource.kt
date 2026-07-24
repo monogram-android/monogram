@@ -88,6 +88,10 @@ class TdUserRemoteDataSource(
     override suspend fun searchPublicChat(username: String): TdApi.Chat? =
         coRunCatching { gateway.execute(TdApi.SearchPublicChat(username)) }.getOrNull()
 
+    override suspend fun getSimilarChatIds(chatId: Long): LongArray =
+        coRunCatching { gateway.execute(TdApi.GetChatSimilarChats(chatId)).chatIds }
+            .getOrDefault(longArrayOf())
+
     override suspend fun getChatMember(chatId: Long, userId: Long): TdApi.ChatMember? {
         var requestedSupergroupId = 0L
         return coRunCatching {

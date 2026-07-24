@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.ChatInteractionType
+import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.ChatRevenueStatisticsModel
 import org.monogram.domain.models.ChatStatisticsModel
@@ -98,6 +99,7 @@ class DefaultProfileComponent(
     private var hasStartedProfilePhotoListPreload = false
     private val loadingTabs = mutableSetOf<ProfileTabKey>()
     private var profileStoriesJob: Job? = null
+    private var memberSearchJob: Job? = null
 
     init {
         loadData()
@@ -146,10 +148,36 @@ class DefaultProfileComponent(
                 val linkedChat = linkedChatId?.let {
                     coRunCatching { chatListRepository.getChatById(it) }.getOrNull()
                 }
+                val currentSimilarChats = _state.value.similarChats
                 val isGroupOrChannel = chat?.let { it.isGroup || it.isChannel } ?: (chatId < 0)
                 val preferredTabKey = fullInfo?.mainProfileTab.toProfileTabKeyOrNull()
-                val visibleTabs = buildProfileTabSpecs(
+                val resolvedMemberCount = (chat?.memberCount ?: 0).takeIf { it > 0 }
+                    ?: fullInfo?.memberCount
+                    ?: 0
+                val supportedTabs = buildProfileTabSpecs(
                     isGroupOrChannel = isGroupOrChannel,
+                    preferredTabKey = preferredTabKey,
+                    showMembers = shouldShowMembersTab(
+                        chat = chat,
+                        fullInfo = fullInfo,
+                        resolvedMemberCount = resolvedMemberCount
+                    ),
+                    showAdministrators = shouldShowAdminsTab(
+                        chat = chat,
+                        fullInfo = fullInfo
+                    ),
+                    showRestricted = shouldShowModerationTab(
+                        chat = chat,
+                        memberCount = fullInfo?.restrictedCount ?: 0
+                    ),
+                    showBanned = shouldShowModerationTab(
+                        chat = chat,
+                        memberCount = fullInfo?.bannedCount ?: 0
+                    ),
+                    showSimilarChats = currentSimilarChats.isNotEmpty()
+                )
+                val visibleTabs = buildInitialVisibleProfileTabSpecs(
+                    supportedTabs = supportedTabs,
                     preferredTabKey = preferredTabKey
                 )
                 val currentSelectedTabKey = _state.value.selectedTabKey
@@ -183,6 +211,8 @@ class DefaultProfileComponent(
                 refreshProfileStories()
 
                 ensureTabLoaded(selectedTabKey)
+                probeHiddenMediaTabs()
+                probeSimilarChatsTab()
 
                 preloadProfilePhotoList(
                     resolvedChatId = chat?.id ?: chatId,
@@ -385,13 +415,18 @@ class DefaultProfileComponent(
     private fun ensureTabLoaded(tabKey: ProfileTabKey) {
         when (tabKey) {
             ProfileTabKey.STORIES -> Unit
-            ProfileTabKey.MEMBERS -> {
-                if (!_state.value.membersTab.hasLoaded) {
-                    loadMembersNextPage()
+            ProfileTabKey.SIMILAR -> {
+                if (!_state.value.hasLoadedSimilarChats) {
+                    loadSimilarChats()
                 }
             }
-
             else -> {
+                if (tabKey.isMemberTab()) {
+                    if (!_state.value.memberTabState(tabKey).hasLoaded) {
+                        loadMembersNextPage(tabKey)
+                    }
+                    return
+                }
                 if (!_state.value.messageTabState(tabKey).hasLoaded) {
                     loadMessageTabNextPage(tabKey)
                 }
@@ -402,16 +437,27 @@ class DefaultProfileComponent(
     private fun loadNextPage(tabKey: ProfileTabKey) {
         when (tabKey) {
             ProfileTabKey.STORIES -> Unit
-            ProfileTabKey.MEMBERS -> loadMembersNextPage()
-            else -> loadMessageTabNextPage(tabKey)
+            ProfileTabKey.SIMILAR -> Unit
+            else -> if (tabKey.isMemberTab()) {
+                loadMembersNextPage(tabKey)
+            } else {
+                loadMessageTabNextPage(tabKey)
+            }
         }
     }
 
-    private fun loadMembersNextPage() {
-        val currentTab = _state.value.membersTab
-        if (!loadingTabs.add(ProfileTabKey.MEMBERS)) return
-        if (currentTab.isLoadingInitial || currentTab.isLoadingNext || (currentTab.hasLoaded && !currentTab.canLoadMore)) {
-            loadingTabs.remove(ProfileTabKey.MEMBERS)
+    private fun loadMembersNextPage(tabKey: ProfileTabKey) {
+        val filter = tabKey.toChatMembersFilterOrNull() ?: return
+        val currentTab = _state.value.memberTabState(tabKey)
+        if (!loadingTabs.add(tabKey)) return
+        if (
+            currentTab.isLoadingInitial ||
+            currentTab.isLoadingNext ||
+            currentTab.isSearchResultsVisible ||
+            currentTab.isSearching ||
+            (currentTab.hasLoaded && !currentTab.canLoadMore)
+        ) {
+            loadingTabs.remove(tabKey)
             return
         }
 
@@ -419,9 +465,11 @@ class DefaultProfileComponent(
             val isInitialLoad = !currentTab.hasLoaded
             _state.update {
                 it.copy(
-                    membersTab = it.membersTab.copy(
-                        isLoadingInitial = isInitialLoad,
-                        isLoadingNext = !isInitialLoad
+                    memberTabs = it.memberTabs + (
+                            tabKey to it.memberTabState(tabKey).copy(
+                                isLoadingInitial = isInitialLoad,
+                                isLoadingNext = !isInitialLoad
+                            )
                     )
                 )
             }
@@ -432,20 +480,22 @@ class DefaultProfileComponent(
                         chatId,
                         currentTab.nextOffset,
                         limit,
-                        ChatMembersFilter.Recent
+                        filter
                     )
                 val canLoadMore = newMembers.size >= limit
 
                 _state.update {
-                    val latestTab = it.membersTab
+                    val latestTab = it.memberTabState(tabKey)
                     val mergedMembers =
                         (latestTab.items + newMembers).distinctBy { member -> member.user.id }
                     it.copy(
-                        membersTab = latestTab.copy(
-                            items = mergedMembers,
-                            canLoadMore = canLoadMore,
-                            nextOffset = latestTab.nextOffset + newMembers.size,
-                            hasLoaded = true
+                        memberTabs = it.memberTabs + (
+                                tabKey to latestTab.copy(
+                                    items = mergedMembers,
+                                    canLoadMore = canLoadMore,
+                                    nextOffset = latestTab.nextOffset + newMembers.size,
+                                    hasLoaded = true
+                                )
                         )
                     )
                 }
@@ -454,12 +504,14 @@ class DefaultProfileComponent(
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
-                loadingTabs.remove(ProfileTabKey.MEMBERS)
+                loadingTabs.remove(tabKey)
                 _state.update {
                     it.copy(
-                        membersTab = it.membersTab.copy(
-                            isLoadingInitial = false,
-                            isLoadingNext = false
+                        memberTabs = it.memberTabs + (
+                                tabKey to it.memberTabState(tabKey).copy(
+                                    isLoadingInitial = false,
+                                    isLoadingNext = false
+                                )
                         )
                     )
                 }
@@ -509,6 +561,7 @@ class DefaultProfileComponent(
                             hasLoaded = true
                         )
                     }
+                    nextState = nextState.updateMediaTabVisibility(tabKey)
 
                     if (tabKey == ProfileTabKey.MEDIA && nextState.fullScreenImages != null && !nextState.isViewingProfilePhotos) {
                         nextState = refreshViewerMedia(nextState)
@@ -552,6 +605,145 @@ class DefaultProfileComponent(
         return copy(messageTabs = messageTabs + (key to transform(currentTab)))
     }
 
+    private fun ProfileComponent.State.updateMemberTab(
+        key: ProfileTabKey,
+        transform: (ProfileComponent.MembersTabState) -> ProfileComponent.MembersTabState
+    ): ProfileComponent.State {
+        val currentTab = memberTabState(key)
+        return copy(memberTabs = memberTabs + (key to transform(currentTab)))
+    }
+
+    private fun ProfileComponent.State.supportedTabSpecs(): List<ProfileTabSpec> {
+        val chat = chat
+        val fullInfo = fullInfo
+        val isGroupOrChannel = chat?.let { it.isGroup || it.isChannel } ?: (chatId < 0)
+        val resolvedMemberCount = (chat?.memberCount ?: 0).takeIf { it > 0 }
+            ?: fullInfo?.memberCount
+            ?: 0
+        return buildProfileTabSpecs(
+            isGroupOrChannel = isGroupOrChannel,
+            preferredTabKey = fullInfo?.mainProfileTab.toProfileTabKeyOrNull(),
+            showMembers = shouldShowMembersTab(
+                chat = chat,
+                fullInfo = fullInfo,
+                resolvedMemberCount = resolvedMemberCount
+            ),
+            showAdministrators = shouldShowAdminsTab(
+                chat = chat,
+                fullInfo = fullInfo
+            ),
+            showRestricted = shouldShowModerationTab(
+                chat = chat,
+                memberCount = fullInfo?.restrictedCount ?: 0
+            ),
+            showBanned = shouldShowModerationTab(
+                chat = chat,
+                memberCount = fullInfo?.bannedCount ?: 0
+            ),
+            showSimilarChats = similarChats.isNotEmpty()
+        )
+    }
+
+    private fun ProfileComponent.State.ensureVisibleTab(tabKey: ProfileTabKey): ProfileComponent.State {
+        if (visibleTabs.any { it.key == tabKey }) return this
+        val visibleKeys = visibleTabs.map(ProfileTabSpec::key).toMutableSet().apply {
+            add(tabKey)
+        }
+        return copy(visibleTabs = supportedTabSpecs().filter { it.key in visibleKeys })
+    }
+
+    private fun ProfileComponent.State.removeVisibleTab(tabKey: ProfileTabKey): ProfileComponent.State {
+        if (selectedTabKey == tabKey || visibleTabs.none { it.key == tabKey }) return this
+        val visibleKeys = visibleTabs
+            .map(ProfileTabSpec::key)
+            .filterNot { it == tabKey }
+            .toSet()
+        return copy(visibleTabs = supportedTabSpecs().filter { it.key in visibleKeys })
+    }
+
+    private fun ProfileComponent.State.updateMediaTabVisibility(tabKey: ProfileTabKey): ProfileComponent.State {
+        if (!tabKey.isMediaTab()) return this
+        val hasContent = messageTabState(tabKey).items.isNotEmpty()
+        if (hasContent) {
+            var nextState = ensureVisibleTab(tabKey)
+            val mediaTabState = nextState.messageTabState(ProfileTabKey.MEDIA)
+            if (
+                tabKey != ProfileTabKey.MEDIA &&
+                nextState.selectedTabKey != ProfileTabKey.MEDIA &&
+                nextState.visibleTabs.any { it.key == ProfileTabKey.MEDIA } &&
+                mediaTabState.hasLoaded &&
+                mediaTabState.items.isEmpty()
+            ) {
+                nextState = nextState.removeVisibleTab(ProfileTabKey.MEDIA)
+            }
+            return nextState
+        }
+        if (selectedTabKey == tabKey) {
+            return this
+        }
+        val visibleMediaCount = visibleTabs.count { it.key.isMediaTab() }
+        if (tabKey == ProfileTabKey.MEDIA && visibleMediaCount <= 1) {
+            return this
+        }
+        return removeVisibleTab(tabKey)
+    }
+
+    private fun probeHiddenMediaTabs() {
+        val snapshot = _state.value
+        val visibleKeys = snapshot.visibleTabs.map(ProfileTabSpec::key).toSet()
+        snapshot.supportedTabSpecs()
+            .asSequence()
+            .map(ProfileTabSpec::key)
+            .filter(ProfileTabKey::isMediaTab)
+            .filterNot { it in visibleKeys }
+            .forEach(::loadMessageTabNextPage)
+    }
+
+    private fun probeSimilarChatsTab() {
+        val snapshot = _state.value
+        val chat = snapshot.chat ?: return
+        if (!chat.isChannel) return
+        if (snapshot.hasLoadedSimilarChats || snapshot.isSimilarChatsLoading) return
+        loadSimilarChats()
+    }
+
+    private fun loadSimilarChats() {
+        if (!loadingTabs.add(ProfileTabKey.SIMILAR)) return
+        val snapshot = _state.value
+        if (snapshot.isSimilarChatsLoading || snapshot.hasLoadedSimilarChats) {
+            loadingTabs.remove(ProfileTabKey.SIMILAR)
+            return
+        }
+
+        scope.launch {
+            _state.update { it.copy(isSimilarChatsLoading = true) }
+            try {
+                val similarChats = chatInfoRepository.getSimilarChatIds(chatId)
+                    .mapNotNull { relatedChatId ->
+                        coRunCatching { chatListRepository.getChatById(relatedChatId) }.getOrNull()
+                    }
+                    .distinctBy(ChatModel::id)
+
+                _state.update { state ->
+                    var nextState = state.copy(
+                        similarChats = similarChats,
+                        isSimilarChatsLoading = false,
+                        hasLoadedSimilarChats = true
+                    )
+                    nextState = if (similarChats.isNotEmpty()) {
+                        nextState.ensureVisibleTab(ProfileTabKey.SIMILAR)
+                    } else {
+                        nextState.removeVisibleTab(ProfileTabKey.SIMILAR)
+                    }
+                    nextState
+                }
+            } finally {
+                loadingTabs.remove(ProfileTabKey.SIMILAR)
+                _state.update { it.copy(isSimilarChatsLoading = false) }
+            }
+        }
+    }
+
     override fun onTabSelected(tabKey: ProfileTabKey) {
         if (_state.value.selectedTabKey == tabKey) return
         if (_state.value.visibleTabs.none { it.key == tabKey }) return
@@ -559,6 +751,111 @@ class DefaultProfileComponent(
         _state.update { it.copy(selectedTabKey = tabKey) }
         ensureTabLoaded(tabKey)
     }
+
+    override fun onSearch() {
+        val tabKey = _state.value.selectedTabKey
+        if (!tabKey.isMemberTab()) return
+
+        val isActive = _state.value.memberTabState(tabKey).isSearchActive
+        if (isActive) {
+            onSearchDismissed()
+            return
+        }
+
+        _state.update {
+            it.updateMemberTab(tabKey) { tab ->
+                tab.copy(isSearchActive = true)
+            }
+        }
+    }
+
+    override fun onSearchQueryChanged(query: String) {
+        val tabKey = _state.value.selectedTabKey
+        if (!tabKey.isMemberTab()) return
+
+        memberSearchJob?.cancel()
+        _state.update {
+            it.updateMemberTab(tabKey) { tab ->
+                tab.copy(
+                    searchQuery = query,
+                    searchResults = if (query.isBlank()) emptyList() else tab.searchResults,
+                    isSearching = query.isNotBlank()
+                )
+            }
+        }
+
+        if (query.isBlank()) return
+
+        memberSearchJob = scope.launch {
+            delay(300)
+            try {
+                val results = chatInfoRepository.getChatMembers(
+                    chatId = chatId,
+                    offset = 0,
+                    limit = 50,
+                    filter = ChatMembersFilter.Search(query)
+                )
+                val filteredResults = filterMemberSearchResults(tabKey, results)
+                _state.update { state ->
+                    state.updateMemberTab(tabKey) { tab ->
+                        if (tab.searchQuery != query) {
+                            tab
+                        } else {
+                            tab.copy(
+                                searchResults = filteredResults,
+                                isSearching = false
+                            )
+                        }
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _state.update { state ->
+                    state.updateMemberTab(tabKey) { tab ->
+                        if (tab.searchQuery != query) {
+                            tab
+                        } else {
+                            tab.copy(isSearching = false)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onSearchDismissed() {
+        val tabKey = _state.value.selectedTabKey
+        if (!tabKey.isMemberTab()) return
+
+        memberSearchJob?.cancel()
+        _state.update {
+            it.updateMemberTab(tabKey) { tab ->
+                tab.copy(
+                    searchQuery = "",
+                    searchResults = emptyList(),
+                    isSearchActive = false,
+                    isSearching = false
+                )
+            }
+        }
+    }
+
+    private fun filterMemberSearchResults(
+        tabKey: ProfileTabKey,
+        members: List<org.monogram.domain.models.GroupMemberModel>
+    ): List<org.monogram.domain.models.GroupMemberModel> =
+        when (tabKey) {
+            ProfileTabKey.ADMINS -> members.filter {
+                it.status is ChatMemberStatus.Administrator || it.status is ChatMemberStatus.Creator
+            }
+
+            ProfileTabKey.RESTRICTED -> members.filter { it.status is ChatMemberStatus.Restricted }
+            ProfileTabKey.BANNED -> members.filter { it.status is ChatMemberStatus.Banned }
+            ProfileTabKey.MEMBERS -> members.filter { it.status is ChatMemberStatus.Member }
+            else -> members
+        }
 
     private fun observeUserUpdates() {
         userRepository.getUserFlow(chatId)
@@ -629,6 +926,11 @@ class DefaultProfileComponent(
     }
 
     override fun onBack() {
+        val selectedTabKey = _state.value.selectedTabKey
+        if (selectedTabKey.isMemberTab() && _state.value.memberTabState(selectedTabKey).isSearchActive) {
+            onSearchDismissed()
+            return
+        }
         onBackClicked()
     }
 
@@ -958,6 +1260,79 @@ class DefaultProfileComponent(
         }
     }
 
+    override fun onToggleJoinToSendMessages(enabled: Boolean) {
+        val previousChat = _state.value.chat ?: return
+        if (previousChat.joinToSendMessages == enabled) return
+
+        performProfileSettingChange(
+            optimisticUpdate = { state ->
+                state.copy(chat = state.chat?.copy(joinToSendMessages = enabled))
+            },
+            rollbackUpdate = { state ->
+                state.copy(chat = state.chat?.copy(joinToSendMessages = previousChat.joinToSendMessages))
+            }
+        ) {
+            chatSettingsRepository.setChatJoinToSendMessages(chatId, enabled)
+        }
+    }
+
+    override fun onToggleJoinByRequest(enabled: Boolean) {
+        val previousChat = _state.value.chat ?: return
+        if (!previousChat.isGroup || !previousChat.isSupergroup || previousChat.isChannel) return
+        if (previousChat.joinByRequest == enabled) return
+
+        performProfileSettingChange(
+            optimisticUpdate = { state ->
+                state.copy(chat = state.chat?.copy(joinByRequest = enabled))
+            },
+            rollbackUpdate = { state ->
+                state.copy(chat = state.chat?.copy(joinByRequest = previousChat.joinByRequest))
+            }
+        ) {
+            chatSettingsRepository.setChatJoinByRequest(chatId, enabled)
+        }
+    }
+
+    override fun onToggleHiddenMembers(enabled: Boolean) {
+        val previousFullInfo = _state.value.fullInfo ?: return
+        if (!previousFullInfo.canHideMembers || previousFullInfo.hasHiddenMembers == enabled) return
+
+        performProfileSettingChange(
+            optimisticUpdate = { state ->
+                state.copy(fullInfo = state.fullInfo?.copy(hasHiddenMembers = enabled))
+            },
+            rollbackUpdate = { state ->
+                state.copy(fullInfo = state.fullInfo?.copy(hasHiddenMembers = previousFullInfo.hasHiddenMembers))
+            }
+        ) {
+            chatSettingsRepository.setChatHasHiddenMembers(chatId, enabled)
+        }
+    }
+
+    override fun onToggleAggressiveAntiSpam(enabled: Boolean) {
+        val previousFullInfo = _state.value.fullInfo ?: return
+        if (!previousFullInfo.canToggleAggressiveAntiSpam ||
+            previousFullInfo.hasAggressiveAntiSpamEnabled == enabled
+        ) {
+            return
+        }
+
+        performProfileSettingChange(
+            optimisticUpdate = { state ->
+                state.copy(fullInfo = state.fullInfo?.copy(hasAggressiveAntiSpamEnabled = enabled))
+            },
+            rollbackUpdate = { state ->
+                state.copy(
+                    fullInfo = state.fullInfo?.copy(
+                        hasAggressiveAntiSpamEnabled = previousFullInfo.hasAggressiveAntiSpamEnabled
+                    )
+                )
+            }
+        ) {
+            chatSettingsRepository.setChatHasAggressiveAntiSpamEnabled(chatId, enabled)
+        }
+    }
+
     override fun onEdit() {
         onEditClicked()
     }
@@ -980,6 +1355,10 @@ class DefaultProfileComponent(
     }
 
     override fun onSendMessage() {
+        onSendMessageClicked(chatId)
+    }
+
+    override fun onRelatedChatClick(chatId: Long) {
         onSendMessageClicked(chatId)
     }
 
@@ -1138,10 +1517,12 @@ class DefaultProfileComponent(
     override fun onUpdateMemberStatus(userId: Long, status: ChatMemberStatus) {
         scope.launch {
             chatInfoRepository.setChatMemberStatus(chatId, userId, status)
-            _state.update { it.copy(membersTab = ProfileComponent.MembersTabState()) }
-            if (_state.value.visibleTabs.any { it.key == ProfileTabKey.MEMBERS }) {
-                ensureTabLoaded(ProfileTabKey.MEMBERS)
-            }
+            _state.update { it.copy(memberTabs = defaultMemberTabStates()) }
+            _state.value.visibleTabs
+                .asSequence()
+                .map(ProfileTabSpec::key)
+                .filter(ProfileTabKey::isMemberTab)
+                .forEach(::ensureTabLoaded)
         }
     }
 
@@ -1431,6 +1812,22 @@ class DefaultProfileComponent(
                     )
                 }
             }
+        }
+    }
+
+    private fun performProfileSettingChange(
+        optimisticUpdate: (ProfileComponent.State) -> ProfileComponent.State,
+        rollbackUpdate: (ProfileComponent.State) -> ProfileComponent.State,
+        block: suspend () -> Unit
+    ) {
+        _state.update(optimisticUpdate)
+        scope.launch {
+            runCatching { block() }
+                .onFailure { error ->
+                    _state.update(rollbackUpdate)
+                    messageDisplayer.show(error.message ?: "Action failed")
+                }
+            loadData()
         }
     }
 

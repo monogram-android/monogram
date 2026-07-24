@@ -67,6 +67,42 @@ internal data class ChatContentPreviewState(
     val messageSource: List<MessageModel>,
 )
 
+internal fun shouldEnableCustomBackHandling(
+    editingPhotoPath: String?,
+    editingVideoPath: String?,
+    selectedMessageId: Long?,
+    selectedMessageIds: Set<Long>,
+    currentTopicId: Long?,
+    showBotCommands: Boolean,
+    restrictUserId: Long?,
+    showPinnedMessagesList: Boolean,
+    fullScreenImages: List<String>?,
+    fullScreenVideoPath: String?,
+    fullScreenVideoMessageId: Long?,
+    miniAppUrl: String?,
+    webViewUrl: String?,
+    instantViewUrl: String?,
+    youtubeUrl: String?,
+    isSearchActive: Boolean
+): Boolean {
+    return editingPhotoPath != null ||
+            editingVideoPath != null ||
+            selectedMessageId != null ||
+            selectedMessageIds.isNotEmpty() ||
+            currentTopicId != null ||
+            showBotCommands ||
+            restrictUserId != null ||
+            showPinnedMessagesList ||
+            fullScreenImages != null ||
+            fullScreenVideoPath != null ||
+            fullScreenVideoMessageId != null ||
+            miniAppUrl != null ||
+            webViewUrl != null ||
+            instantViewUrl != null ||
+            youtubeUrl != null ||
+            isSearchActive
+}
+
 @Composable
 internal fun rememberChatContentPreviewState(
     state: ChatComponent.State,
@@ -564,22 +600,24 @@ internal fun rememberChatChromeState(
         state.isSearchActive
     ) {
         derivedStateOf {
-            editingPhotoPath != null ||
-                    editingVideoPath != null ||
-                    selectedMessageId != null ||
-                    state.selectedMessageIds.isNotEmpty() ||
-                    state.currentTopicId != null ||
-                    state.showBotCommands ||
-                    state.restrictUserId != null ||
-                    state.showPinnedMessagesList ||
-                    state.fullScreenImages != null ||
-                    state.fullScreenVideoPath != null ||
-                    state.fullScreenVideoMessageId != null ||
-                    state.miniAppUrl != null ||
-                    state.webViewUrl != null ||
-                    state.instantViewUrl != null ||
-                    state.youtubeUrl != null ||
-                    state.isSearchActive
+            shouldEnableCustomBackHandling(
+                editingPhotoPath = editingPhotoPath,
+                editingVideoPath = editingVideoPath,
+                selectedMessageId = selectedMessageId,
+                selectedMessageIds = state.selectedMessageIds,
+                currentTopicId = state.currentTopicId,
+                showBotCommands = state.showBotCommands,
+                restrictUserId = state.restrictUserId,
+                showPinnedMessagesList = state.showPinnedMessagesList,
+                fullScreenImages = state.fullScreenImages,
+                fullScreenVideoPath = state.fullScreenVideoPath,
+                fullScreenVideoMessageId = state.fullScreenVideoMessageId,
+                miniAppUrl = state.miniAppUrl,
+                webViewUrl = state.webViewUrl,
+                instantViewUrl = state.instantViewUrl,
+                youtubeUrl = state.youtubeUrl,
+                isSearchActive = state.isSearchActive
+            )
         }
     }
 

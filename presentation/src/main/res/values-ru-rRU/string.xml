@@ -160,6 +160,7 @@
     <string name="no_messages_yet">Сообщений пока нет</string>
     <string name="cd_pinned">Закреплено</string>
     <string name="cd_mentions">Упоминания</string>
+    <string name="cd_reactions">Реакции</string>
     <string name="archived_chats_subtitle">Скрыто из основного списка</string>
     <string name="no_chats_yet">Чатов пока нет</string>
     <string name="start_new_conversation">Начните новую беседу</string>
@@ -253,6 +254,13 @@
     <string name="profile_restriction_title">Ограничения</string>
     <string name="profile_chat_tools">Инструменты чата</string>
     <string name="profile_chat_anti_spam">Агрессивный антиспам</string>
+    <string name="profile_chat_anti_spam_subtitle">Автоматически фильтрует подозрительные вступления и спам-активность</string>
+    <string name="profile_chat_hidden_members">Скрытые участники</string>
+    <string name="profile_chat_hidden_members_subtitle">Скрывает список участников от обычных участников чата</string>
+    <string name="profile_chat_join_by_request">Вступление по заявке</string>
+    <string name="profile_chat_join_by_request_subtitle">Новые участники смогут вступать только после одобрения администратора</string>
+    <string name="profile_chat_join_requests">Заявки на вступление</string>
+    <string name="profile_common_groups">Общие группы</string>
     <string name="profile_chat_sponsored_messages">Sponsoring-сообщения включены</string>
     <string name="profile_chat_direct_messages">Личные сообщения привязаны</string>
     <string name="profile_chat_boosts_format">%1$d бустов от вас</string>
@@ -857,6 +865,16 @@
     <string name="auto_clear_cache_title">Хранить медиа</string>
     <string name="storage_optimizer_title">Оптимизатор хранилища</string>
     <string name="storage_optimizer_subtitle">Фоновая очистка памяти</string>
+    <string name="storage_breakdown_header">Разбивка хранилища</string>
+    <string name="storage_breakdown_tdlib_media">Медиакэш TDLib</string>
+    <string name="storage_breakdown_tdlib_database">База данных TDLib</string>
+    <string name="storage_breakdown_tdlib_logs">Логи TDLib</string>
+    <string name="storage_breakdown_language_pack">База данных языковых пакетов</string>
+    <string name="storage_breakdown_app_temp">Временный кэш приложения</string>
+    <string name="storage_cleanup_result_freed">Освобождено %1$s</string>
+    <string name="storage_cleanup_result_partial">Освобождено %1$s, но очистку TDLib не удалось полностью подтвердить.</string>
+    <string name="storage_cleanup_result_empty">Кэшированные файлы не были удалены.</string>
+    <string name="storage_cleanup_result_failed">Не удалось подтвердить очистку кэша.</string>
     <string name="detailed_usage_header">Подробности</string>
     <string name="storage_clean_title">Память свободна</string>
     <string name="storage_clean_description">Кэшированные файлы не найдены.</string>
@@ -1359,12 +1377,17 @@
     <string name="tab_media">Медиа</string>
     <string name="tab_stories">Истории</string>
     <string name="tab_members">Участники</string>
+    <string name="tab_admins">Админы</string>
+    <string name="tab_restricted">Ограниченные</string>
+    <string name="tab_banned">Забаненные</string>
+    <string name="tab_similar">Похожие</string>
     <string name="tab_files">Файлы</string>
     <string name="tab_music">Музыка</string>
     <string name="tab_voice">Голос</string>
     <string name="tab_links">Ссылки</string>
     <string name="tab_gifs">GIF</string>
     <string name="empty_members">Участники не найдены</string>
+    <string name="empty_similar_chats">Похожие чаты не найдены</string>
     <string name="empty_media">Медиа не найдены</string>
     <string name="empty_stories">Истории не найдены</string>
     <string name="empty_music">Аудиозаписи не найдены</string>
@@ -2353,6 +2376,18 @@
     <plurals name="service_message_seconds">
         <item quantity="one">%1$d секунда</item>
         <item quantity="other">%1$d секунд</item>
+    </plurals>
+    <plurals name="profile_chat_join_requests_count">
+        <item quantity="one">Ожидает одобрения %1$d заявка</item>
+        <item quantity="few">Ожидают одобрения %1$d заявки</item>
+        <item quantity="many">Ожидают одобрения %1$d заявок</item>
+        <item quantity="other">Ожидают одобрения %1$d заявки</item>
+    </plurals>
+    <plurals name="profile_common_groups_count">
+        <item quantity="one">%1$d общая группа</item>
+        <item quantity="few">%1$d общие группы</item>
+        <item quantity="many">%1$d общих групп</item>
+        <item quantity="other">%1$d общие группы</item>
     </plurals>
     <string name="chat_date_today">Сегодня</string>
     <string name="search_results_show_all">Показать все</string>

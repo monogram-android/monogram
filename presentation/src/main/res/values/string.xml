@@ -177,6 +177,7 @@
     <string name="no_messages_yet">No messages yet</string>
     <string name="cd_pinned">Pinned</string>
     <string name="cd_mentions">Mentions</string>
+    <string name="cd_reactions">Reactions</string>
     <string name="archived_chats_subtitle">Hidden from the main list</string>
     <string name="no_chats_yet">No chats yet</string>
     <string name="start_new_conversation">Start a new conversation</string>
@@ -282,6 +283,13 @@
     <string name="profile_restriction_title">Restrictions</string>
     <string name="profile_chat_tools">Chat tools</string>
     <string name="profile_chat_anti_spam">Aggressive anti-spam</string>
+    <string name="profile_chat_anti_spam_subtitle">Automatically filter suspicious joins and spam activity</string>
+    <string name="profile_chat_hidden_members">Hidden members</string>
+    <string name="profile_chat_hidden_members_subtitle">Hide the member list from regular participants</string>
+    <string name="profile_chat_join_by_request">Join by request</string>
+    <string name="profile_chat_join_by_request_subtitle">Require admins to approve new members before they can join</string>
+    <string name="profile_chat_join_requests">Join requests</string>
+    <string name="profile_common_groups">Groups in common</string>
     <string name="profile_chat_sponsored_messages">Sponsored messages enabled</string>
     <string name="profile_chat_direct_messages">Direct messages linked</string>
     <string name="profile_chat_boosts_format">%1$d boosts from you</string>
@@ -504,6 +512,14 @@
     <plurals name="service_message_seconds">
         <item quantity="one">%1$d second</item>
         <item quantity="other">%1$d seconds</item>
+    </plurals>
+    <plurals name="profile_chat_join_requests_count">
+        <item quantity="one">%1$d pending approval</item>
+        <item quantity="other">%1$d pending approvals</item>
+    </plurals>
+    <plurals name="profile_common_groups_count">
+        <item quantity="one">%1$d shared group</item>
+        <item quantity="other">%1$d shared groups</item>
     </plurals>
     <string name="menu_save_to_downloads">Save to Downloads</string>
     <string name="menu_cocoon">Cocoon</string>
@@ -1293,6 +1309,16 @@
     <string name="auto_clear_cache_title">Auto-Clear Cache</string>
     <string name="storage_optimizer_title">Storage Optimizer</string>
     <string name="storage_optimizer_subtitle">Background storage optimization</string>
+    <string name="storage_breakdown_header">Storage Breakdown</string>
+    <string name="storage_breakdown_tdlib_media">TDLib media cache</string>
+    <string name="storage_breakdown_tdlib_database">TDLib database</string>
+    <string name="storage_breakdown_tdlib_logs">TDLib logs</string>
+    <string name="storage_breakdown_language_pack">Language pack database</string>
+    <string name="storage_breakdown_app_temp">App temporary cache</string>
+    <string name="storage_cleanup_result_freed">Freed %1$s</string>
+    <string name="storage_cleanup_result_partial">Freed %1$s, but TDLib cleanup couldn\'t be fully confirmed.</string>
+    <string name="storage_cleanup_result_empty">No cached files were removed.</string>
+    <string name="storage_cleanup_result_failed">Cache cleanup couldn\'t be confirmed.</string>
     <string name="detailed_usage_header">Detailed Usage</string>
     <string name="storage_clean_title">Storage is Clean</string>
     <string name="storage_clean_description">No cached files found.</string>
@@ -1989,12 +2015,17 @@
     <string name="tab_media">Media</string>
     <string name="tab_stories">Stories</string>
     <string name="tab_members">Members</string>
+    <string name="tab_admins">Admins</string>
+    <string name="tab_restricted">Restricted</string>
+    <string name="tab_banned">Banned</string>
+    <string name="tab_similar">Similar</string>
     <string name="tab_files">Files</string>
     <string name="tab_music">Audio</string>
     <string name="tab_voice">Voice</string>
     <string name="tab_links">Links</string>
     <string name="tab_gifs">GIFs</string>
     <string name="empty_members">No members found</string>
+    <string name="empty_similar_chats">No similar chats found</string>
     <string name="empty_media">No media found</string>
     <string name="empty_stories">No stories found</string>
     <string name="empty_music">No audio found</string>

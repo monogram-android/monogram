@@ -6,7 +6,25 @@ import org.monogram.data.mapper.isChannelType
 import org.monogram.data.mapper.isGroupType
 import org.monogram.data.mapper.isValidFilePath
 import org.monogram.data.mapper.toDomainChatType
-import org.monogram.domain.models.*
+import org.monogram.domain.models.AffiliateProgramInfoModel
+import org.monogram.domain.models.BirthdateModel
+import org.monogram.domain.models.BotCommandModel
+import org.monogram.domain.models.BotInfoModel
+import org.monogram.domain.models.BotMenuButtonModel
+import org.monogram.domain.models.BotVerificationModel
+import org.monogram.domain.models.BotVerificationParametersModel
+import org.monogram.domain.models.BusinessInfoModel
+import org.monogram.domain.models.BusinessLocationModel
+import org.monogram.domain.models.BusinessOpeningHoursIntervalModel
+import org.monogram.domain.models.BusinessOpeningHoursModel
+import org.monogram.domain.models.BusinessStartPageModel
+import org.monogram.domain.models.ChatAdministratorRightsModel
+import org.monogram.domain.models.ChatFullInfoModel
+import org.monogram.domain.models.ChatModel
+import org.monogram.domain.models.ProfileAudioModel
+import org.monogram.domain.models.ProfileTabType
+import org.monogram.domain.models.SupergroupBotCommandsModel
+import org.monogram.domain.models.UserRatingModel
 
 fun TdApi.UserFullInfo.mapUserFullInfoToChat(): ChatFullInfoModel {
     val birthdate = birthdate?.let { date ->
@@ -114,7 +132,8 @@ fun TdApi.Chat.toDomain(): ChatModel {
         isChannel = isChannel,
         isGroup = type.isGroupType(),
         type = type.toDomainChatType(),
-        lastMessageText = (lastMessage?.content as? TdApi.MessageText)?.text?.text ?: ""
+        lastMessageText = (lastMessage?.content as? TdApi.MessageText)?.text?.text ?: "",
+        pendingJoinRequestCount = pendingJoinRequests?.totalCount ?: 0
     )
 }
 

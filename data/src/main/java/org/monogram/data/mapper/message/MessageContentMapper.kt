@@ -148,6 +148,7 @@ internal class MessageContentMapper(
                         messageId = context.messageId,
                         networkAutoDownload = context.networkAutoDownload
                     ),
+                    showCaptionAboveMedia = content.showCaptionAboveMedia,
                     isUploading = context.isActuallyUploading && (photoFile?.remote?.isUploadingActive ?: false),
                     uploadProgress = photoFile?.let(fileHelper::computeUploadProgress) ?: 0f,
                     isDownloading = isDownloading || isQueued,
@@ -209,6 +210,7 @@ internal class MessageContentMapper(
                         messageId = context.messageId,
                         networkAutoDownload = context.networkAutoDownload
                     ),
+                    showCaptionAboveMedia = content.showCaptionAboveMedia,
                     isUploading = context.isActuallyUploading && videoFile.remote.isUploadingActive,
                     uploadProgress = fileHelper.computeUploadProgress(videoFile),
                     isDownloading = isDownloading || isQueued,
@@ -393,6 +395,7 @@ internal class MessageContentMapper(
                         messageId = context.messageId,
                         networkAutoDownload = context.networkAutoDownload
                     ),
+                    showCaptionAboveMedia = content.showCaptionAboveMedia,
                     isUploading = context.isActuallyUploading && animationFile.remote.isUploadingActive,
                     uploadProgress = fileHelper.computeUploadProgress(animationFile),
                     isDownloading = isDownloading || isQueued,

@@ -221,7 +221,11 @@ internal class MessagePersistenceMapper(
                 CachedMessageContent(
                     "photo",
                     content.caption.text,
-                    encodeMeta(best?.width ?: 0, best?.height ?: 0),
+                    encodeMeta(
+                        best?.width ?: 0,
+                        best?.height ?: 0,
+                        if (content.showCaptionAboveMedia) 1 else 0
+                    ),
                     fileId = 0,
                     path = null,
                     thumbnailPath = null,
@@ -237,7 +241,8 @@ internal class MessagePersistenceMapper(
                         content.video.width,
                         content.video.height,
                         content.video.duration,
-                        if (content.video.supportsStreaming) 1 else 0
+                        if (content.video.supportsStreaming) 1 else 0,
+                        if (content.showCaptionAboveMedia) 1 else 0
                     ),
                     fileId = 0,
                     path = null,
@@ -314,7 +319,8 @@ internal class MessagePersistenceMapper(
                 encodeMeta(
                     content.animation.width,
                     content.animation.height,
-                    content.animation.duration
+                    content.animation.duration,
+                    if (content.showCaptionAboveMedia) 1 else 0
                 ),
                 fileId = 0,
                 path = null
@@ -525,6 +531,7 @@ internal class MessagePersistenceMapper(
                     height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
                     caption = entity.content,
                     entities = decodeEntities(entity.entities),
+                    showCaptionAboveMedia = (meta.getOrNull(2)?.toIntOrNull() ?: 0) == 1,
                     fileId = fileId,
                     originalFileId = originalFileId,
                     minithumbnail = entity.minithumbnail
@@ -543,6 +550,7 @@ internal class MessagePersistenceMapper(
                     duration = meta.getOrNull(2)?.toIntOrNull() ?: 0,
                     caption = entity.content,
                     entities = decodeEntities(entity.entities),
+                    showCaptionAboveMedia = (meta.getOrNull(4)?.toIntOrNull() ?: 0) == 1,
                     fileId = fileId,
                     supportsStreaming = supportsStreaming,
                     minithumbnail = entity.minithumbnail
@@ -625,6 +633,7 @@ internal class MessagePersistenceMapper(
                     height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
                     caption = entity.content,
                     entities = decodeEntities(entity.entities),
+                    showCaptionAboveMedia = (meta.getOrNull(3)?.toIntOrNull() ?: 0) == 1,
                     fileId = fileId
                 )
             }

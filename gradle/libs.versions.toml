@@ -1,6 +1,6 @@
 [versions]
 # Plugins
-agp = "9.3.0-rc01"
+agp = "9.3.0"
 exifinterface = "1.4.2"
 kotlin = "2.3.21"
 google-services = "4.5.0"

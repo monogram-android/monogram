@@ -330,6 +330,18 @@ private fun DefaultChatComponent.startSearch(
     toEpochSeconds: Int? = _state.value.searchDateToEpochSeconds,
     withDebounce: Boolean
 ) {
+    val jumpRequest = resolveSearchDateJumpRequest(
+        query = query.trim(),
+        senderId = sender?.id,
+        fromEpochSeconds = fromEpochSeconds,
+        toEpochSeconds = toEpochSeconds,
+        isThreadScoped = activeThreadId() != null
+    )
+    if (jumpRequest != null) {
+        jumpToDate(jumpRequest)
+        return
+    }
+
     val targetChatId = activeThreadChatId()
     val targetThreadId = activeThreadId()
     searchJob = scope.launch {
@@ -415,6 +427,79 @@ private fun DefaultChatComponent.startSearch(
             _state.update {
                 if (it.searchQuery == query && it.searchSender?.id == sender?.id) {
                     it.copy(isSearchingMessages = false)
+                } else {
+                    it
+                }
+            }
+        }
+    }
+}
+
+private fun DefaultChatComponent.jumpToDate(request: SearchDateJumpRequest) {
+    val targetChatId = activeThreadChatId()
+    searchJob = scope.launch {
+        try {
+            _state.update {
+                it.copy(
+                    isSearchingMessages = true,
+                    searchResults = emptyList(),
+                    searchResultsTotalCount = 0,
+                    selectedSearchResultIndex = -1,
+                    searchNextFromMessageId = 0L
+                )
+            }
+
+            val message = repositoryMessage.getChatMessageByDate(
+                chatId = targetChatId,
+                dateEpochSeconds = request.targetEpochSeconds
+            )
+            val stillRelevant = _state.value.isSearchActive &&
+                    _state.value.searchQuery.trim().isEmpty() &&
+                    _state.value.searchSender == null &&
+                    _state.value.searchDateFromEpochSeconds == request.fromEpochSeconds &&
+                    _state.value.searchDateToEpochSeconds == request.toEpochSeconds &&
+                    activeThreadChatId() == targetChatId &&
+                    activeThreadId() == null
+            if (!stillRelevant) return@launch
+
+            val resolvedResults = if (message != null &&
+                message.date in request.fromEpochSeconds..request.toEpochSeconds
+            ) {
+                listOf(message)
+            } else {
+                emptyList()
+            }
+
+            _state.update {
+                it.copy(
+                    isSearchingMessages = false,
+                    searchResults = resolvedResults,
+                    searchResultsTotalCount = resolvedResults.size,
+                    selectedSearchResultIndex = if (resolvedResults.isNotEmpty()) 0 else -1,
+                    searchNextFromMessageId = 0L
+                )
+            }
+
+            if (resolvedResults.isNotEmpty()) {
+                scrollToSearchResult(0, resolvedResults)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            _state.update {
+                if (
+                    it.searchQuery.isBlank() &&
+                    it.searchSender == null &&
+                    it.searchDateFromEpochSeconds == request.fromEpochSeconds &&
+                    it.searchDateToEpochSeconds == request.toEpochSeconds
+                ) {
+                    it.copy(
+                        isSearchingMessages = false,
+                        searchResults = emptyList(),
+                        searchResultsTotalCount = 0,
+                        selectedSearchResultIndex = -1,
+                        searchNextFromMessageId = 0L
+                    )
                 } else {
                     it
                 }

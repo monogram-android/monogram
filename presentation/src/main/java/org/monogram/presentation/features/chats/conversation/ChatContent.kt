@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -39,11 +40,14 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.window.core.layout.WindowWidthSizeClass
 import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
@@ -66,6 +70,7 @@ import org.monogram.presentation.features.chats.conversation.ui.content.remember
 import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.chats.conversation.ui.message.LocalLinkHandler
 import org.monogram.presentation.features.chats.conversation.ui.message.LocalMessageRenderDependencies
+import org.monogram.presentation.features.chats.conversation.ui.message.LocalPendingEditedMessageIds
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewImageViewerRequest
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewVideoViewerRequest
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberChatMessageRenderDependencies
@@ -308,6 +313,26 @@ fun ChatContent(
         }
     }
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val latestState by rememberUpdatedState(state)
+    DisposableEffect(lifecycleOwner, conversationKey, renderMode) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP &&
+                renderMode == ChatRenderMode.Active &&
+                latestState.highlightRequest != null
+            ) {
+                component.onHighlightConsumed()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (renderMode == ChatRenderMode.Active && latestState.highlightRequest != null) {
+                component.onHighlightConsumed()
+            }
+        }
+    }
+
     LaunchedEffect(renderMode, state.viewportPhase, conversationKey) {
         val previousVisible = isVisible
         isVisible = updateChatContentVisibilityLatch(
@@ -375,6 +400,10 @@ fun ChatContent(
             component.onDismissPinnedMessages()
         }
     }
+    val showUnreadShortcutButtons =
+        !state.viewAsTopics &&
+                state.currentTopicId == null &&
+                state.rootMessage == null
     val bottomContentPadding =
         if (state.rootMessage != null && (chromeState.showInputBar || chromeState.showJoinButton)) {
             120.dp
@@ -385,6 +414,7 @@ fun ChatContent(
     CompositionLocalProvider(
         LocalLinkHandler provides { component.onLinkClick(it) },
         LocalMessageRenderDependencies provides messageRenderDependencies,
+        LocalPendingEditedMessageIds provides state.pendingEditedMessageIds,
         LocalVoicePlaybackController provides voicePlaybackController
     ) {
         val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
@@ -518,6 +548,10 @@ fun ChatContent(
                             isVisible = isVisible,
                             showInitialLoading = showInitialLoading,
                             showScrollToBottomButton = showScrollToBottomButton,
+                            showUnreadShortcutButtons = showUnreadShortcutButtons,
+                            unreadMentionCount = state.unreadMentionCount,
+                            unreadReactionCount = state.unreadReactionCount,
+                            showReactions = state.showReactions,
                             isRecordingVideo = isRecordingVideo,
                             isAnyViewerOpen = isAnyViewerOpen,
                             showAllSearchResults = showAllSearchResults,
@@ -648,6 +682,7 @@ fun ChatContent(
                     else if (state.webViewUrl != null) component.onDismissWebView()
                     else if (state.isSearchActive) component.onSearchToggle()
                     else if (state.currentTopicId != null) component.onTopicClick(0)
+                    else component.onBackClicked()
                 }
             )
         }

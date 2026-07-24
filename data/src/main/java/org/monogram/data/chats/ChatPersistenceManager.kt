@@ -24,7 +24,6 @@ class ChatPersistenceManager(
 ) {
     private val lastSavedEntities = ConcurrentHashMap<Long, ChatEntity>()
     private val pendingSaveJobs = ConcurrentHashMap<Long, Job>()
-    private val mainChatList = TdApi.ChatListMain()
 
     fun rememberSavedEntity(entity: ChatEntity) {
         lastSavedEntities[entity.id] = entity
@@ -38,7 +37,7 @@ class ChatPersistenceManager(
             try {
                 delay(SINGLE_CHAT_SAVE_DEBOUNCE_MS)
                 val activeChatList = activeChatListProvider()
-                val position = resolvePersistPosition(chat, activeChatList)
+                val position = resolvePersistPosition(chat, activeChatList, listManager)
                 val model = modelFactory.mapChatToModel(
                     chat = chat,
                     order = position?.order ?: 0L,
@@ -149,7 +148,7 @@ class ChatPersistenceManager(
             return chatMapper.mapToEntity(model)
         }
 
-        val persistPosition = resolvePersistPosition(chat, activeChatList)
+        val persistPosition = resolvePersistPosition(chat, activeChatList, listManager)
         val mapped = chatMapper.mapToEntity(chat, model)
         return if (persistPosition != null &&
             (persistPosition.order != mapped.order || persistPosition.isPinned != mapped.isPinned)
@@ -158,16 +157,6 @@ class ChatPersistenceManager(
         } else {
             mapped
         }
-    }
-
-    private fun resolvePersistPosition(chat: TdApi.Chat, activeChatList: TdApi.ChatList): TdApi.ChatPosition? {
-        return chat.positions.find { pos ->
-            pos.order != 0L && listManager.isSameChatList(pos.list, mainChatList)
-        }
-            ?: chat.positions.find { pos ->
-                pos.order != 0L && listManager.isSameChatList(pos.list, activeChatList)
-            }
-            ?: chat.positions.firstOrNull { it.order != 0L }
     }
 
     private fun isEntityChanged(old: ChatEntity, new: ChatEntity): Boolean {
@@ -181,4 +170,18 @@ class ChatPersistenceManager(
         private const val SINGLE_CHAT_SAVE_DEBOUNCE_MS = 2000L
         private const val SNAPSHOT_PERSIST_LIMIT = 1000
     }
+}
+
+internal fun resolvePersistPosition(
+    chat: TdApi.Chat,
+    activeChatList: TdApi.ChatList,
+    listManager: ChatListManager
+): TdApi.ChatPosition? {
+    return chat.positions.find { pos ->
+        pos.order != 0L && listManager.isSameChatList(pos.list, activeChatList)
+    }
+        ?: chat.positions.find { pos ->
+            pos.order != 0L && listManager.isSameChatList(pos.list, TdApi.ChatListMain())
+        }
+        ?: chat.positions.firstOrNull { it.order != 0L }
 }

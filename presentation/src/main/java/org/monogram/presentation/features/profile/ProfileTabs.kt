@@ -1,7 +1,10 @@
 package org.monogram.presentation.features.profile
 
 import androidx.annotation.StringRes
+import org.monogram.domain.models.ChatFullInfoModel
+import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ProfileTabType
+import org.monogram.domain.repository.ChatMembersFilter
 import org.monogram.domain.repository.ProfileMediaFilter
 import org.monogram.presentation.R
 
@@ -9,6 +12,10 @@ enum class ProfileTabKey {
     STORIES,
     MEDIA,
     MEMBERS,
+    ADMINS,
+    RESTRICTED,
+    BANNED,
+    SIMILAR,
     FILES,
     MUSIC,
     VOICE,
@@ -20,7 +27,8 @@ enum class ProfileTabContentType {
     STORIES_LIST,
     MEDIA_GRID,
     MESSAGE_LIST,
-    MEMBERS_LIST
+    MEMBERS_LIST,
+    CHAT_LIST
 }
 
 data class ProfileTabSpec(
@@ -34,29 +42,60 @@ data class ProfileTabSpec(
 
 fun buildProfileTabSpecs(
     isGroupOrChannel: Boolean,
-    preferredTabKey: ProfileTabKey?
+    preferredTabKey: ProfileTabKey?,
+    showMembers: Boolean = isGroupOrChannel,
+    showAdministrators: Boolean = false,
+    showRestricted: Boolean = false,
+    showBanned: Boolean = false,
+    showSimilarChats: Boolean = false,
+    showMedia: Boolean = true,
+    showFiles: Boolean = true,
+    showMusic: Boolean = true,
+    showVoice: Boolean = true,
+    showLinks: Boolean = true,
+    showGifs: Boolean = true
 ): List<ProfileTabSpec> {
-    val supportedKeys = if (isGroupOrChannel) {
-        listOf(
-            ProfileTabKey.STORIES,
-            ProfileTabKey.MEDIA,
-            ProfileTabKey.MEMBERS,
-            ProfileTabKey.FILES,
-            ProfileTabKey.MUSIC,
-            ProfileTabKey.VOICE,
-            ProfileTabKey.LINKS,
-            ProfileTabKey.GIFS
-        )
-    } else {
-        listOf(
-            ProfileTabKey.STORIES,
-            ProfileTabKey.MEDIA,
-            ProfileTabKey.FILES,
-            ProfileTabKey.MUSIC,
-            ProfileTabKey.VOICE,
-            ProfileTabKey.LINKS,
-            ProfileTabKey.GIFS
-        )
+    val supportedKeys = buildList {
+        add(ProfileTabKey.STORIES)
+        if (showMedia) {
+            add(ProfileTabKey.MEDIA)
+        }
+        if (showMembers) {
+            add(ProfileTabKey.MEMBERS)
+        }
+        if (showAdministrators) {
+            add(ProfileTabKey.ADMINS)
+        }
+        if (showRestricted) {
+            add(ProfileTabKey.RESTRICTED)
+        }
+        if (showBanned) {
+            add(ProfileTabKey.BANNED)
+        }
+        if (showSimilarChats) {
+            add(ProfileTabKey.SIMILAR)
+        }
+        if (showFiles) {
+            add(ProfileTabKey.FILES)
+        }
+        if (showMusic) {
+            add(ProfileTabKey.MUSIC)
+        }
+        if (showVoice) {
+            add(ProfileTabKey.VOICE)
+        }
+        if (showLinks) {
+            add(ProfileTabKey.LINKS)
+        }
+        if (showGifs) {
+            add(ProfileTabKey.GIFS)
+        }
+    }.let { keys ->
+        if (isGroupOrChannel) {
+            keys
+        } else {
+            keys.filterNot(ProfileTabKey::isMemberTab)
+        }
     }
 
     val initialKey = preferredTabKey?.takeIf { it in supportedKeys } ?: ProfileTabKey.STORIES
@@ -71,6 +110,67 @@ fun buildProfileTabSpecs(
     }
 }
 
+fun buildInitialVisibleProfileTabSpecs(
+    supportedTabs: List<ProfileTabSpec>,
+    preferredTabKey: ProfileTabKey?
+): List<ProfileTabSpec> {
+    val visibleKeys = buildSet {
+        add(ProfileTabKey.STORIES)
+        if (supportedTabs.any { it.key == ProfileTabKey.MEDIA }) {
+            add(ProfileTabKey.MEDIA)
+        }
+        supportedTabs
+            .map(ProfileTabSpec::key)
+            .filter(ProfileTabKey::isMemberTab)
+            .forEach(::add)
+        if (supportedTabs.any { it.key == ProfileTabKey.SIMILAR }) {
+            add(ProfileTabKey.SIMILAR)
+        }
+        preferredTabKey
+            ?.takeIf { preferred -> supportedTabs.any { it.key == preferred } }
+            ?.let(::add)
+    }
+
+    return supportedTabs.filter { it.key in visibleKeys }
+}
+
+fun shouldShowMembersTab(
+    chat: ChatModel?,
+    fullInfo: ChatFullInfoModel?,
+    resolvedMemberCount: Int
+): Boolean {
+    val chatModel = chat ?: return false
+    if (!chatModel.isGroup && !chatModel.isChannel) return false
+
+    val hasMemberData = fullInfo?.canGetMembers == true || resolvedMemberCount > 0
+    if (!hasMemberData) return false
+
+    return when {
+        chatModel.isChannel -> chatModel.isAdmin
+        chatModel.isGroup -> fullInfo?.hasHiddenMembers != true || chatModel.isAdmin
+        else -> false
+    }
+}
+
+fun shouldShowAdminsTab(
+    chat: ChatModel?,
+    fullInfo: ChatFullInfoModel?
+): Boolean {
+    val chatModel = chat ?: return false
+    if (!chatModel.isGroup && !chatModel.isChannel) return false
+    return chatModel.isAdmin || (fullInfo?.administratorCount ?: 0) > 0
+}
+
+fun shouldShowModerationTab(
+    chat: ChatModel?,
+    memberCount: Int
+): Boolean {
+    val chatModel = chat ?: return false
+    if (!chatModel.isGroup && !chatModel.isChannel) return false
+    if (!chatModel.isAdmin) return false
+    return memberCount > 0
+}
+
 fun ProfileTabType?.toProfileTabKeyOrNull(): ProfileTabKey? =
     when (this) {
         ProfileTabType.MEDIA -> ProfileTabKey.MEDIA
@@ -79,6 +179,37 @@ fun ProfileTabType?.toProfileTabKeyOrNull(): ProfileTabKey? =
         ProfileTabType.VOICE -> ProfileTabKey.VOICE
         ProfileTabType.LINKS -> ProfileTabKey.LINKS
         ProfileTabType.GIFS -> ProfileTabKey.GIFS
+        else -> null
+    }
+
+fun ProfileTabKey.isMemberTab(): Boolean =
+    when (this) {
+        ProfileTabKey.MEMBERS,
+        ProfileTabKey.ADMINS,
+        ProfileTabKey.RESTRICTED,
+        ProfileTabKey.BANNED -> true
+
+        else -> false
+    }
+
+fun ProfileTabKey.isMediaTab(): Boolean =
+    when (this) {
+        ProfileTabKey.MEDIA,
+        ProfileTabKey.FILES,
+        ProfileTabKey.MUSIC,
+        ProfileTabKey.VOICE,
+        ProfileTabKey.LINKS,
+        ProfileTabKey.GIFS -> true
+
+        else -> false
+    }
+
+fun ProfileTabKey.toChatMembersFilterOrNull(): ChatMembersFilter? =
+    when (this) {
+        ProfileTabKey.MEMBERS -> ChatMembersFilter.Recent
+        ProfileTabKey.ADMINS -> ChatMembersFilter.Administrators
+        ProfileTabKey.RESTRICTED -> ChatMembersFilter.Restricted
+        ProfileTabKey.BANNED -> ChatMembersFilter.Banned
         else -> null
     }
 
@@ -91,7 +222,11 @@ fun ProfileTabKey.toProfileMediaFilter(): ProfileMediaFilter? =
         ProfileTabKey.VOICE -> ProfileMediaFilter.VOICE
         ProfileTabKey.LINKS -> ProfileMediaFilter.LINKS
         ProfileTabKey.GIFS -> ProfileMediaFilter.GIFS
-        ProfileTabKey.MEMBERS -> null
+        ProfileTabKey.MEMBERS,
+        ProfileTabKey.ADMINS,
+        ProfileTabKey.RESTRICTED,
+        ProfileTabKey.BANNED,
+        ProfileTabKey.SIMILAR -> null
     }
 
 fun ProfileTabKey.contentType(): ProfileTabContentType =
@@ -100,7 +235,12 @@ fun ProfileTabKey.contentType(): ProfileTabContentType =
         ProfileTabKey.MEDIA,
         ProfileTabKey.GIFS -> ProfileTabContentType.MEDIA_GRID
 
-        ProfileTabKey.MEMBERS -> ProfileTabContentType.MEMBERS_LIST
+        ProfileTabKey.MEMBERS,
+        ProfileTabKey.ADMINS,
+        ProfileTabKey.RESTRICTED,
+        ProfileTabKey.BANNED -> ProfileTabContentType.MEMBERS_LIST
+
+        ProfileTabKey.SIMILAR -> ProfileTabContentType.CHAT_LIST
         ProfileTabKey.FILES,
         ProfileTabKey.MUSIC,
         ProfileTabKey.VOICE,
@@ -113,6 +253,10 @@ fun ProfileTabKey.titleRes(): Int =
         ProfileTabKey.STORIES -> R.string.tab_stories
         ProfileTabKey.MEDIA -> R.string.tab_media
         ProfileTabKey.MEMBERS -> R.string.tab_members
+        ProfileTabKey.ADMINS -> R.string.tab_admins
+        ProfileTabKey.RESTRICTED -> R.string.tab_restricted
+        ProfileTabKey.BANNED -> R.string.tab_banned
+        ProfileTabKey.SIMILAR -> R.string.tab_similar
         ProfileTabKey.FILES -> R.string.tab_files
         ProfileTabKey.MUSIC -> R.string.tab_music
         ProfileTabKey.VOICE -> R.string.tab_voice

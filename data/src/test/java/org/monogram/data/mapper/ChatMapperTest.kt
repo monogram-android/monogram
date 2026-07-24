@@ -38,6 +38,17 @@ class ChatMapperTest {
         assertEquals(expected, time)
     }
 
+    @Test
+    fun `encodeChatPositions keeps folder ids`() {
+        val positions = arrayOf(
+            TdApi.ChatPosition(TdApi.ChatListMain(), 10L, true, null),
+            TdApi.ChatPosition(TdApi.ChatListFolder(42), 7L, false, null),
+            TdApi.ChatPosition(TdApi.ChatListArchive(), 3L, false, null)
+        )
+
+        assertEquals("m:10:1|f:42:7:0|a:3:0", encodeChatPositions(positions))
+    }
+
     private fun createTextMessage(timestampSeconds: Int): TdApi.Message {
         return TdApi.Message().apply {
             date = timestampSeconds

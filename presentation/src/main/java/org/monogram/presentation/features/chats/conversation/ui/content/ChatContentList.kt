@@ -1034,6 +1034,7 @@ private fun MessageRowItem(
     val highlightBackground = remember { androidx.compose.animation.Animatable(Color.Transparent) }
     val highlightBorderAlpha = remember { Animatable(0f) }
     val highlightScale = remember { Animatable(1f) }
+    var handledHighlightToken by remember(mainMsg.id) { mutableLongStateOf(Long.MIN_VALUE) }
 
     LaunchedEffect(mainMsg.id, canReportVisibleMessagesAsRead) {
         if (!canReportVisibleMessagesAsRead) return@LaunchedEffect
@@ -1057,9 +1058,13 @@ private fun MessageRowItem(
         }
     }
 
-    LaunchedEffect(highlightRequest, isTargetVisibleInViewport) {
-        highlightRequest ?: return@LaunchedEffect
-        if (!isTargetVisibleInViewport) return@LaunchedEffect
+    LaunchedEffect(highlightRequest?.token, isTargetVisibleInViewport) {
+        val request = highlightRequest ?: return@LaunchedEffect
+        if (!shouldRunMessageHighlight(request, isTargetVisibleInViewport, handledHighlightToken)) {
+            return@LaunchedEffect
+        }
+
+        handledHighlightToken = request.token
 
         highlightBackground.stop()
         highlightBorderAlpha.stop()
@@ -1073,15 +1078,24 @@ private fun MessageRowItem(
             highlightAccent.copy(alpha = if (isDarkTheme) 0.20f else 0.16f),
             animationSpec = tween(220)
         )
-        launch { highlightBorderAlpha.animateTo(1f, animationSpec = tween(180)) }
-        launch { highlightScale.animateTo(1.012f, animationSpec = tween(220)) }
-        component.onHighlightConsumed()
+        val borderInJob = launch { highlightBorderAlpha.animateTo(1f, animationSpec = tween(180)) }
+        val scaleInJob = launch { highlightScale.animateTo(1.012f, animationSpec = tween(220)) }
+        borderInJob.join()
+        scaleInJob.join()
 
         kotlinx.coroutines.delay(950)
 
-        launch { highlightScale.animateTo(1f, animationSpec = tween(260)) }
-        launch { highlightBorderAlpha.animateTo(0f, animationSpec = tween(1800)) }
-        highlightBackground.animateTo(Color.Transparent, animationSpec = tween(2200))
+        val scaleOutJob = launch { highlightScale.animateTo(1f, animationSpec = tween(260)) }
+        val borderOutJob =
+            launch { highlightBorderAlpha.animateTo(0f, animationSpec = tween(1800)) }
+        val backgroundOutJob = launch {
+            highlightBackground.animateTo(Color.Transparent, animationSpec = tween(2200))
+        }
+        scaleOutJob.join()
+        borderOutJob.join()
+        backgroundOutJob.join()
+
+        component.onHighlightConsumed()
     }
 
     val backgroundColor by animateColorAsState(
@@ -1703,6 +1717,15 @@ private fun highlightRequestForItem(
         is GroupedMessageItem.Album -> item.messages.any { it.id == request.messageId }
     }
     return request.takeIf { isMatch }
+}
+
+internal fun shouldRunMessageHighlight(
+    highlightRequest: MessageHighlightRequest?,
+    isTargetVisibleInViewport: Boolean,
+    handledHighlightToken: Long
+): Boolean {
+    val request = highlightRequest ?: return false
+    return isTargetVisibleInViewport && request.token != handledHighlightToken
 }
 
 private fun ChatMessageListUiState.toAppearanceConfig(): MessageAppearanceConfig =

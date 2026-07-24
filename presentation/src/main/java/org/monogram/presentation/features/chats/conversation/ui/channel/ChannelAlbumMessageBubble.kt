@@ -190,6 +190,14 @@ fun ChannelAlbumMessageBubble(
             else -> emptyList()
         }
     }
+    val showCaptionAboveMedia = remember(captionMsg) {
+        when (val content = captionMsg?.content) {
+            is MessageContent.Photo -> content.showCaptionAboveMedia
+            is MessageContent.Video -> content.showCaptionAboveMedia
+            is MessageContent.Gif -> content.showCaptionAboveMedia
+            else -> false
+        }
+    }
 
     val dateFormatManager: DateFormatManager = koinInject()
     val timeFormat = dateFormatManager.getHourMinuteFormat()
@@ -225,6 +233,62 @@ fun ChannelAlbumMessageBubble(
                     }
                 }
 
+                if (caption.isNotEmpty() && showCaptionAboveMedia) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        val inlineContent = rememberMessageInlineContent(entities, fontSize)
+                        val finalAnnotatedString = buildAnnotatedMessageTextWithEmoji(
+                            text = caption,
+                            entities = entities,
+                            isOutgoing = false,
+                            revealedSpoilers = revealedSpoilers
+                        )
+
+                        MessageText(
+                            text = finalAnnotatedString,
+                            rawText = caption,
+                            inlineContent = inlineContent,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = fontSize.sp,
+                                lineHeight = (fontSize * 1.375f).sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            onSpoilerClick = { index ->
+                                if (revealedSpoilers.contains(index)) {
+                                    revealedSpoilers.remove(index)
+                                } else {
+                                    revealedSpoilers.add(index)
+                                }
+                            },
+                            onClick = { offset -> onLongClick(bubblePosition + offset) },
+                            onLongClick = { offset ->
+                                val clickPosition = bubblePosition + offset
+                                if (onMessageLongPress != null) {
+                                    onMessageLongPress(lastMsg, clickPosition)
+                                } else {
+                                    onLongClick(clickPosition)
+                                }
+                            }
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 2.dp),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            MessageMetadata(
+                                msg = lastMsg,
+                                isOutgoing = lastMsg.isOutgoing,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+
                 CompactMediaMosaic(
                     messages = uniqueMessages,
                     autoplayGifs = autoplayGifs,
@@ -256,7 +320,7 @@ fun ChannelAlbumMessageBubble(
                     isAnyViewerOpen = isAnyViewerOpen
                 )
 
-                if (caption.isNotEmpty()) {
+                if (caption.isNotEmpty() && !showCaptionAboveMedia) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()

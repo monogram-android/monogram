@@ -352,7 +352,11 @@ fun AccountMenu(
                                 iconBackgroundColor = menuIconColor,
                                 title = stringResource(R.string.menu_settings),
                                 subtitle = stringResource(R.string.menu_settings_subtitle),
-                                position = ItemPosition.MIDDLE,
+                                position = if (updateState is UpdateState.UpdateAvailable || updateState is UpdateState.ReadyToInstall || updateState is UpdateState.Downloading) {
+                                    ItemPosition.MIDDLE
+                                } else {
+                                    ItemPosition.BOTTOM
+                                },
                                 onClick = {
                                     onSettingsClick()
                                     animateDismiss()

@@ -145,6 +145,7 @@ internal fun ChannelTextMessageBubble(
 
                 val footerRow: @Composable (Modifier) -> Unit = { footerModifier ->
                     MessageFooterRow(
+                        messageId = msg.id,
                         timeText = timeText,
                         color = footerColor,
                         isEdited = msg.editDate > 0,

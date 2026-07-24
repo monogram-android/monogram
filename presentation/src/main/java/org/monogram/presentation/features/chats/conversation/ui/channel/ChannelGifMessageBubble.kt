@@ -1,35 +1,22 @@
 package org.monogram.presentation.features.chats.conversation.ui.channel
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -58,22 +45,20 @@ import androidx.compose.ui.zIndex
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import org.koin.compose.koinInject
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
-import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.R
-import org.monogram.presentation.core.util.DateFormatManager
+import org.monogram.presentation.core.media.VideoStickerPlayer
+import org.monogram.presentation.core.media.VideoType
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
-import org.monogram.presentation.core.media.VideoStickerPlayer
-import org.monogram.presentation.core.media.VideoType
 import org.monogram.presentation.features.chats.conversation.ui.message.BigEmojiContent
 import org.monogram.presentation.features.chats.conversation.ui.message.ForwardContent
 import org.monogram.presentation.features.chats.conversation.ui.message.MediaLoadingAction
 import org.monogram.presentation.features.chats.conversation.ui.message.MediaLoadingBackground
+import org.monogram.presentation.features.chats.conversation.ui.message.MessageMetadata
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageReactionsView
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageText
 import org.monogram.presentation.features.chats.conversation.ui.message.ReplyContent
@@ -122,15 +107,13 @@ fun ChannelGifMessageBubble(
     var gifPosition by remember { mutableStateOf(Offset.Zero) }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
 
-    val dateFormatManager: DateFormatManager = koinInject()
-    val timeFormat = dateFormatManager.getHourMinuteFormat()
-
     var stablePath by remember(msg.id) { mutableStateOf(content.path) }
     val hasPath = !stablePath.isNullOrBlank()
     val gifCacheKey = remember(stablePath, content.fileId) {
         namespacedCacheKey("channel_gif:${content.fileId}", stablePath)
     }
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
+    val showCaptionAboveMedia = content.caption.isNotEmpty() && content.showCaptionAboveMedia
 
     LaunchedEffect(content.path) {
         if (!content.path.isNullOrBlank()) {
@@ -192,6 +175,70 @@ fun ChannelGifMessageBubble(
                             onClick = { onReplyClick(reply) }
                         )
                     }
+                }
+
+                @Composable
+                fun CaptionSection() {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
+                            .zIndex(1f)
+                    ) {
+                        val renderData = rememberMessageTextRenderData(
+                            text = content.caption,
+                            entities = content.entities,
+                            allowBigEmoji = false,
+                            isOutgoing = false,
+                            revealedSpoilers = revealedSpoilers,
+                            fontSize = fontSize
+                        )
+
+                        if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                            BigEmojiContent(
+                                items = renderData.bigEmojiItems,
+                                sizeDp = fontSize * 5f,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        } else {
+                            MessageText(
+                                text = renderData.annotatedText,
+                                rawText = content.caption,
+                                inlineContent = renderData.inlineContent,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = fontSize.sp,
+                                    letterSpacing = letterSpacing.sp,
+                                    lineHeight = (fontSize * 1.375f).sp
+                                ),
+                                modifier = Modifier.padding(bottom = 2.dp),
+                                onSpoilerClick = { index ->
+                                    if (revealedSpoilers.contains(index)) {
+                                        revealedSpoilers.remove(index)
+                                    } else {
+                                        revealedSpoilers.add(index)
+                                    }
+                                },
+                                onClick = { offset -> onLongClick(gifPosition + offset) },
+                                onLongClick = { offset -> onLongClick(gifPosition + offset) }
+                            )
+                        }
+                        if (showMetadata) {
+                            Box(modifier = Modifier.align(Alignment.End)) {
+                                MessageMetadata(
+                                    msg = msg,
+                                    isOutgoing = msg.isOutgoing,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                        alpha = 0.6f
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (showCaptionAboveMedia) {
+                    CaptionSection()
                 }
 
                 val mediaRatio = if (content.width > 0 && content.height > 0)
@@ -333,164 +380,14 @@ fun ChannelGifMessageBubble(
                                     )
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    msg.views?.let { viewsCount ->
-                                        if (viewsCount > 0) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Visibility,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(12.dp),
-                                                tint = Color.White
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = formatViews(context, viewsCount),
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                color = Color.White
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                        }
-                                    }
-                                    Text(
-                                        text = formatTime(msg.date, timeFormat),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = Color.White
-                                    )
-                                    if (msg.isOutgoing) {
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        AnimatedContent(
-                                            targetState = msg.sendingState to msg.isRead,
-                                            transitionSpec = {
-                                                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(
-                                                    animationSpec = tween(
-                                                        300
-                                                    )
-                                                )
-                                            },
-                                            label = "SendingState"
-                                        ) { (sendingState, isRead) ->
-                                            val statusIcon = when (sendingState) {
-                                                is MessageSendingState.Pending -> Icons.Default.Schedule
-                                                is MessageSendingState.Failed -> Icons.Default.Error
-                                                null -> if (isRead) Icons.Default.DoneAll else Icons.Default.Check
-                                            }
-                                            Icon(
-                                                imageVector = statusIcon,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(12.dp),
-                                                tint = if (sendingState is MessageSendingState.Failed) Color.Red else Color.White
-                                            )
-                                        }
-                                    }
-                                }
+                                MessageMetadata(msg, msg.isOutgoing, Color.White)
                             }
                         }
                     }
                 }
 
-                if (content.caption.isNotEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
-                            .zIndex(1f)
-                    ) {
-                        val renderData = rememberMessageTextRenderData(
-                            text = content.caption,
-                            entities = content.entities,
-                            allowBigEmoji = false,
-                            isOutgoing = false,
-                            revealedSpoilers = revealedSpoilers,
-                            fontSize = fontSize
-                        )
-
-                        if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
-                            BigEmojiContent(
-                                items = renderData.bigEmojiItems,
-                                sizeDp = fontSize * 5f,
-                                modifier = Modifier.padding(bottom = 2.dp)
-                            )
-                        } else {
-                            MessageText(
-                                text = renderData.annotatedText,
-                                rawText = content.caption,
-                                inlineContent = renderData.inlineContent,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontSize = fontSize.sp,
-                                    letterSpacing = letterSpacing.sp,
-                                    lineHeight = (fontSize * 1.375f).sp
-                                ),
-                                modifier = Modifier.padding(bottom = 2.dp),
-                                onSpoilerClick = { index ->
-                                    if (revealedSpoilers.contains(index)) {
-                                        revealedSpoilers.remove(index)
-                                    } else {
-                                        revealedSpoilers.add(index)
-                                    }
-                                },
-                                onClick = { offset -> onLongClick(gifPosition + offset) },
-                                onLongClick = { offset -> onLongClick(gifPosition + offset) }
-                            )
-                        }
-                        if (showMetadata) {
-                            Row(
-                                modifier = Modifier.align(Alignment.End),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                msg.views?.let { viewsCount ->
-                                    if (viewsCount > 0) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Visibility,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(14.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = formatViews(context, viewsCount),
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                    }
-                                }
-                                Text(
-                                    text = formatTime(msg.date, timeFormat),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
-                                )
-                                if (msg.isOutgoing) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    AnimatedContent(
-                                        targetState = msg.sendingState to msg.isRead,
-                                        transitionSpec = {
-                                            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(
-                                                animationSpec = tween(
-                                                    300
-                                                )
-                                            )
-                                        },
-                                        label = "SendingState"
-                                    ) { (sendingState, isRead) ->
-                                        val statusIcon = when (sendingState) {
-                                            is MessageSendingState.Pending -> Icons.Default.Schedule
-                                            is MessageSendingState.Failed -> Icons.Default.Error
-                                            null -> if (isRead) Icons.Default.DoneAll else Icons.Default.Check
-                                        }
-                                        Icon(
-                                            imageVector = statusIcon,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(14.dp),
-                                            tint = if (sendingState is MessageSendingState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                                0.6f
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                if (content.caption.isNotEmpty() && !showCaptionAboveMedia) {
+                    CaptionSection()
                 }
             }
         }

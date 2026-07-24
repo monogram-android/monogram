@@ -19,6 +19,9 @@ class UpdateDispatcherImpl(
     override val authorizationState = flow<TdApi.UpdateAuthorizationState>()
 
     override val newMessage = flow<TdApi.UpdateNewMessage>()
+    override val activeNotifications = flow<TdApi.UpdateActiveNotifications>()
+    override val notificationGroup = flow<TdApi.UpdateNotificationGroup>()
+    override val notification = flow<TdApi.UpdateNotification>()
     override val messageEdited = flow<TdApi.UpdateMessageEdited>()
     override val messageContent = flow<TdApi.UpdateMessageContent>()
     override val messageSendSucceeded = flow<TdApi.UpdateMessageSendSucceeded>()
@@ -47,6 +50,7 @@ class UpdateDispatcherImpl(
 
     override val file = flow<TdApi.UpdateFile>()
 
+    override val option = flow<TdApi.UpdateOption>()
     override val connectionState = flow<TdApi.UpdateConnectionState>()
     override val installedStickerSets = flow<TdApi.UpdateInstalledStickerSets>()
     override val newChat = flow<TdApi.UpdateNewChat>()

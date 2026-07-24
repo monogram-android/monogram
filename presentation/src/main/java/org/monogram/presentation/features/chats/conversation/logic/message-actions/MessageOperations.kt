@@ -52,6 +52,62 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
     }
 }
 
+internal fun DefaultChatComponent.handleScrollToNextUnreadMention() {
+    handleUnreadShortcut(UnreadShortcutType.Mention)
+}
+
+internal fun DefaultChatComponent.handleClearUnreadMentions() {
+    clearUnreadShortcut(UnreadShortcutType.Mention)
+}
+
+internal fun DefaultChatComponent.handleScrollToNextUnreadReaction() {
+    handleUnreadShortcut(UnreadShortcutType.Reaction)
+}
+
+internal fun DefaultChatComponent.handleClearUnreadReactions() {
+    clearUnreadShortcut(UnreadShortcutType.Reaction)
+}
+
+private fun DefaultChatComponent.handleUnreadShortcut(type: UnreadShortcutType) {
+    val currentState = _state.value
+    when (
+        val action = resolveUnreadShortcutAction(
+            messages = currentState.messages,
+            targetChatId = activeThreadChatId(),
+            isLatestLoaded = currentState.isLatestLoaded,
+            isOldestLoaded = currentState.isOldestLoaded,
+            type = type
+        )
+    ) {
+        is UnreadShortcutAction.ScrollToMessage -> scrollToMessageInternal(action.messageId)
+        UnreadShortcutAction.LoadNewer -> scrollToBottomInternal()
+        UnreadShortcutAction.LoadOlder -> loadMoreMessages()
+        UnreadShortcutAction.None -> Unit
+    }
+}
+
+private fun DefaultChatComponent.clearUnreadShortcut(type: UnreadShortcutType) {
+    val targetChatId = activeThreadChatId()
+    val hasUnread = when (type) {
+        UnreadShortcutType.Mention -> _state.value.unreadMentionCount > 0
+        UnreadShortcutType.Reaction -> _state.value.unreadReactionCount > 0
+    }
+    if (!hasUnread) return
+
+    _state.update { currentState ->
+        currentState.clearUnreadShortcut(
+            targetChatId = targetChatId,
+            type = type
+        )
+    }
+    scope.launch {
+        when (type) {
+            UnreadShortcutType.Mention -> repositoryMessage.markAllMentionsAsRead(targetChatId)
+            UnreadShortcutType.Reaction -> repositoryMessage.markAllReactionsAsRead(targetChatId)
+        }
+    }
+}
+
 internal fun DefaultChatComponent.handleDeleteMessage(message: MessageModel, revoke: Boolean = false) {
     val messageIdsToDelete = if (message.mediaAlbumId != 0L) {
         _state.value.messages
@@ -77,24 +133,40 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
     parseMode: RichTextParseMode?
 ) {
     val editingMsg = _state.value.editingMessage ?: return
+    val targetChatId = editingMsg.chatId
+    val optimisticMessage = editingMsg.withOptimisticEdit(text, entities)
+    _state.update { state ->
+        state.withPendingEditedMessage(optimisticMessage)
+    }
+
     scope.launch {
-        when (editingMsg.content) {
-            is MessageContent.RichMessage -> repositoryMessage.editRichMessage(
-                chatId = chatId,
-                messageId = editingMsg.id,
-                markdown = text,
-                parseMode = parseMode ?: RichTextParseMode.Markdown
-            )
+        runCatching {
+            when (editingMsg.content) {
+                is MessageContent.RichMessage -> repositoryMessage.editRichMessage(
+                    chatId = targetChatId,
+                    messageId = editingMsg.id,
+                    markdown = text,
+                    parseMode = parseMode ?: RichTextParseMode.Markdown
+                )
 
-            is MessageContent.Photo,
-            is MessageContent.Video,
-            is MessageContent.Document,
-            is MessageContent.Audio,
-            is MessageContent.Gif -> repositoryMessage.editMessageCaption(chatId, editingMsg.id, text, entities)
+                is MessageContent.Photo,
+                is MessageContent.Video,
+                is MessageContent.Document,
+                is MessageContent.Audio,
+                is MessageContent.Gif -> repositoryMessage.editMessageCaption(
+                    targetChatId,
+                    editingMsg.id,
+                    text,
+                    entities
+                )
 
-            else -> repositoryMessage.editMessage(chatId, editingMsg.id, text, entities)
+                else -> repositoryMessage.editMessage(targetChatId, editingMsg.id, text, entities)
+            }
+        }.onFailure {
+            _state.update { state ->
+                state.withRevertedPendingEditedMessage(editingMsg)
+            }
         }
-        onCancelEdit()
     }
 }
 
@@ -107,7 +179,11 @@ internal fun DefaultChatComponent.handleSaveChecklistDraft(draft: ChecklistDraft
     if (checklistMessage != null) {
         _state.update { state ->
             state.withUpdatedChecklistDraft(checklistMessage.id, draft)
-                .copy(checklistMessage = null, checklistDraft = null)
+                .copy(
+                    checklistMessage = null,
+                    checklistDraft = null,
+                    pendingEditedMessageIds = state.pendingEditedMessageIds + checklistMessage.id
+                )
         }
     } else {
         _state.update { state -> state.copy(checklistMessage = null, checklistDraft = null) }
@@ -136,6 +212,11 @@ internal fun DefaultChatComponent.handleSaveChecklistDraft(draft: ChecklistDraft
         }.onSuccess {
             Log.d("ChecklistFlow", "save_draft_success messageId=${checklistMessage?.id}")
         }.onFailure { error ->
+            if (checklistMessage != null) {
+                _state.update { state ->
+                    state.withRevertedPendingEditedMessage(checklistMessage)
+                }
+            }
             Log.e("ChecklistFlow", "save_draft_failed messageId=${checklistMessage?.id}", error)
         }
     }

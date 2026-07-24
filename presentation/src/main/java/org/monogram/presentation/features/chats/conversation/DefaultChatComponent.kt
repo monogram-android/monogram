@@ -81,12 +81,10 @@ import org.monogram.presentation.features.chats.conversation.logic.observePrefer
 import org.monogram.presentation.features.chats.conversation.logic.observeSponsoredMessagePolicy
 import org.monogram.presentation.features.chats.conversation.logic.observeUserUpdates
 import org.monogram.presentation.features.chats.conversation.logic.perfTargetName
-import org.monogram.presentation.features.chats.conversation.logic.popViewportReturnTarget
 import org.monogram.presentation.features.chats.conversation.logic.pushViewportReturnTarget
 import org.monogram.presentation.features.chats.conversation.logic.refreshDraftLinkPreviewOnPhotoDownloadIfNeeded
 import org.monogram.presentation.features.chats.conversation.logic.refreshSponsoredMessageAfterMediaDownload
 import org.monogram.presentation.features.chats.conversation.logic.resolveInitialChatScrollTarget
-import org.monogram.presentation.features.chats.conversation.logic.scrollToMessageInternal
 import org.monogram.presentation.features.chats.conversation.logic.setupMessageCollectors
 import org.monogram.presentation.features.chats.conversation.logic.setupPinnedMessageCollector
 import org.monogram.presentation.features.chats.conversation.logic.shouldStartInitialLoad
@@ -613,13 +611,9 @@ class DefaultChatComponent(
         val currentState = _state.value
         if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return
 
-        if (!currentState.viewAsTopics) {
-            if (initialMessageId != null) {
-                scrollToMessage(initialMessageId)
-            } else if (currentState.messages.isEmpty()) {
-                requestInitialLoad(source = "lifecycle_resume")
-            }
-        } else if (currentState.messages.isEmpty() && currentState.currentTopicId == null) {
+        if (currentState.messages.isEmpty() &&
+            (!currentState.viewAsTopics || currentState.currentTopicId == null)
+        ) {
             requestInitialLoad(source = "lifecycle_resume")
         }
     }
@@ -766,10 +760,7 @@ class DefaultChatComponent(
     override fun loadMore() = store.accept(ChatStore.Intent.LoadMore)
     override fun loadNewer() = store.accept(ChatStore.Intent.LoadNewer)
 
-    override fun onBackClicked() {
-        if (consumeReturnToMessageIfAvailable()) return
-        store.accept(ChatStore.Intent.BackClicked)
-    }
+    override fun onBackClicked() = store.accept(ChatStore.Intent.BackClicked)
 
     override fun onProfileClicked() = store.accept(ChatStore.Intent.ProfileClicked)
     override fun onMessageClicked(id: Long) = store.accept(ChatStore.Intent.MessageClicked(id))
@@ -930,28 +921,20 @@ class DefaultChatComponent(
     }
 
     override fun updateViewport(viewport: ChatViewportCacheEntry) {
-        val previousViewport = _state.value.lastSavedViewport
-        val mergedViewport = if (viewport.returnToMessageIds.isEmpty() &&
-            !previousViewport?.returnToMessageIds.isNullOrEmpty()
-        ) {
-            viewport.copy(returnToMessageIds = previousViewport.returnToMessageIds)
-        } else {
-            viewport
-        }
         val threadId = _state.value.currentMessageThreadId ?: _state.value.currentTopicId
         _state.update {
-            if (it.lastSavedViewport == mergedViewport && it.lastScrollPosition == (mergedViewport.anchorMessageId
+            if (it.lastSavedViewport == viewport && it.lastScrollPosition == (viewport.anchorMessageId
                     ?: 0L)
             ) {
                 it
             } else {
                 it.copy(
-                    lastSavedViewport = mergedViewport,
-                    lastScrollPosition = mergedViewport.anchorMessageId ?: 0L
+                    lastSavedViewport = viewport,
+                    lastScrollPosition = viewport.anchorMessageId ?: 0L
                 )
             }
         }
-        scheduleViewportPersistence(threadId, mergedViewport)
+        scheduleViewportPersistence(threadId, viewport)
     }
 
     override fun onBottomReached(isAtBottom: Boolean) = store.accept(ChatStore.Intent.BottomReached(isAtBottom))
@@ -1303,22 +1286,5 @@ class DefaultChatComponent(
             maxSize = MAX_RETURN_TO_MESSAGE_IDS
         ) ?: return
         updateViewport(updatedViewport)
-    }
-
-    private fun consumeReturnToMessageIfAvailable(): Boolean {
-        val currentViewport = _state.value.lastSavedViewport ?: return false
-        val popResult = popViewportReturnTarget(currentViewport)
-        val targetMessageId = popResult.targetMessageId ?: return false
-        val updatedViewport = popResult.viewport ?: currentViewport
-
-        ChatConversationLog.logViewportState(
-            event = "return_to_message_requested",
-            state = _state.value,
-            componentInstanceId = componentInstanceId,
-            extra = "targetMessageId=$targetMessageId remaining=${updatedViewport.returnToMessageIds.size}"
-        )
-        updateViewport(updatedViewport)
-        scrollToMessageInternal(targetMessageId)
-        return true
     }
 }

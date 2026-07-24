@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -39,11 +40,14 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.window.core.layout.WindowWidthSizeClass
 import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
@@ -306,6 +310,26 @@ fun ChatContent(
                 uiInstanceId = uiInstanceId,
                 extra = "conversationKey=$conversationKey renderMode=$renderMode"
             )
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val latestState by rememberUpdatedState(state)
+    DisposableEffect(lifecycleOwner, conversationKey, renderMode) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP &&
+                renderMode == ChatRenderMode.Active &&
+                latestState.highlightRequest != null
+            ) {
+                component.onHighlightConsumed()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (renderMode == ChatRenderMode.Active && latestState.highlightRequest != null) {
+                component.onHighlightConsumed()
+            }
         }
     }
 

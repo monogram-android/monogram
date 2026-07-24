@@ -90,6 +90,7 @@ import org.monogram.presentation.features.chats.conversation.logic.handleTopicCl
 import org.monogram.presentation.features.chats.conversation.logic.handleUnblockUser
 import org.monogram.presentation.features.chats.conversation.logic.handleUnpinMessage
 import org.monogram.presentation.features.chats.conversation.logic.handleVideoRecorded
+import org.monogram.presentation.features.chats.conversation.logic.jumpToLatestInternal
 import org.monogram.presentation.features.chats.conversation.logic.loadAllPinnedMessages
 import org.monogram.presentation.features.chats.conversation.logic.loadMoreMessages
 import org.monogram.presentation.features.chats.conversation.logic.loadMoreSearchResults
@@ -288,6 +289,7 @@ class ChatStoreFactory(
                     else it.copy(scrollToMessageId = null, pendingScrollCommand = null)
                 }
                 is Intent.ScrollToBottom -> component.scrollToBottomInternal()
+                is Intent.JumpToLatest -> component.jumpToLatestInternal()
                 is Intent.ScrollToNextUnreadMention -> component.handleScrollToNextUnreadMention()
                 is Intent.ClearUnreadMentions -> component.handleClearUnreadMentions()
                 is Intent.ScrollToNextUnreadReaction -> component.handleScrollToNextUnreadReaction()

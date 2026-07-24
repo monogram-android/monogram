@@ -111,6 +111,7 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         object ScrollToMessageConsumed : Intent()
         object ScrollCommandConsumed : Intent()
         object ScrollToBottom : Intent()
+        object JumpToLatest : Intent()
         object ScrollToNextUnreadMention : Intent()
         object ClearUnreadMentions : Intent()
         object ScrollToNextUnreadReaction : Intent()

@@ -65,6 +65,16 @@ internal fun needsBottomAlignmentCorrection(
     return abs(bottomAlignmentDelta) > tolerancePx
 }
 
+internal fun shouldPersistBottomViewportIntent(
+    atBottomNow: Boolean,
+    nearBottomNow: Boolean,
+    stateIsAtBottom: Boolean,
+    isComments: Boolean
+): Boolean {
+    if (atBottomNow) return true
+    return !isComments && stateIsAtBottom && nearBottomNow
+}
+
 internal fun buildBottomCoarseScrollIndex(
     currentFirstVisibleIndex: Int,
     targetIndex: Int,
@@ -429,10 +439,18 @@ internal fun buildViewportSnapshot(
         isComments = isComments,
         isLatestLoaded = isLatestLoaded
     )
-    if (atBottomNow) {
+    val nearBottomNow = scrollState.isNearBottom(isComments = isComments)
+    if (
+        shouldPersistBottomViewportIntent(
+            atBottomNow = atBottomNow,
+            nearBottomNow = nearBottomNow,
+            stateIsAtBottom = isAtBottom,
+            isComments = isComments
+        )
+    ) {
         return ChatViewportCacheEntry(
             atBottom = true,
-            readFully = true,
+            readFully = isLatestLoaded,
             topEndMessageId = groupedMessages.firstOrNull()?.firstMessageId?.takeIf { isOldestLoaded }
         )
     }

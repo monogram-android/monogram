@@ -887,6 +887,7 @@ class DefaultChatComponent(
     }
 
     override fun onScrollToBottom() = store.accept(ChatStore.Intent.ScrollToBottom)
+    override fun onJumpToLatest() = store.accept(ChatStore.Intent.JumpToLatest)
     override fun onScrollToNextUnreadMention() =
         store.accept(ChatStore.Intent.ScrollToNextUnreadMention)
 
@@ -1216,6 +1217,30 @@ class DefaultChatComponent(
             if (!attachment.deleteAfterUse || attachment.localPath in excludePaths) return@forEach
             runCatching { File(attachment.localPath).deleteRecursively() }
         }
+    }
+
+    internal fun overrideViewportToBottomNow(threadId: Long?) {
+        val viewport = ChatViewportCacheEntry(atBottom = true, readFully = true)
+        viewportPersistenceJob?.cancel()
+        viewportPersistenceJob = null
+        pendingViewportToPersist = null
+        pendingViewportThreadId = null
+
+        _state.update {
+            it.copy(
+                isAtBottom = true,
+                lastSavedViewport = viewport,
+                lastScrollPosition = 0L
+            )
+        }
+
+        cacheProvider.saveChatViewport(chatId, threadId, viewport)
+        if (threadId == null) {
+            cacheProvider.saveChatScrollPosition(chatId, 0L)
+        }
+
+        lastPersistedViewportThreadId = threadId
+        lastPersistedViewport = viewport
     }
 
     private fun scheduleViewportPersistence(threadId: Long?, viewport: ChatViewportCacheEntry) {

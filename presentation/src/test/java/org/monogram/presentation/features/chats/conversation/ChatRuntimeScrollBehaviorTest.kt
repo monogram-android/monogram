@@ -35,7 +35,8 @@ class ChatRuntimeScrollBehaviorTest {
             updateChatContentVisibilityLatch(
                 previousVisible = false,
                 renderMode = ChatRenderMode.Active,
-                viewportPhase = ChatViewportPhase.Initializing
+                viewportPhase = ChatViewportPhase.Initializing,
+                hasRenderableContent = false
             )
         )
     }
@@ -46,7 +47,8 @@ class ChatRuntimeScrollBehaviorTest {
             updateChatContentVisibilityLatch(
                 previousVisible = false,
                 renderMode = ChatRenderMode.Active,
-                viewportPhase = ChatViewportPhase.Settled
+                viewportPhase = ChatViewportPhase.Settled,
+                hasRenderableContent = false
             )
         )
     }
@@ -57,14 +59,16 @@ class ChatRuntimeScrollBehaviorTest {
             updateChatContentVisibilityLatch(
                 previousVisible = true,
                 renderMode = ChatRenderMode.Active,
-                viewportPhase = ChatViewportPhase.Restoring
+                viewportPhase = ChatViewportPhase.Restoring,
+                hasRenderableContent = true
             )
         )
         assertTrue(
             updateChatContentVisibilityLatch(
                 previousVisible = true,
                 renderMode = ChatRenderMode.Active,
-                viewportPhase = ChatViewportPhase.Initializing
+                viewportPhase = ChatViewportPhase.Initializing,
+                hasRenderableContent = false
             )
         )
     }
@@ -75,14 +79,16 @@ class ChatRuntimeScrollBehaviorTest {
             updateChatContentVisibilityLatch(
                 previousVisible = false,
                 renderMode = ChatRenderMode.SwipePreview,
-                viewportPhase = ChatViewportPhase.Restoring
+                viewportPhase = ChatViewportPhase.Restoring,
+                hasRenderableContent = false
             )
         )
         assertTrue(
             updateChatContentVisibilityLatch(
                 previousVisible = false,
                 renderMode = ChatRenderMode.ForumTopicSwipePreview,
-                viewportPhase = ChatViewportPhase.Initializing
+                viewportPhase = ChatViewportPhase.Initializing,
+                hasRenderableContent = false
             )
         )
     }

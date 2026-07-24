@@ -174,6 +174,12 @@ data class ChatMessageListUiState(
         }
 }
 
+private enum class PagingIndicatorPlacement {
+    Top,
+    Bottom,
+    Center
+}
+
 internal fun shouldShowUnreadSeparator(
     isComments: Boolean,
     unreadBoundaryIndex: Int?,
@@ -347,6 +353,21 @@ internal fun ChatContentList(
             }
         }
     }
+
+    LaunchedEffect(
+        state.chatId,
+        state.currentTopicId,
+        state.isViewportSettled,
+        groupedMessages.size,
+        groupedMessages.firstOrNull()?.firstMessageId,
+        groupedMessages.lastOrNull()?.firstMessageId
+    ) {
+        lastOlderAnchorTriggerId = null
+        lastNewerAnchorTriggerId = null
+        lastOlderLoadTriggerUptimeMs = 0L
+        lastNewerLoadTriggerUptimeMs = 0L
+    }
+
     val visibleGroupedMessageIds by remember(
         scrollState,
         groupedMessages,
@@ -638,13 +659,13 @@ internal fun ChatContentList(
         ) {
             if (isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
                 item(key = "loading_older_top") {
-                    PagingLoadingIndicator()
+                    PagingLoadingIndicator(placement = PagingIndicatorPlacement.Top)
                 }
             }
 
             if (!isComments && state.isLoadingNewer && !state.isAtBottom && groupedMessages.isNotEmpty()) {
                 item(key = "loading_newer_bottom") {
-                    PagingLoadingIndicator()
+                    PagingLoadingIndicator(placement = PagingIndicatorPlacement.Top)
                 }
             }
 
@@ -879,19 +900,19 @@ internal fun ChatContentList(
 
             if (isComments && state.isLoadingNewer && groupedMessages.isNotEmpty()) {
                 item(key = "loading_newer_bottom") {
-                    PagingLoadingIndicator()
+                    PagingLoadingIndicator(placement = PagingIndicatorPlacement.Bottom)
                 }
             }
 
             if (!isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
                 item(key = "loading_older_top") {
-                    PagingLoadingIndicator()
+                    PagingLoadingIndicator(placement = PagingIndicatorPlacement.Bottom)
                 }
             }
 
             if (state.isLoading && groupedMessages.isNotEmpty() && !state.isLoadingOlder && !state.isLoadingNewer) {
                 item(key = "loading_indicator") {
-                    PagingLoadingIndicator()
+                    PagingLoadingIndicator(placement = PagingIndicatorPlacement.Center)
                 }
             }
         }
@@ -942,31 +963,58 @@ private fun ScrollDateOverlay(label: String) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun PagingLoadingIndicator() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
+private fun PagingLoadingIndicator(
+    placement: PagingIndicatorPlacement
+) {
+    val initialOffset: (Int) -> Int = when (placement) {
+        PagingIndicatorPlacement.Top -> { height -> -height / 3 }
+        PagingIndicatorPlacement.Bottom -> { height -> height / 3 }
+        PagingIndicatorPlacement.Center -> { height -> height / 5 }
+    }
+    val targetOffset: (Int) -> Int = when (placement) {
+        PagingIndicatorPlacement.Top -> { height -> -height / 4 }
+        PagingIndicatorPlacement.Bottom -> { height -> height / 4 }
+        PagingIndicatorPlacement.Center -> { _ -> 0 }
+    }
+
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn(animationSpec = tween(durationMillis = 140)) +
+                slideInVertically(
+                    animationSpec = tween(durationMillis = 220),
+                    initialOffsetY = initialOffset
+                ),
+        exit = fadeOut(animationSpec = tween(durationMillis = 120)) +
+                slideOutVertically(
+                    animationSpec = tween(durationMillis = 140),
+                    targetOffsetY = targetOffset
+                )
     ) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 1.dp
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.9f),
+                tonalElevation = 1.dp
             ) {
-                LoadingIndicator(
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(
-                    text = stringResource(R.string.loading_text),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    LoadingIndicator(
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.loading_text),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

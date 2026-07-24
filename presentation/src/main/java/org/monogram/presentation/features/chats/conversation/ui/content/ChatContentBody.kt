@@ -570,7 +570,7 @@ internal fun ChatContentBody(
                         visible = showScrollToBottomButton,
                         count = state.unreadCount,
                         contentDescription = stringResource(R.string.cd_scroll_to_bottom),
-                        onClick = component::onScrollToBottom
+                        onClick = component::onJumpToLatest
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
@@ -600,12 +600,21 @@ internal fun ChatContentBody(
 
             AnimatedVisibility(
                 visible = showInitialLoading,
-                enter = fadeIn(),
-                exit = fadeOut()
+                enter = fadeIn(animationSpec = tween(durationMillis = 180, delayMillis = 40)) +
+                        scaleIn(
+                            animationSpec = tween(durationMillis = 220),
+                            initialScale = 0.985f
+                        ),
+                exit = fadeOut(animationSpec = tween(durationMillis = 140)) +
+                        scaleOut(
+                            animationSpec = tween(durationMillis = 140),
+                            targetScale = 0.992f
+                        )
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.14f))
                 ) {
                     MessageListShimmer(
                         isGroup = state.isGroup,

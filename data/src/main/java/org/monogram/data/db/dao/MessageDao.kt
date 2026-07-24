@@ -9,11 +9,11 @@ import org.monogram.data.db.model.MessageEntity
 
 @Dao
 interface MessageDao {
-    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY date DESC")
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY date DESC, id DESC")
     fun getMessagesForChat(chatId: Long): Flow<List<MessageEntity>>
 
     @Query(
-        "SELECT * FROM messages WHERE chatId = :chatId AND threadId IS NULL AND id < :fromMessageId ORDER BY date DESC LIMIT :limit"
+        "SELECT * FROM messages WHERE chatId = :chatId AND threadId IS NULL AND id < :fromMessageId ORDER BY date DESC, id DESC LIMIT :limit"
     )
     suspend fun getMainChatMessagesOlder(
         chatId: Long,
@@ -22,7 +22,7 @@ interface MessageDao {
     ): List<MessageEntity>
 
     @Query(
-        "SELECT * FROM messages WHERE chatId = :chatId AND threadId = :threadId AND id < :fromMessageId ORDER BY date DESC LIMIT :limit"
+        "SELECT * FROM messages WHERE chatId = :chatId AND threadId = :threadId AND id < :fromMessageId ORDER BY date DESC, id DESC LIMIT :limit"
     )
     suspend fun getThreadMessagesOlder(
         chatId: Long,
@@ -32,7 +32,7 @@ interface MessageDao {
     ): List<MessageEntity>
 
     @Query(
-        "SELECT * FROM messages WHERE chatId = :chatId AND threadId IS NULL AND id > :fromMessageId ORDER BY date ASC LIMIT :limit"
+        "SELECT * FROM messages WHERE chatId = :chatId AND threadId IS NULL AND id > :fromMessageId ORDER BY date ASC, id ASC LIMIT :limit"
     )
     suspend fun getMainChatMessagesNewer(
         chatId: Long,
@@ -41,7 +41,7 @@ interface MessageDao {
     ): List<MessageEntity>
 
     @Query(
-        "SELECT * FROM messages WHERE chatId = :chatId AND threadId = :threadId AND id > :fromMessageId ORDER BY date ASC LIMIT :limit"
+        "SELECT * FROM messages WHERE chatId = :chatId AND threadId = :threadId AND id > :fromMessageId ORDER BY date ASC, id ASC LIMIT :limit"
     )
     suspend fun getThreadMessagesNewer(
         chatId: Long,
@@ -58,7 +58,7 @@ interface MessageDao {
           AND id IN (
             SELECT id FROM messages
             WHERE chatId = :chatId AND threadId IS NULL AND id <= :messageId
-            ORDER BY date DESC LIMIT :olderLimit
+            ORDER BY date DESC, id DESC LIMIT :olderLimit
           )
         UNION
         SELECT * FROM messages
@@ -67,9 +67,9 @@ interface MessageDao {
           AND id IN (
             SELECT id FROM messages
             WHERE chatId = :chatId AND threadId IS NULL AND id > :messageId
-            ORDER BY date ASC LIMIT :newerLimit
+            ORDER BY date ASC, id ASC LIMIT :newerLimit
           )
-        ORDER BY date DESC
+        ORDER BY date DESC, id DESC
         """
     )
     suspend fun getMainChatMessagesAround(
@@ -87,7 +87,7 @@ interface MessageDao {
           AND id IN (
             SELECT id FROM messages
             WHERE chatId = :chatId AND threadId = :threadId AND id <= :messageId
-            ORDER BY date DESC LIMIT :olderLimit
+            ORDER BY date DESC, id DESC LIMIT :olderLimit
           )
         UNION
         SELECT * FROM messages
@@ -96,9 +96,9 @@ interface MessageDao {
           AND id IN (
             SELECT id FROM messages
             WHERE chatId = :chatId AND threadId = :threadId AND id > :messageId
-            ORDER BY date ASC LIMIT :newerLimit
+            ORDER BY date ASC, id ASC LIMIT :newerLimit
           )
-        ORDER BY date DESC
+        ORDER BY date DESC, id DESC
         """
     )
     suspend fun getThreadMessagesAround(
@@ -109,10 +109,10 @@ interface MessageDao {
         newerLimit: Int
     ): List<MessageEntity>
 
-    @Query("SELECT * FROM messages WHERE chatId = :chatId AND threadId IS NULL ORDER BY date DESC LIMIT :limit")
+    @Query("SELECT * FROM messages WHERE chatId = :chatId AND threadId IS NULL ORDER BY date DESC, id DESC LIMIT :limit")
     suspend fun getMainChatLatestMessages(chatId: Long, limit: Int): List<MessageEntity>
 
-    @Query("SELECT * FROM messages WHERE chatId = :chatId AND threadId = :threadId ORDER BY date DESC LIMIT :limit")
+    @Query("SELECT * FROM messages WHERE chatId = :chatId AND threadId = :threadId ORDER BY date DESC, id DESC LIMIT :limit")
     suspend fun getThreadLatestMessages(
         chatId: Long,
         threadId: Long,

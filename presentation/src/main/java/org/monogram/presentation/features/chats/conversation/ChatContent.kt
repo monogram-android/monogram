@@ -82,13 +82,27 @@ import org.monogram.presentation.features.share.inferPendingAttachmentKind
 internal fun updateChatContentVisibilityLatch(
     previousVisible: Boolean,
     renderMode: ChatRenderMode,
-    viewportPhase: ChatViewportPhase
+    viewportPhase: ChatViewportPhase,
+    hasRenderableContent: Boolean
 ): Boolean {
     return when (renderMode) {
-        ChatRenderMode.Active -> previousVisible || viewportPhase == ChatViewportPhase.Settled
+        ChatRenderMode.Active -> {
+            previousVisible ||
+                    viewportPhase == ChatViewportPhase.Settled ||
+                    (hasRenderableContent && viewportPhase == ChatViewportPhase.Restoring)
+        }
         ChatRenderMode.SwipePreview,
         ChatRenderMode.ForumTopicSwipePreview -> true
     }
+}
+
+internal fun hasRenderableChatContent(
+    messagesCount: Int,
+    viewAsTopics: Boolean,
+    currentTopicId: Long?,
+    topicsCount: Int
+): Boolean {
+    return messagesCount > 0 || (viewAsTopics && currentTopicId == null && topicsCount > 0)
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -124,13 +138,20 @@ fun ChatContent(
     val isTablet =
         adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED &&
                 isTabletInterfaceEnabled
+    val hasRenderableContent = hasRenderableChatContent(
+        messagesCount = state.messages.size,
+        viewAsTopics = state.viewAsTopics,
+        currentTopicId = previewState.currentTopicId,
+        topicsCount = state.topics.size
+    )
 
     var isVisible by remember(conversationKey) {
         mutableStateOf(
             updateChatContentVisibilityLatch(
                 previousVisible = false,
                 renderMode = renderMode,
-                viewportPhase = state.viewportPhase
+                viewportPhase = state.viewportPhase,
+                hasRenderableContent = hasRenderableContent
             )
         )
     }
@@ -333,12 +354,13 @@ fun ChatContent(
         }
     }
 
-    LaunchedEffect(renderMode, state.viewportPhase, conversationKey) {
+    LaunchedEffect(renderMode, state.viewportPhase, hasRenderableContent, conversationKey) {
         val previousVisible = isVisible
         isVisible = updateChatContentVisibilityLatch(
             previousVisible = isVisible,
             renderMode = renderMode,
-            viewportPhase = state.viewportPhase
+            viewportPhase = state.viewportPhase,
+            hasRenderableContent = hasRenderableContent
         )
         ChatConversationLog.logState(
             stream = ChatConversationLog.STREAM_VIEWPORT,
@@ -346,7 +368,7 @@ fun ChatContent(
             state = state,
             componentInstanceId = componentInstanceId,
             uiInstanceId = uiInstanceId,
-            extra = "conversationKey=$conversationKey renderMode=$renderMode previousVisible=$previousVisible nextVisible=$isVisible"
+            extra = "conversationKey=$conversationKey renderMode=$renderMode previousVisible=$previousVisible nextVisible=$isVisible hasRenderableContent=$hasRenderableContent"
         )
     }
 
@@ -356,12 +378,12 @@ fun ChatContent(
     val chromeAlpha = 1f
     val messagesAlpha by animateFloatAsState(
         targetValue = if (shouldShowContent) 1f else 0f,
-        animationSpec = if (shouldAnimateContentEntrance) tween(300) else snap(),
+        animationSpec = if (shouldAnimateContentEntrance) tween(220) else snap(),
         label = "MessagesAlpha"
     )
     val messagesOffset by animateDpAsState(
-        targetValue = if (shouldShowContent) 0.dp else 20.dp,
-        animationSpec = if (shouldAnimateContentEntrance) tween(300) else snap(),
+        targetValue = if (shouldShowContent) 0.dp else 12.dp,
+        animationSpec = if (shouldAnimateContentEntrance) tween(220) else snap(),
         label = "MessagesOffset"
     )
 

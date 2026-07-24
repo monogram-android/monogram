@@ -140,6 +140,7 @@ interface ChatComponent {
     fun onViewportSettled()
     fun onMessageViewportChanged(visibleMessageIds: Set<Long>, nearbyMessageIds: Set<Long>)
     fun onScrollToBottom()
+    fun onJumpToLatest()
     fun onScrollToNextUnreadMention()
     fun onClearUnreadMentions()
     fun onScrollToNextUnreadReaction()

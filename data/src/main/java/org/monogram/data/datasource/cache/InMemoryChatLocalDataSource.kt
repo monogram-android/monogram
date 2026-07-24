@@ -72,7 +72,7 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
 
     override fun getMessagesForChat(chatId: Long): Flow<List<MessageEntity>> =
         messages.getOrPut(chatId) { MutableStateFlow(emptyMap()) }
-            .map { it.values.sortedByDescending { msg -> msg.date } }
+            .map { it.values.sortedWith(compareByDescending<MessageEntity> { msg -> msg.date }.thenByDescending { it.id }) }
 
     override suspend fun getMessagesOlder(
         chatId: Long,
@@ -82,7 +82,7 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
     ): List<MessageEntity> {
         val chatMessages = scopedMessages(chatId, threadId)
         return chatMessages.filter { it.id < fromMessageId }
-            .sortedByDescending { it.date }
+            .sortedWith(compareByDescending<MessageEntity> { it.date }.thenByDescending { it.id })
             .take(limit)
     }
 
@@ -94,7 +94,7 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
     ): List<MessageEntity> {
         val chatMessages = scopedMessages(chatId, threadId)
         return chatMessages.filter { it.id > fromMessageId }
-            .sortedBy { it.date }
+            .sortedWith(compareBy<MessageEntity> { it.date }.thenBy { it.id })
             .take(limit)
     }
 
@@ -108,13 +108,13 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         val olderLimit = (limit + 1) / 2
         val newerLimit = limit - olderLimit
         val olderAndTarget = chatMessages.filter { it.id <= messageId }
-            .sortedByDescending { it.date }
+            .sortedWith(compareByDescending<MessageEntity> { it.date }.thenByDescending { it.id })
             .take(olderLimit)
         val newer = chatMessages.filter { it.id > messageId }
-            .sortedBy { it.date }
+            .sortedWith(compareBy<MessageEntity> { it.date }.thenBy { it.id })
             .take(newerLimit)
         return (olderAndTarget + newer).distinctBy { it.id }
-            .sortedByDescending { it.date }
+            .sortedWith(compareByDescending<MessageEntity> { it.date }.thenByDescending { it.id })
     }
 
     override suspend fun getLatestMessages(
@@ -123,7 +123,8 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         threadId: Long?
     ): List<MessageEntity> {
         val chatMessages = scopedMessages(chatId, threadId)
-        return chatMessages.sortedByDescending { it.date }.take(limit)
+        return chatMessages.sortedWith(compareByDescending<MessageEntity> { it.date }.thenByDescending { it.id })
+            .take(limit)
     }
 
     override suspend fun getMessagesByIds(

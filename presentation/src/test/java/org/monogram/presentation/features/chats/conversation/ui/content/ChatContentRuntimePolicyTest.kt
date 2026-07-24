@@ -14,17 +14,20 @@ class ChatContentRuntimePolicyTest {
         val afterFirstSettle = updateChatContentVisibilityLatch(
             previousVisible = false,
             renderMode = ChatRenderMode.Active,
-            viewportPhase = ChatViewportPhase.Settled
+            viewportPhase = ChatViewportPhase.Settled,
+            hasRenderableContent = false
         )
         val afterCloseInfo = updateChatContentVisibilityLatch(
             previousVisible = afterFirstSettle,
             renderMode = ChatRenderMode.Active,
-            viewportPhase = ChatViewportPhase.Restoring
+            viewportPhase = ChatViewportPhase.Restoring,
+            hasRenderableContent = true
         )
         val afterReopenInfo = updateChatContentVisibilityLatch(
             previousVisible = afterCloseInfo,
             renderMode = ChatRenderMode.Active,
-            viewportPhase = ChatViewportPhase.Initializing
+            viewportPhase = ChatViewportPhase.Initializing,
+            hasRenderableContent = false
         )
 
         assertTrue(afterFirstSettle)

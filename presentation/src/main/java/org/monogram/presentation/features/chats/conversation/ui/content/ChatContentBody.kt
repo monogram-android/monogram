@@ -46,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -637,6 +638,7 @@ private fun UnreadShortcutButton(
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .size(48.dp)
+                    .clip(CircleShape)
                     .semantics { this.contentDescription = contentDescription }
                     .combinedClickable(
                         onClick = onClick,

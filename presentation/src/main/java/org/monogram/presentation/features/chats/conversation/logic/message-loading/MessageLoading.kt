@@ -781,6 +781,19 @@ internal fun DefaultChatComponent.requestMessageHighlight(messageId: Long) {
     }
 }
 
+internal enum class ScrollToBottomHandling {
+    Runtime,
+    ReloadLatestWindow
+}
+
+internal fun ChatComponent.State.resolveScrollToBottomHandling(): ScrollToBottomHandling {
+    return if (messages.isNotEmpty() && isLatestLoaded) {
+        ScrollToBottomHandling.Runtime
+    } else {
+        ScrollToBottomHandling.ReloadLatestWindow
+    }
+}
+
 internal fun ChatComponent.State.enqueueRuntimeScrollToBottom(
     animated: Boolean = true
 ): ChatComponent.State {
@@ -1064,70 +1077,13 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
         componentInstanceId = componentInstanceId,
         extra = "isComments=$isComments"
     )
-    if (currentState.messages.isNotEmpty() && currentState.isLatestLoaded) {
+    if (currentState.resolveScrollToBottomHandling() == ScrollToBottomHandling.Runtime) {
         _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
         ChatConversationLog.logViewportState(
             event = "scroll_to_bottom_runtime_enqueued",
             state = _state.value,
             componentInstanceId = componentInstanceId
         )
-        return
-    }
-    if (currentState.messages.isNotEmpty() && !currentState.isLatestLoaded) {
-        _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
-        ChatConversationLog.logViewportState(
-            event = "scroll_to_bottom_partial_runtime_enqueued",
-            state = _state.value,
-            componentInstanceId = componentInstanceId
-        )
-        if (loadNewerJob?.isActive == true || currentState.isLoadingNewer) return
-        loadNewerJob = scope.launch {
-            _state.update { it.copy(isLoadingNewer = true) }
-            ChatConversationLog.logViewportState(
-                event = "scroll_to_bottom_load_newer_start",
-                state = _state.value,
-                componentInstanceId = componentInstanceId
-            )
-            try {
-                var reachedLatest = false
-                repeat(20) {
-                    if (reachedLatest || _state.value.isLatestLoaded) {
-                        reachedLatest = true
-                        return@repeat
-                    }
-                    reachedLatest = loadNewerMessagesPage()
-                }
-                if (reachedLatest || _state.value.isLatestLoaded) {
-                    _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
-                    ChatConversationLog.logViewportState(
-                        event = "scroll_to_bottom_load_newer_enqueued",
-                        state = _state.value,
-                        componentInstanceId = componentInstanceId
-                    )
-                }
-            } catch (e: Exception) {
-                ChatConversationLog.logViewportState(
-                    event = "scroll_to_bottom_load_newer_failed",
-                    state = _state.value,
-                    componentInstanceId = componentInstanceId,
-                    extra = "error=${e.javaClass.simpleName}"
-                )
-                Log.e(
-                    "DefaultChatComponent",
-                    "Failed to load newer messages before scroll to bottom",
-                    e
-                )
-                lastLoadedNewerId = 0L
-            } finally {
-                inFlightNewerAnchorId = 0L
-                _state.update { it.copy(isLoadingNewer = false) }
-                ChatConversationLog.logViewportState(
-                    event = "scroll_to_bottom_load_newer_finish",
-                    state = _state.value,
-                    componentInstanceId = componentInstanceId
-                )
-            }
-        }
         return
     }
     if (currentState.isLoading) return

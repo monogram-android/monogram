@@ -180,6 +180,9 @@ private enum class PagingIndicatorPlacement {
     Center
 }
 
+private const val MIN_EDGE_PRELOAD_ITEMS = 12
+private const val EDGE_PRELOAD_VIEWPORT_MULTIPLIER = 2
+
 internal fun shouldShowUnreadSeparator(
     isComments: Boolean,
     unreadBoundaryIndex: Int?,
@@ -500,12 +503,12 @@ internal fun ChatContentList(
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
             .filter { it.isNotEmpty() && groupedMessages.isNotEmpty() }
             .map { visibleItems ->
-                val firstIndex = visibleItems.first().index
-                val lastIndex = visibleItems.last().index
-                firstIndex to lastIndex
+                val firstIndex = visibleItems.minOf { it.index }
+                val lastIndex = visibleItems.maxOf { it.index }
+                Triple(firstIndex, lastIndex, visibleItems.size)
             }
             .distinctUntilChanged()
-            .collect { (firstVisibleIndex, lastVisibleIndex) ->
+            .collect { (firstVisibleIndex, lastVisibleIndex, visibleItemsCount) ->
                 val currentState = latestState
                 if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return@collect
 
@@ -528,11 +531,14 @@ internal fun ChatContentList(
                         -1
                     }
                 }
-                val olderPreloadThreshold = 2
-                val newerPreloadThreshold = 8
+                val preloadThreshold = (visibleItemsCount * EDGE_PRELOAD_VIEWPORT_MULTIPLIER)
+                    .coerceAtLeast(MIN_EDGE_PRELOAD_ITEMS)
+                val olderPreloadThreshold = preloadThreshold
+                val newerPreloadThreshold = preloadThreshold
                 val nearStartForOlder = firstVisibleIndex <= olderPreloadThreshold
                 val nearStartForNewer = firstVisibleIndex <= newerPreloadThreshold
-                val nearEnd = lastVisibleIndex >= (groupedLastLazyIndex - 2).coerceAtLeast(0)
+                val nearEnd = lastVisibleIndex >=
+                        (groupedLastLazyIndex - olderPreloadThreshold).coerceAtLeast(0)
                 val nearEndForNewer =
                     lastVisibleIndex >= (groupedLastLazyIndex - newerPreloadThreshold).coerceAtLeast(
                         0

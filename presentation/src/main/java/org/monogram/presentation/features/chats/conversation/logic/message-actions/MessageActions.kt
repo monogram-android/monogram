@@ -189,7 +189,7 @@ internal fun DefaultChatComponent.handleSendMessage(
         if (sendOptions.scheduleDate == null) {
             clearDraftLinkPreviewAfterSend()
         }
-        if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+        if (sendOptions.scheduleDate == null && shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
         if (sendOptions.scheduleDate != null) {
@@ -259,7 +259,7 @@ internal fun DefaultChatComponent.handleSendPhoto(
             if (sendOptions.scheduleDate == null) {
                 clearDraftLinkPreviewAfterSend()
             }
-            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+            if (sendOptions.scheduleDate == null && shouldAutoScrollAfterSend(currentState.isAtBottom)) {
                 onScrollToBottom()
             }
             if (sendOptions.scheduleDate != null) {
@@ -323,7 +323,7 @@ internal fun DefaultChatComponent.handleSendVideo(
             if (sendOptions.scheduleDate == null) {
                 clearDraftLinkPreviewAfterSend()
             }
-            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+            if (sendOptions.scheduleDate == null && shouldAutoScrollAfterSend(currentState.isAtBottom)) {
                 onScrollToBottom()
             }
             if (sendOptions.scheduleDate != null) {
@@ -370,7 +370,7 @@ internal fun DefaultChatComponent.handleSendGif(
         if (sendOptions.scheduleDate == null) {
             clearDraftLinkPreviewAfterSend()
         }
-        if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+        if (sendOptions.scheduleDate == null && shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
         if (sendOptions.scheduleDate != null) {
@@ -411,7 +411,7 @@ internal fun DefaultChatComponent.handleSendDocument(
             if (sendOptions.scheduleDate == null) {
                 clearDraftLinkPreviewAfterSend()
             }
-            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+            if (sendOptions.scheduleDate == null && shouldAutoScrollAfterSend(currentState.isAtBottom)) {
                 onScrollToBottom()
             }
             if (sendOptions.scheduleDate != null) {
@@ -447,7 +447,7 @@ internal fun DefaultChatComponent.handleSendPoll(
         if (sendOptions.scheduleDate == null) {
             clearDraftLinkPreviewAfterSend()
         }
-        if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+        if (sendOptions.scheduleDate == null && shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
         if (sendOptions.scheduleDate != null) {
@@ -488,7 +488,7 @@ internal fun DefaultChatComponent.handleSendGifFile(
             if (sendOptions.scheduleDate == null) {
                 clearDraftLinkPreviewAfterSend()
             }
-            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+            if (sendOptions.scheduleDate == null && shouldAutoScrollAfterSend(currentState.isAtBottom)) {
                 onScrollToBottom()
             }
             if (sendOptions.scheduleDate != null) {
@@ -567,7 +567,7 @@ internal fun DefaultChatComponent.handleSendAlbum(
             if (sendOptions.scheduleDate == null) {
                 clearDraftLinkPreviewAfterSend()
             }
-            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+            if (sendOptions.scheduleDate == null && shouldAutoScrollAfterSend(currentState.isAtBottom)) {
                 onScrollToBottom()
             }
             if (sendOptions.scheduleDate != null) {

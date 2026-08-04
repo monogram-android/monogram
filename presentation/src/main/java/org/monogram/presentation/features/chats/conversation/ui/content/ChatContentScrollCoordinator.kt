@@ -224,12 +224,14 @@ private suspend fun LazyListState.alignVisibleMessage(
 
 internal suspend fun LazyListState.scrollToChatBottomStaged(
     isComments: Boolean,
-    animated: Boolean
+    animated: Boolean,
+    bottomTargetIndex: Int? = null
 ) {
     val total = layoutInfo.totalItemsCount
     if (total <= 0) return
 
-    val targetIndex = if (isComments) total - 1 else 0
+    val targetIndex = (bottomTargetIndex ?: if (isComments) total - 1 else 0)
+        .coerceIn(0, total - 1)
     val visibleTargetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
     if (visibleTargetInfo != null) {
         val visibleDelta = calculateBottomAlignmentDelta(
@@ -252,9 +254,7 @@ internal suspend fun LazyListState.scrollToChatBottomStaged(
                 scrollBy(visibleDelta)
             }
             val remainingDelta = bottomAlignmentDelta(isComments = isComments)
-            if (remainingDelta == null || !needsBottomAlignmentCorrection(remainingDelta)) {
-                return
-            }
+            if (remainingDelta == null || !needsBottomAlignmentCorrection(remainingDelta)) return
         }
     }
 
@@ -286,9 +286,7 @@ internal suspend fun LazyListState.scrollToChatBottomStaged(
             scrollBy(delta)
         }
         val remainingDelta = bottomAlignmentDelta(isComments = isComments)
-        if (remainingDelta == null || !needsBottomAlignmentCorrection(remainingDelta)) {
-            return
-        }
+        if (remainingDelta == null || !needsBottomAlignmentCorrection(remainingDelta)) return
     }
 
     scrollToItem(targetIndex)
@@ -461,6 +459,7 @@ internal fun buildViewportSnapshot(
         isLoadingOlder = isLoadingOlder,
         isLoadingNewer = isLoadingNewer,
         isAtBottom = isAtBottom,
+        isNearBottom = nearBottomNow,
         hasMessages = groupedMessages.isNotEmpty()
     )
     val info = scrollState.layoutInfo

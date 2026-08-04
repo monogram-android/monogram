@@ -5,9 +5,7 @@ import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -388,6 +386,7 @@ internal fun ChatContentList(
                 isLoadingOlder = state.isLoadingOlder,
                 isLoadingNewer = state.isLoadingNewer,
                 isAtBottom = state.isAtBottom,
+                isNearBottom = scrollState.isNearBottom(isComments = isComments),
                 hasMessages = groupedMessages.isNotEmpty()
             )
             scrollState.layoutInfo.visibleItemsInfo.mapNotNull { visibleItem ->
@@ -429,6 +428,7 @@ internal fun ChatContentList(
                 isLoadingOlder = state.isLoadingOlder,
                 isLoadingNewer = state.isLoadingNewer,
                 isAtBottom = state.isAtBottom,
+                isNearBottom = scrollState.isNearBottom(isComments = isComments),
                 hasMessages = groupedMessages.isNotEmpty()
             )
             val viewportTopOffset = with(density) {
@@ -521,6 +521,7 @@ internal fun ChatContentList(
                         isLoadingOlder = currentState.isLoadingOlder,
                         isLoadingNewer = currentState.isLoadingNewer,
                         isAtBottom = currentState.isAtBottom,
+                        isNearBottom = scrollState.isNearBottom(isComments = isComments),
                         hasMessages = groupedMessages.isNotEmpty()
                     )
                     val lastConversationIndex =
@@ -618,6 +619,7 @@ internal fun ChatContentList(
                     isLoadingOlder = state.isLoadingOlder,
                     isLoadingNewer = state.isLoadingNewer,
                     isAtBottom = state.isAtBottom,
+                    isNearBottom = scrollState.isNearBottom(isComments = isComments),
                     hasMessages = groupedMessages.isNotEmpty()
                 )
                 val visibleGroupedIndices = visibleLazyIndices.mapNotNull { lazyIndex ->
@@ -669,7 +671,12 @@ internal fun ChatContentList(
                 }
             }
 
-            if (!isComments && state.isLoadingNewer && !state.isAtBottom && groupedMessages.isNotEmpty()) {
+            if (!isComments &&
+                state.isLoadingNewer &&
+                !state.isAtBottom &&
+                !scrollState.isNearBottom(isComments = false) &&
+                groupedMessages.isNotEmpty()
+            ) {
                 item(key = "loading_newer_bottom") {
                     PagingLoadingIndicator(placement = PagingIndicatorPlacement.Top)
                 }
@@ -748,7 +755,13 @@ internal fun ChatContentList(
                             isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
                             canReportVisibleMessagesAsRead = canReportVisibleMessagesAsRead,
                             rootMessageId = state.rootMessage?.id,
-                            isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId)
+                            isEntryAnimationPending = pendingEntryAnimationIds.containsKey(
+                                item.firstMessageId
+                            ) || (
+                                    hasSeededEntryAnimations &&
+                                            !state.suppressEntryAnimations &&
+                                            !seenMessageIds.containsKey(item.firstMessageId)
+                                    )
                         )
                     }
 
@@ -871,7 +884,11 @@ internal fun ChatContentList(
                                     rootMessageId = state.rootMessage?.id,
                                     isEntryAnimationPending = pendingEntryAnimationIds.containsKey(
                                         groupedItem.firstMessageId
-                                    )
+                                    ) || (
+                                            hasSeededEntryAnimations &&
+                                                    !state.suppressEntryAnimations &&
+                                                    !seenMessageIds.containsKey(groupedItem.firstMessageId)
+                                            )
                                 )
                             }
 
@@ -1067,19 +1084,18 @@ private fun MessageRowItem(
     val shouldAnimateEntry =
         isChatAnimationsEnabled && isEntryAnimationPending && !isScrolling
 
-    val scale = remember(mainMsg.id) {
-        Animatable(
-            if (shouldAnimateEntry) 0.98f else 1f
-        )
-    }
     val itemAlpha = remember(mainMsg.id) {
         Animatable(
-            if (shouldAnimateEntry) 0f else 1f
+            if (shouldAnimateEntry) 0.7f else 1f
         )
     }
     val offsetY = remember(mainMsg.id) {
         Animatable(
-            if (shouldAnimateEntry) 10f else 0f
+            if (shouldAnimateEntry) {
+                if (mainMsg.isOutgoing) 6f else 10f
+            } else {
+                0f
+            }
         )
     }
     val rowShape = remember { RoundedCornerShape(18.dp) }
@@ -1096,14 +1112,13 @@ private fun MessageRowItem(
     }
 
     LaunchedEffect(mainMsg.id, shouldAnimateEntry) {
-        if (shouldAnimateEntry && scale.value < 1f) {
-            val stiffness = Spring.StiffnessMediumLow
-            launch { scale.animateTo(1f, spring(Spring.DampingRatioLowBouncy, stiffness)) }
-            launch { itemAlpha.animateTo(1f, spring(stiffness = stiffness)) }
-            launch { offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessLow)) }
+        if (shouldAnimateEntry && (itemAlpha.value < 1f || offsetY.value != 0f)) {
+            val alphaJob = launch { itemAlpha.animateTo(1f, tween(durationMillis = 120)) }
+            val offsetJob = launch { offsetY.animateTo(0f, tween(durationMillis = 180)) }
+            alphaJob.join()
+            offsetJob.join()
             onEntryAnimationConsumed(mainMsg.id)
         } else {
-            scale.snapTo(1f)
             itemAlpha.snapTo(1f)
             offsetY.snapTo(0f)
             if (isEntryAnimationPending) {
@@ -1182,8 +1197,8 @@ private fun MessageRowItem(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = scale.value * highlightScale.value
-                scaleY = scale.value * highlightScale.value
+                scaleX = highlightScale.value
+                scaleY = highlightScale.value
                 alpha = itemAlpha.value
                 translationY = offsetY.value
             }
@@ -1837,6 +1852,7 @@ internal fun chatContentLeadingItemsCount(
     isLoadingOlder: Boolean,
     isLoadingNewer: Boolean,
     isAtBottom: Boolean,
+    isNearBottom: Boolean = false,
     hasMessages: Boolean
 ): Int {
     return if (isComments) {
@@ -1844,7 +1860,13 @@ internal fun chatContentLeadingItemsCount(
         loadingOlderTop + 1 // root header
     } else {
         val navPadding = if (showNavPadding) 1 else 0
-        val loadingNewerBottom = if (isLoadingNewer && !isAtBottom && hasMessages) 1 else 0
+        val loadingNewerBottom = if (
+            isLoadingNewer && !isAtBottom && !isNearBottom && hasMessages
+        ) {
+            1
+        } else {
+            0
+        }
         navPadding + loadingNewerBottom
     }
 }

@@ -800,8 +800,8 @@ class DefaultRootComponent(
             is Config.ChatSettings -> RootComponent.Child.ChatSettingsChild(
                 DefaultChatSettingsComponent(
                     context = context,
-                    onBack = { navigation.pop() },
-                    onAdBlock = { navigation.bringToFront(Config.AdBlock) })
+                    onBack = { navigation.pop() }
+                )
             )
             is Config.DataStorage -> RootComponent.Child.DataStorageChild(
                 DefaultDataStorageComponent(
@@ -1000,7 +1000,8 @@ class DefaultRootComponent(
             is Config.Debug -> RootComponent.Child.DebugChild(
                 DefaultDebugComponent(
                     context = context,
-                    onBack = { navigation.pop() }
+                    onBack = { navigation.pop() },
+                    onAdBlock = { navigation.bringToFront(Config.AdBlock) }
                 )
             )
 

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.BatterySaver
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Cloud
@@ -89,6 +90,20 @@ fun DebugContent(component: DebugComponent) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (!state.isInstalledFromGooglePlay) {
+                item {
+                    SectionHeader(stringResource(R.string.experimental_header))
+                    SettingsItem(
+                        icon = Icons.Rounded.Block,
+                        title = stringResource(R.string.adblock_channels_title),
+                        subtitle = stringResource(R.string.adblock_channels_subtitle),
+                        iconBackgroundColor = Color(0xFFD32F2F),
+                        position = ItemPosition.STANDALONE,
+                        onClick = component::onAdBlockClicked
+                    )
+                }
+            }
+
             item {
                 SectionHeader(stringResource(R.string.debug_section_push_diagnostics))
                 SettingsItem(

@@ -80,7 +80,7 @@ internal fun ChannelSponsoredMessageRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 12.dp)
+            .padding(top = 8.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -89,7 +89,7 @@ internal fun ChannelSponsoredMessageRow(
         ) {
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 8.dp)
+                    .padding(horizontal = 6.dp)
                     .widthIn(max = maxWidth)
                     .fillMaxWidth()
             ) {
@@ -99,16 +99,16 @@ internal fun ChannelSponsoredMessageRow(
                         .border(
                             width = 1.dp,
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-                            shape = RoundedCornerShape(20.dp)
+                            shape = RoundedCornerShape(18.dp)
                         ),
                     color = bubbleColor,
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(18.dp),
                     tonalElevation = 0.dp,
                     onClick = onCardClick
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.Top,
@@ -172,7 +172,7 @@ internal fun ChannelSponsoredMessageRow(
                                             text = info,
                                             style = MaterialTheme.typography.bodySmall,
                                             color = secondaryTextColor,
-                                            maxLines = 2,
+                                            maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
@@ -192,7 +192,9 @@ internal fun ChannelSponsoredMessageRow(
                             Text(
                                 text = text,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = titleColor
+                                color = titleColor,
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -201,7 +203,7 @@ internal fun ChannelSponsoredMessageRow(
                                 text = info,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = secondaryTextColor,
-                                maxLines = 3,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
@@ -219,7 +221,7 @@ internal fun ChannelSponsoredMessageRow(
                                     containerColor = buttonColor,
                                     contentColor = titleColor
                                 ),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                             ) {
                                 Text(
                                     text = buttonText,
@@ -265,6 +267,7 @@ private fun SponsoredMedia(
             1f
         }
         val mediaHeight = (maxWidth / mediaRatio).coerceIn(160.dp, 320.dp)
+            .coerceAtMost(240.dp)
 
         Box(
             modifier = Modifier

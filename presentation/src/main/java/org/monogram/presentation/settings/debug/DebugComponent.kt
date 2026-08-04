@@ -11,6 +11,7 @@ interface DebugComponent {
     fun onCrashClicked()
     fun onForceSponsorSyncClicked()
     fun onTestPushClicked()
+    fun onAdBlockClicked()
     fun onDropDatabasesClicked()
     fun onDropCachePrefsClicked()
     fun onDropPrefsClicked()
@@ -35,6 +36,7 @@ interface DebugComponent {
         val isGmsAvailable: Boolean = false,
         val isFcmAvailable: Boolean = false,
         val isUnifiedPushDistributorAvailable: Boolean = false,
+        val isInstalledFromGooglePlay: Boolean = true,
         val supportersCount: Int = 0,
         val isSponsorsLoading: Boolean = true,
         val sponsorLastSyncAt: Long = 0L

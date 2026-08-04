@@ -54,7 +54,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.StickyNote2
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Archive
-import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Brightness4
 import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.BrightnessLow
@@ -1041,20 +1040,6 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     position = ItemPosition.BOTTOM,
                     onCheckedChange = component::onShowChatListPhotosChanged
                 )
-            }
-
-            if (!state.isInstalledFromGooglePlay) {
-                item {
-                    SectionHeader(stringResource(R.string.experimental_header))
-                    SettingsTile(
-                        icon = Icons.Rounded.Block,
-                        title = stringResource(R.string.adblock_channels_title),
-                        subtitle = stringResource(R.string.adblock_channels_subtitle),
-                        iconColor = redColor,
-                        position = ItemPosition.STANDALONE,
-                        onClick = component::onAdBlockClick
-                    )
-                }
             }
 
             item {

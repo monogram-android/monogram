@@ -13,7 +13,8 @@ import java.io.File
 
 class DefaultDebugComponent(
     private val context: AppComponentContext,
-    private val onBack: () -> Unit
+    private val onBack: () -> Unit,
+    private val onAdBlock: () -> Unit
 ) : DebugComponent, AppComponentContext by context {
 
     private val messageDisplayer = container.utils.messageDisplayer()
@@ -27,7 +28,8 @@ class DefaultDebugComponent(
         DebugComponent.State(
             isGmsAvailable = distrManager.isGmsAvailable(),
             isFcmAvailable = distrManager.isFcmAvailable(),
-            isUnifiedPushDistributorAvailable = distrManager.isUnifiedPushDistributorAvailable()
+            isUnifiedPushDistributorAvailable = distrManager.isUnifiedPushDistributorAvailable(),
+            isInstalledFromGooglePlay = distrManager.isInstalledFromGooglePlay()
         )
     )
     override val state: Value<DebugComponent.State> = _state
@@ -84,6 +86,10 @@ class DefaultDebugComponent(
     override fun onTestPushClicked() {
         pushDebugRepository.triggerTestPush()
         messageDisplayer.show("Debug push dispatched")
+    }
+
+    override fun onAdBlockClicked() {
+        onAdBlock()
     }
 
     override fun onDropDatabasesClicked() {

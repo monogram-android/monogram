@@ -86,7 +86,6 @@ interface ChatSettingsComponent {
     fun onDragToBackChanged(enabled: Boolean)
     fun onInAppBrowserEnabledChanged(enabled: Boolean)
     fun onTabletInterfaceEnabledChanged(enabled: Boolean)
-    fun onAdBlockClick()
     fun onEmojiStyleChanged(style: EmojiStyle)
     fun onEmojiStyleLongClick(style: EmojiStyle)
     fun onConfirmRemoveEmojiPack()
@@ -174,8 +173,7 @@ interface ChatSettingsComponent {
 
 class DefaultChatSettingsComponent(
     context: AppComponentContext,
-    private val onBack: () -> Unit,
-    private val onAdBlock: () -> Unit
+    private val onBack: () -> Unit
 ) : ChatSettingsComponent, AppComponentContext by context {
 
     private val appPreferences: AppPreferences = container.preferences.appPreferences
@@ -1056,10 +1054,6 @@ class DefaultChatSettingsComponent(
 
     override fun onTabletInterfaceEnabledChanged(enabled: Boolean) {
         appPreferences.setTabletInterfaceEnabled(enabled)
-    }
-
-    override fun onAdBlockClick() {
-        onAdBlock()
     }
 
     override fun onEmojiStyleChanged(style: EmojiStyle) {

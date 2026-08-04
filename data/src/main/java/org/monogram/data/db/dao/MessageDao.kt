@@ -162,10 +162,12 @@ interface MessageDao {
         """
         DELETE FROM messages
         WHERE chatId = :chatId
-          AND id NOT IN (
-            SELECT id FROM messages WHERE chatId = :chatId ORDER BY date DESC LIMIT :keepCount
+          AND (
+            createdAt < :olderThan
+            OR id NOT IN (
+              SELECT id FROM messages WHERE chatId = :chatId ORDER BY date DESC LIMIT :keepCount
+            )
           )
-          AND createdAt < :olderThan
         """
     )
     suspend fun cleanupChat(chatId: Long, keepCount: Int, olderThan: Long)
@@ -178,6 +180,9 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE chatId = :chatId AND id = :messageId")
     suspend fun deleteMessage(chatId: Long, messageId: Long)
+
+    @Query("DELETE FROM messages WHERE chatId = :chatId AND id IN (:messageIds)")
+    suspend fun deleteMessages(chatId: Long, messageIds: List<Long>)
 
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun clearMessagesForChat(chatId: Long)

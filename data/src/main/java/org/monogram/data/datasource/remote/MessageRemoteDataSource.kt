@@ -1,6 +1,7 @@
 package org.monogram.data.datasource.remote
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource.DownloadType
 import org.monogram.domain.models.FileDownloadEvent
@@ -9,6 +10,8 @@ import org.monogram.domain.models.MessageDownloadEvent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageIdUpdatedEvent
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendAcknowledgedEvent
+import org.monogram.domain.models.MessageSendFailedEvent
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageUploadProgressEvent
 import org.monogram.domain.models.MessageViewerModel
@@ -31,6 +34,10 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
     val messageDownloadFlow: Flow<MessageDownloadEvent>
     val messageDeletedFlow: Flow<MessageDeletedEvent>
     val messageIdUpdateFlow: Flow<MessageIdUpdatedEvent>
+    val messageAcknowledgedFlow: Flow<MessageSendAcknowledgedEvent>
+        get() = emptyFlow()
+    val messageSendFailedFlow: Flow<MessageSendFailedEvent>
+        get() = emptyFlow()
     val pinnedMessageFlow: Flow<Long>
     val mediaUpdateFlow: Flow<Unit>
     fun registerFileForMessage(fileId: Int, chatId: Long, messageId: Long)
@@ -98,6 +105,7 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         threadId: Long?,
         sendOptions: MessageSendOptions
     ): TdApi.Message?
+    suspend fun retryFailedMessage(chatId: Long, temporaryMessageId: Long) = Unit
 
     suspend fun sendVideo(
         chatId: Long,

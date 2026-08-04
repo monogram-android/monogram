@@ -6,10 +6,12 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendingState
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ChatRenderMode
 import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
+import org.monogram.presentation.features.chats.conversation.OutgoingMessageReducer
 
 @Immutable
 internal data class ChatContentPermissionState(
@@ -113,7 +115,30 @@ internal fun rememberChatContentPreviewState(
     val previewRootMessage =
         if (renderMode == ChatRenderMode.ForumTopicSwipePreview) null else state.rootMessage
     val previewMessages =
-        if (renderMode == ChatRenderMode.ForumTopicSwipePreview) emptyList() else state.messages
+        if (renderMode == ChatRenderMode.ForumTopicSwipePreview) {
+            emptyList()
+        } else {
+            state.messages.map { message ->
+                val outgoingState = state.outgoingMessageStates[
+                    OutgoingMessageReducer.Key(message.chatId, message.id)
+                ]
+                when (outgoingState) {
+                    is OutgoingMessageReducer.State.Failed -> message.copy(
+                        sendingState = MessageSendingState.Failed(
+                            outgoingState.errorCode,
+                            "TDLib send failed"
+                        )
+                    )
+
+                    is OutgoingMessageReducer.State.PendingLocal,
+                    is OutgoingMessageReducer.State.Acknowledged -> message.copy(
+                        sendingState = message.sendingState ?: MessageSendingState.Pending
+                    )
+
+                    else -> message
+                }
+            }
+        }
 
     return remember(
         previewCurrentTopicId,

@@ -57,3 +57,8 @@ data class MessageIdUpdatedEvent(
     val oldMessageId: Long,
     val message: MessageModel
 )
+
+data class MessageSendAcknowledgedEvent(
+    val chatId: Long,
+    val temporaryMessageId: Long
+)

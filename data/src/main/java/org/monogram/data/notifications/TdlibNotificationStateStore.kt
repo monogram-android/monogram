@@ -18,6 +18,13 @@ class TdlibNotificationStateStore {
     fun hasNativeSync(): Boolean = hasNativeSync
 
     @Synchronized
+    fun fingerprint(): Long = groups.values.fold(17L) { hash, group ->
+        var next = hash * 31 + group.id
+        next = next * 31 + group.notifications.size
+        group.notifications.keys.fold(next) { value, notificationId -> value * 31 + notificationId }
+    }
+
+    @Synchronized
     fun reset() {
         groups.clear()
         dismissedUpToByChat.clear()

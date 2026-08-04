@@ -20,6 +20,7 @@ class NotificationReadReceiver : BroadcastReceiver(), KoinComponent {
         val chatId = intent.getLongExtra("chat_id", 0L)
         val notificationId = intent.getIntExtra("notification_id", 0)
         if (chatId == 0L) return
+        if (!notificationManager.consumeNotificationAction("read", chatId, notificationId)) return
 
         goAsync {
             try {

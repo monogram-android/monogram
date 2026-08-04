@@ -104,9 +104,22 @@ class RoomChatLocalDataSource(
     override suspend fun getMessagesByIds(chatId: Long, messageIds: List<Long>) =
         if (messageIds.isEmpty()) emptyList() else messageDao.getMessagesByIds(chatId, messageIds)
 
-    override suspend fun insertMessage(message: MessageEntity) = messageDao.insertMessage(message)
+    override suspend fun insertMessage(message: MessageEntity) {
+        database.withTransaction {
+            messageDao.insertMessage(message)
+            cleanupMessageCache(message.chatId)
+        }
+    }
 
-    override suspend fun insertMessages(messages: List<MessageEntity>) = messageDao.insertMessages(messages)
+    override suspend fun insertMessages(messages: List<MessageEntity>) {
+        if (messages.isEmpty()) return
+        database.withTransaction {
+            messageDao.insertMessages(messages)
+            for (chatId in messages.asSequence().map(MessageEntity::chatId).distinct()) {
+                cleanupMessageCache(chatId)
+            }
+        }
+    }
 
     override suspend fun replaceMessage(message: MessageEntity) = messageDao.insertMessage(message)
 
@@ -163,6 +176,81 @@ class RoomChatLocalDataSource(
     override suspend fun deleteMessage(chatId: Long, messageId: Long) =
         messageDao.deleteMessage(chatId, messageId)
 
+    override suspend fun deleteMessages(chatId: Long, messageIds: List<Long>) {
+        if (messageIds.isNotEmpty()) {
+            messageDao.deleteMessages(chatId, messageIds)
+        }
+    }
+
+    override suspend fun applyMessageCacheMutations(mutations: List<MessageCacheMutation>) {
+        if (mutations.isEmpty()) return
+
+        database.withTransaction {
+            mutations.forEach { mutation ->
+                when (mutation) {
+                    is MessageCacheMutation.Persist -> messageDao.insertMessage(mutation.message)
+                    is MessageCacheMutation.ReplaceId -> {
+                        messageDao.deleteMessage(mutation.chatId, mutation.oldMessageId)
+                        messageDao.insertMessage(mutation.message)
+                    }
+
+                    is MessageCacheMutation.UpdateContent -> messageDao.updateContent(
+                        mutation.chatId,
+                        mutation.messageId,
+                        mutation.content,
+                        mutation.contentType,
+                        mutation.contentMeta,
+                        0,
+                        null,
+                        mutation.editDate
+                    )
+
+                    is MessageCacheMutation.UpdateInteraction -> messageDao.updateInteractionInfo(
+                        mutation.chatId,
+                        mutation.messageId,
+                        mutation.viewCount,
+                        mutation.forwardCount,
+                        mutation.replyCount
+                    )
+
+                    is MessageCacheMutation.MarkRead -> messageDao.markAsRead(
+                        mutation.chatId,
+                        mutation.upToMessageId
+                    )
+
+                    is MessageCacheMutation.DeleteMessages -> {
+                        if (mutation.messageIds.isNotEmpty()) {
+                            messageDao.deleteMessages(mutation.chatId, mutation.messageIds)
+                        }
+                    }
+
+                    is MessageCacheMutation.UpdateMediaPath -> Unit
+                }
+            }
+            for (chatId in mutations.asSequence().map(::mutationChatId).distinct()) {
+                cleanupMessageCache(chatId)
+            }
+        }
+    }
+
+    private suspend fun cleanupMessageCache(chatId: Long) {
+        messageDao.cleanupChat(
+            chatId = chatId,
+            keepCount = MESSAGE_CACHE_ROWS_PER_CHAT,
+            olderThan = System.currentTimeMillis() - MESSAGE_CACHE_TTL_MS
+        )
+    }
+
+    private fun mutationChatId(mutation: MessageCacheMutation): Long = when (mutation) {
+        is MessageCacheMutation.Persist -> mutation.message.chatId
+        is MessageCacheMutation.ReplaceId -> mutation.chatId
+        is MessageCacheMutation.UpdateContent -> mutation.chatId
+        is MessageCacheMutation.UpdateInteraction -> mutation.chatId
+        is MessageCacheMutation.MarkRead -> mutation.chatId
+        is MessageCacheMutation.DeleteMessages -> mutation.chatId
+        is MessageCacheMutation.UpdateMediaPath -> mutation.chatId
+    }
+
     override suspend fun clearMessagesForChat(chatId: Long) = messageDao.clearMessagesForChat(chatId)
 
     override suspend fun getChatFullInfo(chatId: Long): ChatFullInfoEntity? = chatFullInfoDao.getChatFullInfo(chatId)
@@ -185,5 +273,10 @@ class RoomChatLocalDataSource(
         database.withTransaction {
             messageDao.deleteExpired(timestamp)
         }
+    }
+
+    private companion object {
+        const val MESSAGE_CACHE_ROWS_PER_CHAT = 1_000
+        const val MESSAGE_CACHE_TTL_MS = 90L * 24 * 60 * 60 * 1_000
     }
 }

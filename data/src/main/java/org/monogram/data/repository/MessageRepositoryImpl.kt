@@ -30,6 +30,8 @@ import org.monogram.data.compat.isPromptBasedAiSupported
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.cache.ChatLocalDataSource
+import org.monogram.data.datasource.cache.MessageCacheMutation
+import org.monogram.data.datasource.cache.MessageCacheWriter
 import org.monogram.data.datasource.cache.UserLocalDataSource
 import org.monogram.data.datasource.remote.FxEmbedRemoteDataSource
 import org.monogram.data.datasource.remote.MessageRemoteDataSource
@@ -40,6 +42,7 @@ import org.monogram.data.db.model.KeyValueEntity
 import org.monogram.data.db.model.TextCompositionStyleEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
+import org.monogram.data.infra.OutboxLifecycleMetrics
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.SponsoredMessageMapper
 import org.monogram.data.mapper.TdFileHelper
@@ -100,6 +103,7 @@ internal class MessageRepositoryImpl(
     private val dispatcherProvider: DispatcherProvider,
     private val scope: CoroutineScope,
     private val chatLocalDataSource: ChatLocalDataSource,
+    private val messageCacheWriter: MessageCacheWriter,
     private val userLocalDataSource: UserLocalDataSource,
     private val stickerPathDao: StickerPathDao,
     private val keyValueDao: KeyValueDao,
@@ -116,6 +120,7 @@ internal class MessageRepositoryImpl(
         ConcurrentHashMap<RichMessageCacheKey, MessageContent.RichMessage>()
     private val chatOpenOwnershipMutex = Mutex()
     private val chatOpenOwnershipRegistry = ChatOpenOwnershipRegistry()
+    internal val outboxLifecycleMetrics = OutboxLifecycleMetrics()
 
     private val _textCompositionStyles = MutableStateFlow<List<TextCompositionStyleModel>>(emptyList())
     private val hardResetFlagKey = "cache_hard_reset_v2"
@@ -129,6 +134,8 @@ internal class MessageRepositoryImpl(
     override val messageReadFlow = messageRemoteDataSource.messageReadFlow
     override val messageDeletedFlow = messageRemoteDataSource.messageDeletedFlow
     override val messageIdUpdateFlow = messageRemoteDataSource.messageIdUpdateFlow
+    override val messageAcknowledgedFlow = messageRemoteDataSource.messageAcknowledgedFlow
+    override val messageSendFailedFlow = messageRemoteDataSource.messageSendFailedFlow
     override val pinnedMessageFlow = messageRemoteDataSource.pinnedMessageFlow
     override val mediaUpdateFlow = messageRemoteDataSource.mediaUpdateFlow
     override val textCompositionStyles = _textCompositionStyles.asStateFlow()
@@ -233,30 +240,40 @@ internal class MessageRepositoryImpl(
     private suspend fun processCachedUpdate(update: TdApi.Update) {
         when (update) {
             is TdApi.UpdateNewMessage -> {
+                if (update.message.isOutgoing && update.message.sendingState is TdApi.MessageSendingStatePending) {
+                    outboxLifecycleMetrics.recordPending(update.message.chatId, update.message.id)
+                }
                 persistMappedMessage(update.message)
             }
 
             is TdApi.UpdateMessageSendSucceeded -> {
+                outboxLifecycleMetrics.recordTerminal(update.message.chatId, update.oldMessageId)
                 val entity = messageMapper.mapToEntity(update.message, ::resolveSenderName)
-                chatLocalDataSource.replaceMessageId(
+                messageCacheWriter.enqueue(
+                    MessageCacheMutation.ReplaceId(
                     chatId = update.message.chatId,
                     oldMessageId = update.oldMessageId,
                     message = entity
+                    )
                 )
             }
 
             is TdApi.UpdateMessageSendFailed -> {
+                outboxLifecycleMetrics.recordTerminal(update.message.chatId, update.oldMessageId)
                 val entity = messageMapper.mapToEntity(update.message, ::resolveSenderName)
-                chatLocalDataSource.replaceMessageId(
+                messageCacheWriter.enqueue(
+                    MessageCacheMutation.ReplaceId(
                     chatId = update.message.chatId,
                     oldMessageId = update.oldMessageId,
                     message = entity
+                    )
                 )
             }
 
             is TdApi.UpdateMessageContent -> {
                 val extracted = messageMapper.extractCachedContent(update.newContent)
-                chatLocalDataSource.updateMessageContent(
+                messageCacheWriter.enqueue(
+                    MessageCacheMutation.UpdateContent(
                     chatId = update.chatId,
                     messageId = update.messageId,
                     content = extracted.text,
@@ -265,6 +282,7 @@ internal class MessageRepositoryImpl(
                     mediaFileId = extracted.fileId,
                     mediaPath = extracted.path,
                     editDate = cache.getMessage(update.chatId, update.messageId)?.editDate ?: 0
+                    )
                 )
             }
 
@@ -274,12 +292,14 @@ internal class MessageRepositoryImpl(
 
             is TdApi.UpdateMessageInteractionInfo -> {
                 if (persistCachedMessage(update.chatId, update.messageId)) return
-                chatLocalDataSource.updateInteractionInfo(
+                messageCacheWriter.enqueue(
+                    MessageCacheMutation.UpdateInteraction(
                     chatId = update.chatId,
                     messageId = update.messageId,
                     viewCount = update.interactionInfo?.viewCount ?: 0,
                     forwardCount = update.interactionInfo?.forwardCount ?: 0,
                     replyCount = update.interactionInfo?.replyInfo?.replyCount ?: 0
+                    )
                 )
             }
 
@@ -320,14 +340,19 @@ internal class MessageRepositoryImpl(
             }
 
             is TdApi.UpdateChatReadInbox -> {
-                chatLocalDataSource.markAsRead(update.chatId, update.lastReadInboxMessageId)
+                messageCacheWriter.enqueue(
+                    MessageCacheMutation.MarkRead(update.chatId, update.lastReadInboxMessageId)
+                )
             }
 
             is TdApi.UpdateDeleteMessages -> {
                 if (update.isPermanent) {
-                    update.messageIds.forEach { messageId ->
-                        chatLocalDataSource.deleteMessage(update.chatId, messageId)
-                    }
+                    messageCacheWriter.enqueue(
+                        MessageCacheMutation.DeleteMessages(
+                            update.chatId,
+                            update.messageIds.toList()
+                        )
+                    )
                 }
             }
 
@@ -346,8 +371,8 @@ internal class MessageRepositoryImpl(
     }
 
     private suspend fun persistMappedMessage(message: TdApi.Message) {
-        chatLocalDataSource.replaceMessage(
-            messageMapper.mapToEntity(message, ::resolveSenderName)
+        messageCacheWriter.enqueue(
+            MessageCacheMutation.Persist(messageMapper.mapToEntity(message, ::resolveSenderName))
         )
     }
 
@@ -451,6 +476,10 @@ internal class MessageRepositoryImpl(
         sendOptions: MessageSendOptions
     ) {
         messageRemoteDataSource.sendMessage(chatId, text, replyToMsgId, entities, threadId, sendOptions)
+    }
+
+    override suspend fun retryFailedMessage(chatId: Long, temporaryMessageId: Long) {
+        messageRemoteDataSource.retryFailedMessage(chatId, temporaryMessageId)
     }
 
     override suspend fun sendRichMessage(

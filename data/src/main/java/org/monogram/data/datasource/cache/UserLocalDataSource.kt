@@ -7,6 +7,8 @@ import org.monogram.data.db.model.UserFullInfoEntity
 interface UserLocalDataSource {
     suspend fun getUser(userId: Long): TdApi.User?
     suspend fun putUser(user: TdApi.User)
+    suspend fun updateUserStatus(userId: Long, status: TdApi.UserStatus): TdApi.User? =
+        getUser(userId)?.also { it.status = status }
     suspend fun getUserFullInfo(userId: Long): TdApi.UserFullInfo?
     suspend fun putUserFullInfo(userId: Long, info: TdApi.UserFullInfo)
     suspend fun getAllUsers(): Collection<TdApi.User>

@@ -27,6 +27,7 @@ import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
 import org.monogram.presentation.features.chats.conversation.ConversationLoadSession
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
+import org.monogram.presentation.features.chats.conversation.OutgoingMessageReducer
 import org.monogram.presentation.features.chats.conversation.ScrollAlign
 import java.io.File
 import kotlin.math.abs
@@ -234,7 +235,12 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
             pruneDeliveredPendingDuplicates(sortedMessages)
         }
 
-        if (mergedMessages == state.messages) state else state.copy(messages = mergedMessages)
+        if (mergedMessages == state.messages) state else state.copy(
+            messages = mergedMessages,
+            outgoingMessageStates = state.outgoingMessageStates + OutgoingMessageReducer.recover(
+                mergedMessages
+            )
+        )
     }
 }
 
@@ -1349,6 +1355,11 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                         }
                         state.copy(
                             messages = sortedMessages,
+                            outgoingMessageStates = OutgoingMessageReducer.succeeded(
+                                current = state.outgoingMessageStates,
+                                key = OutgoingMessageReducer.Key(cId, oldId),
+                                finalMessageId = newMessage.id
+                            ),
                             isLatestLoaded = if (newMessage.isOutgoing || state.isAtBottom) true else state.isLatestLoaded
                         )
                     }
@@ -1358,6 +1369,35 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                 if (isCurrentThread) {
                     requestSenderRefreshIfNeeded(newMessage)
                 }
+            }
+        }
+        .launchIn(scope)
+
+    repositoryMessage.messageAcknowledgedFlow
+        .onEach { event ->
+            if (event.chatId != chatId && event.chatId != activeThreadChatId()) return@onEach
+            _state.update { state ->
+                state.copy(
+                    outgoingMessageStates = OutgoingMessageReducer.acknowledged(
+                        current = state.outgoingMessageStates,
+                        key = OutgoingMessageReducer.Key(event.chatId, event.temporaryMessageId)
+                    )
+                )
+            }
+        }
+        .launchIn(scope)
+
+    repositoryMessage.messageSendFailedFlow
+        .onEach { event ->
+            if (event.chatId != chatId && event.chatId != activeThreadChatId()) return@onEach
+            _state.update { state ->
+                state.copy(
+                    outgoingMessageStates = OutgoingMessageReducer.failed(
+                        current = state.outgoingMessageStates,
+                        key = OutgoingMessageReducer.Key(event.chatId, event.temporaryMessageId),
+                        errorCode = event.errorCode
+                    )
+                )
             }
         }
         .launchIn(scope)

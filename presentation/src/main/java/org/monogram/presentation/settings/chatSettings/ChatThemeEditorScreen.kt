@@ -1,6 +1,8 @@
 package org.monogram.presentation.settings.chatSettings
 
-import android.graphics.Color.*
+import android.graphics.Color.HSVToColor
+import android.graphics.Color.colorToHSV
+import android.graphics.Color.parseColor
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,7 +10,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -20,9 +33,33 @@ import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Upload
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedToggleButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ShapeDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,10 +71,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
+import org.monogram.presentation.core.ui.SettingsTextField
 import org.monogram.presentation.core.util.NightMode
 import org.monogram.presentation.core.util.coRunCatching
-import org.monogram.presentation.core.ui.SettingsTextField
-import java.util.*
+import java.util.Calendar
 
 private enum class PaletteMode { LIGHT, DARK }
 
@@ -278,16 +315,14 @@ fun ChatThemeEditorScreen(
                                 OutlinedToggleButton(
                                     checked = !isDark,
                                     onCheckedChange = { if (it) mode = PaletteMode.LIGHT },
-                                    modifier = Modifier.weight(1f),
-                                    shapes = ToggleButtonDefaults.shapes(shape = ShapeDefaults.LargeIncreased)
+                                    modifier = Modifier.weight(1f)
                                 ) {
                                     Text(stringResource(R.string.chat_theme_editor_light))
                                 }
                                 OutlinedToggleButton(
                                     checked = isDark,
                                     onCheckedChange = { if (it) mode = PaletteMode.DARK },
-                                    modifier = Modifier.weight(1f),
-                                    shapes = ToggleButtonDefaults.shapes(shape = ShapeDefaults.LargeIncreased)
+                                    modifier = Modifier.weight(1f)
                                 ) {
                                     Text(stringResource(R.string.chat_theme_editor_dark))
                                 }

@@ -5,17 +5,17 @@ import org.monogram.data.db.dao.UserDao
 import org.monogram.data.db.dao.UserFullInfoDao
 import org.monogram.data.db.model.UserEntity
 import org.monogram.data.db.model.UserFullInfoEntity
+import org.monogram.data.infra.SynchronizedLruMap
 import org.monogram.data.mapper.user.extractPersonalAvatarPath
 import org.monogram.data.mapper.user.toEntity
 import org.monogram.data.mapper.user.toTdApi
-import java.util.concurrent.ConcurrentHashMap
 
 class RoomUserLocalDataSource(
     private val userDao: UserDao,
     private val userFullInfoDao: UserFullInfoDao
 ) : UserLocalDataSource {
-    private val fullInfos = ConcurrentHashMap<Long, TdApi.UserFullInfo>()
-    private val users = ConcurrentHashMap<Long, TdApi.User>()
+    private val fullInfos = SynchronizedLruMap<Long, TdApi.UserFullInfo>(FULL_INFO_SNAPSHOT_LIMIT)
+    private val users = SynchronizedLruMap<Long, TdApi.User>(USER_SNAPSHOT_LIMIT)
 
     override suspend fun getUser(userId: Long): TdApi.User? {
         users[userId]?.let { return it }
@@ -54,7 +54,7 @@ class RoomUserLocalDataSource(
     override suspend fun getAllUsers(): Collection<TdApi.User> {
         val dbUsers = userDao.getAllUsers().map { it.toTdApi() }
         dbUsers.forEach { users[it.id] = it }
-        return users.values
+        return dbUsers
     }
 
     override suspend fun clearAll() {
@@ -86,10 +86,29 @@ class RoomUserLocalDataSource(
         userFullInfoDao.clearAll()
     }
 
+    override suspend fun updateUserStatus(userId: Long, status: TdApi.UserStatus): TdApi.User? {
+        val user = users[userId] ?: getUser(userId) ?: return null
+        user.status = status
+        val statusType = when (status) {
+            is TdApi.UserStatusOnline -> "ONLINE"
+            is TdApi.UserStatusRecently -> "RECENTLY"
+            is TdApi.UserStatusLastWeek -> "LAST_WEEK"
+            is TdApi.UserStatusLastMonth -> "LAST_MONTH"
+            else -> "OFFLINE"
+        }
+        val lastSeen = (status as? TdApi.UserStatusOffline)?.wasOnline?.toLong() ?: 0L
+        userDao.updateStatus(userId, statusType, lastSeen)
+        return user
+    }
+
     override suspend fun clearCachedAvatarPaths() {
         userDao.clearAvatarPaths()
-        users.values.forEach { user ->
-            user.profilePhoto = null
-        }
+        // The bounded snapshot is derived from Room and will be refreshed lazily.
+        users.clear()
+    }
+
+    private companion object {
+        const val USER_SNAPSHOT_LIMIT = 1_024
+        const val FULL_INFO_SNAPSHOT_LIMIT = 256
     }
 }

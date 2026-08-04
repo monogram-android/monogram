@@ -1,6 +1,7 @@
 package org.monogram.domain.repository
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.DraftLinkPreview
 import org.monogram.domain.models.DraftLinkPreviewRequest
@@ -9,6 +10,8 @@ import org.monogram.domain.models.MessageDeletedEvent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageIdUpdatedEvent
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendAcknowledgedEvent
+import org.monogram.domain.models.MessageSendFailedEvent
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageUploadProgressEvent
 import org.monogram.domain.models.MessageViewerModel
@@ -95,6 +98,10 @@ interface MessageRepository :
     val messageDeletedFlow: Flow<MessageDeletedEvent>
     val messageEditedFlow: Flow<MessageModel>
     val messageIdUpdateFlow: Flow<MessageIdUpdatedEvent>
+    val messageAcknowledgedFlow: Flow<MessageSendAcknowledgedEvent>
+        get() = emptyFlow()
+    val messageSendFailedFlow: Flow<MessageSendFailedEvent>
+        get() = emptyFlow()
     val pinnedMessageFlow: Flow<Long>
     val mediaUpdateFlow: Flow<Unit>
     suspend fun getHighResFileId(chatId: Long, messageId: Long): Int?
@@ -175,6 +182,9 @@ interface MessageRepository :
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()
     )
+
+    /** Retries a TDLib-owned failed outgoing operation without creating another local bubble. */
+    suspend fun retryFailedMessage(chatId: Long, temporaryMessageId: Long) = Unit
 
     suspend fun sendRichMessage(
         chatId: Long,

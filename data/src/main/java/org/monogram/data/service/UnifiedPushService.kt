@@ -3,7 +3,7 @@ package org.monogram.data.service
 import android.util.Log
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import org.monogram.data.push.PushSyncTrigger
+import org.monogram.data.push.PushProcessingCoordinator
 import org.monogram.data.push.UnifiedPushManager
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
@@ -14,19 +14,13 @@ import org.unifiedpush.android.connector.data.PushMessage
 
 class UnifiedPushService : PushService(), KoinComponent {
     private val unifiedPushManager: UnifiedPushManager by inject()
-    private val pushSyncTrigger: PushSyncTrigger by inject()
+    private val pushCoordinator: PushProcessingCoordinator by inject()
     private val appPreferences: AppPreferencesProvider by inject()
 
     override fun onMessage(message: PushMessage, instance: String) {
-        val payload =
-            runCatching { message.content.toString(Charsets.UTF_8) }.getOrDefault("<binary>")
         Log.d(
             TAG,
-            "onMessage instance=$instance decrypted=${message.decrypted} bytes=${message.content.size} payload=${
-                payload.take(
-                    96
-                )
-            }"
+            "onMessage instance=$instance decrypted=${message.decrypted} bytes=${message.content.size}"
         )
 
         if (!isUnifiedPushSelected()) {
@@ -35,25 +29,22 @@ class UnifiedPushService : PushService(), KoinComponent {
         }
 
         unifiedPushManager.markPushReceived()
-        val reason =
-            if (payload.startsWith("version=")) "unified_push_telegram_simple" else "unified_push_message"
-        pushSyncTrigger.requestSync(reason)
+        pushCoordinator.enqueue(
+            provider = PushProcessingCoordinator.Provider.UNIFIED_PUSH,
+            payload = message.content.toString(Charsets.UTF_8)
+        )
     }
 
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
         Log.d(
             TAG,
-            "onNewEndpoint instance=$instance temporary=${endpoint.temporary} hasPubKeySet=${endpoint.pubKeySet != null} url=${
-                endpoint.url.take(
-                    120
-                )
-            }"
+            "onNewEndpoint instance=$instance temporary=${endpoint.temporary} hasPubKeySet=${endpoint.pubKeySet != null}"
         )
 
         unifiedPushManager.onNewEndpoint(endpoint)
 
         if (!isUnifiedPushSelected()) return
-        pushSyncTrigger.requestSync("unified_push_new_endpoint")
+        pushCoordinator.enqueueReconciliation()
     }
 
     override fun onRegistrationFailed(reason: FailedReason, instance: String) {

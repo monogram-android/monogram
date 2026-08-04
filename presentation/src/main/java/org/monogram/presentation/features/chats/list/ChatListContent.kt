@@ -421,6 +421,7 @@ fun ChatListContent(
     )
     val showCreateStoryFab = shouldShowCreateStoryFab(
         selectedFolderId = effectiveFoldersState.selectedFolderId,
+        showStoriesBlock = showStoriesBlock,
         areMainStoriesLoaded = storiesState.isMainStoriesLoaded,
         hasVisibleStories = hasMainStoryItems
     )
@@ -3134,10 +3135,11 @@ internal fun shouldShowProjectChannelPromo(
 
 internal fun shouldShowCreateStoryFab(
     selectedFolderId: Int,
+    showStoriesBlock: Boolean,
     areMainStoriesLoaded: Boolean,
     hasVisibleStories: Boolean
 ): Boolean {
-    return selectedFolderId != -2 && areMainStoriesLoaded && !hasVisibleStories
+    return showStoriesBlock && selectedFolderId != -2 && areMainStoriesLoaded && !hasVisibleStories
 }
 
 internal fun shouldShowCreateStoryStripButton(

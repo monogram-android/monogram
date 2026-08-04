@@ -10,10 +10,13 @@ internal fun shouldGroupSenderBlock(
     dateBreak: Boolean
 ): Boolean {
     if (neighbor == null) return false
-    if (current.senderId <= 0L || neighbor.senderId <= 0L) return false
-    if (current.senderId != neighbor.senderId) return false
-    if (current.senderName != neighbor.senderName) return false
-    if (current.senderCustomTitle != neighbor.senderCustomTitle) return false
+    val sameSender = when {
+        current.senderId > 0L && neighbor.senderId > 0L -> current.senderId == neighbor.senderId
+        current.isOutgoing && neighbor.isOutgoing -> true
+        current.senderName.isNotBlank() && current.senderName == neighbor.senderName -> true
+        else -> false
+    }
+    if (!sameSender) return false
     return !dateBreak
 }
 

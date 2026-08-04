@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -121,6 +122,7 @@ internal fun MessageBubbleContainer(
     }
 
     val topSpacing = if (!senderGrouping.isSameSenderAbove) 8.dp else 2.dp
+    val keepsGroupAvatar = behavior.isGroup && !isOutgoing && !senderGrouping.isSameSenderBelow
     val dragOffsetX = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
     val layoutTracker = remember { MessageBubbleLayoutTracker() }
@@ -234,7 +236,11 @@ internal fun MessageBubbleContainer(
                                 Modifier.fillMaxWidth()
                             } else {
                                 Modifier
-                            }).widthIn(max = maxWidth),
+                            })
+                                .widthIn(max = maxWidth)
+                                .then(
+                                    if (keepsGroupAvatar) Modifier.heightIn(min = 40.dp) else Modifier
+                                ),
                             msg = msg,
                             newerMsg = newerMsg,
                             isOutgoing = isOutgoing,

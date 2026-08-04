@@ -38,6 +38,7 @@ import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileUpdateHandler
+import org.monogram.data.infra.OrderedEventFlow
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.WebPageMapper
 import org.monogram.data.repository.DraftLinkPreviewResolver
@@ -51,6 +52,8 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.MessageIdUpdatedEvent
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendAcknowledgedEvent
+import org.monogram.domain.models.MessageSendFailedEvent
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageUploadProgressEvent
 import org.monogram.domain.models.MessageViewerModel
@@ -91,25 +94,21 @@ class TdMessageRemoteDataSource(
     private val sendQueue = Channel<suspend () -> Unit>(Channel.BUFFERED)
     override val newMessageFlow = MutableSharedFlow<MessageModel>()
     override val messageEditedFlow = MutableSharedFlow<MessageModel>()
-    override val messageReadFlow = MutableSharedFlow<ReadUpdate>(
-        replay = 1,
-        extraBufferCapacity = 32,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    private val messageReads = OrderedEventFlow<ReadUpdate>(scope)
+    override val messageReadFlow = messageReads.events
     override val messageUploadProgressFlow = MutableSharedFlow<MessageUploadProgressEvent>()
-    override val fileDownloadFlow = MutableSharedFlow<FileDownloadEvent>(
-        extraBufferCapacity = 64,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    override val messageDownloadFlow = MutableSharedFlow<MessageDownloadEvent>()
-    override val messageDeletedFlow = MutableSharedFlow<MessageDeletedEvent>(
-        extraBufferCapacity = 32,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    override val messageIdUpdateFlow = MutableSharedFlow<MessageIdUpdatedEvent>(
-        extraBufferCapacity = 32,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    private val fileDownloads = OrderedEventFlow<FileDownloadEvent>(scope)
+    override val fileDownloadFlow = fileDownloads.events
+    private val messageDownloads = OrderedEventFlow<MessageDownloadEvent>(scope)
+    override val messageDownloadFlow = messageDownloads.events
+    private val messageDeletes = OrderedEventFlow<MessageDeletedEvent>(scope)
+    override val messageDeletedFlow = messageDeletes.events
+    private val messageIdUpdates = OrderedEventFlow<MessageIdUpdatedEvent>(scope)
+    override val messageIdUpdateFlow = messageIdUpdates.events
+    private val messageAcknowledgements = OrderedEventFlow<MessageSendAcknowledgedEvent>(scope)
+    override val messageAcknowledgedFlow = messageAcknowledgements.events
+    private val messageSendFailures = OrderedEventFlow<MessageSendFailedEvent>(scope)
+    override val messageSendFailedFlow = messageSendFailures.events
     override val pinnedMessageFlow = MutableSharedFlow<Long>(
         extraBufferCapacity = 10,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -853,6 +852,10 @@ class TdMessageRemoteDataSource(
             lastMessage = safeExecute(req)
         }
         return lastMessage
+    }
+
+    override suspend fun retryFailedMessage(chatId: Long, temporaryMessageId: Long) {
+        gateway.execute(resendTemporaryMessageRequest(chatId, temporaryMessageId))
     }
 
     override suspend fun sendRichMessage(
@@ -2005,7 +2008,7 @@ class TdMessageRemoteDataSource(
                 scope.launch(dispatcherProvider.io) {
                     try {
                         val model = mapMessageToModel(message)
-                        messageIdUpdateFlow.emit(
+                        messageIdUpdates.enqueue(
                             MessageIdUpdatedEvent(
                                 chatId = message.chatId,
                                 oldMessageId = update.oldMessageId,
@@ -2015,10 +2018,27 @@ class TdMessageRemoteDataSource(
                     } catch (e: Exception) { Log.e("TdMessageRemote", "Error handling SendSucceeded", e) }
                 }
             }
+
+            is TdApi.UpdateMessageSendAcknowledged -> {
+                messageAcknowledgements.enqueue(
+                    MessageSendAcknowledgedEvent(
+                        chatId = update.chatId,
+                        temporaryMessageId = update.messageId
+                    )
+                )
+            }
             is TdApi.UpdateMessageSendFailed -> {
                 cache.putMessage(update.message)
                 scope.launch(dispatcherProvider.io) {
                     val model = mapMessageToModel(update.message)
+                    messageSendFailures.enqueue(
+                        MessageSendFailedEvent(
+                            chatId = update.message.chatId,
+                            temporaryMessageId = update.oldMessageId,
+                            message = model,
+                            errorCode = update.error?.code ?: 0
+                        )
+                    )
                     messageEditedFlow.emit(model)
                 }
             }
@@ -2131,13 +2151,25 @@ class TdMessageRemoteDataSource(
             is TdApi.UpdateChatReadOutbox -> {
                 cache.updateChat(update.chatId) { it.lastReadOutboxMessageId = update.lastReadOutboxMessageId }
                 scope.launch(dispatcherProvider.io) {
-                    messageReadFlow.emit(ReadUpdate.Outbox(update.chatId, update.lastReadOutboxMessageId))
+                    messageReads.enqueue(
+                        ReadUpdate.Outbox(
+                            update.chatId,
+                            update.lastReadOutboxMessageId
+                        )
+                    )
                     refreshAndEmitMessage(update.chatId, update.lastReadOutboxMessageId)
                 }
             }
             is TdApi.UpdateChatReadInbox -> {
                 cache.updateChat(update.chatId) { it.lastReadInboxMessageId = update.lastReadInboxMessageId }
-                scope.launch(dispatcherProvider.io) { messageReadFlow.emit(ReadUpdate.Inbox(update.chatId, update.lastReadInboxMessageId)) }
+                scope.launch(dispatcherProvider.io) {
+                    messageReads.enqueue(
+                        ReadUpdate.Inbox(
+                            update.chatId,
+                            update.lastReadInboxMessageId
+                        )
+                    )
+                }
             }
             is TdApi.UpdateDeleteMessages -> {
                 if (!update.fromCache) {
@@ -2145,7 +2177,7 @@ class TdMessageRemoteDataSource(
                     scope.launch(dispatcherProvider.io) {
                         messageIds.forEach { cache.removeMessage(update.chatId, it) }
                         removeMessagesFromCache(update.chatId, messageIds)
-                        messageDeletedFlow.emit(
+                        messageDeletes.enqueue(
                             MessageDeletedEvent(
                                 chatId = update.chatId,
                                 messageIds = messageIds
@@ -2267,13 +2299,13 @@ class TdMessageRemoteDataSource(
             fileDownloadQueue.notifyDownloadComplete(file.id)
             lastProgressMap.remove(file.id)
             scope.launch {
-                fileDownloadFlow.emit(
+                fileDownloads.enqueue(
                     FileDownloadEvent.Completed(
                         fileId = file.id,
                         path = file.local?.path ?: ""
                     )
                 )
-                fileDownloadFlow.emit(
+                fileDownloads.enqueue(
                     FileDownloadEvent.Progress(
                         fileId = file.id,
                         progress = 1.0f
@@ -2288,7 +2320,7 @@ class TdMessageRemoteDataSource(
             if (!entries.isNullOrEmpty()) {
                 scope.launch {
                     entries.forEach { (chatId, messageId) ->
-                        messageDownloadFlow.emit(
+                        messageDownloads.enqueue(
                             MessageDownloadEvent.Completed(
                                 chatId = chatId,
                                 messageId = messageId,
@@ -2296,7 +2328,7 @@ class TdMessageRemoteDataSource(
                                 path = file.local?.path ?: ""
                             )
                         )
-                        messageDownloadFlow.emit(
+                        messageDownloads.enqueue(
                             MessageDownloadEvent.Progress(
                                 chatId = chatId,
                                 messageId = messageId,
@@ -2317,7 +2349,7 @@ class TdMessageRemoteDataSource(
             if (lastProgressMap[file.id] != pInt) {
                 lastProgressMap[file.id] = pInt
                 scope.launch {
-                    fileDownloadFlow.emit(
+                    fileDownloads.enqueue(
                         FileDownloadEvent.Progress(
                             fileId = file.id,
                             progress = p
@@ -2328,7 +2360,7 @@ class TdMessageRemoteDataSource(
                 if (!entries.isNullOrEmpty()) {
                     scope.launch {
                         entries.forEach { (chatId, messageId) ->
-                            messageDownloadFlow.emit(
+                            messageDownloads.enqueue(
                                 MessageDownloadEvent.Progress(
                                     chatId = chatId,
                                     messageId = messageId,
@@ -2445,7 +2477,7 @@ class TdMessageRemoteDataSource(
         if (!entries.isNullOrEmpty()) {
             scope.launch {
                 entries.forEach { (chatId, messageId) ->
-                    messageDownloadFlow.emit(
+                    messageDownloads.enqueue(
                         MessageDownloadEvent.Cancelled(
                             chatId = chatId,
                             messageId = messageId,

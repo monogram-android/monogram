@@ -115,7 +115,7 @@ class UnifiedPushManager(
             .apply()
         _endpoint.value = value
         _status.value = Status.REGISTERED
-        Log.d(TAG, "UnifiedPush endpoint saved: ${value.take(140)}")
+        Log.d(TAG, "UnifiedPush endpoint saved")
     }
 
     fun onRegistrationFailed(reason: FailedReason?) {

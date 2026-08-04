@@ -22,6 +22,7 @@ import org.monogram.domain.models.PollDraft
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
+import org.monogram.presentation.features.chats.conversation.OutgoingMessageReducer
 import org.monogram.presentation.features.chats.conversation.editor.video.VideoQuality
 import org.monogram.presentation.features.chats.conversation.editor.video.VideoTrimRange
 import org.monogram.presentation.features.chats.conversation.editor.video.processVideo
@@ -899,6 +900,12 @@ internal fun DefaultChatComponent.handleCopyLink(localClipboard: Clipboard) {
 
 internal fun DefaultChatComponent.handleRepeatMessage(message: MessageModel) {
     scope.launch {
-        repositoryMessage.forwardMessage(chatId, chatId, message.id, sendCopy = true)
+        val key = OutgoingMessageReducer.Key(message.chatId, message.id)
+        val outgoingState = _state.value.outgoingMessageStates[key]
+        if (outgoingState is OutgoingMessageReducer.State.Failed && outgoingState.retryable) {
+            repositoryMessage.retryFailedMessage(message.chatId, message.id)
+        } else {
+            repositoryMessage.forwardMessage(chatId, chatId, message.id, sendCopy = true)
+        }
     }
 }

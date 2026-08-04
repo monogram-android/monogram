@@ -18,6 +18,7 @@ import org.monogram.data.datasource.TdFileDataSource
 import org.monogram.data.datasource.cache.ChatLocalDataSource
 import org.monogram.data.datasource.cache.ChatsCacheDataSource
 import org.monogram.data.datasource.cache.InMemorySettingsCacheDataSource
+import org.monogram.data.datasource.cache.MessageCacheWriter
 import org.monogram.data.datasource.cache.RoomChatLocalDataSource
 import org.monogram.data.datasource.cache.RoomStickerLocalDataSource
 import org.monogram.data.datasource.cache.RoomUserLocalDataSource
@@ -73,6 +74,7 @@ import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileMessageRegistry
 import org.monogram.data.infra.FileObserverHub
 import org.monogram.data.infra.FileUpdateHandler
+import org.monogram.data.infra.FileUpdateQueue
 import org.monogram.data.infra.NetworkSnapshotProvider
 import org.monogram.data.infra.OfflineWarmup
 import org.monogram.data.infra.SponsorSyncManager
@@ -89,6 +91,8 @@ import org.monogram.data.mapper.message.MessageContentMapper
 import org.monogram.data.mapper.message.MessagePersistenceMapper
 import org.monogram.data.mapper.message.MessageSenderResolver
 import org.monogram.data.notifications.NotificationMuteResolver
+import org.monogram.data.push.PushProcessingCoordinator
+import org.monogram.data.push.PushSyncRequester
 import org.monogram.data.push.PushSyncTrigger
 import org.monogram.data.push.UnifiedPushManager
 import org.monogram.data.repository.AttachMenuBotRepositoryImpl
@@ -556,6 +560,8 @@ val dataModule = module {
     }
 
     single { PushSyncTrigger(connectionManager = get(), gateway = get()) }
+    single<PushSyncRequester> { get<PushSyncTrigger>() }
+    single { PushProcessingCoordinator(androidContext(), get(), get()) }
     single { UnifiedPushManager(androidContext()) }
     single { NotificationMuteResolver() }
 
@@ -650,6 +656,14 @@ val dataModule = module {
         )
     }
 
+    single {
+        val localDataSource = get<ChatLocalDataSource>()
+        MessageCacheWriter(
+            scope = get(),
+            applyBatch = localDataSource::applyMessageCacheMutations
+        )
+    }
+
     single<NetworkStatisticsRepository> {
         NetworkStatisticsRepositoryImpl(
             remote = get(),
@@ -707,6 +721,7 @@ val dataModule = module {
             dispatcherProvider = get(),
             scope = get(),
             chatLocalDataSource = get(),
+            messageCacheWriter = get(),
             userLocalDataSource = get(),
             stickerPathDao = get(),
             keyValueDao = get(),
@@ -767,11 +782,13 @@ val dataModule = module {
         )
     }
 
+    single<FileUpdateQueue> { get<FileDownloadQueue>() }
+
     single {
         FileUpdateHandler(
             registry = get(),
             queue = get(),
-            updates = get(),
+            fileUpdatesSource = get<UpdateDispatcher>().file,
             scope = get()
         )
     }

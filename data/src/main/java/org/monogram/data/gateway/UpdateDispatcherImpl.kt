@@ -24,6 +24,7 @@ class UpdateDispatcherImpl(
     override val notification = flow<TdApi.UpdateNotification>()
     override val messageEdited = flow<TdApi.UpdateMessageEdited>()
     override val messageContent = flow<TdApi.UpdateMessageContent>()
+    override val messageSendAcknowledged = flow<TdApi.UpdateMessageSendAcknowledged>()
     override val messageSendSucceeded = flow<TdApi.UpdateMessageSendSucceeded>()
     override val messageSendFailed = flow<TdApi.UpdateMessageSendFailed>()
     override val messageDeleted = flow<TdApi.UpdateDeleteMessages>()

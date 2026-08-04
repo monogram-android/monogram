@@ -28,7 +28,7 @@ class FileDownloadQueue(
     private val cache: ChatCache,
     private val scope: CoroutineScope,
     private val dispatcherProvider: DispatcherProvider
-) {
+) : FileUpdateQueue {
     interface Observer {
         fun onDownloadCancelled(fileId: Int)
     }
@@ -456,7 +456,7 @@ class FileDownloadQueue(
         }
     }
 
-    fun updateFileCache(file: TdApi.File) {
+    override fun updateFileCache(file: TdApi.File) {
         val oldFile = cache.fileCache[file.id]
         cache.fileCache[file.id] = file
         val now = System.currentTimeMillis()
@@ -712,7 +712,7 @@ class FileDownloadQueue(
         return uploadWaiters.getOrPut(fileId) { CompletableDeferred() }
     }
 
-    fun notifyDownloadComplete(fileId: Int) {
+    override fun notifyDownloadComplete(fileId: Int) {
         downloadWaiters.remove(fileId)?.complete(Unit)
     }
 
@@ -721,7 +721,7 @@ class FileDownloadQueue(
         observer?.onDownloadCancelled(fileId)
     }
 
-    fun notifyUploadComplete(fileId: Int) {
+    override fun notifyUploadComplete(fileId: Int) {
         uploadWaiters.remove(fileId)?.complete(Unit)
     }
 

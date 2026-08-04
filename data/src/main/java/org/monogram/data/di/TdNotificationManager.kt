@@ -33,8 +33,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -47,6 +45,7 @@ import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.notifications.NotificationMuteDecision
 import org.monogram.data.notifications.NotificationMuteResolver
+import org.monogram.data.notifications.NotificationRenderBatcher
 import org.monogram.data.notifications.NotificationScopeState
 import org.monogram.data.notifications.TdlibNotificationStateStore
 import org.monogram.data.push.FcmRuntime
@@ -80,8 +79,13 @@ class TdNotificationManager(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager = NotificationManagerCompat.from(context)
-    private val notificationStateVersion = MutableStateFlow(0L)
-    private val notificationStateCounter = AtomicLong(0L)
+    private val notificationStatePreferences = context.getSharedPreferences(
+        NOTIFICATION_STATE_PREFS,
+        Context.MODE_PRIVATE
+    )
+    private val notificationStateCounter = AtomicLong(
+        notificationStatePreferences.getLong(KEY_NOTIFICATION_STATE_VERSION, 0L)
+    )
     private val userCache = ConcurrentHashMap<Long, TdApi.User>()
     private val chatCache = ConcurrentHashMap<Long, TdApi.Chat>()
     private val messagesHistory = ConcurrentHashMap<Long, CopyOnWriteArrayList<NotificationHistoryEntry>>()
@@ -97,6 +101,11 @@ class TdNotificationManager(
     private val notificationSettingsCache = ConcurrentHashMap<Long, NotificationSettingEntity>()
     private val scopeNotificationsEnabled = ConcurrentHashMap<TdNotificationScope, Boolean>()
     private val loadedScopeSettings = ConcurrentHashMap.newKeySet<TdNotificationScope>()
+    private val nativeRenderBatcher = NotificationRenderBatcher(scope) { chatIds ->
+        for (chatId in chatIds) {
+            renderNativeNotifications(chatId)
+        }
+    }
 
     @Volatile
     private var myUserId: Long = 0L
@@ -113,6 +122,10 @@ class TdNotificationManager(
 
         const val SUMMARY_ID = 0
         const val KEY_TEXT_REPLY = "key_text_reply"
+        private const val NOTIFICATION_STATE_PREFS = "tdlib_notification_state"
+        private const val KEY_NOTIFICATION_STATE_VERSION = "version"
+        private const val KEY_NOTIFICATION_STATE_FINGERPRINT = "fingerprint"
+        private const val ACTION_DEDUP_TTL_MS = 5 * 60_000L
     }
 
     private data class NotificationHistoryEntry(
@@ -298,7 +311,7 @@ class TdNotificationManager(
                     )
                     Log.d(
                         TAG,
-                        "RegisterDevice success for UnifiedPush endpoint=${endpoint.take(120)}"
+                        "RegisterDevice success for UnifiedPush"
                     )
                 }.onFailure { Log.e(TAG, "UnifiedPush registration failed", it) }
             }
@@ -377,14 +390,6 @@ class TdNotificationManager(
         return resolveMuteDecision(chat).isMuted
     }
 
-    fun currentNotificationStateVersion(): Long = notificationStateVersion.value
-
-    suspend fun awaitNotificationStateChange(afterVersion: Long, timeoutMs: Long): Boolean {
-        return withTimeoutOrNull(timeoutMs) {
-            notificationStateVersion.first { it > afterVersion }
-        } != null
-    }
-
     private fun resolveMuteDecision(chat: TdApi.Chat): NotificationMuteDecision {
         return muteResolver.resolve(
             chat = chat,
@@ -423,6 +428,16 @@ class TdNotificationManager(
         removeRenderedNotification(chatId, notificationId)
     }
 
+    /** Returns false when Android redelivers the same notification action. */
+    @Synchronized
+    fun consumeNotificationAction(action: String, chatId: Long, notificationId: Int): Boolean {
+        val now = System.currentTimeMillis()
+        val key = "action:$action:$chatId:$notificationId"
+        if (notificationStatePreferences.getLong(key, 0L) > now) return false
+        notificationStatePreferences.edit().putLong(key, now + ACTION_DEDUP_TTL_MS).apply()
+        return true
+    }
+
     private fun removeRenderedNotification(chatId: Long, notificationId: Int) {
         activeNotifications[chatId]?.remove(notificationId)
         notificationManager.cancel(notificationId)
@@ -444,28 +459,29 @@ class TdNotificationManager(
     }
 
     private suspend fun handleActiveNotifications(update: TdApi.UpdateActiveNotifications) {
-        markNotificationStateChanged()
-        nativeNotificationStateStore.replaceAll(update).forEach { chatId ->
-            renderNativeNotifications(chatId)
-        }
+        val affectedChatIds = nativeNotificationStateStore.replaceAll(update)
+        persistNotificationState()
+        nativeRenderBatcher.enqueue(affectedChatIds)
     }
 
     private suspend fun handleNotificationGroupUpdate(update: TdApi.UpdateNotificationGroup) {
-        markNotificationStateChanged()
-        nativeNotificationStateStore.apply(update).forEach { chatId ->
-            renderNativeNotifications(chatId)
-        }
+        val affectedChatIds = nativeNotificationStateStore.apply(update)
+        persistNotificationState()
+        nativeRenderBatcher.enqueue(affectedChatIds)
     }
 
     private suspend fun handleNotificationUpdate(update: TdApi.UpdateNotification) {
-        markNotificationStateChanged()
-        nativeNotificationStateStore.apply(update).forEach { chatId ->
-            renderNativeNotifications(chatId)
-        }
+        val affectedChatIds = nativeNotificationStateStore.apply(update)
+        persistNotificationState()
+        nativeRenderBatcher.enqueue(affectedChatIds)
     }
 
-    private fun markNotificationStateChanged() {
-        notificationStateVersion.value = notificationStateCounter.incrementAndGet()
+    private fun persistNotificationState() {
+        val version = notificationStateCounter.incrementAndGet()
+        notificationStatePreferences.edit()
+            .putLong(KEY_NOTIFICATION_STATE_VERSION, version)
+            .putLong(KEY_NOTIFICATION_STATE_FINGERPRINT, nativeNotificationStateStore.fingerprint())
+            .apply()
     }
 
     private fun handleFileUpdate(file: TdApi.File) {

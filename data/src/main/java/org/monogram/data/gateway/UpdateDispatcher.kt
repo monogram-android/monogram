@@ -1,6 +1,7 @@
 package org.monogram.data.gateway
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import org.drinkless.tdlib.TdApi
 
 interface UpdateDispatcher {
@@ -16,6 +17,8 @@ interface UpdateDispatcher {
     val notification: Flow<TdApi.UpdateNotification>
     val messageEdited: Flow<TdApi.UpdateMessageEdited>
     val messageContent: Flow<TdApi.UpdateMessageContent>
+    val messageSendAcknowledged: Flow<TdApi.UpdateMessageSendAcknowledged>
+        get() = emptyFlow()
     val messageSendSucceeded: Flow<TdApi.UpdateMessageSendSucceeded>
     val messageSendFailed: Flow<TdApi.UpdateMessageSendFailed>
     val messageDeleted: Flow<TdApi.UpdateDeleteMessages>

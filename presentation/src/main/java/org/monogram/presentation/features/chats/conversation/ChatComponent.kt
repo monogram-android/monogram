@@ -299,6 +299,7 @@ interface ChatComponent {
         val userStatus: String? = null,
         val typingAction: String? = null,
         val messages: List<MessageModel> = emptyList(),
+        val outgoingMessageStates: Map<OutgoingMessageReducer.Key, OutgoingMessageReducer.State> = emptyMap(),
         val isLoading: Boolean = false,
         val isLoadingOlder: Boolean = false,
         val isLoadingNewer: Boolean = false,

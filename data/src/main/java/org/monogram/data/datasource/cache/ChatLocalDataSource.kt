@@ -74,6 +74,59 @@ interface ChatLocalDataSource {
     )
 
     suspend fun deleteMessage(chatId: Long, messageId: Long)
+
+    suspend fun deleteMessages(chatId: Long, messageIds: List<Long>) {
+        messageIds.forEach { messageId -> deleteMessage(chatId, messageId) }
+    }
+
+    suspend fun applyMessageCacheMutations(mutations: List<MessageCacheMutation>) {
+        mutations.forEach { mutation ->
+            when (mutation) {
+                is MessageCacheMutation.Persist -> replaceMessage(mutation.message)
+                is MessageCacheMutation.ReplaceId -> replaceMessageId(
+                    mutation.chatId,
+                    mutation.oldMessageId,
+                    mutation.message
+                )
+
+                is MessageCacheMutation.UpdateContent -> updateMessageContent(
+                    mutation.chatId,
+                    mutation.messageId,
+                    mutation.content,
+                    mutation.contentType,
+                    mutation.contentMeta,
+                    mutation.mediaFileId,
+                    mutation.mediaPath,
+                    mutation.editDate
+                )
+
+                is MessageCacheMutation.UpdateInteraction -> updateInteractionInfo(
+                    mutation.chatId,
+                    mutation.messageId,
+                    mutation.viewCount,
+                    mutation.forwardCount,
+                    mutation.replyCount
+                )
+
+                is MessageCacheMutation.MarkRead -> markAsRead(
+                    mutation.chatId,
+                    mutation.upToMessageId
+                )
+
+                is MessageCacheMutation.DeleteMessages -> deleteMessages(
+                    mutation.chatId,
+                    mutation.messageIds
+                )
+
+                is MessageCacheMutation.UpdateMediaPath -> updateMediaPath(
+                    mutation.chatId,
+                    mutation.messageId,
+                    mutation.fileId,
+                    mutation.path
+                )
+            }
+        }
+    }
     suspend fun clearMessagesForChat(chatId: Long)
 
     suspend fun getChatFullInfo(chatId: Long): ChatFullInfoEntity?

@@ -7,6 +7,7 @@ import org.monogram.data.datasource.cache.UserLocalDataSource
 import org.monogram.data.db.dao.KeyValueDao
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.FileObserverHub
+import org.monogram.data.infra.LatestByKeyBatcher
 import java.util.concurrent.ConcurrentHashMap
 
 internal class UserUpdateSynchronizer(
@@ -23,6 +24,14 @@ internal class UserUpdateSynchronizer(
 ) {
     private val avatarFileIdToUserIds = ConcurrentHashMap<Int, MutableSet<Long>>()
     private val userIdToAvatarFileIds = ConcurrentHashMap<Long, Set<Int>>()
+    private val userStatusBatcher = LatestByKeyBatcher<Long, TdApi.UserStatus>(scope) { statuses ->
+        statuses.forEach { (userId, status) ->
+            userLocal.updateUserStatus(userId, status)?.let { cached ->
+                updateAvatarIndex(cached)
+                onUserIdChanged(cached.id)
+            }
+        }
+    }
 
     fun start() {
         scope.launch {
@@ -40,11 +49,7 @@ internal class UserUpdateSynchronizer(
 
         scope.launch {
             updates.userStatus.collect { update ->
-                userLocal.getUser(update.userId)?.let { cached ->
-                    cached.status = update.status
-                    updateAvatarIndex(cached)
-                    onUserUpdated(cached)
-                }
+                userStatusBatcher.offer(update.userId, update.status)
             }
         }
 

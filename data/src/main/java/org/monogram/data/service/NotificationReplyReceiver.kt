@@ -23,6 +23,7 @@ class NotificationReplyReceiver : BroadcastReceiver(), KoinComponent {
 
         val remoteInput = RemoteInput.getResultsFromIntent(intent) ?: return
         val replyText = remoteInput.getCharSequence(TdNotificationManager.KEY_TEXT_REPLY)?.toString() ?: return
+        if (!notificationManager.consumeNotificationAction("reply", chatId, notificationId)) return
 
         goAsync {
             try {

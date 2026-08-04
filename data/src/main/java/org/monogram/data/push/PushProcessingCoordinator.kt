@@ -313,12 +313,12 @@ class PushProcessingCoordinator(
 
     class PushProcessingWorker(context: Context, params: WorkerParameters) :
         CoroutineWorker(context, params) {
-        override suspend fun doWork(): androidx.work.ListenableWorker.Result {
+        override suspend fun doWork(): Result {
             if (inputData.getString(KEY_OPERATION) == OPERATION_REGISTER_FCM_TOKEN) {
                 val token = inputData.getString(KEY_FCM_TOKEN)
-                    ?: return androidx.work.ListenableWorker.Result.failure()
+                    ?: return Result.failure()
                 val gateway = GlobalContext.get().get<TelegramGateway>()
-                if (!gateway.isAuthenticated.value) return androidx.work.ListenableWorker.Result.retry()
+                if (!gateway.isAuthenticated.value) return Result.retry()
                 return runCatching {
                     gateway.execute(
                         TdApi.RegisterDevice(
@@ -327,12 +327,12 @@ class PushProcessingCoordinator(
                         )
                     )
                 }.fold(
-                    onSuccess = { androidx.work.ListenableWorker.Result.success() },
+                    onSuccess = { Result.success() },
                     onFailure = { error ->
                         if ((error as? TdLibException)?.error?.code == 401) {
-                            androidx.work.ListenableWorker.Result.retry()
+                            Result.retry()
                         } else {
-                            androidx.work.ListenableWorker.Result.retry()
+                            Result.retry()
                         }
                     }
                 )
@@ -344,12 +344,14 @@ class PushProcessingCoordinator(
                 reconciliation = inputData.getBoolean(KEY_RECONCILIATION, false),
                 receivedAtMs = inputData.getLong(KEY_RECEIVED_AT, System.currentTimeMillis())
             )) {
-                Result.Processed,
-                Result.UnsupportedPayload,
-                Result.AuthGone -> androidx.work.ListenableWorker.Result.success()
+                PushProcessingCoordinator.Result.Processed,
+                PushProcessingCoordinator.Result.UnsupportedPayload,
+                PushProcessingCoordinator.Result.AuthGone ->
+                    Result.success()
 
-                Result.RetryScheduled,
-                Result.Failed -> androidx.work.ListenableWorker.Result.retry()
+                PushProcessingCoordinator.Result.RetryScheduled,
+                PushProcessingCoordinator.Result.Failed ->
+                    Result.retry()
             }
         }
     }

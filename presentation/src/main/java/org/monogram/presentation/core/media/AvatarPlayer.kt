@@ -8,6 +8,7 @@ import org.monogram.presentation.features.chats.conversation.ui.InlineVideoPlaye
 @Composable
 fun AvatarPlayer(
     path: String,
+    animate: Boolean = true,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop
 ) {
@@ -15,6 +16,6 @@ fun AvatarPlayer(
         path = path,
         modifier = modifier,
         contentScale = contentScale,
-        placeholderData = path
+        animate = animate
     )
 }

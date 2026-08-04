@@ -26,8 +26,8 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import coil3.size.Precision
 import coil3.size.Size
-import org.monogram.presentation.core.util.generateColorFromHash
 import org.monogram.presentation.core.media.AvatarPlayer
+import org.monogram.presentation.core.util.generateColorFromHash
 import java.io.File
 
 @Composable
@@ -43,6 +43,7 @@ fun AvatarHeader(
     avatarCornerPercent: Int = 0
 ) {
     val context = LocalContext.current
+    val shouldAnimateVideoAvatars = rememberAnimatedAvatarPlaybackEnabled()
     val combinedModifier = modifier
         .size(size)
         .clip(RoundedCornerShape(percent = avatarCornerPercent))
@@ -74,6 +75,7 @@ fun AvatarHeader(
                 isVideo -> {
                     AvatarPlayer(
                         path = resolvedPath,
+                        animate = shouldAnimateVideoAvatars,
                         modifier = Modifier.matchParentSize(),
                         contentScale = ContentScale.Crop
                     )

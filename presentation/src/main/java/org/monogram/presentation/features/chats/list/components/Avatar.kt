@@ -21,8 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
-import org.monogram.presentation.core.util.generateColorFromHash
 import org.monogram.presentation.core.media.AvatarPlayer
+import org.monogram.presentation.core.ui.rememberAnimatedAvatarPlaybackEnabled
+import org.monogram.presentation.core.util.generateColorFromHash
 import java.io.File
 
 @Composable
@@ -36,6 +37,7 @@ fun AvatarTopAppBar(
     isOnline: Boolean = false
 ) {
     val context = LocalContext.current
+    val shouldAnimateVideoAvatars = rememberAnimatedAvatarPlaybackEnabled()
     val combinedModifier = modifier
         .size(size)
         .clip(CircleShape)
@@ -49,6 +51,7 @@ fun AvatarTopAppBar(
                 key(avatarVersion) {
                     AvatarPlayer(
                         path = resolvedPath,
+                        animate = shouldAnimateVideoAvatars,
                         modifier = combinedModifier,
                         contentScale = ContentScale.Crop
                     )

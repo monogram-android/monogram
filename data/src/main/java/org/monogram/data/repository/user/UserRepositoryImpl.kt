@@ -222,7 +222,12 @@ class UserRepositoryImpl(
         val emojiPath = mediaResolver.resolveEmojiPath(user)
         val avatarPath = mediaResolver.resolveAvatarPath(user)
         val model = user.toDomain(fullInfo, emojiPath)
-        return if (avatarPath == null || avatarPath == model.avatarPath) model else model.copy(avatarPath = avatarPath)
+        if (avatarPath == null || avatarPath == model.avatarPath) {
+            return model
+        }
+
+        persistResolvedAvatarPath(user.id, avatarPath)
+        return model.copy(avatarPath = avatarPath)
     }
 
     override fun getUserFlow(userId: Long): Flow<UserModel?> = flow {
@@ -241,6 +246,13 @@ class UserRepositoryImpl(
         val existing = userLocal.loadUser(userId) ?: return
         if (existing.personalAvatarPath == personalAvatarPath) return
         userLocal.saveUser(existing.copy(personalAvatarPath = personalAvatarPath))
+    }
+
+    private suspend fun persistResolvedAvatarPath(userId: Long, avatarPath: String) {
+        if (!isValidFilePath(avatarPath)) return
+        val existing = userLocal.loadUser(userId) ?: return
+        if (existing.avatarPath == avatarPath) return
+        userLocal.saveUser(existing.copy(avatarPath = avatarPath))
     }
 
     private suspend fun fetchAndCacheUser(userId: Long): TdApi.User? {
@@ -373,7 +385,9 @@ class UserRepositoryImpl(
 }
 
 private fun TdApi.User.hasStablePhotoIdentity(): Boolean {
-    return (profilePhoto?.small?.id ?: 0) != 0 || (profilePhoto?.big?.id ?: 0) != 0
+    return profilePhoto?.hasAnimation == true ||
+            (profilePhoto?.small?.id ?: 0) != 0 ||
+            (profilePhoto?.big?.id ?: 0) != 0
 }
 
 private fun TdApi.User.hasUsableAvatarPath(): Boolean {

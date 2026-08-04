@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -21,9 +23,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import org.koin.compose.koinInject
 import org.monogram.presentation.R
-import org.monogram.presentation.core.util.generateColorFromHash
 import org.monogram.presentation.core.media.AvatarPlayer
+import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.core.util.generateColorFromHash
 import java.io.File
 
 @Composable
@@ -39,6 +43,7 @@ fun Avatar(
     onClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val shouldAnimateVideoAvatars = rememberAnimatedAvatarPlaybackEnabled()
     val combinedModifier = modifier
         .size(size)
         .clip(CircleShape)
@@ -71,6 +76,7 @@ fun Avatar(
                     key(imageSource?.cacheKey ?: resolvedPath) {
                         AvatarPlayer(
                             path = resolvedPath,
+                            animate = shouldAnimateVideoAvatars,
                             modifier = combinedModifier,
                             contentScale = ContentScale.Crop
                         )
@@ -126,6 +132,7 @@ fun AvatarForChat(
     isLocal: Boolean = false
 ) {
     val context = LocalContext.current
+    val shouldAnimateVideoAvatars = rememberAnimatedAvatarPlaybackEnabled()
     val combinedModifier = modifier
         .size(size)
         .clip(CircleShape)
@@ -157,6 +164,7 @@ fun AvatarForChat(
                     key(imageSource?.cacheKey ?: resolvedPath) {
                         AvatarPlayer(
                             path = resolvedPath,
+                            animate = shouldAnimateVideoAvatars,
                             modifier = combinedModifier,
                             contentScale = ContentScale.Crop
                         )
@@ -204,6 +212,16 @@ private data class AvatarImageSource(
     val model: Any,
     val cacheKey: String?
 )
+
+@Composable
+internal fun rememberAnimatedAvatarPlaybackEnabled(): Boolean {
+    val appPreferences: AppPreferences = koinInject()
+    val autoplayGifs by appPreferences.autoplayGifs.collectAsState()
+    val chatAnimationsEnabled by appPreferences.isChatAnimationsEnabled.collectAsState()
+    val powerSavingEnabled by appPreferences.isPowerSavingMode.collectAsState()
+
+    return autoplayGifs && chatAnimationsEnabled && !powerSavingEnabled
+}
 
 private fun resolveAvatarImageSource(path: String): AvatarImageSource {
     return if (path.startsWith("http") || path.startsWith("content:") || path.startsWith("file:")) {

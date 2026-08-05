@@ -2679,4 +2679,26 @@
         <item quantity="one">%1$dм</item>
         <item quantity="other">%1$dм</item>
     </plurals>
+    <string name="editor_parse_mode_plain">Обычный текст</string>
+    <string name="editor_parse_mode_markdown">Markdown</string>
+    <string name="editor_parse_mode_html">HTML</string>
+    <string name="editor_parse_error">Не удалось обработать разметку</string>
+    <string name="editor_html_pre">HTML pre</string>
+    <string name="editor_latex">LaTeX</string>
+    <string name="editor_latex_block">Блок LaTeX</string>
+    <string name="editor_heading_1">Заголовок 1</string>
+    <string name="editor_heading_2">Заголовок 2</string>
+    <string name="editor_heading_3">Заголовок 3</string>
+    <string name="editor_bulleted_list">Маркированный список</string>
+    <string name="editor_numbered_list">Нумерованный список</string>
+    <string name="editor_divider">Разделитель</string>
+    <string name="editor_table">Таблица</string>
+    <string name="editor_ai_subtitle">Перевести, переписать или исправить текст</string>
+    <string name="editor_ai_tab_generate">Создать</string>
+    <string name="editor_ai_run_generate">Создать текст</string>
+    <string name="editor_ai_prompt_label">Запрос</string>
+    <string name="editor_ai_error_empty_prompt">Введите запрос для создания текста</string>
+    <string name="editor_ai_prompt_placeholder">Опишите, что создать…</string>
+    <string name="rich_text_blockquote">Цитата</string>
+    <string name="instant_view_voice_note">Голосовое сообщение</string>
 </resources>

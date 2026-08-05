@@ -15,6 +15,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.ReplyMarkupModel
+import org.monogram.domain.models.TdLibLimits
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WebPage
 import org.monogram.domain.repository.InlineBotResultsModel
@@ -59,6 +60,7 @@ data class ChatInputBarState(
     val scheduledMessages: List<MessageModel> = emptyList(),
     val isPremiumUser: Boolean = false,
     val isSecretChat: Boolean = false,
+    val tdLibLimits: TdLibLimits = TdLibLimits(),
 )
 
 @Immutable
@@ -151,7 +153,7 @@ internal data class ComposerRowState(
     val stickerMenuHeight: Dp,
     val showFullScreenEditor: Boolean = false,
     val currentMessageLength: Int = 0,
-    val maxMessageLength: Int = 4096,
+    val maxMessageLength: Int = TdLibLimits.DEFAULT_MESSAGE_TEXT_LENGTH_MAX,
     val isOverMessageLimit: Boolean = false,
     val showSendOptionsSheet: Boolean = false,
     val isVideoMessageMode: Boolean = false,

@@ -35,6 +35,37 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 private const val MaxCompressedPhotoLongSide = 3840
+
+internal fun DefaultChatComponent.ensureTdLibTextLimit(
+    text: String,
+    limit: Int?,
+    label: String
+): Boolean {
+    if (limit != null && text.length > limit) {
+        toastMessageDisplayer.show("$label is too long. Maximum is $limit characters")
+        return false
+    }
+    return true
+}
+
+internal fun DefaultChatComponent.ensureTdLibMessageLimit(
+    text: String,
+    rich: Boolean
+): Boolean {
+    val limits = tdLibLimitsRepository.limits.value
+    return ensureTdLibTextLimit(
+        text = text,
+        limit = if (rich) limits.richMessageTextLengthMax else limits.messageTextLengthMax,
+        label = if (rich) "Rich message" else "Message"
+    )
+}
+
+internal fun DefaultChatComponent.ensureTdLibCaptionLimit(caption: String): Boolean =
+    ensureTdLibTextLimit(
+        text = caption,
+        limit = tdLibLimitsRepository.limits.value.messageCaptionLengthMax,
+        label = "Caption"
+    )
 internal data class PhotoCompressionProfile(
     val targetWidth: Int,
     val targetHeight: Int,
@@ -159,6 +190,7 @@ internal fun DefaultChatComponent.handleSendMessage(
     sendOptions: MessageSendOptions = MessageSendOptions(),
     parseMode: RichTextParseMode? = null
 ) {
+    if (!ensureTdLibMessageLimit(text, rich = parseMode != null)) return
     scope.launch {
         val currentState = _state.value
         val replyId = currentState.replyMessage?.id
@@ -223,6 +255,7 @@ internal fun DefaultChatComponent.handleSendPhoto(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
+    if (!ensureTdLibCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "photo",
         paths = listOf(photoPath),
@@ -281,6 +314,7 @@ internal fun DefaultChatComponent.handleSendVideo(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
+    if (!ensureTdLibCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "video",
         paths = listOf(videoPath),
@@ -385,6 +419,7 @@ internal fun DefaultChatComponent.handleSendDocument(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
+    if (!ensureTdLibCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "document",
         paths = listOf(path),
@@ -431,6 +466,17 @@ internal fun DefaultChatComponent.handleSendPoll(
     poll: PollDraft,
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
+    val limits = tdLibLimitsRepository.limits.value
+    val pollAnswerCountMax = limits.pollAnswerCountMax
+    if (pollAnswerCountMax != null && poll.options.size > pollAnswerCountMax) {
+        toastMessageDisplayer.show("Poll has too many answers. Maximum is $pollAnswerCountMax")
+        return
+    }
+    val pollOpenPeriodMax = limits.pollOpenPeriodMax
+    if (pollOpenPeriodMax != null && poll.openPeriod > pollOpenPeriodMax) {
+        toastMessageDisplayer.show("Poll open period exceeds $pollOpenPeriodMax seconds")
+        return
+    }
     scope.launch {
         val currentState = _state.value
         val replyId = currentState.replyMessage?.id
@@ -462,6 +508,7 @@ internal fun DefaultChatComponent.handleSendGifFile(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
+    if (!ensureTdLibCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "gif_file",
         paths = listOf(path),
@@ -510,6 +557,7 @@ internal fun DefaultChatComponent.handleSendAlbum(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
+    if (!ensureTdLibCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "album",
         paths = paths,

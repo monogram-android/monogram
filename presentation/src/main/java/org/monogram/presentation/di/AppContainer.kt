@@ -55,6 +55,7 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StringProvider
+import org.monogram.domain.repository.TdLibLimitsRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
@@ -121,6 +122,7 @@ interface RepositoriesContainer {
     val proxyDiagnosticsRepository: ProxyDiagnosticsRepository
     val stickerRepository: StickerRepository
     val storyRepository: StoryRepository
+    val tdLibLimitsRepository: TdLibLimitsRepository
     val gifRepository: GifRepository
     val emojiRepository: EmojiRepository
     val telegramLinkRepository: TelegramLinkRepository

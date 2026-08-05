@@ -58,6 +58,7 @@ import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageUploadProgressEvent
 import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.PollDraft
+import org.monogram.domain.models.TdLibLimits
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
@@ -68,6 +69,7 @@ import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.SearchChatMessagesResult
+import org.monogram.domain.repository.TdLibLimitsRepository
 import org.monogram.domain.repository.UserRepository
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -84,7 +86,8 @@ class TdMessageRemoteDataSource(
     private val webPageMapper: WebPageMapper,
     private val draftLinkPreviewResolver: DraftLinkPreviewResolver,
     private val dispatcherProvider: DispatcherProvider,
-    val scope: CoroutineScope
+    val scope: CoroutineScope,
+    private val tdLibLimitsRepository: TdLibLimitsRepository
 ) : MessageRemoteDataSource {
 
     private val chatRequests = ConcurrentHashMap<Long, Deferred<TdApi.Chat?>>()
@@ -162,8 +165,24 @@ class TdMessageRemoteDataSource(
             throw e
         } catch (e: Exception) {
             Log.e("TdMessageRemote", "Error executing ${function.javaClass.simpleName}", e)
+            if (e.isLikelyLimitViolation()) {
+                scope.launch {
+                    runCatching { tdLibLimitsRepository.refresh() }
+                }
+            }
             null
         }
+    }
+
+    private fun Throwable.isLikelyLimitViolation(): Boolean {
+        val error = (this as? TdLibException)?.error ?: return false
+        if (error.code !in 400..499) return false
+        val message = error.message.orEmpty().lowercase()
+        return "too long" in message ||
+                "length" in message ||
+                "limit" in message ||
+                "maximum" in message ||
+                "max_" in message
     }
 
 
@@ -852,7 +871,11 @@ class TdMessageRemoteDataSource(
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
         var lastMessage: TdApi.Message? = null
-        explodeTextContent(content, MAX_TEXT_MESSAGE_CODE_POINTS).forEach { messageContent ->
+        explodeTextContent(
+            content,
+            tdLibLimitsRepository.limits.value.messageTextLengthMax
+                ?: TdLibLimits.DEFAULT_MESSAGE_TEXT_LENGTH_MAX
+        ).forEach { messageContent ->
             val req = TdApi.SendMessage().apply {
                 this.chatId = chatId
                 this.topicId = topicId
@@ -2503,6 +2526,5 @@ class TdMessageRemoteDataSource(
     private companion object {
         private val MISSING_MESSAGE_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(2)
         private const val DRAFT_LINK_PREVIEW_TAG = "DraftLinkPreview"
-        private const val MAX_TEXT_MESSAGE_CODE_POINTS = 4096
     }
 }

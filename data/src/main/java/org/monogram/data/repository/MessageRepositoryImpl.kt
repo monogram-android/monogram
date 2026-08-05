@@ -6,7 +6,6 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -81,6 +80,7 @@ import org.monogram.domain.repository.ProfileMediaFilter
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.domain.repository.SearchChatMessagesResult
+import org.monogram.domain.repository.TdLibLimitsRepository
 import org.monogram.domain.repository.TextCompositionStyleModel
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -104,7 +104,8 @@ internal class MessageRepositoryImpl(
     private val userLocalDataSource: UserLocalDataSource,
     private val stickerPathDao: StickerPathDao,
     private val keyValueDao: KeyValueDao,
-    private val textCompositionStyleDao: TextCompositionStyleDao
+    private val textCompositionStyleDao: TextCompositionStyleDao,
+    private val tdLibLimitsRepository: TdLibLimitsRepository
 ) : MessageRepository, RichTextParsingRepository {
     private data class RichMessageCacheKey(val chatId: Long, val messageId: Long)
 
@@ -695,15 +696,21 @@ internal class MessageRepositoryImpl(
     }
 
     override suspend fun forwardMessages(request: ForwardRequest) {
+        val maxForwardedCount = tdLibLimitsRepository.limits.value.forwardedMessageCountMax
+            ?.takeIf { it > 0 }
         request.targets.forEach { target ->
-            messageRemoteDataSource.forwardMessages(
-                toChatId = target.chatId,
-                fromChatId = request.fromChatId,
-                messageIds = request.messageIds.toLongArray(),
-                forumTopicId = target.forumTopicId,
-                removeCaption = request.options.removeCaption,
-                sendCopy = request.options.sendCopy
-            )
+            request.messageIds
+                .chunked(maxForwardedCount ?: request.messageIds.size.coerceAtLeast(1))
+                .forEach { batch ->
+                    messageRemoteDataSource.forwardMessages(
+                        toChatId = target.chatId,
+                        fromChatId = request.fromChatId,
+                        messageIds = batch.toLongArray(),
+                        forumTopicId = target.forumTopicId,
+                        removeCaption = request.options.removeCaption,
+                        sendCopy = request.options.sendCopy
+                    )
+                }
         }
     }
 

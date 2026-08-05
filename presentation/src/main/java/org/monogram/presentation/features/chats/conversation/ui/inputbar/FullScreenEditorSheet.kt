@@ -210,6 +210,7 @@ internal fun FullScreenEditorSheet(
     emojiFontFamily: FontFamily,
     isKeyboardVisible: Boolean,
     maxMessageLength: Int,
+    richMessageLengthMax: Int? = null,
     initialParseMode: EditorParseMode,
     sendAsRichMessage: Boolean,
     stickerRepository: StickerRepository,
@@ -505,6 +506,11 @@ internal fun FullScreenEditorSheet(
         }
     }
 
+    val effectiveMaxMessageLength = if (parseMode != EditorParseMode.Plain) {
+        richMessageLengthMax ?: maxMessageLength
+    } else {
+        maxMessageLength
+    }
     val displayTextValue = remember(textValue, parseMode) {
         applyEditorFormatting(textValue, parseMode)
     }
@@ -512,7 +518,7 @@ internal fun FullScreenEditorSheet(
         previewRevealedSpoilers.clear()
     }
     val displayMessageLength = displayTextValue.text.length
-    val isDisplayOverMessageLimit = displayMessageLength > maxMessageLength
+    val isDisplayOverMessageLimit = displayMessageLength > effectiveMaxMessageLength
     val wordCount = remember(displayTextValue.text) {
         Regex("\\S+").findAll(displayTextValue.text).count()
     }
@@ -780,7 +786,7 @@ internal fun FullScreenEditorSheet(
                         text = stringResource(
                             R.string.message_length_counter,
                             displayMessageLength,
-                            maxMessageLength
+                            effectiveMaxMessageLength
                         ),
                         color = if (isDisplayOverMessageLimit) MaterialTheme.colorScheme.error.copy(
                             alpha = 0.22f

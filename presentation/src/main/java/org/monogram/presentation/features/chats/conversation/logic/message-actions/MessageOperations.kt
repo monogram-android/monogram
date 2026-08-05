@@ -133,6 +133,21 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
     parseMode: RichTextParseMode?
 ) {
     val editingMsg = _state.value.editingMessage ?: return
+    val isRichMessage = editingMsg.content is MessageContent.RichMessage
+    val isCaption = when (editingMsg.content) {
+        is MessageContent.Photo,
+        is MessageContent.Video,
+        is MessageContent.Document,
+        is MessageContent.Audio,
+        is MessageContent.Gif -> true
+
+        else -> false
+    }
+    val isAllowed = when {
+        isCaption -> ensureTdLibCaptionLimit(text)
+        else -> ensureTdLibMessageLimit(text, rich = isRichMessage)
+    }
+    if (!isAllowed) return
     val targetChatId = editingMsg.chatId
     val optimisticMessage = editingMsg.withOptimisticEdit(text, entities)
     _state.update { state ->
@@ -171,6 +186,22 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
 }
 
 internal fun DefaultChatComponent.handleSaveChecklistDraft(draft: ChecklistDraft) {
+    val limits = tdLibLimitsRepository.limits.value
+    val checklistTitleLengthMax = limits.checklistTitleLengthMax
+    if (checklistTitleLengthMax != null && draft.title.length > checklistTitleLengthMax) {
+        toastMessageDisplayer.show("Checklist title is too long. Maximum is $checklistTitleLengthMax")
+        return
+    }
+    val checklistTaskCountMax = limits.checklistTaskCountMax
+    if (checklistTaskCountMax != null && draft.tasks.size > checklistTaskCountMax) {
+        toastMessageDisplayer.show("Checklist has too many tasks. Maximum is $checklistTaskCountMax")
+        return
+    }
+    val taskTextLimit = limits.checklistTaskTextLengthMax
+    if (taskTextLimit != null && draft.tasks.any { it.text.length > taskTextLimit }) {
+        toastMessageDisplayer.show("Checklist task is too long. Maximum is $taskTextLimit")
+        return
+    }
     val checklistMessage = _state.value.checklistMessage
     Log.d(
         "ChecklistFlow",

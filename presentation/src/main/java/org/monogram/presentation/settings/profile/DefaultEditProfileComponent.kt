@@ -9,6 +9,7 @@ import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.domain.repository.ChatInfoRepository
 import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.LocationRepository
+import org.monogram.domain.repository.TdLibLimitsRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
@@ -25,6 +26,8 @@ class DefaultEditProfileComponent(
     private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val locationRepository: LocationRepository = container.repositories.locationRepository
+    private val tdLibLimitsRepository: TdLibLimitsRepository =
+        container.repositories.tdLibLimitsRepository
 
     private val _state = MutableValue(EditProfileComponent.State())
     override val state: Value<EditProfileComponent.State> = _state
@@ -72,12 +75,18 @@ class DefaultEditProfileComponent(
                         businessLatitude = fullInfo?.businessInfo?.location?.latitude ?: 0.0,
                         businessLongitude = fullInfo?.businessInfo?.location?.longitude ?: 0.0,
                         businessOpeningHours = fullInfo?.businessInfo?.openingHours,
+                        tdLibLimits = tdLibLimitsRepository.limits.value,
                         avatarPath = me.avatarPath,
                         isLoading = false
                     )
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+        scope.launch {
+            tdLibLimitsRepository.limits.collect { limits ->
+                _state.update { it.copy(tdLibLimits = limits) }
             }
         }
     }
@@ -287,6 +296,7 @@ class DefaultEditProfileComponent(
     }
 
     override fun onSave() {
+        if (!_state.value.canSave) return
         scope.launch {
             _state.update {
                 it.copy(
@@ -296,6 +306,7 @@ class DefaultEditProfileComponent(
             }
             try {
                 val currentState = _state.value
+                if (!currentState.canSave) return@launch
                 val user = currentState.user ?: return@launch
 
                 if (currentState.firstName != user.firstName || currentState.lastName != (user.lastName ?: "")) {

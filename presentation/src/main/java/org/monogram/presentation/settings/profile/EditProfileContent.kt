@@ -859,7 +859,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 .padding(end = 16.dp),
                         )
                     } else if (state.user != null) {
-                        IconButton(onClick = component::onSave, enabled = state.editor.canSave) {
+                        IconButton(onClick = component::onSave, enabled = state.canSave) {
                             Icon(
                                 Icons.Rounded.Check,
                                 contentDescription = stringResource(R.string.action_save),
@@ -963,6 +963,18 @@ fun EditProfileContent(component: EditProfileComponent) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
+                    state.tdLibLimits.bioLengthMax?.let { maxLength ->
+                        Text(
+                            text = stringResource(
+                                R.string.message_length_counter,
+                                state.bio.length,
+                                maxLength
+                            ),
+                            color = if (state.isBioOverLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                        )
+                    }
                 }
 
                 item {
@@ -1095,6 +1107,18 @@ fun EditProfileContent(component: EditProfileComponent) {
                             icon = Icons.Rounded.Business,
                             position = ItemPosition.MIDDLE
                         )
+                        state.tdLibLimits.businessStartPageMessageLengthMax?.let { maxLength ->
+                            Text(
+                                text = stringResource(
+                                    R.string.message_length_counter,
+                                    state.businessBio.length,
+                                    maxLength
+                                ),
+                                color = if (state.isBusinessBioOverLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                            )
+                        }
 
                         SettingsTextField(
                             value = state.businessAddress,

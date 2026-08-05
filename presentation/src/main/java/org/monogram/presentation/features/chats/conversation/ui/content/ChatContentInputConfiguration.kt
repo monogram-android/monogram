@@ -62,7 +62,8 @@ internal fun rememberChatInputBarState(
         state.attachMenuBots,
         state.scheduledMessages,
         state.currentUser?.isPremium,
-        state.isSecretChat
+        state.isSecretChat,
+        state.tdLibLimits
     ) {
         ChatInputBarState(
             replyMessage = state.replyMessage,
@@ -100,7 +101,8 @@ internal fun rememberChatInputBarState(
             attachBots = state.attachMenuBots,
             scheduledMessages = state.scheduledMessages,
             isPremiumUser = state.currentUser?.isPremium == true,
-            isSecretChat = state.isSecretChat
+            isSecretChat = state.isSecretChat,
+            tdLibLimits = state.tdLibLimits
         )
     }
 }

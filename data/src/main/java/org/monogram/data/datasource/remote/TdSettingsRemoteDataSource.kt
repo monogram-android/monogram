@@ -83,6 +83,9 @@ class TdSettingsRemoteDataSource(
     override suspend fun getOption(name: String): TdApi.OptionValue? =
         coRunCatching { gateway.execute(TdApi.GetOption(name)) }.getOrNull()
 
+    override suspend fun getPremiumLimit(limitType: TdApi.PremiumLimitType): TdApi.PremiumLimit? =
+        coRunCatching { gateway.execute(TdApi.GetPremiumLimit(limitType)) }.getOrNull()
+
     override suspend fun getArchiveChatListSettings(): TdApi.ArchiveChatListSettings? =
         coRunCatching { gateway.execute(TdApi.GetArchiveChatListSettings()) }.getOrNull()
 

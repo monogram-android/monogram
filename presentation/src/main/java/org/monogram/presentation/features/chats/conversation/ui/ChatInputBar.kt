@@ -50,6 +50,7 @@ import kotlinx.coroutines.delay
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.StickerModel
+import org.monogram.domain.models.TdLibLimits
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
@@ -95,6 +96,38 @@ import kotlin.math.ceil
 private enum class AttachmentPickerMode {
     Default,
     MediaOnly
+}
+
+private fun MessageContent.usesCaptionLengthLimit(): Boolean = when (this) {
+    is MessageContent.Photo,
+    is MessageContent.Video,
+    is MessageContent.Document,
+    is MessageContent.Audio,
+    is MessageContent.Gif -> true
+
+    else -> false
+}
+
+internal fun resolveChatInputMaxMessageLength(
+    editingContent: MessageContent?,
+    hasPendingMedia: Boolean,
+    hasPendingDocuments: Boolean,
+    limits: TdLibLimits
+): Int {
+    val usesCaptionLimit = editingContent?.usesCaptionLengthLimit()
+        ?: (hasPendingMedia || hasPendingDocuments)
+
+    return when {
+        usesCaptionLimit -> limits.messageCaptionLengthMax
+            ?: TdLibLimits.DEFAULT_MESSAGE_CAPTION_LENGTH_MAX
+
+        editingContent is MessageContent.RichMessage -> limits.richMessageTextLengthMax
+            ?: limits.messageTextLengthMax
+            ?: TdLibLimits.DEFAULT_MESSAGE_TEXT_LENGTH_MAX
+
+        else -> limits.messageTextLengthMax
+            ?: TdLibLimits.DEFAULT_MESSAGE_TEXT_LENGTH_MAX
+    }
 }
 
 private fun List<PendingAttachment>.mergeAttachments(newAttachments: List<PendingAttachment>): List<PendingAttachment> {
@@ -359,11 +392,16 @@ internal fun ChatInputBar(
     val maxMessageLength by remember(
         state.pendingMediaPaths,
         state.pendingDocumentPaths,
-        state.isPremiumUser
+        state.editingMessage,
+        state.tdLibLimits
     ) {
         derivedStateOf {
-            if ((state.pendingMediaPaths.isNotEmpty() || state.pendingDocumentPaths.isNotEmpty()) && !state.isPremiumUser) 1024
-            else 4096
+            resolveChatInputMaxMessageLength(
+                editingContent = state.editingMessage?.content,
+                hasPendingMedia = state.pendingMediaPaths.isNotEmpty(),
+                hasPendingDocuments = state.pendingDocumentPaths.isNotEmpty(),
+                limits = state.tdLibLimits
+            )
         }
     }
     val currentMessageLength by remember(textValue.text) {
@@ -392,7 +430,12 @@ internal fun ChatInputBar(
         value: TextFieldValue = textValue,
         richTextParseMode: RichTextParseMode? = null
     ) {
-        val isValueOverMessageLimit = value.text.length > maxMessageLength
+        val effectiveMaxMessageLength = if (richTextParseMode != null) {
+            state.tdLibLimits.richMessageTextLengthMax ?: maxMessageLength
+        } else {
+            maxMessageLength
+        }
+        val isValueOverMessageLimit = value.text.length > effectiveMaxMessageLength
         if (isValueOverMessageLimit) return
         val isTextEmpty = value.text.isBlank()
         val captionEntities = extractEntities(value.annotatedString, knownCustomEmojis)
@@ -1039,6 +1082,7 @@ internal fun ChatInputBar(
                 emojiFontFamily = emojiFontFamily,
                 isKeyboardVisible = isKeyboardVisible,
                 maxMessageLength = maxMessageLength,
+                richMessageLengthMax = state.tdLibLimits.richMessageTextLengthMax,
                 initialParseMode = if (state.editingMessage?.content is MessageContent.RichMessage) {
                     EditorParseMode.Markdown
                 } else {

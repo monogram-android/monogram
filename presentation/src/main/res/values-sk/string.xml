@@ -473,7 +473,7 @@
     <string name="sensitive_content_header">Citlivý obsah</string>
     <string name="disable_filtering_title">Vypnúť filtrovanie</string>
     <string name="disable_filtering_subtitle">Zobrazovať citlivé médiá vo verejných kanáloch na všetkých vašich
-        zariadeniach.
+        zariadeniach
     </string>
     <string name="advanced_section_header">Rozšírené</string>
     <string name="delete_my_account_title">Odstrániť môj účet</string>
@@ -1736,43 +1736,121 @@
     <!-- Premium Features -->
     <string name="premium_feature_doubled_limits_title">Zdvojené limity</string>
     <string name="premium_feature_doubled_limits_description">Až %1$d kanálov, %2$d priečinkov chatov, %3$d pripnutých
-        správ, %4$d verejných odkazov a viac.
+        správ, %4$d verejných odkazov a viac
     </string>
     <string name="premium_feature_voice_to_text_title">Prevod hlasu na text</string>
     <string name="premium_feature_voice_to_text_description">Prečítajte si prepis ľubovoľnej hlasovej správy klepnutím
-        na tlačidlo vedľa nej.
+        na tlačidlo vedľa nej
     </string>
     <string name="premium_feature_faster_download_title">Rýchlejšie sťahovanie</string>
     <string name="premium_feature_faster_download_description">Žiadne obmedzenia rýchlosti sťahovania médií a
-        dokumentov.
+        dokumentov
     </string>
     <string name="premium_feature_translation_title">Preklad v reálnom čase</string>
-    <string name="premium_feature_translation_description">Preložte celé chaty v reálnom čase jedným klepnutím.</string>
+    <string name="premium_feature_translation_description">Preložte celé chaty v reálnom čase jedným klepnutím</string>
     <string name="premium_feature_animated_emoji_title">Animované emoji</string>
-    <string name="premium_feature_animated_emoji_description">Vkladajte animované emoji zo stoviek balíčkov do správ.
+    <string name="premium_feature_animated_emoji_description">Vkladajte animované emoji zo stoviek balíčkov do správ
     </string>
     <string name="premium_feature_chat_management_title">Pokročilá správa chatov</string>
     <string name="premium_feature_chat_management_description">Nástroje na nastavenie predvoleného priečinka,
-        automatické archivovanie a skrytie nových chatov od neznámych kontaktov.
+        automatické archivovanie a skrytie nových chatov od neznámych kontaktov
     </string>
     <string name="premium_feature_no_ads_title">Bez reklám</string>
     <string name="premium_feature_no_ads_description">Verejné kanály niekedy zobrazujú reklamy, ale vám sa už zobrazovať
-        nebudú.
+        nebudú
     </string>
     <string name="premium_feature_infinite_reactions_title">Neobmedzené reakcie</string>
-    <string name="premium_feature_infinite_reactions_description">Reagujte tisíckami emoji — až 3 na správu.</string>
+    <string name="premium_feature_infinite_reactions_description">Reagujte tisíckami emoji — až 3 na správu</string>
     <string name="premium_feature_badge_title">Premium odznak</string>
     <string name="premium_feature_badge_description">Špeciálny odznak vedľa vášho mena zobrazujúci, že ste
-        predplatiteľom Telegram Premium.
+        predplatiteľom Telegram Premium
     </string>
     <string name="premium_feature_emoji_status_title">Emoji statusy</string>
     <string name="premium_feature_emoji_status_description">Vyberte si z tisícok emoji na zobrazenie vedľa svojho
-        mena.
+        mena
     </string>
     <string name="premium_feature_app_icons_title">Prémiové ikony aplikácie</string>
     <string name="premium_feature_app_icons_description">Vyberte si ikonu aplikácie Telegram pre plochu zo širokej
-        ponuky.
+        ponuky
     </string>
+    <string name="premium_feature_doubled_limits_description_generic">Vyššie limity pre chaty, priečinky, pripnutia a verejné odkazy</string>
+    <string name="premium_feature_increased_upload_file_size_title">Väčšie súbory</string>
+    <string name="premium_feature_increased_upload_file_size_description">Posielajte súbory väčšie než štandardný limit nahrávania</string>
+    <string name="premium_feature_unique_stickers_title">Jedinečné efekty nálepiek</string>
+    <string name="premium_feature_unique_stickers_description">Používajte Premium nálepky s jedinečnými efektmi v správach</string>
+    <string name="premium_feature_animated_profile_photo_title">Animované profilové fotky</string>
+    <string name="premium_feature_animated_profile_photo_description">Zobrazujte animované profilové fotky na obrazovkách chatov a správ</string>
+    <string name="premium_feature_forum_topic_icon_title">Vlastné ikony tém</string>
+    <string name="premium_feature_forum_topic_icon_description">Nastavte vlastné emoji ako ikonu témy fóra</string>
+    <string name="premium_feature_upgraded_stories_title">Vylepšené príbehy</string>
+    <string name="premium_feature_upgraded_stories_description">Pri vytváraní príbehov používajte ďalšie nástroje a možnosti</string>
+    <string name="premium_feature_chat_boost_title">Boosty chatov</string>
+    <string name="premium_feature_chat_boost_description">Boostujte chaty a pomôžte im odomknúť ďalšie možnosti</string>
+    <string name="premium_feature_accent_color_title">Farby zvýraznenia</string>
+    <string name="premium_feature_accent_color_description">Vyberte farbu zvýraznenia pre odpovede a svoj profil</string>
+    <string name="premium_feature_background_for_both_title">Spoločné pozadia chatu</string>
+    <string name="premium_feature_background_for_both_description">Nastavte pozadie súkromného chatu pre oboch účastníkov</string>
+    <string name="premium_feature_saved_messages_tags_title">Značky v Uložených správach</string>
+    <string name="premium_feature_saved_messages_tags_description">Organizujte Uložené správy pomocou vlastných značiek</string>
+    <string name="premium_feature_message_privacy_title">Súkromie správ</string>
+    <string name="premium_feature_message_privacy_description">Ovládajte prichádzajúce správy a hlasové či video správy od neznámych používateľov</string>
+    <string name="premium_feature_last_seen_times_title">Časy poslednej aktivity</string>
+    <string name="premium_feature_last_seen_times_description">Zobrazte časy poslednej aktivity a prečítania, aj keď sú vaše skryté</string>
+    <string name="premium_feature_business_title">Firemné funkcie</string>
+    <string name="premium_feature_business_description">Používajte nástroje Telegram Business vo svojom účte</string>
+    <string name="premium_feature_message_effects_title">Efekty správ</string>
+    <string name="premium_feature_message_effects_description">Používajte všetky dostupné efekty správ</string>
+    <string name="premium_feature_checklists_title">Kontrolné zoznamy</string>
+    <string name="premium_feature_checklists_description">Vytvárajte a používajte správy s kontrolnými zoznamami</string>
+    <string name="premium_feature_paid_messages_title">Platené správy</string>
+    <string name="premium_feature_paid_messages_description">Vyžadujte platbu za prichádzajúce správy v nových chatoch</string>
+    <string name="premium_feature_protect_private_chat_content_title">Ochrana súkromných chatov</string>
+    <string name="premium_feature_protect_private_chat_content_description">Chráňte obsah súkromných chatov</string>
+    <string name="premium_feature_text_composition_title">Tvorba textu pomocou AI</string>
+    <string name="premium_feature_text_composition_description">Vytvárajte texty pomocou nástrojov AI</string>
+    <string name="premium_feature_rich_messages_title">Rozšírené správy</string>
+    <string name="premium_feature_rich_messages_description">Posielajte správy s ďalším formátovaním</string>
+    <string name="premium_feature_unknown_title">Ďalšie funkcie Premium</string>
+    <string name="premium_feature_unknown_description">Funkcia vrátená Telegramom: %s</string>
+    <string name="premium_status_active">Vaše predplatné Premium je aktívne</string>
+    <string name="premium_plans_title">Možnosti predplatného</string>
+    <string name="premium_features_section">Zahrnuté funkcie</string>
+    <string name="premium_limits_section">Vyššie limity</string>
+    <string name="premium_subscribe_button_format">Predplatiť za %s</string>
+    <string name="premium_subscribe_button_fallback">Otvoriť Premium</string>
+    <string name="premium_plan_discount">Ušetríte %1$d%%</string>
+    <string name="premium_plan_current">Aktuálne</string>
+    <string name="premium_plan_upgrade">Vylepšiť</string>
+    <plurals name="premium_plan_months">
+        <item quantity="one">%d mesiac</item>
+        <item quantity="few">%d mesiace</item>
+        <item quantity="many">%d mesiacov</item>
+        <item quantity="other">%d mesiaca</item>
+    </plurals>
+    <string name="premium_limit_value_format">%1$d -&gt; %2$d</string>
+    <string name="premium_limit_supergroup_count">Kanály a supergroupy</string>
+    <string name="premium_limit_pinned_chat_count">Pripnuté chaty</string>
+    <string name="premium_limit_created_public_chat_count">Vytvorené verejné odkazy</string>
+    <string name="premium_limit_saved_animation_count">Uložené GIF-y</string>
+    <string name="premium_limit_favorite_sticker_count">Obľúbené nálepky</string>
+    <string name="premium_limit_chat_folder_count">Priečinky chatov</string>
+    <string name="premium_limit_chat_folder_chosen_chat_count">Chaty v priečinku</string>
+    <string name="premium_limit_pinned_archived_chat_count">Pripnuté archivované chaty</string>
+    <string name="premium_limit_pinned_saved_messages_topic_count">Pripnuté témy Uložených správ</string>
+    <string name="premium_limit_message_text_length">Dĺžka správy</string>
+    <string name="premium_limit_caption_length">Dĺžka popisu média</string>
+    <string name="premium_limit_bio_length">Dĺžka životopisu</string>
+    <string name="premium_limit_chat_folder_invite_link_count">Pozývacie odkazy priečinkov</string>
+    <string name="premium_limit_shareable_chat_folder_count">Zdieľateľné priečinky chatov</string>
+    <string name="premium_limit_active_story_count">Aktívne príbehy</string>
+    <string name="premium_limit_weekly_posted_story_count">Príbehy za týždeň</string>
+    <string name="premium_limit_monthly_posted_story_count">Príbehy za mesiac</string>
+    <string name="premium_limit_story_caption_length">Dĺžka popisu príbehu</string>
+    <string name="premium_limit_story_suggested_reaction_area_count">Oblasti reakcií v príbehoch</string>
+    <string name="premium_limit_similar_chat_count">Podobné chaty</string>
+    <string name="premium_limit_owned_bot_count">Vlastné boty</string>
+    <string name="premium_limit_custom_text_composition_style_count">Vlastné textové štýly</string>
+    <string name="premium_limit_unknown_title">Ďalšie limity Premium</string>
     <!-- Mini App Menu -->
     <string name="mini_app_menu_reload">Znovu načítať</string>
     <string name="mini_app_menu_copy_link">Kopírovať odkaz</string>

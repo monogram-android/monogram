@@ -158,9 +158,6 @@ class TdUserRemoteDataSource(
     override suspend fun getPremiumFeatures(source: TdApi.PremiumSource): TdApi.PremiumFeatures? =
         coRunCatching { gateway.execute(TdApi.GetPremiumFeatures(source)) }.getOrNull()
 
-    override suspend fun getPremiumLimit(limitType: TdApi.PremiumLimitType): TdApi.PremiumLimit? =
-        coRunCatching { gateway.execute(TdApi.GetPremiumLimit(limitType)) }.getOrNull()
-
     override suspend fun setSponsoredMessagesEnabled(enabled: Boolean) {
         coRunCatching { gateway.execute(TdApi.ToggleHasSponsoredMessagesEnabled(enabled)) }
     }

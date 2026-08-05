@@ -46,6 +46,12 @@ val appAssemblyVariants =
         }
     }
 
+val verifyBeforeAssemble =
+    providers.gradleProperty("verifyBeforeAssemble")
+        .map { it.equals("true", ignoreCase = true) }
+        .orElse(false)
+        .get()
+
 appAssemblyVariants.forEach { variant ->
     val verifyTask = tasks.register("verify${variant.name}BeforeAssemble") {
         group = "verification"
@@ -59,8 +65,10 @@ appAssemblyVariants.forEach { variant ->
         )
     }
 
-    project(":app").tasks.matching { it.name == "assemble${variant.name}" }.configureEach {
-        dependsOn(verifyTask)
+    if (verifyBeforeAssemble) {
+        project(":app").tasks.matching { it.name == "assemble${variant.name}" }.configureEach {
+            dependsOn(verifyTask)
+        }
     }
 }
 

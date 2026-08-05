@@ -31,10 +31,21 @@ val buildBranch =
         ?: runCommandAndCaptureOutput("git", "branch", "--show-current")?.takeIf { it.isNotBlank() }
         ?: "detached"
 
+val requestsReleaseVariant = gradle.startParameter.taskNames.any {
+    it.contains("Release", ignoreCase = true)
+}
+
 val buildTimeMillis =
     resolveBuildInfoProperty("buildTimeMillis", "BUILD_TIME_MILLIS")
         ?.toLongOrNull()
-        ?: System.currentTimeMillis()
+        ?: if (requestsReleaseVariant) {
+            System.currentTimeMillis()
+        } else {
+            runCommandAndCaptureOutput("git", "show", "-s", "--format=%ct", "HEAD")
+                ?.toLongOrNull()
+                ?.times(1000)
+                ?: 0L
+        }
 
 android {
     namespace = "org.monogram.presentation"

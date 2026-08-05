@@ -55,8 +55,8 @@ android {
         applicationId = "org.monogram"
         minSdk = 25
         targetSdk = 37
-        versionCode = 14
-        versionName = "0.2.1"
+        versionCode = 15
+        versionName = "0.3.0"
     }
 
     flavorDimensions += listOf("tdlib", "runtime")

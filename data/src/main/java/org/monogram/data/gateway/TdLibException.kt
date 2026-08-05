@@ -51,11 +51,15 @@ fun Throwable.toAuthError(): AuthError {
     val normalizedMessage = tdError?.message.orEmpty().uppercase()
 
     return when {
-        normalizedMessage.contains("PHONE_CODE_INVALID") -> AuthError.InvalidCode
+        normalizedMessage.contains("PHONE_CODE_INVALID") ||
+                normalizedMessage.contains("EMAIL_CODE_INVALID") -> AuthError.InvalidCode
         normalizedMessage.contains("PASSWORD_HASH_INVALID") -> AuthError.InvalidPassword
         normalizedMessage.contains("PHONE_CODE_EXPIRED") ||
                 normalizedMessage.contains("EMAIL_CODE_EXPIRED") ||
                 normalizedMessage.contains("CODE_EXPIRED") -> AuthError.CodeExpired
+
+        normalizedMessage.startsWith("FLOOD_WAIT_") ->
+            AuthError.RateLimited(normalizedMessage.substringAfterLast('_').toIntOrNull())
 
         else -> AuthError.Unexpected
     }

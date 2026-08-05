@@ -1,6 +1,8 @@
 package org.monogram.presentation.features.auth
 
 import com.arkivanov.decompose.value.Value
+import org.monogram.domain.repository.AuthCodeDelivery
+import org.monogram.domain.repository.AuthCodeInputKind
 import org.monogram.domain.repository.AuthError
 import org.monogram.domain.repository.AuthUiStatus
 
@@ -29,12 +31,19 @@ interface AuthComponent {
         object InputPhone : AuthState()
         data class InputCode(
             val codeLength: Int,
-            val codeType: String,
-            val nextCodeType: String? = null,
+            val delivery: AuthCodeDelivery,
+            val inputKind: AuthCodeInputKind,
+            val codeHint: String? = null,
+            val nextDelivery: AuthCodeDelivery? = null,
             val timeout: Int = 0,
-            val emailPattern: String? = null
+            val emailPattern: String? = null,
+            val canResend: Boolean = false
         ) : AuthState()
 
-        object InputPassword : AuthState()
+        data class InputPassword(
+            val passwordHint: String? = null,
+            val hasRecoveryEmail: Boolean = false,
+            val recoveryEmailPattern: String? = null
+        ) : AuthState()
     }
 }

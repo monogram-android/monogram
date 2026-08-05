@@ -42,6 +42,10 @@ fun AuthErrorDialog(
                 AuthError.InvalidCode -> stringResource(R.string.auth_phone_code_invalid_error)
                 AuthError.InvalidPassword -> stringResource(R.string.auth_password_hash_invalid)
                 AuthError.CodeExpired -> stringResource(R.string.auth_code_expired_error)
+                is AuthError.RateLimited -> stringResource(
+                    R.string.auth_rate_limited_error,
+                    error.retryAfterSeconds ?: 0
+                )
                 AuthError.Unexpected -> stringResource(R.string.unexpected_error)
             }
             Text(text = errorText)

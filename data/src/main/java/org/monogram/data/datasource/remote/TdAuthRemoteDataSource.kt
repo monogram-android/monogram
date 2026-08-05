@@ -19,14 +19,14 @@ class TdAuthRemoteDataSource(
         val settings = TdApi.PhoneNumberAuthenticationSettings().apply {
             isCurrentPhoneNumber = false
             allowFlashCall = false
-            allowMissedCall = false
+            allowMissedCall = true
             allowSmsRetrieverApi = false
         }
         gateway.execute(TdApi.SetAuthenticationPhoneNumber(phone, settings))
     }
 
     override suspend fun resendCode() {
-        gateway.execute(TdApi.ResendAuthenticationCode())
+        gateway.execute(TdApi.ResendAuthenticationCode(TdApi.ResendCodeReasonUserRequest()))
     }
 
     override suspend fun setAuthCode(code: String) {

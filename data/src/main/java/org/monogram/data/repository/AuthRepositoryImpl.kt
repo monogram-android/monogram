@@ -138,7 +138,19 @@ class AuthRepositoryImpl(
     }
 
     override fun resendCode() {
-        launchAuthAction { remote.resendCode() }
+        val currentStep = _authState.value as? AuthStep.InputCode
+        if (currentStep?.canResend != true ||
+            _authUiStatus.value is AuthUiStatus.Submitting
+        ) {
+            return
+        }
+
+        _authUiStatus.value = AuthUiStatus.Submitting(AuthSubmissionStage.RESEND)
+        scope.launch {
+            coRunCatching { remote.resendCode() }
+                .onSuccess { _authUiStatus.value = AuthUiStatus.Idle }
+                .onFailure(::emitError)
+        }
     }
 
     override fun sendCode(code: String) {
@@ -160,6 +172,7 @@ class AuthRepositoryImpl(
             else -> when (action.stage) {
                 AuthSubmissionStage.PHONE -> sendPhone(action.payload)
                 AuthSubmissionStage.CODE -> sendCode(action.payload)
+                AuthSubmissionStage.RESEND -> resendCode()
                 AuthSubmissionStage.PASSWORD -> sendPassword(action.payload)
             }
         }
@@ -243,6 +256,7 @@ class AuthRepositoryImpl(
         return when (stage) {
             AuthSubmissionStage.PHONE -> _authState.value is AuthStep.InputPhone
             AuthSubmissionStage.CODE -> _authState.value is AuthStep.InputCode
+            AuthSubmissionStage.RESEND -> _authState.value is AuthStep.InputCode
             AuthSubmissionStage.PASSWORD -> _authState.value is AuthStep.InputPassword
         }
     }
@@ -258,6 +272,7 @@ class AuthRepositoryImpl(
                     state !is AuthStep.Closing
             AuthSubmissionStage.CODE -> state is AuthStep.InputPassword ||
                     state is AuthStep.Ready
+            AuthSubmissionStage.RESEND -> state is AuthStep.InputCode
             AuthSubmissionStage.PASSWORD -> state is AuthStep.Ready
         }
     }
@@ -272,6 +287,8 @@ class AuthRepositoryImpl(
                 "checkAuthenticationCode",
                 "checkAuthenticationEmailCode"
             )
+
+            AuthSubmissionStage.RESEND -> listOf("resendAuthenticationCode")
 
             AuthSubmissionStage.PASSWORD -> listOf("checkAuthenticationPassword")
         }

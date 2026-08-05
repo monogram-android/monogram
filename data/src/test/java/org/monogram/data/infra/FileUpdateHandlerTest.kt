@@ -5,6 +5,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -13,6 +14,10 @@ import kotlinx.coroutines.test.runTest
 import org.drinkless.tdlib.TdApi
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.gateway.UpdateDispatcherImpl
+import org.monogram.data.testing.fakeUpdateLane
+import kotlin.coroutines.CoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FileUpdateHandlerTest {
@@ -20,13 +25,13 @@ class FileUpdateHandlerTest {
     @Test
     fun `burst file completions preserve every terminal path and order`() = runTest {
         val scope = CoroutineScope(coroutineContext + SupervisorJob())
-        val updates = MutableSharedFlow<TdApi.UpdateFile>()
+        val updates = MutableSharedFlow<TdApi.Update>()
         val queue = RecordingQueue()
         val registry = FileMessageRegistry()
         val handler = FileUpdateHandler(
             registry = registry,
             queue = queue,
-            fileUpdatesSource = updates,
+            updates = UpdateDispatcherImpl(FakeTelegramGateway(updates)),
             scope = scope
         )
         val fileCompleted = mutableListOf<Pair<Long, String>>()
@@ -66,6 +71,24 @@ class FileUpdateHandlerTest {
             isDownloadingCompleted = true
         }
         remote = TdApi.RemoteFile()
+    }
+
+    private class FakeTelegramGateway(
+        override val updates: MutableSharedFlow<TdApi.Update>
+    ) : TelegramGateway {
+        override val isAuthenticated = MutableStateFlow(false)
+
+        override suspend fun <T : TdApi.Object> execute(function: TdApi.Function<T>): T {
+            error("Not used")
+        }
+
+        override fun lane(
+            name: String,
+            scope: CoroutineScope,
+            context: CoroutineContext,
+            filter: (TdApi.Update) -> Boolean,
+            handler: suspend (TdApi.Update) -> Unit,
+        ) = fakeUpdateLane(updates, scope, context, filter, handler)
     }
 
     private class RecordingQueue : FileUpdateQueue {

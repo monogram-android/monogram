@@ -92,11 +92,22 @@ class TdMessageRemoteDataSource(
     private val refreshJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
     private val missingMessageCooldownUntil = ConcurrentHashMap<Pair<Long, Long>, Long>()
     private val sendQueue = Channel<suspend () -> Unit>(Channel.BUFFERED)
-    override val newMessageFlow = MutableSharedFlow<MessageModel>()
-    override val messageEditedFlow = MutableSharedFlow<MessageModel>()
+    // These are fed from `scope.launch { ... }` inside update handling. With the default
+    // arguments (replay 0, no buffer, SUSPEND) a MutableSharedFlow is a rendezvous channel:
+    // every emit parks until *all* subscribers have taken the value, which piled emitters up
+    // without bound during bursts. OrderedEventFlow.enqueue is non-suspending and lossless,
+    // so the event streams go through it; progress ticks are conflatable and get an explicit
+    // bounded buffer instead.
+    private val newMessages = OrderedEventFlow<MessageModel>(scope)
+    override val newMessageFlow = newMessages.events
+    private val messageEdits = OrderedEventFlow<MessageModel>(scope)
+    override val messageEditedFlow = messageEdits.events
     private val messageReads = OrderedEventFlow<ReadUpdate>(scope)
     override val messageReadFlow = messageReads.events
-    override val messageUploadProgressFlow = MutableSharedFlow<MessageUploadProgressEvent>()
+    override val messageUploadProgressFlow = MutableSharedFlow<MessageUploadProgressEvent>(
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     private val fileDownloads = OrderedEventFlow<FileDownloadEvent>(scope)
     override val fileDownloadFlow = fileDownloads.events
     private val messageDownloads = OrderedEventFlow<MessageDownloadEvent>(scope)
@@ -1992,7 +2003,7 @@ class TdMessageRemoteDataSource(
                 scope.launch(dispatcherProvider.io) {
                     try {
                         val model = mapMessageToModel(message)
-                        newMessageFlow.emit(model)
+                        newMessages.enqueue(model)
                     } catch (e: Exception) { Log.e("TdMessageRemote", "Error mapping NewMessage", e) }
                 }
             }
@@ -2039,7 +2050,7 @@ class TdMessageRemoteDataSource(
                             errorCode = update.error?.code ?: 0
                         )
                     )
-                    messageEditedFlow.emit(model)
+                    messageEdits.enqueue(model)
                 }
             }
             is TdApi.UpdateMessageContent -> {
@@ -2216,7 +2227,7 @@ class TdMessageRemoteDataSource(
         if (messageId == 0L) return
         val msg = cache.getMessage(chatId, messageId) ?: return
         val model = mapMessageToModel(msg)
-        messageEditedFlow.emit(model)
+        messageEdits.enqueue(model)
     }
 
     private suspend fun mapMessageToModel(message: TdApi.Message): MessageModel {
@@ -2445,7 +2456,7 @@ class TdMessageRemoteDataSource(
                 delay(150)
                 val msg = cache.getMessage(chatId, messageId) ?: return@launch
                 try {
-                    messageEditedFlow.emit(mapMessageToModel(msg))
+                    messageEdits.enqueue(mapMessageToModel(msg))
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

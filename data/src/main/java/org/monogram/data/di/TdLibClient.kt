@@ -1,9 +1,8 @@
 package org.monogram.data.di
 
 import android.util.Log
-import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,16 +15,21 @@ import org.monogram.data.BuildConfig
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.isExpectedProxyFailure
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.resume
 
 internal class TdLibClient {
     private val TAG = "TdLibClient"
     private val retryAfterUntilMsByScope = ConcurrentHashMap<String, Long>()
-    private val _updates = MutableSharedFlow<TdApi.Update>(
-        replay = 3,
-        extraBufferCapacity = 64,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+
+    /**
+     * Authoritative ingestion for TDLib updates.
+     *
+     * Consumers that own durable state subscribe with [lane] (lossless, ordered);
+     * consumers that only render subscribe to [updates] (conflating).
+     */
+    private val pipeline = TdUpdatePipeline()
 
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated = _isAuthenticated.asStateFlow()
@@ -44,17 +48,40 @@ internal class TdLibClient {
         }
     }
 
-    val updates: SharedFlow<TdApi.Update> = _updates
+    /**
+     * Observation stream. Conflates under load, so it must not be used to drive durable
+     * state; use [lane] for that.
+     */
+    val updates: SharedFlow<TdApi.Update> = pipeline.updates
+
+    /**
+     * Lossless, strictly ordered subscription for consumers that own durable state:
+     * Room writes, [org.monogram.data.chats.ChatCache] mutation, or TDLib requests.
+     *
+     * Register during startup — updates delivered before the lane exists are not replayed.
+     */
+    fun lane(
+        name: String,
+        scope: CoroutineScope,
+        context: CoroutineContext = EmptyCoroutineContext,
+        filter: (TdApi.Update) -> Boolean = { true },
+        handler: suspend (TdApi.Update) -> Unit,
+    ): TdUpdatePipeline.Lane = pipeline.lane(name, scope, context, filter, handler)
+
+    /** Diagnostics: ingest/lane backlogs, processed counts and handler failures. */
+    fun updateMetrics(): String = pipeline.metrics()
 
     private val client = Client.create(
         { result ->
             if (result is TdApi.Update) {
+                // Kept on the callback thread on purpose: these gate sendSuspend, so they
+                // must not depend on the update pipeline making progress.
                 if (result is TdApi.UpdateAuthorizationState) {
                     val state = result.authorizationState
                     _isInitialized.value = state !is TdApi.AuthorizationStateWaitTdlibParameters
                     _isAuthenticated.value = state is TdApi.AuthorizationStateReady
                 }
-                _updates.tryEmit(result)
+                pipeline.submit(result)
             }
         },
         { error ->

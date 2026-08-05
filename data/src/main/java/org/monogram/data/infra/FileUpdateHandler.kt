@@ -2,11 +2,11 @@ package org.monogram.data.infra
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.gateway.UpdateDispatcher
 
 interface FileUpdateQueue {
     fun updateFileCache(file: TdApi.File)
@@ -17,7 +17,7 @@ interface FileUpdateQueue {
 class FileUpdateHandler(
     private val registry: FileMessageRegistry,
     private val queue: FileUpdateQueue,
-    private val fileUpdatesSource: Flow<TdApi.UpdateFile>,
+    private val updates: UpdateDispatcher,
     private val scope: CoroutineScope
 ) {
     val customEmojiPaths = SynchronizedLruMap<Long, String>(CUSTOM_EMOJI_CACHE_SIZE)
@@ -39,8 +39,16 @@ class FileUpdateHandler(
     val fileUpdates = fileUpdateEvents.events
 
     init {
-        scope.launch {
-            fileUpdatesSource.collect { update -> handle(update.file) }
+        // The isDownloadingCompleted / isUploadingCompleted edge is what resolves download
+        // waiters and records the local path; losing it strands whatever was waiting.
+        // Progress ticks in between are conflatable, but the edge is not, so the whole
+        // stream goes through a lossless lane.
+        updates.lane(
+            name = "files",
+            scope = scope,
+            filter = { it is TdApi.UpdateFile },
+        ) { update ->
+            handle((update as TdApi.UpdateFile).file)
         }
     }
 

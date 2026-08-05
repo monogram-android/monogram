@@ -1,17 +1,29 @@
 package org.monogram.data.gateway
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import org.drinkless.tdlib.TdApi
+import kotlin.coroutines.CoroutineContext
 
 class UpdateDispatcherImpl(
-    gateway: TelegramGateway
+    private val gateway: TelegramGateway
 ) : UpdateDispatcher {
     private val updates = gateway.updates
 
     override val all: SharedFlow<TdApi.Update> = updates
+
+    override fun lane(
+        name: String,
+        scope: CoroutineScope,
+        context: CoroutineContext,
+        filter: (TdApi.Update) -> Boolean,
+        handler: suspend (TdApi.Update) -> Unit,
+    ) {
+        gateway.lane(name, scope, context, filter, handler)
+    }
 
     private inline fun <reified T : TdApi.Update> flow(): Flow<T> =
         updates.filterIsInstance<T>()
@@ -56,36 +68,44 @@ class UpdateDispatcherImpl(
     override val installedStickerSets = flow<TdApi.UpdateInstalledStickerSets>()
     override val newChat = flow<TdApi.UpdateNewChat>()
     override val attachmentMenuBots = flow<TdApi.UpdateAttachmentMenuBots>()
-    override val chatsListUpdates = updates.filter {
-        it is TdApi.UpdateNewChat ||
-                it is TdApi.UpdateChatTitle ||
-                it is TdApi.UpdateChatPhoto ||
-                it is TdApi.UpdateChatLastMessage ||
-                it is TdApi.UpdateChatPosition ||
-                it is TdApi.UpdateChatReadInbox ||
-                it is TdApi.UpdateChatReadOutbox ||
-                it is TdApi.UpdateChatUnreadMentionCount ||
-                it is TdApi.UpdateChatUnreadReactionCount ||
-                it is TdApi.UpdateChatDraftMessage ||
-                it is TdApi.UpdateChatNotificationSettings ||
-                it is TdApi.UpdateChatPermissions ||
-                it is TdApi.UpdateChatViewAsTopics ||
-                it is TdApi.UpdateChatIsTranslatable ||
-                it is TdApi.UpdateChatOnlineMemberCount ||
-                it is TdApi.UpdateChatFolders ||
-                it is TdApi.UpdateUserStatus ||
-                it is TdApi.UpdateUser ||
-                it is TdApi.UpdateSupergroup ||
-                it is TdApi.UpdateBasicGroup ||
-                it is TdApi.UpdateSupergroupFullInfo ||
-                it is TdApi.UpdateBasicGroupFullInfo ||
-                it is TdApi.UpdateSecretChat ||
-                it is TdApi.UpdateChatAction ||
-                it is TdApi.UpdateFile ||
-                it is TdApi.UpdateDeleteMessages ||
-                it is TdApi.UpdateMessageMentionRead ||
-                it is TdApi.UpdateMessageReactions ||
-                it is TdApi.UpdateAuthorizationState ||
-                it is TdApi.UpdateConnectionState
-    }
+    override val chatsListUpdates = updates.filter(CHATS_LIST_LANE_FILTER)
+}
+
+/**
+ * The update set that drives the canonical chat cache.
+ *
+ * Shared by [UpdateDispatcher.chatsListUpdates] and by the lossless "chat-list" lane in
+ * `ChatsListRepositoryImpl`, so the two can never drift apart.
+ */
+val CHATS_LIST_LANE_FILTER: (TdApi.Update) -> Boolean = {
+    it is TdApi.UpdateNewChat ||
+            it is TdApi.UpdateChatTitle ||
+            it is TdApi.UpdateChatPhoto ||
+            it is TdApi.UpdateChatLastMessage ||
+            it is TdApi.UpdateChatPosition ||
+            it is TdApi.UpdateChatReadInbox ||
+            it is TdApi.UpdateChatReadOutbox ||
+            it is TdApi.UpdateChatUnreadMentionCount ||
+            it is TdApi.UpdateChatUnreadReactionCount ||
+            it is TdApi.UpdateChatDraftMessage ||
+            it is TdApi.UpdateChatNotificationSettings ||
+            it is TdApi.UpdateChatPermissions ||
+            it is TdApi.UpdateChatViewAsTopics ||
+            it is TdApi.UpdateChatIsTranslatable ||
+            it is TdApi.UpdateChatOnlineMemberCount ||
+            it is TdApi.UpdateChatFolders ||
+            it is TdApi.UpdateUserStatus ||
+            it is TdApi.UpdateUser ||
+            it is TdApi.UpdateSupergroup ||
+            it is TdApi.UpdateBasicGroup ||
+            it is TdApi.UpdateSupergroupFullInfo ||
+            it is TdApi.UpdateBasicGroupFullInfo ||
+            it is TdApi.UpdateSecretChat ||
+            it is TdApi.UpdateChatAction ||
+            it is TdApi.UpdateFile ||
+            it is TdApi.UpdateDeleteMessages ||
+            it is TdApi.UpdateMessageMentionRead ||
+            it is TdApi.UpdateMessageReactions ||
+            it is TdApi.UpdateAuthorizationState ||
+            it is TdApi.UpdateConnectionState
 }

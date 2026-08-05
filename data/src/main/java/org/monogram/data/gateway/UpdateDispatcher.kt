@@ -1,11 +1,38 @@
 package org.monogram.data.gateway
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.drinkless.tdlib.TdApi
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 interface UpdateDispatcher {
+    /**
+     * Observation stream. Conflates when a collector falls behind, so it must only be
+     * used by consumers that render state they can re-read. Anything that writes to Room,
+     * mutates [org.monogram.data.chats.ChatCache], or issues a TDLib request must use
+     * [lane] instead.
+     */
     val all: Flow<TdApi.Update>
+
+    /**
+     * Lossless, strictly ordered, exception-isolated subscription.
+     *
+     * The lane owns a private unbounded queue and a private worker, so a slow handler
+     * delays only itself, and a handler that throws does not end the subscription.
+     * Register during startup: updates delivered before the lane exists are not replayed.
+     *
+     * @param filter evaluated on the update pump thread; keep it to cheap type checks.
+     * @param context extra worker context, e.g. `Dispatchers.IO` for lanes that hit Room.
+     */
+    fun lane(
+        name: String,
+        scope: CoroutineScope,
+        context: CoroutineContext = EmptyCoroutineContext,
+        filter: (TdApi.Update) -> Boolean = { true },
+        handler: suspend (TdApi.Update) -> Unit,
+    )
 
     // Auth
     val authorizationState: Flow<TdApi.UpdateAuthorizationState>

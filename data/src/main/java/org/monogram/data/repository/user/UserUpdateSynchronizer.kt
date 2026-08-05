@@ -40,16 +40,27 @@ internal class UserUpdateSynchronizer(
             }
         }
 
-        scope.launch {
-            updates.user.collect { update ->
-                updateAvatarIndex(update.user)
-                onUserUpdated(update.user)
-            }
-        }
+        // updateUser is documented as arriving before the user id is handed to the
+        // application, and it is the only introduction of the user object, so it must be
+        // lossless. Status goes through the same lane rather than a second subscription:
+        // the batcher only conflates per user id, so a lost update here would still lose
+        // that user's presence entirely.
+        updates.lane(
+            name = "users",
+            scope = scope,
+            filter = { it is TdApi.UpdateUser || it is TdApi.UpdateUserStatus },
+        ) { update ->
+            when (update) {
+                is TdApi.UpdateUser -> {
+                    updateAvatarIndex(update.user)
+                    onUserUpdated(update.user)
+                }
 
-        scope.launch {
-            updates.userStatus.collect { update ->
-                userStatusBatcher.offer(update.userId, update.status)
+                is TdApi.UpdateUserStatus -> {
+                    // Non-suspending, keeps the latest status per user; the batch applies
+                    // it to the store off the lane.
+                    userStatusBatcher.offer(update.userId, update.status)
+                }
             }
         }
 

@@ -538,6 +538,14 @@ class ConnectionManagerTest {
         override val connectionState: Flow<TdApi.UpdateConnectionState>
     ) : UpdateDispatcher {
         override val all: Flow<TdApi.Update> = MutableSharedFlow()
+        override fun lane(
+            name: String,
+            scope: kotlinx.coroutines.CoroutineScope,
+            context: kotlin.coroutines.CoroutineContext,
+            filter: (TdApi.Update) -> Boolean,
+            handler: suspend (TdApi.Update) -> Unit,
+        ) = org.monogram.data.testing.fakeUpdateLane(all, scope, context, filter, handler)
+
         override val newMessage: Flow<TdApi.UpdateNewMessage> = MutableSharedFlow()
         override val activeNotifications: Flow<TdApi.UpdateActiveNotifications> =
             MutableSharedFlow()

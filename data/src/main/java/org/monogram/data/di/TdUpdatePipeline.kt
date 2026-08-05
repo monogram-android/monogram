@@ -197,8 +197,9 @@ internal class TdUpdatePipeline {
 
         fun offer(update: TdApi.Update) {
             if (!filter(update)) return
-            queued.incrementAndGet()
-            queue.trySend(update)
+            // Count only what was actually accepted: trySend fails once the lane has been
+            // closed, and counting those would leave backlog() permanently non-zero.
+            if (queue.trySend(update).isSuccess) queued.incrementAndGet()
         }
 
         fun backlog(): Long = queued.get() - processed.get()

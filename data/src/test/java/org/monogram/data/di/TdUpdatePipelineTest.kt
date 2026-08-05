@@ -8,7 +8,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import org.drinkless.tdlib.TdApi
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -22,9 +21,13 @@ import java.util.concurrent.atomic.AtomicInteger
  * Contract of [TdUpdatePipeline]:
  *
  *  - a lane never loses an update and never reorders one;
- *  - a slow or throwing lane affects only itself;
+ *  - a slow, blocked or throwing lane affects only itself;
  *  - the observation flow is allowed to conflate, and does;
  *  - ingestion from the TDLib callback thread never waits for a consumer.
+ *
+ * Progress is driven by explicit gates rather than by sleeping, so runtime does not
+ * depend on the platform's timer resolution. `delay` appears only as a polling interval
+ * in [awaitCount], never once per update.
  */
 class TdUpdatePipelineTest {
 
@@ -54,13 +57,40 @@ class TdUpdatePipelineTest {
         thread.join()
     }
 
-    private suspend fun awaitCount(expected: Int, timeoutMs: Long = 30_000, actual: () -> Int) {
-        withTimeout(timeoutMs) {
-            while (actual() < expected) delay(5)
+    /**
+     * Polls until [actual] reaches [expected]. Uses an explicit deadline rather than
+     * `withTimeout` so a failure reports what was actually reached.
+     */
+    private suspend fun awaitCount(
+        expected: Int,
+        what: String,
+        timeoutMs: Long = 30_000,
+        actual: () -> Int,
+    ) {
+        val deadline = System.nanoTime() + timeoutMs * 1_000_000
+        while (actual() < expected) {
+            if (System.nanoTime() > deadline) {
+                throw AssertionError("timed out after ${timeoutMs}ms waiting for $expected $what, reached ${actual()}")
+            }
+            delay(2)
         }
     }
 
-    @Test
+    /** Number of updates the pump has fanned out, as opposed to merely accepted. */
+    private fun dispatched(pipeline: TdUpdatePipeline): Int =
+        Regex("dispatched=(\\d+)").find(pipeline.metrics())?.groupValues?.get(1)?.toInt() ?: 0
+
+    private suspend fun awaitObserverCount(pipeline: TdUpdatePipeline, expected: Int) {
+        val deadline = System.nanoTime() + 30_000L * 1_000_000
+        while (!pipeline.metrics().contains("observers=$expected")) {
+            if (System.nanoTime() > deadline) {
+                throw AssertionError("observer never subscribed: ${pipeline.metrics()}")
+            }
+            delay(2)
+        }
+    }
+
+    @Test(timeout = 60_000)
     fun `lane receives every update exactly once and in order`() = runBlocking {
         val pipeline = pipeline()
         val received = Collections.synchronizedList(mutableListOf<Int>())
@@ -68,26 +98,26 @@ class TdUpdatePipelineTest {
 
         val total = 5_000
         submitFromCallbackThread(pipeline, total)
-        awaitCount(total) { received.size }
+        awaitCount(total, "updates on the lane") { received.size }
 
         assertEquals(total, received.size)
         assertEquals((0 until total).toList(), received.toList())
     }
 
-    @Test
+    @Test(timeout = 60_000)
     fun `lane filter is applied and does not create gaps`() = runBlocking {
         val pipeline = pipeline()
         val received = Collections.synchronizedList(mutableListOf<Int>())
         pipeline.lane("even", scope(), filter = { seqOf(it) % 2 == 0 }) { received.add(seqOf(it)) }
 
         submitFromCallbackThread(pipeline, 1_000)
-        awaitCount(500) { received.size }
+        awaitCount(500, "even updates") { received.size }
 
         assertEquals(500, received.size)
         assertEquals((0 until 1_000 step 2).toList(), received.toList())
     }
 
-    @Test
+    @Test(timeout = 60_000)
     fun `a handler that throws does not end the lane`() = runBlocking {
         val pipeline = pipeline()
         val handled = AtomicInteger()
@@ -102,35 +132,44 @@ class TdUpdatePipelineTest {
 
         val total = 1_000
         submitFromCallbackThread(pipeline, total)
-        awaitCount(total) { handled.get() + failed.get() }
+        awaitCount(total, "handled or failed updates") { handled.get() + failed.get() }
 
         assertEquals(100, failed.get())
         assertEquals(900, handled.get())
         assertTrue("lane must still be registered", pipeline.metrics().contains("flaky"))
     }
 
-    @Test
-    fun `a slow lane does not make a fast lane lose or lag`() = runBlocking {
+    /**
+     * A lane that makes no progress at all is the extreme case of a slow lane, and it is
+     * reached by a gate rather than by sleeping, so the test cannot become slow.
+     */
+    @Test(timeout = 60_000)
+    fun `a blocked lane does not stop another lane and catches up losslessly`() = runBlocking {
         val pipeline = pipeline()
-        val fast = Collections.synchronizedList(mutableListOf<Int>())
-        val slow = AtomicInteger()
+        val gate = CompletableDeferred<Unit>()
+        val blocked = Collections.synchronizedList(mutableListOf<Int>())
+        val healthy = Collections.synchronizedList(mutableListOf<Int>())
 
-        pipeline.lane("fast", scope()) { fast.add(seqOf(it)) }
-        pipeline.lane("slow", scope()) { delay(2); slow.incrementAndGet() }
+        pipeline.lane("blocked", scope()) { gate.await(); blocked.add(seqOf(it)) }
+        pipeline.lane("healthy", scope()) { healthy.add(seqOf(it)) }
 
-        val total = 500
+        val total = 2_000
         submitFromCallbackThread(pipeline, total)
 
-        // The fast lane completes long before the slow one, and loses nothing.
-        awaitCount(total) { fast.size }
-        assertEquals((0 until total).toList(), fast.toList())
+        awaitCount(total, "updates on the healthy lane") { healthy.size }
+        assertEquals((0 until total).toList(), healthy.toList())
+        assertEquals("the blocked lane must not have progressed", 0, blocked.size)
 
-        // The slow lane is merely delayed, never truncated.
-        awaitCount(total) { slow.get() }
-        assertEquals(total, slow.get())
+        gate.complete(Unit)
+        awaitCount(total, "updates on the unblocked lane") { blocked.size }
+        assertEquals(
+            "a lane must catch up losslessly and in order",
+            (0 until total).toList(),
+            blocked.toList()
+        )
     }
 
-    @Test
+    @Test(timeout = 60_000)
     fun `ingestion does not wait for consumers`() = runBlocking {
         val pipeline = pipeline()
         val gate = CompletableDeferred<Unit>()
@@ -140,72 +179,102 @@ class TdUpdatePipelineTest {
             processed.incrementAndGet()
         }
 
+        // Every submit returns even though the lane handler has never returned.
         val total = 10_000
-        val elapsedMs = kotlin.system.measureTimeMillis { submitFromCallbackThread(pipeline, total) }
-
-        // The lane handler has not returned even once, yet every submit has completed.
-        assertEquals(0, processed.get())
-        assertTrue(
-            "submitting $total updates took ${elapsedMs}ms; ingestion must not block on consumers",
-            elapsedMs < 2_000
-        )
+        submitFromCallbackThread(pipeline, total)
+        assertEquals("ingestion must not block on a consumer", 0, processed.get())
 
         gate.complete(Unit)
-        awaitCount(total) { processed.get() }
+        awaitCount(total, "updates drained after unblocking") { processed.get() }
         assertEquals(total, processed.get())
     }
 
-    @Test
+    @Test(timeout = 60_000)
     fun `lane deregisters when its scope is cancelled`() = runBlocking {
         val pipeline = pipeline()
         val ownScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        pipeline.lane("transient", ownScope) { }
+        val seen = AtomicInteger()
+        pipeline.lane("transient", ownScope) { seen.incrementAndGet() }
 
         submitFromCallbackThread(pipeline, 10)
-        withTimeout(10_000) { while (!pipeline.metrics().contains("transient")) delay(5) }
+        awaitCount(10, "updates before cancellation") { seen.get() }
 
         ownScope.cancel()
-        withTimeout(10_000) { while (pipeline.metrics().contains("transient")) delay(5) }
+        val deadline = System.nanoTime() + 30_000L * 1_000_000
+        while (pipeline.metrics().contains("transient")) {
+            if (System.nanoTime() > deadline) {
+                throw AssertionError("lane was not deregistered: ${pipeline.metrics()}")
+            }
+            delay(2)
+        }
 
-        // Further updates must not accumulate for the dead lane.
+        // Further updates must neither reach nor accumulate for the dead lane.
         submitFromCallbackThread(pipeline, 100, from = 10)
-        delay(200)
+        awaitCount(110, "the pump to dispatch the remaining updates") { dispatched(pipeline) }
         assertFalse(pipeline.metrics().contains("transient"))
+        assertEquals("a cancelled lane must not keep consuming", 10, seen.get())
     }
 
     /**
-     * The reason lanes exist. A consumer slower than the arrival rate loses updates on the
-     * observation flow and loses nothing on a lane, under the identical burst.
+     * The reason lanes exist. Under a burst larger than the observation buffer, the flow
+     * conflates and the lane does not.
+     *
+     * Deterministic: the observer is frozen on its first element for the whole burst, and
+     * the burst is several times the flow's buffer, so conflation is guaranteed by
+     * SharedFlow's semantics rather than by winning a race.
      */
-    @Test
+    @Test(timeout = 60_000)
     fun `observation flow conflates under load while a lane does not`() = runBlocking {
         val pipeline = pipeline()
         val laneSeen = AtomicInteger()
         val observerSeen = AtomicInteger()
-        val observerScope = scope()
+        val observerFrozen = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val sentinelSeen = CompletableDeferred<Unit>()
 
-        pipeline.lane("durable", scope()) { delay(1); laneSeen.incrementAndGet() }
-        val observer = observerScope.launch {
-            pipeline.updates.collect { delay(1); observerSeen.incrementAndGet() }
+        pipeline.lane("durable", scope()) { laneSeen.incrementAndGet() }
+
+        val observer = scope().launch {
+            pipeline.updates.collect { u ->
+                if (!observerFrozen.isCompleted) {
+                    observerFrozen.complete(Unit)
+                    release.await()
+                }
+                observerSeen.incrementAndGet()
+                if (seqOf(u) == SENTINEL) sentinelSeen.complete(Unit)
+            }
         }
-        // Let the observer subscribe before the burst starts.
-        withTimeout(10_000) { while (!pipeline.metrics().contains("observers=1")) delay(5) }
+        awaitObserverCount(pipeline, 1)
 
-        val total = 4_000
-        submitFromCallbackThread(pipeline, total)
+        // Freeze the observer, then push far more than its buffer can hold.
+        submitFromCallbackThread(pipeline, 1)
+        observerFrozen.await()
 
-        awaitCount(total, timeoutMs = 60_000) { laneSeen.get() }
-        assertEquals("a lane must never drop", total, laneSeen.get())
+        val burst = 3_000
+        submitFromCallbackThread(pipeline, burst, from = 1)
+        pipeline.submit(update(SENTINEL))
+        val submitted = 1 + burst + 1
 
-        delay(500)
+        // submit() only fills the ingest queue. Wait for the pump to have emitted all of
+        // it, so the observer is provably frozen across the whole emission sequence and
+        // its buffer has certainly overflowed before it is allowed to run again.
+        awaitCount(submitted, "the pump to dispatch the burst") { dispatched(pipeline) }
+
+        // The sentinel is the newest value, so it is always in the buffer: once the
+        // observer has seen it, nothing more is coming and its count is final.
+        release.complete(Unit)
+        sentinelSeen.await()
+
+        awaitCount(submitted, "updates on the lane") { laneSeen.get() }
+        assertEquals("a lane must never drop", submitted, laneSeen.get())
         assertTrue(
-            "the observation flow is expected to conflate under this load, saw ${observerSeen.get()} of $total",
-            observerSeen.get() < total
+            "the observation flow must conflate: it saw ${observerSeen.get()} of $submitted",
+            observerSeen.get() < submitted
         )
         observer.cancel()
     }
 
-    @Test
+    @Test(timeout = 60_000)
     fun `metrics expose the backlog of a stalled lane`() = runBlocking {
         val pipeline = pipeline()
         val gate = CompletableDeferred<Unit>()
@@ -213,17 +282,17 @@ class TdUpdatePipelineTest {
 
         submitFromCallbackThread(pipeline, 250)
         val backlogPattern = Regex("stalled: backlog=(\\d+)")
-        withTimeout(10_000) {
-            while (laneBacklog(backlogPattern, pipeline) < 249) delay(5)
+        awaitCount(249, "the stalled lane's backlog to be reported") {
+            backlogPattern.find(pipeline.metrics())?.groupValues?.get(1)?.toInt() ?: 0
         }
 
         val metrics = pipeline.metrics()
         gate.complete(Unit)
-
         assertTrue(metrics, metrics.contains("submitted=250"))
-        assertTrue(metrics, laneBacklog(backlogPattern, pipeline) >= 0)
     }
 
-    private fun laneBacklog(pattern: Regex, pipeline: TdUpdatePipeline): Int =
-        pattern.find(pipeline.metrics())?.groupValues?.get(1)?.toInt() ?: -1
+    private companion object {
+        /** Distinct from every generated sequence number. */
+        private const val SENTINEL = -1
+    }
 }

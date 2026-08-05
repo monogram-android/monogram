@@ -31,7 +31,6 @@ interface UserRemoteDataSource {
     suspend fun getBasicGroupMembers(basicGroupId: Long): TdApi.BasicGroupFullInfo?
     suspend fun getPremiumState(): TdApi.PremiumState?
     suspend fun getPremiumFeatures(source: TdApi.PremiumSource): TdApi.PremiumFeatures?
-    suspend fun getPremiumLimit(limitType: TdApi.PremiumLimitType): TdApi.PremiumLimit?
     suspend fun setSponsoredMessagesEnabled(enabled: Boolean)
     suspend fun getBotFullInfo(userId: Long): TdApi.UserFullInfo?
     suspend fun getChatStatistics(chatId: Long, isDark: Boolean): TdApi.ChatStatistics?

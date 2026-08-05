@@ -157,9 +157,6 @@ private class FakeUserRemoteDataSource(
     override suspend fun getPremiumFeatures(source: TdApi.PremiumSource): TdApi.PremiumFeatures? =
         null
 
-    override suspend fun getPremiumLimit(limitType: TdApi.PremiumLimitType): TdApi.PremiumLimit? =
-        null
-
     override suspend fun setSponsoredMessagesEnabled(enabled: Boolean) = Unit
     override suspend fun getBotFullInfo(userId: Long): TdApi.UserFullInfo? = null
     override suspend fun getChatStatistics(chatId: Long, isDark: Boolean): TdApi.ChatStatistics? =

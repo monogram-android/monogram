@@ -1,9 +1,11 @@
 package org.monogram.data.gateway
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.di.TdLibClient
+import kotlin.coroutines.CoroutineContext
 
 internal class TelegramGatewayImpl(
     private val client: TdLibClient
@@ -16,4 +18,17 @@ internal class TelegramGatewayImpl(
 
     override val isAuthenticated: StateFlow<Boolean>
         get() = client.isAuthenticated
+
+    override fun lane(
+        name: String,
+        scope: CoroutineScope,
+        context: CoroutineContext,
+        filter: (TdApi.Update) -> Boolean,
+        handler: suspend (TdApi.Update) -> Unit,
+    ) {
+        client.lane(name, scope, context, filter, handler)
+    }
+
+    /** Diagnostics: ingest/lane backlogs, processed counts and handler failures. */
+    fun updateMetrics(): String = client.updateMetrics()
 }

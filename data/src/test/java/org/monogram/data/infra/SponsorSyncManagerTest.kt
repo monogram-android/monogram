@@ -168,6 +168,14 @@ class SponsorSyncManagerTest {
     }
 
     private class FakeTelegramGateway : TelegramGateway {
+        override fun lane(
+            name: String,
+            scope: kotlinx.coroutines.CoroutineScope,
+            context: kotlin.coroutines.CoroutineContext,
+            filter: (TdApi.Update) -> Boolean,
+            handler: suspend (TdApi.Update) -> Unit,
+        ) = org.monogram.data.testing.fakeUpdateLane(_updates, scope, context, filter, handler)
+
         private val _updates = MutableSharedFlow<TdApi.Update>()
         private val _isAuthenticated = MutableStateFlow(true)
         var historyProvider: suspend () -> TdApi.Messages = { TdApi.Messages(0, emptyArray()) }

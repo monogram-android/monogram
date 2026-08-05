@@ -6,10 +6,7 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -154,18 +151,19 @@ internal class MessageRepositoryImpl(
             }
         }
 
-        updates.all
-            .map { update ->
-                messageRemoteDataSource.handleUpdate(update)
-                update
-            }
-            .onEach { update ->
-                processCachedUpdate(update)
-            }
-            .catch { error ->
-                Log.e("TdLibUpdates", "CRITICAL: Update loop died", error)
-            }
-            .launchIn(scope)
+        // Owns the message cache and the Room message mirror, so it must not miss updates:
+        // updateNewMessage, updateDeleteMessages and updateMessageSendSucceeded are deltas
+        // that TDLib never re-sends. A lane is lossless and strictly ordered, and isolates
+        // handler exceptions per update — the previous `.catch { }` ended the subscription
+        // for the rest of the process on the first failure.
+        updates.lane(
+            name = "messages",
+            scope = scope,
+            context = dispatcherProvider.io,
+        ) { update ->
+            messageRemoteDataSource.handleUpdate(update)
+            processCachedUpdate(update)
+        }
 
         scope.launch(dispatcherProvider.io) {
             val ninetyDaysAgo = System.currentTimeMillis() - (90L * 24 * 60 * 60 * 1000)

@@ -83,6 +83,14 @@ class FileDownloadQueueTest {
     }
 
     private class FakeTelegramGateway : TelegramGateway {
+        override fun lane(
+            name: String,
+            scope: kotlinx.coroutines.CoroutineScope,
+            context: kotlin.coroutines.CoroutineContext,
+            filter: (TdApi.Update) -> Boolean,
+            handler: suspend (TdApi.Update) -> Unit,
+        ) = org.monogram.data.testing.fakeUpdateLane(updates, scope, context, filter, handler)
+
         override val updates = MutableSharedFlow<TdApi.Update>()
         override val isAuthenticated = MutableStateFlow(false)
 

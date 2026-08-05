@@ -14,6 +14,8 @@ import kotlinx.coroutines.test.runTest
 import org.drinkless.tdlib.TdApi
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.monogram.data.testing.fakeUpdateLane
+import kotlin.coroutines.CoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class UpdateDispatcherImplTest {
@@ -103,6 +105,14 @@ class UpdateDispatcherImplTest {
         override suspend fun <T : TdApi.Object> execute(function: TdApi.Function<T>): T {
             error("Not used")
         }
+
+        override fun lane(
+            name: String,
+            scope: CoroutineScope,
+            context: CoroutineContext,
+            filter: (TdApi.Update) -> Boolean,
+            handler: suspend (TdApi.Update) -> Unit,
+        ) = fakeUpdateLane(updates, scope, context, filter, handler)
     }
 
     private companion object {

@@ -167,14 +167,13 @@ class TdNotificationManager(
             }
         }
 
-        scope.launch {
-            updates.all.collect { update ->
-                runCatching {
-                    handleCoreUpdate(update)
-                }.onFailure {
-                    Log.e(TAG, "Failed to handle update ${update.javaClass.simpleName}", it)
-                }
-            }
+        // handleCoreUpdate issues TDLib requests inline (getChat, membership checks), so
+        // this consumer is orders of magnitude slower than the update rate and would be
+        // the first to be conflated away on the observation flow. updateNotificationGroup
+        // carries added/removed deltas and updateActiveNotifications arrives exactly once
+        // before them, so none of it may be dropped or reordered.
+        updates.lane(name = "notifications", scope = scope) { update ->
+            handleCoreUpdate(update)
         }
 
         scope.launch {

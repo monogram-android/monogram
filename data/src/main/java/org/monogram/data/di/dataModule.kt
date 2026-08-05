@@ -788,7 +788,7 @@ val dataModule = module {
         FileUpdateHandler(
             registry = get(),
             queue = get(),
-            fileUpdatesSource = get<UpdateDispatcher>().file,
+            updates = get(),
             scope = get()
         )
     }

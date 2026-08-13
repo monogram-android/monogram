@@ -8,6 +8,7 @@ import org.monogram.data.db.dao.ChatFolderDao
 import org.monogram.data.db.dao.ChatFullInfoDao
 import org.monogram.data.db.dao.KeyValueDao
 import org.monogram.data.db.dao.MessageDao
+import org.monogram.data.db.dao.MessageWindowDao
 import org.monogram.data.db.dao.NotificationExceptionDao
 import org.monogram.data.db.dao.NotificationSettingDao
 import org.monogram.data.db.dao.RecentEmojiDao
@@ -26,6 +27,7 @@ import org.monogram.data.db.model.ChatFolderEntity
 import org.monogram.data.db.model.ChatFullInfoEntity
 import org.monogram.data.db.model.KeyValueEntity
 import org.monogram.data.db.model.MessageEntity
+import org.monogram.data.db.model.MessageWindowEntity
 import org.monogram.data.db.model.NotificationExceptionEntity
 import org.monogram.data.db.model.NotificationSettingEntity
 import org.monogram.data.db.model.RecentEmojiEntity
@@ -43,6 +45,7 @@ import org.monogram.data.db.model.WallpaperEntity
     entities = [
         ChatEntity::class,
         MessageEntity::class,
+        MessageWindowEntity::class,
         UserEntity::class,
         ChatFullInfoEntity::class,
         TopicEntity::class,
@@ -60,12 +63,13 @@ import org.monogram.data.db.model.WallpaperEntity
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 37,
-    exportSchema = false
+    version = 38,
+    exportSchema = true
 )
 abstract class MonogramDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun messageDao(): MessageDao
+    abstract fun messageWindowDao(): MessageWindowDao
     abstract fun userDao(): UserDao
     abstract fun chatFullInfoDao(): ChatFullInfoDao
     abstract fun topicDao(): TopicDao

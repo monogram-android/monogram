@@ -303,31 +303,31 @@ internal fun ChatContentBody(
     val onVideoClick: (MessageModel, String?, String?) -> Unit =
         remember(component, scrollState) {
             { msg, path, caption ->
-                if (!currentIsVisible.value || currentShowInitialLoading.value || scrollState.isScrollInProgress) {
+                val videoContent = msg.content as? MessageContent.Video
+                val supportsStreaming = videoContent?.supportsStreaming ?: false
+                val validPath = path?.takeIf { File(it).exists() }
+
+                if (!currentIsVisible.value || currentShowInitialLoading.value) {
+                    Unit
+                } else if (validPath == null && !supportsStreaming) {
+                    val fileId = when (val content = msg.content) {
+                        is MessageContent.Video -> content.fileId
+                        is MessageContent.Gif -> content.fileId
+                        else -> 0
+                    }
+                    if (fileId != 0) {
+                        component.onDownloadFile(fileId, userInitiated = true)
+                    }
+                } else if (scrollState.isScrollInProgress) {
                     Unit
                 } else {
-                    val videoContent = msg.content as? MessageContent.Video
-                    val supportsStreaming = videoContent?.supportsStreaming ?: false
-                    val validPath = path?.takeIf { File(it).exists() }
-
-                    if (validPath != null || supportsStreaming) {
-                        currentKeyboardController.value?.hide()
-                        currentFocusManager.value.clearFocus()
-                        component.onOpenVideo(
-                            path = validPath,
-                            messageId = msg.id,
-                            caption = caption
-                        )
-                    } else {
-                        val fileId = when (val content = msg.content) {
-                            is MessageContent.Video -> content.fileId
-                            is MessageContent.Gif -> content.fileId
-                            else -> 0
-                        }
-                        if (fileId != 0) {
-                            component.onDownloadFile(fileId, userInitiated = true)
-                        }
-                    }
+                    currentKeyboardController.value?.hide()
+                    currentFocusManager.value.clearFocus()
+                    component.onOpenVideo(
+                        path = validPath,
+                        messageId = msg.id,
+                        caption = caption
+                    )
                 }
             }
         }

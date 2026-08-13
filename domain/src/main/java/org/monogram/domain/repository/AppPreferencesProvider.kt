@@ -6,6 +6,12 @@ enum class PushProvider {
     FCM, UNIFIED_PUSH, GMS_LESS
 }
 
+enum class ConversationPipelineMode {
+    Legacy,
+    Shadow,
+    New
+}
+
 enum class ProxyNetworkType {
     WIFI,
     MOBILE,
@@ -58,6 +64,7 @@ const val MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES = 1
 const val MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES = 60
 
 interface AppPreferencesProvider {
+    val conversationPipelineMode: StateFlow<ConversationPipelineMode>
     val autoDownloadMobile: StateFlow<Boolean>
     val autoDownloadWifi: StateFlow<Boolean>
     val autoDownloadRoaming: StateFlow<Boolean>
@@ -116,6 +123,7 @@ interface AppPreferencesProvider {
     val isSupportViewed: StateFlow<Boolean>
 
     val inAppBrowserEnabled: StateFlow<Boolean>
+    fun setConversationPipelineMode(mode: ConversationPipelineMode)
     fun setInAppBrowserEnabled(enabled: Boolean)
 
     fun setAutoDownloadMobile(enabled: Boolean)

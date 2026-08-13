@@ -1,14 +1,68 @@
 package org.monogram.data.datasource.cache
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.data.db.model.MessageEntity
+import org.monogram.data.db.model.MessageWindowEntity
 
 class InMemoryChatLocalDataSourceTest {
+
+    @Test
+    fun `history snapshot does not overwrite newer live mutation`() = runTest {
+        val source = InMemoryChatLocalDataSource()
+        val live = message(id = 10L, chatId = 1L, date = 20, content = "edited", editDate = 20)
+        val staleHistory =
+            message(id = 10L, chatId = 1L, date = 20, content = "original", editDate = 0)
+
+        source.insertMessage(live)
+        source.applyMessageCacheMutations(
+            listOf(
+                MessageCacheMutation.PersistHistoryBatch(
+                    writes = listOf(
+                        MessageCacheMutation.HistoryWrite(
+                            staleHistory,
+                            expectedExisting = null
+                        )
+                    ),
+                    window = messageWindow(chatId = 1L)
+                )
+            )
+        )
+
+        assertEquals(
+            live,
+            source.getMessagesByIds(chatId = 1L, messageIds = listOf(10L)).single()
+        )
+    }
+
+    @Test
+    fun `history snapshot refreshes unchanged stale cache row`() = runTest {
+        val source = InMemoryChatLocalDataSource()
+        val stale = message(id = 10L, chatId = 1L, content = "old", editDate = 0)
+        val refreshed = message(id = 10L, chatId = 1L, content = "new", editDate = 10)
+        source.insertMessage(stale)
+
+        source.applyMessageCacheMutations(
+            listOf(
+                MessageCacheMutation.PersistHistoryBatch(
+                    writes = listOf(
+                        MessageCacheMutation.HistoryWrite(
+                            refreshed,
+                            expectedExisting = stale
+                        )
+                    ),
+                    window = messageWindow(chatId = 1L)
+                )
+            )
+        )
+
+        assertEquals(refreshed, source.getMessagesByIds(1L, listOf(10L)).single())
+    }
     @Test
     fun `getStartupChats filters zero order sorts and limits`() = runBlocking {
         val source = InMemoryChatLocalDataSource()
@@ -148,7 +202,8 @@ class InMemoryChatLocalDataSourceTest {
         replyMarkupData: String? = null,
         reactionsData: String? = null,
         isPinned: Boolean = false,
-        hasUnreadReactions: Boolean = false
+        hasUnreadReactions: Boolean = false,
+        editDate: Int = 0
     ): MessageEntity =
         MessageEntity(
             id = id,
@@ -161,7 +216,20 @@ class InMemoryChatLocalDataSourceTest {
             isRead = false,
             replyMarkupData = replyMarkupData,
             reactionsData = reactionsData,
+            editDate = editDate,
             isPinned = isPinned,
             hasUnreadReactions = hasUnreadReactions
         )
+
+    private fun messageWindow(chatId: Long) = MessageWindowEntity(
+        chatId = chatId,
+        scopeType = "main",
+        scopeId = 0L,
+        oldestMessageId = null,
+        newestMessageId = null,
+        olderBoundaryReached = false,
+        newerBoundaryReached = false,
+        lastTdlibSyncAt = 0L,
+        generation = 1L
+    )
 }

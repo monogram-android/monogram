@@ -1,7 +1,16 @@
 package org.monogram.data.datasource.remote
 
+import org.monogram.data.infra.FileDownloadQueue
+
 interface MessageFileApi {
     fun registerFileForMessage(fileId: Int, chatId: Long, messageId: Long)
+    fun registerFileForMessage(
+        fileId: Int,
+        chatId: Long,
+        messageId: Long,
+        type: TdMessageRemoteDataSource.DownloadType,
+        descriptor: FileDownloadQueue.MediaDescriptor? = null
+    ) = registerFileForMessage(fileId, chatId, messageId)
     fun registerSponsoredFileForMessage(fileId: Int, chatId: Long, messageId: Long)
     fun enqueueDownload(
         fileId: Int,

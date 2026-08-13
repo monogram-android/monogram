@@ -5,6 +5,7 @@ import org.monogram.data.db.model.ChatEntity
 import org.monogram.data.db.model.ChatFullInfoEntity
 import org.monogram.data.db.model.MessageEntity
 import org.monogram.data.db.model.TopicEntity
+import org.monogram.data.db.model.MessageWindowEntity
 
 interface ChatLocalDataSource {
     fun getAllChats(): Flow<List<ChatEntity>>
@@ -45,8 +46,56 @@ interface ChatLocalDataSource {
         threadId: Long? = null
     ): List<MessageEntity>
     suspend fun getMessagesByIds(chatId: Long, messageIds: List<Long>): List<MessageEntity>
+    suspend fun getMessageWindow(
+        chatId: Long,
+        scopeType: String,
+        scopeId: Long
+    ): MessageWindowEntity?
+
+    suspend fun upsertMessageWindow(window: MessageWindowEntity)
+    suspend fun deleteMessageWindow(chatId: Long, scopeType: String, scopeId: Long)
+    suspend fun deleteMessageWindowsForChat(chatId: Long)
+    suspend fun invalidateMessageWindowCoverage(chatId: Long, scopeType: String, scopeId: Long) {
+        val current = getMessageWindow(chatId, scopeType, scopeId) ?: return
+        upsertMessageWindow(current.withInvalidCoverage())
+    }
+
+    suspend fun invalidateMessageWindowCoverageForChat(chatId: Long) = Unit
+    suspend fun updateProtectedMessageId(
+        chatId: Long,
+        scopeType: String,
+        scopeId: Long,
+        messageId: Long?
+    ) {
+        val current = getMessageWindow(chatId, scopeType, scopeId)
+        upsertMessageWindow(
+            current?.copy(protectedMessageId = messageId) ?: MessageWindowEntity(
+                chatId = chatId,
+                scopeType = scopeType,
+                scopeId = scopeId,
+                oldestMessageId = null,
+                newestMessageId = null,
+                olderBoundaryReached = false,
+                newerBoundaryReached = false,
+                lastTdlibSyncAt = 0L,
+                generation = 0L,
+                protectedMessageId = messageId
+            )
+        )
+    }
     suspend fun insertMessage(message: MessageEntity)
     suspend fun insertMessages(messages: List<MessageEntity>)
+    suspend fun persistHistoryMessages(writes: List<MessageCacheMutation.HistoryWrite>) {
+        if (writes.isEmpty()) return
+        val chatId = writes.first().message.chatId
+        val currentById =
+            getMessagesByIds(chatId, writes.map { it.message.id }).associateBy { it.id }
+        insertMessages(
+            writes.mapNotNull { write ->
+                write.message.takeIf { currentById[write.message.id] == write.expectedExisting }
+            }
+        )
+    }
     suspend fun replaceMessage(message: MessageEntity)
     suspend fun replaceMessageId(chatId: Long, oldMessageId: Long, message: MessageEntity)
     suspend fun markAsRead(chatId: Long, upToMessageId: Long)
@@ -83,6 +132,12 @@ interface ChatLocalDataSource {
         mutations.forEach { mutation ->
             when (mutation) {
                 is MessageCacheMutation.Persist -> replaceMessage(mutation.message)
+                is MessageCacheMutation.PersistHistoryBatch -> {
+                    persistHistoryMessages(mutation.writes)
+                    upsertMessageWindow(mutation.window)
+                }
+
+                is MessageCacheMutation.UpdateWindow -> upsertMessageWindow(mutation.window)
                 is MessageCacheMutation.ReplaceId -> replaceMessageId(
                     mutation.chatId,
                     mutation.oldMessageId,
@@ -141,3 +196,10 @@ interface ChatLocalDataSource {
 
     suspend fun deleteExpired(timestamp: Long)
 }
+
+private fun MessageWindowEntity.withInvalidCoverage() = copy(
+    oldestMessageId = null,
+    newestMessageId = null,
+    olderBoundaryReached = false,
+    newerBoundaryReached = false
+)

@@ -21,9 +21,11 @@ private const val REACTION_UPDATE_SUPPRESSION_MS = 1500L
 
 internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
     scope.launch {
-        val hadUnreadCount = _state.value.unreadCount > 0
-        val visibleMessage = _state.value.messages.firstOrNull { it.id == messageId }
+        val currentState = _state.value
+        val visibleMessage = currentState.messages.firstOrNull { it.id == messageId }
         val targetChatId = visibleMessage?.chatId ?: activeThreadChatId()
+        val hadUnreadCount = currentState.unreadCount > 0
+        val hadUnreadTarget = hadUnreadCount && visibleMessage?.isRead == false
         val visibleMessageIds = if (visibleMessage != null && visibleMessage.mediaAlbumId != 0L) {
             _state.value.messages
                 .asSequence()
@@ -42,8 +44,12 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
                 visibleMessageIds = visibleMessageIds
             )
         }
-        visibleMessageIds.forEach { repositoryMessage.markAsRead(targetChatId, it) }
-        if (hadUnreadCount) {
+        repositoryMessage.markMessagesAsRead(
+            chatId = targetChatId,
+            messageIds = visibleMessageIds,
+            threadId = currentState.effectiveThreadId()
+        )
+        if (hadUnreadTarget) {
             repositoryMessage.markAllMentionsAsRead(targetChatId)
             repositoryMessage.markAllReactionsAsRead(targetChatId)
         }

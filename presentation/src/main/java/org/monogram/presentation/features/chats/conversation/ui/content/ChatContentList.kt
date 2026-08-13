@@ -602,47 +602,6 @@ internal fun ChatContentList(
             }
     }
 
-    LaunchedEffect(
-        scrollState,
-        conversationItems,
-        groupedMessages,
-        state.isViewportSettled
-    ) {
-        if (!state.isViewportSettled || groupedMessages.isEmpty()) return@LaunchedEffect
-        snapshotFlow { scrollState.layoutInfo.visibleItemsInfo.map(LazyListItemInfo::index) }
-            .filter { it.isNotEmpty() }
-            .distinctUntilChanged()
-            .collect { visibleLazyIndices ->
-                val leadingItems = chatContentLeadingItemsCount(
-                    isComments = isComments,
-                    showNavPadding = showNavPadding,
-                    isLoadingOlder = state.isLoadingOlder,
-                    isLoadingNewer = state.isLoadingNewer,
-                    isAtBottom = state.isAtBottom,
-                    isNearBottom = scrollState.isNearBottom(isComments = isComments),
-                    hasMessages = groupedMessages.isNotEmpty()
-                )
-                val visibleGroupedIndices = visibleLazyIndices.mapNotNull { lazyIndex ->
-                    val groupedIndex = lazyIndexToGroupedIndex(lazyIndex, leadingItems)
-                    groupedIndex.takeIf { it in groupedMessages.indices }
-                }
-                if (visibleGroupedIndices.isEmpty()) return@collect
-                val firstVisibleGroupedIndex = visibleGroupedIndices.minOrNull() ?: return@collect
-                val lastVisibleGroupedIndex = visibleGroupedIndices.maxOrNull() ?: return@collect
-                val nearbyStart = (firstVisibleGroupedIndex - 3).coerceAtLeast(0)
-                val nearbyEnd =
-                    (lastVisibleGroupedIndex + 3).coerceAtMost(groupedMessages.lastIndex)
-                val visibleIds =
-                    visibleGroupedIndices.mapTo(linkedSetOf()) { groupedMessages[it].firstMessageId }
-                val nearbyIds =
-                    (nearbyStart..nearbyEnd).mapTo(linkedSetOf()) { groupedMessages[it].firstMessageId }
-                component.onMessageViewportChanged(
-                    visibleMessageIds = visibleIds,
-                    nearbyMessageIds = nearbyIds
-                )
-            }
-    }
-
     if (state.viewAsTopics && state.currentTopicId == null) {
         TopicsList(
             topics = state.topics,

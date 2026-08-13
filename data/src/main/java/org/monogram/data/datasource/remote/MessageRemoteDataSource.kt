@@ -18,9 +18,10 @@ import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
+import org.monogram.domain.repository.MediaAutoDownloadPolicy
 import org.monogram.domain.models.webapp.WebAppInfoModel
 import org.monogram.domain.repository.ChecklistDraft
-import org.monogram.domain.repository.OlderMessagesPage
+import org.monogram.domain.repository.ConversationScope
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.SearchChatMessagesResult
@@ -53,6 +54,11 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         sendCopy: Boolean = false
     )
     suspend fun getMessage(chatId: Long, messageId: Long): TdApi.Message?
+    suspend fun getMessagesLocally(
+        chatId: Long,
+        messageIds: List<Long>,
+        scope: ConversationScope
+    ): RemoteMessageBatch
     suspend fun getChatSponsoredMessages(chatId: Long): TdApi.SponsoredMessages?
     suspend fun clickChatSponsoredMessage(
         chatId: Long,
@@ -238,14 +244,19 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
     suspend fun closeWebApp(webAppLaunchId: Long): TdApi.Ok?
     suspend fun getPaymentForm(inputInvoice: TdApi.InputInvoice): TdApi.PaymentForm?
     suspend fun sendWebAppData(botUserId: Long, buttonText: String, data: String): TdApi.Ok?
-    suspend fun markAsRead(chatId: Long, messageId: Long)
+    suspend fun markMessagesAsRead(chatId: Long, messageIds: LongArray, threadId: Long? = null)
     suspend fun markAllReactionsAsRead(chatId: Long)
     suspend fun markAllMentionsAsRead(chatId: Long)
     suspend fun pinMessage(chatId: Long, messageId: Long, disableNotification: Boolean)
     suspend fun unpinMessage(chatId: Long, messageId: Long)
     suspend fun saveChatDraft(chatId: Long, draft: TdApi.DraftMessage?, replyToMsgId: Long?, threadId: Long? = null)
     suspend fun getChatDraft(chatId: Long, threadId: Long? = null): String?
-    fun updateVisibleRange(chatId: Long, visibleIds: List<Long>, nearbyIds: List<Long>)
+    fun updateVisibleRange(
+        chatId: Long,
+        visibleIds: List<Long>,
+        nearbyIds: List<Long>,
+        policy: MediaAutoDownloadPolicy
+    )
     suspend fun onCallbackQueryBuy(chatId: Long, messageId: Long)
     suspend fun sendWebAppResult(botUserId: Long, data: String, buttonText: String = "")
     suspend fun onCallbackQuery(chatId: Long, messageId: Long, data: ByteArray)
@@ -267,47 +278,30 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
     ): List<UserModel>
     suspend fun getMessageViewersModels(chatId: Long, messageId: Long): List<MessageViewerModel>
 
-    suspend fun getMessagesOlder(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int,
-        threadId: Long? = null
-    ): OlderMessagesPage
-
     suspend fun getRemoteMessagesOlder(
         chatId: Long,
         fromMessageId: Long,
         limit: Int,
-        threadId: Long? = null
+        scope: ConversationScope = ConversationScope.Main,
+        fetchMode: RemoteHistoryFetchMode = RemoteHistoryFetchMode.LocalThenNetwork
     ): RemoteOlderMessagesPage
-
-    suspend fun getMessagesNewer(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int,
-        threadId: Long? = null
-    ): List<MessageModel>
 
     suspend fun getRemoteMessagesNewer(
         chatId: Long,
         fromMessageId: Long,
         limit: Int,
-        threadId: Long? = null
+        scope: ConversationScope = ConversationScope.Main,
+        fetchMode: RemoteHistoryFetchMode = RemoteHistoryFetchMode.LocalThenNetwork
     ): RemoteMessageBatch
 
-    suspend fun getMessagesAround(
-        chatId: Long,
-        messageId: Long,
-        limit: Int,
-        threadId: Long? = null
-    ): List<MessageModel>
     suspend fun getChatMessageByDate(chatId: Long, dateEpochSeconds: Int): MessageModel?
 
     suspend fun getRemoteMessagesAround(
         chatId: Long,
         messageId: Long,
         limit: Int,
-        threadId: Long? = null
+        scope: ConversationScope = ConversationScope.Main,
+        fetchMode: RemoteHistoryFetchMode = RemoteHistoryFetchMode.LocalThenNetwork
     ): RemoteMessageBatch
 
     suspend fun getPinnedMessageModel(chatId: Long, threadId: Long? = null): MessageModel?

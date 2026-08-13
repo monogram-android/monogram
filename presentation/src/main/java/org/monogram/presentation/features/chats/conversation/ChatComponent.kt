@@ -146,7 +146,7 @@ interface ChatComponent {
     fun onClearUnreadMentions()
     fun onScrollToNextUnreadReaction()
     fun onClearUnreadReactions()
-    fun onDownloadFile(fileId: Int, userInitiated: Boolean = false)
+    fun onDownloadFile(fileId: Int, userInitiated: Boolean = true)
     fun onDownloadHighRes(messageId: Long)
     fun onCancelDownloadFile(fileId: Int)
     fun updateScrollPosition(messageId: Long)

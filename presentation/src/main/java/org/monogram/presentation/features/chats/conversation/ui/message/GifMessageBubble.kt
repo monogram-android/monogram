@@ -109,22 +109,6 @@ fun GifMessageBubble(
         }
     }
 
-    LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (content.path.isNullOrBlank() && !content.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                content.fileId
-            )
-        ) {
-            val shouldDownload = when {
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                else -> autoDownloadMobile
-            }
-            if (shouldDownload) {
-                onGifClick(msg)
-            }
-        }
-    }
-
     val topStart = if (!isOutgoing && isSameSenderAbove) smallCorner else cornerRadius
     val topEnd = if (isOutgoing && isSameSenderAbove) smallCorner else cornerRadius
     val bottomStart = if (!isOutgoing) {

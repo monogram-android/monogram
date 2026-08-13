@@ -18,9 +18,9 @@ import org.monogram.data.chats.ChatCache
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.domain.repository.MediaAutoDownloadPolicy
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 class FileDownloadQueue(
     private val gateway: TelegramGateway,
@@ -34,6 +34,15 @@ class FileDownloadQueue(
     }
 
     enum class DownloadType { VIDEO, GIF, STICKER, VIDEO_NOTE, DEFAULT }
+
+    enum class MediaKind { PHOTO, VIDEO, GIF, VOICE, VIDEO_NOTE, DOCUMENT, AUDIO, STICKER, OTHER }
+    enum class DemandRole { PRIMARY, PREVIEW, MANUAL_ONLY }
+    data class MediaDescriptor(
+        val kind: MediaKind,
+        val role: DemandRole,
+        val size: Long,
+        val supportsStreaming: Boolean = false
+    )
 
     private data class DownloadRequest(
         val fileId: Int,
@@ -66,6 +75,7 @@ class FileDownloadQueue(
     private val notFoundCooldownUntil = ConcurrentHashMap<Int, Long>()
 
     private val fileDownloadTypes = ConcurrentHashMap<Int, DownloadType>()
+    private val mediaDescriptors = ConcurrentHashMap<Int, MediaDescriptor>()
     private val manualDownloadIds = ConcurrentHashMap.newKeySet<Int>()
     private val suppressedAutoDownloadIds = ConcurrentHashMap.newKeySet<Int>()
     private val downloadWaiters = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
@@ -76,22 +86,15 @@ class FileDownloadQueue(
     private val openChatIds = ConcurrentHashMap.newKeySet<Long>()
     private val visibleMessageIds = ConcurrentHashMap<Long, Set<Long>>()
     private val nearbyMessageIds = ConcurrentHashMap<Long, Set<Long>>()
+    private val autoDownloadPolicies = ConcurrentHashMap<Long, MediaAutoDownloadPolicy>()
 
     @Volatile
     private var activeChatId: Long = 0L
 
-    // TDLib has no concurrent-download cap of its own: it self-regulates with a 2 MiB in-flight
-    // byte budget per (DC, size-class) and orders equal priorities LIFO. Keeping these caps tight
-    // only withholds requests from that scheduler, so they are sized to stay out of its way.
     private val notFoundCooldownMs = TimeUnit.MINUTES.toMillis(2)
-    private val maxTotalParallelDownloads = 48
-    // Video stays low deliberately: a large file monopolises TDLib's byte window anyway, so
-    // extra video slots add queueing without throughput.
-    private val maxVideoParallelDownloads = 4
-    private val maxGifParallelDownloads = 4
-    private val maxDefaultParallelDownloads = 32
+    private val maxAutoParallelDownloads = 8
+    private val maxLargeAutoParallelDownloads = 2
     private val maxPendingDefaultAutoDownloads = 64
-    private val maxStickerParallelDownloads = 16
     private val stickerStallMs = 20_000L
     private val defaultStallMs = 35_000L
     private val stalledRecoveryCooldownMs = 12_000L
@@ -107,14 +110,6 @@ class FileDownloadQueue(
                 trigger.receive()
                 coRunCatching { dispatchTasks() }
                     .onFailure { Log.e("FileDownloadQueue", "dispatchTasks failed", it) }
-            }
-        }
-
-        scope.launch(dispatcherProvider.default) {
-            while (isActive) {
-                delay(TimeUnit.MINUTES.toMillis(1))
-                coRunCatching { retryFailedDownloads() }
-                    .onFailure { Log.e("FileDownloadQueue", "retryFailedDownloads failed", it) }
             }
         }
 
@@ -140,40 +135,22 @@ class FileDownloadQueue(
         val now = System.currentTimeMillis()
 
         stateMutex.withLock {
-            var vCount =
-                activeRequests.values.count { it.type == DownloadType.VIDEO || it.type == DownloadType.VIDEO_NOTE }
-            var gCount = activeRequests.values.count { it.type == DownloadType.GIF }
-            var dCount = activeRequests.values.count { it.type == DownloadType.DEFAULT }
-            var sCount = activeRequests.values.count { it.type == DownloadType.STICKER }
-            var totalCount = activeRequests.size
+            var autoCount = activeRequests.values.count { !it.isManual }
+            var largeAutoCount =
+                activeRequests.values.count { !it.isManual && it.type.isLargeMedia() }
 
             val candidates = pendingRequests.values
                 .filter { it.availableAt <= now }
                 .sorted()
 
             for (req in candidates) {
-                if (totalCount >= maxTotalParallelDownloads) break
-                var canStart = false
-                when (req.type) {
-                    DownloadType.VIDEO, DownloadType.VIDEO_NOTE -> if (vCount < maxVideoParallelDownloads) {
-                        vCount++; canStart = true
-                    }
-
-                    DownloadType.GIF -> if (gCount < maxGifParallelDownloads) {
-                        gCount++; canStart = true
-                    }
-
-                    DownloadType.DEFAULT -> if (dCount < maxDefaultParallelDownloads) {
-                        dCount++; canStart = true
-                    }
-
-                    DownloadType.STICKER -> if (sCount < maxStickerParallelDownloads) {
-                        sCount++; canStart = true
-                    }
-                }
+                if (autoCount >= maxAutoParallelDownloads) break
+                val isLargeAuto = req.type.isLargeMedia()
+                val canStart = !isLargeAuto || largeAutoCount < maxLargeAutoParallelDownloads
 
                 if (canStart) {
-                    totalCount++
+                    autoCount++
+                    if (isLargeAuto) largeAutoCount++
                     pendingRequests.remove(req.fileId)
                     activeRequests[req.fileId] = req
                     tasksToStart.add(req)
@@ -203,7 +180,7 @@ class FileDownloadQueue(
         val fileId = req.fileId
 
         if (!isStillRelevant(fileId)) {
-            finishTask(fileId)
+            finishTask(req)
             return
         }
 
@@ -256,7 +233,7 @@ class FileDownloadQueue(
                 }
             }
         } finally {
-            finishTask(fileId)
+            finishTask(req)
 
             try {
                 val finalFile = withTimeoutOrNull(10000) { gateway.execute(TdApi.GetFile(fileId)) }
@@ -286,14 +263,7 @@ class FileDownloadQueue(
 
     private suspend fun handleDownloadFailure(req: DownloadRequest, errorCode: Int? = null) {
         val nextRetry = req.retryCount + 1
-        val maxRetries = when (req.type) {
-            DownloadType.VIDEO -> 4
-            DownloadType.GIF -> 5
-            DownloadType.STICKER, DownloadType.VIDEO_NOTE -> 6
-            DownloadType.DEFAULT -> 5
-        }
-
-        if (nextRetry <= maxRetries) {
+        if (nextRetry <= MAX_RECOVERY_RETRIES) {
             val backoffMs = calculateBackoffMs(req, nextRetry, errorCode)
             val nextReq = req.copy(
                 retryCount = nextRetry,
@@ -309,20 +279,18 @@ class FileDownloadQueue(
                 trigger.trySend(Unit)
             }
         } else {
-            val cooldownMs = TimeUnit.MINUTES.toMillis(5)
-            failedRequests[req.fileId] = req.copy(availableAt = System.currentTimeMillis() + cooldownMs)
+            failedRequests[req.fileId] = req
             downloadWaiters.remove(req.fileId)?.cancel()
         }
     }
 
     private suspend fun handleNotFoundDownloadFailure(req: DownloadRequest) {
         val nextRetry = req.retryCount + 1
-        val maxRetries = if (req.type == DownloadType.STICKER) 10 else 4
-        val cooldownMs = (notFoundCooldownMs * nextRetry.coerceAtMost(6)).coerceAtMost(TimeUnit.MINUTES.toMillis(15))
+        val cooldownMs = notFoundCooldownMs
         val availableAt = System.currentTimeMillis() + cooldownMs
         notFoundCooldownUntil[req.fileId] = availableAt
 
-        if (nextRetry <= maxRetries) {
+        if (nextRetry <= MAX_RECOVERY_RETRIES) {
             val nextReq = req.copy(retryCount = nextRetry, availableAt = availableAt)
             stateMutex.withLock {
                 pendingRequests[req.fileId] = nextReq
@@ -351,18 +319,7 @@ class FileDownloadQueue(
             DownloadType.STICKER, DownloadType.VIDEO_NOTE -> TimeUnit.MINUTES.toMillis(2)
             else -> TimeUnit.MINUTES.toMillis(5)
         }
-        val scaled = (baseMs * attempt.coerceAtMost(8)).coerceAtMost(capMs)
-        val jitter = Random.nextLong(250L, 1_250L)
-        return scaled + jitter
-    }
-
-    private fun retryFailedDownloads() {
-        val now = System.currentTimeMillis()
-        val toRetry = failedRequests.filter { it.value.availableAt <= now }
-        toRetry.forEach { (id, req) ->
-            failedRequests.remove(id)
-            enqueue(id, req.priority, req.type, req.offset, req.limit, req.synchronous)
-        }
+        return (baseMs * attempt).coerceAtMost(capMs)
     }
 
     private fun cleanupDeadState() {
@@ -396,6 +353,12 @@ class FileDownloadQueue(
             }
             val lastProgress = lastProgressAt[req.fileId] ?: req.createdAt
             if (now - lastProgress >= timeoutMs) {
+                if (req.retryCount >= MAX_RECOVERY_RETRIES) {
+                    activeRequests.remove(req.fileId, req)
+                    failedRequests[req.fileId] = req
+                    downloadWaiters.remove(req.fileId)?.cancel()
+                    return@forEach
+                }
                 val recoveredAt = stalledRecoveryAt[req.fileId] ?: 0L
                 if (now - recoveredAt < stalledRecoveryCooldownMs) return@forEach
                 stalledRecoveryAt[req.fileId] = now
@@ -411,7 +374,8 @@ class FileDownloadQueue(
                             req.copy(
                                 priority = if (req.type == DownloadType.STICKER) maxOf(req.priority, 32) else maxOf(req.priority, 16),
                                 availableAt = System.currentTimeMillis() + 250L,
-                                createdAt = System.currentTimeMillis()
+                                createdAt = System.currentTimeMillis(),
+                                retryCount = req.retryCount + 1
                             )
                         )
                         true
@@ -420,7 +384,7 @@ class FileDownloadQueue(
                     if (recovered) {
                         coRunCatching {
                             withContext(dispatcherProvider.io) {
-                                gateway.execute(TdApi.CancelDownloadFile(req.fileId, false))
+                                gateway.execute(TdApi.CancelDownloadFile(req.fileId, true))
                             }
                         }
                         lastProgressAt[req.fileId] = System.currentTimeMillis()
@@ -431,11 +395,11 @@ class FileDownloadQueue(
         }
     }
 
-    private suspend fun finishTask(fileId: Int) {
+    private suspend fun finishTask(request: DownloadRequest) {
         stateMutex.withLock {
-            activeRequests.remove(fileId)
+            activeRequests.remove(request.fileId, request)
         }
-        stalledRecoveryAt.remove(fileId)
+        stalledRecoveryAt.remove(request.fileId)
         trigger.trySend(Unit)
     }
 
@@ -478,18 +442,7 @@ class FileDownloadQueue(
             }
             notifyDownloadComplete(file.id)
         } else if (oldFile?.local?.isDownloadingActive == true && !file.local.isDownloadingActive) {
-            val type = fileDownloadTypes[file.id]
-            if (type == DownloadType.STICKER || manualDownloadIds.contains(file.id)) {
-                scope.launch(dispatcherProvider.default) {
-                    enqueue(
-                        fileId = file.id,
-                        priority = if (type == DownloadType.STICKER) 32 else calculatePriority(file.id),
-                        type = type ?: DownloadType.DEFAULT
-                    )
-                }
-            } else {
-                manualDownloadIds.remove(file.id)
-            }
+            manualDownloadIds.remove(file.id)
         }
 
         if (file.remote.isUploadingCompleted) {
@@ -514,26 +467,49 @@ class FileDownloadQueue(
         openChatIds.remove(chatId)
         visibleMessageIds.remove(chatId)
         nearbyMessageIds.remove(chatId)
+        autoDownloadPolicies.remove(chatId)
         if (activeChatId == chatId) activeChatId = 0L
         registry.unregisterChat(chatId)
         cancelIrrelevantDownloads()
     }
 
-    fun updateVisibleRange(chatId: Long, visible: List<Long>, nearby: List<Long>) {
+    fun updateVisibleRange(
+        chatId: Long,
+        visible: List<Long>,
+        nearby: List<Long>,
+        policy: MediaAutoDownloadPolicy
+    ) {
         visibleMessageIds[chatId] = visible.toSet()
         nearbyMessageIds[chatId] = nearby.toSet()
+        autoDownloadPolicies[chatId] = policy
         activeChatId = chatId
 
         scope.launch(dispatcherProvider.default) {
             cancelIrrelevantDownloads()
             (visible + nearby).forEach { messageId ->
                 registry.getFileIdsForMessage(chatId, messageId).forEach { fileId ->
-                    fileDownloadTypes[fileId]?.let { type ->
+                    fileDownloadTypes[fileId]?.takeIf { isAutoDownloadAllowed(fileId) }
+                        ?.let { type ->
                         enqueue(fileId, calculatePriority(fileId), type)
                     }
                 }
             }
         }
+    }
+
+    fun registerFileForMessage(
+        fileId: Int,
+        chatId: Long,
+        messageId: Long,
+        type: DownloadType,
+        descriptor: MediaDescriptor? = null
+    ) {
+        if (fileId == 0) return
+        registry.register(fileId, chatId, messageId)
+        if (type != DownloadType.DEFAULT || !fileDownloadTypes.containsKey(fileId)) {
+            fileDownloadTypes[fileId] = type
+        }
+        descriptor?.let { mediaDescriptors[fileId] = it }
     }
 
     fun enqueue(
@@ -557,6 +533,16 @@ class FileDownloadQueue(
             val isManualRequest = userInitiated
             if (isManualRequest) manualDownloadIds.add(fileId)
 
+            val registeredMessages = registry.getMessages(fileId)
+            if (
+                !isManualRequest &&
+                !synchronous &&
+                registeredMessages.isNotEmpty() &&
+                !hasViewportDemand(fileId)
+            ) {
+                return@launch
+            }
+
             val cooldownUntil = notFoundCooldownUntil[fileId]
             if (!isManualRequest && cooldownUntil != null && cooldownUntil > System.currentTimeMillis()) {
                 return@launch
@@ -565,7 +551,7 @@ class FileDownloadQueue(
                 notFoundCooldownUntil.remove(fileId)
             }
 
-            if (registry.getMessages(fileId).isEmpty()) registry.standaloneFileIds.add(fileId)
+            if (registeredMessages.isEmpty()) registry.standaloneFileIds.add(fileId)
             if (type != DownloadType.DEFAULT || !fileDownloadTypes.containsKey(fileId)) {
                 fileDownloadTypes[fileId] = type
             }
@@ -604,13 +590,7 @@ class FileDownloadQueue(
                 val active = activeRequests[fileId]
                 if (active != null) {
                     val merged = mergeRequests(active, req)
-                    // Always re-send on user action. FileManager::download_impl runs with
-                    // force_update_priority=true and ResourceManager::add_node inserts before
-                    // equals, so re-issuing DownloadFile -- even at an unchanged priority --
-                    // moves the file to the head of TDLib's queue. It is a free bump-to-front.
-                    val shouldKick = userInitiated ||
-                        merged != active ||
-                        cache.fileCache[fileId]?.local?.isDownloadingActive != true
+                    val shouldKick = merged != active
                     if (shouldKick) {
                         activeRequests[fileId] = merged
                         scope.launch(dispatcherProvider.io) {
@@ -631,12 +611,7 @@ class FileDownloadQueue(
                     return@launch
                 }
 
-                // A genuinely user-initiated request must reach TDLib immediately rather than
-                // queueing behind background work. TDLib imposes no concurrency cap and orders
-                // equal priorities LIFO, so handing it straight over makes the newest action win.
-                // This intentionally lets activeRequests exceed maxTotalParallelDownloads;
-                // dispatchTasks() recomputes its counters per pass and simply admits nothing new
-                // until the set drains.
+                // Explicit user actions bypass the automatic-download caps.
                 if (userInitiated) {
                     pendingRequests.remove(fileId)
                     activeRequests[fileId] = req
@@ -677,7 +652,7 @@ class FileDownloadQueue(
 
         scope.launch(dispatcherProvider.io) {
             try {
-                gateway.execute(TdApi.CancelDownloadFile(fileId, false))
+                gateway.execute(TdApi.CancelDownloadFile(fileId, !force))
             } catch (_: Exception) {
             }
 
@@ -733,14 +708,39 @@ class FileDownloadQueue(
         if (manualDownloadIds.contains(fileId)) return true
         if (registry.sponsoredFileIds.contains(fileId)) return true
         if (registry.standaloneFileIds.contains(fileId)) return true
-        val type = fileDownloadTypes[fileId]
-        if (type == DownloadType.STICKER || type == DownloadType.VIDEO_NOTE) return true
+        return hasViewportDemand(fileId)
+    }
 
-        return registry.getMessages(fileId).any { (chatId, msgId) ->
+    private fun hasViewportDemand(fileId: Int): Boolean =
+        registry.getMessages(fileId).any { (chatId, msgId) ->
             openChatIds.contains(chatId) &&
+                    isAutoDownloadAllowed(fileId, chatId, msgId) &&
                     (visibleMessageIds[chatId]?.contains(msgId) == true ||
                             nearbyMessageIds[chatId]?.contains(msgId) == true)
         }
+
+    private fun isAutoDownloadAllowed(fileId: Int): Boolean =
+        registry.getMessages(fileId).any { (chatId, messageId) ->
+            isAutoDownloadAllowed(fileId, chatId, messageId)
+        }
+
+    private fun isAutoDownloadAllowed(fileId: Int, chatId: Long, messageId: Long): Boolean {
+        val policy = autoDownloadPolicies[chatId] ?: return false
+        val descriptor = mediaDescriptors[fileId] ?: return false
+        if (!policy.enabled || descriptor.role == DemandRole.MANUAL_ONLY || descriptor.supportsStreaming) return false
+        val nearbyOnly = nearbyMessageIds[chatId]?.contains(messageId) == true &&
+                visibleMessageIds[chatId]?.contains(messageId) != true
+        if (nearbyOnly && descriptor.role != DemandRole.PREVIEW && descriptor.kind != MediaKind.STICKER) return false
+        if ((descriptor.kind == MediaKind.DOCUMENT || descriptor.kind == MediaKind.AUDIO) && !policy.allowFiles) return false
+        val cap = when (descriptor.kind) {
+            MediaKind.PHOTO, MediaKind.STICKER -> 10L * MIB
+            MediaKind.GIF -> 15L * MIB
+            MediaKind.VOICE, MediaKind.VIDEO_NOTE -> 20L * MIB
+            MediaKind.VIDEO -> 50L * MIB
+            MediaKind.DOCUMENT, MediaKind.AUDIO -> 20L * MIB
+            MediaKind.OTHER -> 10L * MIB
+        }
+        return descriptor.size in 1..cap || descriptor.role == DemandRole.PREVIEW
     }
 
     private fun calculatePriority(fileId: Int): Int {
@@ -763,9 +763,9 @@ class FileDownloadQueue(
 
             var p = 1
             if (isVisible) {
-                p = if (chatId == activeChatId) 16 else 8
+                p = if (mediaDescriptors[fileId]?.role == DemandRole.PREVIEW) 16 else 24
             } else if (isNearby) {
-                p = if (chatId == activeChatId) 4 else 2
+                p = 8
             }
 
             max = maxOf(max, p)
@@ -791,6 +791,9 @@ class FileDownloadQueue(
             availableAt = minOf(old.availableAt, new.availableAt)
         )
     }
+
+    private fun DownloadType.isLargeMedia(): Boolean =
+        this == DownloadType.VIDEO || this == DownloadType.VIDEO_NOTE || this == DownloadType.GIF
 
     private fun cancelIrrelevantDownloads() {
         scope.launch(dispatcherProvider.default) {
@@ -822,9 +825,6 @@ class FileDownloadQueue(
                 candidateIds.forEach { fileId ->
                     if (manualDownloadIds.contains(fileId)) return@forEach
 
-                    val type = fileDownloadTypes[fileId]
-                    if (type == DownloadType.STICKER || type == DownloadType.VIDEO_NOTE) return@forEach
-
                     val belongsToOpenChat = registry.getMessages(fileId).any { (chatId, _) ->
                         openChatIds.contains(chatId)
                     }
@@ -837,5 +837,10 @@ class FileDownloadQueue(
 
             toCancel.forEach { fileId -> cancelDownload(fileId, force = false, suppress = false) }
         }
+    }
+
+    private companion object {
+        const val MIB = 1024L * 1024L
+        const val MAX_RECOVERY_RETRIES = 1
     }
 }

@@ -816,6 +816,8 @@
     <string name="debug_sponsor_sync_never">Never synced</string>
     <string name="debug_section_push_diagnostics">Push Diagnostics</string>
     <string name="debug_section_runtime_flags">Runtime Flags</string>
+    <string name="debug_legacy_chat_pipeline_title">Use legacy chat pipeline</string>
+    <string name="debug_legacy_chat_pipeline_subtitle">Kill switch for newly opened chats</string>
     <string name="debug_section_push_environment">Push Environment</string>
     <string name="debug_section_unifiedpush_details">UnifiedPush Details</string>
     <string name="debug_section_sponsor">Sponsor</string>

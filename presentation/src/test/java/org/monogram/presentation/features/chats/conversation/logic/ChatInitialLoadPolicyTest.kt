@@ -4,8 +4,34 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.models.ChatViewportCacheEntry
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.repository.BoundaryState
+import org.monogram.domain.repository.HistoryPage
+import org.monogram.domain.repository.HistorySource
 
 class ChatInitialLoadPolicyTest {
+    @Test
+    fun `network reconciliation is skipped only for a full main chat local page`() {
+        val fullLocalPage = localPage(size = 50)
+
+        assertFalse(
+            shouldRequestInitialNetwork(
+                fullLocalPage,
+                requestedLimit = 50,
+                threadId = null
+            )
+        )
+        assertTrue(
+            shouldRequestInitialNetwork(
+                localPage(size = 49),
+                requestedLimit = 50,
+                threadId = null
+            )
+        )
+        assertTrue(shouldRequestInitialNetwork(fullLocalPage, requestedLimit = 50, threadId = 10L))
+    }
+
     @Test
     fun `initial load starts when context has not started yet`() {
         val key = buildChatInitialLoadKey(
@@ -109,4 +135,20 @@ class ChatInitialLoadPolicyTest {
             )
         )
     }
+
+    private fun localPage(size: Int) = HistoryPage(
+        messages = (1..size).map { index ->
+            MessageModel(
+                id = index.toLong(),
+                date = index,
+                isOutgoing = false,
+                senderName = "sender",
+                chatId = 1L,
+                content = MessageContent.Text("message")
+            )
+        },
+        olderBoundary = BoundaryState.Open,
+        newerBoundary = BoundaryState.Open,
+        source = HistorySource.TdlibLocal
+    )
 }

@@ -66,8 +66,7 @@ class TdFileDataSource(
 
     override suspend fun cancelDownload(fileId: Int): TdApi.Ok? {
         fileDownloadQueue.cancelDownload(fileId, force = true)
-        val result = gateway.execute(TdApi.CancelDownloadFile(fileId, false))
-        return if (result is TdApi.Ok) result else null
+        return TdApi.Ok()
     }
 
     override suspend fun getFile(fileId: Int): TdApi.File? {

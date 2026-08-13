@@ -336,20 +336,6 @@ fun PhotoItem(
         }
     }
 
-    LaunchedEffect(photo.path, photo.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (photo.path.isNullOrBlank() && !photo.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                photo.fileId
-            )
-        ) {
-            val shouldDownload = when {
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                else -> autoDownloadMobile
-            }
-            if (shouldDownload) onDownloadPhoto(photo.fileId)
-        }
-    }
-
     var itemPosition by remember { mutableStateOf(Offset.Zero) }
     var isRevealed by remember { mutableStateOf(!photo.hasSpoiler) }
 
@@ -476,20 +462,6 @@ fun VideoItem(
             stablePath = video.path
             isAutoDownloadSuppressed = false
             AutoDownloadSuppression.clear(video.fileId)
-        }
-    }
-
-    LaunchedEffect(video.path, video.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (video.path.isNullOrBlank() && !video.isDownloading && !video.supportsStreaming && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                video.fileId
-            )
-        ) {
-            val shouldDownload = when {
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                else -> autoDownloadMobile
-            }
-            if (shouldDownload) onDownloadVideo(video.fileId)
         }
     }
 
@@ -713,20 +685,6 @@ fun VideoNoteItem(
         }
     }
 
-    LaunchedEffect(videoNote.path, videoNote.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (videoNote.path.isNullOrBlank() && !videoNote.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                videoNote.fileId
-            )
-        ) {
-            val shouldDownload = when {
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                else -> autoDownloadMobile
-            }
-            if (shouldDownload) onVideoClick(msg)
-        }
-    }
-
     var itemPosition by remember { mutableStateOf(Offset.Zero) }
     Box(modifier = modifier.clipToBounds()) {
         Crossfade(
@@ -898,20 +856,6 @@ fun GifItem(
             stablePath = gif.path
             isAutoDownloadSuppressed = false
             AutoDownloadSuppression.clear(gif.fileId)
-        }
-    }
-
-    LaunchedEffect(gif.path, gif.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (gif.path.isNullOrBlank() && !gif.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                gif.fileId
-            )
-        ) {
-            val shouldDownload = when {
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                else -> autoDownloadMobile
-            }
-            if (shouldDownload) onGifClick(msg)
         }
     }
 

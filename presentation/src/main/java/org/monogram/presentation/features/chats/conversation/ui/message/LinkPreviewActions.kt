@@ -2,6 +2,7 @@ package org.monogram.presentation.features.chats.conversation.ui.message
 
 import org.monogram.domain.models.WebPage
 import org.monogram.presentation.core.util.namespacedCacheKey
+import org.monogram.presentation.features.viewers.FullscreenImageItem
 import org.monogram.presentation.features.viewers.extractYouTubeId
 import java.net.URI
 
@@ -16,8 +17,7 @@ internal sealed interface LinkPreviewAction {
 }
 
 internal data class PreviewImageViewerRequest(
-    val images: List<String>,
-    val captions: List<String?>,
+    val images: List<FullscreenImageItem>,
     val startIndex: Int = 0,
     val sourceUrl: String
 )
@@ -84,11 +84,19 @@ internal fun WebPage.resolveLinkPreview(): ResolvedLinkPreview {
 
     val viewerCaption = buildViewerCaption(meta = meta)
     val mediaAction = when {
-        !previewPhoto?.path.isNullOrBlank() -> {
+        !previewPhoto?.path.isNullOrBlank() || !previewPhoto?.thumbnailPath.isNullOrBlank() -> {
             LinkPreviewAction.OpenImageViewer(
                 PreviewImageViewerRequest(
-                    images = listOfNotNull(previewPhoto.path),
-                    captions = listOf(viewerCaption),
+                    images = listOf(
+                        FullscreenImageItem(
+                            id = "web:${previewPhoto.originalFileId.takeIf { it != 0 } ?: previewPhoto.fileId}:${sourceUrl}",
+                            previewSource = previewPhoto.path
+                                ?: previewPhoto.thumbnailPath.orEmpty(),
+                            originalFileId = previewPhoto.originalFileId.takeIf { it != 0 }
+                                ?: previewPhoto.fileId,
+                            caption = viewerCaption
+                        )
+                    ),
                     sourceUrl = sourceUrl
                 )
             )

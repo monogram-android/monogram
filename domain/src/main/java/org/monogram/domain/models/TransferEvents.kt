@@ -12,6 +12,10 @@ sealed interface FileDownloadEvent {
         override val fileId: Int,
         val path: String
     ) : FileDownloadEvent
+
+    data class Cancelled(
+        override val fileId: Int
+    ) : FileDownloadEvent
 }
 
 sealed interface MessageDownloadEvent {

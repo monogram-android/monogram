@@ -34,6 +34,7 @@ import org.monogram.presentation.features.instantview.components.LocalFileReposi
 import org.monogram.presentation.features.instantview.components.LocalOnUrlClick
 import org.monogram.presentation.features.instantview.components.renderedTextOrNull
 import org.monogram.presentation.features.instantview.components.resolvePathForViewer
+import org.monogram.presentation.features.viewers.FullscreenImageItem
 import org.monogram.presentation.features.stickers.ui.view.shimmerEffect
 
 @Composable
@@ -62,19 +63,23 @@ internal fun RichMessageBubble(
 
     fun openRichPhoto(photo: WebPage.Photo, caption: String?, sourceUrl: String) {
         if (onLinkPreviewAction == null) return
-        scope.launch {
-            val path =
-                fileRepository.resolvePathForViewer(photo.fileId, photo.path) ?: return@launch
-            onLinkPreviewAction(
-                LinkPreviewAction.OpenImageViewer(
-                    PreviewImageViewerRequest(
-                        images = listOf(path),
-                        captions = listOf(caption),
-                        sourceUrl = sourceUrl.ifBlank { path }
-                    )
+        val previewPath = photo.path ?: photo.thumbnailPath.orEmpty()
+        onLinkPreviewAction(
+            LinkPreviewAction.OpenImageViewer(
+                PreviewImageViewerRequest(
+                    images = listOf(
+                        FullscreenImageItem(
+                            id = "rich:${photo.originalFileId.takeIf { it != 0 } ?: photo.fileId}:$sourceUrl",
+                            previewSource = previewPath,
+                            originalFileId = photo.originalFileId.takeIf { it != 0 }
+                                ?: photo.fileId,
+                            caption = caption
+                        )
+                    ),
+                    sourceUrl = sourceUrl.ifBlank { previewPath }
                 )
             )
-        }
+        )
     }
 
     fun openRichVideo(

@@ -84,34 +84,10 @@ fun DocumentMessageBubble(
 
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
 
-    LaunchedEffect(
-        content.path,
-        content.isDownloading,
-        autoDownloadFiles,
-        autoDownloadMobile,
-        autoDownloadWifi,
-        autoDownloadRoaming
-    ) {
+    LaunchedEffect(content.path) {
         if (!content.path.isNullOrBlank()) {
             isAutoDownloadSuppressed = false
             AutoDownloadSuppression.clear(content.fileId)
-        }
-
-        val shouldDownload = if (autoDownloadFiles) {
-            when {
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                else -> autoDownloadMobile
-            }
-        } else {
-            false
-        }
-
-        if (shouldDownload && content.path == null && !content.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                content.fileId
-            )
-        ) {
-            onDocumentClick(msg)
         }
     }
 

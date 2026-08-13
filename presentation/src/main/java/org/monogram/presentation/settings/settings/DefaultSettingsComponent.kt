@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.monogram.domain.managers.DomainManager
 import org.monogram.domain.repository.ExternalNavigator
+import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.SponsorRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserProfileEditRepository
@@ -18,6 +19,7 @@ import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
+import org.monogram.presentation.features.viewers.FullscreenImageItem
 
 class DefaultSettingsComponent(
     context: AppComponentContext,
@@ -46,6 +48,8 @@ class DefaultSettingsComponent(
     private val domainManager: DomainManager = container.utils.domainManager()
     private val appPreferences: AppPreferences = container.preferences.appPreferences
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
+    override val fileRepository: FileRepository = container.repositories.messageRepository
+    private val profilePhotoRepository = container.repositories.profilePhotoRepository
 
     private val _state = MutableValue(SettingsComponent.State())
     override val state: Value<SettingsComponent.State> = _state
@@ -257,8 +261,33 @@ class DefaultSettingsComponent(
                 )
             } else {
                 state.copy(
-                    fullScreenImages = listOf(avatarPath),
+                    fullScreenImages = listOf(
+                        FullscreenImageItem.source(
+                            path = avatarPath,
+                            id = "settings-avatar:${user.id}"
+                        )
+                    ),
                     fullScreenVideoPath = null
+                )
+            }
+        }
+
+        scope.launch {
+            val media = coRunCatching {
+                profilePhotoRepository.getUserProfilePhotos(user.id, limit = 1).firstOrNull()
+            }.getOrNull() ?: return@launch
+            val preview = media.previewPath ?: media.originalPath ?: avatarPath
+            _state.update { state ->
+                if (state.fullScreenImages == null) return@update state
+                state.copy(
+                    fullScreenImages = listOf(
+                        FullscreenImageItem(
+                            id = "settings-avatar:${media.id}",
+                            previewSource = preview,
+                            originalFileId = media.originalFileId,
+                            originalPath = media.originalPath
+                        )
+                    )
                 )
             }
         }

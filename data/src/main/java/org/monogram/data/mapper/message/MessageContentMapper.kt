@@ -1,12 +1,9 @@
 package org.monogram.data.mapper.message
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.compat.legacyPrizeTonAmount
 import org.monogram.data.compat.legacyStakeTonAmount
-import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.data.mapper.CustomEmojiLoader
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.WebPageMapper
@@ -20,7 +17,6 @@ import org.monogram.domain.models.PaidMediaItem
 import org.monogram.domain.models.PollOption
 import org.monogram.domain.models.PollType
 import org.monogram.domain.models.StickerFormat
-import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.StringProvider
 
 internal data class ContentMappingContext(
@@ -34,11 +30,9 @@ internal data class ContentMappingContext(
 
 internal class MessageContentMapper(
     private val fileHelper: TdFileHelper,
-    private val appPreferences: AppPreferencesProvider,
     private val customEmojiLoader: CustomEmojiLoader,
     private val webPageMapper: WebPageMapper,
     private val cache: ChatCache,
-    private val scope: CoroutineScope,
     private val stringProvider: StringProvider
 ) {
     private val serviceMessageFormatter = ServiceMessageFormatter(
@@ -97,41 +91,6 @@ internal class MessageContentMapper(
                 val path = fileHelper.findBestAvailablePath(photoFile, sizes)
                 val thumbnailPath = fileHelper.resolveLocalFilePath(thumbnailFile)
 
-                if (photoFile != null) {
-                    fileHelper.registerCachedFile(photoFile.id, context.chatId, context.messageId)
-                    if (path == null && context.networkAutoDownload) {
-                        fileHelper.enqueueDownload(
-                            photoFile.id,
-                            1,
-                            TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                            0,
-                            0,
-                            false
-                        )
-                    }
-                }
-                if (originalFile != null && originalFile.id != photoFile?.id) {
-                    fileHelper.registerCachedFile(
-                        originalFile.id,
-                        context.chatId,
-                        context.messageId
-                    )
-                }
-
-                if (thumbnailFile != null) {
-                    fileHelper.registerCachedFile(thumbnailFile.id, context.chatId, context.messageId)
-                    if (thumbnailPath == null && context.networkAutoDownload) {
-                        fileHelper.enqueueDownload(
-                            thumbnailFile.id,
-                            1,
-                            TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                            0,
-                            0,
-                            false
-                        )
-                    }
-                }
-
                 val isDownloading = photoFile?.local?.isDownloadingActive ?: false
                 val isQueued = photoFile?.let { fileHelper.isFileQueued(it.id) } ?: false
                 val downloadProgress = photoFile?.let(fileHelper::computeDownloadProgress) ?: 0f
@@ -163,35 +122,8 @@ internal class MessageContentMapper(
                 val video = content.video
                 val videoFile = fileHelper.getUpdatedFile(video.video)
                 val path = fileHelper.resolveLocalFilePath(videoFile)
-                fileHelper.registerCachedFile(videoFile.id, context.chatId, context.messageId)
-
                 val thumbFile = video.thumbnail?.file?.let(fileHelper::getUpdatedFile)
                 val thumbnailPath = fileHelper.resolveLocalFilePath(thumbFile)
-
-                if (thumbFile != null) {
-                    fileHelper.registerCachedFile(thumbFile.id, context.chatId, context.messageId)
-                    if (thumbnailPath == null && context.networkAutoDownload) {
-                        fileHelper.enqueueDownload(
-                            thumbFile.id,
-                            1,
-                            TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                            0,
-                            0,
-                            false
-                        )
-                    }
-                }
-
-                if (path == null && context.networkAutoDownload && !video.supportsStreaming) {
-                    fileHelper.enqueueDownload(
-                        videoFile.id,
-                        1,
-                        TdMessageRemoteDataSource.DownloadType.VIDEO,
-                        0,
-                        0,
-                        false
-                    )
-                }
 
                 val isDownloading = videoFile.local.isDownloadingActive
                 val isQueued = fileHelper.isFileQueued(videoFile.id)
@@ -225,18 +157,6 @@ internal class MessageContentMapper(
                 val voice = content.voiceNote
                 val voiceFile = fileHelper.getUpdatedFile(voice.voice)
                 val path = fileHelper.resolveLocalFilePath(voiceFile)
-                fileHelper.registerCachedFile(voiceFile.id, context.chatId, context.messageId)
-
-                if (path == null && context.networkAutoDownload) {
-                    fileHelper.enqueueDownload(
-                        voiceFile.id,
-                        1,
-                        TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                        0,
-                        0,
-                        false
-                    )
-                }
 
                 val isDownloading = voiceFile.local.isDownloadingActive
                 val isQueued = fileHelper.isFileQueued(voiceFile.id)
@@ -258,34 +178,8 @@ internal class MessageContentMapper(
                 val note = content.videoNote
                 val videoFile = fileHelper.getUpdatedFile(note.video)
                 val videoPath = fileHelper.resolveLocalFilePath(videoFile)
-                fileHelper.registerCachedFile(videoFile.id, context.chatId, context.messageId)
-
-                if (videoPath == null && context.networkAutoDownload && appPreferences.autoDownloadVideoNotes.value) {
-                    fileHelper.enqueueDownload(
-                        videoFile.id,
-                        1,
-                        TdMessageRemoteDataSource.DownloadType.VIDEO_NOTE,
-                        0,
-                        0,
-                        false
-                    )
-                }
-
                 val thumbFile = note.thumbnail?.file?.let(fileHelper::getUpdatedFile)
                 val thumbPath = fileHelper.resolveLocalFilePath(thumbFile)
-                if (thumbFile != null) {
-                    fileHelper.registerCachedFile(thumbFile.id, context.chatId, context.messageId)
-                    if (thumbPath == null && context.networkAutoDownload) {
-                        fileHelper.enqueueDownload(
-                            thumbFile.id,
-                            1,
-                            TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                            0,
-                            0,
-                            false
-                        )
-                    }
-                }
 
                 val isUploading = context.isActuallyUploading && videoFile.remote.isUploadingActive
                 val uploadProgress = fileHelper.computeUploadProgress(videoFile)
@@ -311,17 +205,6 @@ internal class MessageContentMapper(
                 val stickerFile = fileHelper.getUpdatedFile(sticker.sticker)
                 val path = fileHelper.resolveLocalFilePath(stickerFile)
 
-                fileHelper.registerCachedFile(stickerFile.id, context.chatId, context.messageId)
-                if (path == null && context.networkAutoDownload && appPreferences.autoDownloadStickers.value) {
-                    fileHelper.enqueueDownload(
-                        stickerFile.id,
-                        1,
-                        TdMessageRemoteDataSource.DownloadType.STICKER,
-                        0,
-                        0,
-                        false
-                    )
-                }
 
                 val format = when (sticker.format) {
                     is TdApi.StickerFormatWebp -> StickerFormat.STATIC
@@ -352,33 +235,7 @@ internal class MessageContentMapper(
                 val animation = content.animation
                 val animationFile = fileHelper.getUpdatedFile(animation.animation)
                 val path = fileHelper.resolveLocalFilePath(animationFile)
-                fileHelper.registerCachedFile(animationFile.id, context.chatId, context.messageId)
-
-                if (path == null && context.networkAutoDownload) {
-                    fileHelper.enqueueDownload(
-                        animationFile.id,
-                        1,
-                        TdMessageRemoteDataSource.DownloadType.GIF,
-                        0,
-                        0,
-                        false
-                    )
-                }
-
                 val thumbFile = animation.thumbnail?.file?.let(fileHelper::getUpdatedFile)
-                if (thumbFile != null) {
-                    fileHelper.registerCachedFile(thumbFile.id, context.chatId, context.messageId)
-                    if (!fileHelper.isValidPath(thumbFile.local.path) && context.networkAutoDownload) {
-                        fileHelper.enqueueDownload(
-                            thumbFile.id,
-                            1,
-                            TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                            0,
-                            0,
-                            false
-                        )
-                    }
-                }
 
                 val isDownloading = animationFile.local.isDownloadingActive
                 val isQueued = fileHelper.isFileQueued(animationFile.id)
@@ -410,16 +267,6 @@ internal class MessageContentMapper(
                     (content.animatedEmoji.sticker?.fullType as? TdApi.StickerFullTypeCustomEmoji)?.customEmojiId
                 val entities = if (customEmojiId != null && customEmojiId != 0L) {
                     val resolvedPath = customEmojiLoader.getPathIfValid(customEmojiId)
-                    if (resolvedPath == null) {
-                        scope.launch {
-                            customEmojiLoader.loadIfNeeded(
-                                emojiId = customEmojiId,
-                                chatId = context.chatId,
-                                messageId = context.messageId,
-                                autoDownload = context.networkAutoDownload
-                            )
-                        }
-                    }
                     listOf(
                         MessageEntity(
                             offset = 0,
@@ -441,22 +288,7 @@ internal class MessageContentMapper(
                 val document = content.document
                 val documentFile = fileHelper.getUpdatedFile(document.document)
                 val path = fileHelper.resolveLocalFilePath(documentFile)
-                fileHelper.registerCachedFile(documentFile.id, context.chatId, context.messageId)
-
                 val thumbFile = document.thumbnail?.file?.let(fileHelper::getUpdatedFile)
-                if (thumbFile != null) {
-                    fileHelper.registerCachedFile(thumbFile.id, context.chatId, context.messageId)
-                    if (!fileHelper.isValidPath(thumbFile.local.path) && context.networkAutoDownload) {
-                        fileHelper.enqueueDownload(
-                            thumbFile.id,
-                            1,
-                            TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                            0,
-                            0,
-                            false
-                        )
-                    }
-                }
 
                 val isDownloading = documentFile.local.isDownloadingActive
                 val isQueued = fileHelper.isFileQueued(documentFile.id)
@@ -486,18 +318,6 @@ internal class MessageContentMapper(
                 val audio = content.audio
                 val audioFile = fileHelper.getUpdatedFile(audio.audio)
                 val path = fileHelper.resolveLocalFilePath(audioFile)
-                fileHelper.registerCachedFile(audioFile.id, context.chatId, context.messageId)
-
-                if (path == null && context.networkAutoDownload) {
-                    fileHelper.enqueueDownload(
-                        audioFile.id,
-                        1,
-                        TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                        0,
-                        0,
-                        false
-                    )
-                }
 
                 val isDownloading = audioFile.local.isDownloadingActive
                 val isQueued = fileHelper.isFileQueued(audioFile.id)
@@ -740,36 +560,6 @@ internal class MessageContentMapper(
         val path = fileHelper.findBestAvailablePath(photoFile, sizes)
         val thumbnailPath = fileHelper.resolveLocalFilePath(thumbnailFile)
 
-        photoFile?.let {
-            fileHelper.registerCachedFile(it.id, context.chatId, context.messageId)
-            if (path == null && context.networkAutoDownload) {
-                fileHelper.enqueueDownload(
-                    it.id,
-                    1,
-                    TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                    0,
-                    0,
-                    false
-                )
-            }
-        }
-        originalFile?.takeIf { it.id != photoFile?.id }?.let {
-            fileHelper.registerCachedFile(it.id, context.chatId, context.messageId)
-        }
-        thumbnailFile?.let {
-            fileHelper.registerCachedFile(it.id, context.chatId, context.messageId)
-            if (thumbnailPath == null && context.networkAutoDownload) {
-                fileHelper.enqueueDownload(
-                    it.id,
-                    1,
-                    TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                    0,
-                    0,
-                    false
-                )
-            }
-        }
-
         return PaidMediaItem.Photo(
             path = path,
             thumbnailPath = thumbnailPath,
@@ -790,23 +580,10 @@ internal class MessageContentMapper(
         val video = media.video
         val videoFile = fileHelper.getUpdatedFile(video.video)
         val path = fileHelper.resolveLocalFilePath(videoFile)
-        fileHelper.registerCachedFile(videoFile.id, context.chatId, context.messageId)
-        if (path == null && context.networkAutoDownload && !video.supportsStreaming) {
-            fileHelper.enqueueDownload(
-                videoFile.id,
-                1,
-                TdMessageRemoteDataSource.DownloadType.VIDEO,
-                0,
-                0,
-                false
-            )
-        }
-
         val coverPath = media.cover?.sizes
             ?.maxByOrNull { it.width.toLong() * it.height.toLong() }
             ?.photo
             ?.let(fileHelper::getUpdatedFile)
-            ?.also { fileHelper.registerCachedFile(it.id, context.chatId, context.messageId) }
             ?.let(fileHelper::resolveLocalFilePath)
 
         return PaidMediaItem.Video(
@@ -848,11 +625,7 @@ internal class MessageContentMapper(
                 customEmojiPathResolver = { emojiId ->
                     customEmojiLoader.getPathIfValid(emojiId)
                 },
-                onMissingCustomEmoji = { emojiId ->
-                    scope.launch {
-                        customEmojiLoader.loadIfNeeded(emojiId, chatId, messageId, networkAutoDownload)
-                    }
-                }
+                onMissingCustomEmoji = {}
             )
         }
     }

@@ -5,13 +5,14 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,6 +39,7 @@ import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileUpdateHandler
+import org.monogram.data.infra.AtomicSingleFlight
 import org.monogram.data.infra.OrderedEventFlow
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.WebPageMapper
@@ -64,7 +66,8 @@ import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
 import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.ChecklistDraft
-import org.monogram.domain.repository.OlderMessagesPage
+import org.monogram.domain.repository.ConversationScope
+import org.monogram.domain.repository.MediaAutoDownloadPolicy
 import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.domain.repository.RichTextParseMode
@@ -90,13 +93,15 @@ class TdMessageRemoteDataSource(
     private val tdLibLimitsRepository: TdLibLimitsRepository
 ) : MessageRemoteDataSource {
 
-    private val chatRequests = ConcurrentHashMap<Long, Deferred<TdApi.Chat?>>()
-    private val messageRequests = ConcurrentHashMap<Pair<Long, Long>, Deferred<TdApi.Message?>>()
+    private val chatRequests = AtomicSingleFlight<Long, TdApi.Chat?>(scope)
+    private val messageRequests = AtomicSingleFlight<Pair<Long, Long>, TdApi.Message?>(scope)
     private val refreshJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
+    private val openChatIds = ConcurrentHashMap.newKeySet<Long>()
     private val missingMessageCooldownUntil = ConcurrentHashMap<Pair<Long, Long>, Long>()
     private val sendQueue = Channel<suspend () -> Unit>(Channel.BUFFERED)
-    // These are fed from `scope.launch { ... }` inside update handling. With the default
-    // arguments (replay 0, no buffer, SUSPEND) a MutableSharedFlow is a rendezvous channel:
+
+    // With the default arguments (replay 0, no buffer, SUSPEND), MutableSharedFlow is a
+    // rendezvous channel:
     // every emit parks until *all* subscribers have taken the value, which piled emitters up
     // without bound during bursts. OrderedEventFlow.enqueue is non-suspending and lossless,
     // so the event streams go through it; progress ticks are conflatable and get an explicit
@@ -156,6 +161,9 @@ class TdMessageRemoteDataSource(
                 }
             }
         }
+        scope.launch(dispatcherProvider.io) {
+            fileUpdateHandler.fileUpdates.collect(::projectFileUpdate)
+        }
     }
 
     private suspend fun <T : TdApi.Object> safeExecute(function: TdApi.Function<T>): T? {
@@ -196,9 +204,10 @@ class TdMessageRemoteDataSource(
             }
             missingMessageCooldownUntil.remove(key, cooldownUntil)
         }
-        val deferred = messageRequests.getOrPut(key) {
-            scope.async {
-                val result = safeExecute(TdApi.GetMessage(chatId, messageId))
+        return runCatching {
+            messageRequests.execute(key) {
+                val local = safeExecute(TdApi.GetMessageLocally(chatId, messageId))
+                val result = local ?: safeExecute(TdApi.GetMessage(chatId, messageId))
                 if (result != null) {
                     cache.putMessage(result)
                     missingMessageCooldownUntil.remove(key)
@@ -208,14 +217,28 @@ class TdMessageRemoteDataSource(
                 }
                 result
             }
+        }.getOrNull()
+    }
+
+    override suspend fun getMessagesLocally(
+        chatId: Long,
+        messageIds: List<Long>,
+        scope: ConversationScope
+    ): RemoteMessageBatch = withContext(dispatcherProvider.io) {
+        val rawMessages = buildLocalMessageRequests(chatId, messageIds).mapNotNull { request ->
+            val message = cache.getMessage(request.chatId, request.messageId)
+                ?: safeExecute(request)
+            message?.takeIf { messageMatchesScope(it.topicId, scope) }
         }
-        return try {
-            deferred.await()
-        } catch (e: Exception) {
-            null
-        } finally {
-            messageRequests.remove(key)
-        }
+        RemoteMessageBatch(
+            rawMessages = rawMessages,
+            models = mapHistoryMessages(
+                chatId = chatId,
+                messages = rawMessages,
+                options = LOCAL_HISTORY_MAP_OPTIONS,
+                allowChatFetch = false
+            )
+        )
     }
 
     override suspend fun getChatSponsoredMessages(chatId: Long): TdApi.SponsoredMessages? {
@@ -240,60 +263,21 @@ class TdMessageRemoteDataSource(
 
     suspend fun getChat(chatId: Long): TdApi.Chat? {
         cache.getChat(chatId)?.let { return it }
-        val deferred = chatRequests.getOrPut(chatId) {
-            scope.async {
+        return runCatching {
+            chatRequests.execute(chatId) {
                 val result = safeExecute(TdApi.GetChat(chatId))
                 if (result != null) cache.putChat(result)
                 result
             }
-        }
-        return try {
-            deferred.await()
-        } catch (e: Exception) {
-            null
-        } finally {
-            chatRequests.remove(chatId)
-        }
-    }
-
-    override suspend fun getMessagesOlder(chatId: Long, fromMessageId: Long, limit: Int, threadId: Long?): OlderMessagesPage {
-        if (fromMessageId == 0L) {
-            val batch = loadMessageBatch(
-                chatId = chatId,
-                fromMessageId = fromMessageId,
-                offset = 0,
-                limit = limit,
-                threadId = threadId
-            )
-            val page = OlderMessagesPage(
-                messages = batch.models,
-                reachedOldest = batch.models.isEmpty(),
-                isRemote = true
-            )
-            return page
-        }
-
-        val batch = loadMessageBatch(
-            chatId = chatId,
-            fromMessageId = fromMessageId,
-            offset = 0,
-            limit = limit + 1,
-            threadId = threadId
-        )
-        val filtered = batch.models.filter { it.id != fromMessageId }.take(limit)
-        val page = OlderMessagesPage(
-            messages = filtered,
-            reachedOldest = filtered.isEmpty(),
-            isRemote = true
-        )
-        return page
+        }.getOrNull()
     }
 
     override suspend fun getRemoteMessagesOlder(
         chatId: Long,
         fromMessageId: Long,
         limit: Int,
-        threadId: Long?
+        scope: ConversationScope,
+        fetchMode: RemoteHistoryFetchMode
     ): RemoteOlderMessagesPage {
         if (fromMessageId == 0L) {
             val batch = loadMessageBatch(
@@ -301,7 +285,8 @@ class TdMessageRemoteDataSource(
                 fromMessageId = fromMessageId,
                 offset = 0,
                 limit = limit,
-                threadId = threadId,
+                conversationScope = scope,
+                fetchMode = fetchMode,
                 options = MessageMapOptions(
                     resolveReplyPreviewFromNetwork = false,
                     allowAutoDownload = false
@@ -319,7 +304,8 @@ class TdMessageRemoteDataSource(
             fromMessageId = fromMessageId,
             offset = 0,
             limit = limit + 1,
-            threadId = threadId,
+            conversationScope = scope,
+            fetchMode = fetchMode,
             options = MessageMapOptions(
                 resolveReplyPreviewFromNetwork = false,
                 allowAutoDownload = false
@@ -335,26 +321,20 @@ class TdMessageRemoteDataSource(
         )
     }
 
-    override suspend fun getMessagesNewer(chatId: Long, fromMessageId: Long, limit: Int, threadId: Long?): List<MessageModel> {
-        return getRemoteMessagesNewer(chatId, fromMessageId, limit, threadId).models
-    }
-
-    override suspend fun getMessagesAround(chatId: Long, messageId: Long, limit: Int, threadId: Long?): List<MessageModel> {
-        return getRemoteMessagesAround(chatId, messageId, limit, threadId).models
-    }
-
     override suspend fun getRemoteMessagesNewer(
         chatId: Long,
         fromMessageId: Long,
         limit: Int,
-        threadId: Long?
+        scope: ConversationScope,
+        fetchMode: RemoteHistoryFetchMode
     ): RemoteMessageBatch {
         return loadMessageBatch(
             chatId = chatId,
             fromMessageId = fromMessageId,
             offset = -limit,
             limit = limit,
-            threadId = threadId,
+            conversationScope = scope,
+            fetchMode = fetchMode,
             options = MessageMapOptions(
                 resolveReplyPreviewFromNetwork = false,
                 allowAutoDownload = false
@@ -366,14 +346,16 @@ class TdMessageRemoteDataSource(
         chatId: Long,
         messageId: Long,
         limit: Int,
-        threadId: Long?
+        scope: ConversationScope,
+        fetchMode: RemoteHistoryFetchMode
     ): RemoteMessageBatch {
         return loadMessageBatch(
             chatId = chatId,
             fromMessageId = messageId,
             offset = -limit / 2,
             limit = limit,
-            threadId = threadId,
+            conversationScope = scope,
+            fetchMode = fetchMode,
             options = MessageMapOptions(
                 resolveReplyPreviewFromNetwork = false,
                 allowAutoDownload = false
@@ -684,9 +666,15 @@ class TdMessageRemoteDataSource(
         fromMessageId: Long,
         offset: Int,
         limit: Int,
-        threadId: Long? = null,
+        conversationScope: ConversationScope = ConversationScope.Main,
+        fetchMode: RemoteHistoryFetchMode = RemoteHistoryFetchMode.LocalThenNetwork,
         options: MessageMapOptions = MessageMapOptions()
     ): RemoteMessageBatch = withContext(dispatcherProvider.io) {
+        val threadId = when (conversationScope) {
+            ConversationScope.Main -> null
+            is ConversationScope.ForumTopic -> conversationScope.topicId
+            is ConversationScope.MessageThread -> conversationScope.threadId
+        }
         ChatOpenPerfBridge.recordHistoryRequest(chatId, threadId)
         if (BuildConfig.DEBUG) {
             Log.d(
@@ -699,19 +687,70 @@ class TdMessageRemoteDataSource(
                 )
             )
         }
-        val historyResult = getChatHistoryInternal(chatId, fromMessageId, offset, limit, threadId)
-            ?: throw IllegalStateException(
-                "Failed to load history for chatId=$chatId fromMessageId=$fromMessageId offset=$offset limit=$limit threadId=$threadId"
+        var historyResult: TdApi.Object? = null
+        for (onlyLocal in historyFetchAttempts(fetchMode, conversationScope)) {
+            val attempt = getChatHistoryInternal(
+                chatId = chatId,
+                fromMessageId = fromMessageId,
+                offset = offset,
+                limit = limit,
+                conversationScope = conversationScope,
+                onlyLocal = onlyLocal
             )
-        val chat = getChat(chatId)
-        val lastReadInbox = chat?.lastReadInboxMessageId ?: 0L
-        val lastReadOutbox = chat?.lastReadOutboxMessageId ?: 0L
+            historyResult = attempt
+            if (!isEmptyHistoryResult(attempt)) {
+                break
+            }
+        }
+        if (historyResult == null && fetchMode == RemoteHistoryFetchMode.LocalOnly) {
+            historyResult = TdApi.Messages(0, emptyArray())
+        }
+        historyResult ?: throw IllegalStateException(
+            "Failed to load history for chatId=$chatId fromMessageId=$fromMessageId offset=$offset limit=$limit threadId=$threadId"
+        )
+        val models = mapHistoryMessages(
+            chatId = chatId,
+            messages = when (historyResult) {
+                is TdApi.Messages -> historyResult.messages.toList()
+                is TdApi.MessageThreadInfo -> historyResult.messages.toList()
+                else -> emptyList()
+            },
+            options = options
+        )
         val messages = when (historyResult) {
             is TdApi.Messages -> historyResult.messages
             is TdApi.MessageThreadInfo -> historyResult.messages
             else -> emptyArray()
         }
-        val models = messages.map { msg ->
+        RemoteMessageBatch(
+            rawMessages = messages.toList(),
+            models = models
+        )
+            .also {
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        ChatOpenPerfDebug.TAG,
+                        ChatOpenPerfDebug.buildLogMessage(
+                            chatId = chatId,
+                            threadId = threadId,
+                            event = "chat_history_request_end",
+                            anchorId = fromMessageId
+                        )
+                    )
+                }
+            }
+    }
+
+    private suspend fun mapHistoryMessages(
+        chatId: Long,
+        messages: List<TdApi.Message>,
+        options: MessageMapOptions,
+        allowChatFetch: Boolean = true
+    ): List<MessageModel> = coroutineScope {
+        val chat = if (allowChatFetch) getChat(chatId) else cache.getChat(chatId)
+        val lastReadInbox = chat?.lastReadInboxMessageId ?: 0L
+        val lastReadOutbox = chat?.lastReadOutboxMessageId ?: 0L
+        messages.map { msg ->
             cache.putMessage(msg)
             async {
                 try {
@@ -732,60 +771,25 @@ class TdMessageRemoteDataSource(
                 }
             }
         }.awaitAll()
-        RemoteMessageBatch(
-            rawMessages = messages.toList(),
-            models = models
-        )
-            .also {
-                if (BuildConfig.DEBUG) {
-                    Log.d(
-                        ChatOpenPerfDebug.TAG,
-                        ChatOpenPerfDebug.buildLogMessage(
-                            chatId = chatId,
-                            threadId = threadId,
-                            event = "chat_history_request_end",
-                            anchorId = fromMessageId
-                        )
-                    )
-                }
-            }
     }
 
-    private suspend fun getChatHistoryInternal(chatId: Long, fromMessageId: Long, offset: Int, limit: Int, threadId: Long? = null): TdApi.Object? {
-        return if (threadId != null) {
-            val chat = getChat(chatId)
-            if (chat != null) {
-                if (chat.viewAsTopics) {
-                    val req = TdApi.GetForumTopicHistory().apply {
-                        this.chatId = chatId
-                        this.forumTopicId = threadId.toInt()
-                        this.fromMessageId = fromMessageId
-                        this.offset = offset
-                        this.limit = limit
-                    }
-                    safeExecute(req)
-                } else {
-                    val req = TdApi.GetMessageThreadHistory().apply {
-                        this.chatId = chatId
-                        this.messageId = threadId
-                        this.fromMessageId = fromMessageId
-                        this.offset = offset
-                        this.limit = limit
-                    }
-                    safeExecute(req)
-                }
-            } else null
-        } else {
-            val req = TdApi.GetChatHistory().apply {
-                this.chatId = chatId
-                this.fromMessageId = fromMessageId
-                this.offset = offset
-                this.limit = limit
-                this.onlyLocal = false
-            }
-            safeExecute(req)
-        }
-    }
+    private suspend fun getChatHistoryInternal(
+        chatId: Long,
+        fromMessageId: Long,
+        offset: Int,
+        limit: Int,
+        conversationScope: ConversationScope = ConversationScope.Main,
+        onlyLocal: Boolean = false
+    ): TdApi.Object? = safeExecute(
+        buildHistoryRequest(
+            chatId = chatId,
+            fromMessageId = fromMessageId,
+            offset = offset,
+            limit = limit,
+            scope = conversationScope,
+            onlyLocal = onlyLocal
+        )
+    )
 
     override suspend fun getChatHistory(chatId: Long, fromMessageId: Long, offset: Int, limit: Int): TdApi.Messages? {
         val req = TdApi.GetChatHistory().apply {
@@ -803,7 +807,9 @@ class TdMessageRemoteDataSource(
     }
 
     override suspend fun getMessages(chatId: Long, fromMessageId: Long, offset: Int, limit: Int, threadId: Long?): TdApi.Messages? {
-        return when (val result = getChatHistoryInternal(chatId, fromMessageId, offset, limit, threadId)) {
+        val scope = threadId?.let(ConversationScope::MessageThread) ?: ConversationScope.Main
+        return when (val result =
+            getChatHistoryInternal(chatId, fromMessageId, offset, limit, scope)) {
             is TdApi.Messages -> result
             is TdApi.MessageThreadInfo -> TdApi.Messages(result.messages.size, result.messages)
             else -> null
@@ -1937,8 +1943,28 @@ class TdMessageRemoteDataSource(
         }
     }
 
-    override suspend fun markAsRead(chatId: Long, messageId: Long) {
-        safeExecute(TdApi.ViewMessages(chatId, longArrayOf(messageId), null, true))
+    override suspend fun markMessagesAsRead(chatId: Long, messageIds: LongArray, threadId: Long?) {
+        val distinctMessageIds = messageIds.distinct().toLongArray()
+        if (distinctMessageIds.isEmpty()) return
+        val source = when {
+            threadId == null -> TdApi.MessageSourceChatHistory()
+            else -> TdApi.MessageSourceMessageThreadHistory()
+        }
+        safeExecute(
+            TdApi.ViewMessages(
+                chatId,
+                distinctMessageIds,
+                source,
+                false
+            )
+        )
+    }
+
+    private fun isEmptyHistoryResult(result: TdApi.Object?): Boolean = when (result) {
+        null -> true
+        is TdApi.Messages -> result.messages.isEmpty()
+        is TdApi.MessageThreadInfo -> result.messages.isEmpty()
+        else -> false
     }
 
     override suspend fun markAllMentionsAsRead(chatId: Long) {
@@ -2023,11 +2049,12 @@ class TdMessageRemoteDataSource(
                     val poll = (message.content as TdApi.MessagePoll).poll
                     pollRepository.mapPollIdToMessage(poll.id, message.chatId, message.id)
                 }
-                scope.launch(dispatcherProvider.io) {
+                if (isChatOpen(message.chatId)) {
                     try {
-                        val model = mapMessageToModel(message)
-                        newMessages.enqueue(model)
-                    } catch (e: Exception) { Log.e("TdMessageRemote", "Error mapping NewMessage", e) }
+                        newMessages.enqueue(mapLiveMessageToModel(message))
+                    } catch (e: Exception) {
+                        Log.e("TdMessageRemote", "Error mapping NewMessage", e)
+                    }
                 }
             }
             is TdApi.UpdateMessageSendSucceeded -> {
@@ -2039,9 +2066,9 @@ class TdMessageRemoteDataSource(
                     val poll = (message.content as TdApi.MessagePoll).poll
                     pollRepository.mapPollIdToMessage(poll.id, message.chatId, message.id)
                 }
-                scope.launch(dispatcherProvider.io) {
+                if (isChatOpen(message.chatId)) {
                     try {
-                        val model = mapMessageToModel(message)
+                        val model = mapLiveMessageToModel(message)
                         messageIdUpdates.enqueue(
                             MessageIdUpdatedEvent(
                                 chatId = message.chatId,
@@ -2049,7 +2076,9 @@ class TdMessageRemoteDataSource(
                                 message = model
                             )
                         )
-                    } catch (e: Exception) { Log.e("TdMessageRemote", "Error handling SendSucceeded", e) }
+                    } catch (e: Exception) {
+                        Log.e("TdMessageRemote", "Error handling SendSucceeded", e)
+                    }
                 }
             }
 
@@ -2063,8 +2092,8 @@ class TdMessageRemoteDataSource(
             }
             is TdApi.UpdateMessageSendFailed -> {
                 cache.putMessage(update.message)
-                scope.launch(dispatcherProvider.io) {
-                    val model = mapMessageToModel(update.message)
+                if (isChatOpen(update.message.chatId)) {
+                    val model = mapLiveMessageToModel(update.message)
                     messageSendFailures.enqueue(
                         MessageSendFailedEvent(
                             chatId = update.message.chatId,
@@ -2162,7 +2191,7 @@ class TdMessageRemoteDataSource(
                 cache.updateMessage(update.chatId, update.messageId) { message ->
                     message.isPinned = update.isPinned
                 }
-                scope.launch(dispatcherProvider.io) { pinnedMessageFlow.emit(update.chatId) }
+                pinnedMessageFlow.emit(update.chatId)
             }
 
             is TdApi.UpdateMessageContainsUnreadPollVotes -> {
@@ -2171,20 +2200,22 @@ class TdMessageRemoteDataSource(
                 }
                 refreshMessageDebounced(update.chatId, update.messageId)
             }
-            is TdApi.UpdateFile -> {
-                scope.launch(dispatcherProvider.io) { handleFileUpdate(update.file) }
-            }
+            // FileUpdateHandler owns the single UpdateFile consumer and queue completion path.
+            is TdApi.UpdateFile -> Unit
             is TdApi.UpdatePollAnswer -> {
-                scope.launch(dispatcherProvider.io) {
-                    pollRepository.getMessageIdByPollId(update.pollId)?.let { (chatId, messageId) ->
+                pollRepository.getMessageIdByPollId(update.pollId)?.let { (chatId, messageId) ->
+                    if (isChatOpen(chatId)) {
                         cache.removeMessage(chatId, messageId)
-                        refreshAndEmitMessage(chatId, messageId)
+                        safeExecute(TdApi.GetMessageLocally(chatId, messageId))?.let { message ->
+                            cache.putMessage(message)
+                            messageEdits.enqueue(mapLiveMessageToModel(message))
+                        }
                     }
                 }
             }
             is TdApi.UpdateChatReadOutbox -> {
                 cache.updateChat(update.chatId) { it.lastReadOutboxMessageId = update.lastReadOutboxMessageId }
-                scope.launch(dispatcherProvider.io) {
+                if (isChatOpen(update.chatId)) {
                     messageReads.enqueue(
                         ReadUpdate.Outbox(
                             update.chatId,
@@ -2196,7 +2227,7 @@ class TdMessageRemoteDataSource(
             }
             is TdApi.UpdateChatReadInbox -> {
                 cache.updateChat(update.chatId) { it.lastReadInboxMessageId = update.lastReadInboxMessageId }
-                scope.launch(dispatcherProvider.io) {
+                if (isChatOpen(update.chatId)) {
                     messageReads.enqueue(
                         ReadUpdate.Inbox(
                             update.chatId,
@@ -2206,18 +2237,16 @@ class TdMessageRemoteDataSource(
                 }
             }
             is TdApi.UpdateDeleteMessages -> {
-                if (!update.fromCache) {
-                    val messageIds = update.messageIds.toList()
-                    scope.launch(dispatcherProvider.io) {
-                        messageIds.forEach { cache.removeMessage(update.chatId, it) }
-                        removeMessagesFromCache(update.chatId, messageIds)
+                val messageIds = update.messageIds.toList()
+                cache.removeMessages(update.chatId, messageIds)
+                removeMessagesFromCache(update.chatId, messageIds)
+                if (!update.fromCache && isChatOpen(update.chatId)) {
                         messageDeletes.enqueue(
                             MessageDeletedEvent(
                                 chatId = update.chatId,
                                 messageIds = messageIds
                             )
                         )
-                    }
                 }
             }
             is TdApi.UpdateChatUnreadMentionCount -> {
@@ -2232,7 +2261,7 @@ class TdMessageRemoteDataSource(
     }
 
     private fun refreshMessageDebounced(chatId: Long, messageId: Long) {
-        if (messageId == 0L) return
+        if (messageId == 0L || !isChatOpen(chatId)) return
         val key = chatId to messageId
         refreshJobs[key]?.cancel()
         val job = scope.launch(dispatcherProvider.io) {
@@ -2247,31 +2276,58 @@ class TdMessageRemoteDataSource(
     }
 
     private suspend fun refreshAndEmitMessage(chatId: Long, messageId: Long) {
-        if (messageId == 0L) return
+        if (messageId == 0L || !isChatOpen(chatId)) return
         val msg = cache.getMessage(chatId, messageId) ?: return
-        val model = mapMessageToModel(msg)
+        val model = mapLiveMessageToModel(msg)
         messageEdits.enqueue(model)
     }
 
-    private suspend fun mapMessageToModel(message: TdApi.Message): MessageModel {
-        val chat = getChat(message.chatId)
+    private suspend fun mapLiveMessageToModel(message: TdApi.Message): MessageModel {
+        val chat = cache.getChat(message.chatId)
+        val options = LIVE_MESSAGE_MAP_OPTIONS
         val model = if (chat != null) {
-            messageMapper.mapMessageToModelSync(message, chat.lastReadInboxMessageId, chat.lastReadOutboxMessageId, isChatOpen = true)
+            messageMapper.mapMessageToModelSync(
+                message,
+                chat.lastReadInboxMessageId,
+                chat.lastReadOutboxMessageId,
+                isChatOpen = true,
+                options = options
+            )
         } else {
-            messageMapper.mapMessageToModel(message, isChatOpen = true)
+            messageMapper.mapMessageToModel(
+                message,
+                isChatOpen = true,
+                options = options
+            )
         }
-        val readDate = if (message.isOutgoing && model.isRead) messageMapper.getMessageReadDate(message.chatId, message.id, message.date) else 0
-        return model.copy(readDate = readDate)
+        return model
     }
 
-    override fun updateVisibleRange(chatId: Long, visibleIds: List<Long>, nearbyIds: List<Long>) {
-        fileDownloadQueue.updateVisibleRange(chatId, visibleIds, nearbyIds)
+    override fun updateVisibleRange(
+        chatId: Long,
+        visibleIds: List<Long>,
+        nearbyIds: List<Long>,
+        policy: MediaAutoDownloadPolicy
+    ) {
+        fileDownloadQueue.updateVisibleRange(chatId, visibleIds, nearbyIds, policy)
     }
 
-    override fun setChatOpened(chatId: Long) { fileDownloadQueue.setChatOpened(chatId) }
+    override fun setChatOpened(chatId: Long) {
+        openChatIds.add(chatId)
+        fileDownloadQueue.setChatOpened(chatId)
+    }
     override fun setChatClosed(chatId: Long) {
+        openChatIds.remove(chatId)
+        refreshJobs.keys.filter { it.first == chatId }.forEach { key ->
+            refreshJobs.remove(key)?.cancel()
+        }
+        messageUpdateJobs.keys.filter { it.first == chatId }.forEach { key ->
+            messageUpdateJobs.remove(key)?.cancel()
+        }
         fileDownloadQueue.setChatClosed(chatId)
     }
+
+    private fun isChatOpen(chatId: Long): Boolean = openChatIds.contains(chatId)
 
     override fun enqueueDownload(fileId: Int, priority: Int, type: DownloadType, offset: Long, limit: Long, synchronous: Boolean) {
         fileDownloadQueue.enqueue(
@@ -2308,8 +2364,7 @@ class TdMessageRemoteDataSource(
 
     fun waitForUpload(fileId: Int): CompletableDeferred<Unit> = fileDownloadQueue.waitForUpload(fileId)
 
-    fun handleFileUpdate(file: TdApi.File) {
-        fileDownloadQueue.updateFileCache(file)
+    private fun projectFileUpdate(file: TdApi.File) {
         val isDC = file.local?.isDownloadingCompleted == true
         val isD = file.local?.isDownloadingActive == true
         val wasDownloading = lastDownloadActiveMap[file.id] == true
@@ -2330,7 +2385,6 @@ class TdMessageRemoteDataSource(
         }
 
         if (isDC) {
-            fileDownloadQueue.notifyDownloadComplete(file.id)
             lastProgressMap.remove(file.id)
             scope.launch {
                 fileDownloads.enqueue(
@@ -2413,7 +2467,6 @@ class TdMessageRemoteDataSource(
         }
 
         if (isUC) {
-            fileDownloadQueue.notifyUploadComplete(file.id)
             lastProgressMap.remove(file.id xor 0x55555555)
             val entries = fileIdToMessageMap[file.id]
             if (!entries.isNullOrEmpty()) {
@@ -2473,13 +2526,14 @@ class TdMessageRemoteDataSource(
     private fun updateMessageWithFile(fileId: Int) {
         val entries = fileIdToMessageMap[fileId] ?: return
         entries.toList().forEach { (chatId, messageId) ->
+            if (!isChatOpen(chatId)) return@forEach
             val key = chatId to messageId
             messageUpdateJobs[key]?.cancel()
             val job = scope.launch {
                 delay(150)
                 val msg = cache.getMessage(chatId, messageId) ?: return@launch
                 try {
-                    messageEdits.enqueue(mapMessageToModel(msg))
+                    messageEdits.enqueue(mapLiveMessageToModel(msg))
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -2496,6 +2550,7 @@ class TdMessageRemoteDataSource(
         messageUpdateJobs.values.forEach { it.cancel() }; messageUpdateJobs.clear()
         lastProgressMap.clear()
         missingMessageCooldownUntil.clear()
+        openChatIds.clear()
         fileDownloadQueue.setObserver(null)
     }
 
@@ -2506,6 +2561,10 @@ class TdMessageRemoteDataSource(
         val previous = lastCancelledEmissionAt[fileId]
         if (previous != null && now - previous < 250L) return
         lastCancelledEmissionAt[fileId] = now
+
+        scope.launch {
+            fileDownloads.enqueue(FileDownloadEvent.Cancelled(fileId))
+        }
 
         val entries = fileIdToMessageMap[fileId]
         if (!entries.isNullOrEmpty()) {
@@ -2523,7 +2582,17 @@ class TdMessageRemoteDataSource(
         }
     }
 
-    private companion object {
+    companion object {
+        internal val LIVE_MESSAGE_MAP_OPTIONS = MessageMapOptions(
+            resolveReplyPreviewFromNetwork = false,
+            allowAutoDownload = false,
+            resolveEnrichmentFromNetwork = false
+        )
+        private val LOCAL_HISTORY_MAP_OPTIONS = MessageMapOptions(
+            resolveReplyPreviewFromNetwork = false,
+            allowAutoDownload = false,
+            resolveEnrichmentFromNetwork = false
+        )
         private val MISSING_MESSAGE_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(2)
         private const val DRAFT_LINK_PREVIEW_TAG = "DraftLinkPreview"
     }

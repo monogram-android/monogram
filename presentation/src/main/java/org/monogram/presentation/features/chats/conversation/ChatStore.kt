@@ -116,7 +116,7 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         object ClearUnreadMentions : Intent()
         object ScrollToNextUnreadReaction : Intent()
         object ClearUnreadReactions : Intent()
-        data class DownloadFile(val fileId: Int, val userInitiated: Boolean = false) : Intent()
+        data class DownloadFile(val fileId: Int, val userInitiated: Boolean = true) : Intent()
         data class DownloadHighRes(val messageId: Long) : Intent()
         data class CancelDownloadFile(val fileId: Int) : Intent()
         data class UpdateScrollPosition(val messageId: Long) : Intent()

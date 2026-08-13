@@ -8,6 +8,7 @@ import org.monogram.domain.models.ChatRevenueStatisticsModel
 import org.monogram.domain.models.ChatStatisticsModel
 import org.monogram.domain.models.GroupMemberModel
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.ProfilePhotoMedia
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryModel
@@ -120,7 +121,7 @@ interface ProfileComponent {
         val isSimilarChatsLoading: Boolean = false,
         val hasLoadedSimilarChats: Boolean = false,
 
-        val profilePhotos: List<String> = emptyList(),
+        val profilePhotos: List<ProfilePhotoMedia> = emptyList(),
         val personalAvatarPath: String? = null,
 
         val fullScreenImages: List<String>? = null,

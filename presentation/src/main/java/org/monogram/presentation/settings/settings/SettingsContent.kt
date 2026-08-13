@@ -140,7 +140,7 @@ import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.features.stickers.ui.menu.EmojisGrid
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
-import org.monogram.presentation.features.viewers.ImageViewer
+import org.monogram.presentation.features.viewers.ManagedImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -1050,8 +1050,9 @@ fun SettingsContent(component: SettingsComponent) {
     }
 
     state.fullScreenImages?.let { images ->
-        ImageViewer(
+        ManagedImageViewer(
             images = images,
+            fileRepository = component.fileRepository,
             onDismiss = component::onDismissAvatarViewer,
             downloadUtils = component.downloadUtils
         )

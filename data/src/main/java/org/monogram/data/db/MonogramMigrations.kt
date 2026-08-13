@@ -395,6 +395,28 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_37_38 = object : Migration(37, 38) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `message_windows` (
+                    `chatId` INTEGER NOT NULL,
+                    `scopeType` TEXT NOT NULL,
+                    `scopeId` INTEGER NOT NULL,
+                    `oldestMessageId` INTEGER,
+                    `newestMessageId` INTEGER,
+                    `olderBoundaryReached` INTEGER NOT NULL,
+                    `newerBoundaryReached` INTEGER NOT NULL,
+                    `lastTdlibSyncAt` INTEGER NOT NULL,
+                    `generation` INTEGER NOT NULL,
+                    `protectedMessageId` INTEGER,
+                    PRIMARY KEY(`chatId`, `scopeType`, `scopeId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
     private fun SupportSQLiteDatabase.addColumn(table: String, column: String, definition: String) {
         execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
     }

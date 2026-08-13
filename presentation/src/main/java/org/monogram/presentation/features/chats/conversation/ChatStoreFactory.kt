@@ -289,8 +289,7 @@ class ChatStoreFactory(
                 }
                 is Intent.ScrollToMessageConsumed,
                 is Intent.ScrollCommandConsumed -> component._state.update {
-                    if (it.pendingScrollCommand == null && it.scrollToMessageId == null) it
-                    else it.copy(scrollToMessageId = null, pendingScrollCommand = null)
+                    ConversationViewportReducer.consumeScrollCommand(it)
                 }
                 is Intent.ScrollToBottom -> component.scrollToBottomInternal()
                 is Intent.JumpToLatest -> component.jumpToLatestInternal()
@@ -318,7 +317,7 @@ class ChatStoreFactory(
                     if (nextState.isAtBottom == intent.isAtBottom) nextState
                     else nextState.copy(isAtBottom = intent.isAtBottom)
                 }
-                is Intent.HighlightConsumed -> component._state.update { it.copy(highlightRequest = null) }
+                is Intent.HighlightConsumed -> component._state.update(ConversationViewportReducer::consumeHighlight)
                 is Intent.Typing -> { /* Handle typing */
                 }
 

@@ -71,29 +71,6 @@ fun ChannelVoiceMessageBubble(
 
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
 
-    LaunchedEffect(
-        content.path,
-        content.isDownloading,
-        autoDownloadFiles,
-        autoDownloadMobile,
-        autoDownloadWifi,
-        autoDownloadRoaming
-    ) {
-        val shouldDownload = if (autoDownloadFiles) {
-            when {
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                else -> autoDownloadMobile
-            }
-        } else {
-            false
-        }
-
-        if (shouldDownload && content.path == null && !content.isDownloading) {
-            onVoiceClick(msg)
-        }
-    }
-
     Column(
         modifier = modifier
             .onGloballyPositioned { bubblePosition = it.positionInWindow() },

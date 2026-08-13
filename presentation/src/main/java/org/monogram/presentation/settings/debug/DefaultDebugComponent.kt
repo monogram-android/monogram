@@ -7,7 +7,12 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import org.monogram.domain.repository.ConversationPipelineMode
+import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.core.util.componentScope
+import org.monogram.presentation.core.util.conversationPipelineModeWithLegacyKillSwitch
+import org.monogram.presentation.core.util.defaultConversationPipelineMode
+import org.monogram.presentation.core.util.isConversationPipelineKillSwitchAvailable
 import org.monogram.presentation.root.AppComponentContext
 import java.io.File
 
@@ -22,10 +27,25 @@ class DefaultDebugComponent(
     private val distrManager = container.utils.distrManager()
     private val pushDebugRepository = container.repositories.pushDebugRepository
     private val sponsorRepository = container.repositories.sponsorRepository
+    private val appPreferences = container.preferences.appPreferencesProvider
     private val scope = componentScope
+
+    private val conversationPipelineDefault = defaultConversationPipelineMode(
+        isOfficialTdlib = BuildConfig.IS_OFFICIAL_TDLIB,
+        isLibreRuntime = BuildConfig.IS_LIBRE_RUNTIME,
+        isDebug = BuildConfig.DEBUG
+    )
+    private val isConversationPipelineKillSwitchAvailable =
+        isConversationPipelineKillSwitchAvailable(
+            isOfficialTdlib = BuildConfig.IS_OFFICIAL_TDLIB,
+            isLibreRuntime = BuildConfig.IS_LIBRE_RUNTIME
+        )
 
     private val _state = MutableValue(
         DebugComponent.State(
+            isConversationPipelineKillSwitchAvailable = isConversationPipelineKillSwitchAvailable,
+            isLegacyConversationPipelineForced =
+                appPreferences.conversationPipelineMode.value == ConversationPipelineMode.Legacy,
             isGmsAvailable = distrManager.isGmsAvailable(),
             isFcmAvailable = distrManager.isFcmAvailable(),
             isUnifiedPushDistributorAvailable = distrManager.isUnifiedPushDistributorAvailable(),
@@ -35,6 +55,12 @@ class DefaultDebugComponent(
     override val state: Value<DebugComponent.State> = _state
 
     init {
+        appPreferences.conversationPipelineMode.onEach { mode ->
+            _state.update {
+                it.copy(isLegacyConversationPipelineForced = mode == ConversationPipelineMode.Legacy)
+            }
+        }.launchIn(scope)
+
         pushDebugRepository.diagnostics.onEach { diagnostics ->
             _state.update {
                 it.copy(
@@ -81,6 +107,17 @@ class DefaultDebugComponent(
     override fun onForceSponsorSyncClicked() {
         sponsorRepository.forceSponsorSync()
         messageDisplayer.show("Sponsor sync started")
+    }
+
+    override fun onConversationPipelineKillSwitchChanged(forceLegacy: Boolean) {
+        if (!isConversationPipelineKillSwitchAvailable) return
+        appPreferences.setConversationPipelineMode(
+            conversationPipelineModeWithLegacyKillSwitch(
+                forceLegacy = forceLegacy,
+                defaultMode = conversationPipelineDefault
+            )
+        )
+        messageDisplayer.show("Chat pipeline mode will apply to newly opened chats")
     }
 
     override fun onTestPushClicked() {

@@ -122,20 +122,6 @@ fun ChannelPhotoMessageBubble(
     val hasCaption = content.caption.isNotEmpty()
     val showCaptionAboveMedia = hasCaption && content.showCaptionAboveMedia
 
-    LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (content.path.isNullOrBlank() && !content.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                content.fileId
-            )
-        ) {
-            val shouldDownload = when {
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                else -> autoDownloadMobile
-            }
-            if (shouldDownload) onDownloadPhoto(content.fileId)
-        }
-    }
-
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.Start

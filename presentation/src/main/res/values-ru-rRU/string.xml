@@ -2189,6 +2189,8 @@
     <string name="cd_sponsor">Sponsor</string>
     <string name="debug_section_push_diagnostics">Push Diagnostics</string>
     <string name="debug_section_runtime_flags">Runtime Flags</string>
+    <string name="debug_legacy_chat_pipeline_title">Использовать прежний пайплайн чата</string>
+    <string name="debug_legacy_chat_pipeline_subtitle">Аварийное переключение для новых открытий чата</string>
     <string name="debug_section_push_environment">Push Environment</string>
     <string name="debug_section_unifiedpush_details">UnifiedPush Details</string>
     <string name="debug_section_sponsor">Sponsor</string>

@@ -19,6 +19,7 @@ import org.monogram.data.mapper.message.MessageContentMapper
 import org.monogram.data.mapper.message.MessagePersistenceMapper
 import org.monogram.data.mapper.message.MessageSenderResolver
 import org.monogram.data.mapper.message.toDomain
+import org.monogram.data.mapper.user.toDomain
 import org.monogram.domain.models.FactCheckModel
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.ForwardOriginType
@@ -38,6 +39,7 @@ class MessageMapper internal constructor(
     private val fileHelper: TdFileHelper,
     private val senderResolver: MessageSenderResolver,
     private val contentMapper: MessageContentMapper,
+    private val mediaDemandCoordinator: MappedMediaDemandCoordinator,
     private val persistenceMapper: MessagePersistenceMapper,
     private val customEmojiLoader: CustomEmojiLoader,
     private val stringProvider: StringProvider
@@ -59,7 +61,11 @@ class MessageMapper internal constructor(
         options: MessageMapOptions = MessageMapOptions()
     ): MessageModel = coroutineScope {
         withTimeoutOrNull(MESSAGE_MAP_TIMEOUT_MS) {
-            val sender = senderResolver.resolveSender(msg)
+            val sender = if (options.resolveEnrichmentFromNetwork) {
+                senderResolver.resolveSender(msg)
+            } else {
+                senderResolver.resolveFallbackSender(msg)
+            }
 
             val (replyToMsgId, replyToMsg) = resolveReplyInfo(
                 msg = msg,
@@ -68,13 +74,13 @@ class MessageMapper internal constructor(
                 options = options
             )
 
-            val forwardInfo = resolveForwardInfo(msg)
+            val forwardInfo = resolveForwardInfo(msg, options)
             val views = msg.interactionInfo?.viewCount
             val replyCount = msg.interactionInfo?.replyInfo?.replyCount ?: 0
             val sendingState = resolveSendingState(msg)
             val reactions = resolveReactions(msg, isReply, isChatOpen, options)
             val threadId = resolveThreadId(msg)
-            val viaBotName = resolveViaBotName(msg)
+            val viaBotName = resolveViaBotName(msg, options)
             val factCheck = msg.factCheck?.toDomain()
             val suggestedPostInfo = msg.suggestedPostInfo?.toDomain()
 
@@ -183,9 +189,10 @@ class MessageMapper internal constructor(
         factCheck: FactCheckModel? = null,
         suggestedPostInfo: SuggestedPostInfoModel? = null
     ): MessageModel {
-        val networkAutoDownload = isChatOpen &&
-                mapOptions.allowAutoDownload &&
-                fileHelper.isNetworkAutoDownloadEnabled()
+        // Mapping must not create network work. Viewport and explicit user demands own downloads.
+        // Keep the context field for the compatibility mapper contract until MediaDemandCoordinator
+        // supplies typed descriptors and the remaining registry writes move out of mapping.
+        val networkAutoDownload = false
         val isActuallyUploading = msg.sendingState is TdApi.MessageSendingStatePending
 
         val content = contentMapper.mapContent(
@@ -253,7 +260,7 @@ class MessageMapper internal constructor(
             containsUnreadPollVotes = msg.containsUnreadPollVotes,
             factCheck = factCheck,
             suggestedPostInfo = suggestedPostInfo
-        )
+        ).also { mediaDemandCoordinator.register(msg) }
     }
 
     fun mapToEntity(
@@ -327,7 +334,10 @@ class MessageMapper internal constructor(
         return replyToMsgId to replyToMsg
     }
 
-    private suspend fun resolveForwardInfo(msg: TdApi.Message): ForwardInfo? {
+    private suspend fun resolveForwardInfo(
+        msg: TdApi.Message,
+        options: MessageMapOptions
+    ): ForwardInfo? {
         val fwd = msg.forwardInfo ?: return null
         val origin = fwd.origin
         var originName = unknownUserName
@@ -342,11 +352,16 @@ class MessageMapper internal constructor(
             is TdApi.MessageOriginUser -> {
                 originType = ForwardOriginType.USER
                 originPeerId = origin.senderUserId
-                val user = try {
-                    withTimeout(500) { userRepository.getUser(originPeerId) }
-                } catch (_: Exception) {
-                    null
-                }
+                val user = cache.getUser(originPeerId)?.toDomain()
+                    ?: if (options.resolveEnrichmentFromNetwork) {
+                        try {
+                            withTimeout(500) { userRepository.getUser(originPeerId) }
+                        } catch (_: Exception) {
+                            null
+                        }
+                    } else {
+                        null
+                    }
 
                 if (user != null) {
                     avatarPath = user.avatarPath
@@ -364,14 +379,19 @@ class MessageMapper internal constructor(
             is TdApi.MessageOriginChat -> {
                 originType = ForwardOriginType.CHAT
                 originPeerId = origin.senderChatId
-                val chat = try {
-                    withTimeout(500) {
-                        cache.getChat(originPeerId) ?: gateway.execute(TdApi.GetChat(originPeerId))
-                            .also { cache.putChat(it) }
+                val chat = cache.getChat(originPeerId)
+                    ?: if (options.resolveEnrichmentFromNetwork) {
+                        try {
+                            withTimeout(500) {
+                                gateway.execute(TdApi.GetChat(originPeerId))
+                                    .also { cache.putChat(it) }
+                            }
+                        } catch (_: Exception) {
+                            null
+                        }
+                    } else {
+                        null
                     }
-                } catch (_: Exception) {
-                    null
-                }
                 if (chat != null) {
                     avatarPath = chat.photo?.small?.local?.path.takeIf(fileHelper::isValidPath)
                     originName = chat.title
@@ -383,14 +403,19 @@ class MessageMapper internal constructor(
                 originPeerId = origin.chatId
                 originChatId = origin.chatId
                 originMessageId = origin.messageId
-                val chat = try {
-                    withTimeout(500) {
-                        cache.getChat(originPeerId) ?: gateway.execute(TdApi.GetChat(originPeerId))
-                            .also { cache.putChat(it) }
+                val chat = cache.getChat(originPeerId)
+                    ?: if (options.resolveEnrichmentFromNetwork) {
+                        try {
+                            withTimeout(500) {
+                                gateway.execute(TdApi.GetChat(originPeerId))
+                                    .also { cache.putChat(it) }
+                            }
+                        } catch (_: Exception) {
+                            null
+                        }
+                    } else {
+                        null
                     }
-                } catch (_: Exception) {
-                    null
-                }
                 if (chat != null) {
                     avatarPath = chat.photo?.small?.local?.path.takeIf(fileHelper::isValidPath)
                     originName = chat.title
@@ -435,11 +460,20 @@ class MessageMapper internal constructor(
                                 async {
                                     when (senderId) {
                                         is TdApi.MessageSenderUser -> {
-                                            val user = try {
-                                                withTimeout(500) { userRepository.getUser(senderId.userId) }
-                                            } catch (_: Exception) {
-                                                null
-                                            }
+                                            val user = cache.getUser(senderId.userId)?.toDomain()
+                                                ?: if (options.resolveEnrichmentFromNetwork) {
+                                                    try {
+                                                        withTimeout(500) {
+                                                            userRepository.getUser(
+                                                                senderId.userId
+                                                            )
+                                                        }
+                                                    } catch (_: Exception) {
+                                                        null
+                                                    }
+                                                } else {
+                                                    null
+                                                }
                                             ReactionSender(
                                                 id = senderId.userId,
                                                 name = SenderNameResolver.fromPartsOrBlank(
@@ -451,15 +485,19 @@ class MessageMapper internal constructor(
                                         }
 
                                         is TdApi.MessageSenderChat -> {
-                                            val chat = try {
-                                                withTimeout(500) {
-                                                    cache.getChat(senderId.chatId)
-                                                        ?: gateway.execute(TdApi.GetChat(senderId.chatId))
-                                                            .also { cache.putChat(it) }
+                                            val chat = cache.getChat(senderId.chatId)
+                                                ?: if (options.resolveEnrichmentFromNetwork) {
+                                                    try {
+                                                        withTimeout(500) {
+                                                            gateway.execute(TdApi.GetChat(senderId.chatId))
+                                                                .also { cache.putChat(it) }
+                                                        }
+                                                    } catch (_: Exception) {
+                                                        null
+                                                    }
+                                                } else {
+                                                    null
                                                 }
-                                            } catch (_: Exception) {
-                                                null
-                                            }
                                             ReactionSender(
                                                 id = senderId.chatId,
                                                 name = chat?.title ?: "",
@@ -493,14 +531,16 @@ class MessageMapper internal constructor(
                         is TdApi.ReactionTypeCustomEmoji -> {
                             val emojiId = type.customEmojiId
                             var path = customEmojiLoader.getPathIfValid(emojiId)
-                            if (path == null) {
+                            val mayLoadCustomEmoji = options.resolveEnrichmentFromNetwork &&
+                                    isChatOpen &&
+                                    options.allowAutoDownload &&
+                                    fileHelper.isNetworkAutoDownloadEnabled()
+                            if (path == null && mayLoadCustomEmoji) {
                                 customEmojiLoader.loadIfNeeded(
                                     emojiId = emojiId,
                                     chatId = msg.chatId,
                                     messageId = msg.id,
-                                    autoDownload = isChatOpen &&
-                                            options.allowAutoDownload &&
-                                            fileHelper.isNetworkAutoDownloadEnabled()
+                                    autoDownload = true
                                 )
                                 path = customEmojiLoader.getPathIfValid(emojiId)
                             }
@@ -529,13 +569,21 @@ class MessageMapper internal constructor(
         }
     }
 
-    private suspend fun resolveViaBotName(msg: TdApi.Message): String? {
+    private suspend fun resolveViaBotName(
+        msg: TdApi.Message,
+        options: MessageMapOptions
+    ): String? {
         if (msg.viaBotUserId == 0L) return null
-        val bot = try {
-            withTimeout(500) { userRepository.getUser(msg.viaBotUserId) }
-        } catch (_: Exception) {
-            null
-        }
+        val bot = cache.getUser(msg.viaBotUserId)?.toDomain()
+            ?: if (options.resolveEnrichmentFromNetwork) {
+                try {
+                    withTimeout(500) { userRepository.getUser(msg.viaBotUserId) }
+                } catch (_: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
         return bot?.username ?: bot?.firstName
     }
 

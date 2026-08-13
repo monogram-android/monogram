@@ -36,10 +36,16 @@ import org.monogram.domain.repository.ChatFolderRepository
 import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSearchRepository
+import org.monogram.domain.repository.ConversationKey
+import org.monogram.domain.repository.ConversationScope
 import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.ForwardOptions
 import org.monogram.domain.repository.ForwardRequest
 import org.monogram.domain.repository.ForwardTarget
+import org.monogram.domain.repository.HistoryAnchor
+import org.monogram.domain.repository.HistoryDirection
+import org.monogram.domain.repository.HistoryRequest
+import org.monogram.domain.repository.HistorySource
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.UpdateRepository
@@ -1259,16 +1265,24 @@ class DefaultChatListComponent(
 
     private suspend fun prefetchMessagesForChat(chat: ChatModel) {
         coRunCatching {
-            messageRepository.getMessagesOlder(
-                chatId = chat.id,
-                fromMessageId = 0L,
-                limit = PREFETCH_PAGE_SIZE
+            messageRepository.getHistoryPage(
+                HistoryRequest(
+                    key = ConversationKey(chat.id, ConversationScope.Main),
+                    anchor = HistoryAnchor.Latest,
+                    direction = HistoryDirection.Initial,
+                    limit = PREFETCH_PAGE_SIZE,
+                    source = HistorySource.TdlibNetwork
+                )
             )
             if (chat.unreadCount > 0 && chat.lastReadInboxMessageId > 0L) {
-                messageRepository.getMessagesNewer(
-                    chatId = chat.id,
-                    fromMessageId = chat.lastReadInboxMessageId,
-                    limit = PREFETCH_PAGE_SIZE
+                messageRepository.getHistoryPage(
+                    HistoryRequest(
+                        key = ConversationKey(chat.id, ConversationScope.Main),
+                        anchor = HistoryAnchor.Message(chat.lastReadInboxMessageId),
+                        direction = HistoryDirection.Newer,
+                        limit = PREFETCH_PAGE_SIZE,
+                        source = HistorySource.TdlibNetwork
+                    )
                 )
             }
         }.onFailure { error ->

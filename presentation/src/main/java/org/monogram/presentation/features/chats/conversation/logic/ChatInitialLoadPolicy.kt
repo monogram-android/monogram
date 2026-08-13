@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.chats.conversation.logic
 
 import org.monogram.domain.models.ChatViewportCacheEntry
+import org.monogram.domain.repository.HistoryPage
 import org.monogram.presentation.features.chats.conversation.ChatInitialLoadKey
 
 internal fun buildChatInitialLoadKey(
@@ -40,3 +41,9 @@ internal fun shouldStartInitialLoad(
     if (!hasStartedForCurrentContext) return true
     return currentKey != nextKey
 }
+
+internal fun shouldRequestInitialNetwork(
+    localPage: HistoryPage,
+    requestedLimit: Int,
+    threadId: Long?
+): Boolean = threadId != null || localPage.messages.size < requestedLimit

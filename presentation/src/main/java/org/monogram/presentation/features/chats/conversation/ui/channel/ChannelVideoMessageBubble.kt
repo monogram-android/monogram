@@ -148,20 +148,6 @@ fun ChannelVideoMessageBubble(
         }
     }
 
-    LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (content.path.isNullOrBlank() && !content.isDownloading && !content.supportsStreaming && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                content.fileId
-            )
-        ) {
-            val shouldDownload = when {
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                else -> autoDownloadMobile
-            }
-            if (shouldDownload) onDownloadVideo(content.fileId)
-        }
-    }
-
     Column(
         modifier = modifier
             .onGloballyPositioned {

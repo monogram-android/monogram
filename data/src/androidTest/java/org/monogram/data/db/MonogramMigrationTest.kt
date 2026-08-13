@@ -1,0 +1,82 @@
+package org.monogram.data.db
+
+import android.content.ContentValues
+import androidx.room.testing.MigrationTestHelper
+import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class MonogramMigrationTest {
+    @get:Rule
+    val helper = MigrationTestHelper(
+        instrumentation = InstrumentationRegistry.getInstrumentation(),
+        databaseClass = MonogramDatabase::class.java
+    )
+
+    @Test
+    fun migration37To38PreservesMessagesAndStartsWithUnknownCoverage() {
+        helper.createDatabase(TEST_DATABASE, 37).use { database ->
+            database.insertMessageRow(chatId = 100L, messageId = 200L, content = "preserved")
+        }
+
+        helper.runMigrationsAndValidate(
+            TEST_DATABASE,
+            38,
+            true,
+            MonogramMigrations.MIGRATION_37_38
+        ).use { database ->
+            database.query(
+                "SELECT content FROM messages WHERE chatId = 100 AND id = 200"
+            ).use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals("preserved", cursor.getString(0))
+                assertFalse(cursor.moveToNext())
+            }
+            database.query("SELECT COUNT(*) FROM message_windows").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(0, cursor.getInt(0))
+            }
+        }
+    }
+
+    private fun SupportSQLiteDatabase.insertMessageRow(
+        chatId: Long,
+        messageId: Long,
+        content: String
+    ) {
+        val values = ContentValues()
+        query("PRAGMA table_info(messages)").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            val typeIndex = cursor.getColumnIndexOrThrow("type")
+            val notNullIndex = cursor.getColumnIndexOrThrow("notnull")
+            val defaultIndex = cursor.getColumnIndexOrThrow("dflt_value")
+            while (cursor.moveToNext()) {
+                val name = cursor.getString(nameIndex)
+                when (name) {
+                    "chatId" -> values.put(name, chatId)
+                    "id" -> values.put(name, messageId)
+                    "content" -> values.put(name, content)
+                    else -> if (cursor.getInt(notNullIndex) != 0 && cursor.isNull(defaultIndex)) {
+                        when (cursor.getString(typeIndex).uppercase()) {
+                            "TEXT" -> values.put(name, "")
+                            "BLOB" -> values.put(name, ByteArray(0))
+                            "REAL" -> values.put(name, 0.0)
+                            else -> values.put(name, 0L)
+                        }
+                    }
+                }
+            }
+        }
+        insert("messages", 0, values)
+    }
+
+    private companion object {
+        const val TEST_DATABASE = "migration-37-38"
+    }
+}

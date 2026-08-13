@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.NotificationAdd
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Power
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -53,6 +54,7 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SectionHeader
 import org.monogram.presentation.core.ui.SettingsItem
+import org.monogram.presentation.core.ui.SettingsSwitchTile
 import java.text.DateFormat
 import java.util.Date
 
@@ -175,9 +177,24 @@ fun DebugContent(component: DebugComponent) {
                     title = "Hide foreground notification",
                     subtitle = state.hideForegroundNotification.toUiToggle(),
                     iconBackgroundColor = Color(0xFF9E9E9E),
-                    position = ItemPosition.BOTTOM,
+                    position = if (state.isConversationPipelineKillSwitchAvailable) {
+                        ItemPosition.MIDDLE
+                    } else {
+                        ItemPosition.BOTTOM
+                    },
                     onClick = { }
                 )
+                if (state.isConversationPipelineKillSwitchAvailable) {
+                    SettingsSwitchTile(
+                        icon = Icons.Rounded.SwapVert,
+                        title = stringResource(R.string.debug_legacy_chat_pipeline_title),
+                        subtitle = stringResource(R.string.debug_legacy_chat_pipeline_subtitle),
+                        checked = state.isLegacyConversationPipelineForced,
+                        iconColor = Color(0xFFD32F2F),
+                        position = ItemPosition.BOTTOM,
+                        onCheckedChange = component::onConversationPipelineKillSwitchChanged
+                    )
+                }
             }
 
             item {

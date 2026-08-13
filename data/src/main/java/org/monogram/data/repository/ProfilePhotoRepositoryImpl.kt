@@ -6,7 +6,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.cache.ChatLocalDataSource
@@ -18,6 +17,7 @@ import org.monogram.data.mapper.isValidFilePath
 import org.monogram.data.mapper.toEntity
 import org.monogram.data.mapper.user.toTdApiChat
 import org.monogram.domain.repository.ProfilePhotoRepository
+import org.monogram.domain.models.ProfilePhotoMedia
 
 class ProfilePhotoRepositoryImpl(
     private val remote: UserRemoteDataSource,
@@ -27,19 +27,17 @@ class ProfilePhotoRepositoryImpl(
     private val fileObserverHub: FileObserverHub
 ) : ProfilePhotoRepository {
     private val avatarDownloadPriority = AVATAR_DOWNLOAD_PRIORITY
-    private val avatarHdPrefetchPriority = AVATAR_HD_PREFETCH_PRIORITY
 
     override suspend fun getUserProfilePhotos(
         userId: Long,
         offset: Int,
-        limit: Int,
-        ensureFullRes: Boolean
-    ): List<String> {
+        limit: Int
+    ): List<ProfilePhotoMedia> {
         if (userId <= 0) return emptyList()
         val result = remote.getUserProfilePhotos(userId, offset, limit) ?: return emptyList()
         return coroutineScope {
             result.photos
-                .map { photo -> async { resolveUserProfilePhotoPath(photo, ensureFullRes) } }
+                .map { photo -> async { resolveUserProfilePhotoMedia(photo) } }
                 .awaitAll()
                 .filterNotNull()
         }
@@ -48,18 +46,18 @@ class ProfilePhotoRepositoryImpl(
     override suspend fun getChatProfilePhotos(
         chatId: Long,
         offset: Int,
-        limit: Int,
-        ensureFullRes: Boolean
-    ): List<String> {
+        limit: Int
+    ): List<ProfilePhotoMedia> {
         if (chatId == 0L) return emptyList()
-        val paths = loadChatPhotoHistoryPaths(chatId, offset, limit, ensureFullRes)
+        val paths = loadChatPhotoHistory(chatId, offset, limit)
         if (paths.isNotEmpty()) return paths
 
-        val currentPath = resolveCurrentChatPhotoPath(chatId, ensureFullRes)
+        val currentPath = resolveCurrentChatPhoto(chatId)
         return listOfNotNull(currentPath)
     }
 
-    override fun getUserProfilePhotosFlow(userId: Long): Flow<List<String>> = channelFlow {
+    override fun getUserProfilePhotosFlow(userId: Long): Flow<List<ProfilePhotoMedia>> =
+        channelFlow {
         if (userId <= 0) {
             send(emptyList())
             return@channelFlow
@@ -82,7 +80,8 @@ class ProfilePhotoRepositoryImpl(
         }
     }
 
-    override fun getChatProfilePhotosFlow(chatId: Long): Flow<List<String>> = channelFlow {
+    override fun getChatProfilePhotosFlow(chatId: Long): Flow<List<ProfilePhotoMedia>> =
+        channelFlow {
         if (chatId == 0L) {
             send(emptyList())
             return@channelFlow
@@ -108,20 +107,18 @@ class ProfilePhotoRepositoryImpl(
     private suspend fun getUserProfilePhotosWithTracking(
         userId: Long,
         offset: Int = 0,
-        limit: Int = 10,
-        ensureFullRes: Boolean = false
-    ): Pair<List<String>, Set<Int>> {
-        if (userId <= 0) return emptyList<String>() to emptySet()
+        limit: Int = 10
+    ): Pair<List<ProfilePhotoMedia>, Set<Int>> {
+        if (userId <= 0) return emptyList<ProfilePhotoMedia>() to emptySet()
         val trackedFileIds = linkedSetOf<Int>()
         val result = remote.getUserProfilePhotos(userId, offset, limit)
-            ?: return emptyList<String>() to emptySet()
+            ?: return emptyList<ProfilePhotoMedia>() to emptySet()
         val paths = coroutineScope {
             result.photos
                 .map { photo ->
                     async {
-                        resolveUserProfilePhotoPath(
+                        resolveUserProfilePhotoMedia(
                             photo,
-                            ensureFullRes,
                             trackedFileIds
                         )
                     }
@@ -135,25 +132,23 @@ class ProfilePhotoRepositoryImpl(
     private suspend fun getChatProfilePhotosWithTracking(
         chatId: Long,
         offset: Int = 0,
-        limit: Int = 10,
-        ensureFullRes: Boolean = false
-    ): Pair<List<String>, Set<Int>> {
-        if (chatId == 0L) return emptyList<String>() to emptySet()
+        limit: Int = 10
+    ): Pair<List<ProfilePhotoMedia>, Set<Int>> {
+        if (chatId == 0L) return emptyList<ProfilePhotoMedia>() to emptySet()
         val trackedFileIds = linkedSetOf<Int>()
-        val paths = loadChatPhotoHistoryPaths(chatId, offset, limit, ensureFullRes, trackedFileIds)
+        val paths = loadChatPhotoHistory(chatId, offset, limit, trackedFileIds)
         if (paths.isNotEmpty()) return paths to trackedFileIds
 
-        val currentPath = resolveCurrentChatPhotoPath(chatId, ensureFullRes, trackedFileIds)
+        val currentPath = resolveCurrentChatPhoto(chatId, trackedFileIds)
         return listOfNotNull(currentPath) to trackedFileIds
     }
 
-    private suspend fun loadChatPhotoHistoryPaths(
+    private suspend fun loadChatPhotoHistory(
         chatId: Long,
         offset: Int,
         limit: Int,
-        ensureFullRes: Boolean,
         trackedFileIds: MutableSet<Int>? = null
-    ): List<String> {
+    ): List<ProfilePhotoMedia> {
         if (limit <= 0) return emptyList()
 
         val request = TdApi.SearchChatMessages().apply {
@@ -183,9 +178,8 @@ class ProfilePhotoRepositoryImpl(
             chatPhotos
                 .map { photo ->
                     async {
-                        resolveUserProfilePhotoPath(
+                        resolveUserProfilePhotoMedia(
                             photo,
-                            ensureFullRes,
                             trackedFileIds
                         )
                     }
@@ -196,133 +190,65 @@ class ProfilePhotoRepositoryImpl(
         }
     }
 
-    private suspend fun resolveCurrentChatPhotoPath(
+    private suspend fun resolveCurrentChatPhoto(
         chatId: Long,
-        ensureFullRes: Boolean,
         trackedFileIds: MutableSet<Int>? = null
-    ): String? {
+    ): ProfilePhotoMedia? {
         val chat = remote.getChat(chatId)?.also { chatLocal.insertChat(it.toEntity()) }
             ?: chatLocal.getChat(chatId)?.toTdApiChat()
             ?: return null
-        return resolveChatPhotoInfoPath(chat.photo, ensureFullRes, trackedFileIds)
+        return resolveChatPhotoInfo(chat.photo, trackedFileIds)
     }
 
-    private suspend fun resolveChatPhotoInfoPath(
+    private suspend fun resolveChatPhotoInfo(
         photoInfo: TdApi.ChatPhotoInfo?,
-        ensureFullRes: Boolean,
         trackedFileIds: MutableSet<Int>? = null
-    ): String? {
+    ): ProfilePhotoMedia? {
         val smallId = photoInfo?.small?.id?.takeIf { it != 0 }
         val bigId = photoInfo?.big?.id?.takeIf { it != 0 }
         smallId?.let { trackedFileIds?.add(it) }
         bigId?.let { trackedFileIds?.add(it) }
-        val preferredFile = if (ensureFullRes) {
-            photoInfo?.big ?: photoInfo?.small
-        } else {
-            photoInfo?.small ?: photoInfo?.big
-        } ?: return null
-
-        val directPath = preferredFile.local.path.takeIf { isValidFilePath(it) }
-        if (directPath != null) {
-            if (!ensureFullRes && bigId != null && bigId != preferredFile.id) {
-                fileQueue.enqueue(
-                    bigId,
-                    avatarHdPrefetchPriority,
-                    FileDownloadQueue.DownloadType.DEFAULT,
-                    synchronous = false
+        val previewFile = photoInfo?.small ?: photoInfo?.big ?: return null
+        val previewPath = previewFile.local.path.takeIf { isValidFilePath(it) }
+            ?: resolveDownloadedFilePath(previewFile.id)
+        if (previewPath == null && previewFile.id != 0) {
+            fileQueue.enqueue(
+                fileId = previewFile.id,
+                priority = avatarDownloadPriority,
+                type = FileDownloadQueue.DownloadType.DEFAULT,
+                synchronous = false
+            )
+        }
+        val originalFile = photoInfo?.big ?: previewFile
+        return ProfilePhotoMedia(
+            id = originalFile.id.toLong(),
+            previewPath = previewPath,
+            originalFileId = originalFile.id,
+            originalPath = originalFile.local.path.takeIf {
+                originalFile.local.isDownloadingCompleted && isValidFilePath(
+                    it
                 )
             }
-            return directPath
-        }
-
-        val downloadedPath = resolveDownloadedFilePath(preferredFile.id)
-        if (downloadedPath != null) {
-            if (!ensureFullRes && bigId != null && bigId != preferredFile.id) {
-                fileQueue.enqueue(
-                    bigId,
-                    avatarHdPrefetchPriority,
-                    FileDownloadQueue.DownloadType.DEFAULT,
-                    synchronous = false
-                )
-            }
-            return downloadedPath
-        }
-
-        if (!ensureFullRes) {
-            if (smallId != null) {
-                fileQueue.enqueue(
-                    smallId,
-                    avatarDownloadPriority,
-                    FileDownloadQueue.DownloadType.DEFAULT,
-                    synchronous = false
-                )
-                if (bigId != null && bigId != smallId) {
-                    fileQueue.enqueue(
-                        bigId,
-                        avatarHdPrefetchPriority,
-                        FileDownloadQueue.DownloadType.DEFAULT,
-                        synchronous = false
-                    )
-                }
-            } else if (bigId != null) {
-                fileQueue.enqueue(
-                    bigId,
-                    avatarDownloadPriority,
-                    FileDownloadQueue.DownloadType.DEFAULT,
-                    synchronous = false
-                )
-            }
-            return null
-        }
-
-        val fileId = preferredFile.id.takeIf { it != 0 } ?: return null
-        fileQueue.enqueue(
-            fileId = fileId,
-            priority = FULL_RES_DOWNLOAD_PRIORITY,
-            type = FileDownloadQueue.DownloadType.DEFAULT,
-            synchronous = false,
-            ignoreSuppression = true
+                ?: resolveDownloadedFilePath(originalFile.id)
         )
-        withTimeoutOrNull(FILE_DOWNLOAD_TIMEOUT_MS) {
-            coRunCatching { fileQueue.waitForDownload(fileId).await() }
-        }
-        return resolveDownloadedFilePath(fileId)
     }
 
-    private suspend fun resolveUserProfilePhotoPath(
+    private suspend fun resolveUserProfilePhotoMedia(
         photo: TdApi.ChatPhoto,
-        ensureFullRes: Boolean,
         trackedFileIds: MutableSet<Int>? = null
-    ): String? {
+    ): ProfilePhotoMedia? {
         val animationFile = photo.animation?.file
         val animationFileId = animationFile?.id?.takeIf { it != 0 }
         animationFileId?.let { trackedFileIds?.add(it) }
         val animationPath = animationFile?.local?.path?.takeIf { isValidFilePath(it) }
-        if (animationPath != null) return animationPath
         val downloadedAnimationPath = resolveDownloadedFilePath(animationFileId)
-        if (downloadedAnimationPath != null) return downloadedAnimationPath
-
-        if (animationFileId != null) {
-            if (!ensureFullRes) {
-                fileQueue.enqueue(
-                    fileId = animationFileId,
-                    priority = avatarDownloadPriority,
-                    type = FileDownloadQueue.DownloadType.DEFAULT,
-                    synchronous = false
-                )
-            } else {
-                fileQueue.enqueue(
-                    fileId = animationFileId,
-                    priority = FULL_RES_DOWNLOAD_PRIORITY,
-                    type = FileDownloadQueue.DownloadType.DEFAULT,
-                    synchronous = false,
-                    ignoreSuppression = true
-                )
-                withTimeoutOrNull(FILE_DOWNLOAD_TIMEOUT_MS) {
-                    coRunCatching { fileQueue.waitForDownload(animationFileId).await() }
-                }
-                resolveDownloadedFilePath(animationFileId)?.let { return it }
-            }
+        if (animationFileId != null && animationPath == null && downloadedAnimationPath == null) {
+            fileQueue.enqueue(
+                fileId = animationFileId,
+                priority = avatarDownloadPriority,
+                type = FileDownloadQueue.DownloadType.DEFAULT,
+                synchronous = false
+            )
         }
 
         photo.sizes.forEach { size ->
@@ -335,38 +261,33 @@ class ProfilePhotoRepositoryImpl(
             ?: photo.sizes.lastOrNull()?.photo
             ?: return null
 
-        val directPath = bestPhotoFile.local.path.takeIf { isValidFilePath(it) }
-        if (directPath != null) return directPath
-
-        if (!ensureFullRes) {
-            val fallbackFile = photo.sizes.find { it.type == "m" }?.photo
-                ?: photo.sizes.find { it.type == "s" }?.photo
-                ?: photo.sizes.find { it.type == "c" }?.photo
-                ?: photo.sizes.find { it.type == "b" }?.photo
-                ?: photo.sizes.find { it.type == "a" }?.photo
-                ?: photo.sizes.firstOrNull()?.photo
-
-            val fallbackDirectPath = fallbackFile?.local?.path?.takeIf { isValidFilePath(it) }
-            if (fallbackDirectPath != null) return fallbackDirectPath
-
-            val fallbackDownloadedPath = resolveDownloadedFilePath(fallbackFile?.id)
-            if (fallbackDownloadedPath != null) return fallbackDownloadedPath
-
-            return null
+        val fallbackFile = photo.sizes.find { it.type == "m" }?.photo
+            ?: photo.sizes.find { it.type == "s" }?.photo
+            ?: photo.sizes.firstOrNull()?.photo
+            ?: bestPhotoFile
+        val previewPath = fallbackFile.local.path.takeIf { isValidFilePath(it) }
+            ?: resolveDownloadedFilePath(fallbackFile.id)
+        if (previewPath == null && fallbackFile.id != 0) {
+            fileQueue.enqueue(
+                fileId = fallbackFile.id,
+                priority = avatarDownloadPriority,
+                type = FileDownloadQueue.DownloadType.DEFAULT,
+                synchronous = false
+            )
         }
-
-        val fileId = bestPhotoFile.id.takeIf { it != 0 } ?: return null
-        fileQueue.enqueue(
-            fileId = fileId,
-            priority = FULL_RES_DOWNLOAD_PRIORITY,
-            type = FileDownloadQueue.DownloadType.DEFAULT,
-            synchronous = false,
-            ignoreSuppression = true
+        return ProfilePhotoMedia(
+            id = photo.id,
+            previewPath = previewPath,
+            originalFileId = bestPhotoFile.id,
+            originalPath = bestPhotoFile.local.path.takeIf {
+                bestPhotoFile.local.isDownloadingCompleted && isValidFilePath(
+                    it
+                )
+            }
+                ?: resolveDownloadedFilePath(bestPhotoFile.id),
+            animationFileId = animationFileId ?: 0,
+            animationPath = animationPath ?: downloadedAnimationPath
         )
-        withTimeoutOrNull(FILE_DOWNLOAD_TIMEOUT_MS) {
-            coRunCatching { fileQueue.waitForDownload(fileId).await() }
-        }
-        return resolveDownloadedFilePath(fileId)
     }
 
     private suspend fun resolveDownloadedFilePath(fileId: Int?): String? {
@@ -383,8 +304,5 @@ class ProfilePhotoRepositoryImpl(
 
     companion object {
         private const val AVATAR_DOWNLOAD_PRIORITY = 24
-        private const val AVATAR_HD_PREFETCH_PRIORITY = 8
-        private const val FULL_RES_DOWNLOAD_PRIORITY = 32
-        private const val FILE_DOWNLOAD_TIMEOUT_MS = 15_000L
     }
 }

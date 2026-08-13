@@ -3,12 +3,11 @@ package org.monogram.data.repository
 import android.content.Context
 import android.os.Trace
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
 import org.json.JSONArray
@@ -31,6 +30,9 @@ import org.monogram.data.datasource.cache.MessageCacheWriter
 import org.monogram.data.datasource.cache.UserLocalDataSource
 import org.monogram.data.datasource.remote.FxEmbedRemoteDataSource
 import org.monogram.data.datasource.remote.MessageRemoteDataSource
+import org.monogram.data.datasource.remote.MessageMapOptions
+import org.monogram.data.datasource.remote.OrderedEventFlow
+import org.monogram.data.datasource.remote.RemoteHistoryFetchMode
 import org.monogram.data.db.dao.KeyValueDao
 import org.monogram.data.db.dao.StickerPathDao
 import org.monogram.data.db.dao.TextCompositionStyleDao
@@ -38,7 +40,9 @@ import org.monogram.data.db.model.KeyValueEntity
 import org.monogram.data.db.model.TextCompositionStyleEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
+import org.monogram.data.gateway.MESSAGE_STATE_LANE_FILTER
 import org.monogram.data.infra.OutboxLifecycleMetrics
+import org.monogram.data.infra.AtomicSingleFlight
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.SponsoredMessageMapper
 import org.monogram.data.mapper.TdFileHelper
@@ -49,6 +53,7 @@ import org.monogram.domain.models.ChatEventActionModel
 import org.monogram.domain.models.ChatEventLogFiltersModel
 import org.monogram.domain.models.ChatEventModel
 import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.models.ConversationUpdate
 import org.monogram.domain.models.DraftLinkPreview
 import org.monogram.domain.models.DraftLinkPreviewRequest
 import org.monogram.domain.models.FileModel
@@ -69,14 +74,23 @@ import org.monogram.domain.models.webapp.InvoiceModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
 import org.monogram.domain.repository.ChecklistDraft
+import org.monogram.domain.repository.BoundaryState
+import org.monogram.domain.repository.ConversationKey
+import org.monogram.domain.repository.ConversationScope
 import org.monogram.domain.repository.FixedTextResult
 import org.monogram.domain.repository.FormattedTextResult
+import org.monogram.domain.repository.HistoryAnchor
+import org.monogram.domain.repository.HistoryDirection
+import org.monogram.domain.repository.HistoryPage
+import org.monogram.domain.repository.HistoryRequest
+import org.monogram.domain.repository.HistorySource
 import org.monogram.domain.repository.ForwardRequest
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.MediaAutoDownloadPolicy
 import org.monogram.domain.repository.MessageThreadContext
-import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.ProfileMediaFilter
+import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.domain.repository.SearchChatMessagesResult
@@ -89,6 +103,7 @@ internal class MessageRepositoryImpl(
     private val context: Context,
     private val gateway: TelegramGateway,
     private val updates: UpdateDispatcher,
+    private val pollRepository: PollRepository,
     private val messageMapper: MessageMapper,
     private val messageRemoteDataSource: MessageRemoteDataSource,
     private val cache: ChatCache,
@@ -116,14 +131,30 @@ internal class MessageRepositoryImpl(
     )
     private val fullRichMessageCache =
         ConcurrentHashMap<RichMessageCacheKey, MessageContent.RichMessage>()
-    private val chatOpenOwnershipMutex = Mutex()
-    private val chatOpenOwnershipRegistry = ChatOpenOwnershipRegistry()
+    private val chatOpenSessionCoordinator = ChatOpenSessionCoordinator(
+        scope = scope,
+        context = dispatcherProvider.io,
+        openRemote = ::tryOpenChat,
+        onOpened = messageRemoteDataSource::setChatOpened,
+        closeRemote = { chatId -> gateway.execute(TdApi.CloseChat(chatId)) },
+        onClosed = messageRemoteDataSource::setChatClosed
+    )
+    private val messageReadBatcher = MessageReadBatcher(
+        scope = scope,
+        context = dispatcherProvider.io,
+        flush = { chatId, threadId, messageIds ->
+            messageRemoteDataSource.markMessagesAsRead(chatId, messageIds, threadId)
+        }
+    )
+    private val historyRequests = AtomicSingleFlight<HistoryRequest, HistoryPage>(scope)
     internal val outboxLifecycleMetrics = OutboxLifecycleMetrics()
+    private val conversationUpdateEvents = OrderedEventFlow<ConversationUpdate>(scope)
 
     private val _textCompositionStyles = MutableStateFlow<List<TextCompositionStyleModel>>(emptyList())
     private val hardResetFlagKey = "cache_hard_reset_v2"
 
     override val newMessageFlow = messageRemoteDataSource.newMessageFlow
+    override val conversationUpdates = conversationUpdateEvents.events
     override val senderUpdateFlow = messageMapper.senderUpdateFlow
     override val messageEditedFlow = messageRemoteDataSource.messageEditedFlow
     override val messageUploadProgressFlow = messageRemoteDataSource.messageUploadProgressFlow
@@ -158,21 +189,23 @@ internal class MessageRepositoryImpl(
         // handler exceptions per update — the previous `.catch { }` ended the subscription
         // for the rest of the process on the first failure.
         updates.lane(
-            name = "messages",
+            name = "message-state",
             scope = scope,
             context = dispatcherProvider.io,
+            filter = MESSAGE_STATE_LANE_FILTER,
         ) { update ->
             messageRemoteDataSource.handleUpdate(update)
             processCachedUpdate(update)
+            normalizeConversationUpdate(update)?.let(conversationUpdateEvents::enqueue)
         }
 
         scope.launch(dispatcherProvider.io) {
-            val ninetyDaysAgo = System.currentTimeMillis() - (90L * 24 * 60 * 60 * 1000)
+            val messageCacheCutoff = System.currentTimeMillis() - MESSAGE_CACHE_TTL_MS
             Log.i(
                 "MessageRepository",
                 "Expired cache cleanup started: messages only, chats preserved"
             )
-            chatLocalDataSource.deleteExpired(ninetyDaysAgo)
+            chatLocalDataSource.deleteExpired(messageCacheCutoff)
             Log.i("MessageRepository", "Expired cache cleanup completed")
         }
 
@@ -252,7 +285,8 @@ internal class MessageRepositoryImpl(
                     MessageCacheMutation.ReplaceId(
                     chatId = update.message.chatId,
                     oldMessageId = update.oldMessageId,
-                    message = entity
+                        message = entity,
+                        key = update.message.conversationKey()
                     )
                 )
             }
@@ -264,7 +298,8 @@ internal class MessageRepositoryImpl(
                     MessageCacheMutation.ReplaceId(
                     chatId = update.message.chatId,
                     oldMessageId = update.oldMessageId,
-                    message = entity
+                        message = entity,
+                        key = update.message.conversationKey()
                     )
                 )
             }
@@ -371,9 +406,21 @@ internal class MessageRepositoryImpl(
 
     private suspend fun persistMappedMessage(message: TdApi.Message) {
         messageCacheWriter.enqueue(
-            MessageCacheMutation.Persist(messageMapper.mapToEntity(message, ::resolveSenderName))
+            MessageCacheMutation.Persist(
+                message = messageMapper.mapToEntity(message, ::resolveSenderName),
+                key = message.conversationKey()
+            )
         )
     }
+
+    private fun TdApi.Message.conversationKey() = ConversationKey(
+        chatId = chatId,
+        scope = when (val topic = topicId) {
+            is TdApi.MessageTopicForum -> ConversationScope.ForumTopic(topic.forumTopicId.toLong())
+            is TdApi.MessageTopicThread -> ConversationScope.MessageThread(topic.messageThreadId)
+            else -> ConversationScope.Main
+        }
+    )
 
     private suspend fun persistCachedMessage(chatId: Long, messageId: Long): Boolean {
         val cachedMessage = cache.getMessage(chatId, messageId) ?: return false
@@ -383,36 +430,10 @@ internal class MessageRepositoryImpl(
 
     override suspend fun openChat(chatId: Long, ownerTag: String) {
         val normalizedOwnerTag = ownerTag.ifBlank { "unknown" }
-        val ownershipChange = chatOpenOwnershipMutex.withLock {
-            chatOpenOwnershipRegistry.acquire(chatId, normalizedOwnerTag)
-        }
+        val ownershipChange = chatOpenSessionCoordinator.open(chatId, normalizedOwnerTag)
 
         when (ownershipChange.transition) {
-            ChatOpenOwnershipTransition.AcquiredFirstOwner -> {
-                messageRemoteDataSource.setChatOpened(chatId)
-                try {
-                    gateway.execute(TdApi.OpenChat(chatId))
-                } catch (e: Exception) {
-                    Log.e(
-                        "MessageRepository",
-                        "Error opening chat $chatId owner=$normalizedOwnerTag owners=${ownershipChange.owners}",
-                        e
-                    )
-                    if (chatId > 0) {
-                        try {
-                            gateway.execute(TdApi.CreatePrivateChat(chatId, false))
-                            gateway.execute(TdApi.OpenChat(chatId))
-                        } catch (e2: Exception) {
-                            Log.e(
-                                "MessageRepository",
-                                "Failed to create and open private chat $chatId owner=$normalizedOwnerTag owners=${ownershipChange.owners}",
-                                e2
-                            )
-                        }
-                    }
-                }
-            }
-
+            ChatOpenOwnershipTransition.AcquiredFirstOwner,
             ChatOpenOwnershipTransition.AddedOwner,
             ChatOpenOwnershipTransition.DuplicateOwner -> {
                 Log.d(
@@ -427,25 +448,120 @@ internal class MessageRepositoryImpl(
         }
     }
 
-    override suspend fun closeChat(chatId: Long, ownerTag: String) {
-        val normalizedOwnerTag = ownerTag.ifBlank { "unknown" }
-        val ownershipChange = chatOpenOwnershipMutex.withLock {
-            chatOpenOwnershipRegistry.release(chatId, normalizedOwnerTag)
-        }
+    private suspend fun normalizeConversationUpdate(update: TdApi.Update): ConversationUpdate? =
+        when (update) {
+            is TdApi.UpdateNewMessage -> ConversationUpdate.Upsert(
+                chatId = update.message.chatId,
+                message = mapConversationMessage(update.message),
+                isNew = true
+            )
 
-        when (ownershipChange.transition) {
-            ChatOpenOwnershipTransition.ReleasedLastOwner -> {
-                messageRemoteDataSource.setChatClosed(chatId)
-                try {
-                    gateway.execute(TdApi.CloseChat(chatId))
-                } catch (e: Exception) {
-                    Log.e(
-                        "MessageRepository",
-                        "Error closing chat $chatId owner=$normalizedOwnerTag",
-                        e
+            is TdApi.UpdateMessageSendSucceeded -> ConversationUpdate.ReplaceTemporaryId(
+                chatId = update.message.chatId,
+                temporaryMessageId = update.oldMessageId,
+                message = mapConversationMessage(update.message)
+            )
+
+            is TdApi.UpdateMessageSendAcknowledged -> ConversationUpdate.SendAcknowledged(
+                chatId = update.chatId,
+                temporaryMessageId = update.messageId
+            )
+
+            is TdApi.UpdateMessageSendFailed -> ConversationUpdate.SendFailed(
+                chatId = update.message.chatId,
+                temporaryMessageId = update.oldMessageId,
+                message = mapConversationMessage(update.message),
+                errorCode = update.error?.code ?: 0
+            )
+
+            is TdApi.UpdateDeleteMessages -> ConversationUpdate.Delete(
+                chatId = update.chatId,
+                messageIds = update.messageIds.toSet()
+            )
+
+            is TdApi.UpdateChatReadInbox -> ConversationUpdate.InboxRead(
+                chatId = update.chatId,
+                lastReadMessageId = update.lastReadInboxMessageId
+            )
+
+            is TdApi.UpdateChatReadOutbox -> ConversationUpdate.OutboxRead(
+                chatId = update.chatId,
+                lastReadMessageId = update.lastReadOutboxMessageId
+            )
+
+            else -> conversationUpdatedMessageKey(
+                update = update,
+                pollMessageKey = if (update is TdApi.UpdatePollAnswer) {
+                    pollRepository.getMessageIdByPollId(update.pollId)
+                } else {
+                    null
+                }
+            )?.let { (chatId, messageId) ->
+                val message = if (conversationUpdateRequiresMessageRefresh(update)) {
+                    messageRemoteDataSource.getMessage(chatId, messageId)
+                } else {
+                    cache.getMessage(chatId, messageId)
+                }
+                message?.let {
+                    ConversationUpdate.Upsert(
+                        chatId = chatId,
+                        message = mapConversationMessage(it),
+                        isNew = false
                     )
                 }
             }
+        }
+
+    private suspend fun mapConversationMessage(message: TdApi.Message): MessageModel =
+        messageMapper.mapMessageToModel(
+            msg = message,
+            isChatOpen = true,
+            options = MessageMapOptions(
+                resolveReplyPreviewFromNetwork = false,
+                allowAutoDownload = false,
+                resolveEnrichmentFromNetwork = false
+            )
+        )
+
+    private suspend fun tryOpenChat(
+        chatId: Long,
+        ownerTag: String,
+        owners: Set<String>
+    ): Boolean {
+        return try {
+            gateway.execute(TdApi.OpenChat(chatId))
+            true
+        } catch (e: Exception) {
+            Log.e(
+                "MessageRepository",
+                "Error opening chat $chatId owner=$ownerTag owners=$owners",
+                e
+            )
+            if (chatId > 0) {
+                try {
+                    gateway.execute(TdApi.CreatePrivateChat(chatId, false))
+                    gateway.execute(TdApi.OpenChat(chatId))
+                    true
+                } catch (e2: Exception) {
+                    Log.e(
+                        "MessageRepository",
+                        "Failed to create and open private chat $chatId owner=$ownerTag owners=$owners",
+                        e2
+                    )
+                    false
+                }
+            } else {
+                false
+            }
+        }
+    }
+
+    override suspend fun closeChat(chatId: Long, ownerTag: String) {
+        val normalizedOwnerTag = ownerTag.ifBlank { "unknown" }
+        val ownershipChange = chatOpenSessionCoordinator.close(chatId, normalizedOwnerTag)
+
+        when (ownershipChange.transition) {
+            ChatOpenOwnershipTransition.ReleasedLastOwner -> Unit
 
             ChatOpenOwnershipTransition.ReleasedOwner,
             ChatOpenOwnershipTransition.DuplicateOwner,
@@ -767,8 +883,8 @@ internal class MessageRepositoryImpl(
         )
     }
 
-    override suspend fun markAsRead(chatId: Long, messageId: Long) {
-        messageRemoteDataSource.markAsRead(chatId, messageId)
+    override suspend fun markMessagesAsRead(chatId: Long, messageIds: List<Long>, threadId: Long?) {
+        messageReadBatcher.enqueue(chatId, messageIds, threadId)
     }
 
     override suspend fun markAllMentionsAsRead(chatId: Long) {
@@ -780,141 +896,209 @@ internal class MessageRepositoryImpl(
     }
 
 
-    override suspend fun getMessagesOlder(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int,
-        threadId: Long?
-    ): OlderMessagesPage =
+    override suspend fun getHistoryPage(request: HistoryRequest): HistoryPage =
+        historyRequests.execute(request) {
+            loadHistoryPage(request)
+        }
+
+    private suspend fun loadHistoryPage(request: HistoryRequest): HistoryPage =
         withContext(dispatcherProvider.io) {
-            val cached = if (fromMessageId == 0L) {
-                val cachedEntities = chatLocalDataSource.getLatestMessages(chatId, limit, threadId)
-                mapLocalMessages(cachedEntities)
-            } else {
-                emptyList()
+            require(request.limit > 0) { "History page limit must be positive" }
+            val key = request.key
+            val anchor = (request.anchor as? HistoryAnchor.Message)?.id
+            if (request.direction != HistoryDirection.Initial) {
+                requireNotNull(anchor) { "${request.direction} history requires a message anchor" }
+            }
+
+            if (request.source == HistorySource.RoomSnapshot) {
+                return@withContext loadRoomHistoryPage(request, anchor)
+            }
+            if (request.source == HistorySource.TdlibLocal && key.scope != ConversationScope.Main) {
+                // Reconcile the known scoped Room window without changing coverage metadata.
+                return@withContext try {
+                    loadScopedTdlibLocalPage(request, anchor)
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    loadRoomHistoryPage(request, anchor).copy(source = HistorySource.CacheFallback)
+                }
             }
 
             try {
+                val fetchMode = request.source.toRemoteHistoryFetchMode()
                 traceSection("chat_history_tdlib") {
-                    val remotePage = messageRemoteDataSource.getRemoteMessagesOlder(
-                        chatId,
-                        fromMessageId,
-                        limit,
-                        threadId
-                    )
-                    persistRemoteBatch(chatId, remotePage.rawMessages, remotePage.models, threadId)
-                    OlderMessagesPage(
-                        messages = remotePage.models,
-                        reachedOldest = remotePage.reachedOldest,
-                        isRemote = remotePage.isRemote
-                    )
+                    when (request.direction) {
+                        HistoryDirection.Initial, HistoryDirection.Older -> {
+                            val page = messageRemoteDataSource.getRemoteMessagesOlder(
+                                chatId = key.chatId,
+                                fromMessageId = anchor ?: 0L,
+                                limit = request.limit,
+                                scope = key.scope,
+                                fetchMode = fetchMode
+                            )
+                            persistRemoteBatch(
+                                chatId = key.chatId,
+                                rawMessages = page.rawMessages,
+                                remoteMessages = page.models,
+                                threadId = key.threadId,
+                                conversationKey = key,
+                                olderBoundaryReached = page.reachedOldest,
+                                mergeDirection = CacheWindowMergeDirection.Older
+                            )
+                            HistoryPage(
+                                messages = page.models,
+                                olderBoundary = if (
+                                    request.source == HistorySource.TdlibNetwork && page.reachedOldest
+                                ) BoundaryState.Reached else BoundaryState.Open,
+                                newerBoundary = if (anchor == null) BoundaryState.Open else BoundaryState.Gap(
+                                    anchor
+                                ),
+                                source = request.source
+                            )
+                        }
+
+                        HistoryDirection.Newer -> {
+                            val requiredAnchor = requireNotNull(anchor)
+                            val batch = messageRemoteDataSource.getRemoteMessagesNewer(
+                                chatId = key.chatId,
+                                fromMessageId = requiredAnchor,
+                                limit = request.limit + 1,
+                                scope = key.scope,
+                                fetchMode = fetchMode
+                            )
+                            val pairs = batch.rawMessages.zip(batch.models)
+                                .filter { (_, model) -> model.id > requiredAnchor }
+                                .take(request.limit)
+                            val rawMessages = pairs.map { it.first }
+                            val messages = pairs.map { it.second }
+                            val reachedNewest =
+                                request.source == HistorySource.TdlibNetwork && messages.isEmpty()
+                            persistRemoteBatch(
+                                chatId = key.chatId,
+                                rawMessages = rawMessages,
+                                remoteMessages = messages,
+                                threadId = key.threadId,
+                                conversationKey = key,
+                                newerBoundaryReached = reachedNewest,
+                                mergeDirection = CacheWindowMergeDirection.Newer
+                            )
+                            HistoryPage(
+                                messages = messages,
+                                olderBoundary = BoundaryState.Gap(requiredAnchor),
+                                newerBoundary = if (reachedNewest) BoundaryState.Reached else BoundaryState.Open,
+                                source = request.source
+                            )
+                        }
+
+                        HistoryDirection.Around -> {
+                            val requiredAnchor = requireNotNull(anchor)
+                            val batch = messageRemoteDataSource.getRemoteMessagesAround(
+                                chatId = key.chatId,
+                                messageId = requiredAnchor,
+                                limit = request.limit,
+                                scope = key.scope,
+                                fetchMode = fetchMode
+                            )
+                            persistRemoteBatch(
+                                chatId = key.chatId,
+                                rawMessages = batch.rawMessages,
+                                remoteMessages = batch.models,
+                                threadId = key.threadId,
+                                conversationKey = key
+                            )
+                            HistoryPage(
+                                messages = batch.models,
+                                olderBoundary = BoundaryState.Open,
+                                newerBoundary = BoundaryState.Open,
+                                source = request.source
+                            )
+                        }
+                    }
                 }
-            } catch (e: Exception) {
-                val fallbackMessages = if (cached.isNotEmpty()) {
-                    cached
-                } else {
-                    val local =
-                        chatLocalDataSource.getMessagesOlder(chatId, fromMessageId, limit, threadId)
-                    mapLocalMessages(local)
-                }
-                OlderMessagesPage(
-                    messages = fallbackMessages,
-                    reachedOldest = false,
-                    isRemote = false
-                )
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                loadRoomHistoryPage(request, anchor).copy(source = HistorySource.CacheFallback)
             }
         }
 
-    override suspend fun getCachedMessages(
-        chatId: Long,
-        limit: Int,
-        threadId: Long?
-    ): List<MessageModel> =
-        withContext(dispatcherProvider.io) {
-            val local = chatLocalDataSource.getLatestMessages(chatId, limit, threadId)
-            mapLocalMessages(local)
-        }
+    private fun HistorySource.toRemoteHistoryFetchMode(): RemoteHistoryFetchMode = when (this) {
+        HistorySource.TdlibLocal -> RemoteHistoryFetchMode.LocalOnly
+        HistorySource.TdlibNetwork -> RemoteHistoryFetchMode.NetworkOnly
+        HistorySource.RoomSnapshot,
+        HistorySource.CacheFallback -> error("$this is not a TDLib history source")
+    }
 
-    override suspend fun getMessagesNewer(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int,
-        threadId: Long?
-    ): List<MessageModel> =
-        withContext(dispatcherProvider.io) {
-            try {
-                traceSection("chat_history_tdlib") {
-                    val remoteBatch = messageRemoteDataSource.getRemoteMessagesNewer(
-                        chatId,
-                        fromMessageId,
-                        limit,
-                        threadId
-                    )
-                    persistRemoteBatch(
-                        chatId,
-                        remoteBatch.rawMessages,
-                        remoteBatch.models,
-                        threadId
-                    )
-                    remoteBatch.models
-                }
-            } catch (e: Exception) {
-                chatLocalDataSource.getMessagesNewer(chatId, fromMessageId, limit, threadId)
-                    .let { mapLocalMessages(it) }
-            }
-        }
+    private suspend fun loadRoomHistoryPage(request: HistoryRequest, anchor: Long?): HistoryPage {
+        val key = request.key
+        val entities = loadRoomHistoryEntities(request, anchor)
+        val window = chatLocalDataSource.getMessageWindow(key.chatId, key.scopeType, key.scopeId)
+        return HistoryPage(
+            messages = mapLocalMessages(entities),
+            olderBoundary = when {
+                window?.olderBoundaryReached == true -> BoundaryState.Reached
+                anchor != null -> BoundaryState.Gap(anchor)
+                else -> BoundaryState.Open
+            },
+            newerBoundary = when {
+                window?.newerBoundaryReached == true -> BoundaryState.Reached
+                anchor != null -> BoundaryState.Gap(anchor)
+                else -> BoundaryState.Open
+            },
+            source = HistorySource.RoomSnapshot
+        )
+    }
 
-    override suspend fun getCachedMessagesNewer(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int,
-        threadId: Long?
-    ): List<MessageModel> =
-        withContext(dispatcherProvider.io) {
-            chatLocalDataSource.getMessagesNewer(chatId, fromMessageId, limit, threadId)
-                .let { mapLocalMessages(it) }
-        }
+    private suspend fun loadScopedTdlibLocalPage(
+        request: HistoryRequest,
+        anchor: Long?
+    ): HistoryPage {
+        val entities = loadRoomHistoryEntities(request, anchor)
+        val batch = messageRemoteDataSource.getMessagesLocally(
+            chatId = request.key.chatId,
+            messageIds = entities.map { it.id },
+            scope = request.key.scope
+        )
+        return HistoryPage(
+            messages = batch.models,
+            olderBoundary = anchor?.let(BoundaryState::Gap) ?: BoundaryState.Open,
+            newerBoundary = anchor?.let(BoundaryState::Gap) ?: BoundaryState.Open,
+            source = HistorySource.TdlibLocal
+        )
+    }
 
-    override suspend fun getCachedMessagesAround(
-        chatId: Long,
-        messageId: Long,
-        limit: Int,
-        threadId: Long?
-    ): List<MessageModel> =
-        withContext(dispatcherProvider.io) {
-            chatLocalDataSource.getMessagesAround(chatId, messageId, limit, threadId)
-                .let { mapLocalMessages(it) }
-        }
+    private suspend fun loadRoomHistoryEntities(
+        request: HistoryRequest,
+        anchor: Long?
+    ): List<org.monogram.data.db.model.MessageEntity> {
+        val key = request.key
+        return when (request.direction) {
+            HistoryDirection.Initial -> chatLocalDataSource.getLatestMessages(
+                key.chatId,
+                request.limit,
+                key.threadId
+            )
 
-    override suspend fun getMessagesAround(
-        chatId: Long,
-        messageId: Long,
-        limit: Int,
-        threadId: Long?
-    ): List<MessageModel> =
-        withContext(dispatcherProvider.io) {
-            try {
-                traceSection("chat_history_tdlib") {
-                    val remoteBatch = messageRemoteDataSource.getRemoteMessagesAround(
-                        chatId,
-                        messageId,
-                        limit,
-                        threadId
-                    )
-                    persistRemoteBatch(
-                        chatId,
-                        remoteBatch.rawMessages,
-                        remoteBatch.models,
-                        threadId
-                    )
-                    remoteBatch.models
-                }
-            } catch (e: Exception) {
-                val local =
-                    chatLocalDataSource.getMessagesAround(chatId, messageId, limit, threadId)
-                mapLocalMessages(local)
-            }
+            HistoryDirection.Older -> chatLocalDataSource.getMessagesOlder(
+                key.chatId,
+                requireNotNull(anchor),
+                request.limit,
+                key.threadId
+            )
+
+            HistoryDirection.Newer -> chatLocalDataSource.getMessagesNewer(
+                key.chatId,
+                requireNotNull(anchor),
+                request.limit,
+                key.threadId
+            )
+
+            HistoryDirection.Around -> chatLocalDataSource.getMessagesAround(
+                key.chatId,
+                requireNotNull(anchor),
+                request.limit,
+                key.threadId
+            )
         }
+    }
 
     override suspend fun getMessageThreadContext(
         chatId: Long,
@@ -927,12 +1111,6 @@ internal class MessageRepositoryImpl(
                     threadId = info.messageThreadId
                 )
             }
-        }
-
-    @Deprecated("Use getMessagesOlder instead")
-    override suspend fun getMessages(chatId: Long, fromMessageId: Long, limit: Int): List<MessageModel> =
-        withContext(dispatcherProvider.io) {
-            getMessagesOlder(chatId, fromMessageId, limit, null).messages
         }
 
     override suspend fun getChatDraft(chatId: Long, threadId: Long?): String? =
@@ -1346,8 +1524,29 @@ internal class MessageRepositoryImpl(
         }
     }
 
-    override fun updateVisibleRange(chatId: Long, visibleMessageIds: List<Long>, nearbyMessageIds: List<Long>) {
-        messageRemoteDataSource.updateVisibleRange(chatId, visibleMessageIds, nearbyMessageIds)
+    override fun updateVisibleRange(
+        chatId: Long,
+        visibleMessageIds: List<Long>,
+        nearbyMessageIds: List<Long>,
+        policy: MediaAutoDownloadPolicy
+    ) {
+        messageRemoteDataSource.updateVisibleRange(
+            chatId,
+            visibleMessageIds,
+            nearbyMessageIds,
+            policy
+        )
+    }
+
+    override fun updateCachedViewportAnchor(key: ConversationKey, messageId: Long?) {
+        scope.launch(dispatcherProvider.io) {
+            chatLocalDataSource.updateProtectedMessageId(
+                chatId = key.chatId,
+                scopeType = key.scopeType,
+                scopeId = key.scopeId,
+                messageId = messageId
+            )
+        }
     }
 
     override suspend fun onCallbackQuery(chatId: Long, messageId: Long, data: ByteArray) {
@@ -2031,43 +2230,90 @@ internal class MessageRepositoryImpl(
         }
     }
 
-    private fun persistRemoteBatch(
+    private suspend fun persistRemoteBatch(
         chatId: Long,
         rawMessages: List<TdApi.Message>,
         remoteMessages: List<MessageModel>,
-        threadId: Long?
+        threadId: Long?,
+        conversationKey: ConversationKey,
+        olderBoundaryReached: Boolean = false,
+        newerBoundaryReached: Boolean = false,
+        mergeDirection: CacheWindowMergeDirection = CacheWindowMergeDirection.Around
     ) {
-        scope.launch(dispatcherProvider.io) {
-            if (remoteMessages.isEmpty() || rawMessages.isEmpty()) return@launch
-            val existingById = chatLocalDataSource
-                .getMessagesByIds(chatId, remoteMessages.map { it.id })
-                .associateBy { it.id }
-            var skippedCount = 0
-            val entities = rawMessages.zip(remoteMessages).mapNotNull { (rawMessage, model) ->
-                val existing = existingById[rawMessage.id]
-                if (existing != null && existing.isSamePersistedMessage(model)) {
-                    skippedCount += 1
-                    return@mapNotNull null
-                }
-                messageMapper.mapToEntity(rawMessage, ::resolveSenderName)
+        require(rawMessages.size == remoteMessages.size) {
+            "Raw and mapped history batches must have equal sizes"
+        }
+        val existingById = chatLocalDataSource
+            .getMessagesByIds(chatId, remoteMessages.map { it.id })
+            .associateBy { it.id }
+        var skippedCount = 0
+        val writes = rawMessages.zip(remoteMessages).mapNotNull { (rawMessage, model) ->
+            val existing = existingById[rawMessage.id]
+            if (existing != null && existing.isSamePersistedMessage(model)) {
+                skippedCount += 1
+                return@mapNotNull null
             }
-            if (entities.isNotEmpty()) {
-                traceSection("chat_history_persist") {
-                    chatLocalDataSource.insertMessages(entities)
-                }
-            }
-            ChatOpenPerfBridge.recordPersist(chatId, threadId, entities.size, skippedCount)
-            if (BuildConfig.DEBUG) {
-                Log.d(
-                    ChatOpenPerfDebug.TAG,
-                    ChatOpenPerfDebug.buildLogMessage(
-                        chatId = chatId,
-                        threadId = threadId,
-                        event = "chat_history_persist_end"
+            MessageCacheMutation.HistoryWrite(
+                message = messageMapper.mapToEntity(rawMessage, ::resolveSenderName),
+                expectedExisting = existing
+            )
+        }
+        val existingWindow = chatLocalDataSource.getMessageWindow(
+            chatId,
+            conversationKey.scopeType,
+            conversationKey.scopeId
+        )
+        val ids = remoteMessages.map(MessageModel::id)
+        if (rawMessages.isNotEmpty() || olderBoundaryReached || newerBoundaryReached) {
+            traceSection("chat_history_persist") {
+                messageCacheWriter.enqueueAndAwait(
+                    MessageCacheMutation.PersistHistoryBatch(
+                        writes = writes,
+                        window = org.monogram.data.db.model.MessageWindowEntity(
+                            chatId = chatId,
+                            scopeType = conversationKey.scopeType,
+                            scopeId = conversationKey.scopeId,
+                            oldestMessageId = when (mergeDirection) {
+                                CacheWindowMergeDirection.Newer -> existingWindow?.oldestMessageId
+                                    ?: ids.minOrNull()
+
+                                else -> ids.minOrNull() ?: existingWindow?.oldestMessageId
+                            },
+                            newestMessageId = when (mergeDirection) {
+                                CacheWindowMergeDirection.Older -> existingWindow?.newestMessageId
+                                    ?: ids.maxOrNull()
+
+                                else -> ids.maxOrNull() ?: existingWindow?.newestMessageId
+                            },
+                            olderBoundaryReached = olderBoundaryReached ||
+                                    existingWindow?.olderBoundaryReached == true,
+                            newerBoundaryReached = newerBoundaryReached ||
+                                    existingWindow?.newerBoundaryReached == true,
+                            lastTdlibSyncAt = System.currentTimeMillis(),
+                            generation = (existingWindow?.generation ?: 0L) + 1L,
+                            protectedMessageId = existingWindow?.protectedMessageId
+                        )
                     )
                 )
             }
         }
+        ChatOpenPerfBridge.recordPersist(chatId, threadId, writes.size, skippedCount)
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                ChatOpenPerfDebug.TAG,
+                ChatOpenPerfDebug.buildLogMessage(
+                    chatId = chatId,
+                    threadId = threadId,
+                    event = "chat_history_persist_end"
+                )
+            )
+        }
+    }
+
+    private enum class CacheWindowMergeDirection {
+        Older,
+        Newer,
+        Around
     }
 
     override suspend fun generateTextWithAi(
@@ -2248,5 +2494,9 @@ internal class MessageRepositoryImpl(
 
     private companion object {
         private const val DRAFT_LINK_PREVIEW_TAG = "DraftLinkPreview"
+        private const val MESSAGE_CACHE_TTL_MS = 30L * 24 * 60 * 60 * 1_000
     }
 }
+
+internal fun conversationUpdateRequiresMessageRefresh(update: TdApi.Update): Boolean =
+    update is TdApi.UpdatePollAnswer

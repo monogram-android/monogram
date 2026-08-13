@@ -25,6 +25,9 @@ import org.monogram.presentation.features.chats.conversation.DefaultChatComponen
 import org.monogram.presentation.features.chats.conversation.logic.requestMessageHighlight
 import kotlin.math.abs
 
+private const val MIN_DOWNLOAD_PREFETCH_ITEMS = 12
+private const val DOWNLOAD_PREFETCH_VIEWPORT_MULTIPLIER = 2
+
 internal fun shouldAutoFollowLatestAfterContentChange(
     previousLastGroupedMessageId: Long?,
     currentLastGroupedMessageId: Long?,
@@ -586,7 +589,11 @@ internal fun ChatContentEffects(
         groupedMessages.size,
         firstGroupedMessageId,
         lastGroupedMessageId,
-        conversationItems
+        conversationItems,
+        state.autoDownloadFiles,
+        state.autoDownloadMobile,
+        state.autoDownloadWifi,
+        state.autoDownloadRoaming
     ) {
         if (!isViewportSettled) return@LaunchedEffect
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
@@ -628,8 +635,11 @@ internal fun ChatContentEffects(
                         }
                     }
 
-                    val nearbyStart = (minIndex - 5).coerceAtLeast(0)
-                    val nearbyEnd = maxIndex + 5
+                    val prefetchDistance =
+                        (visibleItems.size * DOWNLOAD_PREFETCH_VIEWPORT_MULTIPLIER)
+                            .coerceAtLeast(MIN_DOWNLOAD_PREFETCH_ITEMS)
+                    val nearbyStart = (minIndex - prefetchDistance).coerceAtLeast(0)
+                    val nearbyEnd = maxIndex + prefetchDistance
                     for (index in nearbyStart..nearbyEnd) {
                         if (index in minIndex..maxIndex) continue
                         val grouped = when (
@@ -656,9 +666,10 @@ internal fun ChatContentEffects(
             .distinctUntilChanged()
             .debounce(100)
             .collect { (visibleIds, nearbyIds) ->
-                (component as? DefaultChatComponent)?.let {
-                    it.repositoryMessage.updateVisibleRange(it.chatId, visibleIds, nearbyIds)
-                }
+                component.onMessageViewportChanged(
+                    visibleMessageIds = visibleIds.toSet(),
+                    nearbyMessageIds = nearbyIds.toSet()
+                )
             }
     }
 

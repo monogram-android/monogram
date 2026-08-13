@@ -73,18 +73,22 @@ android {
         create("official") {
             dimension = "tdlib"
             buildConfigField("boolean", "ENABLE_TELEMT_DNS", "false")
+            buildConfigField("boolean", "IS_OFFICIAL_TDLIB", "true")
         }
         create("telemt") {
             dimension = "tdlib"
             buildConfigField("boolean", "ENABLE_TELEMT_DNS", "true")
+            buildConfigField("boolean", "IS_OFFICIAL_TDLIB", "false")
         }
         create("firebase") {
             dimension = "runtime"
             buildConfigField("boolean", "HAS_OSS_LICENSES", "true")
+            buildConfigField("boolean", "IS_LIBRE_RUNTIME", "false")
         }
         create("libre") {
             dimension = "runtime"
             buildConfigField("boolean", "HAS_OSS_LICENSES", "false")
+            buildConfigField("boolean", "IS_LIBRE_RUNTIME", "true")
         }
     }
 
@@ -150,4 +154,5 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.json)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

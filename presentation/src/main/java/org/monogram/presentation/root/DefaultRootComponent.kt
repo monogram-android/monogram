@@ -2,6 +2,7 @@
 package org.monogram.presentation.root
 
 import android.os.Parcelable
+import android.os.SystemClock
 import android.util.Log
 import com.arkivanov.decompose.DelicateDecomposeApi
 import com.arkivanov.decompose.router.stack.ChildStack
@@ -16,7 +17,9 @@ import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
+import com.arkivanov.essenty.lifecycle.doOnResume
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -27,6 +30,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.parcelize.Parcelize
@@ -97,6 +102,8 @@ import org.monogram.presentation.settings.settings.DefaultSettingsComponent
 import org.monogram.presentation.settings.stickers.DefaultStickersComponent
 import org.monogram.presentation.settings.storage.DefaultStorageUsageComponent
 
+private const val CACHE_MAINTENANCE_INTERVAL_MILLIS = 60L * 60L * 1000L
+
 class DefaultRootComponent(
     private val componentContext: AppComponentContext
 ) : RootComponent, AppComponentContext by componentContext {
@@ -118,6 +125,9 @@ class DefaultRootComponent(
     private val gitHubCommitRepository = container.repositories.gitHubCommitRepository
     private val userRepository: UserRepository = container.repositories.userRepository
     private val cacheProvider: CacheProvider = container.cacheProvider
+    private val cacheController = container.utils.cacheController
+    private val maintenanceMutex = Mutex()
+    private var lastMaintenanceCheckAt: Long? = null
 
     private val navigation = StackNavigation<Config>()
     override val appPreferences: AppPreferences = container.preferences.appPreferences
@@ -170,6 +180,7 @@ class DefaultRootComponent(
 
         observeAuthState()
         observeMaintenanceSettings()
+        observeMaintenanceLifecycle()
         observeBiometricSettings()
         observeStickerLoading()
         checkLockState()
@@ -229,9 +240,47 @@ class DefaultRootComponent(
         combine(appPreferences.cacheLimitSize, appPreferences.autoClearCacheTime) { limit, time ->
             limit to time
         }.onEach { (limit, time) ->
+            runStorageMaintenance(limit, time, force = true)
+        }.launchIn(scope)
+    }
+
+    private fun observeMaintenanceLifecycle() {
+        lifecycle.doOnResume {
+            scope.launch {
+                runStorageMaintenance(
+                    limit = appPreferences.cacheLimitSize.value,
+                    time = appPreferences.autoClearCacheTime.value,
+                    force = false
+                )
+            }
+        }
+        scope.launch {
+            while (true) {
+                delay(CACHE_MAINTENANCE_INTERVAL_MILLIS)
+                runStorageMaintenance(
+                    limit = appPreferences.cacheLimitSize.value,
+                    time = appPreferences.autoClearCacheTime.value,
+                    force = false
+                )
+            }
+        }
+    }
+
+    private suspend fun runStorageMaintenance(limit: Long, time: Int, force: Boolean) {
+        maintenanceMutex.withLock {
+            val now = SystemClock.elapsedRealtime()
+            val lastCheck = lastMaintenanceCheckAt
+            if (!force && lastCheck != null && now - lastCheck < CACHE_MAINTENANCE_INTERVAL_MILLIS) {
+                return
+            }
+
             val ttl = if (time > 0) time * 24 * 60 * 60 else -1
             storageRepository.setDatabaseMaintenanceSettings(limit, ttl)
-        }.launchIn(scope)
+            val tdlibMediaSize = storageRepository.getStorageUsageBreakdown()?.tdlibMediaSize
+            val appCacheBudget = remainingAppCacheBudget(limit, tdlibMediaSize)
+            cacheController.enforceCacheLimit(appCacheBudget)
+            lastMaintenanceCheckAt = now
+        }
     }
 
     private fun observeBiometricSettings() {
@@ -1066,4 +1115,10 @@ class DefaultRootComponent(
         @Serializable
         data class WebView(val url: String) : Config()
     }
+}
+
+internal fun remainingAppCacheBudget(limit: Long, tdlibMediaSize: Long?): Long = when {
+    limit < 0L -> -1L
+    tdlibMediaSize == null -> limit
+    else -> (limit - tdlibMediaSize).coerceAtLeast(0L)
 }

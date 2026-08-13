@@ -99,17 +99,6 @@ class DefaultStorageUsageComponent(
         }
     }
 
-    private fun updateDatabaseMaintenanceSettings(
-        limit: Long = _state.value.cacheLimitSize,
-        time: Int = _state.value.autoClearCacheTime
-    ) {
-        scope.launch {
-            val ttl = if (time > 0) time * 24 * 60 * 60 else -1
-            storageRepository.setDatabaseMaintenanceSettings(limit, ttl)
-            loadStatistics()
-        }
-    }
-
     override fun onBackClicked() {
         onBack()
     }
@@ -153,12 +142,10 @@ class DefaultStorageUsageComponent(
 
     override fun onCacheLimitSizeChanged(size: Long) {
         appPreferences.setCacheLimitSize(size)
-        updateDatabaseMaintenanceSettings(limit = size)
     }
 
     override fun onAutoClearCacheTimeChanged(time: Int) {
         appPreferences.setAutoClearCacheTime(time)
-        updateDatabaseMaintenanceSettings(time = time)
     }
 
     override fun onStorageOptimizerChanged(enabled: Boolean) {

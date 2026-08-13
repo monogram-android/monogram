@@ -153,10 +153,13 @@ fun AuthContent(component: AuthComponent) {
                         is AuthComponent.AuthState.InputCode -> CodeInputScreen(
                             phoneNumber = model.phoneNumber ?: "",
                             codeLength = targetState.codeLength,
-                            codeType = targetState.codeType,
-                            nextCodeType = targetState.nextCodeType,
+                            delivery = targetState.delivery,
+                            inputKind = targetState.inputKind,
+                            codeHint = targetState.codeHint,
+                            nextDelivery = targetState.nextDelivery,
                             timeout = targetState.timeout,
                             emailPattern = targetState.emailPattern,
+                            canResend = targetState.canResend,
                             onConfirm = component::onCodeEntered,
                             onResend = component::onResendCode,
                             onBack = component::onBackToPhone,
@@ -165,6 +168,7 @@ fun AuthContent(component: AuthComponent) {
                         )
 
                         is AuthComponent.AuthState.InputPassword -> PasswordInputScreen(
+                            passwordHint = targetState.passwordHint,
                             onConfirm = component::onPasswordEntered,
                             isSubmitting = model.isSubmitting,
                             uiStatus = model.uiStatus

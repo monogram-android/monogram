@@ -31,12 +31,20 @@ class DefaultAuthComponent(
                     is AuthStep.InputPhone -> AuthComponent.AuthState.InputPhone
                     is AuthStep.InputCode -> AuthComponent.AuthState.InputCode(
                         codeLength = step.codeLength,
-                        codeType = step.codeType,
-                        nextCodeType = step.nextType,
+                        delivery = step.delivery,
+                        inputKind = step.inputKind,
+                        codeHint = step.codeHint,
+                        nextDelivery = step.nextDelivery,
                         timeout = step.timeout,
-                        emailPattern = step.emailPattern
+                        emailPattern = step.emailPattern,
+                        canResend = step.canResend
                     )
-                    is AuthStep.InputPassword -> AuthComponent.AuthState.InputPassword
+
+                    is AuthStep.InputPassword -> AuthComponent.AuthState.InputPassword(
+                        passwordHint = step.passwordHint,
+                        hasRecoveryEmail = step.hasRecoveryEmail,
+                        recoveryEmailPattern = step.recoveryEmailPattern
+                    )
                     else -> null
                 }
                 if (newAuthState != null) {

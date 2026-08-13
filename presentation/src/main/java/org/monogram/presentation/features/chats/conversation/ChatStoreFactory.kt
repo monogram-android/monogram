@@ -203,12 +203,16 @@ class ChatStoreFactory(
                 is Intent.RepeatMessage -> component.handleRepeatMessage(intent.message)
 
                 is Intent.DeleteMessage -> component.handleDeleteMessage(intent.message, intent.revoke)
-                is Intent.EditMessage -> component._state.update {
-                    it.copy(
-                        editingMessage = intent.message,
-                        replyMessage = null,
-                        draftText = ""
-                    )
+                is Intent.EditMessage -> {
+                    component.cleanupTempAttachments(component._state.value.stagedAttachments)
+                    component._state.update {
+                        it.copy(
+                            editingMessage = intent.message,
+                            replyMessage = null,
+                            draftText = "",
+                            stagedAttachments = emptyList()
+                        )
+                    }
                 }
 
                 is Intent.CancelEdit -> component._state.update { it.copy(editingMessage = null) }

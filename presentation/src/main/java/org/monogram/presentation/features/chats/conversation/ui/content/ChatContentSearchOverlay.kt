@@ -54,10 +54,8 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.AvatarForChat
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import java.util.Calendar
+import java.util.Locale
 
 @Composable
 internal fun ChatContentSearchOverlay(
@@ -182,15 +180,15 @@ internal fun ChatContentSearchOverlay(
                     toEpochSeconds = toEpochSeconds,
                     onToggleSenderPicker = onToggleSenderPicker,
                     onApplyToday = {
-                        val now = LocalDate.now()
+                        val now = currentSearchDate()
                         onApplyDateRange(
                             toStartOfDayEpochSeconds(now),
                             toEndOfDayEpochSeconds(now)
                         )
                     },
                     onApplyLastDays = { days ->
-                        val now = LocalDate.now()
-                        val from = now.minusDays((days - 1).toLong())
+                        val now = currentSearchDate()
+                        val from = now.plusDays(-(days - 1))
                         onApplyDateRange(
                             toStartOfDayEpochSeconds(from),
                             toEndOfDayEpochSeconds(now)
@@ -204,9 +202,9 @@ internal fun ChatContentSearchOverlay(
                             onDateSelected = { date ->
                                 val nextFrom = toStartOfDayEpochSeconds(date)
                                 val nextTo = toEpochSeconds
-                                    ?.let(::epochSecondsToLocalDate)
+                                    ?.let(::epochSecondsToSearchDate)
                                     ?.let { currentTo ->
-                                        if (currentTo.isBefore(date)) {
+                                        if (currentTo < date) {
                                             toEndOfDayEpochSeconds(date)
                                         } else {
                                             toEndOfDayEpochSeconds(currentTo)
@@ -223,9 +221,9 @@ internal fun ChatContentSearchOverlay(
                             onDateSelected = { date ->
                                 val nextTo = toEndOfDayEpochSeconds(date)
                                 val nextFrom = fromEpochSeconds
-                                    ?.let(::epochSecondsToLocalDate)
+                                    ?.let(::epochSecondsToSearchDate)
                                     ?.let { currentFrom ->
-                                        if (currentFrom.isAfter(date)) {
+                                        if (currentFrom > date) {
                                             toStartOfDayEpochSeconds(date)
                                         } else {
                                             toStartOfDayEpochSeconds(currentFrom)
@@ -731,51 +729,89 @@ private fun SearchRangeChip(
 }
 
 private fun isTodayRange(fromEpochSeconds: Int?, toEpochSeconds: Int?): Boolean {
-    val today = LocalDate.now()
-    return fromEpochSeconds?.let(::epochSecondsToLocalDate) == today &&
-            toEpochSeconds?.let(::epochSecondsToLocalDate) == today
+    val today = currentSearchDate()
+    return fromEpochSeconds?.let(::epochSecondsToSearchDate) == today &&
+            toEpochSeconds?.let(::epochSecondsToSearchDate) == today
 }
 
 private fun matchesLastDaysRange(fromEpochSeconds: Int?, toEpochSeconds: Int?, days: Int): Boolean {
-    val today = LocalDate.now()
-    return fromEpochSeconds?.let(::epochSecondsToLocalDate) == today.minusDays((days - 1).toLong()) &&
-            toEpochSeconds?.let(::epochSecondsToLocalDate) == today
+    val today = currentSearchDate()
+    return fromEpochSeconds?.let(::epochSecondsToSearchDate) == today.plusDays(-(days - 1)) &&
+            toEpochSeconds?.let(::epochSecondsToSearchDate) == today
 }
 
 private fun showSearchDatePicker(
     context: Context,
     initialEpochSeconds: Int?,
-    onDateSelected: (LocalDate) -> Unit
+    onDateSelected: (SearchDate) -> Unit
 ) {
-    val initialDate = initialEpochSeconds?.let(::epochSecondsToLocalDate) ?: LocalDate.now()
+    val initialDate = initialEpochSeconds?.let(::epochSecondsToSearchDate) ?: currentSearchDate()
     DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
-            onDateSelected(LocalDate.of(year, month + 1, dayOfMonth))
+            onDateSelected(SearchDate(year, month, dayOfMonth))
         },
         initialDate.year,
-        initialDate.monthValue - 1,
+        initialDate.month,
         initialDate.dayOfMonth
     ).show()
 }
 
-private fun epochSecondsToLocalDate(epochSeconds: Int): LocalDate {
-    return Instant.ofEpochSecond(epochSeconds.toLong())
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
+private fun currentSearchDate(): SearchDate = Calendar.getInstance().toSearchDate()
+
+private fun epochSecondsToSearchDate(epochSeconds: Int): SearchDate {
+    return Calendar.getInstance().apply {
+        timeInMillis = epochSeconds.toLong() * 1000L
+    }.toSearchDate()
 }
 
-private fun toStartOfDayEpochSeconds(date: LocalDate): Int {
-    return date.atStartOfDay(ZoneId.systemDefault()).toEpochSecond().toInt()
+private fun toStartOfDayEpochSeconds(date: SearchDate): Int {
+    return (date.toCalendar().timeInMillis / 1000L).toInt()
 }
 
-private fun toEndOfDayEpochSeconds(date: LocalDate): Int {
-    return date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toEpochSecond().toInt() - 1
+private fun toEndOfDayEpochSeconds(date: SearchDate): Int {
+    return (date.plusDays(1).toCalendar().timeInMillis / 1000L).toInt() - 1
 }
 
 private fun formatSearchDate(epochSeconds: Int): String {
-    return epochSecondsToLocalDate(epochSeconds).format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+    val date = epochSecondsToSearchDate(epochSeconds)
+    return String.format(
+        Locale.getDefault(),
+        "%02d.%02d.%04d",
+        date.dayOfMonth,
+        date.month + 1,
+        date.year
+    )
 }
+
+private data class SearchDate(
+    val year: Int,
+    val month: Int,
+    val dayOfMonth: Int
+) : Comparable<SearchDate> {
+    override fun compareTo(other: SearchDate): Int = compareValuesBy(
+        this,
+        other,
+        SearchDate::year,
+        SearchDate::month,
+        SearchDate::dayOfMonth
+    )
+}
+
+private fun Calendar.toSearchDate(): SearchDate = SearchDate(
+    year = get(Calendar.YEAR),
+    month = get(Calendar.MONTH),
+    dayOfMonth = get(Calendar.DAY_OF_MONTH)
+)
+
+private fun SearchDate.toCalendar(): Calendar = Calendar.getInstance().apply {
+    clear()
+    set(year, month, dayOfMonth, 0, 0, 0)
+}
+
+private fun SearchDate.plusDays(days: Int): SearchDate = toCalendar().apply {
+    add(Calendar.DAY_OF_MONTH, days)
+}.toSearchDate()
 
 @Composable
 private fun SearchResultsListOverlay(

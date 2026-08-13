@@ -2,16 +2,12 @@ package org.monogram.presentation.features.gallery
 
 import android.content.ContentUris
 import android.content.Context
+import android.os.Build
 import android.provider.MediaStore
 
 fun queryImages(context: Context): List<GalleryMediaItem> {
     val result = mutableListOf<GalleryMediaItem>()
-    val projection = arrayOf(
-        MediaStore.Images.Media._ID,
-        MediaStore.Images.Media.DATE_ADDED,
-        MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-        MediaStore.Images.Media.RELATIVE_PATH
-    )
+    val projection = imageProjection(Build.VERSION.SDK_INT)
     context.contentResolver.query(
         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
         projection,
@@ -48,13 +44,7 @@ fun queryImages(context: Context): List<GalleryMediaItem> {
 
 fun queryVideos(context: Context): List<GalleryMediaItem> {
     val result = mutableListOf<GalleryMediaItem>()
-    val projection = arrayOf(
-        MediaStore.Video.Media._ID,
-        MediaStore.Video.Media.DATE_ADDED,
-        MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
-        MediaStore.Video.Media.RELATIVE_PATH,
-        MediaStore.Video.Media.DURATION
-    )
+    val projection = videoProjection(Build.VERSION.SDK_INT)
     context.contentResolver.query(
         MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
         projection,
@@ -89,6 +79,25 @@ fun queryVideos(context: Context): List<GalleryMediaItem> {
     }
     return result
 }
+
+internal fun imageProjection(sdkInt: Int): Array<String> = buildList {
+    add(MediaStore.Images.Media._ID)
+    add(MediaStore.Images.Media.DATE_ADDED)
+    add(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+    if (sdkInt >= Build.VERSION_CODES.Q) {
+        add(MediaStore.Images.Media.RELATIVE_PATH)
+    }
+}.toTypedArray()
+
+internal fun videoProjection(sdkInt: Int): Array<String> = buildList {
+    add(MediaStore.Video.Media._ID)
+    add(MediaStore.Video.Media.DATE_ADDED)
+    add(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
+    if (sdkInt >= Build.VERSION_CODES.Q) {
+        add(MediaStore.Video.Media.RELATIVE_PATH)
+    }
+    add(MediaStore.Video.Media.DURATION)
+}.toTypedArray()
 
 private fun isCameraBucket(bucket: String, relativePath: String): Boolean {
     val b = bucket.lowercase()

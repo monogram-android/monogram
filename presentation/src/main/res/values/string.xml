@@ -120,6 +120,7 @@
     <string name="verification_delivery_sms">We\'ve sent the code via SMS.</string>
     <string name="verification_delivery_call">We\'re calling you with the code.</string>
     <string name="verification_delivery_email">We\'ve sent the code to %1$s.</string>
+    <string name="verification_delivery_firebase">This verification method requires an official Telegram Android app. You can request another method when it becomes available.</string>
     <string name="verification_delivery_default">We\'ve sent the verification code.</string>
     <string name="confirm_button">Confirm</string>
     <string name="resend_code_timer">Resend code in %1$s</string>
@@ -129,6 +130,7 @@
     <string name="wrong_number">Wrong number?</string>
     <string name="two_step_verification_title">Two-Step Verification</string>
     <string name="two_step_verification_description">Your account is protected with an additional password.</string>
+    <string name="two_step_verification_hint">Hint: %1$s</string>
     <string name="password_label">Password</string>
     <string name="unlock_button">Unlock</string>
     <string name="paste_action">Paste</string>
@@ -2809,6 +2811,7 @@
     <string name="folder_tab_delete">Delete</string>
     <string name="auth_phone_code_invalid_error">Invalid confirmation code</string>
     <string name="auth_code_expired_error">Confirmation code expired</string>
+    <string name="auth_rate_limited_error">Too many attempts. Try again in %1$d seconds.</string>
     <string name="auth_password_hash_invalid">Invalid password</string>
     <string name="unexpected_error">An unexpected error occurred</string>
     <string name="unread_messages">%1$d unread messages</string>

@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.json.JSONObject
 import org.monogram.data.datasource.FileDataSource
-import org.monogram.data.datasource.remote.SettingsRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.mapper.StoryInteractionMapper
@@ -34,13 +33,14 @@ import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.domain.models.stories.StoryStatisticsModel
 import org.monogram.domain.models.stories.StoryStealthModeModel
 import org.monogram.domain.repository.StoryRepository
+import org.monogram.domain.repository.TdLibLimitsRepository
 
 class StoryRepositoryImpl(
     private val gateway: TelegramGateway,
     private val updates: UpdateDispatcher,
     private val scope: CoroutineScope,
     private val fileDataSource: FileDataSource,
-    private val settingsRemoteDataSource: SettingsRemoteDataSource
+    private val tdLibLimitsRepository: TdLibLimitsRepository
 ) : StoryRepository {
 
     private val state = MutableStateFlow(StoryRepositoryState())
@@ -67,6 +67,25 @@ class StoryRepositoryImpl(
         scope.launch {
             updates.all.collect(::handleUpdate)
         }
+        scope.launch {
+            tdLibLimitsRepository.limits.collect { limits ->
+                applyState(
+                    StoryRepositoryStateReducer.withStoryOptions(
+                        state.value,
+                        StoryOptionsModel(
+                            captionLengthMax = limits.storyCaptionLengthMax ?: 0,
+                            linkAreaCountMax = limits.storyLinkAreaCountMax ?: 0,
+                            stealthModeCooldownPeriod = limits.storyStealthModeCooldownPeriod ?: 0,
+                            stealthModeFuturePeriod = limits.storyStealthModeFuturePeriod ?: 0,
+                            stealthModePastPeriod = limits.storyStealthModePastPeriod ?: 0,
+                            suggestedReactionAreaCountMax = limits.storySuggestedReactionAreaCountMax
+                                ?: 0,
+                            viewersExpirationDelay = limits.storyViewersExpirationDelay ?: 0
+                        )
+                    )
+                )
+            }
+        }
     }
 
     override suspend fun loadActiveStories(listType: StoryListType) {
@@ -81,14 +100,15 @@ class StoryRepositoryImpl(
     }
 
     override suspend fun refreshStoryOptions() {
+        val limits = tdLibLimitsRepository.limits.value
         val options = StoryOptionsModel(
-            captionLengthMax = getIntegerOption("story_caption_length_max"),
-            linkAreaCountMax = getIntegerOption("story_link_area_count_max"),
-            stealthModeCooldownPeriod = getIntegerOption("story_stealth_mode_cooldown_period"),
-            stealthModeFuturePeriod = getIntegerOption("story_stealth_mode_future_period"),
-            stealthModePastPeriod = getIntegerOption("story_stealth_mode_past_period"),
-            suggestedReactionAreaCountMax = getIntegerOption("story_suggested_reaction_area_count_max"),
-            viewersExpirationDelay = getIntegerOption("story_viewers_expiration_delay")
+            captionLengthMax = limits.storyCaptionLengthMax ?: 0,
+            linkAreaCountMax = limits.storyLinkAreaCountMax ?: 0,
+            stealthModeCooldownPeriod = limits.storyStealthModeCooldownPeriod ?: 0,
+            stealthModeFuturePeriod = limits.storyStealthModeFuturePeriod ?: 0,
+            stealthModePastPeriod = limits.storyStealthModePastPeriod ?: 0,
+            suggestedReactionAreaCountMax = limits.storySuggestedReactionAreaCountMax ?: 0,
+            viewersExpirationDelay = limits.storyViewersExpirationDelay ?: 0
         )
         applyState(StoryRepositoryStateReducer.withStoryOptions(state.value, options))
     }
@@ -557,12 +577,6 @@ class StoryRepositoryImpl(
             isPaid -> TdApi.ReactionTypePaid()
             else -> TdApi.ReactionTypeEmoji("❤")
         }
-    }
-
-    private suspend fun getIntegerOption(name: String): Int {
-        return (settingsRemoteDataSource.getOption(name) as? TdApi.OptionValueInteger)?.value
-            ?.toInt()
-            ?: 0
     }
 
     private suspend fun resolveStoryMedia(content: TdApi.StoryContent): StoryMediaModel {

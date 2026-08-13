@@ -11,6 +11,7 @@ interface SettingsRemoteDataSource {
     suspend fun getStorageStatisticsFast(): TdApi.StorageStatisticsFast?
     suspend fun getNetworkStatistics(): TdApi.NetworkStatistics?
     suspend fun getOption(name: String): TdApi.OptionValue?
+    suspend fun getPremiumLimit(limitType: TdApi.PremiumLimitType): TdApi.PremiumLimit?
     suspend fun getChatNotificationSettingsExceptions(
         scope: TdApi.NotificationSettingsScope,
         compareSound: Boolean

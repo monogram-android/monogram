@@ -58,6 +58,7 @@ import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageUploadProgressEvent
 import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.PollDraft
+import org.monogram.domain.models.TdLibLimits
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
@@ -68,6 +69,7 @@ import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.SearchChatMessagesResult
+import org.monogram.domain.repository.TdLibLimitsRepository
 import org.monogram.domain.repository.UserRepository
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -84,7 +86,8 @@ class TdMessageRemoteDataSource(
     private val webPageMapper: WebPageMapper,
     private val draftLinkPreviewResolver: DraftLinkPreviewResolver,
     private val dispatcherProvider: DispatcherProvider,
-    val scope: CoroutineScope
+    val scope: CoroutineScope,
+    private val tdLibLimitsRepository: TdLibLimitsRepository
 ) : MessageRemoteDataSource {
 
     private val chatRequests = ConcurrentHashMap<Long, Deferred<TdApi.Chat?>>()
@@ -92,11 +95,22 @@ class TdMessageRemoteDataSource(
     private val refreshJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
     private val missingMessageCooldownUntil = ConcurrentHashMap<Pair<Long, Long>, Long>()
     private val sendQueue = Channel<suspend () -> Unit>(Channel.BUFFERED)
-    override val newMessageFlow = MutableSharedFlow<MessageModel>()
-    override val messageEditedFlow = MutableSharedFlow<MessageModel>()
+    // These are fed from `scope.launch { ... }` inside update handling. With the default
+    // arguments (replay 0, no buffer, SUSPEND) a MutableSharedFlow is a rendezvous channel:
+    // every emit parks until *all* subscribers have taken the value, which piled emitters up
+    // without bound during bursts. OrderedEventFlow.enqueue is non-suspending and lossless,
+    // so the event streams go through it; progress ticks are conflatable and get an explicit
+    // bounded buffer instead.
+    private val newMessages = OrderedEventFlow<MessageModel>(scope)
+    override val newMessageFlow = newMessages.events
+    private val messageEdits = OrderedEventFlow<MessageModel>(scope)
+    override val messageEditedFlow = messageEdits.events
     private val messageReads = OrderedEventFlow<ReadUpdate>(scope)
     override val messageReadFlow = messageReads.events
-    override val messageUploadProgressFlow = MutableSharedFlow<MessageUploadProgressEvent>()
+    override val messageUploadProgressFlow = MutableSharedFlow<MessageUploadProgressEvent>(
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     private val fileDownloads = OrderedEventFlow<FileDownloadEvent>(scope)
     override val fileDownloadFlow = fileDownloads.events
     private val messageDownloads = OrderedEventFlow<MessageDownloadEvent>(scope)
@@ -151,8 +165,24 @@ class TdMessageRemoteDataSource(
             throw e
         } catch (e: Exception) {
             Log.e("TdMessageRemote", "Error executing ${function.javaClass.simpleName}", e)
+            if (e.isLikelyLimitViolation()) {
+                scope.launch {
+                    runCatching { tdLibLimitsRepository.refresh() }
+                }
+            }
             null
         }
+    }
+
+    private fun Throwable.isLikelyLimitViolation(): Boolean {
+        val error = (this as? TdLibException)?.error ?: return false
+        if (error.code !in 400..499) return false
+        val message = error.message.orEmpty().lowercase()
+        return "too long" in message ||
+                "length" in message ||
+                "limit" in message ||
+                "maximum" in message ||
+                "max_" in message
     }
 
 
@@ -841,7 +871,11 @@ class TdMessageRemoteDataSource(
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
         var lastMessage: TdApi.Message? = null
-        explodeTextContent(content, MAX_TEXT_MESSAGE_CODE_POINTS).forEach { messageContent ->
+        explodeTextContent(
+            content,
+            tdLibLimitsRepository.limits.value.messageTextLengthMax
+                ?: TdLibLimits.DEFAULT_MESSAGE_TEXT_LENGTH_MAX
+        ).forEach { messageContent ->
             val req = TdApi.SendMessage().apply {
                 this.chatId = chatId
                 this.topicId = topicId
@@ -1992,7 +2026,7 @@ class TdMessageRemoteDataSource(
                 scope.launch(dispatcherProvider.io) {
                     try {
                         val model = mapMessageToModel(message)
-                        newMessageFlow.emit(model)
+                        newMessages.enqueue(model)
                     } catch (e: Exception) { Log.e("TdMessageRemote", "Error mapping NewMessage", e) }
                 }
             }
@@ -2039,7 +2073,7 @@ class TdMessageRemoteDataSource(
                             errorCode = update.error?.code ?: 0
                         )
                     )
-                    messageEditedFlow.emit(model)
+                    messageEdits.enqueue(model)
                 }
             }
             is TdApi.UpdateMessageContent -> {
@@ -2216,7 +2250,7 @@ class TdMessageRemoteDataSource(
         if (messageId == 0L) return
         val msg = cache.getMessage(chatId, messageId) ?: return
         val model = mapMessageToModel(msg)
-        messageEditedFlow.emit(model)
+        messageEdits.enqueue(model)
     }
 
     private suspend fun mapMessageToModel(message: TdApi.Message): MessageModel {
@@ -2445,7 +2479,7 @@ class TdMessageRemoteDataSource(
                 delay(150)
                 val msg = cache.getMessage(chatId, messageId) ?: return@launch
                 try {
-                    messageEditedFlow.emit(mapMessageToModel(msg))
+                    messageEdits.enqueue(mapMessageToModel(msg))
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -2492,6 +2526,5 @@ class TdMessageRemoteDataSource(
     private companion object {
         private val MISSING_MESSAGE_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(2)
         private const val DRAFT_LINK_PREVIEW_TAG = "DraftLinkPreview"
-        private const val MAX_TEXT_MESSAGE_CODE_POINTS = 4096
     }
 }

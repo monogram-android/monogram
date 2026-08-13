@@ -35,47 +35,55 @@ class NotificationSettingsRepositoryImpl(
     private val exceptionsCacheMutex = Mutex()
 
     init {
-        scope.launch {
-            updates.newChat.collect { update ->
-                cache.putChat(update.chat)
-                syncChatWithExceptionsCache(update.chat)
-            }
-        }
-
-        scope.launch {
-            updates.chatTitle.collect { update ->
-                cache.getChat(update.chatId)?.let { chat ->
-                    synchronized(chat) {
-                        chat.title = update.title
-                    }
-                    syncChatWithExceptionsCache(chat)
+        // All four branches write to the exceptions cache and the Room exception table,
+        // and the last three are no-ops unless updateNewChat was seen first, so they must
+        // be lossless and mutually ordered — hence one lane instead of four subscriptions.
+        updates.lane(
+            name = "notification-settings",
+            scope = scope,
+            filter = {
+                it is TdApi.UpdateNewChat ||
+                        it is TdApi.UpdateChatTitle ||
+                        it is TdApi.UpdateChatPhoto ||
+                        it is TdApi.UpdateChatNotificationSettings
+            },
+        ) { update ->
+            when (update) {
+                is TdApi.UpdateNewChat -> {
+                    cache.putChat(update.chat)
+                    syncChatWithExceptionsCache(update.chat)
                 }
-            }
-        }
 
-        scope.launch {
-            updates.chatPhoto.collect { update ->
-                cache.getChat(update.chatId)?.let { chat ->
-                    synchronized(chat) {
-                        chat.photo = update.photo
+                is TdApi.UpdateChatTitle -> {
+                    cache.getChat(update.chatId)?.let { chat ->
+                        synchronized(chat) {
+                            chat.title = update.title
+                        }
+                        syncChatWithExceptionsCache(chat)
                     }
-                    syncChatWithExceptionsCache(chat)
                 }
-            }
-        }
 
-        scope.launch {
-            updates.chatNotificationSettings.collect { update ->
-                cache.getChat(update.chatId)?.let { chat ->
-                    synchronized(chat) {
-                        chat.notificationSettings = update.notificationSettings
+                is TdApi.UpdateChatPhoto -> {
+                    cache.getChat(update.chatId)?.let { chat ->
+                        synchronized(chat) {
+                            chat.photo = update.photo
+                        }
+                        syncChatWithExceptionsCache(chat)
                     }
-                    syncChatWithExceptionsCache(chat)
-                } ?: run {
-                    if (update.notificationSettings.isException(compareSound = true)) {
-                        invalidateExceptionsCache()
-                    } else {
-                        removeFromExceptionsCache(update.chatId)
+                }
+
+                is TdApi.UpdateChatNotificationSettings -> {
+                    cache.getChat(update.chatId)?.let { chat ->
+                        synchronized(chat) {
+                            chat.notificationSettings = update.notificationSettings
+                        }
+                        syncChatWithExceptionsCache(chat)
+                    } ?: run {
+                        if (update.notificationSettings.isException(compareSound = true)) {
+                            invalidateExceptionsCache()
+                        } else {
+                            removeFromExceptionsCache(update.chatId)
+                        }
                     }
                 }
             }

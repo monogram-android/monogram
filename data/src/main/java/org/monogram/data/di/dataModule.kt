@@ -127,6 +127,7 @@ import org.monogram.data.repository.StickerRepositoryImpl
 import org.monogram.data.repository.StorageRepositoryImpl
 import org.monogram.data.repository.StoryRepositoryImpl
 import org.monogram.data.repository.StreamingRepositoryImpl
+import org.monogram.data.repository.TdLibLimitsRepositoryImpl
 import org.monogram.data.repository.TelegramLinkRepositoryImpl
 import org.monogram.data.repository.UpdateRepositoryImpl
 import org.monogram.data.repository.UserProfileEditRepositoryImpl
@@ -177,6 +178,7 @@ import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StreamingRepository
 import org.monogram.domain.repository.StringProvider
+import org.monogram.domain.repository.TdLibLimitsRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
@@ -614,6 +616,15 @@ val dataModule = module {
         )
     }
 
+    single<TdLibLimitsRepository>(createdAtStart = true) {
+        TdLibLimitsRepositoryImpl(
+            remote = get(),
+            updates = get(),
+            authRepository = get(),
+            scope = get()
+        )
+    }
+
     single<NotificationSettingsRepository> {
         NotificationSettingsRepositoryImpl(
             remote = get(),
@@ -701,7 +712,8 @@ val dataModule = module {
             webPageMapper = get(),
             draftLinkPreviewResolver = get(),
             dispatcherProvider = get(),
-            scope = get()
+            scope = get(),
+            tdLibLimitsRepository = get()
         )
     }
 
@@ -725,7 +737,8 @@ val dataModule = module {
             userLocalDataSource = get(),
             stickerPathDao = get(),
             keyValueDao = get(),
-            textCompositionStyleDao = get()
+            textCompositionStyleDao = get(),
+            tdLibLimitsRepository = get()
         )
     }
 
@@ -788,7 +801,7 @@ val dataModule = module {
         FileUpdateHandler(
             registry = get(),
             queue = get(),
-            fileUpdatesSource = get<UpdateDispatcher>().file,
+            updates = get(),
             scope = get()
         )
     }
@@ -905,7 +918,7 @@ val dataModule = module {
             updates = get(),
             scope = get(),
             fileDataSource = get(),
-            settingsRemoteDataSource = get()
+            tdLibLimitsRepository = get()
         )
     }
 

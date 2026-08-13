@@ -20,6 +20,7 @@ import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.SponsoredMessagesFeedModel
 import org.monogram.domain.models.StickerSetModel
+import org.monogram.domain.models.TdLibLimits
 import org.monogram.domain.models.TopicModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WallpaperModel
@@ -279,6 +280,7 @@ interface ChatComponent {
         val isGroup: Boolean = false,
         val isChannel: Boolean = false,
         val isSecretChat: Boolean = false,
+        val tdLibLimits: TdLibLimits = TdLibLimits(),
         val isOnline: Boolean = false,
         val isVerified: Boolean = false,
         val isSponsor: Boolean = false,

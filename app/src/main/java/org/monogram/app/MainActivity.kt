@@ -1,6 +1,5 @@
 package org.monogram.app
 
-import android.app.ForegroundServiceStartNotAllowedException
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -148,8 +147,6 @@ class MainActivity : FragmentActivity() {
             } else {
                 startService(intent)
             }
-        } catch (_: ForegroundServiceStartNotAllowedException) {
-            Log.w(TAG, "Foreground notification service start was blocked by the system")
         } catch (error: IllegalStateException) {
             Log.w(TAG, "Foreground notification service start failed", error)
         }

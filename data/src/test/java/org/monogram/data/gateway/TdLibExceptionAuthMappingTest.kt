@@ -17,6 +17,13 @@ class TdLibExceptionAuthMappingTest {
     }
 
     @Test
+    fun `maps invalid email code error`() {
+        val error = TdLibException(TdApi.Error(400, "EMAIL_CODE_INVALID"))
+
+        assertEquals(AuthError.InvalidCode, error.toAuthError())
+    }
+
+    @Test
     fun `maps invalid password error`() {
         val error = TdLibException(TdApi.Error(400, "PASSWORD_HASH_INVALID"))
 
@@ -28,6 +35,13 @@ class TdLibExceptionAuthMappingTest {
         val error = TdLibException(TdApi.Error(400, "PHONE_CODE_EXPIRED"))
 
         assertEquals(AuthError.CodeExpired, error.toAuthError())
+    }
+
+    @Test
+    fun `maps flood wait with retry timeout`() {
+        val error = TdLibException(TdApi.Error(429, "FLOOD_WAIT_42"))
+
+        assertEquals(AuthError.RateLimited(42), error.toAuthError())
     }
 
     @Test

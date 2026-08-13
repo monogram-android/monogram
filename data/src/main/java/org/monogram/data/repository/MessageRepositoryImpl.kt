@@ -6,10 +6,6 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -84,6 +80,7 @@ import org.monogram.domain.repository.ProfileMediaFilter
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.domain.repository.SearchChatMessagesResult
+import org.monogram.domain.repository.TdLibLimitsRepository
 import org.monogram.domain.repository.TextCompositionStyleModel
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -107,7 +104,8 @@ internal class MessageRepositoryImpl(
     private val userLocalDataSource: UserLocalDataSource,
     private val stickerPathDao: StickerPathDao,
     private val keyValueDao: KeyValueDao,
-    private val textCompositionStyleDao: TextCompositionStyleDao
+    private val textCompositionStyleDao: TextCompositionStyleDao,
+    private val tdLibLimitsRepository: TdLibLimitsRepository
 ) : MessageRepository, RichTextParsingRepository {
     private data class RichMessageCacheKey(val chatId: Long, val messageId: Long)
 
@@ -154,18 +152,19 @@ internal class MessageRepositoryImpl(
             }
         }
 
-        updates.all
-            .map { update ->
-                messageRemoteDataSource.handleUpdate(update)
-                update
-            }
-            .onEach { update ->
-                processCachedUpdate(update)
-            }
-            .catch { error ->
-                Log.e("TdLibUpdates", "CRITICAL: Update loop died", error)
-            }
-            .launchIn(scope)
+        // Owns the message cache and the Room message mirror, so it must not miss updates:
+        // updateNewMessage, updateDeleteMessages and updateMessageSendSucceeded are deltas
+        // that TDLib never re-sends. A lane is lossless and strictly ordered, and isolates
+        // handler exceptions per update — the previous `.catch { }` ended the subscription
+        // for the rest of the process on the first failure.
+        updates.lane(
+            name = "messages",
+            scope = scope,
+            context = dispatcherProvider.io,
+        ) { update ->
+            messageRemoteDataSource.handleUpdate(update)
+            processCachedUpdate(update)
+        }
 
         scope.launch(dispatcherProvider.io) {
             val ninetyDaysAgo = System.currentTimeMillis() - (90L * 24 * 60 * 60 * 1000)
@@ -697,15 +696,21 @@ internal class MessageRepositoryImpl(
     }
 
     override suspend fun forwardMessages(request: ForwardRequest) {
+        val maxForwardedCount = tdLibLimitsRepository.limits.value.forwardedMessageCountMax
+            ?.takeIf { it > 0 }
         request.targets.forEach { target ->
-            messageRemoteDataSource.forwardMessages(
-                toChatId = target.chatId,
-                fromChatId = request.fromChatId,
-                messageIds = request.messageIds.toLongArray(),
-                forumTopicId = target.forumTopicId,
-                removeCaption = request.options.removeCaption,
-                sendCopy = request.options.sendCopy
-            )
+            request.messageIds
+                .chunked(maxForwardedCount ?: request.messageIds.size.coerceAtLeast(1))
+                .forEach { batch ->
+                    messageRemoteDataSource.forwardMessages(
+                        toChatId = target.chatId,
+                        fromChatId = request.fromChatId,
+                        messageIds = batch.toLongArray(),
+                        forumTopicId = target.forumTopicId,
+                        removeCaption = request.options.removeCaption,
+                        sendCopy = request.options.sendCopy
+                    )
+                }
         }
     }
 

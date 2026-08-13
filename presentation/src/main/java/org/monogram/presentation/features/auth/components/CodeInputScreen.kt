@@ -54,6 +54,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -87,6 +88,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import org.monogram.domain.repository.AuthCodeDelivery
+import org.monogram.domain.repository.AuthCodeInputKind
 import org.monogram.domain.repository.AuthUiStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ExpressiveDefaults
@@ -97,18 +100,27 @@ import java.util.Locale
 fun CodeInputScreen(
     phoneNumber: String,
     codeLength: Int,
-    codeType: String,
-    nextCodeType: String? = null,
+    delivery: AuthCodeDelivery,
+    inputKind: AuthCodeInputKind,
+    codeHint: String? = null,
+    nextDelivery: AuthCodeDelivery? = null,
     timeout: Int = 0,
     emailPattern: String? = null,
+    canResend: Boolean,
     onConfirm: (String) -> Unit,
     onResend: () -> Unit,
     onBack: () -> Unit,
     isSubmitting: Boolean,
     uiStatus: AuthUiStatus
 ) {
-    var code by remember { mutableStateOf("") }
-    val maxCodeLength = if (codeLength > 0) codeLength else 5
+    var code by remember(delivery, inputKind) { mutableStateOf("") }
+    val expectedCodeLength = codeLength.takeIf { it > 0 }
+    val usesOtpBoxes = inputKind == AuthCodeInputKind.NUMERIC && expectedCodeLength != null
+    val isCodeComplete = when {
+        inputKind == AuthCodeInputKind.TEXT -> code.isNotBlank()
+        expectedCodeLength != null -> code.length == expectedCodeLength
+        else -> code.isNotBlank()
+    }
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val scrollState = rememberScrollState()
@@ -206,24 +218,22 @@ fun CodeInputScreen(
 
         Spacer(modifier = Modifier.height(if (isInputMode) 4.dp else 12.dp))
 
-        val deliveryMessage = when {
-            codeType.contains("Email", ignoreCase = true) ->
+        val deliveryMessage = when (delivery) {
+            AuthCodeDelivery.EMAIL ->
                 stringResource(R.string.verification_delivery_email, emailPattern ?: "")
 
-            codeType.contains(
-                "TelegramMessage",
-                ignoreCase = true
-            ) -> stringResource(R.string.verification_delivery_telegram)
+            AuthCodeDelivery.TELEGRAM_MESSAGE -> stringResource(R.string.verification_delivery_telegram)
 
-            codeType.contains(
-                "Sms",
-                ignoreCase = true
-            ) -> stringResource(R.string.verification_delivery_sms)
+            AuthCodeDelivery.SMS,
+            AuthCodeDelivery.SMS_WORD,
+            AuthCodeDelivery.SMS_PHRASE -> stringResource(R.string.verification_delivery_sms)
 
-            codeType.contains(
-                "Call",
-                ignoreCase = true
-            ) -> stringResource(R.string.verification_delivery_call)
+            AuthCodeDelivery.CALL,
+            AuthCodeDelivery.FLASH_CALL,
+            AuthCodeDelivery.MISSED_CALL -> stringResource(R.string.verification_delivery_call)
+
+            AuthCodeDelivery.FIREBASE_ANDROID,
+            AuthCodeDelivery.FIREBASE_IOS -> stringResource(R.string.verification_delivery_firebase)
 
             else -> stringResource(R.string.verification_delivery_default)
         }
@@ -235,28 +245,43 @@ fun CodeInputScreen(
             textAlign = TextAlign.Center
         )
 
+        if (!codeHint.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = codeHint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+
         Spacer(modifier = Modifier.height(middleSpacerHeight))
 
-        Box(contentAlignment = Alignment.Center) {
+        val onCodeChanged: (String) -> Unit = { input ->
+            val acceptedInput = when (inputKind) {
+                AuthCodeInputKind.NUMERIC -> input.filter(Char::isDigit)
+                AuthCodeInputKind.TEXT -> input
+            }
+            val limitedInput = expectedCodeLength?.let(acceptedInput::take) ?: acceptedInput
+            isPasted = (limitedInput.length - code.length) > 1
+            code = limitedInput
+            if (usesOtpBoxes && limitedInput.length == expectedCodeLength) {
+                onConfirm(limitedInput)
+            }
+        }
+
+        if (usesOtpBoxes) {
+            Box(contentAlignment = Alignment.Center) {
             BasicTextField(
                 value = code,
-                onValueChange = {
-                    isPasted = (it.length - code.length) > 1
-
-                    if (it.length <= maxCodeLength && it.all { char -> char.isDigit() }) {
-                        code = it
-                        if (code.length == maxCodeLength) {
-                            onConfirm(code)
-                        }
-                    }
-                },
+                onValueChange = onCodeChanged,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
                     onDone = {
-                        if (code.length == maxCodeLength) {
+                        if (isCodeComplete) {
                             onConfirm(code)
                         } else {
                             focusManager.clearFocus()
@@ -288,7 +313,7 @@ fun CodeInputScreen(
                     }
                 )
             ) {
-                repeat(maxCodeLength) { index ->
+                repeat(expectedCodeLength) { index ->
                     val char = code.getOrNull(index)?.toString() ?: ""
                     val isBoxFocused = code.length == index && isFocused
 
@@ -310,18 +335,40 @@ fun CodeInputScreen(
                     text = { Text(stringResource(R.string.paste_action)) },
                     onClick = {
                         val pastedText = nativeClipboard.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
-                        val digits = pastedText.filter { it.isDigit() }.take(maxCodeLength)
+                        val digits = pastedText.filter { it.isDigit() }.take(expectedCodeLength)
                         if (digits.isNotEmpty()) {
-                            isPasted = true
-                            code = digits
-                            if (code.length == maxCodeLength) {
-                                onConfirm(code)
-                            }
+                            onCodeChanged(digits)
                         }
                         showPasteMenu = false
                     }
                 )
             }
+            }
+        } else {
+            OutlinedTextField(
+                value = code,
+                onValueChange = onCodeChanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { isFocused = it.isFocused },
+                label = { Text(stringResource(R.string.code_label)) },
+                placeholder = codeHint?.takeIf { it.isNotBlank() }?.let { hint -> { Text(hint) } },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (inputKind == AuthCodeInputKind.NUMERIC) {
+                        KeyboardType.Number
+                    } else {
+                        KeyboardType.Text
+                    },
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (isCodeComplete) onConfirm(code) else focusManager.clearFocus()
+                    }
+                )
+            )
         }
 
         Spacer(modifier = Modifier.height(middleSpacerHeight))
@@ -345,7 +392,7 @@ fun CodeInputScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    enabled = code.length == maxCodeLength
+                    enabled = isCodeComplete
                 ) {
                     Text(
                         stringResource(R.string.confirm_button),
@@ -369,7 +416,7 @@ fun CodeInputScreen(
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
                     )
-                } else if (nextCodeType != null) {
+                } else if (canResend) {
                     TextButton(
                         onClick = onResend,
                         shapes = ExpressiveDefaults.largeButtonShapes(),
@@ -381,16 +428,14 @@ fun CodeInputScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        val resendText = when {
-                            nextCodeType.contains(
-                                "Sms",
-                                ignoreCase = true
-                            ) -> stringResource(R.string.resend_via_sms)
+                        val resendText = when (nextDelivery) {
+                            AuthCodeDelivery.SMS,
+                            AuthCodeDelivery.SMS_WORD,
+                            AuthCodeDelivery.SMS_PHRASE -> stringResource(R.string.resend_via_sms)
 
-                            nextCodeType.contains(
-                                "Call",
-                                ignoreCase = true
-                            ) -> stringResource(R.string.resend_via_call)
+                            AuthCodeDelivery.CALL,
+                            AuthCodeDelivery.FLASH_CALL,
+                            AuthCodeDelivery.MISSED_CALL -> stringResource(R.string.resend_via_call)
 
                             else -> stringResource(R.string.resend_code)
                         }
@@ -464,12 +509,15 @@ fun CodeInputScreen(
         }
     }
 
-    LaunchedEffect(isPasted) {
-        if (isPasted) {
-            val totalDelay = (maxCodeLength * PASTE_CASCADE_DELAY_MS) + SCALE_ANIMATION_DURATION_MS
+    LaunchedEffect(isPasted, usesOtpBoxes) {
+        if (!isPasted) return@LaunchedEffect
+
+        if (usesOtpBoxes) {
+            val totalDelay =
+                (expectedCodeLength * PASTE_CASCADE_DELAY_MS) + SCALE_ANIMATION_DURATION_MS
             delay(totalDelay)
-            isPasted = false
         }
+        isPasted = false
     }
 }
 

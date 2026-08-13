@@ -123,6 +123,7 @@ private val passwordShapes = listOf(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PasswordInputScreen(
+    passwordHint: String?,
     onConfirm: (String) -> Unit,
     isSubmitting: Boolean,
     uiStatus: AuthUiStatus
@@ -223,6 +224,7 @@ fun PasswordInputScreen(
                 iconAlpha = iconAlpha,
                 topSpacerHeight = topSpacerHeight,
                 middleSpacerHeight = middleSpacerHeight,
+                passwordHint = passwordHint,
                 isSubmitting = isSubmitting,
                 uiStatus = uiStatus,
                 onConfirm = onConfirm,
@@ -251,6 +253,7 @@ private fun PasswordContent(
     iconAlpha: Float,
     topSpacerHeight: Dp,
     middleSpacerHeight: Dp,
+    passwordHint: String?,
     isSubmitting: Boolean,
     uiStatus: AuthUiStatus,
     onConfirm: (String) -> Unit,
@@ -326,6 +329,16 @@ private fun PasswordContent(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center
     )
+
+    if (!passwordHint.isNullOrBlank()) {
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.two_step_verification_hint, passwordHint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
 
     Spacer(modifier = Modifier.height(middleSpacerHeight))
 

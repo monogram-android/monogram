@@ -312,6 +312,7 @@ class DefaultChatComponent(
         container.repositories.pinnedMessageVisibilityRepository
     internal val inlineBotRepository: InlineBotRepository = container.repositories.inlineBotRepository
     internal val paymentRepository: PaymentRepository = container.repositories.paymentRepository
+    internal val tdLibLimitsRepository = container.repositories.tdLibLimitsRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     internal val cacheProvider: CacheProvider = container.cacheProvider
     internal val cacheController: CacheController = container.utils.cacheController
@@ -381,6 +382,7 @@ class DefaultChatComponent(
             isWhitelistedInAdBlock = appPreferences.adBlockWhitelistedChannels.value.contains(chatId),
             scrollToMessageId = initialMessageId,
             currentTopicId = initialTopicId,
+            tdLibLimits = tdLibLimitsRepository.limits.value,
             initialShare = initialShare,
             lastScrollPosition = cacheProvider.getChatScrollPosition(chatId),
             lastSavedViewport = cacheProvider.getChatViewport(chatId, null),
@@ -470,6 +472,9 @@ class DefaultChatComponent(
     }
 
     private fun setupCollectors() {
+        tdLibLimitsRepository.limits
+            .onEach { limits -> _state.update { it.copy(tdLibLimits = limits) } }
+            .launchIn(scope)
         setupMessageCollectors()
         setupPinnedMessageCollector()
         observeUserUpdates()

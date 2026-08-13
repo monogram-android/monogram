@@ -126,6 +126,14 @@ private class FakeTelegramGateway(
     private val authState = MutableStateFlow(authenticated)
     override val isAuthenticated: StateFlow<Boolean> = authState
     var executeCalls: Int = 0
+    override fun lane(
+        name: String,
+        scope: kotlinx.coroutines.CoroutineScope,
+        context: kotlin.coroutines.CoroutineContext,
+        filter: (TdApi.Update) -> Boolean,
+        handler: suspend (TdApi.Update) -> Unit,
+    ) = org.monogram.data.testing.fakeUpdateLane(updates, scope, context, filter, handler)
+
 
     fun setAuthenticated(value: Boolean) {
         authState.value = value
@@ -140,6 +148,14 @@ private class FakeTelegramGateway(
 
 private class FakeUpdateDispatcher : UpdateDispatcher {
     override val all: Flow<TdApi.Update> = MutableSharedFlow()
+    override fun lane(
+        name: String,
+        scope: kotlinx.coroutines.CoroutineScope,
+        context: kotlin.coroutines.CoroutineContext,
+        filter: (TdApi.Update) -> Boolean,
+        handler: suspend (TdApi.Update) -> Unit,
+    ) = org.monogram.data.testing.fakeUpdateLane(all, scope, context, filter, handler)
+
     override val authorizationState: Flow<TdApi.UpdateAuthorizationState> = MutableSharedFlow()
     override val newMessage: Flow<TdApi.UpdateNewMessage> = MutableSharedFlow()
     override val activeNotifications: Flow<TdApi.UpdateActiveNotifications> = MutableSharedFlow()

@@ -38,6 +38,7 @@ import org.monogram.data.datasource.remote.ChatsRemoteDataSource
 import org.monogram.data.db.dao.ChatFolderDao
 import org.monogram.data.db.dao.SearchHistoryDao
 import org.monogram.data.db.dao.UserFullInfoDao
+import org.monogram.data.gateway.CHATS_LIST_LANE_FILTER
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
@@ -305,10 +306,16 @@ class ChatsListRepositoryImpl(
             }
         }
 
-        scope.launch {
-            updates.chatsListUpdates.collect { update ->
-                updateHandler.handle(update)
-            }
+        // ChatUpdateHandler.handle is the canonical ChatCache mutation. Missing an
+        // updateNewChat leaves no row for the chat, and every later cache.updateChat for
+        // it becomes a silent no-op (ChatCache.updateChat), permanently blackholing the
+        // chat. This must be lossless and ordered.
+        updates.lane(
+            name = "chat-list",
+            scope = scope,
+            filter = CHATS_LIST_LANE_FILTER,
+        ) { update ->
+            updateHandler.handle(update)
         }
 
         scope.launch {

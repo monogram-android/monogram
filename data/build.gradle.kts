@@ -12,6 +12,7 @@ android {
 
     defaultConfig {
         minSdk = 25
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
 
         ndk {
@@ -47,6 +48,9 @@ android {
     sourceSets {
         getByName("main") {
             jniLibs.directories.clear()
+        }
+        getByName("androidTest") {
+            assets.srcDir(file("schemas"))
         }
         getByName("official") {
             jniLibs.directories.add("src/official/jniLibs")
@@ -87,6 +91,10 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", file("schemas").path)
+}
+
 dependencies {
     implementation(project(":core"))
     implementation(project(":domain"))
@@ -109,4 +117,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }

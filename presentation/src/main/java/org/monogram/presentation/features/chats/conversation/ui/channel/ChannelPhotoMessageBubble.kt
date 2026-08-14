@@ -36,9 +36,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -49,11 +46,11 @@ import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppres
 import org.monogram.presentation.features.chats.conversation.ui.message.BigEmojiContent
 import org.monogram.presentation.features.chats.conversation.ui.message.ForwardContent
 import org.monogram.presentation.features.chats.conversation.ui.message.MediaLoadingAction
-import org.monogram.presentation.features.chats.conversation.ui.message.MediaLoadingBackground
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageMetadata
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageReactionsView
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageText
 import org.monogram.presentation.features.chats.conversation.ui.message.ReplyContent
+import org.monogram.presentation.features.chats.conversation.ui.message.StableMediaImage
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberMessageTextRenderData
 
 @Composable
@@ -71,6 +68,7 @@ fun ChannelPhotoMessageBubble(
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
+    onClick: (Offset) -> Unit = {},
     onLongClick: (Offset) -> Unit,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
@@ -81,7 +79,8 @@ fun ChannelPhotoMessageBubble(
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier,
-    downloadUtils: IDownloadUtils
+    downloadUtils: IDownloadUtils,
+    animationsEnabled: Boolean = true
 ) {
     val context = LocalContext.current
     val cornerRadius = bubbleRadius.dp
@@ -121,20 +120,6 @@ fun ChannelPhotoMessageBubble(
 
     val hasCaption = content.caption.isNotEmpty()
     val showCaptionAboveMedia = hasCaption && content.showCaptionAboveMedia
-
-    LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (content.path.isNullOrBlank() && !content.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                content.fileId
-            )
-        ) {
-            val shouldDownload = when {
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                else -> autoDownloadMobile
-            }
-            if (shouldDownload) onDownloadPhoto(content.fileId)
-        }
-    }
 
     Column(
         modifier = modifier,
@@ -209,7 +194,7 @@ fun ChannelPhotoMessageBubble(
                                         revealedSpoilers.add(index)
                                     }
                                 },
-                                onClick = { offset -> onLongClick(imagePosition + offset) },
+                                onClick = { offset -> onClick(imagePosition + offset) },
                                 onLongClick = { offset -> onLongClick(imagePosition + offset) }
                             )
                         }
@@ -289,30 +274,15 @@ fun ChannelPhotoMessageBubble(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (!hasPath) {
-                                MediaLoadingBackground(
-                                    previewData = content.minithumbnail,
-                                    contentScale = ContentScale.Fit
-                                )
-                            }
-
-                            if (hasPath) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(stablePath)
-                                        .apply {
-                                            photoCacheKey?.let {
-                                                memoryCacheKey(it)
-                                                diskCacheKey(it)
-                                            }
-                                        }
-                                        .crossfade(false)
-                                        .build(),
-                                    contentDescription = content.caption,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Fit
-                                )
-                            }
+                            StableMediaImage(
+                                previewModel = content.thumbnailPath ?: content.minithumbnail,
+                                fullResolutionModel = stablePath,
+                                cacheKey = photoCacheKey,
+                                contentScale = ContentScale.Fit,
+                                contentDescription = content.caption,
+                                animationsEnabled = animationsEnabled,
+                                modifier = Modifier.fillMaxSize()
+                            )
 
                             if (!hasPath) {
                                 MediaLoadingAction(

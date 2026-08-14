@@ -179,6 +179,81 @@ class ChatContentScrollCoordinatorTest {
     }
 
     @Test
+    fun `visible bottom target uses delta correction without an index jump`() {
+        val plan = requireNotNull(
+            buildBottomCorrectionPlan(
+                currentFirstVisibleIndex = 0,
+                targetIndex = 0,
+                totalItemsCount = 120,
+                isComments = false,
+                visibleTargetDelta = 24f
+            )
+        )
+
+        assertEquals(24f, plan.alignmentDelta)
+        assertFalse(plan.shouldScrollToTarget)
+        assertNull(plan.coarseIndex)
+    }
+
+    @Test
+    fun `already aligned bottom target produces no mutation`() {
+        val plan = requireNotNull(
+            buildBottomCorrectionPlan(
+                currentFirstVisibleIndex = 0,
+                targetIndex = 0,
+                totalItemsCount = 120,
+                isComments = false,
+                visibleTargetDelta = 0.5f
+            )
+        )
+
+        assertNull(plan.alignmentDelta)
+        assertFalse(plan.shouldScrollToTarget)
+        assertNull(plan.coarseIndex)
+    }
+
+    @Test
+    fun `far bottom target uses one coarse jump before target alignment`() {
+        val plan = requireNotNull(
+            buildBottomCorrectionPlan(
+                currentFirstVisibleIndex = 70,
+                targetIndex = 0,
+                totalItemsCount = 120,
+                isComments = false,
+                visibleTargetDelta = null
+            )
+        )
+
+        assertEquals(8, plan.coarseIndex)
+        assertTrue(plan.shouldScrollToTarget)
+        assertNull(plan.alignmentDelta)
+    }
+
+    @Test
+    fun `residual correction never restarts from an index jump`() {
+        val residual = requireNotNull(
+            buildBottomCorrectionPlan(
+                currentFirstVisibleIndex = 0,
+                targetIndex = 0,
+                totalItemsCount = 120,
+                isComments = false,
+                visibleTargetDelta = 3f
+            )
+        )
+
+        assertNull(residual.coarseIndex)
+        assertFalse(residual.shouldScrollToTarget)
+        assertEquals(3f, residual.alignmentDelta)
+    }
+
+    @Test
+    fun `regular and comment bottom target indices preserve orientation`() {
+        assertEquals(0, calculateChatBottomTargetIndex(totalItemsCount = 10, isComments = false))
+        assertEquals(9, calculateChatBottomTargetIndex(totalItemsCount = 10, isComments = true))
+        assertNull(calculateChatBottomTargetIndex(totalItemsCount = 0, isComments = false))
+    }
+
+    @Test
     fun `chatContentLeadingItemsCount accounts for root loading-newer item`() {
         val leadingItems = chatContentLeadingItemsCount(
             isComments = false,

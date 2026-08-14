@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.ConversationPipelineMode
 import org.monogram.domain.repository.DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES
 import org.monogram.domain.repository.MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES
 import org.monogram.domain.repository.MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES
@@ -22,6 +23,7 @@ import org.monogram.domain.repository.ProxySortMode
 import org.monogram.domain.repository.ProxyUnavailableFallback
 import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.defaultProxyNetworkMode
+import org.monogram.presentation.BuildConfig
 
 enum class NightMode {
     SYSTEM, LIGHT, DARK, SCHEDULED, BRIGHTNESS
@@ -31,11 +33,63 @@ enum class EmojiStyle {
     SYSTEM, APPLE, TWITTER, WINDOWS, CATMOJI, NOTO
 }
 
+internal fun defaultConversationPipelineMode(
+    isOfficialTdlib: Boolean,
+    isLibreRuntime: Boolean,
+    isDebug: Boolean
+): ConversationPipelineMode = when {
+    isOfficialTdlib && isLibreRuntime -> ConversationPipelineMode.New
+    isDebug -> ConversationPipelineMode.Shadow
+    else -> ConversationPipelineMode.Legacy
+}
+
+internal fun storedConversationPipelineMode(
+    storedValue: Any?,
+    defaultMode: ConversationPipelineMode
+): ConversationPipelineMode = when (storedValue) {
+    is String -> ConversationPipelineMode.entries.firstOrNull { it.name == storedValue }
+    is Number -> ConversationPipelineMode.entries.getOrNull(storedValue.toInt())
+    else -> null
+} ?: defaultMode
+
+internal fun conversationPipelineModeWithLegacyKillSwitch(
+    forceLegacy: Boolean,
+    defaultMode: ConversationPipelineMode
+): ConversationPipelineMode = if (forceLegacy) {
+    ConversationPipelineMode.Legacy
+} else {
+    defaultMode
+}
+
+internal fun isConversationPipelineKillSwitchAvailable(
+    isOfficialTdlib: Boolean,
+    isLibreRuntime: Boolean
+): Boolean = isOfficialTdlib && isLibreRuntime
+
 class AppPreferences(
     private val context: Context,
     private val externalScope: CoroutineScope
 ) : AppPreferencesProvider {
     private val prefs: SharedPreferences = context.getSharedPreferences("monogram_prefs", Context.MODE_PRIVATE)
+
+    private val defaultConversationPipelineMode = defaultConversationPipelineMode(
+        isOfficialTdlib = BuildConfig.IS_OFFICIAL_TDLIB,
+        isLibreRuntime = BuildConfig.IS_LIBRE_RUNTIME,
+        isDebug = BuildConfig.DEBUG
+    )
+    private val _conversationPipelineMode = MutableStateFlow(
+        storedConversationPipelineMode(
+            storedValue = prefs.all[KEY_CONVERSATION_PIPELINE_MODE],
+            defaultMode = defaultConversationPipelineMode
+        )
+    )
+    override val conversationPipelineMode: StateFlow<ConversationPipelineMode> =
+        _conversationPipelineMode
+
+    override fun setConversationPipelineMode(mode: ConversationPipelineMode) {
+        _conversationPipelineMode.value = mode
+        prefs.edit().putString(KEY_CONVERSATION_PIPELINE_MODE, mode.name).apply()
+    }
 
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -1155,6 +1209,7 @@ class AppPreferences(
 
     override fun clearPreferences() {
         prefs.edit().clear().apply()
+        _conversationPipelineMode.value = defaultConversationPipelineMode
         _fontSize.value = 16f
         _bubbleRadius.value = 18f
         _stickerSize.value = 200f
@@ -1354,6 +1409,7 @@ class AppPreferences(
         private const val KEY_NOTO_EMOJI_DOWNLOADED = "noto_emoji_downloaded"
 
         private const val KEY_AUTO_DOWNLOAD_MOBILE = "auto_download_mobile"
+        private const val KEY_CONVERSATION_PIPELINE_MODE = "conversation_pipeline_mode"
         private const val KEY_AUTO_DOWNLOAD_WIFI = "auto_download_wifi"
         private const val KEY_AUTO_DOWNLOAD_ROAMING = "auto_download_roaming"
         private const val KEY_AUTO_DOWNLOAD_FILES = "auto_download_files"

@@ -25,6 +25,7 @@ androidx-room = "2.8.4"
 androidx-uiautomator = "2.4.0"
 androidx-benchmark-macro-junit4 = "1.4.1"
 androidx-test-ext-junit = "1.3.0"
+androidx-test-runner = "1.7.0"
 androidx-window = "1.5.1"
 androidx-core-splashscreen = "1.2.0"
 androidx-lifecycle = "2.11.0"
@@ -104,11 +105,13 @@ androidx-security-crypto = { module = "androidx.security:security-crypto-ktx", v
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "androidx-room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "androidx-room" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "androidx-room" }
+androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "androidx-room" }
 
 # AndroidX Benchmark & UIAutomator
 androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "androidx-uiautomator" }
 androidx-benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "androidx-benchmark-macro-junit4" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidx-test-runner" }
 
 # KotlinX
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }

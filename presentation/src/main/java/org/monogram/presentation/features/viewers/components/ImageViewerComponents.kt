@@ -85,12 +85,12 @@ import kotlinx.coroutines.launch
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
+import org.monogram.presentation.features.viewers.FullscreenImageItem
+import org.monogram.presentation.features.viewers.FullscreenImageLoadState
 
 @Composable
 fun ImagePage(
-    path: String,
-    isDownloading: Boolean,
-    downloadProgress: Float,
+    item: FullscreenImageItem,
     zoomState: ZoomState,
     rootState: DismissRootState,
     screenHeightPx: Float,
@@ -99,6 +99,8 @@ fun ImagePage(
     onDismiss: () -> Unit,
     showControls: Boolean,
     onToggleControls: () -> Unit,
+    onRetry: () -> Unit,
+    onOriginalDecodeError: () -> Unit,
     pageIndex: Int,
     pagerIndex: Int
 ) {
@@ -130,9 +132,15 @@ fun ImagePage(
             }
     ) {
         ZoomableImage(
-            data = path,
-            isDownloading = isDownloading,
-            downloadProgress = downloadProgress,
+            previewData = item.previewSource,
+            originalData = item.originalPath,
+            isDownloading = item.loadState is FullscreenImageLoadState.Loading,
+            downloadProgress = (item.loadState as? FullscreenImageLoadState.Loading)?.progress
+                ?: 0f,
+            isError = item.loadState is FullscreenImageLoadState.Error,
+            isManagedOriginal = item.originalFileId != 0,
+            onRetry = onRetry,
+            onOriginalDecodeError = onOriginalDecodeError,
             zoomState = zoomState,
             pageIndex = pageIndex,
             pagerIndex = pagerIndex
@@ -145,17 +153,16 @@ fun ImageOverlay(
     showControls: Boolean,
     rootState: DismissRootState,
     pagerState: PagerState,
-    mediaItems: List<String>,
-    captions: List<String?>,
+    mediaItems: List<FullscreenImageItem>,
     showImageNumber: Boolean,
     onDismiss: () -> Unit,
     showSettingsMenu: Boolean,
     onToggleSettings: () -> Unit,
     downloadUtils: IDownloadUtils,
-    onForward: ((String) -> Unit)?,
-    onDelete: ((String) -> Unit)?,
-    onCopyLink: ((String) -> Unit)?,
-    onCopyText: ((String) -> Unit)?
+    onForward: ((FullscreenImageItem) -> Unit)?,
+    onDelete: ((FullscreenImageItem) -> Unit)?,
+    onCopyLink: ((FullscreenImageItem) -> Unit)?,
+    onCopyText: ((FullscreenImageItem) -> Unit)?
 ) {
     val scope = rememberCoroutineScope()
 
@@ -190,14 +197,14 @@ fun ImageOverlay(
                     .padding(bottom = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val currentCaption = captions.getOrNull(pagerState.currentPage)
+                val currentCaption = mediaItems.getOrNull(pagerState.currentPage)?.caption
                 if (!currentCaption.isNullOrBlank()) {
                     ViewerCaption(caption = currentCaption, showGradient = false)
                 }
 
                 if (mediaItems.size > 1) {
                     ThumbnailStrip(
-                        images = mediaItems,
+                        images = mediaItems.map { it.displaySource },
                         pagerState = pagerState,
                         scope = scope
                     )
@@ -246,14 +253,14 @@ fun ImageOverlay(
             val currentItem = mediaItems.getOrNull(currentIndex)
 
             if (currentItem != null) {
-                val currentCaption = captions.getOrNull(currentIndex)
+                val currentCaption = currentItem.caption
                 ImageSettingsMenu(
                     onDownload = {
-                        downloadUtils.saveFileToDownloads(currentItem)
+                        downloadUtils.saveFileToDownloads(currentItem.actionSource)
                         onToggleSettings()
                     },
                     onCopyImage = {
-                        downloadUtils.copyImageToClipboard(currentItem)
+                        downloadUtils.copyImageToClipboard(currentItem.actionSource)
                         onToggleSettings()
                     },
                     onCopyLink = {
@@ -455,9 +462,14 @@ fun PageIndicator(modifier: Modifier = Modifier, current: Int, total: Int) {
 
 @Composable
 fun ZoomableImage(
-    data: Any,
+    previewData: Any,
+    originalData: Any?,
     isDownloading: Boolean,
     downloadProgress: Float,
+    isError: Boolean,
+    isManagedOriginal: Boolean,
+    onRetry: () -> Unit,
+    onOriginalDecodeError: () -> Unit,
     zoomState: ZoomState,
     pageIndex: Int,
     pagerIndex: Int
@@ -465,13 +477,16 @@ fun ZoomableImage(
     val applyTransforms = pageIndex == pagerIndex
     val context = LocalContext.current
 
-    var displayedData by remember { mutableStateOf(data) }
+    var displayedData by remember(previewData) { mutableStateOf(previewData) }
     var pendingData by remember { mutableStateOf<Any?>(null) }
     var isPendingReady by remember { mutableStateOf(false) }
 
-    LaunchedEffect(data) {
-        if (data != displayedData) {
-            pendingData = data
+    LaunchedEffect(originalData) {
+        if (originalData != null && originalData != displayedData) {
+            pendingData = originalData
+            isPendingReady = false
+        } else if (originalData == null) {
+            pendingData = null
             isPendingReady = false
         }
     }
@@ -546,7 +561,14 @@ fun ZoomableImage(
                         scaleX = zoomState.scale.value
                         scaleY = zoomState.scale.value
                     }
+                },
+            onState = { state ->
+                if (isManagedOriginal && displayedData == originalData &&
+                    state is AsyncImagePainter.State.Error
+                ) {
+                    onOriginalDecodeError()
                 }
+            }
         )
 
         pendingRequest?.let { request ->
@@ -567,32 +589,37 @@ fun ZoomableImage(
                     },
                 onState = { state ->
                     isPendingReady = state is AsyncImagePainter.State.Success
+                    if (isManagedOriginal && state is AsyncImagePainter.State.Error) {
+                        onOriginalDecodeError()
+                    }
                 }
             )
         }
 
         if (isDownloading) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                CircularWavyProgressIndicator(
-                    modifier = Modifier.size(48.dp),
-                    color = Color.White,
-                    progress = {
-                        if (isDownloading && downloadProgress in 0f..1f) {
-                            downloadProgress
-                        } else {
-                            0f
-                        }
+            CircularWavyProgressIndicator(
+                modifier = Modifier.size(48.dp),
+                color = Color.White,
+                progress = {
+                    if (downloadProgress in 0f..1f) {
+                        downloadProgress
+                    } else {
+                        0f
                     }
-                )
-                Text(
-                    text = stringResource(R.string.viewer_loading_original),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+                }
+            )
+        }
+
+        if (isError) {
+            Text(
+                text = stringResource(R.string.retry_action),
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                    .clickable(onClick = onRetry)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            )
         }
     }
 }

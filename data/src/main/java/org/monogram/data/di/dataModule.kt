@@ -19,6 +19,7 @@ import org.monogram.data.datasource.cache.ChatLocalDataSource
 import org.monogram.data.datasource.cache.ChatsCacheDataSource
 import org.monogram.data.datasource.cache.InMemorySettingsCacheDataSource
 import org.monogram.data.datasource.cache.MessageCacheWriter
+import org.monogram.data.datasource.cache.invalidateFailedMessageCacheCoverage
 import org.monogram.data.datasource.cache.RoomChatLocalDataSource
 import org.monogram.data.datasource.cache.RoomStickerLocalDataSource
 import org.monogram.data.datasource.cache.RoomUserLocalDataSource
@@ -81,6 +82,7 @@ import org.monogram.data.infra.SponsorSyncManager
 import org.monogram.data.infra.TdLibParametersProvider
 import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.CustomEmojiLoader
+import org.monogram.data.mapper.MappedMediaDemandCoordinator
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.NetworkMapper
 import org.monogram.data.mapper.SponsoredMessageMapper
@@ -306,12 +308,14 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_33_34,
                 MonogramMigrations.MIGRATION_34_35,
                 MonogramMigrations.MIGRATION_35_36,
-                MonogramMigrations.MIGRATION_36_37
+                MonogramMigrations.MIGRATION_36_37,
+                MonogramMigrations.MIGRATION_37_38
             )
             .build()
     }
     single { get<MonogramDatabase>().chatDao() }
     single { get<MonogramDatabase>().messageDao() }
+    single { get<MonogramDatabase>().messageWindowDao() }
     single { get<MonogramDatabase>().userDao() }
     single { get<MonogramDatabase>().chatFullInfoDao() }
     single { get<MonogramDatabase>().topicDao() }
@@ -342,7 +346,8 @@ val dataModule = module {
             chatDao = get(),
             messageDao = get(),
             chatFullInfoDao = get(),
-            topicDao = get()
+            topicDao = get(),
+            messageWindowDao = get()
         )
     }
 
@@ -498,22 +503,21 @@ val dataModule = module {
 
     single {
         WebPageMapper(
-            fileHelper = get(),
-            appPreferences = get()
+            fileHelper = get()
         )
     }
 
     single {
         MessageContentMapper(
             fileHelper = get(),
-            appPreferences = get(),
             customEmojiLoader = get(),
             webPageMapper = get(),
             cache = get(),
-            scope = get(),
             stringProvider = get()
         )
     }
+
+    single { MappedMediaDemandCoordinator(fileApi = get()) }
 
     single {
         MessageSenderResolver(
@@ -542,6 +546,7 @@ val dataModule = module {
             fileHelper = get(),
             senderResolver = get(),
             contentMapper = get(),
+            mediaDemandCoordinator = get(),
             persistenceMapper = get(),
             customEmojiLoader = get(),
             stringProvider = get()
@@ -671,7 +676,10 @@ val dataModule = module {
         val localDataSource = get<ChatLocalDataSource>()
         MessageCacheWriter(
             scope = get(),
-            applyBatch = localDataSource::applyMessageCacheMutations
+            applyBatch = localDataSource::applyMessageCacheMutations,
+            onTerminalFailure = { mutations, _ ->
+                invalidateFailedMessageCacheCoverage(localDataSource, mutations)
+            }
         )
     }
 
@@ -722,6 +730,7 @@ val dataModule = module {
             context = androidContext(),
             gateway = get(),
             updates = get(),
+            pollRepository = get(),
             messageMapper = get(),
             messageRemoteDataSource = get(),
             cache = get(),

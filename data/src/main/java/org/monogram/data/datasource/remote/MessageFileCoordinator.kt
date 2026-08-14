@@ -11,6 +11,22 @@ class MessageFileCoordinator(
         fileDownloadQueue.registry.register(fileId, chatId, messageId)
     }
 
+    override fun registerFileForMessage(
+        fileId: Int,
+        chatId: Long,
+        messageId: Long,
+        type: TdMessageRemoteDataSource.DownloadType,
+        descriptor: FileDownloadQueue.MediaDescriptor?
+    ) {
+        fileDownloadQueue.registerFileForMessage(
+            fileId,
+            chatId,
+            messageId,
+            type.toDomain(),
+            descriptor
+        )
+    }
+
     override fun registerSponsoredFileForMessage(fileId: Int, chatId: Long, messageId: Long) {
         fileDownloadQueue.registry.registerSponsored(fileId, chatId, messageId)
     }

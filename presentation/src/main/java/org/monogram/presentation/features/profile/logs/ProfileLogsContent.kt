@@ -34,6 +34,7 @@ import org.monogram.presentation.features.profile.logs.components.DateHeader
 import org.monogram.presentation.features.profile.logs.components.FilterChipCompact
 import org.monogram.presentation.features.profile.logs.components.LogBubble
 import org.monogram.presentation.features.viewers.ImageViewer
+import org.monogram.presentation.features.viewers.FullscreenImageItem
 import org.monogram.presentation.features.viewers.VideoViewer
 import java.text.SimpleDateFormat
 import java.util.*
@@ -177,16 +178,14 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
         ) {
             state.fullScreenPhotoPath?.let { path ->
                 ImageViewer(
-                    images = listOf(path),
+                    images = listOf(FullscreenImageItem.source(path, state.fullScreenPhotoCaption)),
                     startIndex = 0,
                     onDismiss = component::onDismissViewer,
-                    autoDownload = true,
                     onPageChanged = {},
                     onForward = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
                     onDelete = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
                     onCopyLink = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
                     onCopyText = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
-                    captions = listOfNotNull(state.fullScreenPhotoCaption),
                     downloadUtils = component.downloadUtils
                 )
             }

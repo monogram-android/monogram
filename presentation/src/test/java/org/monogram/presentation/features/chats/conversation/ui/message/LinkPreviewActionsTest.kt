@@ -47,7 +47,7 @@ class LinkPreviewActionsTest {
     }
 
     @Test
-    fun `photo thumbnail fallback keeps primary media action`() {
+    fun `photo thumbnail fallback opens image viewer`() {
         val preview = basePreview(
             photo = WebPage.Photo(
                 path = null,
@@ -63,7 +63,11 @@ class LinkPreviewActionsTest {
         val resolved = preview.resolveLinkPreview()
 
         assertEquals(LinkPreviewAction.OpenLink("https://example.com/post"), resolved.primaryAction)
-        assertEquals(resolved.primaryAction, resolved.mediaAction)
+        assertTrue(resolved.mediaAction is LinkPreviewAction.OpenImageViewer)
+        val image =
+            (resolved.mediaAction as LinkPreviewAction.OpenImageViewer).request.images.single()
+        assertEquals("/tmp/thumb.jpg", image.previewSource)
+        assertEquals(7, image.originalFileId)
         assertEquals("/tmp/thumb.jpg", resolved.thumbnailData)
     }
 

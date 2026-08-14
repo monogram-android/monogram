@@ -11,15 +11,17 @@ class ChatOpenOwnershipRegistryTest {
     @Test
     fun `first owner opens and last owner closes`() {
         val acquired = registry.acquire(chatId = 10L, ownerTag = "cmp1")
-        val released = registry.release(chatId = 10L, ownerTag = "cmp1")
 
         assertEquals(ChatOpenOwnershipTransition.AcquiredFirstOwner, acquired.transition)
+        assertTrue(registry.hasOwners(10L))
         assertTrue(acquired.shouldOpen)
         assertFalse(acquired.shouldClose)
 
+        val released = registry.release(chatId = 10L, ownerTag = "cmp1")
         assertEquals(ChatOpenOwnershipTransition.ReleasedLastOwner, released.transition)
         assertFalse(released.shouldOpen)
         assertTrue(released.shouldClose)
+        assertFalse(registry.hasOwners(10L))
     }
 
     @Test

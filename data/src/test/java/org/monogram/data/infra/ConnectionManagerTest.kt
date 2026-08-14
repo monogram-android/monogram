@@ -25,6 +25,7 @@ import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.ConnectionStatus
+import org.monogram.domain.repository.ConversationPipelineMode
 import org.monogram.domain.repository.DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
@@ -590,6 +591,7 @@ class ConnectionManagerTest {
     }
 
     private class FakeAppPreferencesProvider : AppPreferencesProvider {
+        override val conversationPipelineMode = MutableStateFlow(ConversationPipelineMode.Legacy)
         override val autoDownloadMobile = MutableStateFlow(false)
         override val autoDownloadWifi = MutableStateFlow(false)
         override val autoDownloadRoaming = MutableStateFlow(false)
@@ -647,6 +649,10 @@ class ConnectionManagerTest {
         override val isPermissionRequested = MutableStateFlow(false)
         override val isSupportViewed = MutableStateFlow(false)
         override val inAppBrowserEnabled = MutableStateFlow(true)
+
+        override fun setConversationPipelineMode(mode: ConversationPipelineMode) {
+            conversationPipelineMode.value = mode
+        }
 
         override fun setEnabledProxyId(proxyId: Int?) {
             enabledProxyId.value = proxyId

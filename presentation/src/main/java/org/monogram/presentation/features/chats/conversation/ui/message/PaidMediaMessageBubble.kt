@@ -20,16 +20,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.PaidMediaItem
+import org.monogram.presentation.core.util.namespacedCacheKey
 
 @Composable
 fun PaidMediaMessageBubble(
@@ -41,12 +43,16 @@ fun PaidMediaMessageBubble(
     onPhotoClick: (MessageModel) -> Unit,
     onVideoClick: (MessageModel) -> Unit,
     onOpenBuy: () -> Unit,
+    onClick: (androidx.compose.ui.geometry.Offset) -> Unit = {},
     onLongClick: () -> Unit = {},
+    onReplyClick: (MessageModel) -> Unit = {},
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
-    isGroup: Boolean = false
+    isGroup: Boolean = false,
+    animationsEnabled: Boolean = true
 ) {
     val bubbleShape = RoundedCornerShape(18.dp)
+    val revealedSpoilers = remember { mutableStateListOf<Int>() }
     Surface(
         shape = bubbleShape,
         color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
@@ -67,15 +73,25 @@ fun PaidMediaMessageBubble(
                     onForwardClick = onForwardOriginClick
                 )
             }
-            msg.replyToMsg?.let { ReplyContent(it, isOutgoing, onClick = { onLongClick() }) }
+            msg.replyToMsg?.let { ReplyContent(it, isOutgoing, onClick = { onReplyClick(it) }) }
 
             if (content.caption.isNotBlank() && content.showCaptionAboveMedia) {
                 MessageText(
-                    text = buildAnnotatedMessageTextWithEmoji(content.caption, content.entities),
+                    text = buildAnnotatedMessageTextWithEmoji(
+                        text = content.caption,
+                        entities = content.entities,
+                        isOutgoing = isOutgoing,
+                        revealedSpoilers = revealedSpoilers
+                    ),
                     rawText = content.caption,
                     inlineContent = rememberMessageInlineContent(content.entities, 16f),
                     style = MaterialTheme.typography.bodyMedium,
-                    entities = content.entities
+                    entities = content.entities,
+                    onSpoilerClick = { index ->
+                        if (!revealedSpoilers.remove(index)) revealedSpoilers.add(index)
+                    },
+                    onClick = onClick,
+                    onLongClick = { onLongClick() }
                 )
             }
 
@@ -84,6 +100,7 @@ fun PaidMediaMessageBubble(
                     PaidMediaGridItem(
                         item = item,
                         locked = true,
+                        animationsEnabled = animationsEnabled,
                         onClick = when (item) {
                             is PaidMediaItem.Photo -> {
                                 { onPhotoClick(msg) }
@@ -101,11 +118,21 @@ fun PaidMediaMessageBubble(
 
             if (content.caption.isNotBlank() && !content.showCaptionAboveMedia) {
                 MessageText(
-                    text = buildAnnotatedMessageTextWithEmoji(content.caption, content.entities),
+                    text = buildAnnotatedMessageTextWithEmoji(
+                        text = content.caption,
+                        entities = content.entities,
+                        isOutgoing = isOutgoing,
+                        revealedSpoilers = revealedSpoilers
+                    ),
                     rawText = content.caption,
                     inlineContent = rememberMessageInlineContent(content.entities, 16f),
                     style = MaterialTheme.typography.bodyMedium,
-                    entities = content.entities
+                    entities = content.entities,
+                    onSpoilerClick = { index ->
+                        if (!revealedSpoilers.remove(index)) revealedSpoilers.add(index)
+                    },
+                    onClick = onClick,
+                    onLongClick = { onLongClick() }
                 )
             }
         }
@@ -116,6 +143,7 @@ fun PaidMediaMessageBubble(
 private fun PaidMediaGridItem(
     item: PaidMediaItem,
     locked: Boolean,
+    animationsEnabled: Boolean,
     onClick: () -> Unit
 ) {
     Box(
@@ -127,18 +155,32 @@ private fun PaidMediaGridItem(
         contentAlignment = Alignment.Center
     ) {
         when (item) {
-            is PaidMediaItem.Photo -> AsyncImage(
-                model = item.path ?: item.thumbnailPath,
+            is PaidMediaItem.Photo -> StableMediaImage(
+                previewModel = item.thumbnailPath ?: item.minithumbnail,
+                fullResolutionModel = item.path,
+                cacheKey = remember(item.fileId, item.path) {
+                    namespacedCacheKey("paid_photo:${item.fileId}", item.path)
+                },
+                contentScale = ContentScale.Crop,
                 contentDescription = null,
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.Crop
+                animationsEnabled = animationsEnabled,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(112.dp)
             )
 
-            is PaidMediaItem.Video -> AsyncImage(
-                model = item.path ?: item.thumbnailPath ?: item.coverPath,
+            is PaidMediaItem.Video -> StableMediaImage(
+                previewModel = item.thumbnailPath ?: item.minithumbnail,
+                fullResolutionModel = item.path ?: item.coverPath,
+                cacheKey = remember(item.fileId, item.path, item.coverPath) {
+                    namespacedCacheKey("paid_video:${item.fileId}", item.path ?: item.coverPath)
+                },
+                contentScale = ContentScale.Crop,
                 contentDescription = null,
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.Crop
+                animationsEnabled = animationsEnabled,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(112.dp)
             )
 
             else -> Text("Paid media", color = MaterialTheme.colorScheme.onSurfaceVariant)

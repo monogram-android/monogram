@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 
@@ -24,8 +25,11 @@ class FileObserverHub(
         val uploadProgress: Float
     )
 
-    val fileStates: Flow<FileState> = fileUpdateHandler.fileUpdates
-        .map { it.toState() }
+    val fileStates: Flow<FileState> = merge(
+        fileUpdateHandler.fileTerminalUpdates.map { it.file },
+        fileUpdateHandler.fileProgressUpdates
+    )
+        .map { emitted -> (queue.getCachedFile(emitted.id) ?: emitted).toState() }
         .distinctUntilChanged()
 
     fun observeFile(fileId: Int): Flow<FileState> = flow {

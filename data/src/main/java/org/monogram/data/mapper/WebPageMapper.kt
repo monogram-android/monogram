@@ -1,13 +1,10 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
-import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.domain.models.WebPage
-import org.monogram.domain.repository.AppPreferencesProvider
 
 class WebPageMapper(
-    private val fileHelper: TdFileHelper,
-    private val appPreferences: AppPreferencesProvider
+    private val fileHelper: TdFileHelper
 ) {
     internal data class PhotoSelection(
         val preferredSize: TdApi.PhotoSize?,
@@ -139,79 +136,13 @@ class WebPageMapper(
             else -> WebPage.LinkPreviewType.Unknown
         }
 
-        fun processTdFile(
-            file: TdApi.File,
-            downloadType: TdMessageRemoteDataSource.DownloadType,
-            supportsStreaming: Boolean = false
-        ): TdApi.File {
-            val updatedFile = fileHelper.getUpdatedFile(file)
-            fileHelper.registerCachedFile(updatedFile.id, chatId, messageId)
-
-            val autoDownload = when (downloadType) {
-                TdMessageRemoteDataSource.DownloadType.VIDEO -> supportsStreaming && networkAutoDownload
-                TdMessageRemoteDataSource.DownloadType.DEFAULT -> {
-                    if (linkPreviewType == WebPage.LinkPreviewType.Document) false else networkAutoDownload
-                }
-
-                TdMessageRemoteDataSource.DownloadType.STICKER -> {
-                    networkAutoDownload && appPreferences.autoDownloadStickers.value
-                }
-
-                TdMessageRemoteDataSource.DownloadType.VIDEO_NOTE -> {
-                    networkAutoDownload && appPreferences.autoDownloadVideoNotes.value
-                }
-
-                else -> networkAutoDownload
-            }
-
-            if (!fileHelper.isValidPath(updatedFile.local.path) && autoDownload) {
-                fileHelper.enqueueDownload(updatedFile.id, 1, downloadType, 0, 0, false)
-            }
-
-            return updatedFile
-        }
+        fun processTdFile(file: TdApi.File): TdApi.File = fileHelper.getUpdatedFile(file)
 
         val photo = photoObj?.let { photoObject ->
             val selection = selectPhotoSizes(photoObject.sizes)
             val preferredFile = selection.preferredSize?.photo?.let(fileHelper::getUpdatedFile)
             val thumbnailFile = selection.thumbnailSize?.photo?.let(fileHelper::getUpdatedFile)
             val originalFile = selection.originalSize?.photo?.let(fileHelper::getUpdatedFile)
-
-            if (preferredFile != null) {
-                fileHelper.registerCachedFile(preferredFile.id, chatId, messageId)
-                if (fileHelper.findBestAvailablePath(
-                        preferredFile,
-                        photoObject.sizes
-                    ) == null && networkAutoDownload
-                ) {
-                    fileHelper.enqueueDownload(
-                        preferredFile.id,
-                        1,
-                        TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                        0,
-                        0,
-                        false
-                    )
-                }
-            }
-
-            if (thumbnailFile != null) {
-                fileHelper.registerCachedFile(thumbnailFile.id, chatId, messageId)
-                if (fileHelper.resolveLocalFilePath(thumbnailFile) == null && networkAutoDownload) {
-                    fileHelper.enqueueDownload(
-                        thumbnailFile.id,
-                        1,
-                        TdMessageRemoteDataSource.DownloadType.DEFAULT,
-                        0,
-                        0,
-                        false
-                    )
-                }
-            }
-
-            if (originalFile != null && originalFile.id != preferredFile?.id && originalFile.id != thumbnailFile?.id) {
-                fileHelper.registerCachedFile(originalFile.id, chatId, messageId)
-            }
 
             selection.preferredSize?.let { preferredSize ->
                 WebPage.Photo(
@@ -228,11 +159,7 @@ class WebPageMapper(
         }
 
         val video = videoObj?.let { videoObject ->
-            val file = processTdFile(
-                videoObject.video,
-                TdMessageRemoteDataSource.DownloadType.VIDEO,
-                videoObject.supportsStreaming
-            )
+            val file = processTdFile(videoObject.video)
             WebPage.Video(
                 path = fileHelper.resolveLocalFilePath(file),
                 width = videoObject.width,
@@ -251,7 +178,7 @@ class WebPageMapper(
         }
 
         val audio = audioObj?.let { audioObject ->
-            val file = processTdFile(audioObject.audio, TdMessageRemoteDataSource.DownloadType.DEFAULT)
+            val file = processTdFile(audioObject.audio)
             WebPage.Audio(
                 path = fileHelper.resolveLocalFilePath(file),
                 duration = audioObject.duration,
@@ -262,7 +189,7 @@ class WebPageMapper(
         }
 
         val document = documentObj?.let { documentObject ->
-            val file = processTdFile(documentObject.document, TdMessageRemoteDataSource.DownloadType.DEFAULT)
+            val file = processTdFile(documentObject.document)
             WebPage.Document(
                 path = fileHelper.resolveLocalFilePath(file),
                 fileName = documentObject.fileName,
@@ -273,7 +200,7 @@ class WebPageMapper(
         }
 
         val sticker = stickerObj?.let { stickerObject ->
-            val file = processTdFile(stickerObject.sticker, TdMessageRemoteDataSource.DownloadType.STICKER)
+            val file = processTdFile(stickerObject.sticker)
             WebPage.Sticker(
                 path = fileHelper.resolveLocalFilePath(file),
                 width = stickerObject.width,
@@ -284,7 +211,7 @@ class WebPageMapper(
         }
 
         val animation = animationObj?.let { animationObject ->
-            val file = processTdFile(animationObject.animation, TdMessageRemoteDataSource.DownloadType.GIF)
+            val file = processTdFile(animationObject.animation)
             WebPage.Animation(
                 path = fileHelper.resolveLocalFilePath(file),
                 width = animationObject.width,

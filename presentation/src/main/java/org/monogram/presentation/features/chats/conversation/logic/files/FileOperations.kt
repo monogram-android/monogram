@@ -6,7 +6,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageContent
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
-internal fun DefaultChatComponent.handleDownloadFile(fileId: Int, userInitiated: Boolean = false) {
+internal fun DefaultChatComponent.handleDownloadFile(fileId: Int, userInitiated: Boolean = true) {
     // Only an explicit gesture gets priority 32 and the user-initiated fast path. Viewport
     // prefetch used to pass 32 as well, which marked every scrolled-past thumbnail as "manual"
     // and left it un-evictable, silting up the download slots.
@@ -32,10 +32,6 @@ internal fun DefaultChatComponent.handleDownloadHighRes(messageId: Long) {
         val fileId = repositoryMessage.getHighResFileId(chatId, messageId)
         if (fileId != null) {
             updatePhotoOriginalFileId(messageId, fileId)
-            // Opening a photo full screen is an unambiguous user action: this file is usually
-            // cold (only the "x" size was ever prefetched), so it needs the bypass to reach
-            // TDLib immediately rather than queueing behind background thumbnails.
-            repositoryMessage.downloadFile(fileId, priority = 32, userInitiated = true)
         }
     }
 }

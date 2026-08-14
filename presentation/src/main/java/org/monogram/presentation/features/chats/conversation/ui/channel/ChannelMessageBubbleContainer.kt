@@ -282,6 +282,13 @@ internal fun ChannelMessageBubbleContainer(
                                 onPhotoClick = onPhotoClick,
                                 onDownloadPhoto = onDownloadPhoto,
                                 onCancelDownload = onCancelDownload,
+                                onClick = { offset ->
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
+                                    )
+                                },
                                 onLongClick = { offset ->
                                     (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
@@ -296,7 +303,8 @@ internal fun ChannelMessageBubbleContainer(
                                 toProfile = toProfile,
                                 onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
-                                downloadUtils = downloadUtils
+                                downloadUtils = downloadUtils,
+                                animationsEnabled = appearance.animationsEnabled
                             )
                         }
 
@@ -316,6 +324,13 @@ internal fun ChannelMessageBubbleContainer(
                                 onVideoClick = onVideoClick,
                                 onDownloadVideo = onDownloadVideo,
                                 onCancelDownload = onCancelDownload,
+                                onClick = { offset ->
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
+                                    )
+                                },
                                 onLongClick = { offset ->
                                     (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
@@ -331,7 +346,8 @@ internal fun ChannelMessageBubbleContainer(
                                 onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 downloadUtils = downloadUtils,
-                                isAnyViewerOpen = behavior.isAnyViewerOpen
+                                isAnyViewerOpen = behavior.isAnyViewerOpen,
+                                animationsEnabled = appearance.animationsEnabled
                             )
                         }
 
@@ -350,6 +366,13 @@ internal fun ChannelMessageBubbleContainer(
                                 autoDownloadRoaming = appearance.autoDownloadRoaming,
                                 onDocumentClick = onDocumentClick,
                                 onCancelDownload = onCancelDownload,
+                                onClick = { offset ->
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
+                                    )
+                                },
                                 onLongClick = { offset ->
                                     (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
@@ -381,8 +404,15 @@ internal fun ChannelMessageBubbleContainer(
                                 autoDownloadRoaming = appearance.autoDownloadRoaming,
                                 onAudioClick = onAudioClick,
                                 onCancelDownload = onCancelDownload,
-                                onLongClick = { offset ->
+                                onClick = { offset ->
                                     onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
+                                    )
+                                },
+                                onLongClick = { offset ->
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + offset
@@ -445,6 +475,13 @@ internal fun ChannelMessageBubbleContainer(
                                 autoplayGifs = appearance.autoplayGifs,
                                 onGifClick = onVideoClick,
                                 onCancelDownload = onCancelDownload,
+                                onClick = { offset ->
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
+                                    )
+                                },
                                 onLongClick = { offset ->
                                     (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
@@ -460,7 +497,8 @@ internal fun ChannelMessageBubbleContainer(
                                 onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 downloadUtils = downloadUtils,
-                                isAnyViewerOpen = behavior.isAnyViewerOpen
+                                isAnyViewerOpen = behavior.isAnyViewerOpen,
+                                animationsEnabled = appearance.animationsEnabled
                             )
                         }
 

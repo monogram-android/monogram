@@ -13,12 +13,19 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.monogram.core.perf.ChatOpenPerfBridge
 import org.monogram.domain.models.ChatViewportCacheEntry
+import org.monogram.domain.models.ConversationUpdate
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageDownloadEvent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.domain.models.UserModel
+import org.monogram.domain.repository.BoundaryState
+import org.monogram.domain.repository.ConversationPipelineMode
+import org.monogram.domain.repository.HistoryAnchor
+import org.monogram.domain.repository.HistoryDirection
+import org.monogram.domain.repository.HistoryRequest
+import org.monogram.domain.repository.HistorySource
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.conversation.ChatComponent
@@ -26,6 +33,9 @@ import org.monogram.presentation.features.chats.conversation.ChatConversationLog
 import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
 import org.monogram.presentation.features.chats.conversation.ConversationLoadSession
+import org.monogram.presentation.features.chats.conversation.ConversationPipelineFallbackGate
+import org.monogram.presentation.features.chats.conversation.ConversationSessionState
+import org.monogram.presentation.features.chats.conversation.ConversationViewportReducer
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 import org.monogram.presentation.features.chats.conversation.OutgoingMessageReducer
 import org.monogram.presentation.features.chats.conversation.ScrollAlign
@@ -35,7 +45,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 
 private const val PAGE_SIZE = 50
-private const val MAX_DOWNLOAD_RETRIES = 3
 private const val SENDER_REFRESH_TTL_MS = 60_000L
 private fun isUsableAvatarPath(path: String?): Boolean {
     if (path.isNullOrBlank()) return false
@@ -137,10 +146,9 @@ private fun DefaultChatComponent.resolveRemappedMessageId(messageId: Long): Long
     return current
 }
 
-private suspend fun DefaultChatComponent.updateMessagesUnsafe(
+private suspend fun DefaultChatComponent.filterHistoryMessages(
     newMessages: List<MessageModel>,
-    replace: Boolean = false
-) {
+): List<MessageModel> {
     val currentState = _state.value
     val adBlockEnabled = appPreferences.isAdBlockEnabled.value
     val keywords = appPreferences.adBlockKeywords.value
@@ -148,7 +156,7 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
     val isChannel = currentState.isChannel
     val isWhitelisted = whitelistedChannels.contains(chatId)
 
-    val filteredNewMessages = if (adBlockEnabled && isChannel && !isWhitelisted) {
+    return if (adBlockEnabled && isChannel && !isWhitelisted) {
         withContext(Dispatchers.Default) {
             newMessages.filterNot { message ->
                 val text = when (val content = message.content) {
@@ -165,89 +173,336 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
     } else {
         newMessages
     }
+}
 
-    _state.update { state ->
-        if (filteredNewMessages.isEmpty()) {
-            return@update if (replace && state.messages.any { it.sendingState is MessageSendingState.Pending }) {
-                state.copy(messages = state.messages.filter { it.sendingState is MessageSendingState.Pending })
-            } else {
-                state
-            }
-        }
-
-        val currentList = if (replace) {
-            state.messages.filter { it.sendingState is MessageSendingState.Pending }
+internal fun ChatComponent.State.mergeHistoryMessages(
+    filteredNewMessages: List<MessageModel>,
+    replace: Boolean
+): List<MessageModel> {
+    if (filteredNewMessages.isEmpty()) {
+        return if (replace && messages.any { it.sendingState is MessageSendingState.Pending }) {
+            messages.filter { it.sendingState is MessageSendingState.Pending }
         } else {
-            state.messages
+            messages
         }
-        val existingReactionsById = if (replace) {
-            state.messages
-                .filter { it.reactions.isNotEmpty() }
-                .associate { it.id to it.reactions }
-        } else {
-            emptyMap()
-        }
-        val previousMessagesById = if (replace) {
-            state.messages.associateBy { it.id }
-        } else {
-            emptyMap()
-        }
+    }
 
-        val isComments = state.rootMessage != null
+    val currentList = if (replace) {
+        messages.filter { it.sendingState is MessageSendingState.Pending }
+    } else {
+        messages
+    }
+    val existingReactionsById = if (replace) {
+        messages.filter { it.reactions.isNotEmpty() }.associate { it.id to it.reactions }
+    } else {
+        emptyMap()
+    }
+    val previousMessagesById = if (replace) messages.associateBy { it.id } else emptyMap()
 
-        val messageMap = LinkedHashMap<Long, MessageModel>(currentList.size + filteredNewMessages.size)
-        currentList.forEach { messageMap[it.id] = it }
+    val isComments = rootMessage != null
 
-        var hasChanges = replace
-        filteredNewMessages.forEach { msg ->
-            val previous = messageMap[msg.id] ?: previousMessagesById[msg.id]
-            val mergedMessage = if (previous != null) mergeSenderVisuals(previous, msg) else msg
-            val restoredMessage = if (mergedMessage.reactions.isEmpty()) {
-                val previousReactions = existingReactionsById[msg.id]
-                if (!previousReactions.isNullOrEmpty()) {
-                    mergedMessage.copy(reactions = previousReactions)
-                } else {
-                    mergedMessage
-                }
+    val messageMap = LinkedHashMap<Long, MessageModel>(currentList.size + filteredNewMessages.size)
+    currentList.forEach { messageMap[it.id] = it }
+
+    filteredNewMessages.forEach { msg ->
+        val previous = messageMap[msg.id] ?: previousMessagesById[msg.id]
+        val mergedMessage = if (previous != null) mergeSenderVisuals(previous, msg) else msg
+        val restoredMessage = if (mergedMessage.reactions.isEmpty()) {
+            val previousReactions = existingReactionsById[msg.id]
+            if (!previousReactions.isNullOrEmpty()) {
+                mergedMessage.copy(reactions = previousReactions)
             } else {
                 mergedMessage
             }
-            val contentSafeMessage = state.preservePendingEditedContent(
-                incomingMessage = restoredMessage,
-                previousMessage = previous
-            )
-            val old = messageMap.put(msg.id, contentSafeMessage)
-            if (old != contentSafeMessage) {
-                hasChanges = true
-            }
+        } else {
+            mergedMessage
         }
-
-        if (!hasChanges) {
-            return@update state
-        }
-
-        val mergedMessages = messageMap.values.let {
-            val sortedMessages = if (isComments) {
-                it.sortedWith(compareBy<MessageModel> { it.date }.thenBy { it.id })
-            } else {
-                it.sortedWith(compareByDescending<MessageModel> { it.date }.thenByDescending { it.id })
-            }
-            pruneDeliveredPendingDuplicates(sortedMessages)
-        }
-
-        if (mergedMessages == state.messages) state else state.copy(
-            messages = mergedMessages,
-            outgoingMessageStates = state.outgoingMessageStates + OutgoingMessageReducer.recover(
-                mergedMessages
-            )
+        val contentSafeMessage = preservePendingEditedContent(
+            incomingMessage = restoredMessage,
+            previousMessage = previous
         )
+        messageMap[msg.id] = contentSafeMessage
+    }
+
+    return messageMap.values.let {
+        val sortedMessages = if (isComments) {
+            it.sortedWith(compareBy<MessageModel> { it.date }.thenBy { it.id })
+        } else {
+            it.sortedWith(compareByDescending<MessageModel> { it.date }.thenByDescending { it.id })
+        }
+        pruneDeliveredPendingDuplicates(sortedMessages)
     }
 }
 
 internal suspend fun DefaultChatComponent.updateMessages(newMessages: List<MessageModel>, replace: Boolean = false) {
+    val filteredNewMessages = filterHistoryMessages(newMessages)
     messageMutex.withLock {
-        updateMessagesUnsafe(newMessages, replace)
+        val current = _state.value
+        val mergedMessages = current.mergeHistoryMessages(filteredNewMessages, replace)
+        if (conversationPipelineMode == ConversationPipelineMode.New) {
+            val sessionState = conversationSession.applySnapshot(
+                generation = loadingGeneration,
+                messages = mergedMessages,
+                ascending = current.rootMessage != null
+            )
+            if (!sessionState.closed) {
+                _state.update { current ->
+                    if (current.messages == sessionState.messages) current
+                    else current.copy(
+                        messages = sessionState.messages,
+                        outgoingMessageStates = current.outgoingMessageStates +
+                                OutgoingMessageReducer.recover(sessionState.messages)
+                    )
+                }
+                if (sessionState.messages.isNotEmpty()) {
+                    ChatOpenPerfBridge.markFirstContent(chatId, current.effectiveThreadId())
+                }
+            }
+            return@withLock
+        }
+
+        if (mergedMessages != current.messages) {
+            _state.update { state ->
+                state.copy(
+                    messages = mergedMessages,
+                    outgoingMessageStates = state.outgoingMessageStates +
+                            OutgoingMessageReducer.recover(mergedMessages)
+                )
+            }
+            if (mergedMessages.isNotEmpty()) {
+                ChatOpenPerfBridge.markFirstContent(chatId, current.effectiveThreadId())
+            }
+        }
+        if (conversationPipelineMode == ConversationPipelineMode.Shadow) {
+            val legacyMessages = _state.value.messages
+            val sessionState = conversationSession.applySnapshot(
+                generation = loadingGeneration,
+                messages = legacyMessages,
+                ascending = _state.value.rootMessage != null
+            )
+            val shadowIds = sessionState.messages.map(MessageModel::id)
+            val legacyIds = legacyMessages.map(MessageModel::id)
+            if (shadowIds != legacyIds) {
+                ChatOpenPerfBridge.recordShadowMismatch(chatId, current.effectiveThreadId())
+                ConversationPipelineFallbackGate.requestFallback()
+                Log.w(
+                    "ConversationSession",
+                    "shadow_mismatch type=ids_or_order legacyCount=${legacyIds.size} shadowCount=${shadowIds.size}"
+                )
+            }
+        }
     }
+}
+
+internal fun ChatComponent.State.withConversationSessionUpdate(
+    sessionState: ConversationSessionState,
+    update: ConversationUpdate,
+    rootChatId: Long,
+    suppressReactionUpdate: Boolean = false
+): ChatComponent.State {
+    val stateWithSideEffects = when (update) {
+        is ConversationUpdate.Upsert -> {
+            val withUnread = if (update.isNew) {
+                withIncomingUnreadMessage(rootChatId, update.message)
+            } else {
+                this
+            }
+            if (update.isNew) withUnread else withUnread.clearPendingEditedMessage(update.message.id)
+        }
+
+        is ConversationUpdate.InboxRead -> withInboxReadUpdate(
+            readChatId = update.chatId,
+            readMessageId = update.lastReadMessageId,
+            updateUnreadSession = update.chatId == rootChatId
+        )
+
+        is ConversationUpdate.Delete -> copy(
+            pendingEditedMessageIds = pendingEditedMessageIds - update.messageIds
+        )
+
+        is ConversationUpdate.ReplaceTemporaryId,
+        is ConversationUpdate.OutboxRead,
+        is ConversationUpdate.SendAcknowledged,
+        is ConversationUpdate.SendFailed -> this
+    }
+
+    val previousByKey = messages.associateBy { it.chatId to it.id }
+    val projectedMessages = sessionState.messages.map { incoming ->
+        val previous = previousByKey[incoming.chatId to incoming.id]
+            ?: (update as? ConversationUpdate.ReplaceTemporaryId)
+                ?.takeIf { incoming.chatId == it.chatId && incoming.id == it.message.id }
+                ?.let { previousByKey[it.chatId to it.temporaryMessageId] }
+            ?: return@map incoming
+        val preserveSendingState = update !is ConversationUpdate.ReplaceTemporaryId &&
+                update !is ConversationUpdate.SendFailed
+        previous.projectRuntimeFields(
+            incoming = incoming,
+            preserveSendingState = preserveSendingState,
+            preserveReactions = suppressReactionUpdate &&
+                    update is ConversationUpdate.Upsert && incoming.id == update.message.id,
+            pendingEditedMessageIds = stateWithSideEffects.pendingEditedMessageIds
+        )
+    }
+
+    val marksLatest = when (update) {
+        is ConversationUpdate.Upsert -> update.isNew &&
+                (update.message.isOutgoing || stateWithSideEffects.isAtBottom)
+
+        is ConversationUpdate.ReplaceTemporaryId ->
+            update.message.isOutgoing || stateWithSideEffects.isAtBottom
+
+        else -> false
+    }
+    return stateWithSideEffects.copy(
+        messages = projectedMessages,
+        outgoingMessageStates = sessionState.outgoingMessageStates,
+        isLatestLoaded = if (marksLatest) true else stateWithSideEffects.isLatestLoaded
+    )
+}
+
+internal fun applyConversationUpdateBookkeeping(
+    update: ConversationUpdate,
+    remappedMessageIds: MutableMap<Long, Long>,
+    reactionUpdateSuppressedUntil: MutableMap<Long, Long>
+) {
+    when (update) {
+        is ConversationUpdate.ReplaceTemporaryId -> {
+            if (update.temporaryMessageId != update.message.id) {
+                remappedMessageIds[update.temporaryMessageId] = update.message.id
+            } else {
+                remappedMessageIds.remove(update.temporaryMessageId)
+            }
+        }
+
+        is ConversationUpdate.Delete -> {
+            update.messageIds.forEach(reactionUpdateSuppressedUntil::remove)
+            update.messageIds.forEach(remappedMessageIds::remove)
+            remappedMessageIds.entries.removeIf { (_, mappedId) -> mappedId in update.messageIds }
+        }
+
+        is ConversationUpdate.Upsert,
+        is ConversationUpdate.InboxRead,
+        is ConversationUpdate.OutboxRead,
+        is ConversationUpdate.SendAcknowledged,
+        is ConversationUpdate.SendFailed -> Unit
+    }
+}
+
+private fun MessageModel.projectRuntimeFields(
+    incoming: MessageModel,
+    preserveSendingState: Boolean,
+    preserveReactions: Boolean,
+    pendingEditedMessageIds: Set<Long>
+): MessageModel {
+    val senderSafe = mergeSenderVisuals(this, incoming).copy(reactions = incoming.reactions)
+    val mediaSafe = senderSafe.copy(
+        content = content.projectMediaRuntime(senderSafe.content),
+        sendingState = if (preserveSendingState) sendingState else senderSafe.sendingState
+    )
+    val editSafe = if (id in pendingEditedMessageIds) {
+        mediaSafe.copy(content = content)
+    } else {
+        mediaSafe
+    }
+    return when {
+        preserveReactions -> editSafe.copy(reactions = reactions)
+        reactionsSemanticEqual(
+            reactions,
+            editSafe.reactions
+        ) -> editSafe.copy(reactions = reactions)
+
+        else -> editSafe
+    }
+}
+
+private fun MessageContent.projectMediaRuntime(incoming: MessageContent): MessageContent = when {
+    this is MessageContent.Photo && incoming is MessageContent.Photo && fileId == incoming.fileId -> incoming.copy(
+        path = incoming.path ?: path,
+        thumbnailPath = incoming.thumbnailPath ?: thumbnailPath,
+        isUploading = isUploading,
+        uploadProgress = uploadProgress,
+        isDownloading = isDownloading,
+        downloadProgress = downloadProgress,
+        downloadError = downloadError
+    )
+
+    this is MessageContent.Video && incoming is MessageContent.Video && fileId == incoming.fileId -> incoming.copy(
+        path = incoming.path ?: path,
+        thumbnailPath = incoming.thumbnailPath ?: thumbnailPath,
+        isUploading = isUploading,
+        uploadProgress = uploadProgress,
+        isDownloading = isDownloading,
+        downloadProgress = downloadProgress,
+        downloadError = downloadError
+    )
+
+    this is MessageContent.VideoNote && incoming is MessageContent.VideoNote && fileId == incoming.fileId -> incoming.copy(
+        path = incoming.path ?: path,
+        thumbnail = incoming.thumbnail ?: thumbnail,
+        isUploading = isUploading,
+        uploadProgress = uploadProgress,
+        isDownloading = isDownloading,
+        downloadProgress = downloadProgress,
+        downloadError = downloadError
+    )
+
+    this is MessageContent.Document && incoming is MessageContent.Document && fileId == incoming.fileId -> incoming.copy(
+        path = incoming.path ?: path,
+        isUploading = isUploading,
+        uploadProgress = uploadProgress,
+        isDownloading = isDownloading,
+        downloadProgress = downloadProgress,
+        downloadError = downloadError
+    )
+
+    this is MessageContent.Audio && incoming is MessageContent.Audio && fileId == incoming.fileId -> incoming.copy(
+        path = incoming.path ?: path,
+        isUploading = isUploading,
+        uploadProgress = uploadProgress,
+        isDownloading = isDownloading,
+        downloadProgress = downloadProgress,
+        downloadError = downloadError
+    )
+
+    this is MessageContent.Voice && incoming is MessageContent.Voice && fileId == incoming.fileId -> incoming.copy(
+        path = incoming.path ?: path,
+        isUploading = isUploading,
+        uploadProgress = uploadProgress,
+        isDownloading = isDownloading,
+        downloadProgress = downloadProgress,
+        downloadError = downloadError
+    )
+
+    this is MessageContent.Sticker && incoming is MessageContent.Sticker && fileId == incoming.fileId -> incoming.copy(
+        path = incoming.path ?: path,
+        isDownloading = isDownloading,
+        downloadProgress = downloadProgress,
+        downloadError = downloadError
+    )
+
+    this is MessageContent.Gif && incoming is MessageContent.Gif && fileId == incoming.fileId -> incoming.copy(
+        path = incoming.path ?: path,
+        isUploading = isUploading,
+        uploadProgress = uploadProgress,
+        isDownloading = isDownloading,
+        downloadProgress = downloadProgress,
+        downloadError = downloadError
+    )
+
+    else -> incoming
+}
+
+private suspend fun DefaultChatComponent.loadHistoryPage(request: HistoryRequest) = try {
+    if (conversationPipelineMode == ConversationPipelineMode.Legacy) {
+        repositoryMessage.getHistoryPage(request)
+    } else {
+        conversationSession.loadHistory(loadingGeneration, request)
+    }
+} catch (error: Exception) {
+    if (error !is CancellationException && conversationPipelineMode != ConversationPipelineMode.Legacy) {
+        ConversationPipelineFallbackGate.requestFallback()
+    }
+    throw error
 }
 
 private fun pruneDeliveredPendingDuplicates(messages: List<MessageModel>): List<MessageModel> {
@@ -313,6 +568,7 @@ internal fun DefaultChatComponent.loadMessages(
     if (!force && state.messages.size >= PAGE_SIZE && state.currentTopicId == null) return
 
     cancelAllLoadingJobs()
+    val generation = loadingGeneration
     messageLoadingJob = scope.launch {
         val openStartedAt = System.currentTimeMillis()
         ChatConversationLog.logViewportState(
@@ -321,13 +577,17 @@ internal fun DefaultChatComponent.loadMessages(
             componentInstanceId = componentInstanceId,
             extra = "source=$loadSource force=$force"
         )
+        if (conversationPipelineMode == ConversationPipelineMode.New) {
+            conversationSession.setOperationLoading(
+                generation,
+                loading = true,
+                resetBoundaries = true
+            )
+        }
         _state.update {
-            it.copy(
-                isLoading = true,
-                isOldestLoaded = false,
-                isLatestLoaded = false,
-                pendingScrollCommand = null,
-                viewportPhase = ChatViewportPhase.Initializing
+            ConversationViewportReducer.beginLoad(
+                state = it,
+                legacyOwnsLoadingState = conversationPipelineMode != ConversationPipelineMode.New
             )
         }
         ChatConversationLog.logViewportState(
@@ -338,6 +598,7 @@ internal fun DefaultChatComponent.loadMessages(
         )
 
         try {
+            check(isLoadingGenerationCurrent(generation)) { "Stale chat load generation" }
             val currentState = _state.value
             val threadId = currentState.effectiveThreadId()
             val targetChatId = currentState.effectiveThreadChatId(chatId)
@@ -362,7 +623,17 @@ internal fun DefaultChatComponent.loadMessages(
             val firstUnreadId = unreadSeparatorLastReadInboxMessageId
                 .takeIf { unreadSeparatorCount > 0 }
                 ?.let { lastRead ->
-                    repositoryMessage.getMessagesNewer(targetChatId, lastRead, 1, threadId)
+                    check(isLoadingGenerationCurrent(generation)) { "Stale chat load generation" }
+                    loadHistoryPage(
+                        HistoryRequest(
+                            key = historyConversationKey(targetChatId, threadId),
+                            anchor = HistoryAnchor.Message(lastRead),
+                            direction = HistoryDirection.Newer,
+                            limit = 1,
+                            source = HistorySource.TdlibNetwork
+                        )
+                    )
+                        .messages
                         .firstOrNull()
                         ?.id
                         ?: lastRead.takeIf { it > 0L }
@@ -375,8 +646,9 @@ internal fun DefaultChatComponent.loadMessages(
                     firstUnreadMessageId = firstUnreadId,
                     unreadCount = unreadSeparatorCount,
                     backfillUnreadThreshold = PAGE_SIZE,
-                    isComments = isComments
-                )
+                isComments = isComments
+            )
+            check(isLoadingGenerationCurrent(generation)) { "Stale chat load generation" }
             ChatConversationLog.logViewportState(
                 event = "load_messages_target_resolved",
                 state = _state.value,
@@ -426,6 +698,7 @@ internal fun DefaultChatComponent.loadMessages(
                 }
 
                 is InitialChatScrollTarget.Bottom -> {
+                    check(isLoadingGenerationCurrent(generation)) { "Stale chat load generation" }
                     loadBottomMessages(
                         targetChatId = targetChatId,
                         threadId = threadId,
@@ -452,8 +725,12 @@ internal fun DefaultChatComponent.loadMessages(
             // Only clear the flag if this job finished on its own. cancelAllLoadingJobs() cancels
             // without joining, so a pre-empted job's finally runs *after* the replacement job has
             // already set isLoading = true -- clearing it here would clobber the live load.
-            if (isActive) {
-                _state.update { it.copy(isLoading = false) }
+            if (isActive && isLoadingGenerationCurrent(generation)) {
+                if (conversationPipelineMode == ConversationPipelineMode.New) {
+                    conversationSession.setOperationLoading(generation, loading = false)
+                } else {
+                    _state.update { it.copy(isLoading = false) }
+                }
             }
             ChatConversationLog.logViewportState(
                 event = "load_messages_finished",
@@ -472,32 +749,46 @@ internal suspend fun DefaultChatComponent.loadComments(
 ) {
     lastLoadedOlderId = 0L
     lastLoadedNewerId = 0L
-    val olderPage = repositoryMessage.getMessagesOlder(targetChatId, 0L, PAGE_SIZE, threadId)
+    val olderPage = loadHistoryPage(
+        HistoryRequest(
+            key = historyConversationKey(targetChatId, threadId),
+            anchor = HistoryAnchor.Latest,
+            direction = HistoryDirection.Initial,
+            limit = PAGE_SIZE,
+            source = HistorySource.TdlibNetwork
+        )
+    )
     val messages = olderPage.messages
-    val reachedOldest = olderPage.reachedOldest
+    val reachedOldest = olderPage.olderBoundary is BoundaryState.Reached
+
+    if (conversationPipelineMode == ConversationPipelineMode.New) {
+        conversationSession.setBoundaries(
+            generation = loadingGeneration,
+            oldestLoaded = reachedOldest,
+            latestLoaded = true
+        )
+    }
 
     _state.update {
-        it.copy(
+        ConversationViewportReducer.contentReady(
+            state = it,
             isAtBottom = when (scrollCommand) {
                 is ChatScrollCommand.ScrollToBottom -> true
                 is ChatScrollCommand.RestoreViewport -> scrollCommand.atBottom
                 else -> false
             },
-            isLatestLoaded = true,
-            isOldestLoaded = reachedOldest,
-            scrollToMessageId = null,
-            highlightRequest = null
+            legacyOldestLoaded = reachedOldest.takeIf {
+                conversationPipelineMode != ConversationPipelineMode.New
+            },
+            legacyLatestLoaded = true.takeIf {
+                conversationPipelineMode != ConversationPipelineMode.New
+            }
         )
     }
     updateMessages(messages, replace = true)
     refreshCachedSenderProfiles(messages)
     if (scrollCommand != null) {
-        _state.update {
-            it.copy(
-                pendingScrollCommand = scrollCommand,
-                viewportPhase = ChatViewportPhase.Restoring
-            )
-        }
+        restoreViewport(scrollCommand)
         ChatConversationLog.logViewportState(
             event = "load_comments_restore",
             state = _state.value,
@@ -516,16 +807,29 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
     lastLoadedNewerId = 0L
 
     var hasCachedPreview = false
-    val cachedMessages = repositoryMessage.getCachedMessages(targetChatId, PAGE_SIZE, threadId)
+    var previewMessages = emptyList<MessageModel>()
+    val cachedMessages = loadHistoryPage(
+        HistoryRequest(
+            key = historyConversationKey(targetChatId, threadId),
+            anchor = HistoryAnchor.Latest,
+            direction = HistoryDirection.Initial,
+            limit = PAGE_SIZE,
+            source = HistorySource.RoomSnapshot
+        )
+    ).messages
     if (cachedMessages.isNotEmpty()) {
         hasCachedPreview = true
+        previewMessages = cachedMessages
         _state.update {
-            it.copy(
+            ConversationViewportReducer.contentReady(
+                state = it,
                 isAtBottom = true,
-                isLatestLoaded = false,
-                isOldestLoaded = false,
-                scrollToMessageId = null,
-                highlightRequest = null
+                legacyOldestLoaded = false.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                },
+                legacyLatestLoaded = false.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                }
             )
         }
         updateMessages(cachedMessages, replace = true)
@@ -537,12 +841,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
             extra = "targetChatId=$targetChatId cachedMessages=${cachedMessages.size}"
         )
         if (scrollCommand != null) {
-            _state.update {
-                it.copy(
-                    pendingScrollCommand = scrollCommand,
-                    viewportPhase = ChatViewportPhase.Restoring
-                )
-            }
+            restoreViewport(scrollCommand)
             ChatConversationLog.logViewportState(
                 event = "load_bottom_cached_restore",
                 state = _state.value,
@@ -552,63 +851,106 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
         }
     }
 
-    val olderPage = repositoryMessage.getMessagesOlder(targetChatId, 0, PAGE_SIZE, threadId)
-    val messages = olderPage.messages
-    val isRemoteSameAsCachedPreview = hasCachedPreview && cachedMessages.isNotEmpty() &&
-            messages.size == cachedMessages.size &&
-            messages.zip(cachedMessages).all { (remote, cached) ->
-                remote.id == cached.id && !cached.hasUnresolvableCachedMedia()
-            }
-
-    val isOldestLoaded = if (isRemoteSameAsCachedPreview) {
-        false
-    } else {
-        olderPage.reachedOldest
+    val localPage = loadHistoryPage(
+        HistoryRequest(
+            key = historyConversationKey(targetChatId, threadId),
+            anchor = HistoryAnchor.Latest,
+            direction = HistoryDirection.Initial,
+            limit = PAGE_SIZE,
+            source = HistorySource.TdlibLocal
+        )
+    )
+    if (localPage.messages.isNotEmpty()) {
+        hasCachedPreview = true
+        previewMessages = localPage.messages
+        updateMessages(localPage.messages, replace = true)
+        refreshCachedSenderProfiles(localPage.messages)
+        ChatConversationLog.logViewportState(
+            event = "load_bottom_tdlib_local_preview",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "targetChatId=$targetChatId localMessages=${localPage.messages.size}"
+        )
     }
 
-    if (!isRemoteSameAsCachedPreview) {
+    val olderPage = if (shouldRequestInitialNetwork(localPage, PAGE_SIZE, threadId)) {
+        loadHistoryPage(
+            HistoryRequest(
+                key = historyConversationKey(targetChatId, threadId),
+                anchor = HistoryAnchor.Latest,
+                direction = HistoryDirection.Initial,
+                limit = PAGE_SIZE,
+                source = HistorySource.TdlibNetwork
+            )
+        )
+    } else {
+        localPage
+    }
+    val messages = olderPage.messages
+    val isReconciliationSameAsPreview = hasCachedPreview && previewMessages.isNotEmpty() &&
+            messages.size == previewMessages.size &&
+            messages.zip(previewMessages).all { (reconciled, cached) ->
+                reconciled.id == cached.id && !cached.hasUnresolvableCachedMedia()
+            }
+
+    val isOldestLoaded = if (isReconciliationSameAsPreview) {
+        false
+    } else {
+        olderPage.olderBoundary is BoundaryState.Reached
+    }
+
+    if (conversationPipelineMode == ConversationPipelineMode.New) {
+        conversationSession.setBoundaries(
+            generation = loadingGeneration,
+            oldestLoaded = isOldestLoaded,
+            latestLoaded = true
+        )
+    }
+
+    if (!isReconciliationSameAsPreview) {
         _state.update {
-            it.copy(
+            ConversationViewportReducer.contentReady(
+                state = it,
                 isAtBottom = true,
-                isLatestLoaded = true,
-                isOldestLoaded = isOldestLoaded,
-                scrollToMessageId = null,
-                highlightRequest = null
+                legacyOldestLoaded = isOldestLoaded.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                },
+                legacyLatestLoaded = true.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                }
             )
         }
         val shouldReplaceCachedPreview = !hasCachedPreview || messages.isNotEmpty()
         updateMessages(messages, replace = shouldReplaceCachedPreview)
         refreshCachedSenderProfiles(messages)
         ChatConversationLog.logViewportState(
-            event = "load_bottom_remote_applied",
+            event = "load_bottom_reconciliation_applied",
             state = _state.value,
             componentInstanceId = componentInstanceId,
-            extra = "targetChatId=$targetChatId remoteMessages=${messages.size} replace=${shouldReplaceCachedPreview} reachedOldest=${olderPage.reachedOldest}"
+            extra = "targetChatId=$targetChatId source=${olderPage.source} messages=${messages.size} replace=${shouldReplaceCachedPreview} reachedOldest=${olderPage.olderBoundary is BoundaryState.Reached}"
         )
     } else {
         _state.update {
-            it.copy(
+            ConversationViewportReducer.contentReady(
+                state = it,
                 isAtBottom = true,
-                isLatestLoaded = true,
-                isOldestLoaded = false,
-                scrollToMessageId = null,
-                highlightRequest = null
+                legacyOldestLoaded = false.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                },
+                legacyLatestLoaded = true.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                }
             )
         }
         ChatConversationLog.logViewportState(
-            event = "load_bottom_remote_same_as_cache",
+            event = "load_bottom_reconciliation_same_as_preview",
             state = _state.value,
             componentInstanceId = componentInstanceId,
-            extra = "targetChatId=$targetChatId remoteMessages=${messages.size}"
+            extra = "targetChatId=$targetChatId source=${olderPage.source} messages=${messages.size}"
         )
     }
     if (scrollCommand != null) {
-        _state.update {
-            it.copy(
-                pendingScrollCommand = scrollCommand,
-                viewportPhase = ChatViewportPhase.Restoring
-            )
-        }
+        restoreViewport(scrollCommand)
         ChatConversationLog.logViewportState(
             event = "load_bottom_restore",
             state = _state.value,
@@ -634,17 +976,27 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
     lastLoadedOlderId = 0L
     lastLoadedNewerId = 0L
     var hasTargetPreview = false
-    val cachedMessages =
-        repositoryMessage.getCachedMessagesAround(chatId, messageId, PAGE_SIZE, threadId)
+    val cachedMessages = loadHistoryPage(
+        HistoryRequest(
+            key = historyConversationKey(chatId, threadId),
+            anchor = HistoryAnchor.Message(messageId),
+            direction = HistoryDirection.Around,
+            limit = PAGE_SIZE,
+            source = HistorySource.RoomSnapshot
+        )
+    ).messages
     if (cachedMessages.any { it.id == messageId }) {
         hasTargetPreview = true
         _state.update {
-            it.copy(
+            ConversationViewportReducer.contentReady(
+                state = it,
                 isAtBottom = false,
-                isLatestLoaded = false,
-                isOldestLoaded = false,
-                scrollToMessageId = null,
-                highlightRequest = null
+                legacyOldestLoaded = false.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                },
+                legacyLatestLoaded = false.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                }
             )
         }
         updateMessages(cachedMessages, replace = true)
@@ -656,12 +1008,7 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
             extra = "targetMessageId=$messageId cachedMessages=${cachedMessages.size}"
         )
         if (scrollCommand != null) {
-            _state.update {
-                it.copy(
-                    pendingScrollCommand = scrollCommand,
-                    viewportPhase = ChatViewportPhase.Restoring
-                )
-            }
+            restoreViewport(scrollCommand)
             ChatConversationLog.logViewportState(
                 event = "load_around_cached_restore",
                 state = _state.value,
@@ -671,15 +1018,33 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
         }
     }
 
-    val messages = repositoryMessage.getMessagesAround(chatId, messageId, PAGE_SIZE, threadId)
+    val messages = loadHistoryPage(
+        HistoryRequest(
+            key = historyConversationKey(chatId, threadId),
+            anchor = HistoryAnchor.Message(messageId),
+            direction = HistoryDirection.Around,
+            limit = PAGE_SIZE,
+            source = HistorySource.TdlibNetwork
+        )
+    ).messages
     if (messages.isNotEmpty()) {
+        if (conversationPipelineMode == ConversationPipelineMode.New) {
+            conversationSession.setBoundaries(
+                generation = loadingGeneration,
+                oldestLoaded = false,
+                latestLoaded = false
+            )
+        }
         _state.update {
-            it.copy(
+            ConversationViewportReducer.contentReady(
+                state = it,
                 isAtBottom = false,
-                isLatestLoaded = false,
-                isOldestLoaded = false,
-                scrollToMessageId = null,
-                highlightRequest = null
+                legacyOldestLoaded = false.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                },
+                legacyLatestLoaded = false.takeIf {
+                    conversationPipelineMode != ConversationPipelineMode.New
+                }
             )
         }
         updateMessages(messages, replace = !hasTargetPreview)
@@ -691,12 +1056,7 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
             extra = "targetMessageId=$messageId remoteMessages=${messages.size} replace=${!hasTargetPreview}"
         )
         if (!hasTargetPreview && scrollCommand != null) {
-            _state.update {
-                it.copy(
-                    pendingScrollCommand = scrollCommand,
-                    viewportPhase = ChatViewportPhase.Restoring
-                )
-            }
+            restoreViewport(scrollCommand)
             ChatConversationLog.logViewportState(
                 event = "load_around_remote_restore",
                 state = _state.value,
@@ -790,16 +1150,11 @@ internal fun DefaultChatComponent.scheduleUnreadBackfill(maxPages: Int) {
 }
 
 internal fun DefaultChatComponent.requestMessageHighlight(messageId: Long) {
-    _state.update { currentState ->
-        val nextToken = currentState.highlightRequestToken + 1L
-        currentState.copy(
-            highlightRequest = org.monogram.presentation.features.chats.conversation.MessageHighlightRequest(
-                messageId = messageId,
-                token = nextToken
-            ),
-            highlightRequestToken = nextToken
-        )
-    }
+    _state.update { ConversationViewportReducer.requestHighlight(it, messageId) }
+}
+
+private fun DefaultChatComponent.restoreViewport(command: ChatScrollCommand) {
+    _state.update { ConversationViewportReducer.restore(it, command) }
 }
 
 internal enum class ScrollToBottomHandling {
@@ -818,9 +1173,9 @@ internal fun ChatComponent.State.resolveScrollToBottomHandling(): ScrollToBottom
 internal fun ChatComponent.State.enqueueRuntimeScrollToBottom(
     animated: Boolean = true
 ): ChatComponent.State {
-    return copy(
-        isAtBottom = true,
-        pendingScrollCommand = ChatScrollCommand.ScrollToBottom(animated = animated)
+    return ConversationViewportReducer.enqueue(
+        state = copy(isAtBottom = true),
+        command = ChatScrollCommand.ScrollToBottom(animated = animated)
     )
 }
 
@@ -839,16 +1194,14 @@ private fun DefaultChatComponent.queueJumpToLoadedMessage(
     animated: Boolean = true
 ) {
     _state.update {
-        it.copy(
-            isAtBottom = false,
-            viewportPhase = ChatViewportPhase.Restoring,
-            pendingScrollCommand = ChatScrollCommand.JumpToMessage(
+        ConversationViewportReducer.restore(
+            state = it.copy(isAtBottom = false),
+            command = ChatScrollCommand.JumpToMessage(
                 messageId = messageId,
                 highlight = highlight,
                 align = align,
                 animated = animated
-            ),
-            highlightRequest = null
+            )
         )
     }
 }
@@ -873,9 +1226,13 @@ internal fun DefaultChatComponent.loadMoreMessages() {
         inFlightOlderAnchorId = requestedAnchorId
     }
 
+    val generation = loadingGeneration
     loadMoreJob = scope.launch {
-        _state.update { it.copy(isLoadingOlder = true) }
+        if (conversationPipelineMode != ConversationPipelineMode.New) {
+            _state.update { it.copy(isLoadingOlder = true) }
+        }
         try {
+            check(isLoadingGenerationCurrent(generation)) { "Stale chat load generation" }
             val currentState = _state.value
             val isComments = currentState.rootMessage != null
             val threadId = currentState.effectiveThreadId()
@@ -894,7 +1251,11 @@ internal fun DefaultChatComponent.loadMoreMessages() {
             inFlightOlderAnchorId = anchorId
 
             if (anchorId == 0L) {
-                _state.update { it.copy(isOldestLoaded = true) }
+                if (conversationPipelineMode == ConversationPipelineMode.New) {
+                    conversationSession.markBoundaryReached(generation, HistoryDirection.Older)
+                } else {
+                    _state.update { it.copy(isOldestLoaded = true) }
+                }
                 return@launch
             }
 
@@ -904,13 +1265,17 @@ internal fun DefaultChatComponent.loadMoreMessages() {
 
             while (!isOldestLoaded && attempts < 5) {
                 attempts++
+                check(isLoadingGenerationCurrent(generation)) { "Stale chat load generation" }
 
                 val beforeSize = _state.value.messages.size
-                val olderPage = repositoryMessage.getMessagesOlder(
-                    targetChatId,
-                    currentAnchorId,
-                    PAGE_SIZE,
-                    threadId
+                val olderPage = loadHistoryPage(
+                    HistoryRequest(
+                        key = historyConversationKey(targetChatId, threadId),
+                        anchor = HistoryAnchor.Message(currentAnchorId),
+                        direction = HistoryDirection.Older,
+                        limit = PAGE_SIZE,
+                        source = HistorySource.TdlibNetwork
+                    )
                 )
                 val olderMessages = olderPage.messages
 
@@ -930,27 +1295,41 @@ internal fun DefaultChatComponent.loadMoreMessages() {
                 val afterSize = _state.value.messages.size
                 val listGrew = afterSize > beforeSize
 
-                isOldestLoaded = olderPage.reachedOldest || (olderPage.isRemote && !hasOlderProgress)
+                val isRemote = olderPage.source == HistorySource.TdlibNetwork
+                isOldestLoaded = olderPage.olderBoundary is BoundaryState.Reached ||
+                        (isRemote && !hasOlderProgress)
 
                 if (hasOlderProgress) {
                     lastLoadedOlderId = nextOlderAnchorId
                     currentAnchorId = nextOlderAnchorId
                 }
 
-                if (!olderPage.isRemote && olderMessages.isEmpty()) {
+                if (!isRemote && olderMessages.isEmpty()) {
                     break
                 }
 
                 if (isOldestLoaded || listGrew) break
             }
 
-            _state.update { it.copy(isOldestLoaded = isOldestLoaded) }
+            if (isLoadingGenerationCurrent(generation)) {
+                if (conversationPipelineMode == ConversationPipelineMode.New) {
+                    if (isOldestLoaded) {
+                        conversationSession.markBoundaryReached(generation, HistoryDirection.Older)
+                    }
+                } else {
+                    _state.update { it.copy(isOldestLoaded = isOldestLoaded) }
+                }
+            }
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Failed to load more messages", e)
             lastLoadedOlderId = 0L
         } finally {
             inFlightOlderAnchorId = 0L
-            _state.update { it.copy(isLoadingOlder = false) }
+            if (isLoadingGenerationCurrent(generation)) {
+                if (conversationPipelineMode != ConversationPipelineMode.New) {
+                    _state.update { it.copy(isLoadingOlder = false) }
+                }
+            }
         }
     }
 }
@@ -970,16 +1349,24 @@ internal fun DefaultChatComponent.loadNewerMessages() {
         inFlightNewerAnchorId = requestedAnchorId
     }
 
+    val generation = loadingGeneration
     loadNewerJob = scope.launch {
-        _state.update { it.copy(isLoadingNewer = true) }
+        if (conversationPipelineMode != ConversationPipelineMode.New) {
+            _state.update { it.copy(isLoadingNewer = true) }
+        }
         try {
+            check(isLoadingGenerationCurrent(generation)) { "Stale chat load generation" }
             loadNewerMessagesPage()
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Failed to load newer messages", e)
             lastLoadedNewerId = 0L
         } finally {
             inFlightNewerAnchorId = 0L
-            _state.update { it.copy(isLoadingNewer = false) }
+            if (isLoadingGenerationCurrent(generation)) {
+                if (conversationPipelineMode != ConversationPipelineMode.New) {
+                    _state.update { it.copy(isLoadingNewer = false) }
+                }
+            }
         }
     }
 }
@@ -998,15 +1385,28 @@ private suspend fun DefaultChatComponent.loadNewerMessagesPage(): Boolean {
     }
 
     if (anchorId != 0L && anchorId == lastLoadedNewerId) {
-        _state.update { it.copy(isLatestLoaded = true) }
+        if (conversationPipelineMode == ConversationPipelineMode.New) {
+            conversationSession.markBoundaryReached(loadingGeneration, HistoryDirection.Newer)
+        } else {
+            _state.update { it.copy(isLatestLoaded = true) }
+        }
         return true
     }
 
-    val newerMessages =
-        repositoryMessage.getMessagesNewer(targetChatId, anchorId, PAGE_SIZE, threadId)
+    val newerPage = loadHistoryPage(
+        HistoryRequest(
+            key = historyConversationKey(targetChatId, threadId),
+            anchor = HistoryAnchor.Message(anchorId),
+            direction = HistoryDirection.Newer,
+            limit = PAGE_SIZE,
+            source = HistorySource.TdlibNetwork
+        )
+    )
+    val newerMessages = newerPage.messages
     val isLatestLoaded =
-        newerMessages.size < PAGE_SIZE ||
-                (newerMessages.isNotEmpty() && newerMessages.all { msg -> currentMessages.any { it.id == msg.id } })
+        newerPage.source == HistorySource.TdlibNetwork &&
+                (newerMessages.size < PAGE_SIZE ||
+                        (newerMessages.isNotEmpty() && newerMessages.all { msg -> currentMessages.any { it.id == msg.id } }))
 
     if (newerMessages.isNotEmpty()) {
         updateMessages(newerMessages)
@@ -1014,7 +1414,13 @@ private suspend fun DefaultChatComponent.loadNewerMessagesPage(): Boolean {
         lastLoadedNewerId = anchorId
     }
 
-    _state.update { it.copy(isLatestLoaded = isLatestLoaded) }
+    if (conversationPipelineMode == ConversationPipelineMode.New) {
+        if (isLatestLoaded) {
+            conversationSession.markBoundaryReached(loadingGeneration, HistoryDirection.Newer)
+        }
+    } else {
+        _state.update { it.copy(isLatestLoaded = isLatestLoaded) }
+    }
     return isLatestLoaded
 }
 
@@ -1037,6 +1443,7 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
     }
 
     cancelAllLoadingJobs()
+    val generation = loadingGeneration
     messageLoadingJob = scope.launch {
         ChatConversationLog.logViewportState(
             event = "scroll_to_message_reset_before",
@@ -1044,14 +1451,17 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
             componentInstanceId = componentInstanceId,
             extra = "messageId=$messageId"
         )
+        if (conversationPipelineMode == ConversationPipelineMode.New) {
+            conversationSession.setOperationLoading(
+                generation,
+                loading = true,
+                resetBoundaries = true
+            )
+        }
         _state.update {
-            it.copy(
-                isLoading = true,
-                isOldestLoaded = false,
-                isLatestLoaded = false,
-                pendingScrollCommand = null,
-                viewportPhase = ChatViewportPhase.Initializing,
-                highlightRequest = null
+            ConversationViewportReducer.beginLoad(
+                state = it,
+                legacyOwnsLoadingState = conversationPipelineMode != ConversationPipelineMode.New
             )
         }
         ChatConversationLog.logViewportState(
@@ -1084,7 +1494,13 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
             )
             Log.e("DefaultChatComponent", "Failed to scroll to message", e)
         } finally {
-            _state.update { it.copy(isLoading = false) }
+            if (isActive && isLoadingGenerationCurrent(generation)) {
+                if (conversationPipelineMode == ConversationPipelineMode.New) {
+                    conversationSession.setOperationLoading(generation, loading = false)
+                } else {
+                    _state.update { it.copy(isLoading = false) }
+                }
+            }
             ChatConversationLog.logViewportState(
                 event = "scroll_to_message_reload_finish",
                 state = _state.value,
@@ -1126,6 +1542,7 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
     }
     if (currentState.isLoading) return
     cancelAllLoadingJobs()
+    val generation = loadingGeneration
     messageLoadingJob = scope.launch {
         ChatConversationLog.logViewportState(
             event = "scroll_to_bottom_reset_before",
@@ -1133,13 +1550,17 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
             componentInstanceId = componentInstanceId,
             extra = "isComments=$isComments"
         )
+        if (conversationPipelineMode == ConversationPipelineMode.New) {
+            conversationSession.setOperationLoading(
+                generation,
+                loading = true,
+                resetBoundaries = true
+            )
+        }
         _state.update {
-            it.copy(
-                isLoading = true,
-                isOldestLoaded = false,
-                isLatestLoaded = false,
-                pendingScrollCommand = null,
-                viewportPhase = ChatViewportPhase.Initializing
+            ConversationViewportReducer.beginLoad(
+                state = it,
+                legacyOwnsLoadingState = conversationPipelineMode != ConversationPipelineMode.New
             )
         }
         ChatConversationLog.logViewportState(
@@ -1173,7 +1594,13 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
             )
             Log.e("DefaultChatComponent", "Failed to scroll to bottom", e)
         } finally {
-            _state.update { it.copy(isLoading = false) }
+            if (isActive && isLoadingGenerationCurrent(generation)) {
+                if (conversationPipelineMode == ConversationPipelineMode.New) {
+                    conversationSession.setOperationLoading(generation, loading = false)
+                } else {
+                    _state.update { it.copy(isLoading = false) }
+                }
+            }
             ChatConversationLog.logViewportState(
                 event = "scroll_to_bottom_reload_finish",
                 state = _state.value,
@@ -1184,6 +1611,10 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
 }
 
 internal fun DefaultChatComponent.cancelAllLoadingJobs() {
+    loadingGeneration += 1L
+    if (conversationPipelineMode != ConversationPipelineMode.Legacy) {
+        conversationSession.advanceGeneration(loadingGeneration)
+    }
     messageLoadingJob?.cancel()
     loadMoreJob?.cancel()
     loadNewerJob?.cancel()
@@ -1197,7 +1628,9 @@ private fun DefaultChatComponent.ensureLatestWindowLoaded(maxPages: Int) {
     if (loadNewerJob?.isActive == true) return
 
     loadNewerJob = scope.launch {
-        _state.update { it.copy(isLoadingNewer = true) }
+        if (conversationPipelineMode != ConversationPipelineMode.New) {
+            _state.update { it.copy(isLoadingNewer = true) }
+        }
         try {
             backfillNewerMessages(maxPages = maxPages)
         } catch (e: CancellationException) {
@@ -1207,7 +1640,9 @@ private fun DefaultChatComponent.ensureLatestWindowLoaded(maxPages: Int) {
             lastLoadedNewerId = 0L
         } finally {
             inFlightNewerAnchorId = 0L
-            _state.update { it.copy(isLoadingNewer = false) }
+            if (conversationPipelineMode != ConversationPipelineMode.New) {
+                _state.update { it.copy(isLoadingNewer = false) }
+            }
         }
     }
 }
@@ -1228,6 +1663,7 @@ internal fun DefaultChatComponent.jumpToLatestInternal() {
 
     if (currentState.isLoading) return
     cancelAllLoadingJobs()
+    val generation = loadingGeneration
     messageLoadingJob = scope.launch {
         ChatConversationLog.logViewportState(
             event = "jump_to_latest_reset_before",
@@ -1235,14 +1671,17 @@ internal fun DefaultChatComponent.jumpToLatestInternal() {
             componentInstanceId = componentInstanceId,
             extra = "isComments=$isComments"
         )
+        if (conversationPipelineMode == ConversationPipelineMode.New) {
+            conversationSession.setOperationLoading(
+                generation,
+                loading = true,
+                resetBoundaries = true
+            )
+        }
         _state.update {
-            it.withResetSavedBottomViewport().copy(
-                isLoading = true,
-                isOldestLoaded = false,
-                isLatestLoaded = false,
-                pendingScrollCommand = null,
-                viewportPhase = ChatViewportPhase.Initializing,
-                highlightRequest = null
+            ConversationViewportReducer.beginLoad(
+                state = it.withResetSavedBottomViewport(),
+                legacyOwnsLoadingState = conversationPipelineMode != ConversationPipelineMode.New
             )
         }
         ChatConversationLog.logViewportState(
@@ -1252,6 +1691,7 @@ internal fun DefaultChatComponent.jumpToLatestInternal() {
             extra = "isComments=$isComments"
         )
         try {
+            check(isLoadingGenerationCurrent(generation)) { "Stale chat load generation" }
             if (isComments && threadId != null) {
                 loadComments(
                     targetChatId = targetChatId,
@@ -1276,7 +1716,13 @@ internal fun DefaultChatComponent.jumpToLatestInternal() {
             )
             Log.e("DefaultChatComponent", "Failed to jump to latest", e)
         } finally {
-            _state.update { it.copy(isLoading = false) }
+            if (isLoadingGenerationCurrent(generation)) {
+                if (conversationPipelineMode == ConversationPipelineMode.New) {
+                    conversationSession.setOperationLoading(generation, loading = false)
+                } else {
+                    _state.update { it.copy(isLoading = false) }
+                }
+            }
             ChatConversationLog.logViewportState(
                 event = "jump_to_latest_reload_finish",
                 state = _state.value,
@@ -1287,24 +1733,123 @@ internal fun DefaultChatComponent.jumpToLatestInternal() {
 }
 
 internal fun DefaultChatComponent.setupMessageCollectors() {
+    if (conversationPipelineMode == ConversationPipelineMode.New) {
+        conversationSession.state
+            .onEach { sessionState ->
+                if (sessionState.closed) return@onEach
+                _state.update { current ->
+                    current.copy(
+                        isLoading = sessionState.isLoadingInitial,
+                        isLoadingOlder = sessionState.isLoadingOlder,
+                        isLoadingNewer = sessionState.isLoadingNewer,
+                        isOldestLoaded = sessionState.isOldestLoaded,
+                        isLatestLoaded = sessionState.isLatestLoaded
+                    )
+                }
+            }
+            .launchIn(scope)
+    }
+    if (conversationPipelineMode != ConversationPipelineMode.Legacy) {
+        repositoryMessage.conversationUpdates
+            .onEach { update ->
+                val state = _state.value
+                val activeChatId = state.effectiveThreadChatId(chatId)
+                if (update.chatId != activeChatId) return@onEach
+                val scopedUpdate = when (update) {
+                    is ConversationUpdate.Upsert -> state.isMessageInActiveThread(
+                        chatId,
+                        update.message
+                    )
+
+                    is ConversationUpdate.ReplaceTemporaryId ->
+                        state.isMessageInActiveThread(chatId, update.message)
+
+                    is ConversationUpdate.SendFailed ->
+                        state.isMessageInActiveThread(chatId, update.message)
+
+                    is ConversationUpdate.Delete,
+                    is ConversationUpdate.InboxRead,
+                    is ConversationUpdate.OutboxRead,
+                    is ConversationUpdate.SendAcknowledged -> true
+                }
+                if (conversationPipelineMode == ConversationPipelineMode.New) {
+                    applyConversationUpdateBookkeeping(
+                        update = update,
+                        remappedMessageIds = remappedMessageIds,
+                        reactionUpdateSuppressedUntil = reactionUpdateSuppressedUntil
+                    )
+                }
+                if (!scopedUpdate) return@onEach
+
+                val sessionState = conversationSession.applyUpdate(
+                    update = update,
+                    canInsertNewMessage = state.isAtBottom || state.isLatestLoaded || when (update) {
+                        is ConversationUpdate.Upsert -> update.isNew && update.message.isOutgoing
+                        is ConversationUpdate.ReplaceTemporaryId -> update.message.isOutgoing
+                        else -> false
+                    }
+                )
+                if (conversationPipelineMode == ConversationPipelineMode.New && !sessionState.closed) {
+                    val suppressReactionUpdate = (update as? ConversationUpdate.Upsert)
+                        ?.takeUnless(ConversationUpdate.Upsert::isNew)
+                        ?.message
+                        ?.id
+                        ?.let { messageId ->
+                            val suppressUntil = reactionUpdateSuppressedUntil[messageId]
+                            when {
+                                suppressUntil == null -> false
+                                System.currentTimeMillis() < suppressUntil -> true
+                                else -> {
+                                    reactionUpdateSuppressedUntil.remove(messageId, suppressUntil)
+                                    false
+                                }
+                            }
+                        } == true
+                    _state.update { current ->
+                        current.withConversationSessionUpdate(
+                            sessionState = sessionState,
+                            update = update,
+                            rootChatId = chatId,
+                            suppressReactionUpdate = suppressReactionUpdate
+                        )
+                    }
+                    when (update) {
+                        is ConversationUpdate.Upsert -> {
+                            if (update.isNew) requestSenderRefreshIfNeeded(update.message)
+                            if (!update.isNew) handleEditedRichMessage(update.message)
+                        }
+
+                        is ConversationUpdate.ReplaceTemporaryId ->
+                            requestSenderRefreshIfNeeded(update.message)
+
+                        is ConversationUpdate.Delete,
+                        is ConversationUpdate.InboxRead,
+                        is ConversationUpdate.OutboxRead,
+                        is ConversationUpdate.SendAcknowledged,
+                        is ConversationUpdate.SendFailed -> Unit
+                    }
+                }
+            }
+            .launchIn(scope)
+    }
+
     repositoryMessage.newMessageFlow
         .onEach { message ->
             if (message.chatId == chatId || message.chatId == activeThreadChatId()) {
                 if (resolveRemappedMessageId(message.id) != message.id) return@onEach
                 val isCorrectThread = _state.value.isMessageInActiveThread(chatId, message)
                 if (isCorrectThread) {
-                    _state.update { state ->
-                        state.withIncomingUnreadMessage(
-                            rootChatId = chatId,
-                            message = message
-                        )
+                    if (conversationPipelineMode != ConversationPipelineMode.New) {
+                        _state.update { state ->
+                            state.withIncomingUnreadMessage(
+                                rootChatId = chatId,
+                                message = message
+                            )
+                        }
+                        updateMessages(listOf(message))
                     }
-                    updateMessages(listOf(message))
-                    requestSenderRefreshIfNeeded(message)
-                    _state.update { state ->
-                        state.copy(
-                            isLatestLoaded = if (message.isOutgoing || state.isAtBottom) true else state.isLatestLoaded
-                        )
+                    if (conversationPipelineMode != ConversationPipelineMode.New) {
+                        requestSenderRefreshIfNeeded(message)
                     }
                 }
             }
@@ -1317,12 +1862,14 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
             val oldId = event.oldMessageId
             val newMessage = event.message
             if (cId == chatId || cId == activeThreadChatId()) {
-                if (oldId != newMessage.id) {
-                    remappedMessageIds[oldId] = newMessage.id
-                } else {
-                    remappedMessageIds.remove(oldId)
+                if (conversationPipelineMode != ConversationPipelineMode.New) {
+                    if (oldId != newMessage.id) {
+                        remappedMessageIds[oldId] = newMessage.id
+                    } else {
+                        remappedMessageIds.remove(oldId)
+                    }
                 }
-                messageMutex.withLock {
+                if (conversationPipelineMode != ConversationPipelineMode.New) messageMutex.withLock {
                     _state.update { state ->
                         val isCorrectThread =
                             state.isMessageInActiveThread(chatId, newMessage)
@@ -1366,7 +1913,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                 }
 
                 val isCurrentThread = _state.value.isMessageInActiveThread(chatId, newMessage)
-                if (isCurrentThread) {
+                if (isCurrentThread && conversationPipelineMode != ConversationPipelineMode.New) {
                     requestSenderRefreshIfNeeded(newMessage)
                 }
             }
@@ -1376,7 +1923,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
     repositoryMessage.messageAcknowledgedFlow
         .onEach { event ->
             if (event.chatId != chatId && event.chatId != activeThreadChatId()) return@onEach
-            _state.update { state ->
+            if (conversationPipelineMode != ConversationPipelineMode.New) _state.update { state ->
                 state.copy(
                     outgoingMessageStates = OutgoingMessageReducer.acknowledged(
                         current = state.outgoingMessageStates,
@@ -1390,7 +1937,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
     repositoryMessage.messageSendFailedFlow
         .onEach { event ->
             if (event.chatId != chatId && event.chatId != activeThreadChatId()) return@onEach
-            _state.update { state ->
+            if (conversationPipelineMode != ConversationPipelineMode.New) _state.update { state ->
                 state.copy(
                     outgoingMessageStates = OutgoingMessageReducer.failed(
                         current = state.outgoingMessageStates,
@@ -1432,131 +1979,28 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                     if (event.chatId != chatId) return@onEach
                     updateMessageContent(event.messageId) { message ->
                         val isDownloading = event.progress < 1f
-                        val newContent = when (val content = message.content) {
-                            is MessageContent.Photo -> content.copy(
+                        message.copy(
+                            content = message.content.withFileDownloadState(
+                                fileId = event.fileId,
                                 isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
+                                progress = event.progress
                             )
-
-                            is MessageContent.Video -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.VideoNote -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.Document -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.Gif -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.Voice -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.Sticker -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            else -> content
-                        }
-                        message.copy(content = newContent)
+                        )
                     }
                 }
 
                 is MessageDownloadEvent.Cancelled -> {
                     if (event.chatId != chatId) return@onEach
-                    var cancelledFileId = 0
                     updateMessageContent(event.messageId) { message ->
-                        val newContent = when (val content = message.content) {
-                            is MessageContent.Photo -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Video -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.VideoNote -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Document -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Gif -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Voice -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Sticker -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            else -> content
-                        }
-                        message.copy(content = newContent)
+                        message.copy(
+                            content = message.content.withFileDownloadState(
+                                fileId = event.fileId,
+                                isDownloading = false,
+                                progress = 0f
+                            )
+                        )
                     }
-                    AutoDownloadSuppression.suppress(cancelledFileId)
-                    if (cancelledFileId != 0) {
-                        mediaDownloadRetryCount.remove(cancelledFileId)
-                    }
+                    AutoDownloadSuppression.suppress(event.fileId)
                 }
 
                 is MessageDownloadEvent.Completed -> {
@@ -1564,7 +2008,6 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                     val messageId = event.messageId
                     val downloadedFileId = event.fileId
                     val path = event.path
-                    var fileIdToRetry: Int? = null
                     var mainFileId = 0
                     var mainPathUpdated = false
 
@@ -1574,13 +2017,17 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
 
                         val newContent = when (val content = message.content) {
                             is MessageContent.Photo -> {
-                                val isMainPhotoFile =
-                                    downloadedFileId == content.fileId ||
-                                            (content.originalFileId != 0 && downloadedFileId == content.originalFileId)
-                                if (isMainPhotoFile) {
+                                val isOriginalFile = content.originalFileId != 0 &&
+                                        downloadedFileId == content.originalFileId &&
+                                        downloadedFileId != content.fileId
+                                if (isOriginalFile) {
+                                    content.copy(
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else if (downloadedFileId == content.fileId) {
                                     mainFileId = downloadedFileId
                                     mainPathUpdated = true
-                                    if (isError) fileIdToRetry = downloadedFileId
                                     content.copy(
                                         path = finalPath ?: content.path,
                                         isDownloading = false,
@@ -1595,7 +2042,6 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                                 if (downloadedFileId == content.fileId) {
                                     mainFileId = content.fileId
                                     mainPathUpdated = true
-                                    if (isError) fileIdToRetry = content.fileId
                                     content.copy(
                                         path = finalPath,
                                         isDownloading = false,
@@ -1610,7 +2056,6 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                                 if (downloadedFileId == content.fileId) {
                                     mainFileId = content.fileId
                                     mainPathUpdated = true
-                                    if (isError) fileIdToRetry = content.fileId
                                     content.copy(
                                         path = finalPath,
                                         isDownloading = false,
@@ -1625,7 +2070,6 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                                 if (downloadedFileId == content.fileId) {
                                     mainFileId = content.fileId
                                     mainPathUpdated = true
-                                    if (isError) fileIdToRetry = content.fileId
                                     content.copy(
                                         path = finalPath,
                                         isDownloading = false,
@@ -1640,7 +2084,6 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                                 if (downloadedFileId == content.fileId) {
                                     mainFileId = content.fileId
                                     mainPathUpdated = true
-                                    if (isError) fileIdToRetry = content.fileId
                                     content.copy(
                                         path = finalPath,
                                         isDownloading = false,
@@ -1655,7 +2098,20 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                                 if (downloadedFileId == content.fileId) {
                                     mainFileId = content.fileId
                                     mainPathUpdated = true
-                                    if (isError) fileIdToRetry = content.fileId
+                                    content.copy(
+                                        path = finalPath,
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else {
+                                    content
+                                }
+                            }
+
+                            is MessageContent.Audio -> {
+                                if (downloadedFileId == content.fileId) {
+                                    mainFileId = content.fileId
+                                    mainPathUpdated = true
                                     content.copy(
                                         path = finalPath,
                                         isDownloading = false,
@@ -1670,7 +2126,6 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                                 if (downloadedFileId == content.fileId) {
                                     mainFileId = content.fileId
                                     mainPathUpdated = true
-                                    if (isError) fileIdToRetry = content.fileId
                                     content.copy(
                                         path = finalPath,
                                         isDownloading = false,
@@ -1688,11 +2143,6 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
 
                     if (path.isNotEmpty() && mainFileId != 0) {
                         AutoDownloadSuppression.clear(mainFileId)
-                        mediaDownloadRetryCount.remove(mainFileId)
-                    }
-
-                    if (mainPathUpdated && path.isNotEmpty()) {
-                        updateFullScreenImagePath(messageId, path)
                     }
 
                     if (path.isNotEmpty() && messageId in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
@@ -1703,29 +2153,6 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                         refreshCachedSenderProfiles(_state.value.messages)
                     }
 
-                    fileIdToRetry?.let {
-                        if (it != 0) {
-                            val suppressed = AutoDownloadSuppression.isSuppressed(it)
-                            if (!suppressed) {
-                                val attempts = (mediaDownloadRetryCount[it] ?: 0) + 1
-                                mediaDownloadRetryCount[it] = attempts
-                                if (attempts <= MAX_DOWNLOAD_RETRIES) {
-                                    onDownloadFile(it)
-                                } else {
-                                    AutoDownloadSuppression.suppress(it)
-                                    Log.w(
-                                        "DownloadDebug",
-                                        "retryLimitReached: fileId=$it attempts=$attempts chatId=$chatId"
-                                    )
-                                }
-                            } else {
-                                Log.d(
-                                    "DownloadDebug",
-                                    "retrySkippedBySuppression: fileId=$it chatId=$chatId"
-                                )
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -1736,10 +2163,12 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
             val cId = event.chatId
             val messageIds = event.messageIds
             if (cId == chatId || cId == activeThreadChatId()) {
-                messageIds.forEach(reactionUpdateSuppressedUntil::remove)
-                messageIds.forEach(remappedMessageIds::remove)
-                remappedMessageIds.entries.removeIf { (_, mappedId) -> mappedId in messageIds }
-                _state.update { currentState ->
+                if (conversationPipelineMode != ConversationPipelineMode.New) {
+                    messageIds.forEach(reactionUpdateSuppressedUntil::remove)
+                    messageIds.forEach(remappedMessageIds::remove)
+                    remappedMessageIds.entries.removeIf { (_, mappedId) -> mappedId in messageIds }
+                }
+                if (conversationPipelineMode != ConversationPipelineMode.New) _state.update { currentState ->
                     val currentMessages = currentState.messages.toMutableList()
                     val removed = currentMessages.removeAll { messageIds.contains(it.id) }
                     if (removed) {
@@ -1758,7 +2187,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
     repositoryMessage.messageEditedFlow
         .onEach { message ->
             if (_state.value.isMessageInActiveThread(chatId, message) || message.chatId == chatId) {
-                messageMutex.withLock {
+                if (conversationPipelineMode != ConversationPipelineMode.New) messageMutex.withLock {
                     val targetMessageId = resolveRemappedMessageId(message.id)
                     _state.update { currentState ->
                         val now = System.currentTimeMillis()
@@ -1818,7 +2247,9 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                         }.clearPendingEditedMessage(targetMessageId)
                     }
                 }
-                handleEditedRichMessage(message)
+                if (conversationPipelineMode != ConversationPipelineMode.New) {
+                    handleEditedRichMessage(message)
+                }
             }
         }
         .launchIn(scope)
@@ -1832,7 +2263,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
     repositoryMessage.messageReadFlow
         .onEach { readUpdate ->
             if (readUpdate.chatId == chatId || readUpdate.chatId == activeThreadChatId()) {
-                _state.update { currentState ->
+                if (conversationPipelineMode != ConversationPipelineMode.New) _state.update { currentState ->
                     when (readUpdate) {
                         is ReadUpdate.Inbox -> currentState.withInboxReadUpdate(
                             readChatId = readUpdate.chatId,
@@ -1945,28 +2376,30 @@ private fun DefaultChatComponent.updateInlineResultsWithFile(fileId: Int, newPat
     }
 }
 
-private fun DefaultChatComponent.updateFullScreenImagePath(messageId: Long, newPath: String) {
-    _state.update { currentState ->
-        val currentImages = currentState.fullScreenImages ?: return@update currentState
-        val index = currentState.fullScreenImageMessageIds.indexOf(messageId)
-        if (index !in currentImages.indices) {
-            return@update currentState
-        }
-
-        val updated = currentImages.toMutableList().apply { this[index] = newPath }
-        currentState.copy(fullScreenImages = updated)
-    }
-}
-
-private inline fun DefaultChatComponent.updateMessageContent(
+private suspend inline fun DefaultChatComponent.updateMessageContent(
     messageId: Long,
     noinline transform: (MessageModel) -> MessageModel
 ) {
-    scope.launch {
-        messageMutex.withLock {
-            val targetMessageId = resolveRemappedMessageId(messageId)
+    val targetMessageId = resolveRemappedMessageId(messageId)
+    if (conversationPipelineMode == ConversationPipelineMode.New) {
+        val sessionState = conversationSession.transformMessage(
+            chatId = activeThreadChatId(),
+            messageId = targetMessageId,
+            transform = transform
+        )
+        if (!sessionState.closed) {
             _state.update { currentState ->
-                currentState.withUpdatedMessage(targetMessageId, transform)
+                if (currentState.messages == sessionState.messages) currentState
+                else currentState.copy(messages = sessionState.messages)
+            }
+        }
+    } else {
+        messageMutex.withLock {
+            _state.update { currentState ->
+                currentState.withUpdatedMessage(
+                    targetMessageId,
+                    transform
+                )
             }
         }
     }
@@ -2005,7 +2438,8 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
         extra = "topicId=$topicId resolvedTopicId=${id ?: 0L}"
     )
     _state.update {
-        it.copy(
+        ConversationViewportReducer.initialize(
+            it.copy(
             currentTopicId = id,
             currentThreadChatId = null,
             currentMessageThreadId = null,
@@ -2013,9 +2447,8 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
             isOldestLoaded = false,
             isLatestLoaded = false,
             rootMessage = null,
-            isAtBottom = id == null,
-            pendingScrollCommand = null,
-            viewportPhase = ChatViewportPhase.Initializing
+                isAtBottom = id == null
+            )
         )
     }
     ChatConversationLog.logViewportState(
@@ -2050,7 +2483,8 @@ internal fun DefaultChatComponent.handleCommentsClick(messageId: Long) {
             extra = "messageId=$messageId threadChatId=${threadContext?.chatId ?: 0L} threadId=${threadContext?.threadId ?: messageId}"
         )
         _state.update {
-            it.copy(
+            ConversationViewportReducer.initialize(
+                it.copy(
                 currentTopicId = messageId,
                 currentThreadChatId = threadContext?.chatId,
                 currentMessageThreadId = threadContext?.threadId ?: messageId,
@@ -2058,9 +2492,8 @@ internal fun DefaultChatComponent.handleCommentsClick(messageId: Long) {
                 messages = emptyList(),
                 isOldestLoaded = false,
                 isLatestLoaded = false,
-                isAtBottom = false,
-                pendingScrollCommand = null,
-                viewportPhase = ChatViewportPhase.Initializing
+                    isAtBottom = false
+                )
             )
         }
         ChatConversationLog.logViewportState(

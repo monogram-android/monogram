@@ -5,6 +5,8 @@ import androidx.compose.ui.platform.Clipboard
 import com.arkivanov.essenty.lifecycle.doOnResume
 import com.arkivanov.essenty.lifecycle.doOnStart
 import com.arkivanov.essenty.lifecycle.doOnStop
+import org.monogram.domain.repository.ConversationPipelineMode
+import org.monogram.domain.repository.MediaAutoDownloadPolicy
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.Dispatchers
@@ -68,8 +70,10 @@ import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.features.chats.conversation.logic.PendingAttachmentSendRegistry
+import org.monogram.presentation.features.chats.conversation.logic.activeThreadChatId
 import org.monogram.presentation.features.chats.conversation.logic.buildChatInitialLoadKey
 import org.monogram.presentation.features.chats.conversation.logic.effectiveThreadId
+import org.monogram.presentation.features.chats.conversation.logic.historyConversationKey
 import org.monogram.presentation.features.chats.conversation.logic.handleSendPendingAttachments
 import org.monogram.presentation.features.chats.conversation.logic.loadChatInfo
 import org.monogram.presentation.features.chats.conversation.logic.loadDraft
@@ -314,6 +318,8 @@ class DefaultChatComponent(
     internal val paymentRepository: PaymentRepository = container.repositories.paymentRepository
     internal val tdLibLimitsRepository = container.repositories.tdLibLimitsRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
+    internal val conversationPipelineMode: ConversationPipelineMode =
+        ConversationPipelineFallbackGate.modeFor(appPreferences.conversationPipelineMode.value)
     internal val cacheProvider: CacheProvider = container.cacheProvider
     internal val cacheController: CacheController = container.utils.cacheController
     internal val distrManager: DistrManager = container.utils.distrManager()
@@ -324,6 +330,9 @@ class DefaultChatComponent(
     var messageLoadingJob: Job? = null
     var loadMoreJob: Job? = null
     var loadNewerJob: Job? = null
+
+    /** Monotonic guard for async history jobs; cancellation alone does not guard late commits. */
+    internal var loadingGeneration: Long = 0L
     var inlineBotJob: Job? = null
     var draftSaveJob: Job? = null
     var draftLinkPreviewJob: Job? = null
@@ -337,7 +346,6 @@ class DefaultChatComponent(
     internal var searchJob: Job? = null
     internal val reactionUpdateSuppressedUntil = ConcurrentHashMap<Long, Long>()
     internal val remappedMessageIds = ConcurrentHashMap<Long, Long>()
-    internal val mediaDownloadRetryCount = ConcurrentHashMap<Int, Int>()
     internal val pendingSenderRefreshes = ConcurrentHashMap.newKeySet<Long>()
     internal val senderRefreshRequestedAtMs = ConcurrentHashMap<Long, Long>()
     internal val pendingAttachmentSendRegistry = PendingAttachmentSendRegistry()
@@ -347,6 +355,13 @@ class DefaultChatComponent(
     internal var lastStartedLoadKey: ChatInitialLoadKey? = null
     internal var hasStartedInitialLoadForContext: Boolean = false
     internal var activeLoadSession: ConversationLoadSession? = null
+    internal val conversationSession = ConversationSession(
+        scope = scope,
+        historyLoader = repositoryMessage::getHistoryPage
+    )
+
+    internal fun isLoadingGenerationCurrent(generation: Long): Boolean =
+        loadingGeneration == generation
     internal val richMessageCoordinator = RichMessageCoordinator(this)
 
     internal var lastLoadedOlderId: Long = 0L
@@ -455,6 +470,7 @@ class DefaultChatComponent(
                     state = _state.value,
                     componentInstanceId = componentInstanceId
                 )
+                conversationSession.close(loadingGeneration + 1L)
                 repositoryMessage.closeChat(chatId, ownerTag = componentInstanceId)
             }
         }
@@ -861,13 +877,8 @@ class DefaultChatComponent(
             state = _state.value,
             componentInstanceId = componentInstanceId
         )
-        _state.update {
-            if (it.viewportPhase == ChatViewportPhase.Settled) {
-                it
-            } else {
-                it.copy(viewportPhase = ChatViewportPhase.Settled)
-            }
-        }
+        _state.update(ConversationViewportReducer::settle)
+        ChatOpenPerfBridge.markSettled(chatId, currentThreadId)
         ChatConversationLog.logViewportState(
             event = "on_viewport_settled_after",
             state = _state.value,
@@ -888,6 +899,21 @@ class DefaultChatComponent(
         richMessageCoordinator.onViewportChanged(
             visibleMessageIds = visibleMessageIds,
             nearbyMessageIds = nearbyMessageIds
+        )
+        val state = _state.value
+        val networkEnabled = when {
+            downloadUtils.isRoaming() -> state.autoDownloadRoaming
+            downloadUtils.isWifiConnected() -> state.autoDownloadWifi
+            else -> state.autoDownloadMobile
+        }
+        repositoryMessage.updateVisibleRange(
+            chatId = chatId,
+            visibleMessageIds = visibleMessageIds.toList(),
+            nearbyMessageIds = nearbyMessageIds.filterNot(visibleMessageIds::contains),
+            policy = MediaAutoDownloadPolicy(
+                enabled = networkEnabled,
+                allowFiles = networkEnabled && state.autoDownloadFiles
+            )
         )
     }
 
@@ -1240,6 +1266,10 @@ class DefaultChatComponent(
         }
 
         cacheProvider.saveChatViewport(chatId, threadId, viewport)
+        repositoryMessage.updateCachedViewportAnchor(
+            historyConversationKey(activeThreadChatId(), threadId),
+            null
+        )
         if (threadId == null) {
             cacheProvider.saveChatScrollPosition(chatId, 0L)
         }
@@ -1278,6 +1308,10 @@ class DefaultChatComponent(
         }
 
         cacheProvider.saveChatViewport(chatId, threadId, viewport)
+        repositoryMessage.updateCachedViewportAnchor(
+            key = historyConversationKey(activeThreadChatId(), threadId),
+            messageId = viewport.anchorMessageId?.takeUnless { viewport.atBottom }
+        )
         if (threadId == null) {
             cacheProvider.saveChatScrollPosition(chatId, viewport.anchorMessageId ?: 0L)
         }

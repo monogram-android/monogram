@@ -39,9 +39,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -67,6 +64,7 @@ fun PhotoMessageBubble(
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
+    onClick: (Offset) -> Unit = {},
     onLongClick: (Offset) -> Unit,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
@@ -75,7 +73,8 @@ fun PhotoMessageBubble(
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier,
-    downloadUtils: IDownloadUtils
+    downloadUtils: IDownloadUtils,
+    animationsEnabled: Boolean = true
 ) {
     val context = LocalContext.current
     val cornerRadius = 18.dp
@@ -92,19 +91,6 @@ fun PhotoMessageBubble(
         if (!content.path.isNullOrBlank()) {
             stablePath = content.path
             AutoDownloadSuppression.clear(content.fileId)
-        }
-    }
-
-    LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (content.path.isNullOrBlank() && !content.isDownloading && !AutoDownloadSuppression.isSuppressed(content.fileId)) {
-            val shouldDownload = when {
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                else -> autoDownloadMobile
-            }
-            if (shouldDownload) {
-                onDownloadPhoto(content.fileId)
-            }
         }
     }
 
@@ -232,7 +218,7 @@ fun PhotoMessageBubble(
                                             revealedSpoilers.add(index)
                                         }
                                     },
-                                    onClick = { offset -> onLongClick(imagePosition + offset) },
+                                    onClick = { offset -> onClick(imagePosition + offset) },
                                     onLongClick = { offset -> onLongClick(imagePosition + offset) }
                                 )
                             }
@@ -282,30 +268,15 @@ fun PhotoMessageBubble(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (!hasPath) {
-                            MediaLoadingBackground(
-                                previewData = content.minithumbnail,
-                                contentScale = ContentScale.Fit
-                            )
-                        }
-
-                        if (hasPath) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(stablePath)
-                                    .apply {
-                                        photoCacheKey?.let {
-                                            memoryCacheKey(it)
-                                            diskCacheKey(it)
-                                        }
-                                    }
-                                    .crossfade(false)
-                                    .build(),
-                                contentDescription = content.caption,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
-                        }
+                        StableMediaImage(
+                            previewModel = content.thumbnailPath ?: content.minithumbnail,
+                            fullResolutionModel = stablePath,
+                            cacheKey = photoCacheKey,
+                            contentScale = ContentScale.Fit,
+                            contentDescription = content.caption,
+                            animationsEnabled = animationsEnabled,
+                            modifier = Modifier.fillMaxSize()
+                        )
 
                         if (!hasPath) {
                             MediaLoadingAction(

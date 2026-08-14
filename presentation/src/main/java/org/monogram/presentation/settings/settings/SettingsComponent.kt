@@ -3,10 +3,13 @@ package org.monogram.presentation.settings.settings
 import com.arkivanov.decompose.value.Value
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.domain.repository.FileRepository
+import org.monogram.presentation.features.viewers.FullscreenImageItem
 
 interface SettingsComponent {
     val state: Value<State>
     val downloadUtils: IDownloadUtils
+    val fileRepository: FileRepository
 
     fun onBackClicked()
     fun onEditProfileClicked()
@@ -48,7 +51,7 @@ interface SettingsComponent {
         val isSupportersLoading: Boolean = true,
         val isProjectChannelSubscribed: Boolean = false,
         val isMoreOptionsVisible: Boolean = false,
-        val fullScreenImages: List<String>? = null,
+        val fullScreenImages: List<FullscreenImageItem>? = null,
         val fullScreenVideoPath: String? = null
     )
 }

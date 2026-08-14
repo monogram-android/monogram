@@ -43,7 +43,8 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.instantview.InstantViewer
-import org.monogram.presentation.features.viewers.ImageViewer
+import org.monogram.presentation.features.viewers.FullscreenImageItem
+import org.monogram.presentation.features.viewers.ManagedImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
 import org.monogram.presentation.features.viewers.YouTubeViewer
 import org.monogram.presentation.features.webapp.MiniAppViewer
@@ -189,14 +190,6 @@ private fun ImagesOverlay(
         exit = fadeOut() + scaleOut(targetScale = 0.9f)
     ) {
         state.fullScreenImages?.let { images ->
-            val autoDownload = remember(state.autoDownloadWifi, state.autoDownloadRoaming, state.autoDownloadMobile) {
-                when {
-                    component.downloadUtils.isWifiConnected() -> state.autoDownloadWifi
-                    component.downloadUtils.isRoaming() -> state.autoDownloadRoaming
-                    else -> state.autoDownloadMobile
-                }
-            }
-
             val viewerItems = remember(images, state.fullScreenImageMessageIds, state.mediaMessages) {
                 if (state.fullScreenImageMessageIds.size == images.size) {
                     state.fullScreenImageMessageIds.mapIndexed { index, messageId ->
@@ -215,7 +208,25 @@ private fun ImagesOverlay(
                 }
             }
 
-            val viewerImages = remember(viewerItems) { viewerItems.map { it.path } }
+            val viewerImages =
+                remember(viewerItems, state.profilePhotos, state.fullScreenCaptions) {
+                    viewerItems.mapIndexed { index, viewerItem ->
+                        val message =
+                            state.mediaMessages.firstOrNull { it.id == viewerItem.messageId }
+                        val photo = message?.content as? MessageContent.Photo
+                        val profilePhoto = if (state.isViewingProfilePhotos) {
+                            state.profilePhotos.getOrNull(index)
+                        } else null
+                        FullscreenImageItem(
+                            id = if (profilePhoto != null) "profile:${profilePhoto.id}" else "message:${viewerItem.messageId}",
+                            previewSource = viewerItem.path,
+                            originalFileId = profilePhoto?.originalFileId ?: photo?.originalFileId
+                            ?: 0,
+                            originalPath = profilePhoto?.originalPath,
+                            caption = state.fullScreenCaptions.getOrNull(index)
+                        )
+                    }
+                }
             val imageMessageIds = remember(viewerItems) { viewerItems.map { it.messageId } }
             var currentImageIndex by remember(viewerImages, state.fullScreenStartIndex) {
                 mutableIntStateOf(
@@ -232,33 +243,13 @@ private fun ImagesOverlay(
                     ?.let { id -> state.mediaMessages.firstOrNull { it.id == id } }
             }
 
-            val imageDownloadingStates = remember(imageMessageIds, state.mediaMessages) {
-                imageMessageIds.map { id ->
-                    val content = state.mediaMessages.firstOrNull { it.id == id }?.content
-                    when (content) {
-                        is MessageContent.Photo -> content.isDownloading
-                        else -> false
-                    }
-                }
-            }
-
-            val imageDownloadProgressStates = remember(imageMessageIds, state.mediaMessages) {
-                imageMessageIds.map { id ->
-                    val content = state.mediaMessages.firstOrNull { it.id == id }?.content
-                    when (content) {
-                        is MessageContent.Photo -> content.downloadProgress
-                        else -> 0f
-                    }
-                }
-            }
-
             if (viewerImages.isNotEmpty()) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    ImageViewer(
+                    ManagedImageViewer(
                         images = viewerImages,
+                        fileRepository = component.messageRepository,
                         startIndex = state.fullScreenStartIndex.coerceIn(0, viewerImages.lastIndex),
                         onDismiss = component::onDismissImages,
-                        autoDownload = autoDownload,
                         onPageChanged = { index ->
                             currentImageIndex = index
                             val mediaTabState = state.messageTabState(ProfileTabKey.MEDIA)
@@ -273,22 +264,28 @@ private fun ImagesOverlay(
                                 imageMessageIds.getOrNull(index + 1)?.takeIf { it != 0L }?.let(component::onDownloadHighRes)
                             }
                         },
-                        onForward = { path ->
-                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
+                        onForward = { item ->
+                            val msg = item.messageIdOrNull()
+                                ?.let { id -> state.mediaMessages.find { it.id == id } }
+                                ?: currentViewerMessage
                             msg?.let { component.onForwardMessage(it) }
                         },
-                        onDelete = { path ->
-                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
+                        onDelete = { item ->
+                            val msg = item.messageIdOrNull()
+                                ?.let { id -> state.mediaMessages.find { it.id == id } }
+                                ?: currentViewerMessage
                             if (msg?.isOutgoing == true) {
                                 component.onDeleteMessage(msg, true)
                                 component.onDismissImages()
                             }
                         },
-                        onCopyLink = { path ->
-                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
+                        onCopyLink = { item ->
+                            val msg = item.messageIdOrNull()
+                                ?.let { id -> state.mediaMessages.find { it.id == id } }
+                                ?: currentViewerMessage
                             if (msg == null) {
                                 localClipboard.nativeClipboard.setPrimaryClip(
-                                    ClipData.newPlainText("", AnnotatedString(path))
+                                    ClipData.newPlainText("", AnnotatedString(item.actionSource))
                                 )
                             } else {
                                 scope.launch {
@@ -303,8 +300,10 @@ private fun ImagesOverlay(
                                 }
                             }
                         },
-                        onCopyText = { path ->
-                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
+                        onCopyText = { item ->
+                            val msg = item.messageIdOrNull()
+                                ?.let { id -> state.mediaMessages.find { it.id == id } }
+                                ?: currentViewerMessage
                             val textToCopy = when (val content = msg?.content) {
                                 is MessageContent.Photo -> content.caption
                                 is MessageContent.Video -> content.caption
@@ -317,26 +316,6 @@ private fun ImagesOverlay(
                                 )
                             }
                         },
-                        onVideoClick = { path ->
-                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
-                            if (msg != null) {
-                                val mediaPath = msg.displayMediaPathForViewer() ?: path
-                                component.onOpenVideo(
-                                    path = mediaPath,
-                                    messageId = msg.id,
-                                    caption = when (val content = msg.content) {
-                                        is MessageContent.Video -> content.caption
-                                        is MessageContent.Gif -> content.caption
-                                        else -> null
-                                    }
-                                )
-                            } else {
-                                component.onOpenVideo(path = path, messageId = null, caption = null)
-                            }
-                        },
-                        captions = state.fullScreenCaptions.filterNotNull(),
-                        imageDownloadingStates = imageDownloadingStates,
-                        imageDownloadProgressStates = imageDownloadProgressStates,
                         downloadUtils = component.downloadUtils,
                         showImageNumber = false
                     )
@@ -521,3 +500,6 @@ private fun MessageContent.matchesDisplayPath(path: String): Boolean {
         else -> false
     }
 }
+
+private fun FullscreenImageItem.messageIdOrNull(): Long? =
+    id.removePrefix("message:").toLongOrNull()?.takeIf { it != 0L }

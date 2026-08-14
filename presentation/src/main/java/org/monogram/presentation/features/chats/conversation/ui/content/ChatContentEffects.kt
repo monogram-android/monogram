@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.conversation.ui.content
 
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -25,6 +26,15 @@ import org.monogram.presentation.features.chats.conversation.DefaultChatComponen
 import org.monogram.presentation.features.chats.conversation.logic.requestMessageHighlight
 import kotlin.math.abs
 
+private const val MIN_DOWNLOAD_PREFETCH_ITEMS = 12
+private const val DOWNLOAD_PREFETCH_VIEWPORT_MULTIPLIER = 2
+
+internal fun selectLatestGroupedMessageId(
+    firstGroupedMessageId: Long?,
+    lastGroupedMessageId: Long?,
+    isComments: Boolean
+): Long? = if (isComments) lastGroupedMessageId else firstGroupedMessageId
+
 internal fun shouldAutoFollowLatestAfterContentChange(
     previousLastGroupedMessageId: Long?,
     currentLastGroupedMessageId: Long?,
@@ -44,7 +54,7 @@ internal fun shouldAutoFollowLatestAfterContentChange(
     if (previousLastGroupedMessageId == null || currentLastGroupedMessageId == null) return false
     if (previousLastGroupedMessageId == currentLastGroupedMessageId) return false
     if (pendingScrollCommand != null) return false
-    if (isLoadingOlder || isLoadingNewer || isScrollInProgress || showInitialLoading) return false
+    if (isLoading || isLoadingOlder || isLoadingNewer || isScrollInProgress || showInitialLoading) return false
     if (!isLatestLoaded) return false
     return true
 }
@@ -82,11 +92,14 @@ internal fun shouldRetainBottomAlignmentAfterContentChange(
     isLoadingOlder: Boolean,
     isLoadingNewer: Boolean,
     isScrollInProgress: Boolean,
+    isDragged: Boolean = false,
+    hasUserScrolledAwayFromBottom: Boolean = false,
     bottomAlignmentDeltaPx: Float?,
     alignmentTolerancePx: Float = 1f
 ): Boolean {
     if (viewportPhase != ChatViewportPhase.Settled) return false
     if (pendingScrollCommand != null) return false
+    if (isDragged || hasUserScrolledAwayFromBottom) return false
     if (!stateIsAtBottom && !measuredIsAtBottom) return false
     if (isLoading || isLoadingOlder || isLoadingNewer || isScrollInProgress) return false
     val delta = bottomAlignmentDeltaPx ?: return false
@@ -137,11 +150,11 @@ internal fun ChatContentEffects(
     val isViewportSettled = effectsEnabled && state.viewportPhase == ChatViewportPhase.Settled
     val firstGroupedMessageId = groupedMessages.firstOrNull()?.firstMessageId
     val lastGroupedMessageId = groupedMessages.lastOrNull()?.firstMessageId
-    val latestGroupedMessageId = if (isComments) {
-        lastGroupedMessageId
-    } else {
-        firstGroupedMessageId
-    }
+    val latestGroupedMessageId = selectLatestGroupedMessageId(
+        firstGroupedMessageId = firstGroupedMessageId,
+        lastGroupedMessageId = lastGroupedMessageId,
+        isComments = isComments
+    )
     val conversationItems = remember(
         groupedMessages,
         state.channelSponsoredMessages,
@@ -586,7 +599,11 @@ internal fun ChatContentEffects(
         groupedMessages.size,
         firstGroupedMessageId,
         lastGroupedMessageId,
-        conversationItems
+        conversationItems,
+        state.autoDownloadFiles,
+        state.autoDownloadMobile,
+        state.autoDownloadWifi,
+        state.autoDownloadRoaming
     ) {
         if (!isViewportSettled) return@LaunchedEffect
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
@@ -628,8 +645,11 @@ internal fun ChatContentEffects(
                         }
                     }
 
-                    val nearbyStart = (minIndex - 5).coerceAtLeast(0)
-                    val nearbyEnd = maxIndex + 5
+                    val prefetchDistance =
+                        (visibleItems.size * DOWNLOAD_PREFETCH_VIEWPORT_MULTIPLIER)
+                            .coerceAtLeast(MIN_DOWNLOAD_PREFETCH_ITEMS)
+                    val nearbyStart = (minIndex - prefetchDistance).coerceAtLeast(0)
+                    val nearbyEnd = maxIndex + prefetchDistance
                     for (index in nearbyStart..nearbyEnd) {
                         if (index in minIndex..maxIndex) continue
                         val grouped = when (
@@ -656,9 +676,10 @@ internal fun ChatContentEffects(
             .distinctUntilChanged()
             .debounce(100)
             .collect { (visibleIds, nearbyIds) ->
-                (component as? DefaultChatComponent)?.let {
-                    it.repositoryMessage.updateVisibleRange(it.chatId, visibleIds, nearbyIds)
-                }
+                component.onMessageViewportChanged(
+                    visibleMessageIds = visibleIds.toSet(),
+                    nearbyMessageIds = nearbyIds.toSet()
+                )
             }
     }
 
@@ -666,8 +687,13 @@ internal fun ChatContentEffects(
         effectsEnabled,
         state.viewportPhase,
         state.pendingScrollCommand,
-        groupedMessages.size,
-        state.isLatestLoaded
+        groupedMessages,
+        state.isLatestLoaded,
+        state.isLoading,
+        state.isLoadingOlder,
+        state.isLoadingNewer,
+        isDragged,
+        hasUserScrolledAwayFromBottom
     ) {
         if (!isViewportSettled) return@LaunchedEffect
         if (isComments) return@LaunchedEffect
@@ -686,78 +712,34 @@ internal fun ChatContentEffects(
                 isLoadingOlder = state.isLoadingOlder,
                 isLoadingNewer = state.isLoadingNewer,
                 isScrollInProgress = scrollState.isScrollInProgress,
+                isDragged = isDragged,
+                hasUserScrolledAwayFromBottom = hasUserScrolledAwayFromBottom,
                 bottomAlignmentDeltaPx = bottomAlignmentDelta
             )
         ) {
-            val bottomMessageLazyIndex = chatContentLeadingItemsCount(
-                isComments = false,
-                showNavPadding = false,
-                isLoadingOlder = state.isLoadingOlder,
-                isLoadingNewer = state.isLoadingNewer,
-                isAtBottom = state.isAtBottom,
-                isNearBottom = scrollState.isNearBottom(isComments = false),
-                hasMessages = groupedMessages.isNotEmpty()
-            )
-            scrollState.scrollToChatBottomStaged(
-                isComments = isComments,
-                animated = false,
-                bottomTargetIndex = bottomMessageLazyIndex
-            )
-        }
-    }
-
-    LaunchedEffect(
-        effectsEnabled,
-        state.viewportPhase,
-        scrollState,
-        isComments,
-        state.pendingScrollCommand,
-        state.isLatestLoaded,
-        state.isAtBottom,
-        isDragged,
-        hasUserScrolledAwayFromBottom
-    ) {
-        if (!isViewportSettled || isComments) return@LaunchedEffect
-
-        snapshotFlow {
-            val target = scrollState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == 0 }
-            Triple(
-                scrollState.layoutInfo.totalItemsCount,
-                target?.offset,
-                target?.size
-            )
-        }
-            .distinctUntilChanged()
-            .collectLatest { (totalItems, targetOffset, targetSize) ->
-                val currentState = latestUiState.value
-                if (
-                    totalItems <= 0 ||
-                    targetOffset == null ||
-                    targetSize == null ||
-                    currentState.pendingScrollCommand != null ||
-                    !currentState.isAtBottom ||
-                    !currentState.isLatestLoaded ||
-                    currentState.isLoadingOlder ||
-                    currentState.isLoadingNewer ||
-                    isDragged ||
-                    hasUserScrolledAwayFromBottom ||
-                    scrollState.isScrollInProgress
-                ) {
-                    return@collectLatest
-                }
-
-                val measuredAtBottom = scrollState.isAtBottom(
-                    isComments = false,
-                    isLatestLoaded = currentState.isLatestLoaded
-                )
-                if (!measuredAtBottom) {
-                    scrollState.scrollToChatBottomStaged(
+            withFrameNanos { }
+            val currentState = latestUiState.value
+            val correctedDelta = scrollState.bottomAlignmentDelta(isComments = false)
+            if (shouldRetainBottomAlignmentAfterContentChange(
+                    viewportPhase = currentState.viewportPhase,
+                    pendingScrollCommand = currentState.pendingScrollCommand,
+                    stateIsAtBottom = currentState.isAtBottom,
+                    measuredIsAtBottom = scrollState.isAtBottom(
                         isComments = false,
-                        animated = false,
-                        bottomTargetIndex = 0
-                    )
-                }
+                        isLatestLoaded = currentState.isLatestLoaded
+                    ),
+                    isLoading = currentState.isLoading,
+                    isLoadingOlder = currentState.isLoadingOlder,
+                    isLoadingNewer = currentState.isLoadingNewer,
+                    isScrollInProgress = scrollState.isScrollInProgress,
+                    isDragged = isDragged,
+                    hasUserScrolledAwayFromBottom = hasUserScrolledAwayFromBottom,
+                    bottomAlignmentDeltaPx = correctedDelta
+                )
+            ) {
+                scrollState.scrollBy(correctedDelta!!)
             }
+        }
     }
 
     LaunchedEffect(isDragged) {

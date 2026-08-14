@@ -7,10 +7,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.features.chats.conversation.ui.CompactMosaicLayout
 import org.monogram.presentation.features.chats.conversation.ui.message.prefersExpandedBubbleWidth
 import org.monogram.presentation.features.chats.conversation.ui.message.resolveMediaBubbleAspectRatio
 import org.monogram.presentation.features.chats.conversation.ui.message.resolveMediaBubbleHeight
 import org.monogram.presentation.features.chats.conversation.ui.message.resolveMediaBubbleWidth
+import org.monogram.presentation.features.chats.conversation.ui.resolveCompactMosaicLayout
 
 class ChatMediaHelpersTest {
     @Test
@@ -163,6 +165,35 @@ class ChatMediaHelpersTest {
         assertEquals(0.5f, aspectRatio, 0.0001f)
         assertEquals(294.4.dp, resolvedWidth)
         assertEquals(320.dp, resolvedHeight)
+    }
+
+    @Test
+    fun `invalid dimensions share a stable fallback ratio`() {
+        assertEquals(1f, resolveMediaBubbleAspectRatio(0, 0), 0.0001f)
+        assertEquals(1f, resolveMediaBubbleAspectRatio(-1, 200), 0.0001f)
+        assertEquals(1f, resolveMediaBubbleAspectRatio(200, -1), 0.0001f)
+    }
+
+    @Test
+    fun `extreme aspect ratios remain clamped`() {
+        assertEquals(2f, resolveMediaBubbleAspectRatio(10_000, 1), 0.0001f)
+        assertEquals(0.5f, resolveMediaBubbleAspectRatio(1, 10_000), 0.0001f)
+    }
+
+    @Test
+    fun `compact mosaic layout maps supported item counts`() {
+        val expectedLayouts = listOf(
+            0 to CompactMosaicLayout.Empty,
+            1 to CompactMosaicLayout.Single,
+            2 to CompactMosaicLayout.Two,
+            3 to CompactMosaicLayout.Three,
+            4 to CompactMosaicLayout.Four,
+            5 to CompactMosaicLayout.FivePlus
+        )
+
+        expectedLayouts.forEach { (itemCount, expectedLayout) ->
+            assertEquals(expectedLayout, resolveCompactMosaicLayout(itemCount))
+        }
     }
 
     private fun message(content: MessageContent, id: Long = 1L): MessageModel =

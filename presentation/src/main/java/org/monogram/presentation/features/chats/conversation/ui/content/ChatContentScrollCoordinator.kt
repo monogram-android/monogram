@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -35,6 +36,22 @@ internal data class ScrollToMessagePlan(
     val coarseIndex: Int?,
     val shouldAnimateToIndex: Boolean
 )
+
+@Immutable
+internal data class BottomCorrectionPlan(
+    val targetIndex: Int,
+    val coarseIndex: Int?,
+    val shouldScrollToTarget: Boolean,
+    val alignmentDelta: Float?
+)
+
+internal fun calculateChatBottomTargetIndex(
+    totalItemsCount: Int,
+    isComments: Boolean
+): Int? {
+    if (totalItemsCount <= 0) return null
+    return if (isComments) totalItemsCount - 1 else 0
+}
 
 internal fun calculateBottomAlignmentDelta(
     viewportStart: Int,
@@ -94,9 +111,42 @@ internal fun buildBottomCoarseScrollIndex(
     }
 }
 
+internal fun buildBottomCorrectionPlan(
+    currentFirstVisibleIndex: Int,
+    targetIndex: Int,
+    totalItemsCount: Int,
+    isComments: Boolean,
+    visibleTargetDelta: Float?
+): BottomCorrectionPlan? {
+    if (totalItemsCount <= 0) return null
+
+    val boundedTargetIndex = targetIndex.coerceIn(0, totalItemsCount - 1)
+    if (visibleTargetDelta != null) {
+        return BottomCorrectionPlan(
+            targetIndex = boundedTargetIndex,
+            coarseIndex = null,
+            shouldScrollToTarget = false,
+            alignmentDelta = visibleTargetDelta.takeIf(::needsBottomAlignmentCorrection)
+        )
+    }
+
+    return BottomCorrectionPlan(
+        targetIndex = boundedTargetIndex,
+        coarseIndex = buildBottomCoarseScrollIndex(
+            currentFirstVisibleIndex = currentFirstVisibleIndex,
+            targetIndex = boundedTargetIndex,
+            totalItemsCount = totalItemsCount,
+            isComments = isComments
+        ),
+        shouldScrollToTarget = true,
+        alignmentDelta = null
+    )
+}
+
 internal fun LazyListState.bottomAlignmentDelta(isComments: Boolean): Float? {
     val info = layoutInfo
-    val targetIndex = if (isComments) info.totalItemsCount - 1 else 0
+    val targetIndex =
+        calculateChatBottomTargetIndex(info.totalItemsCount, isComments) ?: return null
     val targetInfo = info.visibleItemsInfo.firstOrNull { it.index == targetIndex } ?: return null
     return calculateBottomAlignmentDelta(
         viewportStart = info.viewportStartOffset,
@@ -230,66 +280,47 @@ internal suspend fun LazyListState.scrollToChatBottomStaged(
     val total = layoutInfo.totalItemsCount
     if (total <= 0) return
 
-    val targetIndex = (bottomTargetIndex ?: if (isComments) total - 1 else 0)
+    val targetIndex =
+        (bottomTargetIndex ?: calculateChatBottomTargetIndex(total, isComments) ?: return)
         .coerceIn(0, total - 1)
     val visibleTargetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-    if (visibleTargetInfo != null) {
-        val visibleDelta = calculateBottomAlignmentDelta(
+    val visibleDelta = visibleTargetInfo?.let {
+        calculateBottomAlignmentDelta(
             viewportStart = layoutInfo.viewportStartOffset,
             viewportEnd = layoutInfo.viewportEndOffset,
-            itemOffset = visibleTargetInfo.offset,
-            itemSize = visibleTargetInfo.size,
+            itemOffset = it.offset,
+            itemSize = it.size,
             isComments = isComments
         )
-        if (!needsBottomAlignmentCorrection(visibleDelta)) return
-
-        if (shouldUseVisibleBottomFastPath(
-                targetAlreadyVisible = true,
-                bottomAlignmentDelta = visibleDelta
-            )
-        ) {
-            if (animated) {
-                animateScrollBy(visibleDelta)
-            } else {
-                scrollBy(visibleDelta)
-            }
-            val remainingDelta = bottomAlignmentDelta(isComments = isComments)
-            if (remainingDelta == null || !needsBottomAlignmentCorrection(remainingDelta)) return
-        }
     }
-
-    buildBottomCoarseScrollIndex(
+    val plan = buildBottomCorrectionPlan(
         currentFirstVisibleIndex = firstVisibleItemIndex,
         targetIndex = targetIndex,
         totalItemsCount = total,
-        isComments = isComments
-    )?.let { coarseIndex ->
+        isComments = isComments,
+        visibleTargetDelta = visibleDelta
+    ) ?: return
+
+    plan.coarseIndex?.let { coarseIndex ->
         scrollToItem(coarseIndex)
     }
 
-    if (animated) {
-        animateScrollToItem(targetIndex)
-    } else {
-        scrollToItem(targetIndex)
-    }
-
-    val targetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-    if (targetInfo != null) {
-        val delta = calculateBottomAlignmentDelta(
-            viewportStart = layoutInfo.viewportStartOffset,
-            viewportEnd = layoutInfo.viewportEndOffset,
-            itemOffset = targetInfo.offset,
-            itemSize = targetInfo.size,
-            isComments = isComments
-        )
-        if (needsBottomAlignmentCorrection(delta)) {
-            scrollBy(delta)
+    if (plan.shouldScrollToTarget) {
+        if (animated) {
+            animateScrollToItem(plan.targetIndex)
+        } else {
+            scrollToItem(plan.targetIndex)
         }
-        val remainingDelta = bottomAlignmentDelta(isComments = isComments)
-        if (remainingDelta == null || !needsBottomAlignmentCorrection(remainingDelta)) return
+    } else {
+        plan.alignmentDelta?.let { delta ->
+            if (animated) animateScrollBy(delta) else scrollBy(delta)
+        }
     }
 
-    scrollToItem(targetIndex)
+    withFrameNanos { }
+    bottomAlignmentDelta(isComments = isComments)
+        ?.takeIf(::needsBottomAlignmentCorrection)
+        ?.let { scrollBy(it) }
 }
 
 internal suspend fun LazyListState.scrollToChatStartStaged(
@@ -312,7 +343,6 @@ internal suspend fun LazyListState.scrollToChatStartStaged(
         }
     }
 
-    scrollToItem(0)
 }
 
 internal suspend fun awaitGroupedIndex(

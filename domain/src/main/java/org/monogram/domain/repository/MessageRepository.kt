@@ -3,6 +3,7 @@ package org.monogram.domain.repository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.models.ConversationUpdate
 import org.monogram.domain.models.DraftLinkPreview
 import org.monogram.domain.models.DraftLinkPreviewRequest
 import org.monogram.domain.models.MessageContent
@@ -40,10 +41,75 @@ data class SearchChatMessagesResult(
     val nextFromMessageId: Long
 )
 
-data class OlderMessagesPage(
+data class MediaAutoDownloadPolicy(
+    val enabled: Boolean,
+    val allowFiles: Boolean
+) {
+    companion object {
+        val Disabled = MediaAutoDownloadPolicy(enabled = false, allowFiles = false)
+    }
+}
+
+sealed interface ConversationScope {
+    data object Main : ConversationScope
+    data class ForumTopic(val topicId: Long) : ConversationScope
+    data class MessageThread(val threadId: Long) : ConversationScope
+}
+
+data class ConversationKey(
+    val chatId: Long,
+    val scope: ConversationScope = ConversationScope.Main
+) {
+    /** TDLib still addresses topic/thread history through a shared numeric argument. */
+    val threadId: Long?
+        get() = when (val value = scope) {
+            ConversationScope.Main -> null
+            is ConversationScope.ForumTopic -> value.topicId
+            is ConversationScope.MessageThread -> value.threadId
+        }
+
+    val scopeType: String
+        get() = when (scope) {
+            ConversationScope.Main -> "main"
+            is ConversationScope.ForumTopic -> "forum_topic"
+            is ConversationScope.MessageThread -> "message_thread"
+        }
+
+    val scopeId: Long
+        get() = when (val value = scope) {
+            ConversationScope.Main -> 0L
+            is ConversationScope.ForumTopic -> value.topicId
+            is ConversationScope.MessageThread -> value.threadId
+        }
+}
+
+sealed interface HistoryAnchor {
+    data object Latest : HistoryAnchor
+    data class Message(val id: Long) : HistoryAnchor
+}
+
+enum class HistoryDirection { Initial, Older, Newer, Around }
+enum class HistorySource { RoomSnapshot, TdlibLocal, TdlibNetwork, CacheFallback }
+
+sealed interface BoundaryState {
+    data object Reached : BoundaryState
+    data object Open : BoundaryState
+    data class Gap(val anchorId: Long) : BoundaryState
+}
+
+data class HistoryRequest(
+    val key: ConversationKey,
+    val anchor: HistoryAnchor,
+    val direction: HistoryDirection,
+    val limit: Int,
+    val source: HistorySource = HistorySource.TdlibNetwork
+)
+
+data class HistoryPage(
     val messages: List<MessageModel>,
-    val reachedOldest: Boolean,
-    val isRemote: Boolean
+    val olderBoundary: BoundaryState,
+    val newerBoundary: BoundaryState,
+    val source: HistorySource
 )
 
 data class MessageThreadContext(
@@ -91,7 +157,10 @@ interface MessageRepository :
     MessageAiRepository,
     PaymentRepository,
     WebAppRepository {
+    suspend fun getHistoryPage(request: HistoryRequest): HistoryPage
     val newMessageFlow: Flow<MessageModel>
+    val conversationUpdates: Flow<ConversationUpdate>
+        get() = emptyFlow()
     val senderUpdateFlow: Flow<Long>
     val messageReadFlow: Flow<ReadUpdate>
     val messageUploadProgressFlow: Flow<MessageUploadProgressEvent>
@@ -132,47 +201,9 @@ interface MessageRepository :
         threadId: Long? = null
     )
 
-    suspend fun getMessagesOlder(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int,
-        threadId: Long? = null
-    ): OlderMessagesPage
-
-    suspend fun getCachedMessages(
-        chatId: Long,
-        limit: Int,
-        threadId: Long? = null
-    ): List<MessageModel>
-
-    suspend fun getMessagesNewer(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int,
-        threadId: Long? = null
-    ): List<MessageModel>
-
-    suspend fun getCachedMessagesNewer(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int,
-        threadId: Long? = null
-    ): List<MessageModel>
-
-    suspend fun getCachedMessagesAround(
-        chatId: Long,
-        messageId: Long,
-        limit: Int,
-        threadId: Long? = null
-    ): List<MessageModel>
-
-    suspend fun getMessagesAround(chatId: Long, messageId: Long, limit: Int, threadId: Long? = null): List<MessageModel>
     suspend fun getChatMessageByDate(chatId: Long, dateEpochSeconds: Int): MessageModel?
 
     suspend fun getMessageThreadContext(chatId: Long, messageId: Long): MessageThreadContext?
-
-    @Deprecated("Use getMessagesOlder instead")
-    suspend fun getMessages(chatId: Long, fromMessageId: Long, limit: Int): List<MessageModel>
 
     suspend fun sendMessage(
         chatId: Long,
@@ -301,7 +332,15 @@ interface MessageRepository :
         senderId: Long? = null
     ): SearchChatMessagesResult
 
-    fun updateVisibleRange(chatId: Long, visibleMessageIds: List<Long>, nearbyMessageIds: List<Long>)
+    fun updateVisibleRange(
+        chatId: Long,
+        visibleMessageIds: List<Long>,
+        nearbyMessageIds: List<Long>,
+        policy: MediaAutoDownloadPolicy = MediaAutoDownloadPolicy.Disabled
+    )
+
+    /** Prevents bounded Room cleanup from removing the persisted viewport anchor. */
+    fun updateCachedViewportAnchor(key: ConversationKey, messageId: Long?)
 
     sealed interface ChatAction {
         data object Typing : ChatAction
@@ -353,7 +392,14 @@ interface MessageRepository :
         doneIds: List<Int>,
         undoneIds: List<Int>
     )
-    suspend fun markAsRead(chatId: Long, messageId: Long)
+    suspend fun markAsRead(chatId: Long, messageId: Long) =
+        markMessagesAsRead(chatId, listOf(messageId))
+
+    suspend fun markMessagesAsRead(
+        chatId: Long,
+        messageIds: List<Long>,
+        threadId: Long? = null
+    )
     suspend fun markAllMentionsAsRead(chatId: Long)
     suspend fun markAllReactionsAsRead(chatId: Long)
     suspend fun getChatDraft(chatId: Long, threadId: Long? = null): String?

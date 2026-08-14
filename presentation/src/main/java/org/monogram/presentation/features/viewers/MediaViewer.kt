@@ -192,18 +192,20 @@ fun MediaViewer(
     }
 
     ImageViewer(
-        images = mediaItems,
+        images = mediaItems.mapIndexed { index, path ->
+            FullscreenImageItem.source(
+                path = path,
+                caption = captions.getOrNull(index),
+                id = "media:$index:$path"
+            )
+        },
         startIndex = resolvedIndex,
         onDismiss = onDismiss,
-        autoDownload = autoDownload,
         onPageChanged = onPageChanged,
-        onForward = onForward,
-        onDelete = onDelete,
-        onCopyLink = onCopyLink,
-        onCopyText = onCopyText,
-        captions = captions,
-        imageDownloadingStates = imageDownloadingStates,
-        imageDownloadProgressStates = imageDownloadProgressStates,
+        onForward = { onForward(it.actionSource) },
+        onDelete = onDelete?.let { callback -> { item -> callback(item.actionSource) } },
+        onCopyLink = onCopyLink?.let { callback -> { item -> callback(item.actionSource) } },
+        onCopyText = onCopyText?.let { callback -> { item -> callback(item.actionSource) } },
         downloadUtils = downloadUtils,
         showImageNumber = showImageNumber
     )

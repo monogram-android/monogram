@@ -303,31 +303,32 @@ internal fun ChatContentBody(
     val onVideoClick: (MessageModel, String?, String?) -> Unit =
         remember(component, scrollState) {
             { msg, path, caption ->
-                if (!currentIsVisible.value || currentShowInitialLoading.value || scrollState.isScrollInProgress) {
+                val videoContent = msg.content as? MessageContent.Video
+                val supportsStreaming = videoContent?.supportsStreaming ?: false
+                val validPath = path?.takeIf { File(it).exists() }
+
+                if (!currentIsVisible.value || currentShowInitialLoading.value) {
+                    Unit
+                } else if (validPath == null && !supportsStreaming) {
+                    val fileId = when (val content = msg.content) {
+                        is MessageContent.Video -> content.fileId
+                        is MessageContent.Gif -> content.fileId
+                        is MessageContent.VideoNote -> content.fileId
+                        else -> 0
+                    }
+                    if (fileId != 0) {
+                        component.onDownloadFile(fileId, userInitiated = true)
+                    }
+                } else if (scrollState.isScrollInProgress) {
                     Unit
                 } else {
-                    val videoContent = msg.content as? MessageContent.Video
-                    val supportsStreaming = videoContent?.supportsStreaming ?: false
-                    val validPath = path?.takeIf { File(it).exists() }
-
-                    if (validPath != null || supportsStreaming) {
-                        currentKeyboardController.value?.hide()
-                        currentFocusManager.value.clearFocus()
-                        component.onOpenVideo(
-                            path = validPath,
-                            messageId = msg.id,
-                            caption = caption
-                        )
-                    } else {
-                        val fileId = when (val content = msg.content) {
-                            is MessageContent.Video -> content.fileId
-                            is MessageContent.Gif -> content.fileId
-                            else -> 0
-                        }
-                        if (fileId != 0) {
-                            component.onDownloadFile(fileId, userInitiated = true)
-                        }
-                    }
+                    currentKeyboardController.value?.hide()
+                    currentFocusManager.value.clearFocus()
+                    component.onOpenVideo(
+                        path = validPath,
+                        messageId = msg.id,
+                        caption = caption
+                    )
                 }
             }
         }
@@ -368,22 +369,28 @@ internal fun ChatContentBody(
     }
     val onAudioClick: (MessageModel) -> Unit = remember(component) {
         { msg ->
-            val audio = msg.content as? MessageContent.Audio
-            if (audio != null) {
-                val validPath = audio.path?.takeIf { File(it).exists() }
-                if (validPath != null) {
-                    currentKeyboardController.value?.hide()
-                    currentFocusManager.value.clearFocus()
-                    component.onOpenVideo(
-                        path = validPath,
-                        messageId = msg.id,
-                        caption = audio.caption
-                    )
-                } else {
-                    component.onDownloadFile(audio.fileId, userInitiated = true)
+            when (val content = msg.content) {
+                is MessageContent.Audio -> {
+                    val validPath = content.path?.takeIf { File(it).exists() }
+                    if (validPath != null) {
+                        currentKeyboardController.value?.hide()
+                        currentFocusManager.value.clearFocus()
+                        component.onOpenVideo(
+                            path = validPath,
+                            messageId = msg.id,
+                            caption = content.caption
+                        )
+                    } else {
+                        component.onDownloadFile(content.fileId, userInitiated = true)
+                    }
                 }
+
+                is MessageContent.Voice -> if (content.path.isNullOrBlank()) {
+                    component.onDownloadFile(content.fileId, userInitiated = true)
+                }
+
+                else -> Unit
             }
-            Unit
         }
     }
     val onMessageOptionsClick: (MessageModel, Offset, IntSize, Offset) -> Unit =

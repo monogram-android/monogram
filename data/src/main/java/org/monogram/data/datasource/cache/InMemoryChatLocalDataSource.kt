@@ -8,6 +8,7 @@ import org.monogram.data.db.model.ChatEntity
 import org.monogram.data.db.model.ChatFullInfoEntity
 import org.monogram.data.db.model.MessageEntity
 import org.monogram.data.db.model.TopicEntity
+import org.monogram.data.db.model.MessageWindowEntity
 import java.util.concurrent.ConcurrentHashMap
 
 class InMemoryChatLocalDataSource : ChatLocalDataSource {
@@ -15,6 +16,7 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
     private val messages = ConcurrentHashMap<Long, MutableStateFlow<Map<Long, MessageEntity>>>()
     private val fullInfos = ConcurrentHashMap<Long, ChatFullInfoEntity>()
     private val topics = ConcurrentHashMap<Long, MutableStateFlow<Map<Int, TopicEntity>>>()
+    private val windows = ConcurrentHashMap<Triple<Long, String, Long>, MessageWindowEntity>()
 
     override fun getAllChats(): Flow<List<ChatEntity>> =
         chats.map {
@@ -68,6 +70,7 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         messages.clear()
         fullInfos.clear()
         topics.clear()
+        windows.clear()
     }
 
     override fun getMessagesForChat(chatId: Long): Flow<List<MessageEntity>> =
@@ -135,6 +138,40 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         return messageIds.mapNotNull { chatMessages[it] }
     }
 
+    override suspend fun getMessageWindow(
+        chatId: Long,
+        scopeType: String,
+        scopeId: Long
+    ): MessageWindowEntity? =
+        windows[Triple(chatId, scopeType, scopeId)]
+
+    override suspend fun upsertMessageWindow(window: MessageWindowEntity) {
+        windows[Triple(window.chatId, window.scopeType, window.scopeId)] = window
+    }
+
+    override suspend fun deleteMessageWindow(chatId: Long, scopeType: String, scopeId: Long) {
+        windows.remove(Triple(chatId, scopeType, scopeId))
+    }
+
+    override suspend fun deleteMessageWindowsForChat(chatId: Long) {
+        windows.keys.removeAll { it.first == chatId }
+    }
+
+    override suspend fun invalidateMessageWindowCoverageForChat(chatId: Long) {
+        windows.replaceAll { key, window ->
+            if (key.first == chatId) {
+                window.copy(
+                    oldestMessageId = null,
+                    newestMessageId = null,
+                    olderBoundaryReached = false,
+                    newerBoundaryReached = false
+                )
+            } else {
+                window
+            }
+        }
+    }
+
     override suspend fun insertMessage(message: MessageEntity) {
         messages.getOrPut(message.chatId) { MutableStateFlow(emptyMap()) }
             .update { it + (message.id to message) }
@@ -142,6 +179,21 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
 
     override suspend fun insertMessages(messages: List<MessageEntity>) {
         messages.forEach { insertMessage(it) }
+    }
+
+    override suspend fun persistHistoryMessages(writes: List<MessageCacheMutation.HistoryWrite>) {
+        writes.groupBy { it.message.chatId }.forEach { (chatId, chatWrites) ->
+            messages.getOrPut(chatId) { MutableStateFlow(emptyMap()) }
+                .update { current ->
+                    chatWrites.fold(current) { result, write ->
+                        if (result[write.message.id] == write.expectedExisting) {
+                            result + (write.message.id to write.message)
+                        } else {
+                            result
+                        }
+                    }
+                }
+        }
     }
 
     override suspend fun replaceMessage(message: MessageEntity) {
@@ -256,10 +308,12 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
                 flow.update { it - messageId }
             }
         }
+        windows.keys.removeAll { it.first == chatId }
     }
 
     override suspend fun clearMessagesForChat(chatId: Long) {
         messages[chatId]?.value = emptyMap()
+        windows.keys.removeAll { it.first == chatId }
     }
 
     override suspend fun getChatFullInfo(chatId: Long): ChatFullInfoEntity? = fullInfos[chatId]
@@ -297,6 +351,7 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         messages.values.forEach { flow ->
             flow.update { it.filterValues { msg -> msg.createdAt >= timestamp } }
         }
+        windows.clear()
     }
 
     private fun scopedMessages(chatId: Long, threadId: Long?): List<MessageEntity> {

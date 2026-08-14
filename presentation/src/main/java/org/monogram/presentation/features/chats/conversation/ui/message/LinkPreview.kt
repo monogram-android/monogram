@@ -36,14 +36,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import org.monogram.domain.models.WebPage
 import org.monogram.presentation.R
 
@@ -54,7 +50,8 @@ internal fun LinkPreview(
     isOutgoing: Boolean,
     modifier: Modifier = Modifier,
     onAction: (LinkPreviewAction) -> Unit,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    animationsEnabled: Boolean = true
 ) {
     val resolved = remember(webPage) { webPage.resolveLinkPreview() }
     val hasTitle = !resolved.meta.title.isNullOrBlank()
@@ -112,8 +109,10 @@ internal fun LinkPreview(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         LinkPreviewSmallImage(
-                            thumbnailData = resolved.thumbnailData,
-                            thumbnailCacheKey = resolved.thumbnailCacheKey,
+                            previewData = resolved.previewData,
+                            fullResolutionData = resolved.fullResolutionData,
+                            mediaCacheKey = resolved.mediaCacheKey,
+                            animationsEnabled = animationsEnabled,
                             onTap = { onAction(resolved.mediaAction) },
                             onLongClick = onLongClick
                         )
@@ -134,8 +133,10 @@ internal fun LinkPreview(
                     if (resolved.hasMedia) {
                         Spacer(modifier = Modifier.height(8.dp))
                         LinkPreviewLargeMedia(
-                            thumbnailData = resolved.thumbnailData,
-                            thumbnailCacheKey = resolved.thumbnailCacheKey,
+                            previewData = resolved.previewData,
+                            fullResolutionData = resolved.fullResolutionData,
+                            mediaCacheKey = resolved.mediaCacheKey,
+                            animationsEnabled = animationsEnabled,
                             aspectRatio = resolved.aspectRatio,
                             showPlayOverlay = resolved.showPlayOverlay,
                             duration = webPage.duration,
@@ -218,13 +219,13 @@ private fun LinkPreviewTextContent(
 
 @Composable
 private fun LinkPreviewSmallImage(
-    thumbnailData: Any?,
-    thumbnailCacheKey: String?,
+    previewData: Any?,
+    fullResolutionData: Any?,
+    mediaCacheKey: String?,
+    animationsEnabled: Boolean,
     onTap: () -> Unit,
     onLongClick: (() -> Unit)?
 ) {
-    val context = LocalContext.current
-
     Box(
         modifier = Modifier
             .size(54.dp)
@@ -232,36 +233,30 @@ private fun LinkPreviewSmallImage(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .previewTapTarget(onTap = onTap, onLongClick = onLongClick)
     ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(thumbnailData)
-                .apply {
-                    thumbnailCacheKey?.let {
-                        memoryCacheKey(it)
-                        diskCacheKey(it)
-                    }
-                }
-                .crossfade(true)
-                .build(),
+        StableMediaImage(
+            previewModel = previewData,
+            fullResolutionModel = fullResolutionData,
+            cacheKey = mediaCacheKey,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            animationsEnabled = animationsEnabled
         )
     }
 }
 
 @Composable
 private fun LinkPreviewLargeMedia(
-    thumbnailData: Any?,
-    thumbnailCacheKey: String?,
+    previewData: Any?,
+    fullResolutionData: Any?,
+    mediaCacheKey: String?,
+    animationsEnabled: Boolean,
     aspectRatio: Float,
     showPlayOverlay: Boolean,
     duration: Int,
     onTap: () -> Unit,
     onLongClick: (() -> Unit)?
 ) {
-    val context = LocalContext.current
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -270,20 +265,14 @@ private fun LinkPreviewLargeMedia(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .previewTapTarget(onTap = onTap, onLongClick = onLongClick)
     ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(thumbnailData)
-                .apply {
-                    thumbnailCacheKey?.let {
-                        memoryCacheKey(it)
-                        diskCacheKey(it)
-                    }
-                }
-                .crossfade(true)
-                .build(),
+        StableMediaImage(
+            previewModel = previewData,
+            fullResolutionModel = fullResolutionData,
+            cacheKey = mediaCacheKey,
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            animationsEnabled = animationsEnabled
         )
 
         if (showPlayOverlay) {

@@ -10,6 +10,7 @@ interface DebugComponent {
     fun onBackClicked()
     fun onCrashClicked()
     fun onForceSponsorSyncClicked()
+    fun onConversationPipelineKillSwitchChanged(forceLegacy: Boolean)
     fun onTestPushClicked()
     fun onAdBlockClicked()
     fun onDropDatabasesClicked()
@@ -18,6 +19,8 @@ interface DebugComponent {
     fun onDropDatabaseCacheClicked()
 
     data class State(
+        val isConversationPipelineKillSwitchAvailable: Boolean = false,
+        val isLegacyConversationPipelineForced: Boolean = false,
         val pushProvider: PushProvider = PushProvider.FCM,
         val backgroundServiceEnabled: Boolean = false,
         val hideForegroundNotification: Boolean = false,

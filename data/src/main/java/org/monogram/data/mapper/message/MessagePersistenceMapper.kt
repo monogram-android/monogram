@@ -522,8 +522,6 @@ internal class MessagePersistenceMapper(
             "photo" -> {
                 val fileId = mediaFileId
                 val originalFileId = fileId
-                fileHelper.registerCachedFile(fileId, entity.chatId, entity.id)
-                fileHelper.registerCachedFile(originalFileId, entity.chatId, entity.id)
                 MessageContent.Photo(
                     path = null,
                     thumbnailPath = null,
@@ -541,7 +539,6 @@ internal class MessagePersistenceMapper(
             "video" -> {
                 val fileId = mediaFileId
                 val supportsStreaming = (meta.getOrNull(3)?.toIntOrNull() ?: 0) == 1
-                fileHelper.registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Video(
                     path = null,
                     thumbnailPath = null,
@@ -559,7 +556,6 @@ internal class MessagePersistenceMapper(
 
             "voice" -> {
                 val fileId = mediaFileId
-                fileHelper.registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Voice(
                     path = null,
                     duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
@@ -569,7 +565,6 @@ internal class MessagePersistenceMapper(
 
             "video_note" -> {
                 val fileId = mediaFileId
-                fileHelper.registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.VideoNote(
                     path = null,
                     thumbnail = null,
@@ -581,7 +576,6 @@ internal class MessagePersistenceMapper(
 
             "sticker" -> {
                 val fileId = mediaFileId
-                fileHelper.registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Sticker(
                     id = 0L,
                     setId = meta.getOrNull(0)?.toLongOrNull() ?: 0L,
@@ -595,7 +589,6 @@ internal class MessagePersistenceMapper(
 
             "document" -> {
                 val fileId = mediaFileId
-                fileHelper.registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Document(
                     path = null,
                     fileName = meta.getOrNull(0).orEmpty(),
@@ -609,7 +602,6 @@ internal class MessagePersistenceMapper(
 
             "audio" -> {
                 val fileId = mediaFileId
-                fileHelper.registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Audio(
                     path = null,
                     duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
@@ -626,7 +618,6 @@ internal class MessagePersistenceMapper(
 
             "gif" -> {
                 val fileId = mediaFileId
-                fileHelper.registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Gif(
                     path = null,
                     width = meta.getOrNull(0)?.toIntOrNull() ?: 0,

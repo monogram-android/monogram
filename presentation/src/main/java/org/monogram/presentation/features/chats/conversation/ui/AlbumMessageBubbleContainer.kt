@@ -58,6 +58,7 @@ internal fun AlbumMessageBubbleContainer(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset, IntSize, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset, IntSize, Offset) -> Unit)? = null,
     onGoToReply: (MessageModel) -> Unit = {},
     onReactionClick: (Long, String) -> Unit = { _, _ -> },
@@ -104,6 +105,7 @@ internal fun AlbumMessageBubbleContainer(
     val coroutineScope = rememberCoroutineScope()
     val layoutTracker = remember { MessageBubbleLayoutTracker() }
     val onReplyClickState by rememberUpdatedState(onReplyClick)
+    val onMessageClickState by rememberUpdatedState(onMessageClick)
     val onMessageLongPressState by rememberUpdatedState(onMessageLongPress)
     val onPositionChangeState by rememberUpdatedState(onPositionChange)
     val selectionBadgeAlignment = if (behavior.isChannel || isOutgoing) {
@@ -242,6 +244,16 @@ internal fun AlbumMessageBubbleContainer(
                                             offset
                                         )
                                     },
+                                    onMessageClick = { tappedMessage, offset ->
+                                        (onMessageClickState ?: { _, position, size, click ->
+                                            onReplyClickState(position, size, click)
+                                        })(
+                                            tappedMessage,
+                                            layoutTracker.bubblePosition,
+                                            layoutTracker.bubbleSize,
+                                            offset
+                                        )
+                                    },
                                     onMessageLongPress = { tappedMessage, offset ->
                                         if (onMessageLongPressState != null) {
                                             onMessageLongPressState?.invoke(
@@ -268,7 +280,8 @@ internal fun AlbumMessageBubbleContainer(
                                     fontSize = appearance.fontSize,
                                     bubbleRadius = appearance.bubbleRadius,
                                     downloadUtils = downloadUtils,
-                                    isAnyViewerOpen = behavior.isAnyViewerOpen
+                                    isAnyViewerOpen = behavior.isAnyViewerOpen,
+                                    animationsEnabled = appearance.animationsEnabled
                                 )
                             } else {
                                 ChatAlbumMessageBubble(
@@ -291,6 +304,16 @@ internal fun AlbumMessageBubbleContainer(
                                     onCancelDownload = onCancelDownload,
                                     onLongClick = { offset ->
                                         onReplyClickState(
+                                            layoutTracker.bubblePosition,
+                                            layoutTracker.bubbleSize,
+                                            offset
+                                        )
+                                    },
+                                    onMessageClick = { tappedMessage, offset ->
+                                        (onMessageClickState ?: { _, position, size, click ->
+                                            onReplyClickState(position, size, click)
+                                        })(
+                                            tappedMessage,
                                             layoutTracker.bubblePosition,
                                             layoutTracker.bubbleSize,
                                             offset
@@ -319,7 +342,8 @@ internal fun AlbumMessageBubbleContainer(
                                     modifier = Modifier,
                                     fontSize = appearance.fontSize,
                                     downloadUtils = downloadUtils,
-                                    isAnyViewerOpen = behavior.isAnyViewerOpen
+                                    isAnyViewerOpen = behavior.isAnyViewerOpen,
+                                    animationsEnabled = appearance.animationsEnabled
                                 )
                             }
 

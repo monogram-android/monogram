@@ -161,16 +161,62 @@ interface MessageDao {
     @Query(
         """
         DELETE FROM messages
-        WHERE chatId = :chatId
-          AND (
-            createdAt < :olderThan
-            OR id NOT IN (
-              SELECT id FROM messages WHERE chatId = :chatId ORDER BY date DESC LIMIT :keepCount
-            )
-          )
+        WHERE chatId = :chatId AND threadId IS NULL
+          AND NOT (isOutgoing = 1 AND id < 0)
+          AND (:protectedMessageId IS NULL OR id != :protectedMessageId)
+          AND (createdAt < :olderThan OR id NOT IN (
+            SELECT id FROM messages
+            WHERE chatId = :chatId AND threadId IS NULL
+            ORDER BY date DESC, id DESC LIMIT :keepCount
+          ))
         """
     )
-    suspend fun cleanupChat(chatId: Long, keepCount: Int, olderThan: Long)
+    suspend fun cleanupMainScope(
+        chatId: Long,
+        keepCount: Int,
+        olderThan: Long,
+        protectedMessageId: Long?
+    ): Int
+
+    @Query(
+        """
+        DELETE FROM messages
+        WHERE chatId = :chatId AND threadId = :threadId
+          AND NOT (isOutgoing = 1 AND id < 0)
+          AND (:protectedMessageId IS NULL OR id != :protectedMessageId)
+          AND (createdAt < :olderThan OR id NOT IN (
+            SELECT id FROM messages
+            WHERE chatId = :chatId AND threadId = :threadId
+            ORDER BY date DESC, id DESC LIMIT :keepCount
+          ))
+        """
+    )
+    suspend fun cleanupThreadScope(
+        chatId: Long,
+        threadId: Long,
+        keepCount: Int,
+        olderThan: Long,
+        protectedMessageId: Long?
+    ): Int
+
+    @Query(
+        """
+        DELETE FROM messages
+        WHERE chatId = :chatId
+          AND NOT (isOutgoing = 1 AND id < 0)
+          AND NOT EXISTS (
+            SELECT 1 FROM message_windows
+            WHERE message_windows.chatId = messages.chatId
+              AND message_windows.protectedMessageId = messages.id
+          )
+          AND id NOT IN (
+          SELECT id FROM messages
+          WHERE chatId = :chatId
+          ORDER BY date DESC, id DESC LIMIT :keepCount
+        )
+        """
+    )
+    suspend fun enforceChatCap(chatId: Long, keepCount: Int): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
@@ -190,6 +236,17 @@ interface MessageDao {
     @Query("DELETE FROM messages")
     suspend fun clearAll()
 
-    @Query("DELETE FROM messages WHERE createdAt < :timestamp")
+    @Query(
+        """
+        DELETE FROM messages
+        WHERE createdAt < :timestamp
+          AND NOT (isOutgoing = 1 AND id < 0)
+          AND NOT EXISTS (
+            SELECT 1 FROM message_windows
+            WHERE message_windows.chatId = messages.chatId
+              AND message_windows.protectedMessageId = messages.id
+          )
+        """
+    )
     suspend fun deleteExpired(timestamp: Long)
 }

@@ -10,8 +10,18 @@ data class ChatOpenPerfSessionSnapshot(
     val requestCount: Int,
     val replyFetchCount: Int,
     val persistCount: Int,
-    val persistSkippedCount: Int
+    val persistSkippedCount: Int,
+    val firstContentLatencyMs: Long? = null,
+    val settledLatencyMs: Long? = null,
+    val shadowMismatchCount: Int = 0
 )
+
+data class ChatOpenPerfReportSnapshot(
+    val completedSessions: List<ChatOpenPerfSessionSnapshot>
+) {
+    val sessionCount: Int get() = completedSessions.size
+    val shadowMismatchCount: Int get() = completedSessions.sumOf { it.shadowMismatchCount }
+}
 
 object ChatOpenPerfBridge {
     private data class SessionRecord(
@@ -21,10 +31,15 @@ object ChatOpenPerfBridge {
         var requestCount: Int = 0,
         var replyFetchCount: Int = 0,
         var persistCount: Int = 0,
-        var persistSkippedCount: Int = 0
+        var persistSkippedCount: Int = 0,
+        val startedAtMs: Long = nowMs(),
+        var firstContentLatencyMs: Long? = null,
+        var settledLatencyMs: Long? = null,
+        var shadowMismatchCount: Int = 0
     )
 
     private val sessions = ConcurrentHashMap<String, SessionRecord>()
+    private val completed = ArrayDeque<ChatOpenPerfSessionSnapshot>()
 
     fun startSession(
         chatId: Long,
@@ -87,13 +102,60 @@ object ChatOpenPerfBridge {
         }
     }
 
+    fun markFirstContent(chatId: Long, threadId: Long?): ChatOpenPerfSessionSnapshot? =
+        markSession(chatId, threadId) { record ->
+            if (record.firstContentLatencyMs == null) {
+                record.firstContentLatencyMs = elapsedSince(record.startedAtMs)
+            }
+        }
+
+    fun markSettled(chatId: Long, threadId: Long?): ChatOpenPerfSessionSnapshot? =
+        markSession(chatId, threadId) { record ->
+            if (record.settledLatencyMs == null) {
+                record.settledLatencyMs = elapsedSince(record.startedAtMs)
+            }
+        }
+
+    fun recordShadowMismatch(chatId: Long, threadId: Long?): ChatOpenPerfSessionSnapshot? =
+        markSession(chatId, threadId) { it.shadowMismatchCount += 1 }
+
+    /** Returns a bounded process-local report for device/reference-corpus harnesses. */
+    fun report(): ChatOpenPerfReportSnapshot = synchronized(completed) {
+        ChatOpenPerfReportSnapshot(completed.toList())
+    }
+
+    fun resetReport() = synchronized(completed) { completed.clear() }
+
     fun clearSession(chatId: Long, threadId: Long?, sessionId: String? = null) {
         val key = key(chatId, threadId)
         val record = sessions[key] ?: return
         if (sessionId == null || record.sessionId == sessionId) {
-            sessions.remove(key, record)
+            if (sessions.remove(key, record)) {
+                synchronized(record) {
+                    synchronized(completed) {
+                        if (completed.size == MAX_COMPLETED_SESSIONS) completed.removeFirst()
+                        completed.addLast(record.snapshot())
+                    }
+                }
+            }
         }
     }
+
+    private fun markSession(
+        chatId: Long,
+        threadId: Long?,
+        block: (SessionRecord) -> Unit
+    ): ChatOpenPerfSessionSnapshot? {
+        val record = findRecord(chatId, threadId) ?: return null
+        synchronized(record) {
+            block(record)
+            return record.snapshot()
+        }
+    }
+
+    private fun elapsedSince(startedAtMs: Long): Long = (nowMs() - startedAtMs).coerceAtLeast(0L)
+
+    private fun nowMs(): Long = System.nanoTime() / 1_000_000L
 
     private fun findRecord(chatId: Long, threadId: Long?): SessionRecord? {
         sessions[key(chatId, threadId)]?.let { return it }
@@ -112,7 +174,12 @@ object ChatOpenPerfBridge {
             requestCount = requestCount,
             replyFetchCount = replyFetchCount,
             persistCount = persistCount,
-            persistSkippedCount = persistSkippedCount
+            persistSkippedCount = persistSkippedCount,
+            firstContentLatencyMs = firstContentLatencyMs,
+            settledLatencyMs = settledLatencyMs,
+            shadowMismatchCount = shadowMismatchCount
         )
     }
+
+    private const val MAX_COMPLETED_SESSIONS = 256
 }

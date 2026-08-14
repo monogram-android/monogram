@@ -84,34 +84,10 @@ fun DocumentMessageBubble(
 
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
 
-    LaunchedEffect(
-        content.path,
-        content.isDownloading,
-        autoDownloadFiles,
-        autoDownloadMobile,
-        autoDownloadWifi,
-        autoDownloadRoaming
-    ) {
+    LaunchedEffect(content.path) {
         if (!content.path.isNullOrBlank()) {
             isAutoDownloadSuppressed = false
             AutoDownloadSuppression.clear(content.fileId)
-        }
-
-        val shouldDownload = if (autoDownloadFiles) {
-            when {
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                else -> autoDownloadMobile
-            }
-        } else {
-            false
-        }
-
-        if (shouldDownload && content.path == null && !content.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
-                content.fileId
-            )
-        ) {
-            onDocumentClick(msg)
         }
     }
 
@@ -333,6 +309,7 @@ fun DocumentAlbumBubble(
     onDocumentClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
@@ -450,11 +427,17 @@ fun DocumentAlbumBubble(
                                 revealedSpoilers.add(index)
                             }
                         },
-                        onClick = { offset -> onLongClick(bubblePosition + offset) },
+                        onClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                captionMsg,
+                                clickPosition
+                            )
+                        },
                         onLongClick = { offset ->
                             val clickPosition = bubblePosition + offset
                             if (onMessageLongPress != null) {
-                                onMessageLongPress(lastMsg, clickPosition)
+                                onMessageLongPress(captionMsg, clickPosition)
                             } else {
                                 onLongClick(clickPosition)
                             }
@@ -496,6 +479,7 @@ fun ChannelDocumentAlbumBubble(
     onDocumentClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
@@ -603,11 +587,17 @@ fun ChannelDocumentAlbumBubble(
                                 revealedSpoilers.add(index)
                             }
                         },
-                        onClick = { offset -> onLongClick(bubblePosition + offset) },
+                        onClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                captionMsg,
+                                clickPosition
+                            )
+                        },
                         onLongClick = { offset ->
                             val clickPosition = bubblePosition + offset
                             if (onMessageLongPress != null) {
-                                onMessageLongPress(lastMsg, clickPosition)
+                                onMessageLongPress(captionMsg, clickPosition)
                             } else {
                                 onLongClick(clickPosition)
                             }

@@ -53,7 +53,7 @@ internal class SponsoredMessageMapper(
                 messageId = message.messageId,
                 senderId = 0L,
                 senderName = message.title.orEmpty(),
-                networkAutoDownload = true,
+                networkAutoDownload = false,
                 isActuallyUploading = false
             )
         )

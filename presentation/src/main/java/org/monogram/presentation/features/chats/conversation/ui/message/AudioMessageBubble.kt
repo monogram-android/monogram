@@ -25,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -77,29 +76,6 @@ fun AudioMessageBubble(
     val cornerRadius = 18.dp
     val smallCorner = 4.dp
     val tailCorner = 2.dp
-
-    LaunchedEffect(
-        content.path,
-        content.isDownloading,
-        autoDownloadFiles,
-        autoDownloadMobile,
-        autoDownloadWifi,
-        autoDownloadRoaming
-    ) {
-        val shouldDownload = if (autoDownloadFiles) {
-            when {
-                downloadUtils.isRoaming() -> autoDownloadRoaming
-                downloadUtils.isWifiConnected() -> autoDownloadWifi
-                else -> autoDownloadMobile
-            }
-        } else {
-            false
-        }
-
-        if (shouldDownload && content.path == null && !content.isDownloading) {
-            onAudioClick(msg)
-        }
-    }
 
     val bubbleShape = RoundedCornerShape(
         topStart = if (!isOutgoing && isSameSenderAbove) smallCorner else cornerRadius,
@@ -311,6 +287,7 @@ fun AudioAlbumBubble(
     onAudioClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
@@ -426,11 +403,17 @@ fun AudioAlbumBubble(
                                 revealedSpoilers.add(index)
                             }
                         },
-                        onClick = { offset -> onLongClick(bubblePosition + offset) },
+                        onClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                captionMsg,
+                                clickPosition
+                            )
+                        },
                         onLongClick = { offset ->
                             val clickPosition = bubblePosition + offset
                             if (onMessageLongPress != null) {
-                                onMessageLongPress(lastMsg, clickPosition)
+                                onMessageLongPress(captionMsg, clickPosition)
                             } else {
                                 onLongClick(clickPosition)
                             }
@@ -472,6 +455,7 @@ fun ChannelAudioAlbumBubble(
     onAudioClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
@@ -578,11 +562,17 @@ fun ChannelAudioAlbumBubble(
                                 revealedSpoilers.add(index)
                             }
                         },
-                        onClick = { offset -> onLongClick(bubblePosition + offset) },
+                        onClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                captionMsg,
+                                clickPosition
+                            )
+                        },
                         onLongClick = { offset ->
                             val clickPosition = bubblePosition + offset
                             if (onMessageLongPress != null) {
-                                onMessageLongPress(lastMsg, clickPosition)
+                                onMessageLongPress(captionMsg, clickPosition)
                             } else {
                                 onLongClick(clickPosition)
                             }

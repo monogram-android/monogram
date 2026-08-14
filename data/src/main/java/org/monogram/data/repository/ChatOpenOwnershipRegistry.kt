@@ -71,4 +71,6 @@ internal class ChatOpenOwnershipRegistry {
             owners = owners.toSet()
         )
     }
+
+    fun hasOwners(chatId: Long): Boolean = ownersByChatId[chatId]?.isNotEmpty() == true
 }

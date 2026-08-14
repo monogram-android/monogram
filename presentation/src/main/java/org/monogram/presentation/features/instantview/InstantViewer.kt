@@ -154,7 +154,8 @@ import org.monogram.presentation.features.instantview.components.renderedTextOrN
 import org.monogram.presentation.features.instantview.components.resolvePathForViewer
 import org.monogram.presentation.features.instantview.components.richTextPlainText
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
-import org.monogram.presentation.features.viewers.ImageViewer
+import org.monogram.presentation.features.viewers.FullscreenImageItem
+import org.monogram.presentation.features.viewers.ManagedImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
 import java.text.SimpleDateFormat
@@ -190,14 +191,14 @@ fun InstantViewer(
     val scope = rememberCoroutineScope()
 
     val openPhotoFullscreen: (WebPage.Photo, PageBlockCaption) -> Unit = { photo, caption ->
-        scope.launch {
-            fileRepository.resolvePathForViewer(photo.fileId, photo.path)?.let { path ->
-                fullscreenMedia = InstantViewFullscreenMedia.Image(
-                    path = path,
-                    caption = caption.renderedTextOrNull()
-                )
-            }
-        }
+        fullscreenMedia = InstantViewFullscreenMedia.Image(
+            FullscreenImageItem(
+                id = "instant:${photo.originalFileId.takeIf { it != 0 } ?: photo.fileId}:${photo.path.orEmpty()}",
+                previewSource = photo.path ?: photo.thumbnailPath.orEmpty(),
+                originalFileId = photo.originalFileId.takeIf { it != 0 } ?: photo.fileId,
+                caption = caption.renderedTextOrNull()
+            )
+        )
     }
     val openVideoFullscreen: (String?, Int, Boolean, String?) -> Unit =
         { path, fileId, supportsStreaming, caption ->
@@ -516,10 +517,10 @@ fun InstantViewer(
 
             when (val media = fullscreenMedia) {
                 is InstantViewFullscreenMedia.Image -> {
-                    ImageViewer(
-                        images = listOf(media.path),
+                    ManagedImageViewer(
+                        images = listOf(media.item),
+                        fileRepository = fileRepository,
                         onDismiss = { fullscreenMedia = null },
-                        captions = listOf(media.caption),
                         downloadUtils = downloadUtils,
                         showImageNumber = false
                     )
@@ -1566,7 +1567,7 @@ fun InstantViewBlock(
 }
 
 private sealed interface InstantViewFullscreenMedia {
-    data class Image(val path: String, val caption: String?) : InstantViewFullscreenMedia
+    data class Image(val item: FullscreenImageItem) : InstantViewFullscreenMedia
     data class Video(
         val path: String,
         val caption: String?,

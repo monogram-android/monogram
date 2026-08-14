@@ -109,3 +109,31 @@ val CHATS_LIST_LANE_FILTER: (TdApi.Update) -> Boolean = {
             it is TdApi.UpdateAuthorizationState ||
             it is TdApi.UpdateConnectionState
 }
+
+/** Updates owned by the normalized message/cache pipeline. File and chat-only state stay separate. */
+val MESSAGE_STATE_LANE_FILTER: (TdApi.Update) -> Boolean = { update ->
+    update is TdApi.UpdateNewMessage ||
+            update is TdApi.UpdateMessageSendAcknowledged ||
+            update is TdApi.UpdateMessageSendSucceeded ||
+            update is TdApi.UpdateMessageSendFailed ||
+            update is TdApi.UpdateMessageContent ||
+            update is TdApi.UpdateMessageEdited ||
+            update is TdApi.UpdateMessageInteractionInfo ||
+            update is TdApi.UpdateMessageReaction ||
+            update is TdApi.UpdateMessageReactions ||
+            update is TdApi.UpdateMessageMentionRead ||
+            update is TdApi.UpdateMessageUnreadReactions ||
+            update is TdApi.UpdateMessageFactCheck ||
+            update is TdApi.UpdateMessageSuggestedPostInfo ||
+            update is TdApi.UpdateMessageIsPinned ||
+            update is TdApi.UpdateMessageContainsUnreadPollVotes ||
+            update is TdApi.UpdateMessageLiveLocationViewed ||
+            update is TdApi.UpdateMessageContentOpened ||
+            update is TdApi.UpdatePollAnswer ||
+            update is TdApi.UpdateChatReadOutbox ||
+            update is TdApi.UpdateChatReadInbox ||
+            update is TdApi.UpdateDeleteMessages ||
+            update is TdApi.UpdateChatUnreadMentionCount ||
+            update is TdApi.UpdateChatUnreadReactionCount ||
+            update is TdApi.UpdateTextCompositionStyles
+}

@@ -96,6 +96,8 @@ class FileUpdateHandlerTest {
 
         override fun updateFileCache(file: TdApi.File) = Unit
 
+        override fun getCachedFile(fileId: Int): TdApi.File? = null
+
         override fun notifyDownloadComplete(fileId: Int) {
             completedDownloads += fileId
         }

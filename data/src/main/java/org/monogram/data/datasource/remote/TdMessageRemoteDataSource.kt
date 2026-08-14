@@ -13,6 +13,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -38,7 +40,9 @@ import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.AtomicSingleFlight
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.infra.FileTerminalUpdate
 import org.monogram.data.infra.FileUpdateHandler
+import org.monogram.data.infra.LatestByKeyEventFlow
 import org.monogram.data.infra.OrderedEventFlow
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.WebPageMapper
@@ -115,10 +119,34 @@ class TdMessageRemoteDataSource(
         extraBufferCapacity = 64,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-    private val fileDownloads = OrderedEventFlow<FileDownloadEvent>(scope)
-    override val fileDownloadFlow = fileDownloads.events
-    private val messageDownloads = OrderedEventFlow<MessageDownloadEvent>(scope)
-    override val messageDownloadFlow = messageDownloads.events
+    private val fileDownloadTerminals = OrderedEventFlow<FileDownloadEvent>(scope)
+    private val fileDownloadProgress = LatestByKeyEventFlow<Int, FileDownloadEvent.Progress>(
+        scope = scope,
+        keyOf = { it.fileId },
+        shouldEmit = { event ->
+            fileDownloadQueue.getCachedFile(event.fileId)?.local?.isDownloadingCompleted != true
+        }
+    )
+    override val fileDownloadFlow = merge(fileDownloadTerminals.events, fileDownloadProgress.events)
+        .filter { event ->
+            event !is FileDownloadEvent.Progress ||
+                    fileDownloadQueue.getCachedFile(event.fileId)?.local?.isDownloadingCompleted != true
+        }
+    private val messageDownloadTerminals = OrderedEventFlow<MessageDownloadEvent>(scope)
+    private val messageDownloadProgress =
+        LatestByKeyEventFlow<Triple<Long, Long, Int>, MessageDownloadEvent.Progress>(
+            scope = scope,
+            keyOf = { Triple(it.chatId, it.messageId, it.fileId) },
+            shouldEmit = { event ->
+                fileDownloadQueue.getCachedFile(event.fileId)?.local?.isDownloadingCompleted != true
+            }
+        )
+    override val messageDownloadFlow =
+        merge(messageDownloadTerminals.events, messageDownloadProgress.events)
+            .filter { event ->
+                event !is MessageDownloadEvent.Progress ||
+                        fileDownloadQueue.getCachedFile(event.fileId)?.local?.isDownloadingCompleted != true
+            }
     private val messageDeletes = OrderedEventFlow<MessageDeletedEvent>(scope)
     override val messageDeletedFlow = messageDeletes.events
     private val messageIdUpdates = OrderedEventFlow<MessageIdUpdatedEvent>(scope)
@@ -142,7 +170,6 @@ class TdMessageRemoteDataSource(
     private val fileIdToMessageMap = fileDownloadQueue.registry.fileIdToMessageMap
     private val messageUpdateJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
     private val lastProgressMap = ConcurrentHashMap<Int, Int>()
-    private val lastDownloadActiveMap = ConcurrentHashMap<Int, Boolean>()
     private val lastCancelledEmissionAt = ConcurrentHashMap<Int, Long>()
 
     init {
@@ -165,7 +192,10 @@ class TdMessageRemoteDataSource(
             }
         }
         scope.launch(dispatcherProvider.io) {
-            fileUpdateHandler.fileUpdates.collect(::projectFileUpdate)
+            fileUpdateHandler.fileTerminalUpdates.collect(::projectTerminalFileUpdate)
+        }
+        scope.launch(dispatcherProvider.io) {
+            fileUpdateHandler.fileProgressUpdates.collect(::projectFileProgressUpdate)
         }
     }
 
@@ -2367,127 +2397,105 @@ class TdMessageRemoteDataSource(
 
     fun waitForUpload(fileId: Int): CompletableDeferred<Unit> = fileDownloadQueue.waitForUpload(fileId)
 
-    private fun projectFileUpdate(file: TdApi.File) {
-        val isDC = file.local?.isDownloadingCompleted == true
-        val isD = file.local?.isDownloadingActive == true
-        val wasDownloading = lastDownloadActiveMap[file.id] == true
-        if (isD) {
-            lastDownloadActiveMap[file.id] = true
-        } else {
-            lastDownloadActiveMap.remove(file.id)
-        }
-        val isCancelled = wasDownloading && !isD && !isDC
-        val isUC = file.remote?.isUploadingCompleted == true
-        val isU = file.remote?.isUploadingActive == true
-
-        if (isD || isDC || isCancelled) {
+    private fun projectTerminalFileUpdate(update: FileTerminalUpdate) {
+        val file = update.file
+        if (update.downloadCompleted || update.downloadCancelled) {
             Log.d(
                 "DownloadDebug",
-                "td.updateFile: fileId=${file.id} isD=$isD isDC=$isDC isCancelled=$isCancelled downloaded=${file.local?.downloadedSize ?: 0}/${file.size} pathEmpty=${file.local?.path.isNullOrEmpty()}"
+                "td.updateFile: fileId=${file.id} completed=${update.downloadCompleted} " +
+                        "cancelled=${update.downloadCancelled} downloaded=${file.local?.downloadedSize ?: 0}/${file.size} " +
+                        "pathEmpty=${file.local?.path.isNullOrEmpty()}"
             )
         }
 
-        if (isDC) {
+        if (update.downloadCompleted) {
             lastProgressMap.remove(file.id)
-            scope.launch {
-                fileDownloads.enqueue(
-                    FileDownloadEvent.Completed(
-                        fileId = file.id,
-                        path = file.local?.path ?: ""
-                    )
+            fileDownloadProgress.remove(file.id)
+            fileDownloadTerminals.enqueue(
+                FileDownloadEvent.Completed(
+                    fileId = file.id,
+                    path = file.local?.path ?: ""
                 )
-                fileDownloads.enqueue(
-                    FileDownloadEvent.Progress(
-                        fileId = file.id,
-                        progress = 1.0f
-                    )
-                )
-            }
+            )
             fileUpdateHandler.fileIdToCustomEmojiId[file.id]?.let { customEmojiId ->
                 fileUpdateHandler.customEmojiPaths[customEmojiId] = file.local?.path ?: ""
             }
 
             val entries = fileIdToMessageMap[file.id]
             if (!entries.isNullOrEmpty()) {
-                scope.launch {
-                    entries.forEach { (chatId, messageId) ->
-                        messageDownloads.enqueue(
-                            MessageDownloadEvent.Completed(
-                                chatId = chatId,
-                                messageId = messageId,
-                                fileId = file.id,
-                                path = file.local?.path ?: ""
-                            )
+                entries.forEach { (chatId, messageId) ->
+                    messageDownloadProgress.remove(Triple(chatId, messageId, file.id))
+                    messageDownloadTerminals.enqueue(
+                        MessageDownloadEvent.Completed(
+                            chatId = chatId,
+                            messageId = messageId,
+                            fileId = file.id,
+                            path = file.local?.path ?: ""
                         )
-                        messageDownloads.enqueue(
-                            MessageDownloadEvent.Progress(
-                                chatId = chatId,
-                                messageId = messageId,
-                                fileId = file.id,
-                                progress = 1.0f
-                            )
-                        )
-                    }
+                    )
                 }
             } else if (fileDownloadQueue.registry.standaloneFileIds.contains(file.id)) {
                 fileDownloadQueue.registry.standaloneFileIds.remove(file.id)
             }
             updateMessageWithFile(file.id)
-        } else if (isD) {
-            val p =
-                if (file.size > 0 && file.local != null) file.local.downloadedSize.toFloat() / file.size.toFloat() else 0f
-            val pInt = (p * 100).toInt()
-            if (lastProgressMap[file.id] != pInt) {
-                lastProgressMap[file.id] = pInt
-                scope.launch {
-                    fileDownloads.enqueue(
-                        FileDownloadEvent.Progress(
-                            fileId = file.id,
-                            progress = p
-                        )
-                    )
-                }
-                val entries = fileIdToMessageMap[file.id]
-                if (!entries.isNullOrEmpty()) {
-                    scope.launch {
-                        entries.forEach { (chatId, messageId) ->
-                            messageDownloads.enqueue(
-                                MessageDownloadEvent.Progress(
-                                    chatId = chatId,
-                                    messageId = messageId,
-                                    fileId = file.id,
-                                    progress = p
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        } else if (isCancelled) {
+        } else if (update.downloadCancelled) {
             lastProgressMap.remove(file.id)
             Log.d("DownloadDebug", "td.downloadCancelled.emit: fileId=${file.id}")
             emitCancelledForFile(file.id)
         }
 
-        if (isUC) {
+        if (update.uploadCompleted) {
             lastProgressMap.remove(file.id xor 0x55555555)
             val entries = fileIdToMessageMap[file.id]
             if (!entries.isNullOrEmpty()) {
-                scope.launch {
+                entries.forEach { (chatId, messageId) ->
+                    messageUploadProgressFlow.tryEmit(
+                        MessageUploadProgressEvent(
+                            chatId = chatId,
+                            messageId = messageId,
+                            fileId = file.id,
+                            progress = 1.0f
+                        )
+                    )
+                }
+            }
+            updateMessageWithFile(file.id)
+        }
+    }
+
+    private fun projectFileProgressUpdate(emitted: TdApi.File) {
+        val file = fileDownloadQueue.getCachedFile(emitted.id) ?: emitted
+        val isDownloaded = file.local?.isDownloadingCompleted == true
+        val isDownloading = file.local?.isDownloadingActive == true
+        if (isDownloading && !isDownloaded) {
+            val p =
+                if (file.size > 0 && file.local != null) file.local.downloadedSize.toFloat() / file.size.toFloat() else 0f
+            val pInt = (p * 100).toInt()
+            if (lastProgressMap[file.id] != pInt) {
+                lastProgressMap[file.id] = pInt
+                fileDownloadProgress.enqueue(
+                    FileDownloadEvent.Progress(
+                        fileId = file.id,
+                        progress = p
+                    )
+                )
+                val entries = fileIdToMessageMap[file.id]
+                if (!entries.isNullOrEmpty()) {
                     entries.forEach { (chatId, messageId) ->
-                        messageUploadProgressFlow.emit(
-                            MessageUploadProgressEvent(
+                        messageDownloadProgress.enqueue(
+                            MessageDownloadEvent.Progress(
                                 chatId = chatId,
                                 messageId = messageId,
                                 fileId = file.id,
-                                progress = 1.0f
+                                progress = p
                             )
                         )
                     }
                 }
             }
-            updateMessageWithFile(file.id)
-        } else if (isU) {
+        }
+
+        if (file.remote?.isUploadingActive == true && file.remote?.isUploadingCompleted != true) {
             val p =
                 if (file.size > 0 && file.remote != null) file.remote.uploadedSize.toFloat() / file.size.toFloat() else 0f
             val pInt = (p * 100).toInt()
@@ -2495,17 +2503,15 @@ class TdMessageRemoteDataSource(
                 lastProgressMap[file.id xor 0x55555555] = pInt
                 val entries = fileIdToMessageMap[file.id]
                 if (!entries.isNullOrEmpty()) {
-                    scope.launch {
-                        entries.forEach { (chatId, messageId) ->
-                            messageUploadProgressFlow.emit(
-                                MessageUploadProgressEvent(
-                                    chatId = chatId,
-                                    messageId = messageId,
-                                    fileId = file.id,
-                                    progress = p
-                                )
+                    entries.forEach { (chatId, messageId) ->
+                        messageUploadProgressFlow.tryEmit(
+                            MessageUploadProgressEvent(
+                                chatId = chatId,
+                                messageId = messageId,
+                                fileId = file.id,
+                                progress = p
                             )
-                        }
+                        )
                     }
                 }
             }
@@ -2565,22 +2571,20 @@ class TdMessageRemoteDataSource(
         if (previous != null && now - previous < 250L) return
         lastCancelledEmissionAt[fileId] = now
 
-        scope.launch {
-            fileDownloads.enqueue(FileDownloadEvent.Cancelled(fileId))
-        }
+        fileDownloadProgress.remove(fileId)
+        fileDownloadTerminals.enqueue(FileDownloadEvent.Cancelled(fileId))
 
         val entries = fileIdToMessageMap[fileId]
         if (!entries.isNullOrEmpty()) {
-            scope.launch {
-                entries.forEach { (chatId, messageId) ->
-                    messageDownloads.enqueue(
-                        MessageDownloadEvent.Cancelled(
-                            chatId = chatId,
-                            messageId = messageId,
-                            fileId = fileId
-                        )
+            entries.forEach { (chatId, messageId) ->
+                messageDownloadProgress.remove(Triple(chatId, messageId, fileId))
+                messageDownloadTerminals.enqueue(
+                    MessageDownloadEvent.Cancelled(
+                        chatId = chatId,
+                        messageId = messageId,
+                        fileId = fileId
                     )
-                }
+                )
             }
         }
     }
@@ -2588,28 +2592,24 @@ class TdMessageRemoteDataSource(
     private fun emitQueuedForFile(fileId: Int) {
         if (fileId == 0) return
 
-        scope.launch {
-            fileDownloads.enqueue(
-                FileDownloadEvent.Progress(
-                    fileId = fileId,
-                    progress = 0f
-                )
+        fileDownloadProgress.enqueue(
+            FileDownloadEvent.Progress(
+                fileId = fileId,
+                progress = 0f
             )
-        }
+        )
 
         val entries = fileIdToMessageMap[fileId]
         if (!entries.isNullOrEmpty()) {
-            scope.launch {
-                entries.forEach { (chatId, messageId) ->
-                    messageDownloads.enqueue(
-                        MessageDownloadEvent.Progress(
-                            chatId = chatId,
-                            messageId = messageId,
-                            fileId = fileId,
-                            progress = 0f
-                        )
+            entries.forEach { (chatId, messageId) ->
+                messageDownloadProgress.enqueue(
+                    MessageDownloadEvent.Progress(
+                        chatId = chatId,
+                        messageId = messageId,
+                        fileId = fileId,
+                        progress = 0f
                     )
-                }
+                )
             }
         }
     }

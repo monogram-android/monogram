@@ -1,18 +1,24 @@
 package org.monogram.data.infra
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.filter
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.UpdateDispatcher
+import java.util.concurrent.ConcurrentHashMap
 
 interface FileUpdateQueue {
     fun updateFileCache(file: TdApi.File)
+    fun getCachedFile(fileId: Int): TdApi.File?
     fun notifyDownloadComplete(fileId: Int)
     fun notifyUploadComplete(fileId: Int)
 }
+
+internal data class FileTerminalUpdate(
+    val file: TdApi.File,
+    val downloadCompleted: Boolean,
+    val downloadCancelled: Boolean,
+    val uploadCompleted: Boolean
+)
 
 class FileUpdateHandler(
     private val registry: FileMessageRegistry,
@@ -23,26 +29,48 @@ class FileUpdateHandler(
     val customEmojiPaths = SynchronizedLruMap<Long, String>(CUSTOM_EMOJI_CACHE_SIZE)
     val fileIdToCustomEmojiId = SynchronizedLruMap<Int, Long>(FILE_TO_EMOJI_CACHE_SIZE)
 
-    private val _downloadProgress = MutableSharedFlow<Pair<Long, Float>>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val completedDownloadIds = ConcurrentHashMap.newKeySet<Int>()
+    private val downloadingFileIds = ConcurrentHashMap.newKeySet<Int>()
+    private val _downloadProgress = LatestByKeyEventFlow<Long, Pair<Long, Float>>(
+        scope = scope,
+        keyOf = { it.first }
+    )
     private val downloadCompletions = OrderedEventFlow<Pair<Long, String>>(scope)
-    private val _fileDownloadProgress =
-        MutableSharedFlow<Pair<Long, Float>>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val _fileDownloadProgress = LatestByKeyEventFlow<Long, Pair<Long, Float>>(
+        scope = scope,
+        keyOf = { it.first },
+        shouldEmit = { (fileId, _) ->
+            queue.getCachedFile(fileId.toInt())?.local?.isDownloadingCompleted != true
+        }
+    )
     private val fileDownloadCompletions = OrderedEventFlow<Pair<Long, String>>(scope)
-    private val _uploadProgress = MutableSharedFlow<Pair<Long, Float>>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    private val fileUpdateEvents = OrderedEventFlow<TdApi.File>(scope)
+    private val _uploadProgress = LatestByKeyEventFlow<Long, Pair<Long, Float>>(
+        scope = scope,
+        keyOf = { it.first }
+    )
+    private val terminalFileUpdates = OrderedEventFlow<FileTerminalUpdate>(scope)
+    private val progressFileUpdates = LatestByKeyEventFlow<Int, TdApi.File>(
+        scope = scope,
+        keyOf = { it.id },
+        shouldEmit = { file ->
+            file.local?.isDownloadingActive != true ||
+                    queue.getCachedFile(file.id)?.local?.isDownloadingCompleted != true
+        }
+    )
 
-    val downloadProgress = _downloadProgress.asSharedFlow()
+    val downloadProgress = _downloadProgress.events
     val downloadCompleted = downloadCompletions.events
-    val fileDownloadProgress = _fileDownloadProgress.asSharedFlow()
+    val fileDownloadProgress = _fileDownloadProgress.events.filter { (fileId, _) ->
+        queue.getCachedFile(fileId.toInt())?.local?.isDownloadingCompleted != true
+    }
     val fileDownloadCompleted = fileDownloadCompletions.events
-    val uploadProgress = _uploadProgress.asSharedFlow()
-    val fileUpdates = fileUpdateEvents.events
+    val uploadProgress = _uploadProgress.events
+    internal val fileTerminalUpdates = terminalFileUpdates.events
+    internal val fileProgressUpdates = progressFileUpdates.events
 
     init {
-        // The isDownloadingCompleted / isUploadingCompleted edge is what resolves download
-        // waiters and records the local path; losing it strands whatever was waiting.
-        // Progress ticks in between are conflatable, but the edge is not, so the whole
-        // stream goes through a lossless lane.
+        // The completion/cancellation edge resolves waiters and records the local path, so it
+        // stays lossless. Progress is independently conflated by file ID below.
         updates.lane(
             name = "files",
             scope = scope,
@@ -54,63 +82,85 @@ class FileUpdateHandler(
 
     private fun handle(file: TdApi.File) {
         queue.updateFileCache(file)
-        fileUpdateEvents.enqueue(file)
+        val current = queue.getCachedFile(file.id) ?: file
+        if (
+            current.local?.isDownloadingCompleted == true &&
+            file.local?.isDownloadingActive == true &&
+            file.local?.isDownloadingCompleted != true
+        ) {
+            return
+        }
 
-        val downloading = file.local?.isDownloadingActive == true
-        val downloadDone = file.local?.isDownloadingCompleted == true
-        val uploading = file.remote?.isUploadingActive == true
-        val uploadDone = file.remote?.isUploadingCompleted == true
+        val downloading = current.local?.isDownloadingActive == true
+        val downloadDone = current.local?.isDownloadingCompleted == true
+        val uploading = current.remote?.isUploadingActive == true
+        val uploadDone = current.remote?.isUploadingCompleted == true
+        val wasDownloading = downloadingFileIds.contains(current.id)
+        val downloadCancelled = wasDownloading && !downloading && !downloadDone
+        val downloadCompletionEdge = downloadDone && completedDownloadIds.add(current.id)
 
-        if (downloadDone) queue.notifyDownloadComplete(file.id)
+        if (downloading) downloadingFileIds.add(current.id) else downloadingFileIds.remove(current.id)
+        if (downloadDone) {
+            progressFileUpdates.remove(current.id)
+            _fileDownloadProgress.remove(current.id.toLong())
+        } else if (!downloading) {
+            completedDownloadIds.remove(current.id)
+        }
 
-        if (uploadDone) queue.notifyUploadComplete(file.id)
+        if (downloadCompletionEdge || downloadCancelled || uploadDone || (!downloading && !uploading)) {
+            terminalFileUpdates.enqueue(
+                FileTerminalUpdate(current, downloadCompletionEdge, downloadCancelled, uploadDone)
+            )
+        }
+        if (downloading || (uploading && !uploadDone)) {
+            progressFileUpdates.enqueue(current)
+        }
 
-        val entries = registry.getMessages(file.id)
+        if (downloadDone) queue.notifyDownloadComplete(current.id)
+
+        if (uploadDone) queue.notifyUploadComplete(current.id)
+
+        val entries = registry.getMessages(current.id)
         if (entries.isNotEmpty()) {
-            scope.launch {
-                if (downloadDone) {
-                    handleCustomEmoji(file.id, file.local?.path ?: "")
-                    fileDownloadCompletions.enqueue(file.id.toLong() to (file.local?.path ?: ""))
-                    _fileDownloadProgress.emit(file.id.toLong() to 1f)
-                    entries.forEach { (_, msgId) ->
-                        downloadCompletions.enqueue(msgId to (file.local?.path ?: ""))
-                        _downloadProgress.emit(msgId to 1f)
-                    }
-                } else if (downloading) {
-                    val progress = if (file.size > 0) file.local!!.downloadedSize.toFloat() / file.size else 0f
-                    _fileDownloadProgress.emit(file.id.toLong() to progress)
-                    entries.forEach { (_, msgId) -> _downloadProgress.emit(msgId to progress) }
+            if (downloadCompletionEdge) {
+                handleCustomEmoji(current.id, current.local?.path ?: "")
+                fileDownloadCompletions.enqueue(current.id.toLong() to (current.local?.path ?: ""))
+                entries.forEach { (_, msgId) ->
+                    _downloadProgress.remove(msgId)
+                    downloadCompletions.enqueue(msgId to (current.local?.path ?: ""))
                 }
-                if (uploadDone) {
-                    entries.forEach { (_, msgId) -> _uploadProgress.emit(msgId to 1f) }
-                } else if (uploading) {
-                    val progress = if (file.size > 0) file.remote!!.uploadedSize.toFloat() / file.size else 0f
-                    entries.forEach { (_, msgId) -> _uploadProgress.emit(msgId to progress) }
-                }
+            } else if (downloading && current.id !in completedDownloadIds) {
+                val progress =
+                    if (current.size > 0) current.local!!.downloadedSize.toFloat() / current.size else 0f
+                _fileDownloadProgress.enqueue(current.id.toLong() to progress)
+                entries.forEach { (_, msgId) -> _downloadProgress.enqueue(msgId to progress) }
             }
-        } else if (registry.standaloneFileIds.contains(file.id)) {
-            scope.launch {
-                if (downloadDone) {
-                    fileDownloadCompletions.enqueue(file.id.toLong() to (file.local?.path ?: ""))
-                    _fileDownloadProgress.emit(file.id.toLong() to 1f)
-                    downloadCompletions.enqueue(file.id.toLong() to (file.local?.path ?: ""))
-                    _downloadProgress.emit(file.id.toLong() to 1f)
-                    registry.standaloneFileIds.remove(file.id)
-                } else if (downloading) {
-                    val progress = if (file.size > 0) file.local!!.downloadedSize.toFloat() / file.size else 0f
-                    _fileDownloadProgress.emit(file.id.toLong() to progress)
-                    _downloadProgress.emit(file.id.toLong() to progress)
-                }
+            if (uploadDone) {
+                entries.forEach { (_, msgId) -> _uploadProgress.enqueue(msgId to 1f) }
+            } else if (uploading) {
+                val progress =
+                    if (current.size > 0) current.remote!!.uploadedSize.toFloat() / current.size else 0f
+                entries.forEach { (_, msgId) -> _uploadProgress.enqueue(msgId to progress) }
+            }
+        } else if (registry.standaloneFileIds.contains(current.id)) {
+            if (downloadCompletionEdge) {
+                fileDownloadCompletions.enqueue(current.id.toLong() to (current.local?.path ?: ""))
+                downloadCompletions.enqueue(current.id.toLong() to (current.local?.path ?: ""))
+                _downloadProgress.remove(current.id.toLong())
+                registry.standaloneFileIds.remove(current.id)
+            } else if (downloading && current.id !in completedDownloadIds) {
+                val progress =
+                    if (current.size > 0) current.local!!.downloadedSize.toFloat() / current.size else 0f
+                _fileDownloadProgress.enqueue(current.id.toLong() to progress)
+                _downloadProgress.enqueue(current.id.toLong() to progress)
             }
         } else {
-            scope.launch {
-                if (downloadDone) {
-                    fileDownloadCompletions.enqueue(file.id.toLong() to (file.local?.path ?: ""))
-                    _fileDownloadProgress.emit(file.id.toLong() to 1f)
-                } else if (downloading) {
-                    val progress = if (file.size > 0) file.local!!.downloadedSize.toFloat() / file.size else 0f
-                    _fileDownloadProgress.emit(file.id.toLong() to progress)
-                }
+            if (downloadCompletionEdge) {
+                fileDownloadCompletions.enqueue(current.id.toLong() to (current.local?.path ?: ""))
+            } else if (downloading && current.id !in completedDownloadIds) {
+                val progress =
+                    if (current.size > 0) current.local!!.downloadedSize.toFloat() / current.size else 0f
+                _fileDownloadProgress.enqueue(current.id.toLong() to progress)
             }
         }
     }

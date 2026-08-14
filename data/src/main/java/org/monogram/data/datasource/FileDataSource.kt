@@ -5,6 +5,16 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.data.infra.FileDownloadQueue
 
 interface FileDataSource {
+    fun acquireStreamingDemand(fileId: Int): Boolean
+    fun releaseStreamingDemand(fileId: Int)
+    suspend fun downloadStreamingRange(
+        fileId: Int,
+        priority: Int,
+        offset: Long,
+        limit: Long,
+        timeoutMs: Long
+    ): FileDownloadQueue.StreamingRangeResult
+
     suspend fun downloadFile(
         fileId: Int,
         priority: Int,

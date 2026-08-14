@@ -13,6 +13,27 @@ class TdFileDataSource(
     private val gateway: TelegramGateway,
     private val fileDownloadQueue: FileDownloadQueue
 ) : FileDataSource {
+    override fun acquireStreamingDemand(fileId: Int): Boolean =
+        fileDownloadQueue.acquireStreamingDemand(fileId)
+
+    override fun releaseStreamingDemand(fileId: Int) {
+        fileDownloadQueue.releaseStreamingDemand(fileId)
+    }
+
+    override suspend fun downloadStreamingRange(
+        fileId: Int,
+        priority: Int,
+        offset: Long,
+        limit: Long,
+        timeoutMs: Long
+    ): FileDownloadQueue.StreamingRangeResult = fileDownloadQueue.downloadStreamingRange(
+        fileId = fileId,
+        priority = priority,
+        offset = offset,
+        limit = limit,
+        timeoutMs = timeoutMs
+    )
+
     override suspend fun downloadFile(
         fileId: Int,
         priority: Int,
@@ -64,7 +85,7 @@ class TdFileDataSource(
         return getFile(fileId)
     }
 
-    override suspend fun cancelDownload(fileId: Int): TdApi.Ok? {
+    override suspend fun cancelDownload(fileId: Int): TdApi.Ok {
         fileDownloadQueue.cancelDownload(fileId, force = true)
         return TdApi.Ok()
     }

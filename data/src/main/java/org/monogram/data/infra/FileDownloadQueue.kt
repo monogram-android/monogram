@@ -20,7 +20,10 @@ import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.repository.MediaAutoDownloadPolicy
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 class FileDownloadQueue(
     private val gateway: TelegramGateway,
@@ -35,6 +38,14 @@ class FileDownloadQueue(
     }
 
     enum class DownloadType { VIDEO, GIF, STICKER, VIDEO_NOTE, DEFAULT }
+
+    enum class DemandOrigin { AUTOMATIC, MANUAL, STREAMING }
+
+    enum class StreamingRangeOutcome { COMPLETED, CANCELLED, TIMED_OUT, REJECTED }
+
+    data class StreamingRangeResult(val outcome: StreamingRangeOutcome) {
+        val accepted: Boolean get() = outcome != StreamingRangeOutcome.REJECTED
+    }
 
     enum class MediaKind { PHOTO, VIDEO, GIF, VOICE, VIDEO_NOTE, DOCUMENT, AUDIO, STICKER, OTHER }
     enum class DemandRole { PRIMARY, PREVIEW, MANUAL_ONLY }
@@ -54,9 +65,12 @@ class FileDownloadQueue(
         val synchronous: Boolean = false,
         val createdAt: Long = System.currentTimeMillis(),
         val availableAt: Long = System.currentTimeMillis(),
-        val isManual: Boolean = false,
+        val origin: DemandOrigin = DemandOrigin.AUTOMATIC,
+        val generation: Long,
         val retryCount: Int = 0
     ) : Comparable<DownloadRequest> {
+        val isManual: Boolean get() = origin == DemandOrigin.MANUAL
+
         override fun compareTo(other: DownloadRequest): Int {
             if (this.isManual != other.isManual) return if (this.isManual) -1 else 1
             val p = other.priority.compareTo(priority)
@@ -83,6 +97,10 @@ class FileDownloadQueue(
     private val uploadWaiters = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
     private val lastProgressAt = ConcurrentHashMap<Int, Long>()
     private val stalledRecoveryAt = ConcurrentHashMap<Int, Long>()
+    private val requestGeneration = AtomicLong()
+    private val streamingConsumers = ConcurrentHashMap<Int, AtomicInteger>()
+    private val streamingRangeWaiters =
+        ConcurrentHashMap<Int, CopyOnWriteArrayList<StreamingRangeWaiter>>()
 
     private val openChatIds = ConcurrentHashMap.newKeySet<Long>()
     private val visibleMessageIds = ConcurrentHashMap<Long, Set<Long>>()
@@ -239,7 +257,7 @@ class FileDownloadQueue(
             try {
                 val finalFile = withTimeoutOrNull(10000) { gateway.execute(TdApi.GetFile(fileId)) }
                 if (finalFile != null) {
-                    cache.fileCache[fileId] = finalFile
+                    updateFileCache(finalFile)
                     if (finalFile.local.isDownloadingCompleted) {
                         notifyDownloadComplete(fileId)
                     } else if (!finalFile.local.isDownloadingActive && !hasPendingOrActiveRequest(fileId)) {
@@ -268,7 +286,8 @@ class FileDownloadQueue(
             val backoffMs = calculateBackoffMs(req, nextRetry, errorCode)
             val nextReq = req.copy(
                 retryCount = nextRetry,
-                availableAt = System.currentTimeMillis() + backoffMs
+                availableAt = System.currentTimeMillis() + backoffMs,
+                generation = requestGeneration.incrementAndGet()
             )
             stateMutex.withLock {
                 pendingRequests[req.fileId] = nextReq
@@ -282,6 +301,7 @@ class FileDownloadQueue(
         } else {
             failedRequests[req.fileId] = req
             downloadWaiters.remove(req.fileId)?.cancel()
+            completeStreamingWaiters(req.fileId, StreamingRangeOutcome.CANCELLED)
         }
     }
 
@@ -292,7 +312,11 @@ class FileDownloadQueue(
         notFoundCooldownUntil[req.fileId] = availableAt
 
         if (nextRetry <= MAX_RECOVERY_RETRIES) {
-            val nextReq = req.copy(retryCount = nextRetry, availableAt = availableAt)
+            val nextReq = req.copy(
+                retryCount = nextRetry,
+                availableAt = availableAt,
+                generation = requestGeneration.incrementAndGet()
+            )
             stateMutex.withLock {
                 pendingRequests[req.fileId] = nextReq
                 failedRequests.remove(req.fileId)
@@ -305,6 +329,7 @@ class FileDownloadQueue(
         } else {
             failedRequests[req.fileId] = req.copy(availableAt = availableAt)
             downloadWaiters.remove(req.fileId)?.cancel()
+            completeStreamingWaiters(req.fileId, StreamingRangeOutcome.CANCELLED)
         }
     }
 
@@ -355,9 +380,20 @@ class FileDownloadQueue(
             val lastProgress = lastProgressAt[req.fileId] ?: req.createdAt
             if (now - lastProgress >= timeoutMs) {
                 if (req.retryCount >= MAX_RECOVERY_RETRIES) {
-                    activeRequests.remove(req.fileId, req)
-                    failedRequests[req.fileId] = req
-                    downloadWaiters.remove(req.fileId)?.cancel()
+                    var removed = false
+                    activeRequests.computeIfPresent(req.fileId) { _, active ->
+                        if (active.generation == req.generation) {
+                            removed = true
+                            null
+                        } else {
+                            active
+                        }
+                    }
+                    if (removed) {
+                        failedRequests[req.fileId] = req
+                        downloadWaiters.remove(req.fileId)?.cancel()
+                        completeStreamingWaiters(req.fileId, StreamingRangeOutcome.CANCELLED)
+                    }
                     return@forEach
                 }
                 val recoveredAt = stalledRecoveryAt[req.fileId] ?: 0L
@@ -370,15 +406,16 @@ class FileDownloadQueue(
                         if (active.createdAt != req.createdAt || active.availableAt != req.availableAt) return@withLock false
 
                         activeRequests.remove(req.fileId)
-                        pendingRequests[req.fileId] = mergeRequests(
-                            pendingRequests[req.fileId] ?: req,
-                            req.copy(
+                        val recovered = req.copy(
                                 priority = if (req.type == DownloadType.STICKER) maxOf(req.priority, 32) else maxOf(req.priority, 16),
                                 availableAt = System.currentTimeMillis() + 250L,
                                 createdAt = System.currentTimeMillis(),
+                            generation = requestGeneration.incrementAndGet(),
                                 retryCount = req.retryCount + 1
                             )
-                        )
+                        pendingRequests[req.fileId] = pendingRequests[req.fileId]
+                            ?.let { pending -> mergeRequests(recovered, pending) }
+                            ?: recovered
                         true
                     }
 
@@ -398,7 +435,10 @@ class FileDownloadQueue(
 
     private suspend fun finishTask(request: DownloadRequest) {
         stateMutex.withLock {
-            activeRequests.remove(request.fileId, request)
+            val active = activeRequests[request.fileId]
+            if (active?.generation == request.generation) {
+                activeRequests.remove(request.fileId, active)
+            }
         }
         stalledRecoveryAt.remove(request.fileId)
         trigger.trySend(Unit)
@@ -407,15 +447,33 @@ class FileDownloadQueue(
     private suspend fun waitForRequestedRange(req: DownloadRequest) {
         while (true) {
             val cached = cache.fileCache[req.fileId]
-            if (cached?.local?.isDownloadingCompleted == true) return
+            if (cached?.local?.isDownloadingCompleted == true) {
+                completeStreamingWaiters(req.fileId, StreamingRangeOutcome.COMPLETED)
+                return
+            }
+
+            val current = stateMutex.withLock {
+                activeRequests[req.fileId]?.takeIf { it.generation == req.generation }
+            }
+            if (current == null) {
+                completeStreamingWaiters(req.fileId, StreamingRangeOutcome.CANCELLED)
+                return
+            }
+            if (current.limit <= 0L) {
+                delay(80L)
+                continue
+            }
 
             val prefix = withContext(dispatcherProvider.io) {
                 coRunCatching {
-                    gateway.execute(TdApi.GetFileDownloadedPrefixSize(req.fileId, req.offset))
+                    gateway.execute(TdApi.GetFileDownloadedPrefixSize(req.fileId, current.offset))
                 }.getOrNull()
             }
             val available = (prefix?.size ?: 0L).coerceAtLeast(0L)
-            if (available >= req.limit) return
+            if (available >= current.limit) {
+                completeStreamingWaitersInRange(req.fileId, current.offset, current.limit)
+                return
+            }
 
             delay(80L)
         }
@@ -423,7 +481,15 @@ class FileDownloadQueue(
 
     override fun updateFileCache(file: TdApi.File) {
         val oldFile = cache.fileCache[file.id]
+        if (
+            oldFile?.local?.isDownloadingCompleted == true &&
+            file.local.isDownloadingActive &&
+            !file.local.isDownloadingCompleted
+        ) {
+            return
+        }
         cache.fileCache[file.id] = file
+        completeSatisfiedStreamingWaiters(file)
         val now = System.currentTimeMillis()
         if (file.local.downloadedSize > (oldFile?.local?.downloadedSize ?: -1)) {
             lastProgressAt[file.id] = now
@@ -453,7 +519,7 @@ class FileDownloadQueue(
 
     fun isFileQueued(fileId: Int) = pendingRequests.containsKey(fileId) || activeRequests.containsKey(fileId)
 
-    fun getCachedFile(fileId: Int): TdApi.File? = cache.fileCache[fileId]
+    override fun getCachedFile(fileId: Int): TdApi.File? = cache.fileCache[fileId]
 
     fun getCachedPath(fileId: Int): String? =
         cache.fileCache[fileId]?.local?.path?.takeIf { it.isNotEmpty() }
@@ -524,126 +590,296 @@ class FileDownloadQueue(
         userInitiated: Boolean = false
     ) {
         scope.launch(dispatcherProvider.default) {
-            if (!ignoreSuppression && suppressedAutoDownloadIds.contains(fileId)) {
-                return@launch
-            }
-
-            // User intent is an explicit signal, not something inferred from a magic priority.
-            // It used to be `priority >= 32`, but viewport auto-download also passes 32, so every
-            // thumbnail scrolled past was marked "manual" and became un-evictable.
-            val isManualRequest = userInitiated
-            if (isManualRequest) manualDownloadIds.add(fileId)
-
-            val registeredMessages = registry.getMessages(fileId)
-            if (
-                !isManualRequest &&
-                !synchronous &&
-                registeredMessages.isNotEmpty() &&
-                !hasViewportDemand(fileId)
-            ) {
-                return@launch
-            }
-
-            val cooldownUntil = notFoundCooldownUntil[fileId]
-            if (!isManualRequest && cooldownUntil != null && cooldownUntil > System.currentTimeMillis()) {
-                return@launch
-            }
-            if (cooldownUntil != null && cooldownUntil <= System.currentTimeMillis()) {
-                notFoundCooldownUntil.remove(fileId)
-            }
-
-            if (registeredMessages.isEmpty()) registry.standaloneFileIds.add(fileId)
-            if (type != DownloadType.DEFAULT || !fileDownloadTypes.containsKey(fileId)) {
-                fileDownloadTypes[fileId] = type
-            }
-
-            val cached = cache.fileCache[fileId]
-            if (cached?.local?.isDownloadingCompleted == true) {
-                notifyDownloadComplete(fileId)
-                manualDownloadIds.remove(fileId)
-                return@launch
-            }
-
-            val resolvedType = if (type == DownloadType.DEFAULT) {
-                fileDownloadTypes[fileId] ?: DownloadType.DEFAULT
-            } else {
-                type
-            }
-
-            val finalOffset = if (resolvedType == DownloadType.STICKER || resolvedType == DownloadType.VIDEO_NOTE) 0L else offset
-            val finalLimit = if (resolvedType == DownloadType.STICKER || resolvedType == DownloadType.VIDEO_NOTE) 0L else limit
-
-            val prio = calculatePriority(fileId).coerceAtLeast(priority)
-            val isManual = manualDownloadIds.contains(fileId)
-            val req = DownloadRequest(
+            enqueueInternal(
                 fileId = fileId,
-                priority = prio,
-                type = resolvedType,
-                offset = finalOffset,
-                limit = finalLimit,
+                priority = priority,
+                type = type,
+                offset = offset,
+                limit = limit,
                 synchronous = synchronous,
-                createdAt = System.currentTimeMillis(),
-                availableAt = System.currentTimeMillis(),
-                isManual = isManual
+                ignoreSuppression = ignoreSuppression,
+                origin = if (userInitiated) DemandOrigin.MANUAL else DemandOrigin.AUTOMATIC
             )
+        }
+    }
 
-            stateMutex.withLock {
-                val active = activeRequests[fileId]
-                if (active != null) {
-                    val merged = mergeRequests(active, req)
-                    val shouldKick = merged != active
-                    if (shouldKick) {
-                        activeRequests[fileId] = merged
-                        scope.launch(dispatcherProvider.io) {
-                            try {
-                                gateway.execute(
-                                    TdApi.DownloadFile(
-                                        fileId,
-                                        merged.priority,
-                                        merged.offset,
-                                        merged.limit,
-                                        merged.synchronous
-                                    )
-                                )
-                            } catch (_: Exception) {
-                            }
-                        }
-                    }
-                    return@launch
+    private suspend fun enqueueInternal(
+        fileId: Int,
+        priority: Int,
+        type: DownloadType,
+        offset: Long,
+        limit: Long,
+        synchronous: Boolean,
+        ignoreSuppression: Boolean,
+        origin: DemandOrigin
+    ): Boolean {
+        if (!ignoreSuppression && suppressedAutoDownloadIds.contains(fileId)) return false
+        if (origin == DemandOrigin.STREAMING && (limit <= 0L || !hasStreamingDemand(fileId))) return false
+
+        if (origin == DemandOrigin.MANUAL) manualDownloadIds.add(fileId)
+
+        val registeredMessages = registry.getMessages(fileId)
+        if (
+            origin == DemandOrigin.AUTOMATIC &&
+            !synchronous &&
+            registeredMessages.isNotEmpty() &&
+            !hasViewportDemand(fileId)
+        ) {
+            return false
+        }
+
+        val cooldownUntil = notFoundCooldownUntil[fileId]
+        if (origin != DemandOrigin.MANUAL && cooldownUntil != null && cooldownUntil > System.currentTimeMillis()) {
+            return false
+        }
+        if (cooldownUntil != null && cooldownUntil <= System.currentTimeMillis()) {
+            notFoundCooldownUntil.remove(fileId)
+        }
+
+        if (registeredMessages.isEmpty() && origin != DemandOrigin.STREAMING) {
+            registry.standaloneFileIds.add(fileId)
+        }
+        if (type != DownloadType.DEFAULT || !fileDownloadTypes.containsKey(fileId)) {
+            fileDownloadTypes[fileId] = type
+        }
+
+        val cached = cache.fileCache[fileId]
+        if (cached?.local?.isDownloadingCompleted == true) {
+            notifyDownloadComplete(fileId)
+            manualDownloadIds.remove(fileId)
+            return true
+        }
+
+        val resolvedType = if (type == DownloadType.DEFAULT) {
+            fileDownloadTypes[fileId] ?: DownloadType.DEFAULT
+        } else {
+            type
+        }
+        val fixedRangeType =
+            resolvedType == DownloadType.STICKER || resolvedType == DownloadType.VIDEO_NOTE
+        val now = System.currentTimeMillis()
+        val req = DownloadRequest(
+            fileId = fileId,
+            priority = calculatePriority(fileId).coerceAtLeast(priority),
+            type = resolvedType,
+            offset = if (fixedRangeType) 0L else offset,
+            limit = if (fixedRangeType) 0L else limit,
+            synchronous = synchronous,
+            createdAt = now,
+            availableAt = now,
+            origin = origin,
+            generation = requestGeneration.incrementAndGet()
+        )
+
+        var startImmediately: DownloadRequest? = null
+        var kickActive: DownloadRequest? = null
+        var notifyQueued = false
+        val accepted = stateMutex.withLock {
+            val active = activeRequests[fileId]
+            if (active != null) {
+                val merged = mergeRequests(active, req)
+                if (merged != active) {
+                    activeRequests[fileId] = merged
+                    kickActive = merged
                 }
-
-                // Explicit user actions bypass the automatic-download caps.
-                if (userInitiated) {
-                    pendingRequests.remove(fileId)
-                    activeRequests[fileId] = req
-                    notifyDownloadQueued(fileId)
-                    scope.launch(dispatcherProvider.io) {
-                        processDownload(req)
-                    }
-                    return@launch
-                }
-
+                true
+            } else if (origin == DemandOrigin.MANUAL) {
+                pendingRequests.remove(fileId)
+                activeRequests[fileId] = req
+                startImmediately = req
+                notifyQueued = true
+                true
+            } else {
                 val pending = pendingRequests[fileId]
                 if (pending != null) {
                     pendingRequests[fileId] = mergeRequests(pending, req)
+                    true
                 } else {
-                    // Never silently drop a synchronous request: callers await waitForDownload(),
-                    // and abandoning it here leaves that deferred uncompleted forever.
-                    if (!isManual && !synchronous && resolvedType == DownloadType.DEFAULT) {
+                    if (origin == DemandOrigin.AUTOMATIC && !synchronous && resolvedType == DownloadType.DEFAULT) {
                         val pendingDefaultCount = pendingRequests.values.count {
                             !it.isManual && it.type == DownloadType.DEFAULT
                         }
                         if (req.priority < 32 && pendingDefaultCount >= maxPendingDefaultAutoDownloads) {
                             downloadWaiters.remove(fileId)?.cancel()
-                            return@launch
+                            return@withLock false
                         }
                     }
                     pendingRequests[fileId] = req
+                    notifyQueued = true
+                    true
                 }
             }
-            notifyDownloadQueued(fileId)
+        }
+
+        kickActive?.let { merged ->
+            scope.launch(dispatcherProvider.io) {
+                coRunCatching {
+                    gateway.execute(
+                        TdApi.DownloadFile(
+                            fileId,
+                            merged.priority,
+                            merged.offset,
+                            merged.limit,
+                            merged.synchronous
+                        )
+                    )
+                }
+            }
+        }
+        startImmediately?.let { request ->
+            scope.launch(dispatcherProvider.io) { processDownload(request) }
+        }
+        if (accepted && notifyQueued) notifyDownloadQueued(fileId)
+        if (accepted && startImmediately == null) trigger.trySend(Unit)
+        return accepted
+    }
+
+    private data class StreamingRangeWaiter(
+        val offset: Long,
+        val limit: Long,
+        val completion: CompletableDeferred<StreamingRangeOutcome> = CompletableDeferred()
+    )
+
+    fun acquireStreamingDemand(fileId: Int): Boolean {
+        if (fileId == 0) return false
+        streamingConsumers.compute(fileId) { _, count ->
+            (count ?: AtomicInteger()).also { it.incrementAndGet() }
+        }
+        return true
+    }
+
+    fun releaseStreamingDemand(fileId: Int) {
+        var releasedLast = false
+        streamingConsumers.computeIfPresent(fileId) { _, count ->
+            if (count.decrementAndGet() <= 0) {
+                releasedLast = true
+                null
+            } else {
+                count
+            }
+        }
+        if (releasedLast) {
+            scope.launch(dispatcherProvider.default) { cancelStreamingRequestIfUnused(fileId) }
+        }
+    }
+
+    suspend fun downloadStreamingRange(
+        fileId: Int,
+        priority: Int,
+        offset: Long,
+        limit: Long,
+        timeoutMs: Long
+    ): StreamingRangeResult {
+        if (fileId == 0 || offset < 0L || limit <= 0L || timeoutMs <= 0L || !hasStreamingDemand(
+                fileId
+            )
+        ) {
+            return StreamingRangeResult(StreamingRangeOutcome.REJECTED)
+        }
+
+        cache.fileCache[fileId]?.takeIf { it.hasRange(offset, limit) }?.let {
+            return StreamingRangeResult(StreamingRangeOutcome.COMPLETED)
+        }
+
+        val waiter = StreamingRangeWaiter(offset, limit)
+        streamingRangeWaiters.computeIfAbsent(fileId) { CopyOnWriteArrayList() }.add(waiter)
+        val accepted = enqueueInternal(
+            fileId = fileId,
+            priority = priority,
+            type = DownloadType.VIDEO,
+            offset = offset,
+            limit = limit,
+            synchronous = false,
+            ignoreSuppression = true,
+            origin = DemandOrigin.STREAMING
+        )
+        if (!accepted) {
+            removeStreamingWaiter(fileId, waiter)
+            return StreamingRangeResult(StreamingRangeOutcome.REJECTED)
+        }
+
+        cache.fileCache[fileId]?.let(::completeSatisfiedStreamingWaiters)
+        val outcome = withTimeoutOrNull(timeoutMs) { waiter.completion.await() }
+            ?: StreamingRangeOutcome.TIMED_OUT
+        removeStreamingWaiter(fileId, waiter)
+        return StreamingRangeResult(outcome)
+    }
+
+    internal fun streamingConsumerCount(fileId: Int): Int =
+        streamingConsumers[fileId]?.get() ?: 0
+
+    private fun hasStreamingDemand(fileId: Int): Boolean = streamingConsumerCount(fileId) > 0
+
+    private suspend fun cancelStreamingRequestIfUnused(fileId: Int) {
+        if (hasStreamingDemand(fileId) || manualDownloadIds.contains(fileId) || hasViewportDemand(
+                fileId
+            )
+        ) return
+
+        var cancelTdLib = false
+        var removed = false
+        stateMutex.withLock {
+            pendingRequests[fileId]?.takeIf { it.origin == DemandOrigin.STREAMING }?.let {
+                pendingRequests.remove(fileId, it)
+                removed = true
+            }
+            activeRequests[fileId]?.takeIf { it.origin == DemandOrigin.STREAMING }?.let {
+                activeRequests.remove(fileId, it)
+                cancelTdLib = true
+                removed = true
+            }
+        }
+        if (cancelTdLib) {
+            coRunCatching {
+                withContext(dispatcherProvider.io) {
+                    gateway.execute(TdApi.CancelDownloadFile(fileId, false))
+                }
+            }
+        }
+        if (removed) {
+            completeStreamingWaiters(fileId, StreamingRangeOutcome.CANCELLED)
+            notifyDownloadCancelled(fileId)
             trigger.trySend(Unit)
         }
+    }
+
+    private fun completeSatisfiedStreamingWaiters(file: TdApi.File) {
+        val waiters = streamingRangeWaiters[file.id] ?: return
+        waiters.forEach { waiter ->
+            if (file.hasRange(waiter.offset, waiter.limit)) {
+                waiter.completion.complete(StreamingRangeOutcome.COMPLETED)
+            }
+        }
+    }
+
+    private fun completeStreamingWaiters(fileId: Int, outcome: StreamingRangeOutcome) {
+        streamingRangeWaiters.remove(fileId)?.forEach { it.completion.complete(outcome) }
+    }
+
+    private fun completeStreamingWaitersInRange(fileId: Int, offset: Long, limit: Long) {
+        val end = offset + limit
+        if (end < offset) return
+        streamingRangeWaiters[fileId]?.forEach { waiter ->
+            val waiterEnd = waiter.offset + waiter.limit
+            if (waiter.offset >= offset && waiterEnd >= waiter.offset && waiterEnd <= end) {
+                waiter.completion.complete(StreamingRangeOutcome.COMPLETED)
+            }
+        }
+    }
+
+    private fun removeStreamingWaiter(fileId: Int, waiter: StreamingRangeWaiter) {
+        streamingRangeWaiters[fileId]?.let { waiters ->
+            waiters.remove(waiter)
+            if (waiters.isEmpty()) streamingRangeWaiters.remove(fileId, waiters)
+        }
+    }
+
+    private fun TdApi.File.hasRange(offset: Long, limit: Long): Boolean {
+        if (local.isDownloadingCompleted) return true
+        val rangeStart = local.downloadOffset
+        val rangeEnd = rangeStart + local.downloadedPrefixSize
+        val requestedEnd = offset + limit
+        return offset >= rangeStart && requestedEnd >= offset && requestedEnd <= rangeEnd
     }
 
     fun cancelDownload(fileId: Int, force: Boolean = false, suppress: Boolean = true) {
@@ -665,6 +901,7 @@ class FileDownloadQueue(
                 failedRequests.remove(fileId)
             }
             Log.d("DownloadDebug", "queue.cancel.cleared: fileId=$fileId")
+            completeStreamingWaiters(fileId, StreamingRangeOutcome.CANCELLED)
             notifyDownloadCancelled(fileId)
         }
     }
@@ -692,6 +929,7 @@ class FileDownloadQueue(
 
     override fun notifyDownloadComplete(fileId: Int) {
         downloadWaiters.remove(fileId)?.complete(Unit)
+        completeStreamingWaiters(fileId, StreamingRangeOutcome.COMPLETED)
     }
 
     private fun notifyDownloadQueued(fileId: Int) {
@@ -713,6 +951,7 @@ class FileDownloadQueue(
 
     private fun isStillRelevant(fileId: Int): Boolean {
         if (manualDownloadIds.contains(fileId)) return true
+        if (hasStreamingDemand(fileId)) return true
         if (registry.sponsoredFileIds.contains(fileId)) return true
         if (registry.standaloneFileIds.contains(fileId)) return true
         return hasViewportDemand(fileId)
@@ -782,7 +1021,11 @@ class FileDownloadQueue(
 
     private fun mergeRequests(old: DownloadRequest, new: DownloadRequest): DownloadRequest {
         val p = maxOf(old.priority, new.priority)
-        val isManual = old.isManual || new.isManual
+        val origin = when {
+            old.origin == DemandOrigin.MANUAL || new.origin == DemandOrigin.MANUAL -> DemandOrigin.MANUAL
+            old.origin == DemandOrigin.STREAMING || new.origin == DemandOrigin.STREAMING -> DemandOrigin.STREAMING
+            else -> DemandOrigin.AUTOMATIC
+        }
 
         val curEnd = if (old.limit == 0L) Long.MAX_VALUE else old.offset + old.limit
         val newEnd = if (new.limit == 0L) Long.MAX_VALUE else new.offset + new.limit
@@ -792,7 +1035,7 @@ class FileDownloadQueue(
 
         return old.copy(
             priority = p,
-            isManual = isManual,
+            origin = origin,
             offset = start,
             limit = limit,
             availableAt = minOf(old.availableAt, new.availableAt)

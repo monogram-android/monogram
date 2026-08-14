@@ -46,7 +46,8 @@ internal class LatestByKeyEventFlow<K, T>(
         scope.launch {
             for (ignored in signal) {
                 do {
-                    val batch = latest.entries.toList()
+                    val batch = ArrayList<Pair<K, T>>()
+                    latest.forEach { key, event -> batch.add(key to event) }
                     batch.forEach { (key, event) ->
                         if (latest.remove(key, event) && shouldEmit(event)) {
                             _events.emit(event)

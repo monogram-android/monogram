@@ -309,6 +309,7 @@ fun DocumentAlbumBubble(
     onDocumentClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
@@ -426,11 +427,17 @@ fun DocumentAlbumBubble(
                                 revealedSpoilers.add(index)
                             }
                         },
-                        onClick = { offset -> onLongClick(bubblePosition + offset) },
+                        onClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                captionMsg,
+                                clickPosition
+                            )
+                        },
                         onLongClick = { offset ->
                             val clickPosition = bubblePosition + offset
                             if (onMessageLongPress != null) {
-                                onMessageLongPress(lastMsg, clickPosition)
+                                onMessageLongPress(captionMsg, clickPosition)
                             } else {
                                 onLongClick(clickPosition)
                             }
@@ -472,6 +479,7 @@ fun ChannelDocumentAlbumBubble(
     onDocumentClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
@@ -579,11 +587,17 @@ fun ChannelDocumentAlbumBubble(
                                 revealedSpoilers.add(index)
                             }
                         },
-                        onClick = { offset -> onLongClick(bubblePosition + offset) },
+                        onClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                captionMsg,
+                                clickPosition
+                            )
+                        },
                         onLongClick = { offset ->
                             val clickPosition = bubblePosition + offset
                             if (onMessageLongPress != null) {
-                                onMessageLongPress(lastMsg, clickPosition)
+                                onMessageLongPress(captionMsg, clickPosition)
                             } else {
                                 onLongClick(clickPosition)
                             }

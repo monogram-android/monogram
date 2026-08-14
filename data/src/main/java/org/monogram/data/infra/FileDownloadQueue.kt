@@ -30,6 +30,7 @@ class FileDownloadQueue(
     private val dispatcherProvider: DispatcherProvider
 ) : FileUpdateQueue {
     interface Observer {
+        fun onDownloadQueued(fileId: Int) = Unit
         fun onDownloadCancelled(fileId: Int)
     }
 
@@ -615,6 +616,7 @@ class FileDownloadQueue(
                 if (userInitiated) {
                     pendingRequests.remove(fileId)
                     activeRequests[fileId] = req
+                    notifyDownloadQueued(fileId)
                     scope.launch(dispatcherProvider.io) {
                         processDownload(req)
                     }
@@ -639,6 +641,7 @@ class FileDownloadQueue(
                     pendingRequests[fileId] = req
                 }
             }
+            notifyDownloadQueued(fileId)
             trigger.trySend(Unit)
         }
     }
@@ -689,6 +692,10 @@ class FileDownloadQueue(
 
     override fun notifyDownloadComplete(fileId: Int) {
         downloadWaiters.remove(fileId)?.complete(Unit)
+    }
+
+    private fun notifyDownloadQueued(fileId: Int) {
+        observer?.onDownloadQueued(fileId)
     }
 
     fun notifyDownloadCancelled(fileId: Int) {

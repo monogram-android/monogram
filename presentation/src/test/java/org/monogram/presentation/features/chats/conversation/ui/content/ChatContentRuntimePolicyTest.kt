@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.conversation.ui.content
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -151,6 +152,49 @@ class ChatContentRuntimePolicyTest {
     }
 
     @Test
+    fun `bottom correction is rejected while dragging or after user moved away`() {
+        val base = shouldRetainBottomAlignmentAfterContentChange(
+            viewportPhase = ChatViewportPhase.Settled,
+            pendingScrollCommand = null,
+            stateIsAtBottom = true,
+            measuredIsAtBottom = false,
+            isLoading = false,
+            isLoadingOlder = false,
+            isLoadingNewer = false,
+            isScrollInProgress = false,
+            bottomAlignmentDeltaPx = 18f
+        )
+        val whileDragging = shouldRetainBottomAlignmentAfterContentChange(
+            viewportPhase = ChatViewportPhase.Settled,
+            pendingScrollCommand = null,
+            stateIsAtBottom = true,
+            measuredIsAtBottom = false,
+            isLoading = false,
+            isLoadingOlder = false,
+            isLoadingNewer = false,
+            isScrollInProgress = false,
+            isDragged = true,
+            bottomAlignmentDeltaPx = 18f
+        )
+        val afterScrollAway = shouldRetainBottomAlignmentAfterContentChange(
+            viewportPhase = ChatViewportPhase.Settled,
+            pendingScrollCommand = null,
+            stateIsAtBottom = true,
+            measuredIsAtBottom = false,
+            isLoading = false,
+            isLoadingOlder = false,
+            isLoadingNewer = false,
+            isScrollInProgress = false,
+            hasUserScrolledAwayFromBottom = true,
+            bottomAlignmentDeltaPx = 18f
+        )
+
+        assertTrue(base)
+        assertFalse(whileDragging)
+        assertFalse(afterScrollAway)
+    }
+
+    @Test
     fun `shouldAutoFollowLatestAfterContentChange follows when last grouped message changes and follow is armed`() {
         assertTrue(
             shouldAutoFollowLatestAfterContentChange(
@@ -296,6 +340,26 @@ class ChatContentRuntimePolicyTest {
                 isScrollInProgress = false,
                 showInitialLoading = false,
                 isLatestLoaded = true
+            )
+        )
+    }
+
+    @Test
+    fun `comments preserve their independent latest-message orientation`() {
+        assertEquals(
+            10L,
+            selectLatestGroupedMessageId(
+                firstGroupedMessageId = 10L,
+                lastGroupedMessageId = 20L,
+                isComments = false
+            )
+        )
+        assertEquals(
+            20L,
+            selectLatestGroupedMessageId(
+                firstGroupedMessageId = 10L,
+                lastGroupedMessageId = 20L,
+                isComments = true
             )
         )
     }

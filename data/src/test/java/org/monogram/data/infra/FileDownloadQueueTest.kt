@@ -10,6 +10,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.drinkless.tdlib.TdApi
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.core.DispatcherProvider
@@ -19,6 +20,26 @@ import org.monogram.domain.repository.MediaAutoDownloadPolicy
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FileDownloadQueueTest {
+
+    @Test
+    fun `accepted manual download notifies queued state before tdlib progress`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val queue = createQueue(dispatcher, this)
+        val queued = mutableListOf<Int>()
+        queue.setObserver(object : FileDownloadQueue.Observer {
+            override fun onDownloadQueued(fileId: Int) {
+                queued += fileId
+            }
+
+            override fun onDownloadCancelled(fileId: Int) = Unit
+        })
+
+        queue.enqueue(fileId = 41, priority = 32, userInitiated = true)
+        runCurrent()
+
+        assertEquals(listOf(41), queued)
+        assertTrue(queue.isFileQueued(41))
+    }
 
     @Test
     fun `cancel pending download notifies observer without waiting for update file`() = runTest {
@@ -39,7 +60,7 @@ class FileDownloadQueueTest {
         runCurrent()
 
         assertEquals(listOf(42), cancelled)
-        assertTrue(!queue.isFileQueued(42))
+        assertFalse(queue.isFileQueued(42))
     }
 
     @Test
@@ -70,7 +91,7 @@ class FileDownloadQueueTest {
         queue.enqueue(fileId = 91, type = FileDownloadQueue.DownloadType.STICKER)
         runCurrent()
 
-        assertTrue(!queue.isFileQueued(91))
+        assertFalse(queue.isFileQueued(91))
     }
 
     @Test
@@ -173,7 +194,7 @@ class FileDownloadQueueTest {
         )
         runCurrent()
 
-        assertTrue(!queue.isFileQueued(93))
+        assertFalse(queue.isFileQueued(93))
     }
 
     @Test

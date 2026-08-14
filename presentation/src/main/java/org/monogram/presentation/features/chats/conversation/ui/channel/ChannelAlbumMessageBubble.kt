@@ -82,13 +82,15 @@ fun ChannelAlbumMessageBubble(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (MessageModel) -> Unit = {},
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReactionClick: (String) -> Unit = {},
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
-    isAnyViewerOpen: Boolean = false
+    isAnyViewerOpen: Boolean = false,
+    animationsEnabled: Boolean = true
 ) {
     if (messages.isEmpty()) return
 
@@ -111,6 +113,7 @@ fun ChannelAlbumMessageBubble(
             onDocumentClick = onDocumentClick,
             onCancelDownload = onCancelDownload,
             onLongClick = onLongClick,
+            onMessageClick = onMessageClick,
             onMessageLongPress = onMessageLongPress,
             onReplyClick = onReplyClick,
             onReactionClick = onReactionClick,
@@ -138,6 +141,7 @@ fun ChannelAlbumMessageBubble(
             onAudioClick = onAudioClick,
             onCancelDownload = onCancelDownload,
             onLongClick = onLongClick,
+            onMessageClick = onMessageClick,
             onMessageLongPress = onMessageLongPress,
             onReplyClick = onReplyClick,
             onReactionClick = onReactionClick,
@@ -263,11 +267,17 @@ fun ChannelAlbumMessageBubble(
                                     revealedSpoilers.add(index)
                                 }
                             },
-                            onClick = { offset -> onLongClick(bubblePosition + offset) },
+                            onClick = { offset ->
+                                val clickPosition = bubblePosition + offset
+                                (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                    captionMsg ?: lastMsg,
+                                    clickPosition
+                                )
+                            },
                             onLongClick = { offset ->
                                 val clickPosition = bubblePosition + offset
                                 if (onMessageLongPress != null) {
-                                    onMessageLongPress(lastMsg, clickPosition)
+                                    onMessageLongPress(captionMsg ?: lastMsg, clickPosition)
                                 } else {
                                     onLongClick(clickPosition)
                                 }
@@ -317,7 +327,8 @@ fun ChannelAlbumMessageBubble(
                     autoDownloadRoaming = autoDownloadRoaming,
                     toProfile = toProfile,
                     downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    isAnyViewerOpen = isAnyViewerOpen,
+                    animationsEnabled = animationsEnabled
                 )
 
                 if (caption.isNotEmpty() && !showCaptionAboveMedia) {
@@ -350,11 +361,17 @@ fun ChannelAlbumMessageBubble(
                                     revealedSpoilers.add(index)
                                 }
                             },
-                            onClick = { offset -> onLongClick(bubblePosition + offset) },
+                            onClick = { offset ->
+                                val clickPosition = bubblePosition + offset
+                                (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                    captionMsg ?: lastMsg,
+                                    clickPosition
+                                )
+                            },
                             onLongClick = { offset ->
                                 val clickPosition = bubblePosition + offset
                                 if (onMessageLongPress != null) {
-                                    onMessageLongPress(lastMsg, clickPosition)
+                                    onMessageLongPress(captionMsg ?: lastMsg, clickPosition)
                                 } else {
                                     onLongClick(clickPosition)
                                 }
@@ -413,6 +430,7 @@ fun ChannelDocumentAlbumBubble(
     onDocumentClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
@@ -569,11 +587,17 @@ fun ChannelDocumentAlbumBubble(
                                 revealedSpoilers.add(index)
                             }
                         },
-                        onClick = { offset -> onLongClick(bubblePosition + offset) },
+                        onClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                captionMsg,
+                                clickPosition
+                            )
+                        },
                         onLongClick = { offset ->
                             val clickPosition = bubblePosition + offset
                             if (onMessageLongPress != null) {
-                                onMessageLongPress(lastMsg, clickPosition)
+                                onMessageLongPress(captionMsg, clickPosition)
                             } else {
                                 onLongClick(clickPosition)
                             }
@@ -625,6 +649,7 @@ fun ChannelAudioAlbumBubble(
     onAudioClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
@@ -784,11 +809,17 @@ fun ChannelAudioAlbumBubble(
                                 revealedSpoilers.add(index)
                             }
                         },
-                        onClick = { offset -> onLongClick(bubblePosition + offset) },
+                        onClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                captionMsg,
+                                clickPosition
+                            )
+                        },
                         onLongClick = { offset ->
                             val clickPosition = bubblePosition + offset
                             if (onMessageLongPress != null) {
-                                onMessageLongPress(lastMsg, clickPosition)
+                                onMessageLongPress(captionMsg, clickPosition)
                             } else {
                                 onLongClick(clickPosition)
                             }

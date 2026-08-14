@@ -313,6 +313,7 @@ internal fun ChatContentBody(
                     val fileId = when (val content = msg.content) {
                         is MessageContent.Video -> content.fileId
                         is MessageContent.Gif -> content.fileId
+                        is MessageContent.VideoNote -> content.fileId
                         else -> 0
                     }
                     if (fileId != 0) {
@@ -368,22 +369,28 @@ internal fun ChatContentBody(
     }
     val onAudioClick: (MessageModel) -> Unit = remember(component) {
         { msg ->
-            val audio = msg.content as? MessageContent.Audio
-            if (audio != null) {
-                val validPath = audio.path?.takeIf { File(it).exists() }
-                if (validPath != null) {
-                    currentKeyboardController.value?.hide()
-                    currentFocusManager.value.clearFocus()
-                    component.onOpenVideo(
-                        path = validPath,
-                        messageId = msg.id,
-                        caption = audio.caption
-                    )
-                } else {
-                    component.onDownloadFile(audio.fileId, userInitiated = true)
+            when (val content = msg.content) {
+                is MessageContent.Audio -> {
+                    val validPath = content.path?.takeIf { File(it).exists() }
+                    if (validPath != null) {
+                        currentKeyboardController.value?.hide()
+                        currentFocusManager.value.clearFocus()
+                        component.onOpenVideo(
+                            path = validPath,
+                            messageId = msg.id,
+                            caption = content.caption
+                        )
+                    } else {
+                        component.onDownloadFile(content.fileId, userInitiated = true)
+                    }
                 }
+
+                is MessageContent.Voice -> if (content.path.isNullOrBlank()) {
+                    component.onDownloadFile(content.fileId, userInitiated = true)
+                }
+
+                else -> Unit
             }
-            Unit
         }
     }
     val onMessageOptionsClick: (MessageModel, Offset, IntSize, Offset) -> Unit =

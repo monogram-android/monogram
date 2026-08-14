@@ -11,12 +11,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.monogram.domain.repository.ConversationPipelineMode
-import org.monogram.domain.repository.BoundaryState
-import org.monogram.domain.repository.HistoryAnchor
-import org.monogram.domain.repository.HistoryDirection
-import org.monogram.domain.repository.HistoryRequest
-import org.monogram.domain.repository.HistorySource
 import org.monogram.core.perf.ChatOpenPerfBridge
 import org.monogram.domain.models.ChatViewportCacheEntry
 import org.monogram.domain.models.ConversationUpdate
@@ -26,6 +20,12 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.domain.models.UserModel
+import org.monogram.domain.repository.BoundaryState
+import org.monogram.domain.repository.ConversationPipelineMode
+import org.monogram.domain.repository.HistoryAnchor
+import org.monogram.domain.repository.HistoryDirection
+import org.monogram.domain.repository.HistoryRequest
+import org.monogram.domain.repository.HistorySource
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.conversation.ChatComponent
@@ -39,7 +39,6 @@ import org.monogram.presentation.features.chats.conversation.ConversationViewpor
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 import org.monogram.presentation.features.chats.conversation.OutgoingMessageReducer
 import org.monogram.presentation.features.chats.conversation.ScrollAlign
-import org.monogram.presentation.features.chats.conversation.logic.historyConversationKey
 import java.io.File
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
@@ -1980,128 +1979,28 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                     if (event.chatId != chatId) return@onEach
                     updateMessageContent(event.messageId) { message ->
                         val isDownloading = event.progress < 1f
-                        val newContent = when (val content = message.content) {
-                            is MessageContent.Photo -> content.copy(
+                        message.copy(
+                            content = message.content.withFileDownloadState(
+                                fileId = event.fileId,
                                 isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
+                                progress = event.progress
                             )
-
-                            is MessageContent.Video -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.VideoNote -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.Document -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.Gif -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.Voice -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            is MessageContent.Sticker -> content.copy(
-                                isDownloading = isDownloading,
-                                downloadProgress = event.progress,
-                                downloadError = false
-                            )
-
-                            else -> content
-                        }
-                        message.copy(content = newContent)
+                        )
                     }
                 }
 
                 is MessageDownloadEvent.Cancelled -> {
                     if (event.chatId != chatId) return@onEach
-                    var cancelledFileId = 0
                     updateMessageContent(event.messageId) { message ->
-                        val newContent = when (val content = message.content) {
-                            is MessageContent.Photo -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Video -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.VideoNote -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Document -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Gif -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Voice -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            is MessageContent.Sticker -> {
-                                cancelledFileId = content.fileId
-                                content.copy(
-                                    isDownloading = false,
-                                    downloadProgress = 0f,
-                                    downloadError = false
-                                )
-                            }
-
-                            else -> content
-                        }
-                        message.copy(content = newContent)
+                        message.copy(
+                            content = message.content.withFileDownloadState(
+                                fileId = event.fileId,
+                                isDownloading = false,
+                                progress = 0f
+                            )
+                        )
                     }
-                    AutoDownloadSuppression.suppress(cancelledFileId)
+                    AutoDownloadSuppression.suppress(event.fileId)
                 }
 
                 is MessageDownloadEvent.Completed -> {
@@ -2196,6 +2095,20 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                             }
 
                             is MessageContent.Voice -> {
+                                if (downloadedFileId == content.fileId) {
+                                    mainFileId = content.fileId
+                                    mainPathUpdated = true
+                                    content.copy(
+                                        path = finalPath,
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else {
+                                    content
+                                }
+                            }
+
+                            is MessageContent.Audio -> {
                                 if (downloadedFileId == content.fileId) {
                                     mainFileId = content.fileId
                                     mainPathUpdated = true

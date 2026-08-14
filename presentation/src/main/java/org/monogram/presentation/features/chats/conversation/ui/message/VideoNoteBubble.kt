@@ -3,7 +3,6 @@
 package org.monogram.presentation.features.chats.conversation.ui.message
 
 import androidx.annotation.OptIn
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -52,13 +51,13 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.rememberAsyncImagePainter
 import org.koin.compose.koinInject
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
+import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.conversation.ui.InlineVideoPlayer
 import org.monogram.presentation.features.stickers.ui.view.shimmerEffect
 import java.io.File
@@ -77,7 +76,8 @@ fun VideoNoteBubble(
     onReactionClick: (String) -> Unit = {},
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    animationsEnabled: Boolean = true
 ) {
     val size = 260.dp
     var notePosition by remember { mutableStateOf(Offset.Zero) }
@@ -164,6 +164,17 @@ fun VideoNoteBubble(
                         )
                     }
             ) {
+                StableMediaImage(
+                    previewModel = content.thumbnail,
+                    fullResolutionModel = videoPath,
+                    cacheKey = remember(videoPath, content.fileId) {
+                        namespacedCacheKey("chat_video_note:${content.fileId}", videoPath)
+                    },
+                    contentScale = ContentScale.Crop,
+                    contentDescription = null,
+                    animationsEnabled = animationsEnabled,
+                    modifier = Modifier.matchParentSize()
+                )
                 if (canRenderInlineVideo) {
                     val resolvedVideoPath = requireNotNull(videoPath)
                     LaunchedEffect(isVisible) {
@@ -196,14 +207,7 @@ fun VideoNoteBubble(
                     )
                 } else {
 
-                    if (content.thumbnail != null) {
-                        Image(
-                            painter = rememberAsyncImagePainter(content.thumbnail),
-                            contentDescription = null,
-                            modifier = Modifier.matchParentSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
+                    if (content.thumbnail == null) {
                         Box(
                             modifier = Modifier
                                 .matchParentSize()

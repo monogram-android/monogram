@@ -1,6 +1,5 @@
 package org.monogram.presentation.features.chats.conversation.ui.channel
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -49,9 +48,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import coil3.compose.rememberAsyncImagePainter
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -66,11 +62,11 @@ import org.monogram.presentation.features.chats.conversation.ui.content.resolveV
 import org.monogram.presentation.features.chats.conversation.ui.message.BigEmojiContent
 import org.monogram.presentation.features.chats.conversation.ui.message.ForwardContent
 import org.monogram.presentation.features.chats.conversation.ui.message.MediaLoadingAction
-import org.monogram.presentation.features.chats.conversation.ui.message.MediaLoadingBackground
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageMetadata
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageReactionsView
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageText
 import org.monogram.presentation.features.chats.conversation.ui.message.ReplyContent
+import org.monogram.presentation.features.chats.conversation.ui.message.StableMediaImage
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberMessageTextRenderData
 
 @Composable
@@ -90,6 +86,7 @@ fun ChannelVideoMessageBubble(
     onVideoClick: (MessageModel) -> Unit,
     onDownloadVideo: (Int) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
+    onClick: (Offset) -> Unit = {},
     onLongClick: (Offset) -> Unit,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
@@ -100,7 +97,8 @@ fun ChannelVideoMessageBubble(
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    isAnyViewerOpen: Boolean = false,
+    animationsEnabled: Boolean = true
 ) {
     val cornerRadius = bubbleRadius.dp
     val smallCorner = (bubbleRadius / 4f).coerceAtLeast(4f).dp
@@ -225,7 +223,7 @@ fun ChannelVideoMessageBubble(
                                         revealedSpoilers.add(index)
                                     }
                                 },
-                                onClick = { offset -> onLongClick(videoPosition + offset) },
+                                onClick = { offset -> onClick(videoPosition + offset) },
                                 onLongClick = { offset -> onLongClick(videoPosition + offset) }
                             )
                         }
@@ -283,6 +281,15 @@ fun ChannelVideoMessageBubble(
 
                     ) {
                         val canStream = content.supportsStreaming && content.fileId != 0
+                        StableMediaImage(
+                            previewModel = content.thumbnailPath ?: content.minithumbnail,
+                            fullResolutionModel = stablePath,
+                            cacheKey = videoCacheKey,
+                            contentScale = ContentScale.Crop,
+                            contentDescription = content.caption,
+                            animationsEnabled = animationsEnabled,
+                            modifier = Modifier.fillMaxSize()
+                        )
                         if (hasPath || canStream) {
                             if (autoplayVideos) {
                                 val videoPath = stablePath ?: content.fileId.takeIf { it != 0 }
@@ -303,7 +310,7 @@ fun ChannelVideoMessageBubble(
                                         }
                                     },
                                     fileId = if (stablePath == null && content.fileId != 0) content.fileId else 0,
-                                    thumbnailData = content.minithumbnail
+                                    thumbnailData = content.thumbnailPath ?: content.minithumbnail
                                 )
 
                                 // Volume Toggle
@@ -324,44 +331,6 @@ fun ChannelVideoMessageBubble(
                                     )
                                 }
                             } else {
-                                if (hasPath) {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(
-                                            model = ImageRequest.Builder(context)
-                                                .data(stablePath)
-                                                .apply {
-                                                    videoCacheKey?.let {
-                                                        memoryCacheKey(it)
-                                                        diskCacheKey(it)
-                                                    }
-                                                }
-                                                .crossfade(false)
-                                                .build()
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    if (content.minithumbnail != null) {
-                                        Image(
-                                            painter = rememberAsyncImagePainter(
-                                                model = ImageRequest.Builder(context)
-                                                    .data(content.minithumbnail)
-                                                    .apply {
-                                                        videoMiniCacheKey?.let {
-                                                            memoryCacheKey(it)
-                                                            diskCacheKey(it)
-                                                        }
-                                                    }
-                                                    .build()
-                                            ),
-                                            contentDescription = null,
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    }
-                                }
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.Center)
@@ -405,11 +374,6 @@ fun ChannelVideoMessageBubble(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                MediaLoadingBackground(
-                                    previewData = content.minithumbnail,
-                                    contentScale = ContentScale.Crop
-                                )
-
                                 MediaLoadingAction(
                                     isDownloading = content.isDownloading,
                                     progress = content.downloadProgress,

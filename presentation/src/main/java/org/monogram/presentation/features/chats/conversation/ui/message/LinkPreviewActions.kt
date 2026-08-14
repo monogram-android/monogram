@@ -45,12 +45,16 @@ internal data class ResolvedLinkPreview(
     val showPlayOverlay: Boolean,
     val showInstantViewButton: Boolean,
     val aspectRatio: Float,
-    val thumbnailData: Any?,
-    val thumbnailCacheKey: String?,
+    val previewData: Any?,
+    val fullResolutionData: Any?,
+    val mediaCacheKey: String?,
     val viewerCaption: String?,
     val sourceUrl: String,
     val meta: LinkPreviewMeta
-)
+) {
+    val thumbnailData: Any? get() = fullResolutionData ?: previewData
+    val thumbnailCacheKey: String? get() = mediaCacheKey
+}
 
 internal fun WebPage.resolveLinkPreview(): ResolvedLinkPreview {
     val previewType = type
@@ -129,11 +133,12 @@ internal fun WebPage.resolveLinkPreview(): ResolvedLinkPreview {
         else -> primaryAction
     }
 
-    val thumbnailData = resolveThumbnailData(isYouTube = isYouTube)
+    val previewData = resolvePreviewData()
+    val fullResolutionData = resolveFullResolutionData(isYouTube = isYouTube) ?: previewData
     val showPlayOverlay = isVideoLike
     val hasTextContent =
         !siteName.isNullOrBlank() || !title.isNullOrBlank() || !description.isNullOrBlank()
-    val hasMedia = thumbnailData != null
+    val hasMedia = fullResolutionData != null || previewData != null
     val isSmallMedia = previewPhoto != null && !showPlayOverlay && hasTextContent
     val aspectRatio = resolveAspectRatio()
 
@@ -145,8 +150,9 @@ internal fun WebPage.resolveLinkPreview(): ResolvedLinkPreview {
         showPlayOverlay = showPlayOverlay,
         showInstantViewButton = isInstantView && sourceUrl.isNotBlank(),
         aspectRatio = aspectRatio,
-        thumbnailData = thumbnailData,
-        thumbnailCacheKey = namespacedCacheKey("link_preview_media", thumbnailData),
+        previewData = previewData,
+        fullResolutionData = fullResolutionData,
+        mediaCacheKey = namespacedCacheKey("link_preview_media", fullResolutionData),
         viewerCaption = viewerCaption,
         sourceUrl = sourceUrl,
         meta = meta
@@ -265,14 +271,19 @@ private fun WebPage.isVideoLike(
     }
 }
 
-private fun WebPage.resolveThumbnailData(isYouTube: Boolean): Any? {
-    return photo?.path
-        ?: photo?.thumbnailPath
+private fun WebPage.resolvePreviewData(): Any? {
+    return photo?.thumbnailPath
         ?: photo?.minithumbnail
         ?: video?.thumbnailPath
         ?: video?.minithumbnail
         ?: animation?.thumbnailPath
         ?: animation?.minithumbnail
+}
+
+private fun WebPage.resolveFullResolutionData(isYouTube: Boolean): Any? {
+    return photo?.path
+        ?: video?.thumbnailPath
+        ?: animation?.thumbnailPath
         ?: resolveYouTubeThumbnail(isYouTube = isYouTube)
         ?: sticker?.path
 }

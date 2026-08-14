@@ -17,7 +17,8 @@ internal data class MessageAppearanceConfig(
     val autoDownloadWifi: Boolean = false,
     val autoDownloadRoaming: Boolean = false,
     val autoDownloadFiles: Boolean = false,
-    val showReactions: Boolean = true
+    val showReactions: Boolean = true,
+    val animationsEnabled: Boolean = true
 )
 
 @Immutable

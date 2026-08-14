@@ -57,6 +57,7 @@ fun ChatAlbumMessageBubble(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (Offset) -> Unit,
+    onMessageClick: ((MessageModel, Offset) -> Unit)? = null,
     onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
@@ -65,7 +66,8 @@ fun ChatAlbumMessageBubble(
     fontSize: Float = 16f,
     letterSpacing: Float = 0f,
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    isAnyViewerOpen: Boolean = false,
+    animationsEnabled: Boolean = true
 ) {
     if (messages.isEmpty()) return
 
@@ -88,6 +90,7 @@ fun ChatAlbumMessageBubble(
             onDocumentClick = onDocumentClick,
             onCancelDownload = onCancelDownload,
             onLongClick = onLongClick,
+            onMessageClick = onMessageClick,
             onMessageLongPress = onMessageLongPress,
             onReplyClick = onReplyClick,
             onReactionClick = onReactionClick,
@@ -115,6 +118,7 @@ fun ChatAlbumMessageBubble(
             onAudioClick = onAudioClick,
             onCancelDownload = onCancelDownload,
             onLongClick = onLongClick,
+            onMessageClick = onMessageClick,
             onMessageLongPress = onMessageLongPress,
             onReplyClick = onReplyClick,
             onReactionClick = onReactionClick,
@@ -250,11 +254,17 @@ fun ChatAlbumMessageBubble(
                                     revealedSpoilers.add(index)
                                 }
                             },
-                            onClick = { offset -> onLongClick(bubblePosition + offset) },
+                            onClick = { offset ->
+                                val clickPosition = bubblePosition + offset
+                                (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                    captionMsg ?: lastMsg,
+                                    clickPosition
+                                )
+                            },
                             onLongClick = { offset ->
                                 val clickPosition = bubblePosition + offset
                                 if (onMessageLongPress != null) {
-                                    onMessageLongPress(lastMsg, clickPosition)
+                                    onMessageLongPress(captionMsg ?: lastMsg, clickPosition)
                                 } else {
                                     onLongClick(clickPosition)
                                 }
@@ -303,7 +313,8 @@ fun ChatAlbumMessageBubble(
                     autoDownloadRoaming = autoDownloadRoaming,
                     toProfile = toProfile,
                     downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    isAnyViewerOpen = isAnyViewerOpen,
+                    animationsEnabled = animationsEnabled
                 )
 
                 if (caption.isNotEmpty() && !showCaptionAboveMedia) {
@@ -337,11 +348,17 @@ fun ChatAlbumMessageBubble(
                                     revealedSpoilers.add(index)
                                 }
                             },
-                            onClick = { offset -> onLongClick(bubblePosition + offset) },
+                            onClick = { offset ->
+                                val clickPosition = bubblePosition + offset
+                                (onMessageClick ?: { _, click -> onLongClick(click) })(
+                                    captionMsg ?: lastMsg,
+                                    clickPosition
+                                )
+                            },
                             onLongClick = { offset ->
                                 val clickPosition = bubblePosition + offset
                                 if (onMessageLongPress != null) {
-                                    onMessageLongPress(lastMsg, clickPosition)
+                                    onMessageLongPress(captionMsg ?: lastMsg, clickPosition)
                                 } else {
                                     onLongClick(clickPosition)
                                 }

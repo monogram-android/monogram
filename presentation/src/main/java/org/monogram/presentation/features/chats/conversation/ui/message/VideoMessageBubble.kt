@@ -1,6 +1,5 @@
 package org.monogram.presentation.features.chats.conversation.ui.message
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -53,9 +52,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import coil3.compose.rememberAsyncImagePainter
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -88,6 +84,7 @@ fun VideoMessageBubble(
     onDownloadVideo: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     onCancelDownload: (Int) -> Unit = {},
+    onClick: (Offset) -> Unit = {},
     onLongClick: (Offset) -> Unit,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
@@ -96,7 +93,8 @@ fun VideoMessageBubble(
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    isAnyViewerOpen: Boolean = false,
+    animationsEnabled: Boolean = true
 ) {
     val cornerRadius = 18.dp
     val smallCorner = 4.dp
@@ -248,7 +246,7 @@ fun VideoMessageBubble(
                                             revealedSpoilers.add(index)
                                         }
                                     },
-                                    onClick = { offset -> onLongClickState(layoutTracker.videoPosition + offset) },
+                                    onClick = { offset -> onClick(layoutTracker.videoPosition + offset) },
                                     onLongClick = { offset -> onLongClickState(layoutTracker.videoPosition + offset) }
                                 )
                             }
@@ -282,6 +280,15 @@ fun VideoMessageBubble(
 
                         ) {
                             val canStream = content.supportsStreaming && content.fileId != 0
+                            StableMediaImage(
+                                previewModel = content.thumbnailPath ?: content.minithumbnail,
+                                fullResolutionModel = stablePath,
+                                cacheKey = videoCacheKey,
+                                contentScale = ContentScale.Crop,
+                                contentDescription = content.caption,
+                                animationsEnabled = animationsEnabled,
+                                modifier = Modifier.fillMaxSize()
+                            )
                             if (hasPath || canStream) {
                             if (autoplayVideos) {
                                 val videoPath = stablePath ?: content.fileId.takeIf { it != 0 }
@@ -302,7 +309,7 @@ fun VideoMessageBubble(
                                         }
                                     },
                                     fileId = if (stablePath == null && content.fileId != 0) content.fileId else 0,
-                                    thumbnailData = content.minithumbnail
+                                    thumbnailData = content.thumbnailPath ?: content.minithumbnail
                                 )
 
                                 VideoMuteToggle(
@@ -313,45 +320,6 @@ fun VideoMessageBubble(
                                     onToggle = { isMuted = !isMuted }
                                 )
                             } else {
-                                if (hasPath) {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(
-                                            model = ImageRequest.Builder(context)
-                                                .data(stablePath)
-                                                .apply {
-                                                    videoCacheKey?.let {
-                                                        memoryCacheKey(it)
-                                                        diskCacheKey(it)
-                                                    }
-                                                }
-                                                .crossfade(false)
-                                                .build()
-                                        ),
-                                        contentDescription = content.caption,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    if (content.minithumbnail != null) {
-                                        Image(
-                                            painter = rememberAsyncImagePainter(
-                                                model = ImageRequest.Builder(context)
-                                                    .data(content.minithumbnail)
-                                                    .apply {
-                                                        videoMiniCacheKey?.let {
-                                                            memoryCacheKey(it)
-                                                            diskCacheKey(it)
-                                                        }
-                                                    }
-                                                    .build()
-                                            ),
-                                            contentDescription = null,
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    }
-                                }
-
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.Center)
@@ -491,12 +459,6 @@ private fun VideoLoadingLayer(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        MediaLoadingBackground(
-            previewData = content.minithumbnail,
-            contentScale = ContentScale.Crop,
-            previewBlur = 14.dp
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxSize()

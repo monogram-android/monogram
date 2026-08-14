@@ -35,6 +35,7 @@ internal fun TextMessageBubble(
     isGroup: Boolean = false,
     bubbleRadius: Float = 18f,
     showLinkPreviews: Boolean = true,
+    animationsEnabled: Boolean = true,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
     onLinkPreviewAction: ((LinkPreviewAction) -> Unit)? = null,
@@ -212,7 +213,8 @@ internal fun TextMessageBubble(
                             webPage = webPage,
                             isOutgoing = msg.isOutgoing,
                             onAction = { onLinkPreviewAction?.invoke(it) },
-                            onLongClick = onLinkPreviewLongClick
+                            onLongClick = onLinkPreviewLongClick,
+                            animationsEnabled = animationsEnabled
                         )
                     }
                 }

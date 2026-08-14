@@ -13,7 +13,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -1061,8 +1060,6 @@ private fun MessageRowItem(
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val highlightAccent = if (isDarkTheme) Color(0xFFFFD54F) else Color(0xFFFFB300)
     val highlightBackground = remember { androidx.compose.animation.Animatable(Color.Transparent) }
-    val highlightBorderAlpha = remember { Animatable(0f) }
-    val highlightScale = remember { Animatable(1f) }
     var handledHighlightToken by remember(mainMsg.id) { mutableLongStateOf(Long.MIN_VALUE) }
 
     LaunchedEffect(mainMsg.id, canReportVisibleMessagesAsRead) {
@@ -1095,33 +1092,14 @@ private fun MessageRowItem(
         handledHighlightToken = request.token
 
         highlightBackground.stop()
-        highlightBorderAlpha.stop()
-        highlightScale.stop()
-
         highlightBackground.snapTo(Color.Transparent)
-        highlightBorderAlpha.snapTo(0f)
-        highlightScale.snapTo(1f)
 
         highlightBackground.animateTo(
             highlightAccent.copy(alpha = if (isDarkTheme) 0.20f else 0.16f),
-            animationSpec = tween(220)
+            animationSpec = tween(180)
         )
-        val borderInJob = launch { highlightBorderAlpha.animateTo(1f, animationSpec = tween(180)) }
-        val scaleInJob = launch { highlightScale.animateTo(1.012f, animationSpec = tween(220)) }
-        borderInJob.join()
-        scaleInJob.join()
-
-        kotlinx.coroutines.delay(950)
-
-        val scaleOutJob = launch { highlightScale.animateTo(1f, animationSpec = tween(260)) }
-        val borderOutJob =
-            launch { highlightBorderAlpha.animateTo(0f, animationSpec = tween(1800)) }
-        val backgroundOutJob = launch {
-            highlightBackground.animateTo(Color.Transparent, animationSpec = tween(2200))
-        }
-        scaleOutJob.join()
-        borderOutJob.join()
-        backgroundOutJob.join()
+        kotlinx.coroutines.delay(700)
+        highlightBackground.animateTo(Color.Transparent, animationSpec = tween(700))
 
         component.onHighlightConsumed()
     }
@@ -1143,26 +1121,14 @@ private fun MessageRowItem(
         animationSpec = tween(durationMillis = 180),
         label = "selectionAlpha"
     )
-    val borderColor by animateColorAsState(
-        targetValue = if (highlightBorderAlpha.value > 0f) {
-            highlightAccent.copy(alpha = 0.95f * highlightBorderAlpha.value)
-        } else {
-            Color.Transparent
-        },
-        animationSpec = tween(durationMillis = 220),
-        label = "highlightBorder"
-    )
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = highlightScale.value
-                scaleY = highlightScale.value
                 alpha = itemAlpha.value
                 translationY = offsetY.value
             }
             .background(backgroundColor, rowShape)
-            .border(width = 1.5.dp, color = borderColor, shape = rowShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -1568,6 +1534,13 @@ private fun MessageBubbleSwitcher(
                         )
                     }
                 },
+                onMessageClick = { tappedMessage, pos, size, click ->
+                    if (behavior.isSelectionMode) {
+                        component.onToggleMessageSelection(tappedMessage.id)
+                    } else {
+                        onMessageOptionsClick(tappedMessage, pos, size, click)
+                    }
+                },
                 onMessageLongPress = { tappedMessage, _, _, _ ->
                     component.onToggleMessageSelection(tappedMessage.id)
                 },
@@ -1769,7 +1742,8 @@ private fun ChatMessageListUiState.toAppearanceConfig(): MessageAppearanceConfig
         autoDownloadWifi = autoDownloadWifi,
         autoDownloadRoaming = autoDownloadRoaming,
         autoDownloadFiles = autoDownloadFiles,
-        showReactions = showReactions
+        showReactions = showReactions,
+        animationsEnabled = isChatAnimationsEnabled
     )
 
 private fun ChatMessageListUiState.toBehaviorConfig(
@@ -1860,7 +1834,7 @@ private fun handleVideoClick(msg: MessageModel, onVideoClick: (MessageModel, Str
     }
 }
 
-private fun handleVideoTap(
+internal fun handleVideoTap(
     msg: MessageModel,
     onDownloadVideo: (Int) -> Unit,
     onVideoClick: (MessageModel, String?, String?) -> Unit
@@ -1875,6 +1849,14 @@ private fun handleVideoTap(
         }
 
         is MessageContent.Gif -> onVideoClick(msg, content.path, content.caption)
+        is MessageContent.VideoNote -> {
+            if (content.path.isNullOrBlank()) {
+                onDownloadVideo(content.fileId)
+            } else {
+                onVideoClick(msg, content.path, null)
+            }
+        }
+
         else -> {}
     }
 }

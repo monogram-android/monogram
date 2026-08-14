@@ -136,21 +136,24 @@ internal fun MessageBubbleContainer(
     }
     val onReplySwipeState by rememberUpdatedState(onReplySwipe)
 
-    val onBubbleClick: (Offset) -> Unit = remember(msg.id) {
+    val onBubbleClick: (Offset) -> Unit = remember(msg.id, behavior.isSelectionMode) {
         { offset ->
-            onReplyClickState(
+            val callback = when (resolveMessageInteraction(
+                messageId = msg.id,
+                isLongPress = false,
+                isSelectionMode = behavior.isSelectionMode,
+                entityTapConsumed = false
+            ).action) {
+                MessageInteractionAction.OpenOptions -> onReplyClickState
+                MessageInteractionAction.ToggleSelection -> onMessageLongPressState
+                    ?: onReplyClickState
+
+                MessageInteractionAction.None -> null
+            }
+            callback?.invoke(
                 layoutTracker.bubblePosition,
                 layoutTracker.bubbleSize,
                 layoutTracker.bubblePosition + offset
-            )
-        }
-    }
-    remember(msg.id) {
-        {
-            onReplyClickState(
-                layoutTracker.bubblePosition,
-                layoutTracker.bubbleSize,
-                layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
             )
         }
     }
@@ -537,6 +540,7 @@ private fun MessageContentSelector(
                     bubbleRadius = appearance.bubbleRadius,
                     isGroup = isGroup,
                     showLinkPreviews = appearance.showLinkPreviews,
+                    animationsEnabled = appearance.animationsEnabled,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     onLinkPreviewAction = onLinkPreviewAction,
@@ -603,13 +607,15 @@ private fun MessageContentSelector(
                     onPhotoClick = onPhotoClick,
                     onDownloadPhoto = onDownloadPhoto,
                     onCancelDownload = onCancelDownload,
+                    onClick = onBubbleClick,
                     onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
                     modifier = Modifier.fillMaxWidth(),
-                    downloadUtils = downloadUtils
+                    downloadUtils = downloadUtils,
+                    animationsEnabled = appearance.animationsEnabled
                 )
             }
 
@@ -629,6 +635,7 @@ private fun MessageContentSelector(
                     onVideoClick = onVideoClick,
                     onDownloadVideo = onDownloadVideo,
                     onCancelDownload = onCancelDownload,
+                    onClick = onBubbleClick,
                     onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
@@ -636,7 +643,8 @@ private fun MessageContentSelector(
                     onForwardOriginClick = onForwardOriginClick,
                     modifier = Modifier.fillMaxWidth(),
                     downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    isAnyViewerOpen = isAnyViewerOpen,
+                    animationsEnabled = appearance.animationsEnabled
                 )
             }
 
@@ -649,7 +657,8 @@ private fun MessageContentSelector(
                     onCancelDownload = onCancelDownload,
                     onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
-                    onReactionClick = { onReactionClick(msg.id, it) }
+                    onReactionClick = { onReactionClick(msg.id, it) },
+                    animationsEnabled = appearance.animationsEnabled
                 )
             }
 
@@ -693,6 +702,7 @@ private fun MessageContentSelector(
                     autoplayGifs = appearance.autoplayGifs,
                     onGifClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
+                    onClick = onBubbleClick,
                     onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
@@ -700,7 +710,8 @@ private fun MessageContentSelector(
                     onForwardOriginClick = onForwardOriginClick,
                     modifier = Modifier.fillMaxWidth(),
                     downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    isAnyViewerOpen = isAnyViewerOpen,
+                    animationsEnabled = appearance.animationsEnabled
                 )
             }
 
@@ -720,6 +731,7 @@ private fun MessageContentSelector(
                     autoDownloadRoaming = appearance.autoDownloadRoaming,
                     onDocumentClick = onDocumentClick,
                     onCancelDownload = onCancelDownload,
+                    onClick = onBubbleClick,
                     onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
@@ -744,6 +756,7 @@ private fun MessageContentSelector(
                     autoDownloadRoaming = appearance.autoDownloadRoaming,
                     onAudioClick = onAudioClick,
                     onCancelDownload = onCancelDownload,
+                    onClick = onBubbleClick,
                     onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
@@ -850,10 +863,13 @@ private fun MessageContentSelector(
                     onPhotoClick = onPhotoClick,
                     onVideoClick = onVideoClick,
                     onOpenBuy = { onPaidMediaBuy(msg) },
+                    onClick = onBubbleClick,
                     onLongClick = onBubbleCenterLongClick,
+                    onReplyClick = onGoToReply,
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
-                    isGroup = isGroup
+                    isGroup = isGroup,
+                    animationsEnabled = appearance.animationsEnabled
                 )
             }
 

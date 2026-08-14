@@ -12,7 +12,6 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,9 +36,9 @@ import org.monogram.data.compat.buildRichMessageSourceMarkdown
 import org.monogram.data.compat.extractTextDraft
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.infra.AtomicSingleFlight
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileUpdateHandler
-import org.monogram.data.infra.AtomicSingleFlight
 import org.monogram.data.infra.OrderedEventFlow
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.WebPageMapper
@@ -148,6 +147,10 @@ class TdMessageRemoteDataSource(
 
     init {
         fileDownloadQueue.setObserver(object : FileDownloadQueue.Observer {
+            override fun onDownloadQueued(fileId: Int) {
+                emitQueuedForFile(fileId)
+            }
+
             override fun onDownloadCancelled(fileId: Int) {
                 emitCancelledForFile(fileId)
             }
@@ -2575,6 +2578,35 @@ class TdMessageRemoteDataSource(
                             chatId = chatId,
                             messageId = messageId,
                             fileId = fileId
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private fun emitQueuedForFile(fileId: Int) {
+        if (fileId == 0) return
+
+        scope.launch {
+            fileDownloads.enqueue(
+                FileDownloadEvent.Progress(
+                    fileId = fileId,
+                    progress = 0f
+                )
+            )
+        }
+
+        val entries = fileIdToMessageMap[fileId]
+        if (!entries.isNullOrEmpty()) {
+            scope.launch {
+                entries.forEach { (chatId, messageId) ->
+                    messageDownloads.enqueue(
+                        MessageDownloadEvent.Progress(
+                            chatId = chatId,
+                            messageId = messageId,
+                            fileId = fileId,
+                            progress = 0f
                         )
                     )
                 }

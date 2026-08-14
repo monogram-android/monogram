@@ -3,7 +3,6 @@
 package org.monogram.presentation.features.chats.conversation.ui.message
 
 import androidx.annotation.OptIn
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -48,9 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.media3.common.util.UnstableApi
-import coil3.compose.rememberAsyncImagePainter
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -79,6 +75,7 @@ fun GifMessageBubble(
     modifier: Modifier = Modifier,
     onGifClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
+    onClick: (Offset) -> Unit = {},
     onLongClick: (Offset) -> Unit,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
@@ -87,7 +84,8 @@ fun GifMessageBubble(
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    isAnyViewerOpen: Boolean = false,
+    animationsEnabled: Boolean = true
 ) {
     val context = LocalContext.current
     val cornerRadius = 18.dp
@@ -221,7 +219,7 @@ fun GifMessageBubble(
                                             revealedSpoilers.add(index)
                                         }
                                     },
-                                    onClick = { offset -> onLongClick(gifPosition + offset) },
+                                    onClick = { offset -> onClick(gifPosition + offset) },
                                     onLongClick = { offset -> onLongClick(gifPosition + offset) }
                                 )
                             }
@@ -252,6 +250,15 @@ fun GifMessageBubble(
                                 .onGloballyPositioned { gifPosition = it.positionInWindow() }
 
                         ) {
+                            StableMediaImage(
+                                previewModel = content.minithumbnail,
+                                fullResolutionModel = stablePath,
+                                cacheKey = gifCacheKey,
+                                contentScale = ContentScale.Fit,
+                                contentDescription = content.caption,
+                                animationsEnabled = animationsEnabled,
+                                modifier = Modifier.fillMaxSize()
+                            )
                     if (!stablePath.isNullOrBlank()) {
                             if (autoplayGifs) {
                                 VideoStickerPlayer(
@@ -264,24 +271,6 @@ fun GifMessageBubble(
                                     thumbnailData = content.minithumbnail
                                 )
                             } else {
-                                Image(
-                                    painter = rememberAsyncImagePainter(
-                                        model = ImageRequest.Builder(context)
-                                            .data(stablePath)
-                                            .apply {
-                                                gifCacheKey?.let {
-                                                    memoryCacheKey(it)
-                                                    diskCacheKey(it)
-                                                }
-                                            }
-                                            .crossfade(false)
-                                            .build()
-                                    ),
-                                    contentDescription = content.caption,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Fit
-                                )
-
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.Center)
@@ -319,11 +308,6 @@ fun GifMessageBubble(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            MediaLoadingBackground(
-                                previewData = content.minithumbnail,
-                                contentScale = ContentScale.Fit
-                            )
-
                             MediaLoadingAction(
                                 isDownloading = content.isDownloading,
                                 progress = content.downloadProgress,

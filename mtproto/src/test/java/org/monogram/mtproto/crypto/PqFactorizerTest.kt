@@ -35,9 +35,18 @@ class PqFactorizerTest {
         assertFailure(PqFactorizationFailure.INVALID_PQ_ENCODING) { PqFactorizer.factor(byteArrayOf(0, 15)) }
         assertFailure(PqFactorizationFailure.INVALID_PQ_ENCODING) { PqFactorizer.factor(ByteArray(9) { 1 }) }
         assertFailure(PqFactorizationFailure.PQ_OUT_OF_RANGE) { PqFactorizer.factor(byteArrayOf(14)) }
+        assertFailure(PqFactorizationFailure.PQ_OUT_OF_RANGE) { PqFactorizer.factor(hex("8000000000000001")) }
         assertFailure(PqFactorizationFailure.PQ_NOT_ODD_SEMIPRIME) { PqFactorizer.factor(byteArrayOf(16)) }
         assertFailure(PqFactorizationFailure.PQ_NOT_ODD_SEMIPRIME) { PqFactorizer.factor(byteArrayOf(17)) }
         assertFailure(PqFactorizationFailure.FACTORS_NOT_DISTINCT_PRIMES) { PqFactorizer.factor(byteArrayOf(25)) }
+    }
+
+    @Test
+    fun `encoded input is not mutated`() {
+        val encoded = hex("2E9CDB98C80CDA4B")
+        val original = encoded.copyOf()
+        PqFactorizer.factor(encoded, CounterEntropySource())
+        org.junit.Assert.assertArrayEquals(original, encoded)
     }
 
     @Test

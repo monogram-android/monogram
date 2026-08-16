@@ -130,7 +130,7 @@ class MtProtoAuthHandshake internal constructor(
         transport.execute(method)
     } catch (cancelled: CancellationException) {
         throw cancelled
-    } catch (failure: RuntimeException) {
+    } catch (failure: Exception) {
         throw MtProtoHandshakeException(MtProtoHandshakeFailure.TRANSPORT, failure)
     }
 

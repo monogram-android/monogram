@@ -1,5 +1,6 @@
 package org.monogram.mtproto.handshake
 
+import java.io.IOException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -28,6 +29,19 @@ class MtProtoAuthHandshakeTest {
         val transport = object : MtProtoHandshakeTransport {
             override suspend fun <R : TlObject> execute(method: TlMethod<R>): R {
                 throw IllegalStateException("offline")
+            }
+        }
+        val failure = assertThrows(MtProtoHandshakeException::class.java) {
+            runBlocking { MtProtoAuthHandshake().execute(transport, config()) }
+        }
+        assertEquals(MtProtoHandshakeFailure.TRANSPORT, failure.failure)
+    }
+
+    @Test
+    fun mapsCheckedTransportFailuresAtThePublicBoundary() {
+        val transport = object : MtProtoHandshakeTransport {
+            override suspend fun <R : TlObject> execute(method: TlMethod<R>): R {
+                throw IOException("socket closed")
             }
         }
         val failure = assertThrows(MtProtoHandshakeException::class.java) {

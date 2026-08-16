@@ -60,6 +60,44 @@ class MtProtoCryptoTest {
     }
 
     @Test
+    fun `MTProto 2 message key and KDF2 vectors match independent calculation`() {
+        val authKey = ByteArray(256) { it.toByte() }
+        val msgKey = ByteArray(16) { it.toByte() }
+        val plaintext = ByteArray(5) { (it + 1).toByte() }
+        val padding = ByteArray(16) { (it + 16).toByte() }
+
+        assertArrayEquals(
+            hex("0ACFBD2723E37279852A9B62EC30E404"),
+            MtProtoKeyDerivation.messageKey(authKey, plaintext, padding, x = 0),
+        )
+        MtProtoKeyDerivation.messageAesKeyIv(authKey, msgKey, x = 0).use { derived ->
+            assertArrayEquals(
+                hex("704ED09C8B41668AE8F99D244738F71DBDDC44469B6BBD4AA8573DD042BD059E"),
+                derived.key,
+            )
+            assertArrayEquals(
+                hex("4D266000A550EDABBF4C7CE40FD0043CC92230184CD317A5CC9C2482FD3B9318"),
+                derived.iv,
+            )
+        }
+
+        assertArrayEquals(
+            hex("2A29DE7CE7CD667F16D4743BAFE019B5"),
+            MtProtoKeyDerivation.messageKey(authKey, plaintext, padding, x = 8),
+        )
+        MtProtoKeyDerivation.messageAesKeyIv(authKey, msgKey, x = 8).use { derived ->
+            assertArrayEquals(
+                hex("217725799B245806458174A1FCFBC883906807B15033FDD0EA2B4D69CF9C364E"),
+                derived.key,
+            )
+            assertArrayEquals(
+                hex("669A6538917A4FA56CA32360A431C9160BE4AD887140980DAB91CE7BDC47FFBC"),
+                derived.iv,
+            )
+        }
+    }
+
+    @Test
     fun `AES IGE matches Telegram authorization sample and decrypts it`() {
         val key = hex("16F548177058E8D39C41CBAD4D419446BEB12EB9B8F5AD28EA824B8015F17D81")
         val iv = hex("C4D14166C1378E35C698460047DBB6075441BE9984611C28837357EBBF8CB5BD")
@@ -79,6 +117,15 @@ class MtProtoCryptoTest {
             MtProtoKeyDerivation.temporaryAesKeyIv(ByteArray(32), ByteArray(15))
         }
         assertThrows(IllegalArgumentException::class.java) { MtProtoKeyDerivation.authKeyIdBytes(ByteArray(255)) }
+        assertThrows(IllegalArgumentException::class.java) {
+            MtProtoKeyDerivation.messageAesKeyIv(ByteArray(256), ByteArray(16), x = 4)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            MtProtoKeyDerivation.messageKey(ByteArray(256), ByteArray(1), ByteArray(1), x = 4)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            MtProtoKeyDerivation.messageKey(ByteArray(256), ByteArray(1), ByteArray(0), x = 0)
+        }
         assertThrows(IllegalArgumentException::class.java) {
             MtProtoKeyDerivation.newNonceHash(ByteArray(32), ByteArray(256), selector = 0)
         }

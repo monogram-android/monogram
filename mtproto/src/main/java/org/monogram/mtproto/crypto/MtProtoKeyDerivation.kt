@@ -51,6 +51,52 @@ internal object MtProtoKeyDerivation {
 
     fun sha256(value: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(value)
 
+    /** Derives the MTProto 2.0 message key and AES-256-IGE material. */
+    fun messageAesKeyIv(authKey: ByteArray, msgKey: ByteArray, x: Int): AesKeyIv {
+        require(authKey.size == AUTH_KEY_BYTES) { "authKey must contain 256 bytes" }
+        require(msgKey.size == MESSAGE_KEY_BYTES) { "msgKey must contain 16 bytes" }
+        require(x == 0 || x == 8) { "x must be 0 or 8" }
+
+        val authSliceA = authKey.copyOfRange(x, x + 36)
+        val authSliceB = authKey.copyOfRange(40 + x, 76 + x)
+        val sha256AInput = msgKey + authSliceA
+        val sha256BInput = authSliceB + msgKey
+        val sha256A = sha256(sha256AInput)
+        val sha256B = sha256(sha256BInput)
+        return try {
+            val key = sha256A.copyOfRange(0, 8) + sha256B.copyOfRange(8, 24) + sha256A.copyOfRange(24, 32)
+            val iv = sha256B.copyOfRange(0, 8) + sha256A.copyOfRange(8, 24) + sha256B.copyOfRange(24, 32)
+            AesKeyIv(key, iv).also {
+                key.fill(0)
+                iv.fill(0)
+            }
+        } finally {
+            sha256AInput.fill(0)
+            sha256BInput.fill(0)
+            authSliceA.fill(0)
+            authSliceB.fill(0)
+            sha256A.fill(0)
+            sha256B.fill(0)
+        }
+    }
+
+    /** Computes msg_key from the authenticated payload and random padding. */
+    fun messageKey(authKey: ByteArray, plaintext: ByteArray, randomPadding: ByteArray, x: Int): ByteArray {
+        require(authKey.size == AUTH_KEY_BYTES) { "authKey must contain 256 bytes" }
+        require(x == 0 || x == 8) { "x must be 0 or 8" }
+        require(randomPadding.isNotEmpty()) { "randomPadding must not be empty" }
+        val authSlice = authKey.copyOfRange(88 + x, 120 + x)
+        val input = authSlice + plaintext + randomPadding
+        val digest = sha256(input)
+        return try {
+            digest.copyOfRange(8, 24)
+        } finally {
+            input.fill(0)
+            authSlice.fill(0)
+            digest.fill(0)
+        }
+    }
+
     fun authKeyAuxHash(authKey: ByteArray): ByteArray = authKeyHashSlice(authKey, 0, 8)
 
     fun authKeyIdBytes(authKey: ByteArray): ByteArray = authKeyHashSlice(authKey, 12, 20)
@@ -95,4 +141,5 @@ internal object MtProtoKeyDerivation {
     private const val AUTH_KEY_BYTES = 256
     private const val NEW_NONCE_BYTES = 32
     private const val SERVER_NONCE_BYTES = 16
+    private const val MESSAGE_KEY_BYTES = 16
 }

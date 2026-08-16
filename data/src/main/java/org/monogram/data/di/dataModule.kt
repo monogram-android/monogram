@@ -92,6 +92,8 @@ import org.monogram.data.mapper.WebPageMapper
 import org.monogram.data.mapper.message.MessageContentMapper
 import org.monogram.data.mapper.message.MessagePersistenceMapper
 import org.monogram.data.mapper.message.MessageSenderResolver
+import org.monogram.data.mtproto.AndroidMtProtoAuthKeyStore
+import org.monogram.data.mtproto.MtProtoAuthKeyStore
 import org.monogram.data.notifications.NotificationMuteResolver
 import org.monogram.data.push.PushProcessingCoordinator
 import org.monogram.data.push.PushSyncRequester
@@ -197,6 +199,7 @@ val dataModule = module {
 
     single<DispatcherProvider> { DefaultDispatcherProvider() }
     single<StringProvider> { AndroidStringProvider(androidContext()) }
+    single<MtProtoAuthKeyStore> { AndroidMtProtoAuthKeyStore(androidContext()) }
     single(createdAtStart = true) { TdLibParametersProvider(androidContext()) }
     single(createdAtStart = true) {
         OfflineWarmup(

@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.tasks.Exec
 
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
@@ -18,6 +19,39 @@ val localProperties by lazy {
     }
 }
 extra.set("localProperties", localProperties)
+
+val telegramTlSnapshotScript = layout.projectDirectory.file("protocol/schema/snapshot.py")
+val refreshTelegramTlSchemas = tasks.register<Exec>("refreshTelegramTlSchemas") {
+    group = "telegram schema"
+    description = "Explicitly refreshes reviewed TL JSON snapshots from a pinned LF-preserving tellers-tl checkout."
+    outputs.upToDateWhen { false }
+
+    val toolDirectory = providers.gradleProperty("tellersTlDir")
+    val generatedAt = providers.gradleProperty("telegramTlGeneratedAt")
+    doFirst {
+        require(toolDirectory.isPresent) {
+            "refreshTelegramTlSchemas requires -PtellersTlDir=<pinned LF-preserving checkout>"
+        }
+        require(generatedAt.isPresent) {
+            "refreshTelegramTlSchemas requires -PtelegramTlGeneratedAt=<RFC3339 UTC timestamp>"
+        }
+        commandLine(
+            "python",
+            telegramTlSnapshotScript.asFile.absolutePath,
+            "export",
+            "--tool-dir",
+            toolDirectory.get(),
+            "--generated-at",
+            generatedAt.get(),
+        )
+    }
+}
+
+tasks.register("refreshTelegramTlSchema") {
+    group = "telegram schema"
+    description = "Alias for refreshTelegramTlSchemas."
+    dependsOn(refreshTelegramTlSchemas)
+}
 
 val tdlibFlavors = listOf("Official", "Telemt")
 val runtimeFlavors = listOf("Firebase", "Libre")

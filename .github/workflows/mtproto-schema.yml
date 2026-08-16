@@ -1,0 +1,78 @@
+name: MTProto Schema And Codegen
+
+on:
+  pull_request:
+    paths:
+      - ".gitmodules"
+      - ".github/workflows/mtproto-schema.yml"
+      - "build.gradle.kts"
+      - "buildSrc/**"
+      - "gradle/**"
+      - "gradle.properties"
+      - "gradlew"
+      - "gradlew.bat"
+      - "mtproto/**"
+      - "protocol/schema/**"
+      - "settings.gradle.kts"
+      - "tools/tellers-tl"
+      - "tools/tl-kotlin-codegen/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-schema-codegen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository without submodules
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          submodules: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify pinned schema-tool metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_sha="31ed4e03e74188e342160951493ae75e25efccc6"
+          gitlink_entry="$(git ls-files --stage -- tools/tellers-tl)"
+          test "$(printf '%s' "$gitlink_entry" | cut -d' ' -f1)" = "160000"
+          test "$(printf '%s' "$gitlink_entry" | cut -d' ' -f2)" = "$expected_sha"
+          test "$(git config -f .gitmodules --get submodule.tools/tellers-tl.path)" = "tools/tellers-tl"
+          test "$(git config -f .gitmodules --get submodule.tools/tellers-tl.url)" = "https://github.com/tellers-project/tellers-tl.git"
+          test -f protocol/schema/README.md
+
+      - name: Test schema snapshots
+        run: python protocol/schema/test_snapshot.py
+
+      - name: Test TL Kotlin codegen
+        run: ./gradlew :tools:tl-kotlin-codegen:test
+
+      - name: Validate, generate, verify, and compile MTProto
+        run: >-
+          ./gradlew
+          :mtproto:validateTelegramTlSchemas
+          :mtproto:generateTelegramTlKotlin
+          :mtproto:verifyTelegramTlGeneration
+          :mtproto:compileDebugKotlin
+          :mtproto:compileReleaseKotlin
+
+      - name: Repeat verification and compilation offline
+        run: >-
+          ./gradlew --offline --rerun-tasks
+          :mtproto:verifyTelegramTlGeneration
+          :mtproto:compileDebugKotlin
+          :mtproto:compileReleaseKotlin
+
+      # CI never initializes or fetches tellers-tl, invokes Cargo, refreshes
+      # snapshots, accesses Telegram schema endpoints, or mutates the submodule.

@@ -1,0 +1,3682 @@
+{
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Schema",
+    "description": "A complete schema suitable for generators in any language.",
+    "type": "object",
+    "properties": {
+      "constructors": {
+        "description": "Constructors, in source order.",
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Combinator"
+        }
+      },
+      "finalizations": {
+        "description": "Finalization declarations.",
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Finalization"
+        }
+      },
+      "format_version": {
+        "description": "Interchange format version (independent of Telegram's layer).",
+        "type": "integer",
+        "format": "uint32",
+        "minimum": 0
+      },
+      "functions": {
+        "description": "RPC methods, in source order.",
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Combinator"
+        }
+      },
+      "layer": {
+        "description": "Telegram API layer advertised by the source.",
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "uint32",
+        "minimum": 0
+      },
+      "partial_applications": {
+        "description": "Template/partial application declarations.",
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "source": {
+        "description": "Provenance supplied by the caller.",
+        "$ref": "#/$defs/Source"
+      }
+    },
+    "required": [
+      "format_version",
+      "source",
+      "constructors",
+      "functions",
+      "finalizations",
+      "partial_applications"
+    ],
+    "$defs": {
+      "Argument": {
+        "description": "One argument.",
+        "type": "object",
+        "properties": {
+          "condition": {
+            "description": "Optional bit guard.",
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Condition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "description": "Documentation derived from `@param`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "functional": {
+            "description": "Functional/exclamation argument.",
+            "type": "boolean"
+          },
+          "implicit": {
+            "description": "Implicit/braced generic argument.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "TL field name.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "description": "Ordinary value or repeated field group.",
+            "$ref": "#/$defs/ArgumentValue"
+          }
+        },
+        "required": [
+          "value",
+          "implicit",
+          "functional"
+        ]
+      },
+      "ArgumentValue": {
+        "description": "The mutually exclusive forms of a combinator argument.",
+        "oneOf": [
+          {
+            "description": "One value with a TL type expression.",
+            "type": "object",
+            "properties": {
+              "expression": {
+                "description": "Parsed expression; never a schema-name placeholder.",
+                "$ref": "#/$defs/Expression"
+              },
+              "kind": {
+                "type": "string",
+                "const": "type"
+              }
+            },
+            "required": [
+              "kind",
+              "expression"
+            ]
+          },
+          {
+            "description": "A bracketed group repeated according to a natural expression.",
+            "type": "object",
+            "properties": {
+              "arguments": {
+                "description": "Fields in one repeated element.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/Argument"
+                }
+              },
+              "kind": {
+                "type": "string",
+                "const": "repetition"
+              },
+              "multiplicity": {
+                "description": "Count expression, or the preceding natural argument when omitted.",
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Expression"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "arguments"
+            ]
+          }
+        ]
+      },
+      "Combinator": {
+        "description": "A constructor or function.",
+        "type": "object",
+        "properties": {
+          "arguments": {
+            "description": "Ordered arguments.",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Argument"
+            }
+          },
+          "builtin": {
+            "description": "Built-in pseudo-declaration.",
+            "type": "boolean"
+          },
+          "documentation": {
+            "description": "Structured documentation.",
+            "$ref": "#/$defs/Documentation"
+          },
+          "id": {
+            "description": "Resolved constructor number (explicit or canonical CRC32).",
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "id_explicit": {
+            "description": "Whether the source supplied the number instead of relying on canonical CRC32.",
+            "type": "boolean"
+          },
+          "id_hex": {
+            "description": "Hex form convenient for languages with awkward unsigned integers.",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Constructor or function.",
+            "$ref": "#/$defs/CombinatorKind"
+          },
+          "layer": {
+            "description": "Layer known for this declaration. Current flat schemas only identify the\ncontaining layer and cannot prove an earlier introduction layer.",
+            "$ref": "#/$defs/LayerInfo"
+          },
+          "name": {
+            "description": "Namespace-qualified TL name.",
+            "type": "string"
+          },
+          "result": {
+            "description": "Result expression.",
+            "$ref": "#/$defs/Expression"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "id_hex",
+          "id_explicit",
+          "kind",
+          "arguments",
+          "result",
+          "documentation",
+          "layer",
+          "builtin"
+        ]
+      },
+      "CombinatorKind": {
+        "description": "Kind of combinator.",
+        "oneOf": [
+          {
+            "description": "Data constructor.",
+            "type": "string",
+            "const": "constructor"
+          },
+          {
+            "description": "RPC function.",
+            "type": "string",
+            "const": "function"
+          }
+        ]
+      },
+      "Condition": {
+        "description": "Optional-field condition.",
+        "type": "object",
+        "properties": {
+          "bit": {
+            "description": "Optional bit number.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          },
+          "variable": {
+            "description": "Flags/natural argument name.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variable"
+        ]
+      },
+      "Documentation": {
+        "description": "Documentation and cross-language official links.",
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "Prose description.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "links": {
+            "description": "Other URLs found in comments.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "official_url": {
+            "description": "Official Telegram documentation page inferred from the declaration kind.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parameters": {
+            "description": "Named parameter descriptions.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "parameters",
+          "links"
+        ]
+      },
+      "Expression": {
+        "description": "Language-neutral expression tree.",
+        "oneOf": [
+          {
+            "description": "An identifier.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "ident"
+              },
+              "name": {
+                "description": "Namespace-qualified TL spelling.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "name"
+            ]
+          },
+          {
+            "description": "Natural constant.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "nat"
+              },
+              "value": {
+                "description": "Constant value.",
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ]
+          },
+          {
+            "description": "The natural-number type `#`.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "hash"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          {
+            "description": "Natural addition supported by the TL formal grammar.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add"
+              },
+              "left": {
+                "description": "Left operand.",
+                "$ref": "#/$defs/Expression"
+              },
+              "right": {
+                "description": "Right operand.",
+                "$ref": "#/$defs/Expression"
+              }
+            },
+            "required": [
+              "kind",
+              "left",
+              "right"
+            ]
+          },
+          {
+            "description": "Applied type expression.",
+            "type": "object",
+            "properties": {
+              "arguments": {
+                "description": "Application arguments.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/Expression"
+                }
+              },
+              "constructor": {
+                "description": "Applied constructor/type.",
+                "$ref": "#/$defs/Expression"
+              },
+              "kind": {
+                "type": "string",
+                "const": "apply"
+              }
+            },
+            "required": [
+              "kind",
+              "constructor",
+              "arguments"
+            ]
+          },
+          {
+            "description": "Bare type expression.",
+            "type": "object",
+            "properties": {
+              "inner": {
+                "description": "Wrapped expression.",
+                "$ref": "#/$defs/Expression"
+              },
+              "kind": {
+                "type": "string",
+                "const": "bare"
+              }
+            },
+            "required": [
+              "kind",
+              "inner"
+            ]
+          },
+          {
+            "description": "Functional type expression.",
+            "type": "object",
+            "properties": {
+              "inner": {
+                "description": "Wrapped expression.",
+                "$ref": "#/$defs/Expression"
+              },
+              "kind": {
+                "type": "string",
+                "const": "bang"
+              }
+            },
+            "required": [
+              "kind",
+              "inner"
+            ]
+          }
+        ]
+      },
+      "Finalization": {
+        "description": "`New`, `Final`, or `Empty` type declaration.",
+        "type": "object",
+        "properties": {
+          "mode": {
+            "description": "Lowercase finalization mode.",
+            "type": "string"
+          },
+          "type": {
+            "description": "Affected type.",
+            "$ref": "#/$defs/Expression"
+          }
+        },
+        "required": [
+          "mode",
+          "type"
+        ]
+      },
+      "LayerInfo": {
+        "description": "Layer metadata with explicit semantics.",
+        "type": "object",
+        "properties": {
+          "introduced": {
+            "description": "First layer, only when the input explicitly provides it.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          },
+          "schema": {
+            "description": "Layer of the containing schema.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          }
+        }
+      },
+      "Source": {
+        "description": "Input provenance.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Human-readable file or URL.",
+            "type": "string"
+          },
+          "url": {
+            "description": "Upstream URL, when known.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    }
+  },
+  "schema": {
+    "format_version": 1,
+    "layer": null,
+    "source": {
+      "name": "schemas/upstream/mtproto.tl",
+      "url": "https://core.telegram.org/schema/mtproto?raw=1"
+    },
+    "constructors": [
+      {
+        "name": "int",
+        "id": 2823855066,
+        "id_hex": "a8509bda",
+        "id_explicit": false,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "Int"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/int",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": true
+      },
+      {
+        "name": "long",
+        "id": 570911930,
+        "id_hex": "22076cba",
+        "id_explicit": false,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "Long"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/long",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": true
+      },
+      {
+        "name": "double",
+        "id": 571523412,
+        "id_hex": "2210c154",
+        "id_explicit": false,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "Double"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/double",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": true
+      },
+      {
+        "name": "string",
+        "id": 3039325732,
+        "id_hex": "b5286e24",
+        "id_explicit": false,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "String"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/string",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": true
+      },
+      {
+        "name": "vector",
+        "id": 481674261,
+        "id_hex": "1cb5c415",
+        "id_explicit": false,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "t",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "Type"
+              }
+            },
+            "implicit": true,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": null,
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "hash"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": null,
+            "value": {
+              "kind": "repetition",
+              "multiplicity": null,
+              "arguments": [
+                {
+                  "name": null,
+                  "value": {
+                    "kind": "type",
+                    "expression": {
+                      "kind": "ident",
+                      "name": "t"
+                    }
+                  },
+                  "implicit": false,
+                  "functional": false,
+                  "condition": null,
+                  "description": null
+                }
+              ]
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "apply",
+          "constructor": {
+            "kind": "ident",
+            "name": "Vector"
+          },
+          "arguments": [
+            {
+              "kind": "ident",
+              "name": "t"
+            }
+          ]
+        },
+        "documentation": {
+          "description": "A universal vector constructor.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/vector",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "int128",
+        "id": 2228025271,
+        "id_hex": "84ccf7b7",
+        "id_explicit": false,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": null,
+            "value": {
+              "kind": "repetition",
+              "multiplicity": {
+                "kind": "nat",
+                "value": 4
+              },
+              "arguments": [
+                {
+                  "name": null,
+                  "value": {
+                    "kind": "type",
+                    "expression": {
+                      "kind": "ident",
+                      "name": "int"
+                    }
+                  },
+                  "implicit": false,
+                  "functional": false,
+                  "condition": null,
+                  "description": null
+                }
+              ]
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Int128"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/int128",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "int256",
+        "id": 2079189851,
+        "id_hex": "7bedeb5b",
+        "id_explicit": false,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": null,
+            "value": {
+              "kind": "repetition",
+              "multiplicity": {
+                "kind": "nat",
+                "value": 8
+              },
+              "arguments": [
+                {
+                  "name": null,
+                  "value": {
+                    "kind": "type",
+                    "expression": {
+                      "kind": "ident",
+                      "name": "int"
+                    }
+                  },
+                  "implicit": false,
+                  "functional": false,
+                  "condition": null,
+                  "description": null
+                }
+              ]
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Int256"
+        },
+        "documentation": {
+          "description": "Represents a 256-bit integer.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/int256",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "resPQ",
+        "id": 85337187,
+        "id_hex": "05162463",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "pq",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_public_key_fingerprints",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "long"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "ResPQ"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/resPQ",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "p_q_inner_data_dc",
+        "id": 2851430293,
+        "id_hex": "a9f55f95",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "pq",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "p",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "q",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "new_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int256"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "dc",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "P_Q_inner_data"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/p_q_inner_data_dc",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "p_q_inner_data_temp_dc",
+        "id": 1459478408,
+        "id_hex": "56fddf88",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "pq",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "p",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "q",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "new_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int256"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "dc",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "expires_in",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "P_Q_inner_data"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/p_q_inner_data_temp_dc",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "server_DH_params_ok",
+        "id": 3504867164,
+        "id_hex": "d0e8075c",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "encrypted_answer",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Server_DH_Params"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/server_DH_params_ok",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "server_DH_inner_data",
+        "id": 3045658042,
+        "id_hex": "b5890dba",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "g",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "dh_prime",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "g_a",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_time",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Server_DH_inner_data"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/server_DH_inner_data",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "client_DH_inner_data",
+        "id": 1715713620,
+        "id_hex": "6643b654",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "retry_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "g_b",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Client_DH_Inner_Data"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/client_DH_inner_data",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "dh_gen_ok",
+        "id": 1003222836,
+        "id_hex": "3bcbf734",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "new_nonce_hash1",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Set_client_DH_params_answer"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/dh_gen_ok",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "dh_gen_retry",
+        "id": 1188831161,
+        "id_hex": "46dc1fb9",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "new_nonce_hash2",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Set_client_DH_params_answer"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/dh_gen_retry",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "dh_gen_fail",
+        "id": 2795351554,
+        "id_hex": "a69dae02",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "new_nonce_hash3",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Set_client_DH_params_answer"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/dh_gen_fail",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "bind_auth_key_inner",
+        "id": 1973679973,
+        "id_hex": "75a3f765",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "temp_auth_key_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "perm_auth_key_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "temp_session_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "expires_at",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "BindAuthKeyInner"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/bind_auth_key_inner",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "rpc_result",
+        "id": 4082920705,
+        "id_hex": "f35c6d01",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "req_msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "result",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "Object"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "RpcResult"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/rpc_result",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "rpc_error",
+        "id": 558156313,
+        "id_hex": "2144ca19",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "error_code",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "error_message",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "RpcError"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/rpc_error",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "rpc_answer_unknown",
+        "id": 1579864942,
+        "id_hex": "5e2ad36e",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "RpcDropAnswer"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/rpc_answer_unknown",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "rpc_answer_dropped_running",
+        "id": 3447252358,
+        "id_hex": "cd78e586",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "RpcDropAnswer"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/rpc_answer_dropped_running",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "rpc_answer_dropped",
+        "id": 2755319991,
+        "id_hex": "a43ad8b7",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "seq_no",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "bytes",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "RpcDropAnswer"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/rpc_answer_dropped",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "future_salt",
+        "id": 155834844,
+        "id_hex": "0949d9dc",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "valid_since",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "valid_until",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "salt",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "FutureSalt"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/future_salt",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "future_salts",
+        "id": 2924480661,
+        "id_hex": "ae500895",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "req_msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "now",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "salts",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "future_salt"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "FutureSalts"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/future_salts",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "pong",
+        "id": 880243653,
+        "id_hex": "347773c5",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "ping_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Pong"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/pong",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "destroy_session_ok",
+        "id": 3793765884,
+        "id_hex": "e22045fc",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "session_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DestroySessionRes"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/destroy_session_ok",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "destroy_session_none",
+        "id": 1658015945,
+        "id_hex": "62d350c9",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "session_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DestroySessionRes"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/destroy_session_none",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "new_session_created",
+        "id": 2663516424,
+        "id_hex": "9ec20908",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "first_msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "unique_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_salt",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "NewSession"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/new_session_created",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "msg_container",
+        "id": 1945237724,
+        "id_hex": "73f1f8dc",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "messages",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "bare",
+                    "inner": {
+                      "kind": "ident",
+                      "name": "Message"
+                    }
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageContainer"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/msg_container",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "message",
+        "id": 1538843921,
+        "id_hex": "5bb8e511",
+        "id_explicit": false,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "seqno",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "bytes",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "body",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "Object"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Message"
+        },
+        "documentation": {
+          "description": "A message",
+          "parameters": {
+            "date": "Date of the message",
+            "edit_date": "Last edit date of this message",
+            "edit_hide": "Whether the message should be shown as not modified to the user, even if an edit date is present",
+            "effect": "A message effect that should be played as specified here » .",
+            "entities": "Message entities for styled text",
+            "factcheck": "Represents a fact-check » .",
+            "flags": "Flags, see TL conditional fields",
+            "flags2": "Flags, see TL conditional fields",
+            "forwards": "Forward counter",
+            "from_boosts_applied": "Supergroups only, contains the number of boosts this user has given the current supergroup, and should be shown in the UI in the header of the message. Only present for incoming messages from non-anonymous supergroup members that have boosted the supergroup. Note that this counter should be locally overridden for non-anonymous outgoing messages, according to the current value of channelFull . boosts_applied , to ensure the value is correct even for messages sent by the current user before a supergroup was boosted (or after a boost has expired or the number of boosts has changed); do not update this value for incoming messages from other users, even if their boosts have changed.",
+            "from_id": "ID of the sender of the message",
+            "from_rank": "Only in supergroups » (never basic groups, where this information is contained elsewhere » ), contains the sender's tag » .",
+            "from_scheduled": "Whether this is a scheduled message",
+            "fwd_from": "Info about forwarded messages",
+            "grouped_id": "Multiple media messages sent using messages.sendMultiMedia with the same grouped ID indicate an album or media group",
+            "guestchat_via_from": "If the message was posted by a guest bot » , the peer on whose behalf the bot sent the message.",
+            "id": "ID of the message",
+            "invert_media": "If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.",
+            "legacy": "This is a legacy message: it has to be refetched with the new layer",
+            "media": "Media attachment",
+            "media_unread": "Whether there are unread media attachments in this message, see here » for more info on how to clear this flag.",
+            "mentioned": "Whether we were mentioned in this message",
+            "message": "The message",
+            "noforwards": "Whether this message is protected and thus cannot be forwarded; clients should also prevent users from saving attached media (i.e. videos should only be streamed, photos should be kept in RAM, et cetera).",
+            "offline": "If set, the message was sent because of a scheduled action by the message sender, for example, as away, or a greeting service message.",
+            "out": "Is this an outgoing message",
+            "paid_message_stars": "The amount of stars the sender has paid to send the message, see here » for more info.",
+            "paid_suggested_post_stars": "Set if this is a suggested channel post » that was paid using Telegram Stars .",
+            "paid_suggested_post_ton": "Set if this is a suggested channel post » that was paid using Grams.",
+            "peer_id": "Peer ID, the chat where this message was sent",
+            "pinned": "Whether this message is pinned",
+            "post": "Whether this is a channel post",
+            "post_author": "Name of the author of this message for channel posts (with signatures enabled)",
+            "quick_reply_shortcut_id": "If set, this message is a quick reply shortcut message » (note that quick reply shortcut messages sent to a private chat will not have this field set).",
+            "reactions": "Reactions to this message",
+            "replies": "Info about post comments (for channels) or message replies (for groups)",
+            "reply_markup": "Reply markup (bot/inline keyboards)",
+            "reply_to": "Reply information",
+            "report_delivery_until_date": "Used for Telegram Gateway verification messages : if set and the current unixtime is bigger than the specified unixtime, invoke messages.reportMessagesDelivery passing the ID and the peer of this message as soon as it is received by the client (optionally batching requests for the same peer).",
+            "restriction_reason": "Contains the reason why access to this message must be restricted.",
+            "saved_peer_id": "Messages from a saved messages dialog » will have peer = inputPeerSelf and the saved_peer_id flag set to the ID of the saved dialog. Messages from a monoforum » will have peer =ID of the monoforum and the saved_peer_id flag set to the ID of a topic.",
+            "schedule_repeat_period": "Once sent, this message will be automatically re-scheduled to be re-sent again this many seconds in the future, see here » for more info on repeating scheduled messages.",
+            "silent": "Whether this is a silent message (no notification triggered)",
+            "suggested_post": "Used to suggest a post to a channel, see here » for more info on the full flow.",
+            "summary_from_language": "If set, clients should offer a summarization button » for this message; contains the two-letter ISO 639-1 language code of the inferred language of the current message.",
+            "ttl_period": "Time To Live of the message, once message.date+message.ttl_period === time(), the message will be deleted on the server, and must be deleted locally as well.",
+            "via_bot_id": "ID of the inline bot that generated the message",
+            "via_business_bot_id": "Whether the message was sent by the business bot specified in via_bot_id on behalf of the user.",
+            "video_processing_pending": "The video contained in the message is currently being processed by the server (i.e. to generate alternative qualities, that will be contained in the final messageMediaDocument . alt_document ), and will be sent once the video is processed, which will happen approximately at the specified date (i.e. messages with this flag set should be treated similarly to scheduled messages , but instead of the scheduled date, date contains the estimated conversion date). See here » for more info.",
+            "views": "View count for channel posts"
+          },
+          "official_url": "https://core.telegram.org/constructor/message",
+          "links": [
+            "https://core.telegram.org/api/ai#summarize-messages",
+            "https://core.telegram.org/api/boost",
+            "https://core.telegram.org/api/bots/connected-business-bots",
+            "https://core.telegram.org/api/bots/guest-mode#guest-messages",
+            "https://core.telegram.org/api/business#quick-reply-shortcuts",
+            "https://core.telegram.org/api/channel#supergroups",
+            "https://core.telegram.org/api/effects",
+            "https://core.telegram.org/api/entities",
+            "https://core.telegram.org/api/factcheck",
+            "https://core.telegram.org/api/files#albums-grouped-media",
+            "https://core.telegram.org/api/files#video-qualities",
+            "https://core.telegram.org/api/mentions",
+            "https://core.telegram.org/api/monoforum",
+            "https://core.telegram.org/api/paid-messages",
+            "https://core.telegram.org/api/pin",
+            "https://core.telegram.org/api/rank",
+            "https://core.telegram.org/api/saved-messages",
+            "https://core.telegram.org/api/scheduled-messages",
+            "https://core.telegram.org/api/scheduled-messages#repeating-scheduled-messages",
+            "https://core.telegram.org/api/stars",
+            "https://core.telegram.org/api/suggested-posts",
+            "https://core.telegram.org/api/threads",
+            "https://core.telegram.org/api/views#read-message-contents",
+            "https://core.telegram.org/constructor/channelFull",
+            "https://core.telegram.org/constructor/inputPeerSelf",
+            "https://core.telegram.org/constructor/messageMediaDocument",
+            "https://core.telegram.org/constructor/true",
+            "https://core.telegram.org/method/messages.reportMessagesDelivery",
+            "https://core.telegram.org/method/messages.sendMultiMedia",
+            "https://core.telegram.org/mtproto/TL-combinators#conditional-fields",
+            "https://core.telegram.org/type/%23",
+            "https://core.telegram.org/type/FactCheck",
+            "https://core.telegram.org/type/MessageEntity",
+            "https://core.telegram.org/type/MessageFwdHeader",
+            "https://core.telegram.org/type/MessageMedia",
+            "https://core.telegram.org/type/MessageReactions",
+            "https://core.telegram.org/type/MessageReplies",
+            "https://core.telegram.org/type/MessageReplyHeader",
+            "https://core.telegram.org/type/Peer",
+            "https://core.telegram.org/type/ReplyMarkup",
+            "https://core.telegram.org/type/RestrictionReason",
+            "https://core.telegram.org/type/SuggestedPost",
+            "https://core.telegram.org/type/Vector%20t",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/long",
+            "https://core.telegram.org/type/string",
+            "https://telegram.org/blog/content-protection-delete-by-date-and-more",
+            "https://telegram.org/blog/star-messages-gateway-2-0-and-more#save-even-more-on-user-verification"
+          ]
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "msg_copy",
+        "id": 3764405938,
+        "id_hex": "e06046b2",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "orig_message",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "Message"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageCopy"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/msg_copy",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "gzip_packed",
+        "id": 812830625,
+        "id_hex": "3072cfa1",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "packed_data",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Object"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/gzip_packed",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "msgs_ack",
+        "id": 1658238041,
+        "id_hex": "62d6b459",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "msg_ids",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "long"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MsgsAck"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/msgs_ack",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "bad_msg_notification",
+        "id": 2817521681,
+        "id_hex": "a7eff811",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "bad_msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "bad_msg_seqno",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "error_code",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "BadMsgNotification"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/bad_msg_notification",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "bad_server_salt",
+        "id": 3987424379,
+        "id_hex": "edab447b",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "bad_msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "bad_msg_seqno",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "error_code",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "new_server_salt",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "BadMsgNotification"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/bad_server_salt",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "msg_resend_req",
+        "id": 2105940488,
+        "id_hex": "7d861a08",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "msg_ids",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "long"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MsgResendReq"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/msg_resend_req",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "msgs_state_req",
+        "id": 3664378706,
+        "id_hex": "da69fb52",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "msg_ids",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "long"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MsgsStateReq"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/msgs_state_req",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "msgs_state_info",
+        "id": 81704317,
+        "id_hex": "04deb57d",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "req_msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "info",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MsgsStateInfo"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/msgs_state_info",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "msgs_all_info",
+        "id": 2361446705,
+        "id_hex": "8cc0d131",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "msg_ids",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "long"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "info",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MsgsAllInfo"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/msgs_all_info",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "msg_detailed_info",
+        "id": 661470918,
+        "id_hex": "276d3ec6",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "answer_msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "bytes",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "status",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MsgDetailedInfo"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/msg_detailed_info",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "msg_new_detailed_info",
+        "id": 2157819615,
+        "id_hex": "809db6df",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "answer_msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "bytes",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "status",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MsgDetailedInfo"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/msg_new_detailed_info",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "destroy_auth_key_ok",
+        "id": 4133544404,
+        "id_hex": "f660e1d4",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "DestroyAuthKeyRes"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/destroy_auth_key_ok",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "destroy_auth_key_none",
+        "id": 178201177,
+        "id_hex": "0a9f2259",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "DestroyAuthKeyRes"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/destroy_auth_key_none",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "destroy_auth_key_fail",
+        "id": 3926956819,
+        "id_hex": "ea109b13",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "DestroyAuthKeyRes"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/destroy_auth_key_fail",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "http_wait",
+        "id": 2459514271,
+        "id_hex": "9299359f",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "max_delay",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "wait_after",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "max_wait",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "HttpWait"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/http_wait",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      }
+    ],
+    "functions": [
+      {
+        "name": "req_pq_multi",
+        "id": 3195965169,
+        "id_hex": "be7e8ef1",
+        "id_explicit": true,
+        "kind": "function",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "ResPQ"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/method/req_pq_multi",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "req_DH_params",
+        "id": 3608339646,
+        "id_hex": "d712e4be",
+        "id_explicit": true,
+        "kind": "function",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "p",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "q",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "public_key_fingerprint",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "encrypted_data",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Server_DH_Params"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/method/req_DH_params",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "set_client_DH_params",
+        "id": 4110704415,
+        "id_hex": "f5045f1f",
+        "id_explicit": true,
+        "kind": "function",
+        "arguments": [
+          {
+            "name": "nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "server_nonce",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int128"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "encrypted_data",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Set_client_DH_params_answer"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/method/set_client_DH_params",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "rpc_drop_answer",
+        "id": 1491380032,
+        "id_hex": "58e4a740",
+        "id_explicit": true,
+        "kind": "function",
+        "arguments": [
+          {
+            "name": "req_msg_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "RpcDropAnswer"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/method/rpc_drop_answer",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "get_future_salts",
+        "id": 3105996036,
+        "id_hex": "b921bd04",
+        "id_explicit": true,
+        "kind": "function",
+        "arguments": [
+          {
+            "name": "num",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "FutureSalts"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/method/get_future_salts",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "ping",
+        "id": 2059302892,
+        "id_hex": "7abe77ec",
+        "id_explicit": true,
+        "kind": "function",
+        "arguments": [
+          {
+            "name": "ping_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Pong"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/method/ping",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "ping_delay_disconnect",
+        "id": 4081220492,
+        "id_hex": "f3427b8c",
+        "id_explicit": true,
+        "kind": "function",
+        "arguments": [
+          {
+            "name": "ping_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "disconnect_delay",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "Pong"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/method/ping_delay_disconnect",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "destroy_session",
+        "id": 3880853798,
+        "id_hex": "e7512126",
+        "id_explicit": true,
+        "kind": "function",
+        "arguments": [
+          {
+            "name": "session_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DestroySessionRes"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/method/destroy_session",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      },
+      {
+        "name": "destroy_auth_key",
+        "id": 3510849888,
+        "id_hex": "d1435160",
+        "id_explicit": true,
+        "kind": "function",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "DestroyAuthKeyRes"
+        },
+        "documentation": {
+          "description": null,
+          "parameters": {},
+          "official_url": "https://core.telegram.org/method/destroy_auth_key",
+          "links": []
+        },
+        "layer": {
+          "schema": null,
+          "introduced": null
+        },
+        "builtin": false
+      }
+    ],
+    "finalizations": [],
+    "partial_applications": []
+  }
+}

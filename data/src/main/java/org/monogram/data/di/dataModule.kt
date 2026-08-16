@@ -93,6 +93,9 @@ import org.monogram.data.mapper.message.MessageContentMapper
 import org.monogram.data.mapper.message.MessagePersistenceMapper
 import org.monogram.data.mapper.message.MessageSenderResolver
 import org.monogram.data.mtproto.AndroidMtProtoAuthKeyStore
+import org.monogram.data.mtproto.MtProtoAuthKeyPersistence
+import org.monogram.data.mtproto.MtProtoAuthKeyEstablisher
+import org.monogram.data.mtproto.MtProtoAuthKeySessionBootstrap
 import org.monogram.data.mtproto.MtProtoAuthKeyStore
 import org.monogram.data.notifications.NotificationMuteResolver
 import org.monogram.data.push.PushProcessingCoordinator
@@ -189,6 +192,7 @@ import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.domain.repository.WebAppRepository
+import org.monogram.mtproto.handshake.MtProtoAuthHandshake
 
 val dataModule = module {
     includes(fcmRuntimeOverrideModule)
@@ -200,6 +204,11 @@ val dataModule = module {
     single<DispatcherProvider> { DefaultDispatcherProvider() }
     single<StringProvider> { AndroidStringProvider(androidContext()) }
     single<MtProtoAuthKeyStore> { AndroidMtProtoAuthKeyStore(androidContext()) }
+    single { MtProtoAuthKeyPersistence(get()) }
+    single<MtProtoAuthKeyEstablisher> {
+        MtProtoAuthKeyEstablisher { transport, config -> MtProtoAuthHandshake().execute(transport, config) }
+    }
+    single { MtProtoAuthKeySessionBootstrap(get(), get()) }
     single(createdAtStart = true) { TdLibParametersProvider(androidContext()) }
     single(createdAtStart = true) {
         OfflineWarmup(

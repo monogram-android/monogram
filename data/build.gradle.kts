@@ -98,6 +98,7 @@ ksp {
 dependencies {
     implementation(project(":core"))
     implementation(project(":domain"))
+    implementation(project(":mtproto"))
     implementation(libs.koin.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)

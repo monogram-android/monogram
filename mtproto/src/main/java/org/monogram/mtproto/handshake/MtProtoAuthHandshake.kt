@@ -8,7 +8,10 @@ import kotlinx.coroutines.withTimeout
 import org.monogram.mtproto.crypto.ClientDhExchange
 import org.monogram.mtproto.crypto.DhGenResultProcessor
 import org.monogram.mtproto.crypto.DhParameterValidator
+import org.monogram.mtproto.crypto.AuthKeyMaterial
 import org.monogram.mtproto.crypto.EntropySource
+import org.monogram.mtproto.crypto.EstablishedAuthKey
+import org.monogram.mtproto.crypto.MtProtoKeyDerivation
 import org.monogram.mtproto.crypto.PqAuthStage
 import org.monogram.mtproto.crypto.RsaPublicKey
 import org.monogram.mtproto.crypto.SecureEntropySource
@@ -54,6 +57,29 @@ class MtProtoAuthKey internal constructor(
     val createdAt: Int get() = established.createdAt
     fun toByteArray(): ByteArray = established.material.toByteArray()
     override fun close() = established.close()
+
+    companion object {
+        const val MATERIAL_BYTES = 256
+
+        fun restore(material: ByteArray, id: Long, serverSalt: Long, createdAt: Int): MtProtoAuthKey {
+            require(material.size == MATERIAL_BYTES) { "MTProto auth key must contain 256 bytes" }
+            val idBytes = MtProtoKeyDerivation.authKeyIdBytes(material)
+            val calculatedId = try {
+                java.nio.ByteBuffer.wrap(idBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).long
+            } finally {
+                idBytes.fill(0)
+            }
+            require(calculatedId == id) { "MTProto auth key ID mismatch" }
+            return MtProtoAuthKey(
+                EstablishedAuthKey(
+                    material = AuthKeyMaterial(material),
+                    id = id,
+                    serverSalt = serverSalt,
+                    createdAt = createdAt,
+                ),
+            )
+        }
+    }
 }
 
 class MtProtoAuthHandshake internal constructor(

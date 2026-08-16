@@ -18,8 +18,13 @@ internal class RsaPublicKey private constructor(
 
     fun encryptRaw(input: ByteArray): ByteArray {
         require(input.size == MODULUS_BYTES) { "RSA input must be exactly 256 bytes" }
+        return requireNotNull(encryptRawOrNull(input)) { "RSA input must be smaller than modulus" }
+    }
+
+    fun encryptRawOrNull(input: ByteArray): ByteArray? {
+        require(input.size == MODULUS_BYTES) { "RSA input must be exactly 256 bytes" }
         val value = BigInteger(1, input)
-        require(value < modulus) { "RSA input must be smaller than modulus" }
+        if (value >= modulus) return null
         return toFixed(value.modPow(exponent, modulus), MODULUS_BYTES)
     }
 

@@ -28,7 +28,7 @@ class RsaPublicKeyTest {
     }
 
     companion object {
-        private val PEM = """
+        internal val PEM = """
 -----BEGIN RSA PUBLIC KEY-----
 MIIBCgKCAQEAr4v4wxMDXIaMOh8bayF/NyoYdpcysn5EbjTIOZC0RkgzsRj3SGlu
 52QSz+ysO41dQAjpFLgxPVJoOlxXokaOq827IfW0bGCm0doT5hxtedu9UCQKbE8j

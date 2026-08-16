@@ -1,16 +1,21 @@
 package org.monogram.mtproto.crypto
 
 import org.monogram.mtproto.tl.generated.transport.PQInnerDataDc
+import org.monogram.mtproto.tl.generated.transport.PQInnerDataDcCodec
 import org.monogram.mtproto.tl.generated.transport.ReqPqMulti
+import org.monogram.mtproto.tl.generated.transport.ReqDhParams
 import org.monogram.mtproto.tl.generated.transport.ResPq_0c012ada9f
 import org.monogram.mtproto.tl.runtime.TlInt128
 import org.monogram.mtproto.tl.runtime.TlInt256
+import org.monogram.mtproto.tl.runtime.TlBytes
+import org.monogram.mtproto.codec.TlBinaryCodec
 
 internal enum class PqAuthFailure {
     NONCE_MISMATCH,
     INVALID_DC_ID,
     NO_TRUSTED_RSA_FINGERPRINT,
     AMBIGUOUS_TRUSTED_RSA_FINGERPRINT,
+    RSA_KEY_FINGERPRINT_MISMATCH,
 }
 
 internal class PqAuthException(val failure: PqAuthFailure) : IllegalArgumentException(
@@ -71,5 +76,30 @@ internal object PqAuthStage {
         } finally {
             newNonceBytes.fill(0)
         }
+    }
+
+    fun buildDhParamsRequest(
+        prepared: PqAuthPrepared,
+        publicKey: RsaPublicKey,
+        entropy: EntropySource = SecureEntropySource,
+    ): ReqDhParams {
+        if (publicKey.fingerprint() != prepared.rsaFingerprint) {
+            throw PqAuthException(PqAuthFailure.RSA_KEY_FINGERPRINT_MISMATCH)
+        }
+        val innerData = prepared.innerData
+        val encoded = TlBinaryCodec.encode(PQInnerDataDcCodec, innerData)
+        val encrypted = try {
+            RsaHandshakeBlock.encrypt(encoded, publicKey, entropy)
+        } finally {
+            encoded.fill(0)
+        }
+        return ReqDhParams(
+            nonce = innerData.nonce,
+            serverNonce = innerData.serverNonce,
+            p = innerData.p,
+            q = innerData.q,
+            publicKeyFingerprint = prepared.rsaFingerprint,
+            encryptedData = TlBytes.copyOf(encrypted),
+        ).also { encrypted.fill(0) }
     }
 }

@@ -51,6 +51,48 @@ internal object MtProtoKeyDerivation {
 
     fun sha256(value: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(value)
 
+    fun authKeyAuxHash(authKey: ByteArray): ByteArray = authKeyHashSlice(authKey, 0, 8)
+
+    fun authKeyIdBytes(authKey: ByteArray): ByteArray = authKeyHashSlice(authKey, 12, 20)
+
+    fun newNonceHash(newNonce: ByteArray, authKey: ByteArray, selector: Int): ByteArray {
+        require(newNonce.size == NEW_NONCE_BYTES) { "newNonce must contain 32 bytes" }
+        require(selector in 1..3) { "selector must be 1, 2, or 3" }
+        val auxiliaryHash = authKeyAuxHash(authKey)
+        val input = newNonce + byteArrayOf(selector.toByte()) + auxiliaryHash
+        val hash = sha1(input)
+        return try {
+            hash.copyOfRange(4, 20)
+        } finally {
+            auxiliaryHash.fill(0)
+            input.fill(0)
+            hash.fill(0)
+        }
+    }
+
+    fun initialServerSalt(newNonce: ByteArray, serverNonce: ByteArray): ByteArray {
+        require(newNonce.size == NEW_NONCE_BYTES) { "newNonce must contain 32 bytes" }
+        require(serverNonce.size == SERVER_NONCE_BYTES) { "serverNonce must contain 16 bytes" }
+        return ByteArray(8) { index ->
+            (newNonce[index].toInt() xor serverNonce[index].toInt()).toByte()
+        }
+    }
+
+    private fun authKeyHash(authKey: ByteArray): ByteArray {
+        require(authKey.size == AUTH_KEY_BYTES) { "authKey must contain 256 bytes" }
+        return sha1(authKey)
+    }
+
+    private fun authKeyHashSlice(authKey: ByteArray, fromIndex: Int, toIndex: Int): ByteArray {
+        val hash = authKeyHash(authKey)
+        return try {
+            hash.copyOfRange(fromIndex, toIndex)
+        } finally {
+            hash.fill(0)
+        }
+    }
+
+    private const val AUTH_KEY_BYTES = 256
     private const val NEW_NONCE_BYTES = 32
     private const val SERVER_NONCE_BYTES = 16
 }

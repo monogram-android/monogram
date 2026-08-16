@@ -29,7 +29,9 @@ object TlBinaryCodec {
         }
         val id = reader.readInt().toUInt()
         val value = registry.decode(id, reader, context)
-        require(reader.remaining == 0) { "Trailing TL bytes: ${reader.remaining}" }
+        require(reader.remaining == 0) {
+            "Trailing TL bytes: ${reader.remaining} at offset ${reader.absoluteOffset} for ${context.schema}"
+        }
         return value
     }
 }

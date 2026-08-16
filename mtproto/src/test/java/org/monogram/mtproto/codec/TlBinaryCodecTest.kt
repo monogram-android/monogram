@@ -96,10 +96,19 @@ class TlBinaryCodecTest {
         val badVector = byteArrayOf(1, 2, 3, 4, 0, 0, 0, 0)
         assertThrows(IllegalArgumentException::class.java) { TlBinaryReader(badVector).readVector(IntCodec, context) }
 
+        val negativeVector = byteArrayOf(0x15, 0xc4.toByte(), 0xb5.toByte(), 0x1c, 0xff.toByte(), 0xff.toByte(), 0xff.toByte(), 0xff.toByte())
+        assertThrows(IllegalArgumentException::class.java) { TlBinaryReader(negativeVector).readVector(IntCodec, context) }
+
         val reader = TlBinaryReader(byteArrayOf(1, 2, 3, 4))
         assertArrayEquals(byteArrayOf(1, 2), reader.readDeferredObject(2, context).toByteArray())
         assertArrayEquals(byteArrayOf(3, 4), reader.readRemainingDeferredObject(context).toByteArray())
         assertThrows(IllegalArgumentException::class.java) { TlBinaryReader(byteArrayOf(1)).readDeferredObject(2, context) }
+
+        val truncation = assertThrows(IllegalArgumentException::class.java) {
+            TlBinaryReader(byteArrayOf(1, 2), schema = context.schema).readLong()
+        }
+        org.junit.Assert.assertTrue(truncation.message.orEmpty().contains("offset 0"))
+        org.junit.Assert.assertTrue(truncation.message.orEmpty().contains("TRANSPORT"))
     }
 
     @Test

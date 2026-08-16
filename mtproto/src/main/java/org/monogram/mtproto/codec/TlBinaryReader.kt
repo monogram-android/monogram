@@ -75,7 +75,8 @@ class TlBinaryReader(
         val constructor = readUInt()
         if (constructor != VECTOR_ID) throw malformed("Unknown vector constructor ${constructor.toString(16)}", context)
         val count = readInt()
-        if (count < 0 || count > maxVectorElements) {
+        if (count < 0) throw malformed("Negative vector element count $count", context)
+        if (count > maxVectorElements) {
             throw TlLimitExceededException(context.schema, TlLimitKind.VECTOR_ELEMENTS, maxVectorElements, count, absoluteOffset)
         }
         return List(count) { codec.read(this, context.nested()) }
@@ -83,23 +84,23 @@ class TlBinaryReader(
 
     fun <T> decodeFully(codec: TlCodec<T>, context: TlDecodeContext): T {
         val value = codec.read(this, context)
-        require(remaining == 0) { "Trailing TL bytes: $remaining" }
+        require(remaining == 0) { "Trailing TL bytes: $remaining at offset $absoluteOffset for ${context.schema}" }
         return value
     }
 
     private fun readByteString(context: TlDecodeContext): ByteArray {
         val first = readRaw(1)[0].toInt() and 0xff
-        require(first != 255) { "Invalid TL bytes length marker" }
+        if (first == 255) throw malformed("Invalid TL bytes length marker")
         val length = if (first < 254) first else {
             val raw = readRaw(3)
             (raw[0].toInt() and 0xff) or ((raw[1].toInt() and 0xff) shl 8) or ((raw[2].toInt() and 0xff) shl 16)
         }
-        require(first < 254 || length >= 254) { "Non-canonical TL bytes length prefix" }
+        if (first >= 254 && length < 254) throw malformed("Non-canonical TL bytes length prefix")
         if (length > maxBytes) throw TlLimitExceededException(context.schema, TlLimitKind.OBJECT_BYTES, maxBytes, length, absoluteOffset)
         val padding = (4 - ((if (first < 254) 1 else 4) + length) % 4) % 4
         val value = readRaw(length)
         val pad = readRaw(padding)
-        require(pad.all { it == 0.toByte() }) { "TL bytes contain non-zero padding" }
+        if (pad.any { it != 0.toByte() }) throw malformed("TL bytes contain non-zero padding")
         return value
     }
 
@@ -114,12 +115,18 @@ class TlBinaryReader(
 
     private fun ensureAvailable(count: Int, context: TlDecodeContext?) {
         if (count < 0 || count > end - position) {
-            throw IllegalArgumentException("Insufficient TL bytes: requested $count, remaining ${end - position}")
+            throw IllegalArgumentException(
+                "Insufficient TL bytes: requested $count, remaining ${end - position} " +
+                    "at offset $absoluteOffset for $schema",
+            )
         }
     }
 
     private fun malformed(detail: String, context: TlDecodeContext): IllegalArgumentException =
         IllegalArgumentException("$detail at offset $absoluteOffset for ${context.schema}")
+
+    private fun malformed(detail: String): IllegalArgumentException =
+        IllegalArgumentException("$detail at offset $absoluteOffset for $schema")
 
     private companion object {
         val UTF8 = Charsets.UTF_8

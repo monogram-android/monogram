@@ -80,6 +80,12 @@ class TlBinaryRuntimePropertyTest {
             TlGzip.decompress(TlBytes.copyOf(gzip(ByteArray(64) { it.toByte() })), sizeContext)
         }
         assertEquals(TlLimitKind.DECOMPRESSED_BYTES, sizeFailure.limitKind)
+
+        val corrupt = assertThrows(IllegalArgumentException::class.java) {
+            TlGzip.decompress(TlBytes.copyOf(byteArrayOf(1, 2, 3)), context)
+        }
+        org.junit.Assert.assertTrue(corrupt.message.orEmpty().contains("Malformed gzip payload"))
+        org.junit.Assert.assertTrue(corrupt.message.orEmpty().contains("TRANSPORT"))
     }
 
     @Test

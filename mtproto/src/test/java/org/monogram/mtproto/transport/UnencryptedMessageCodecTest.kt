@@ -28,6 +28,16 @@ class UnencryptedMessageCodecTest {
     }
 
     @Test
+    fun messageIdsRemainMonotonicAfterSignedLongBoundary() {
+        val generator = ClientMessageIdGenerator { 2_147_483_648_123L }
+        val first = generator.next()
+        val second = generator.next()
+        assertEquals(0L, first and 3L)
+        assertEquals(first + 4, second)
+        assertEquals(2_147_483_648L, first ushr 32)
+    }
+
+    @Test
     fun encodesMethodEnvelopeAndDecodesGeneratedResult() {
         val nonce = TlInt128.copyOf(ByteArray(16) { it.toByte() })
         val method = ReqPqMulti(nonce)

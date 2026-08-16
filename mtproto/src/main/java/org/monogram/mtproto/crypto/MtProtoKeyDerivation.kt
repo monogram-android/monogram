@@ -82,11 +82,22 @@ internal object MtProtoKeyDerivation {
 
     /** Computes msg_key from the authenticated payload and random padding. */
     fun messageKey(authKey: ByteArray, plaintext: ByteArray, randomPadding: ByteArray, x: Int): ByteArray {
+        require(randomPadding.isNotEmpty()) { "randomPadding must not be empty" }
+        val payload = plaintext + randomPadding
+        return try {
+            messageKey(authKey, payload, x)
+        } finally {
+            payload.fill(0)
+        }
+    }
+
+    /** Computes msg_key from the complete encrypted payload, including random padding. */
+    fun messageKey(authKey: ByteArray, payload: ByteArray, x: Int): ByteArray {
         require(authKey.size == AUTH_KEY_BYTES) { "authKey must contain 256 bytes" }
         require(x == 0 || x == 8) { "x must be 0 or 8" }
-        require(randomPadding.isNotEmpty()) { "randomPadding must not be empty" }
+        require(payload.isNotEmpty()) { "payload must not be empty" }
         val authSlice = authKey.copyOfRange(88 + x, 120 + x)
-        val input = authSlice + plaintext + randomPadding
+        val input = authSlice + payload
         val digest = sha256(input)
         return try {
             digest.copyOfRange(8, 24)

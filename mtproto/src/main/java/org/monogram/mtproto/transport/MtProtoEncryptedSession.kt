@@ -1,0 +1,100 @@
+package org.monogram.mtproto.transport
+
+import org.monogram.mtproto.crypto.EntropySource
+import org.monogram.mtproto.crypto.SecureEntropySource
+import org.monogram.mtproto.handshake.MtProtoAuthKey
+
+/** Owns [authKey] after successful construction; closing the session destroys its key material. */
+class MtProtoEncryptedSession internal constructor(
+    private val authKey: MtProtoAuthKey,
+    private val entropy: EntropySource,
+    currentTimeMillis: () -> Long,
+) : AutoCloseable {
+    constructor(authKey: MtProtoAuthKey) : this(authKey, SecureEntropySource, System::currentTimeMillis)
+
+    private val lock = Any()
+    private val serverTimeOffsetMillis = authKey.createdAt * 1_000L - currentTimeMillis()
+    private val serverTimeMillis = { currentTimeMillis() + serverTimeOffsetMillis }
+    private val messageIds = ClientMessageIdGenerator(serverTimeMillis)
+    private val inboundMessageIds = LinkedHashSet<Long>()
+    val sessionId: Long = generateSessionId(entropy)
+    private var salt = authKey.serverSalt
+    private var contentRelatedMessages = 0
+    private var closed = false
+
+    val serverSalt: Long get() = synchronized(lock) { salt }
+
+    fun encode(body: ByteArray, contentRelated: Boolean): ByteArray = synchronized(lock) {
+        check(!closed) { "MTProto encrypted session is closed" }
+        val sequenceNumber = if (contentRelated) {
+            check(contentRelatedMessages < Int.MAX_VALUE / 2) { "MTProto sequence number exhausted" }
+            (contentRelatedMessages * 2) + 1
+        } else {
+            contentRelatedMessages * 2
+        }
+        val packet = EncryptedMessageCodec.encode(
+            authKey,
+            MtProtoEncryptedMessageMetadata(salt, sessionId, messageIds.next(), sequenceNumber),
+            body,
+            entropy,
+            EncryptedMessageCodec.CLIENT_X,
+        )
+        if (contentRelated) contentRelatedMessages++
+        packet
+    }
+
+    fun decode(packet: ByteArray): MtProtoEncryptedMessage = synchronized(lock) {
+        check(!closed) { "MTProto encrypted session is closed" }
+        val message = EncryptedMessageCodec.decode(authKey, sessionId, packet, EncryptedMessageCodec.SERVER_X)
+        try {
+            require(isFresh(message.metadata.messageId)) { "Encrypted MTProto message ID is outside the accepted time window" }
+            require(inboundMessageIds.add(message.metadata.messageId)) { "Encrypted MTProto message ID was already received" }
+            if (inboundMessageIds.size > MAX_TRACKED_INBOUND_IDS) {
+                inboundMessageIds.remove(inboundMessageIds.first())
+            }
+            message
+        } catch (failure: Throwable) {
+            message.close()
+            throw failure
+        }
+    }
+
+    fun updateServerSalt(serverSalt: Long) = synchronized(lock) {
+        check(!closed) { "MTProto encrypted session is closed" }
+        salt = serverSalt
+    }
+
+    private fun isFresh(messageId: Long): Boolean {
+        val nowSeconds = serverTimeMillis() / 1_000L
+        val messageSeconds = messageId ushr 32
+        return messageSeconds > nowSeconds - MAX_INBOUND_AGE_SECONDS &&
+            messageSeconds < nowSeconds + MAX_INBOUND_FUTURE_SECONDS
+    }
+
+    override fun close() = synchronized(lock) {
+        if (!closed) authKey.close()
+        inboundMessageIds.clear()
+        closed = true
+    }
+
+    private companion object {
+        const val MAX_TRACKED_INBOUND_IDS = 4_096
+        const val MAX_INBOUND_AGE_SECONDS = 300L
+        const val MAX_INBOUND_FUTURE_SECONDS = 30L
+
+        fun generateSessionId(entropy: EntropySource): Long {
+            repeat(32) {
+                val bytes = ByteArray(Long.SIZE_BYTES)
+                try {
+                    entropy.nextBytes(bytes)
+                    var value = 0L
+                    for (index in bytes.indices) value = value or ((bytes[index].toLong() and 0xffL) shl (index * 8))
+                    if (value != 0L) return value
+                } finally {
+                    bytes.fill(0)
+                }
+            }
+            throw IllegalStateException("Unable to generate non-zero MTProto session ID")
+        }
+    }
+}

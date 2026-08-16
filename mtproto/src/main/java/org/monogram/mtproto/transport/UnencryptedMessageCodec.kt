@@ -29,7 +29,8 @@ internal class ClientMessageIdGenerator(
         val aligned = timeBased and CLIENT_ALIGNMENT_MASK
         while (true) {
             val previous = last.get()
-            val candidate = maxOf(aligned, previous + CLIENT_INCREMENT)
+            val incremented = previous + CLIENT_INCREMENT
+            val candidate = if (java.lang.Long.compareUnsigned(aligned, incremented) >= 0) aligned else incremented
             if (last.compareAndSet(previous, candidate)) return candidate
         }
     }
@@ -43,7 +44,7 @@ internal class ClientMessageIdGenerator(
 
 internal object UnencryptedMessageCodec {
     fun <R : TlObject> encodeMethod(method: TlMethod<R>, messageId: Long): ByteArray {
-        require(messageId > 0 && messageId % 4 == 0L) { "Client message ID must be positive and divisible by four" }
+        require(messageId != 0L && messageId and 3L == 0L) { "Client message ID must be non-zero and divisible by four" }
         val writer = TlBinaryWriter()
         TransportConstructorRegistry.encodeMethod(writer, method)
         val body = writer.toByteArray()
@@ -55,7 +56,7 @@ internal object UnencryptedMessageCodec {
     }
 
     fun encode(messageId: Long, body: ByteArray): ByteArray {
-        require(messageId > 0 && messageId % 4 == 0L) { "Client message ID must be positive and divisible by four" }
+        require(messageId != 0L && messageId and 3L == 0L) { "Client message ID must be non-zero and divisible by four" }
         require(body.isNotEmpty() && body.size % 4 == 0) { "Unencrypted body must be non-empty and 4-byte aligned" }
         require(body.size <= MAX_BODY_BYTES) { "Unencrypted body exceeds the limit" }
         return ByteBuffer.allocate(HEADER_BYTES + body.size).order(ByteOrder.LITTLE_ENDIAN).apply {
@@ -71,7 +72,7 @@ internal object UnencryptedMessageCodec {
         val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
         require(buffer.long == 0L) { "Unencrypted auth_key_id must be zero" }
         val messageId = buffer.long
-        require(messageId > 0 && messageId and 1L == 1L) { "Server message ID must be positive and odd" }
+        require(messageId != 0L && messageId and 1L == 1L) { "Server message ID must be non-zero and odd" }
         val bodySize = buffer.int
         require(bodySize in 4..MAX_BODY_BYTES && bodySize % 4 == 0) { "Invalid unencrypted body length" }
         require(bodySize == buffer.remaining()) { "Unencrypted body length mismatch" }

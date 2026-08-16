@@ -15,10 +15,12 @@ class TlRuntimeSourceGuardTest {
         assertTrue(TlMethod::class.java.isInterface)
         assertTrue(TlCodec::class.java.isInterface)
         assertTrue(TlConstructorRegistry::class.java.isInterface)
+        assertTrue(TlMethodRegistry::class.java.isInterface)
         assertTrue(TlReader::class.java.isInterface)
         assertTrue(TlWriter::class.java.isInterface)
         assertEquals(2, TlCodec::class.java.declaredMethods.size)
         assertEquals(2, TlConstructorRegistry::class.java.declaredMethods.size)
+        assertEquals(1, TlMethodRegistry::class.java.declaredMethods.size)
 
         assertEquals(
             setOf(

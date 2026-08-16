@@ -10,7 +10,7 @@ kotlin {
 
     sourceSets {
         test {
-            kotlin.srcDir(rootProject.layout.projectDirectory.dir("mtproto/src/main/java"))
+            kotlin.srcDir(rootProject.layout.projectDirectory.dir("mtproto/src/main/java/org/monogram/mtproto/tl/runtime"))
         }
     }
 }

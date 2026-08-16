@@ -57,6 +57,9 @@ class TlRegistryGeneratorTest {
         assertFalse(source.contains("kotlinx.serialization"))
         assertFalse(source.contains("Json.decode"))
         assertFalse(source.contains("Json.parse"))
+        assertTrue(source.contains("import org.monogram.mtproto.tl.runtime.TlMethodRegistry"))
+        assertTrue(source.contains(" : TlMethodRegistry {"))
+        assertTrue(source.contains("override fun encodeMethod(writer: TlWriter, value: TlMethod<*>)"))
     }
 
     @Test

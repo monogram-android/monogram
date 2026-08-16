@@ -21,9 +21,9 @@ class TlRegistryEmitter {
         appendLine("package ${plan.contract.packageName}")
         appendLine()
         appendLine("import org.monogram.mtproto.tl.runtime.TlCodec")
-        appendLine("import org.monogram.mtproto.tl.runtime.TlConstructorRegistry")
         appendLine("import org.monogram.mtproto.tl.runtime.TlDecodeContext")
         appendLine("import org.monogram.mtproto.tl.runtime.TlMethod")
+        appendLine("import org.monogram.mtproto.tl.runtime.TlMethodRegistry")
         appendLine("import org.monogram.mtproto.tl.runtime.TlObject")
         appendLine("import org.monogram.mtproto.tl.runtime.TlReader")
         appendLine("import org.monogram.mtproto.tl.runtime.TlSchemaIdentity")
@@ -32,7 +32,7 @@ class TlRegistryEmitter {
         appendLine("import org.monogram.mtproto.tl.runtime.TlUnknownConstructorException")
         appendLine("import org.monogram.mtproto.tl.runtime.TlWriter")
         appendLine()
-        appendLine("object ${plan.contract.objectName} : TlConstructorRegistry {")
+        appendLine("object ${plan.contract.objectName} : TlMethodRegistry {")
         appendLine("    override val schema: TlSchemaIdentity = ${schemaIdentity(plan)}")
         appendLine()
         appendDecodeConstructors(plan)
@@ -115,7 +115,7 @@ class TlRegistryEmitter {
     }
 
     private fun StringBuilder.appendEncodeMethods(plan: TlSchemaRegistryPlan) {
-        appendLine("    fun encodeMethod(writer: TlWriter, value: TlMethod<*>) {")
+        appendLine("    override fun encodeMethod(writer: TlWriter, value: TlMethod<*>) {")
         appendBucketDispatch(
             declarations = plan.methods,
             valueExpression = "value.constructorId shr 24",

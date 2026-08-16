@@ -19,3 +19,7 @@ interface TlConstructorRegistry {
 
     fun decode(id: UInt, reader: TlReader, context: TlDecodeContext): TlObject
 }
+
+interface TlMethodRegistry : TlConstructorRegistry {
+    fun encodeMethod(writer: TlWriter, value: TlMethod<*>)
+}

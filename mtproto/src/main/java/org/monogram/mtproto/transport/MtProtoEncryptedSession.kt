@@ -4,6 +4,16 @@ import org.monogram.mtproto.crypto.EntropySource
 import org.monogram.mtproto.crypto.SecureEntropySource
 import org.monogram.mtproto.handshake.MtProtoAuthKey
 
+internal data class EncodedEncryptedMessage(
+    val metadata: MtProtoEncryptedMessageMetadata,
+    val packet: ByteArray,
+)
+
+internal data class DecodedEncryptedMessage(
+    val message: MtProtoEncryptedMessage,
+    val duplicate: Boolean,
+)
+
 /** Owns [authKey] after successful construction; closing the session destroys its key material. */
 class MtProtoEncryptedSession internal constructor(
     private val authKey: MtProtoAuthKey,
@@ -24,7 +34,10 @@ class MtProtoEncryptedSession internal constructor(
 
     val serverSalt: Long get() = synchronized(lock) { salt }
 
-    fun encode(body: ByteArray, contentRelated: Boolean): ByteArray = synchronized(lock) {
+    fun encode(body: ByteArray, contentRelated: Boolean): ByteArray =
+        encodeTracked(body, contentRelated).packet
+
+    internal fun encodeTracked(body: ByteArray, contentRelated: Boolean): EncodedEncryptedMessage = synchronized(lock) {
         check(!closed) { "MTProto encrypted session is closed" }
         val sequenceNumber = if (contentRelated) {
             check(contentRelatedMessages < Int.MAX_VALUE / 2) { "MTProto sequence number exhausted" }
@@ -32,31 +45,43 @@ class MtProtoEncryptedSession internal constructor(
         } else {
             contentRelatedMessages * 2
         }
+        val metadata = MtProtoEncryptedMessageMetadata(salt, sessionId, messageIds.next(), sequenceNumber)
         val packet = EncryptedMessageCodec.encode(
             authKey,
-            MtProtoEncryptedMessageMetadata(salt, sessionId, messageIds.next(), sequenceNumber),
+            metadata,
             body,
             entropy,
             EncryptedMessageCodec.CLIENT_X,
         )
         if (contentRelated) contentRelatedMessages++
-        packet
+        EncodedEncryptedMessage(metadata, packet)
     }
 
     fun decode(packet: ByteArray): MtProtoEncryptedMessage = synchronized(lock) {
+        val decoded = decodeTracked(packet)
+        try {
+            require(!decoded.duplicate) { "Encrypted MTProto message ID was already received" }
+            decoded.message
+        } catch (failure: Throwable) {
+            decoded.message.close()
+            throw failure
+        }
+    }
+
+    internal fun decodeTracked(packet: ByteArray): DecodedEncryptedMessage = synchronized(lock) {
         check(!closed) { "MTProto encrypted session is closed" }
         val message = EncryptedMessageCodec.decode(authKey, sessionId, packet, EncryptedMessageCodec.SERVER_X)
         try {
-            require(isFresh(message.metadata.messageId)) { "Encrypted MTProto message ID is outside the accepted time window" }
-            require(inboundMessageIds.add(message.metadata.messageId)) { "Encrypted MTProto message ID was already received" }
-            if (inboundMessageIds.size > MAX_TRACKED_INBOUND_IDS) {
-                inboundMessageIds.remove(inboundMessageIds.first())
-            }
-            message
+            DecodedEncryptedMessage(message, duplicate = !admitInbound(message.metadata))
         } catch (failure: Throwable) {
             message.close()
             throw failure
         }
+    }
+
+    internal fun admitNested(metadata: MtProtoEncryptedMessageMetadata): Boolean = synchronized(lock) {
+        check(!closed) { "MTProto encrypted session is closed" }
+        admitInbound(metadata)
     }
 
     fun updateServerSalt(serverSalt: Long) = synchronized(lock) {
@@ -71,6 +96,20 @@ class MtProtoEncryptedSession internal constructor(
             messageSeconds < nowSeconds + MAX_INBOUND_FUTURE_SECONDS
     }
 
+    private fun admitInbound(metadata: MtProtoEncryptedMessageMetadata): Boolean {
+        require(metadata.messageId != 0L && metadata.messageId and 1L == 1L) {
+            "Server message ID must be non-zero and odd"
+        }
+        require(metadata.sequenceNumber >= 0) { "Encrypted MTProto sequence number must not be negative" }
+        require(isFresh(metadata.messageId)) { "Encrypted MTProto message ID is outside the accepted time window" }
+        if (metadata.messageId in inboundMessageIds) return false
+        require(inboundMessageIds.size < MAX_TRACKED_INBOUND_IDS) {
+            "Encrypted MTProto replay window capacity exceeded"
+        }
+        inboundMessageIds += metadata.messageId
+        return true
+    }
+
     override fun close() = synchronized(lock) {
         if (!closed) authKey.close()
         inboundMessageIds.clear()
@@ -78,7 +117,7 @@ class MtProtoEncryptedSession internal constructor(
     }
 
     private companion object {
-        const val MAX_TRACKED_INBOUND_IDS = 4_096
+        const val MAX_TRACKED_INBOUND_IDS = 65_536
         const val MAX_INBOUND_AGE_SECONDS = 300L
         const val MAX_INBOUND_FUTURE_SECONDS = 30L
 

@@ -27,6 +27,10 @@ data class TlDecodeContext(
     val depth: Int,
     val limits: TlLimits,
 ) {
+    init {
+        require(depth in 0..limits.maxDepth) { "depth must be within the configured depth limit" }
+    }
+
     fun nested(): TlDecodeContext {
         if (depth >= limits.maxDepth) {
             throw TlLimitExceededException.depth(this)

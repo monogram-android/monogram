@@ -94,6 +94,16 @@ class TlSchemaAndLimitsTest {
         assertNull(failure.constructorId)
     }
 
+    @Test
+    fun `decode context rejects an initial depth outside configured limits`() {
+        val limits = TlLimits.DEFAULT.lowered(maxDepth = 2)
+        assertThrows(IllegalArgumentException::class.java) { TlDecodeContext(cloud, depth = -1, limits = limits) }
+        assertThrows(IllegalArgumentException::class.java) { TlDecodeContext(cloud, depth = 3, limits = limits) }
+
+        val last = TlDecodeContext(cloud, depth = 2, limits = limits)
+        assertThrows(TlLimitExceededException::class.java) { last.nested() }
+    }
+
     private companion object {
         val cloud = TlSchemaIdentity(TlSchemaKind.CLOUD, 223)
         val transport = TlSchemaIdentity(TlSchemaKind.TRANSPORT, null)

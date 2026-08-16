@@ -22,23 +22,11 @@ class TlBinaryReader(
     limits: TlLimits = TlLimits.DEFAULT,
     private val schema: TlSchemaIdentity = DEFAULT_SCHEMA,
 ) : TlReader {
-    private val source = bytes.copyOf()
-    private val end = minOf(source.size, limits.maxObjectBytes)
+    private val source = validatedCopy(bytes, limits, schema, absoluteStart)
+    private val end = source.size
     private var position = 0
     private val maxBytes = limits.maxObjectBytes
     private val maxVectorElements = limits.maxVectorElements
-
-    init {
-        if (source.size > limits.maxObjectBytes) {
-            throw TlLimitExceededException(
-                schema = schema,
-                limitKind = TlLimitKind.OBJECT_BYTES,
-                configuredMaximum = limits.maxObjectBytes,
-                observedValue = source.size,
-                absoluteOffset = absoluteStart,
-            )
-        }
-    }
 
     override val absoluteOffset: Long get() = absoluteStart + position
     override val size: Long get() = (end - position).toLong()
@@ -129,6 +117,24 @@ class TlBinaryReader(
         IllegalArgumentException("$detail at offset $absoluteOffset for $schema")
 
     private companion object {
+        fun validatedCopy(
+            bytes: ByteArray,
+            limits: TlLimits,
+            schema: TlSchemaIdentity,
+            absoluteStart: Long,
+        ): ByteArray {
+            if (bytes.size > limits.maxObjectBytes) {
+                throw TlLimitExceededException(
+                    schema = schema,
+                    limitKind = TlLimitKind.OBJECT_BYTES,
+                    configuredMaximum = limits.maxObjectBytes,
+                    observedValue = bytes.size,
+                    absoluteOffset = absoluteStart,
+                )
+            }
+            return bytes.copyOf()
+        }
+
         val UTF8 = Charsets.UTF_8
         const val TRUE_ID = 0x997275b5u
         const val FALSE_ID = 0xbc799737u

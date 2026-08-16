@@ -9,6 +9,9 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.mtproto.tl.generated.transport.DestroyAuthKeyNone
 import org.monogram.mtproto.tl.generated.transport.DestroyAuthKeyNoneCodec
+import org.monogram.mtproto.tl.generated.transport.FutureSalt_0cbddf76ed
+import org.monogram.mtproto.tl.generated.transport.FutureSalt_0cbddf76edCodec
+import org.monogram.mtproto.tl.generated.transport.FutureSalt_d07b700fe3BoxedCodec
 import org.monogram.mtproto.tl.generated.transport.registry.TransportConstructorRegistry
 import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.tl.runtime.TlDecodeContext
@@ -61,6 +64,19 @@ class TlBinaryRuntimePropertyTest {
             TlBinaryCodec.decodeObject(TransportConstructorRegistry, encoded, cloudContext)
         }
         assertEquals(0L, mismatch.absoluteOffset)
+    }
+
+    @Test
+    fun `generated fields boxed family and vectors round trip through binary runtime`() {
+        val first = FutureSalt_0cbddf76ed(1, 2, 3L)
+        val second = FutureSalt_0cbddf76ed(-4, 5, Long.MIN_VALUE)
+        assertEquals(first, TlBinaryCodec.decode(FutureSalt_0cbddf76edCodec, TlBinaryCodec.encode(FutureSalt_0cbddf76edCodec, first), context))
+        assertEquals(first, TlBinaryCodec.decode(FutureSalt_d07b700fe3BoxedCodec, TlBinaryCodec.encode(FutureSalt_d07b700fe3BoxedCodec, first), context))
+
+        val vectorWriter = TlBinaryWriter()
+        vectorWriter.writeVector(listOf(first, second), FutureSalt_0cbddf76edCodec)
+        val decoded = TlBinaryReader(vectorWriter.toByteArray()).readVector(FutureSalt_0cbddf76edCodec, context)
+        assertEquals(listOf(first, second), decoded)
     }
 
     @Test

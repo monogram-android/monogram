@@ -12,6 +12,18 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InvokeAfterMsgCodec
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.CancelPasswordEmail
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.CancelPasswordEmailResultCodec
 import org.monogram.mtproto.tl.generated.cloud.layer223.registry.CloudLayer223ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer8.registry.SecretLayer8ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer17.registry.SecretLayer17ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer20.registry.SecretLayer20ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer23.registry.SecretLayer23ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer45.registry.SecretLayer45ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer46.registry.SecretLayer46ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer66.registry.SecretLayer66ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer73.registry.SecretLayer73ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer101.registry.SecretLayer101ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer143.registry.SecretLayer143ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer144.registry.SecretLayer144ConstructorRegistry
+import org.monogram.mtproto.tl.generated.secret.layer216.registry.SecretLayer216ConstructorRegistry
 import org.monogram.mtproto.tl.generated.transport.DestroyAuthKeyNone
 import org.monogram.mtproto.tl.generated.transport.DestroyAuthKeyNoneCodec
 import org.monogram.mtproto.tl.generated.transport.FutureSalt_0cbddf76ed
@@ -27,6 +39,7 @@ import org.monogram.mtproto.tl.generated.secret.layer143.DocumentAttributeAudio
 import org.monogram.mtproto.tl.generated.secret.layer143.DocumentAttributeAudioCodec
 import org.monogram.mtproto.tl.generated.secret.layer143.DocumentAttributeBoxedCodec
 import org.monogram.mtproto.tl.runtime.TlBytes
+import org.monogram.mtproto.tl.runtime.TlConstructorRegistry
 import org.monogram.mtproto.tl.runtime.TlDecodeContext
 import org.monogram.mtproto.tl.runtime.TlLimitExceededException
 import org.monogram.mtproto.tl.runtime.TlLimitKind
@@ -189,6 +202,40 @@ class TlBinaryRuntimePropertyTest {
 
         val encodedResult = TlBinaryCodec.encode(request.resultCodec, true)
         assertEquals(true, TlBinaryCodec.decode(request.resultCodec, encodedResult, cloudContext))
+    }
+
+    @Test
+    fun `all generated schema registries dispatch through binary runtime`() {
+        val registries: List<TlConstructorRegistry> = listOf(
+            CloudLayer223ConstructorRegistry,
+            TransportConstructorRegistry,
+            SecretLayer8ConstructorRegistry,
+            SecretLayer17ConstructorRegistry,
+            SecretLayer20ConstructorRegistry,
+            SecretLayer23ConstructorRegistry,
+            SecretLayer45ConstructorRegistry,
+            SecretLayer46ConstructorRegistry,
+            SecretLayer66ConstructorRegistry,
+            SecretLayer73ConstructorRegistry,
+            SecretLayer101ConstructorRegistry,
+            SecretLayer143ConstructorRegistry,
+            SecretLayer144ConstructorRegistry,
+            SecretLayer216ConstructorRegistry,
+        )
+        assertEquals(14, registries.size)
+        assertEquals(14, registries.map { it.schema }.toSet().size)
+
+        val unknownId = UInt.MAX_VALUE
+        val encoded = TlBinaryWriter().apply { writeInt(unknownId.toInt()) }.toByteArray()
+        registries.forEach { registry ->
+            val registryContext = TlDecodeContext(registry.schema, 0, TlLimits.DEFAULT)
+            val failure = assertThrows(TlUnknownConstructorException::class.java) {
+                TlBinaryCodec.decodeObject(registry, encoded, registryContext)
+            }
+            assertEquals(registry.schema, failure.schema)
+            assertEquals(unknownId, failure.constructorId)
+            assertEquals(0L, failure.absoluteOffset)
+        }
     }
 
     @Test

@@ -39,14 +39,17 @@ class TlBinaryWriter(private val limits: TlLimits = TlLimits.DEFAULT) : TlWriter
     fun toByteArray(): ByteArray = output.toByteArray()
 
     private fun writeByteString(value: ByteArray) {
-        require(value.size <= limits.maxObjectBytes) { "TL bytes exceed configured object limit" }
+        require(value.size <= MAX_LONG_BYTES) { "TL bytes exceed the 24-bit wire length" }
         val short = value.size < 254
+        val prefix = if (short) 1 else 4
+        val padding = (4 - (prefix + value.size) % 4) % 4
+        val encodedSize = prefix + value.size + padding
+        require(output.size() <= limits.maxObjectBytes - encodedSize) { "TL bytes exceed configured object limit" }
         if (short) writeRaw(byteArrayOf(value.size.toByte())) else {
             writeRaw(byteArrayOf(254.toByte(), (value.size and 0xff).toByte(), (value.size ushr 8 and 0xff).toByte(), (value.size ushr 16 and 0xff).toByte()))
         }
         writeRaw(value)
-        val prefix = if (short) 1 else 4
-        repeat((4 - (prefix + value.size) % 4) % 4) { writeRaw(byteArrayOf(0)) }
+        repeat(padding) { writeRaw(byteArrayOf(0)) }
     }
 
     private fun writeLittleEndian(bytes: Int, fill: ByteBuffer.() -> Unit) {
@@ -63,5 +66,6 @@ class TlBinaryWriter(private val limits: TlLimits = TlLimits.DEFAULT) : TlWriter
         const val TRUE_ID = 0x997275b5u
         const val FALSE_ID = 0xbc799737u
         const val VECTOR_ID = 0x1cb5c415u
+        const val MAX_LONG_BYTES = 0x00ffffff
     }
 }

@@ -89,10 +89,12 @@ class TlBinaryReader(
 
     private fun readByteString(context: TlDecodeContext): ByteArray {
         val first = readRaw(1)[0].toInt() and 0xff
+        require(first != 255) { "Invalid TL bytes length marker" }
         val length = if (first < 254) first else {
             val raw = readRaw(3)
             (raw[0].toInt() and 0xff) or ((raw[1].toInt() and 0xff) shl 8) or ((raw[2].toInt() and 0xff) shl 16)
         }
+        require(first < 254 || length >= 254) { "Non-canonical TL bytes length prefix" }
         if (length > maxBytes) throw TlLimitExceededException(context.schema, TlLimitKind.OBJECT_BYTES, maxBytes, length, absoluteOffset)
         val padding = (4 - ((if (first < 254) 1 else 4) + length) % 4) % 4
         val value = readRaw(length)

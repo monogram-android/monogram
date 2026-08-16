@@ -84,6 +84,12 @@ class TlBinaryCodecTest {
         val badPadding = byteArrayOf(1, 42, 1, 0)
         assertThrows(IllegalArgumentException::class.java) { TlBinaryReader(badPadding).readBytes(context) }
 
+        val marker255 = byteArrayOf(0xff.toByte(), 0, 0, 0)
+        assertThrows(IllegalArgumentException::class.java) { TlBinaryReader(marker255).readBytes(context) }
+
+        val nonCanonicalLongLength = byteArrayOf(0xfe.toByte(), 1, 0, 0, 42, 0, 0, 0)
+        assertThrows(IllegalArgumentException::class.java) { TlBinaryReader(nonCanonicalLongLength).readBytes(context) }
+
         val badBool = byteArrayOf(1, 2, 3, 4)
         assertThrows(IllegalArgumentException::class.java) { TlBinaryReader(badBool).readBool(context) }
 
@@ -103,6 +109,12 @@ class TlBinaryCodecTest {
         val writer = TlBinaryWriter(limits)
         writer.writeInt(1)
         assertThrows(IllegalArgumentException::class.java) { writer.writeInt(2) }
+
+        val atomicWriter = TlBinaryWriter(limits)
+        assertThrows(IllegalArgumentException::class.java) {
+            atomicWriter.writeBytes(org.monogram.mtproto.tl.runtime.TlBytes.copyOf(ByteArray(4)))
+        }
+        assertEquals(0, atomicWriter.toByteArray().size)
     }
 
     @Test

@@ -273,7 +273,7 @@ class TlRegistryEmitter {
         "TlSchemaIdentity(TlSchemaKind.${plan.schemaKey.kind.name}, ${plan.schemaKey.layer ?: "null"})"
 
     private fun unknownExpression(id: String): String =
-        "throw TlUnknownConstructorException(context.schema, $id, reader.absoluteOffset)"
+        "throw TlUnknownConstructorException(context.schema, $id, reader.absoluteOffset - Int.SIZE_BYTES)"
 
     private fun unsupportedEncodeExpression(kind: String, value: String): String =
         "throw IllegalArgumentException(\"No generated $kind codec for schema \$schema and ID \${$value.constructorId}\")"

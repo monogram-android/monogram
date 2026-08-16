@@ -34,6 +34,7 @@ import org.monogram.mtproto.tl.runtime.TlLimits
 import org.monogram.mtproto.tl.runtime.TlSchemaIdentity
 import org.monogram.mtproto.tl.runtime.TlSchemaKind
 import org.monogram.mtproto.tl.runtime.TlSchemaMismatchException
+import org.monogram.mtproto.tl.runtime.TlUnknownConstructorException
 
 class TlBinaryRuntimePropertyTest {
     private val transport = TlSchemaIdentity(TlSchemaKind.TRANSPORT, null)
@@ -77,6 +78,16 @@ class TlBinaryRuntimePropertyTest {
             TlBinaryCodec.decodeObject(TransportConstructorRegistry, encoded, cloudContext)
         }
         assertEquals(0L, mismatch.absoluteOffset)
+
+        val unknownBytes = byteArrayOf(1, 2, 3, 4)
+        val registryFailure = assertThrows(TlUnknownConstructorException::class.java) {
+            TlBinaryCodec.decodeObject(TransportConstructorRegistry, unknownBytes, context)
+        }
+        val codecFailure = assertThrows(TlUnknownConstructorException::class.java) {
+            TlBinaryCodec.decode(DestroyAuthKeyNoneCodec, unknownBytes, context)
+        }
+        assertEquals(0L, registryFailure.absoluteOffset)
+        assertEquals(codecFailure.absoluteOffset, registryFailure.absoluteOffset)
     }
 
     @Test

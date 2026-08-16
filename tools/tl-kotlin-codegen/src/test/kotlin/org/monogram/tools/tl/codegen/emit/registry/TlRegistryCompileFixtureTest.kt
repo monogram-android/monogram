@@ -76,7 +76,7 @@ class TlRegistryCompileFixtureTest {
             assertEquals(73L, mismatch.absoluteOffset)
             assertEquals(0, mismatchReader.readAttempts)
 
-            val unknownReader = NoConsumptionReader(88L)
+            val unknownReader = NoConsumptionReader(92L)
             val unknown = assertThrows(TlUnknownConstructorException::class.java) {
                 registry.decode(UInt.MAX_VALUE, unknownReader, TlDecodeContext(cloud, 0, TlLimits.DEFAULT))
             }

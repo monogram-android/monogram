@@ -74,7 +74,11 @@ class TlRegistryGeneratorTest {
             val genericStart = "    fun <R> decodeMethod("
             val genericBody = source.substring(source.indexOf(genericStart)).substringAfter("): TlMethod<R> {")
             assertTrue(genericBody.trimStart().startsWith("if (schema != context.schema)"))
-            assertTrue(source.contains("TlUnknownConstructorException(context.schema, id, reader.absoluteOffset)"))
+            assertTrue(
+                source.contains(
+                    "TlUnknownConstructorException(context.schema, id, reader.absoluteOffset - Int.SIZE_BYTES)",
+                ),
+            )
         }
         val unsigned = codecs.plan.declarationCodecs.first { it.constructorId > Int.MAX_VALUE.toUInt() }
         val schemaSource = registries.files.single { file ->

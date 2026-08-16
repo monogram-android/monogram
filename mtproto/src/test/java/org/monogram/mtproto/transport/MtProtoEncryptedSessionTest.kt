@@ -149,6 +149,15 @@ class MtProtoEncryptedSessionTest {
                     EncryptedMessageCodec.SERVER_X,
                 )
             }
+            assertThrows(IllegalArgumentException::class.java) {
+                EncryptedMessageCodec.encode(
+                    authKey,
+                    MtProtoEncryptedMessageMetadata(0L, 1L, 4L, 0),
+                    ByteArray(16_777_144),
+                    CounterEntropy(),
+                    EncryptedMessageCodec.CLIENT_X,
+                )
+            }
         } finally {
             authKey.close()
         }

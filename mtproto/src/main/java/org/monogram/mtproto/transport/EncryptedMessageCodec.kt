@@ -172,7 +172,8 @@ internal object EncryptedMessageCodec {
     private const val OUTER_HEADER_BYTES = 8 + MESSAGE_KEY_BYTES
     private const val PLAINTEXT_HEADER_BYTES = 8 + 8 + 8 + 4 + 4
     private const val MIN_BODY_BYTES = 4
-    private const val MAX_BODY_BYTES = 16 * 1024 * 1024
+    // Leaves room for the encrypted envelope while staying below intermediate transport's 24-bit limit.
+    private const val MAX_BODY_BYTES = 16_777_140
     private const val MIN_PADDING_BYTES = 12
     private const val MAX_PADDING_BYTES = 1024
     private const val MIN_PACKET_BYTES = OUTER_HEADER_BYTES + BLOCK_BYTES * 3

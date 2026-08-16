@@ -85,5 +85,6 @@ tasks.matching { it.name == "check" }.configureEach {
 
 dependencies {
     add(tlKotlinCodegenClasspath.name, project(":tools:tl-kotlin-codegen"))
+    implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit)
 }

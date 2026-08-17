@@ -6,6 +6,7 @@ import org.monogram.domain.repository.AuthCodeDelivery
 import org.monogram.domain.repository.AuthCodeInputKind
 import org.monogram.domain.repository.AuthStep
 import org.monogram.mtproto.auth.MtProtoAuthorizationApi
+import org.monogram.mtproto.auth.MtProtoPasswordChallengeInfo
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeType
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeTypeCall
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeTypeFlashCall
@@ -29,6 +30,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSms
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSmsPhrase
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSmsWord
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_f9e8fc1d16
+import org.monogram.mtproto.transport.MtProtoRpcException
 
 internal class MtProtoPhoneAuthSession(
     private val api: MtProtoAuthorizationApi,
@@ -65,7 +67,32 @@ internal class MtProtoPhoneAuthSession(
         val hash = phoneCodeHash ?: error("No phone code is available")
         check(state is AuthStep.InputCode) { "Phone code is not expected" }
         require(code.isNotBlank()) { "code must not be blank" }
-        return when (val authorization = api.signIn(phone, hash, code)) {
+        return try {
+            when (val authorization = api.signIn(phone, hash, code)) {
+                is org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3 -> {
+                    markReady()
+                    state
+                }
+                is AuthorizationSignUpRequired -> throw UnsupportedOperationException("MTProto signup is not implemented")
+                else -> throw IllegalStateException("Unsupported MTProto authorization result: ${authorization.constructorId}")
+            }
+        } catch (rpc: MtProtoRpcException) {
+            if (rpc.errorCode != 400 || rpc.rpcMessage != SESSION_PASSWORD_NEEDED) throw rpc
+            val challenge = api.getPasswordChallengeInfo()
+            phoneNumber = null
+            phoneCodeHash = null
+            state = AuthStep.InputPassword(
+                passwordHint = challenge.hint,
+                hasRecoveryEmail = challenge.hasRecoveryEmail,
+            )
+            state
+        }
+    }
+
+    suspend fun submitPassword(password: String): AuthStep = mutex.withLock {
+        check(state is AuthStep.InputPassword) { "Password is not expected" }
+        require(password.isNotBlank()) { "password must not be blank" }
+        when (val authorization = api.checkPassword(password)) {
             is org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3 -> {
                 markReady()
                 state
@@ -158,5 +185,9 @@ internal class MtProtoPhoneAuthSession(
         phoneNumber = null
         phoneCodeHash = null
         state = AuthStep.Ready
+    }
+
+    private companion object {
+        const val SESSION_PASSWORD_NEEDED = "SESSION_PASSWORD_NEEDED"
     }
 }

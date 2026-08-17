@@ -13,6 +13,7 @@ import org.monogram.domain.repository.AuthCodeDelivery
 import org.monogram.domain.repository.AuthCodeInputKind
 import org.monogram.domain.repository.AuthStep
 import org.monogram.mtproto.auth.MtProtoAuthorizationApi
+import org.monogram.mtproto.auth.MtProtoPasswordChallengeInfo
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_3f851bba91
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_fb610807ca
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3
@@ -25,6 +26,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSmsWord
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSms
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_f9e8fc1d16
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_250764ccd9
+import org.monogram.mtproto.transport.MtProtoRpcException
 
 class MtProtoPhoneAuthSessionTest {
     @Test
@@ -95,6 +97,38 @@ class MtProtoPhoneAuthSessionTest {
     }
 
     @Test
+    fun mapsPasswordNeededToInputPasswordAndSubmitsPassword() = runBlocking {
+        val authorization = Authorization_d8660c55a3(false, null, null, null, fakeUser())
+        val api = FakeApi(
+            sentCodes = ArrayDeque(listOf(SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0))),
+            signInError = MtProtoRpcException(400, "SESSION_PASSWORD_NEEDED"),
+            passwordInfo = MtProtoPasswordChallengeInfo("secret", true),
+            passwordAuthorization = authorization,
+        )
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+
+        session.requestCode("+1")
+        assertEquals(AuthStep.InputPassword("secret", true), session.submitCode("12345"))
+        assertEquals(AuthStep.Ready, session.submitPassword("password"))
+    }
+
+    @Test
+    fun preservesPasswordStateWhenPasswordIsRejected() = runBlocking {
+        val api = FakeApi(
+            sentCodes = ArrayDeque(listOf(SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0))),
+            signInError = MtProtoRpcException(400, "SESSION_PASSWORD_NEEDED"),
+            passwordInfo = MtProtoPasswordChallengeInfo("secret", false),
+            passwordError = MtProtoRpcException(400, "PASSWORD_HASH_INVALID"),
+        )
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+
+        session.requestCode("+1")
+        val passwordState = session.submitCode("12345")
+        assertThrows(MtProtoRpcException::class.java) { runBlocking { session.submitPassword("bad") } }
+        assertEquals(passwordState, session.currentState())
+    }
+
+    @Test
     fun mapsTextCodesAndPreservesPriorStateAfterUnsupportedResponse() = runBlocking {
         val api = FakeApi(sentCodes = ArrayDeque(listOf(
             SentCode_f9e8fc1d16(SentCodeTypeSmsWord("word"), "hash-1", CodeTypeSms, 10),
@@ -146,6 +180,12 @@ class MtProtoPhoneAuthSessionTest {
                 phoneCodeHash: String,
                 phoneCode: String,
             ): Authorization_fb75ff221f = error("Unexpected sign-in")
+
+            override suspend fun getPasswordChallengeInfo(): MtProtoPasswordChallengeInfo =
+                error("Unexpected password challenge")
+
+            override suspend fun checkPassword(password: String): Authorization_fb75ff221f =
+                error("Unexpected password check")
         }
         val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
 
@@ -171,6 +211,10 @@ class MtProtoPhoneAuthSessionTest {
     private class FakeApi(
         private val sentCodes: ArrayDeque<SentCode_250764ccd9> = ArrayDeque(),
         private val authorization: Authorization_fb75ff221f? = null,
+        private val signInError: Throwable? = null,
+        private val passwordInfo: MtProtoPasswordChallengeInfo? = null,
+        private val passwordAuthorization: Authorization_fb75ff221f? = null,
+        private val passwordError: Throwable? = null,
     ) : MtProtoAuthorizationApi {
         var lastHash: String? = null
         var lastPhone: String? = null
@@ -187,7 +231,16 @@ class MtProtoPhoneAuthSessionTest {
         override suspend fun signIn(phoneNumber: String, phoneCodeHash: String, phoneCode: String): Authorization_fb75ff221f {
             lastPhone = phoneNumber
             lastHash = phoneCodeHash
+            signInError?.let { throw it }
             return authorization ?: error("No authorization result")
+        }
+
+        override suspend fun getPasswordChallengeInfo(): MtProtoPasswordChallengeInfo =
+            passwordInfo ?: error("No password challenge")
+
+        override suspend fun checkPassword(password: String): Authorization_fb75ff221f {
+            passwordError?.let { throw it }
+            return passwordAuthorization ?: error("No password authorization")
         }
     }
 }

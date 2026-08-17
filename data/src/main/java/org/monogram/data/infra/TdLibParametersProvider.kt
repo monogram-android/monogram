@@ -1,16 +1,16 @@
 package org.monogram.data.infra
 
 import android.content.Context
-import android.os.Build
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.BuildConfig
 import java.io.File
-import java.util.Locale
 
 class TdLibParametersProvider(
-    private val context: Context
+    private val context: Context,
+    private val metadataProvider: TelegramClientMetadataProvider = TelegramClientMetadataProvider(context),
 ) {
     fun create(): TdApi.SetTdlibParameters {
+        val metadata = metadataProvider.create()
         val tdMediaCacheDir = File(context.externalCacheDir ?: context.cacheDir, "tdlib/files")
         val tdDbDir = File(context.filesDir, "td-db")
 
@@ -20,10 +20,10 @@ class TdLibParametersProvider(
             databaseEncryptionKey = byteArrayOf()
             apiId = BuildConfig.API_ID
             apiHash = BuildConfig.API_HASH
-            systemLanguageCode = Locale.getDefault().language
-            deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}"
-            systemVersion = Build.VERSION.RELEASE
-            applicationVersion = resolveAppVersion()
+            systemLanguageCode = metadata.systemLanguageCode
+            deviceModel = metadata.deviceModel
+            systemVersion = metadata.systemVersion
+            applicationVersion = metadata.applicationVersion
             useMessageDatabase = true
             useFileDatabase = true
             useChatInfoDatabase = true
@@ -31,11 +31,4 @@ class TdLibParametersProvider(
         }
     }
 
-    private fun resolveAppVersion(): String {
-        return try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
-        } catch (_: Exception) {
-            "1.0"
-        }
-    }
 }

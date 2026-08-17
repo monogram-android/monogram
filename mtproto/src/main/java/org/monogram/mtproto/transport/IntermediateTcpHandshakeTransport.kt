@@ -19,12 +19,14 @@ import org.monogram.mtproto.tl.runtime.TlObject
 import org.monogram.mtproto.tl.runtime.TlSchemaIdentity
 import org.monogram.mtproto.tl.runtime.TlSchemaKind
 
+interface MtProtoHandshakeConnection : MtProtoHandshakeTransport, AutoCloseable
+
 class IntermediateTcpHandshakeTransport(
     private val host: String,
     private val port: Int,
     private val connectTimeoutMillis: Int = 10_000,
     private val readTimeoutMillis: Int = 15_000,
-) : MtProtoHandshakeTransport, AutoCloseable {
+) : MtProtoHandshakeConnection {
     private val requestMutex = Mutex()
     private val messageIds = ClientMessageIdGenerator()
     private val stateLock = Any()

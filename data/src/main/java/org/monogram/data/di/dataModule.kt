@@ -79,6 +79,7 @@ import org.monogram.data.infra.FileUpdateQueue
 import org.monogram.data.infra.NetworkSnapshotProvider
 import org.monogram.data.infra.OfflineWarmup
 import org.monogram.data.infra.SponsorSyncManager
+import org.monogram.data.infra.TelegramClientMetadataProvider
 import org.monogram.data.infra.TdLibParametersProvider
 import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.CustomEmojiLoader
@@ -97,6 +98,10 @@ import org.monogram.data.mtproto.MtProtoAuthKeyPersistence
 import org.monogram.data.mtproto.MtProtoAuthKeyEstablisher
 import org.monogram.data.mtproto.MtProtoAuthKeySessionBootstrap
 import org.monogram.data.mtproto.MtProtoAuthKeyStore
+import org.monogram.data.mtproto.MtProtoAuthKeyLoader
+import org.monogram.data.mtproto.TelegramMtProtoBootstrapConfigProvider
+import org.monogram.data.mtproto.TelegramMtProtoBootstrapConfigSource
+import org.monogram.data.mtproto.TelegramMtProtoSessionFactory
 import org.monogram.data.notifications.NotificationMuteResolver
 import org.monogram.data.push.PushProcessingCoordinator
 import org.monogram.data.push.PushSyncRequester
@@ -202,6 +207,7 @@ val dataModule = module {
     single(createdAtStart = true) { TdLibClient() }
 
     single<DispatcherProvider> { DefaultDispatcherProvider() }
+    single { TelegramClientMetadataProvider(androidContext()) }
     single<StringProvider> { AndroidStringProvider(androidContext()) }
     single<MtProtoAuthKeyStore> { AndroidMtProtoAuthKeyStore(androidContext()) }
     single { MtProtoAuthKeyPersistence(get()) }
@@ -209,7 +215,14 @@ val dataModule = module {
         MtProtoAuthKeyEstablisher { transport, config -> MtProtoAuthHandshake().execute(transport, config) }
     }
     single { MtProtoAuthKeySessionBootstrap(get(), get()) }
-    single(createdAtStart = true) { TdLibParametersProvider(androidContext()) }
+    single<MtProtoAuthKeyLoader> {
+        MtProtoAuthKeyLoader { scope, transport, config ->
+            get<MtProtoAuthKeySessionBootstrap>().loadOrEstablish(scope, transport, config)
+        }
+    }
+    single<TelegramMtProtoBootstrapConfigSource> { TelegramMtProtoBootstrapConfigProvider(get()) }
+    single { TelegramMtProtoSessionFactory(get(), get()) }
+    single(createdAtStart = true) { TdLibParametersProvider(androidContext(), get()) }
     single(createdAtStart = true) {
         OfflineWarmup(
             scope = get(),

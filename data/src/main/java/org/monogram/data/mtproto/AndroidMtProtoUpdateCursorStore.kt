@@ -42,7 +42,6 @@ internal class AndroidMtProtoUpdateCursorStore(context: Context) : MtProtoUpdate
                         bytes.fill(0)
                     }
                 } catch (_: Exception) {
-                    file.delete()
                     MtProtoUpdateCursorLoadResult.Corrupt
                 }
             }

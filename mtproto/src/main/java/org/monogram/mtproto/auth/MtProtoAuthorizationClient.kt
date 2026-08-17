@@ -8,11 +8,24 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_250764ccd9
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SignIn
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 
+interface MtProtoAuthorizationApi {
+    suspend fun sendCode(
+        phoneNumber: String,
+        settings: CodeSettings_fb610807ca,
+        apiId: Int,
+        apiHash: String,
+    ): SentCode_250764ccd9
+
+    suspend fun resendCode(phoneNumber: String, phoneCodeHash: String, reason: String? = null): SentCode_250764ccd9
+
+    suspend fun signIn(phoneNumber: String, phoneCodeHash: String, phoneCode: String): Authorization_fb75ff221f
+}
+
 /** Typed cloud-auth requests over an already initialized MTProto RPC transport. */
 class MtProtoAuthorizationClient(
     private val transport: MtProtoRpcTransport,
-) {
-    suspend fun sendCode(
+) : MtProtoAuthorizationApi {
+    override suspend fun sendCode(
         phoneNumber: String,
         settings: CodeSettings_fb610807ca,
         apiId: Int,
@@ -24,17 +37,17 @@ class MtProtoAuthorizationClient(
         return transport.execute(SendCode(phoneNumber, apiId, apiHash, settings))
     }
 
-    suspend fun resendCode(
+    override suspend fun resendCode(
         phoneNumber: String,
         phoneCodeHash: String,
-        reason: String? = null,
+        reason: String?,
     ): SentCode_250764ccd9 {
         require(phoneNumber.isNotBlank()) { "phoneNumber must not be blank" }
         require(phoneCodeHash.isNotBlank()) { "phoneCodeHash must not be blank" }
         return transport.execute(ResendCode(phoneNumber, phoneCodeHash, reason))
     }
 
-    suspend fun signIn(
+    override suspend fun signIn(
         phoneNumber: String,
         phoneCodeHash: String,
         phoneCode: String,

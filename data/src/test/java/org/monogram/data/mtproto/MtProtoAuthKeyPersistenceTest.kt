@@ -104,6 +104,30 @@ class MtProtoAuthKeyPersistenceTest {
     }
 
     @Test
+    fun bootstrapDeletesCorruptRecordBeforeEstablishing() = runBlocking {
+        val store = FakeStore().apply { corrupt = true }
+        val persistence = MtProtoAuthKeyPersistence(store)
+        var establishes = 0
+        val bootstrap = MtProtoAuthKeySessionBootstrap(
+            persistence,
+            MtProtoAuthKeyEstablisher { _, _ ->
+                establishes++
+                authKey()
+            },
+        )
+        val scope = MtProtoAuthKeyScope("default", MtProtoEnvironment.PRODUCTION, 2)
+        val result = bootstrap.loadOrEstablish(scope, UNUSED_TRANSPORT, config())
+        try {
+            assertEquals(MtProtoAuthKeySource.ESTABLISHED, result.source)
+            assertEquals(1, establishes)
+            assertEquals(1, store.deleteCalls)
+        } finally {
+            result.authKey.close()
+            store.close()
+        }
+    }
+
+    @Test
     fun bootstrapClosesNewKeyWhenPersistenceFails() {
         val store = FakeStore().apply { failSave = true }
         lateinit var established: MtProtoAuthKey
@@ -127,6 +151,7 @@ class MtProtoAuthKeyPersistenceTest {
         private var stored: StoredMtProtoAuthKey? = null
         var corrupt = false
         var failSave = false
+        var deleteCalls = 0
 
         override suspend fun load(scope: MtProtoAuthKeyScope): MtProtoAuthKeyLoadResult {
             if (corrupt) return MtProtoAuthKeyLoadResult.Corrupt
@@ -153,6 +178,7 @@ class MtProtoAuthKeyPersistenceTest {
         }
 
         override suspend fun delete(scope: MtProtoAuthKeyScope) {
+            deleteCalls++
             stored?.close()
             stored = null
         }

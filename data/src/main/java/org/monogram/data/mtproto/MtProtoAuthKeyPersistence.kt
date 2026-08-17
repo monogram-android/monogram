@@ -89,9 +89,8 @@ internal class MtProtoAuthKeySessionBootstrap(
                 persisted.authKey,
                 MtProtoAuthKeySource.STORED,
             )
-            PersistedMtProtoAuthKeyResult.Missing,
-            PersistedMtProtoAuthKeyResult.Corrupt,
-            -> Unit
+            PersistedMtProtoAuthKeyResult.Missing -> Unit
+            PersistedMtProtoAuthKeyResult.Corrupt -> persistence.delete(scope)
         }
         val established = establisher.establish(transport, config)
         try {

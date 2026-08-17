@@ -23,6 +23,9 @@ import org.monogram.mtproto.codec.TlBinaryWriter
 import org.monogram.mtproto.crypto.EntropySource
 import org.monogram.mtproto.crypto.MtProtoKeyDerivation
 import org.monogram.mtproto.handshake.MtProtoAuthKey
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShortSentMessage
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
+import org.monogram.mtproto.tl.generated.cloud.layer223.registry.CloudLayer223ConstructorRegistry
 import org.monogram.mtproto.tl.generated.transport.BadServerSalt
 import org.monogram.mtproto.tl.generated.transport.Message_48a7e89a1b
 import org.monogram.mtproto.tl.generated.transport.MsgContainer
@@ -38,28 +41,150 @@ import org.monogram.mtproto.tl.runtime.TlLimits
 
 class IntermediateTcpEncryptedTransportTest {
     @Test
-    fun cancellationClosesBlockedSocketAndNextCallReconnects() {
+    fun disconnectsWithoutAcknowledgingUnsupportedAuthenticatedObject() {
+        ServerSocket(0).use { server ->
+            val clientAuth = authKey()
+            val serverAuth = authKey()
+            val session = MtProtoEncryptedSession(clientAuth, CounterEntropy(), NOW_MILLIS)
+            val failure = AtomicReference<Throwable?>()
+            val worker = thread(name = "mtproto-unsupported-object-loopback") {
+                try {
+                    server.accept().use { peer ->
+                        readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, true).close()
+                        val unsupported = encodeObject(Pong_fbc65fe5b1(1L, PING_ID))
+                        try {
+                            writeServerMessage(peer, serverAuth, session.sessionId, serverMessageId(1), 1, unsupported)
+                        } finally {
+                            unsupported.fill(0)
+                        }
+                        assertEquals(-1, peer.getInputStream().read())
+                    }
+                } catch (problem: Throwable) {
+                    failure.set(problem)
+                } finally {
+                    serverAuth.close()
+                }
+            }
+
+            val transport = IntermediateTcpEncryptedTransport(
+                "127.0.0.1",
+                server.localPort,
+                session,
+                TransportConstructorRegistry,
+            )
+            try {
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking { transport.execute(Ping(PING_ID)) }
+                }
+            } finally {
+                transport.close()
+            }
+            worker.join(5_000)
+            assertTrue("Loopback worker did not finish", !worker.isAlive)
+            failure.get()?.let { throw AssertionError("Loopback server failed", it) }
+        }
+    }
+
+    @Test
+    fun retainsUpdatesBeforeResultAndWhileIdleInWireOrder() {
+        ServerSocket(0).use { server ->
+            val clientAuth = authKey()
+            val serverAuth = authKey()
+            val session = MtProtoEncryptedSession(clientAuth, CounterEntropy(), NOW_MILLIS)
+            val rpcReturned = CountDownLatch(1)
+            val failure = AtomicReference<Throwable?>()
+            val worker = thread(name = "mtproto-update-inbox-loopback") {
+                try {
+                    server.accept().use { peer ->
+                        val request = readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, true)
+                        request.use {
+                            val firstUpdate = encodeCloudObject(UpdatesTooLong)
+                            try {
+                                writeServerMessage(peer, serverAuth, session.sessionId, serverMessageId(1), 1, firstUpdate)
+                            } finally {
+                                firstUpdate.fill(0)
+                            }
+                            readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, false).close()
+
+                            val pong = encodeObject(Pong_fbc65fe5b1(request.metadata.messageId, PING_ID))
+                            val result = encodeObject(
+                                RpcResult_f5247d1af6(
+                                    request.metadata.messageId,
+                                    TlDeferredObject.copyOf(pong, TlLimits.DEFAULT.maxObjectBytes),
+                                ),
+                            )
+                            try {
+                                writeServerMessage(peer, serverAuth, session.sessionId, serverMessageId(3), 1, result)
+                            } finally {
+                                pong.fill(0)
+                                result.fill(0)
+                            }
+                            readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, false).close()
+                        }
+
+                        assertTrue(rpcReturned.await(5, TimeUnit.SECONDS))
+                        val idleUpdate = encodeCloudObject(
+                            UpdateShortSentMessage(true, 17, 23, 1, NOW_SECONDS.toInt(), null, null, null),
+                        )
+                        try {
+                            writeServerMessage(peer, serverAuth, session.sessionId, serverMessageId(5), 1, idleUpdate)
+                        } finally {
+                            idleUpdate.fill(0)
+                        }
+                        readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, false).close()
+                    }
+                } catch (problem: Throwable) {
+                    failure.set(problem)
+                } finally {
+                    rpcReturned.countDown()
+                    serverAuth.close()
+                }
+            }
+
+            val transport = IntermediateTcpEncryptedTransport(
+                "127.0.0.1",
+                server.localPort,
+                session,
+                TransportConstructorRegistry,
+            )
+            try {
+                runBlocking {
+                    val call = async(Dispatchers.Default) { transport.execute(Ping(PING_ID)) }
+                    assertEquals(UpdatesTooLong, withTimeout(5_000) { transport.updates.receive() })
+                    val pong = call.await() as Pong_fbc65fe5b1
+                    assertEquals(PING_ID, pong.pingId)
+                    rpcReturned.countDown()
+                    val idle = withTimeout(5_000) { transport.updates.receive() } as UpdateShortSentMessage
+                    assertEquals(17, idle.id)
+                    assertEquals(MtProtoApiUpdateInboxMetrics(2, 2, 0), transport.updates.metrics())
+                }
+            } finally {
+                transport.close()
+            }
+            worker.join(5_000)
+            assertTrue("Loopback worker did not finish", !worker.isAlive)
+            failure.get()?.let { throw AssertionError("Loopback server failed", it) }
+        }
+    }
+
+    @Test
+    fun cancellationAbandonsWaiterAndNextCallReusesConnection() {
         ServerSocket(0).use { server ->
             val clientAuth = authKey()
             val serverAuth = authKey()
             val session = MtProtoEncryptedSession(clientAuth, CounterEntropy(), NOW_MILLIS)
             val firstRequestRead = CountDownLatch(1)
-            val firstConnectionClosed = CountDownLatch(1)
             val failure = AtomicReference<Throwable?>()
             val worker = thread(name = "mtproto-cancellation-loopback") {
                 try {
-                    server.accept().use { firstPeer ->
-                        readClientMessage(firstPeer.getInputStream(), serverAuth, session.sessionId, true).close()
+                    server.accept().use { peer ->
+                        readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, true).close()
                         firstRequestRead.countDown()
-                        assertEquals(-1, firstPeer.getInputStream().read())
-                        firstConnectionClosed.countDown()
-                    }
-                    server.accept().use { secondPeer ->
                         val request = readClientMessage(
-                            secondPeer.getInputStream(),
+                            peer.getInputStream(),
                             serverAuth,
                             session.sessionId,
-                            true,
+                            false,
                         )
                         request.use {
                             val pong = encodeObject(Pong_fbc65fe5b1(request.metadata.messageId, PING_ID))
@@ -71,7 +196,7 @@ class IntermediateTcpEncryptedTransportTest {
                             )
                             try {
                                 writeServerMessage(
-                                    secondPeer,
+                                    peer,
                                     serverAuth,
                                     session.sessionId,
                                     serverMessageId(1),
@@ -83,13 +208,12 @@ class IntermediateTcpEncryptedTransportTest {
                                 result.fill(0)
                             }
                         }
-                        readClientMessage(secondPeer.getInputStream(), serverAuth, session.sessionId, false).close()
+                        readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, false).close()
                     }
                 } catch (problem: Throwable) {
                     failure.set(problem)
                 } finally {
                     firstRequestRead.countDown()
-                    firstConnectionClosed.countDown()
                     serverAuth.close()
                 }
             }
@@ -106,7 +230,6 @@ class IntermediateTcpEncryptedTransportTest {
                     val blocked = async(Dispatchers.Default) { transport.execute(Ping(PING_ID)) }
                     assertTrue(firstRequestRead.await(5, TimeUnit.SECONDS))
                     withTimeout(2_000) { blocked.cancelAndJoin() }
-                    assertTrue(firstConnectionClosed.await(2, TimeUnit.SECONDS))
                     val pong = transport.execute(Ping(PING_ID)) as Pong_fbc65fe5b1
                     assertEquals(PING_ID, pong.pingId)
                 }
@@ -186,7 +309,7 @@ class IntermediateTcpEncryptedTransportTest {
     }
 
     @Test
-    fun decodesContainerUpdatesSaltCorrelatesResultAndAcknowledgesContent() {
+    fun decodesMixedContainerUpdatesSaltCorrelatesResultAndAcknowledgesContent() {
         ServerSocket(0).use { server ->
             val clientAuth = authKey()
             val serverAuth = authKey()
@@ -206,11 +329,13 @@ class IntermediateTcpEncryptedTransportTest {
                                 ),
                             )
                             val created = encodeObject(NewSessionCreated(request.metadata.messageId, 77L, UPDATED_SALT))
+                            val update = encodeCloudObject(UpdatesTooLong)
                             val container = encodeObject(
                                 MsgContainer(
                                     listOf(
                                         nestedMessage(serverMessageId(3), 1, created),
-                                        nestedMessage(serverMessageId(5), 1, rpc),
+                                        nestedMessage(serverMessageId(5), 1, update),
+                                        nestedMessage(serverMessageId(7), 1, rpc),
                                     ),
                                 ),
                             )
@@ -220,6 +345,7 @@ class IntermediateTcpEncryptedTransportTest {
                                 pong.fill(0)
                                 rpc.fill(0)
                                 created.fill(0)
+                                update.fill(0)
                                 container.fill(0)
                             }
                         }
@@ -229,7 +355,15 @@ class IntermediateTcpEncryptedTransportTest {
                             try {
                                 val ack = TlBinaryCodec.decodeObject(TransportConstructorRegistry, body, TRANSPORT_CONTEXT)
                                     as MsgsAck_3546e430bb
-                                assertEquals(listOf(serverMessageId(1), serverMessageId(3), serverMessageId(5)), ack.msgIds)
+                                assertEquals(
+                                    listOf(
+                                        serverMessageId(1),
+                                        serverMessageId(3),
+                                        serverMessageId(5),
+                                        serverMessageId(7),
+                                    ),
+                                    ack.msgIds,
+                                )
                             } finally {
                                 body.fill(0)
                             }
@@ -252,6 +386,7 @@ class IntermediateTcpEncryptedTransportTest {
                 val pong = runBlocking { transport.execute(Ping(PING_ID)) } as Pong_fbc65fe5b1
                 assertEquals(PING_ID, pong.pingId)
                 assertEquals(UPDATED_SALT, session.serverSalt)
+                assertEquals(UpdatesTooLong, runBlocking { withTimeout(5_000) { transport.updates.receive() } })
             } finally {
                 transport.close()
             }
@@ -393,6 +528,9 @@ class IntermediateTcpEncryptedTransportTest {
 
     private fun encodeObject(value: org.monogram.mtproto.tl.runtime.TlObject): ByteArray =
         TlBinaryWriter().also { TransportConstructorRegistry.encode(it, value) }.toByteArray()
+
+    private fun encodeCloudObject(value: org.monogram.mtproto.tl.runtime.TlObject): ByteArray =
+        TlBinaryWriter().also { CloudLayer223ConstructorRegistry.encode(it, value) }.toByteArray()
 
     private fun MtProtoEncryptedMessage.copyBodyAndWipe(): ByteArray {
         val body = copyBody()

@@ -7,18 +7,26 @@ import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.monogram.mtproto.codec.TlBinaryCodec
 import org.monogram.mtproto.codec.TlBinaryWriter
 import org.monogram.mtproto.codec.TlGzip
+import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
+import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5BoxedCodec
 import org.monogram.mtproto.tl.generated.cloud.layer223.registry.CloudLayer223ConstructorRegistry
 import org.monogram.mtproto.tl.generated.transport.BadMsgNotification_96e011accc
 import org.monogram.mtproto.tl.generated.transport.BadServerSalt
@@ -39,6 +47,7 @@ import org.monogram.mtproto.tl.runtime.TlMethodRegistry
 import org.monogram.mtproto.tl.runtime.TlObject
 import org.monogram.mtproto.tl.runtime.TlSchemaIdentity
 import org.monogram.mtproto.tl.runtime.TlSchemaKind
+import org.monogram.mtproto.tl.runtime.TlUnknownConstructorException
 
 interface MtProtoRpcTransport {
     suspend fun <R> execute(method: TlMethod<R>): R
@@ -60,10 +69,15 @@ class IntermediateTcpEncryptedTransport(
 ) : MtProtoRpcTransport, AutoCloseable {
     private val requestMutex = Mutex()
     private val stateLock = Any()
+    private val writeLock = Any()
+    private val readerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var socket: Socket? = null
+    private var readerSocket: Socket? = null
     private var preambleSent = false
     private var closed = false
+    private var pendingRequest: PendingRequest? = null
     private val methodContext = TlDecodeContext(methodRegistry.schema, 0, TlLimits.DEFAULT)
+    val updates = MtProtoApiUpdateInbox()
 
     init {
         require(host.isNotBlank()) { "host must not be blank" }
@@ -73,23 +87,10 @@ class IntermediateTcpEncryptedTransport(
     }
 
     override suspend fun <R> execute(method: TlMethod<R>): R = requestMutex.withLock {
-        supervisorScope {
-            val exchange = async(Dispatchers.IO) { exchange(method) }
-            try {
-                exchange.await()
-            } catch (failure: Throwable) {
-                if (!currentCoroutineContext().isActive) {
-                    throw CancellationException("MTProto RPC was cancelled").apply { initCause(failure) }
-                }
-                throw failure
-            } finally {
-                if (!currentCoroutineContext().isActive) disconnect()
-                withContext(NonCancellable) { exchange.join() }
-            }
-        }
+        exchange(method)
     }
 
-    private fun <R> exchange(method: TlMethod<R>): R {
+    private suspend fun <R> exchange(method: TlMethod<R>): R {
         var saltRetries = 0
         while (true) {
             val requestBody = encodeMethod(method)
@@ -98,11 +99,19 @@ class IntermediateTcpEncryptedTransport(
             } finally {
                 requestBody.fill(0)
             }
+            val completion = CompletableDeferred<RpcOutcome<Any?>>()
+            val pending = PendingRequest(request.metadata, method, completion)
+            synchronized(stateLock) {
+                check(pendingRequest == null) { "Another MTProto RPC request is already pending" }
+                pendingRequest = pending
+            }
             try {
-                writePacket(request.packet)
-                when (val outcome = readOutcome(method, request.metadata)) {
-                    is RpcOutcome.Success -> return outcome.value
-                    RpcOutcome.Continue -> error("readOutcome returned without a terminal result")
+                sendRequest(request.packet)
+                when (val outcome = withTimeout(readTimeoutMillis.toLong()) { completion.await() }) {
+                    is RpcOutcome.Success -> {
+                        @Suppress("UNCHECKED_CAST")
+                        return outcome.value as R
+                    }
                     RpcOutcome.RetrySalt -> {
                         if (saltRetries++ >= MAX_SALT_RETRIES) {
                             throw protocolFailure("Repeated bad_server_salt for one request")
@@ -113,17 +122,69 @@ class IntermediateTcpEncryptedTransport(
                 if (rpc.suppressed.isNotEmpty()) disconnect()
                 throw rpc
             } catch (failure: Throwable) {
-                disconnect()
+                if (failure !is CancellationException) disconnect()
                 throw failure
             } finally {
+                synchronized(stateLock) {
+                    if (pendingRequest === pending) pendingRequest = null
+                }
                 request.packet.fill(0)
             }
         }
     }
 
-    private fun <R> readOutcome(method: TlMethod<R>, request: MtProtoEncryptedMessageMetadata): RpcOutcome<R> {
-        repeat(MAX_SERVICE_ENVELOPES) {
-            val packet = readMessage(connection())
+    private suspend fun sendRequest(packet: ByteArray) = supervisorScope {
+        val write = async(Dispatchers.IO) {
+            val activeSocket = connection()
+            ensureReader(activeSocket)
+            writePacket(packet)
+        }
+        try {
+            write.await()
+        } catch (failure: Throwable) {
+            if (!currentCoroutineContext().isActive) {
+                disconnect()
+                throw CancellationException("MTProto RPC send was cancelled").apply { initCause(failure) }
+            }
+            throw failure
+        } finally {
+            withContext(NonCancellable) { write.join() }
+        }
+    }
+
+    private fun ensureReader(activeSocket: Socket) {
+        val shouldStart = synchronized(stateLock) {
+            check(!closed && socket === activeSocket) { "Transport connection changed before reader startup" }
+            if (readerSocket === activeSocket) false else {
+                readerSocket = activeSocket
+                true
+            }
+        }
+        if (shouldStart) readerScope.launch { readLoop(activeSocket) }
+    }
+
+    private fun readLoop(activeSocket: Socket) {
+        try {
+            while (!activeSocket.isClosed) {
+                readAndDispatch(activeSocket)
+            }
+        } catch (failure: Exception) {
+            val pending = synchronized(stateLock) {
+                if (readerSocket === activeSocket && !closed) {
+                    readerSocket = null
+                    pendingRequest
+                } else {
+                    null
+                }
+            }
+            pending?.completion?.completeExceptionally(failure)
+        } finally {
+            disconnect(activeSocket)
+        }
+    }
+
+    private fun readAndDispatch(activeSocket: Socket) {
+            val packet = readMessage(activeSocket)
             val decoded = try {
                 session.decodeTracked(packet)
             } finally {
@@ -138,7 +199,7 @@ class IntermediateTcpEncryptedTransport(
                 }
                 decoded.message.close()
                 sendAcknowledgements(acknowledgements)
-                return@repeat
+                return
             }
             val body = try {
                 decoded.message.copyBody()
@@ -146,82 +207,81 @@ class IntermediateTcpEncryptedTransport(
                 decoded.message.close()
             }
             val acknowledgements = mutableListOf<Long>()
-            var outcome: RpcOutcome<R>? = null
+            var terminal: TerminalAction? = null
             var processingFailure: Exception? = null
             try {
-                outcome = processBody(method, request, metadata, body, acknowledgements, depth = 0)
+                terminal = processBody(metadata, body, acknowledgements, depth = 0)
             } catch (failure: Exception) {
                 processingFailure = failure
             } finally {
                 body.fill(0)
             }
-            try {
-                sendAcknowledgements(acknowledgements)
-            } catch (acknowledgementFailure: Exception) {
-                processingFailure?.addSuppressed(acknowledgementFailure)
-                throw processingFailure ?: acknowledgementFailure
-            }
             processingFailure?.let { throw it }
-            if (outcome !is RpcOutcome.Continue) return checkNotNull(outcome)
-        }
-        throw protocolFailure("Too many service messages before RPC result")
+            sendAcknowledgements(acknowledgements)
+            terminal?.complete()
     }
 
-    private fun <R> processBody(
-        method: TlMethod<R>,
-        request: MtProtoEncryptedMessageMetadata,
+    private fun processBody(
         metadata: MtProtoEncryptedMessageMetadata,
         body: ByteArray,
         acknowledgements: MutableList<Long>,
         depth: Int,
-    ): RpcOutcome<R> {
+    ): TerminalAction? {
         require(depth <= MAX_CONTAINER_DEPTH) { "MTProto container nesting exceeds the limit" }
         if (metadata.sequenceNumber and 1 == 1) acknowledgements += metadata.messageId
-        return when (val value = decodeTransportObject(body)) {
+        val value = decodeInboundObject(body)
+        return when (value) {
             is RpcResult_f5247d1af6 -> {
-                require(value.reqMsgId == request.messageId) { "RPC result does not match the active request" }
-                RpcOutcome.Success(decodeResult(method, value.result, depth))
+                val pending = pendingFor(value.reqMsgId) ?: return null
+                val result = try {
+                    val result = decodePendingResult(pending, value.result, depth)
+                    RpcOutcome.Success(result)
+                } catch (rpc: MtProtoRpcException) {
+                    return TerminalAction.Failure(pending, rpc)
+                }
+                TerminalAction.Result(pending, result)
             }
-            is MsgContainer -> processContainer(method, request, metadata, value, acknowledgements, depth + 1)
+            is MsgContainer -> processContainer(metadata, value, acknowledgements, depth + 1)
             is GzipPacked -> {
                 val unpacked = TlGzip.decompress(value.packedData, TRANSPORT_CONTEXT).toByteArray()
                 try {
-                    processBody(method, request, metadata, unpacked, acknowledgements, depth + 1)
+                    processBody(metadata, unpacked, acknowledgements, depth + 1)
                 } finally {
                     unpacked.fill(0)
                 }
             }
             is NewSessionCreated -> {
                 session.updateServerSalt(value.serverSalt)
-                RpcOutcome.Continue
+                null
             }
             is BadServerSalt -> {
-                require(value.badMsgId == request.messageId && value.badMsgSeqno == request.sequenceNumber) {
-                    "bad_server_salt does not match the active request"
-                }
+                val pending = pendingFor(value.badMsgId, value.badMsgSeqno) ?: return null
                 session.updateServerSalt(value.newServerSalt)
-                RpcOutcome.RetrySalt
+                TerminalAction.Result(pending, RpcOutcome.RetrySalt)
             }
             is BadMsgNotification_96e011accc -> {
-                require(value.badMsgId == request.messageId && value.badMsgSeqno == request.sequenceNumber) {
-                    "bad_msg_notification does not match the active request"
-                }
-                throw protocolFailure("Server rejected the active request with code ${value.errorCode}")
+                val pending = pendingFor(value.badMsgId, value.badMsgSeqno) ?: return null
+                TerminalAction.Failure(
+                    pending,
+                    protocolFailure("Server rejected the active request with code ${value.errorCode}"),
+                )
             }
-            is MsgsAck_3546e430bb -> RpcOutcome.Continue
+            is MsgsAck_3546e430bb -> null
+            is Updates_faf6aaa3d5 -> {
+                updates.admit(value)
+                null
+            }
             else -> throw protocolFailure("Unsupported MTProto service object ${value.constructorId}")
         }
     }
 
-    private fun <R> processContainer(
-        method: TlMethod<R>,
-        request: MtProtoEncryptedMessageMetadata,
+    private fun processContainer(
         outer: MtProtoEncryptedMessageMetadata,
         container: MsgContainer,
         acknowledgements: MutableList<Long>,
         depth: Int,
-    ): RpcOutcome<R> {
-        var terminal: RpcOutcome<R>? = null
+    ): TerminalAction? {
+        var terminal: TerminalAction? = null
         container.messages.forEach { nested ->
             val nestedMessage = nested as? Message_48a7e89a1b
                 ?: throw protocolFailure("Unsupported message representation in container")
@@ -236,18 +296,30 @@ class IntermediateTcpEncryptedTransport(
                 return@forEach
             }
             val bytes = nestedMessage.body.toByteArray()
-            val outcome = try {
-                processBody(method, request, nestedMetadata, bytes, acknowledgements, depth)
+            val nestedTerminal = try {
+                processBody(nestedMetadata, bytes, acknowledgements, depth)
             } finally {
                 bytes.fill(0)
             }
-            if (outcome !is RpcOutcome.Continue) {
+            if (nestedTerminal != null) {
                 require(terminal == null) { "Container contains multiple terminal RPC outcomes" }
-                terminal = outcome
+                terminal = nestedTerminal
             }
         }
-        return terminal ?: RpcOutcome.Continue
+        return terminal
     }
+
+    private fun pendingFor(messageId: Long, sequenceNumber: Int? = null): PendingRequest? =
+        synchronized(stateLock) {
+            pendingRequest?.takeIf {
+                it.metadata.messageId == messageId &&
+                    (sequenceNumber == null || it.metadata.sequenceNumber == sequenceNumber)
+            }
+        }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun decodePendingResult(pending: PendingRequest, deferred: TlDeferredObject, depth: Int): Any? =
+        decodeResult(pending.method as TlMethod<Any?>, deferred, depth)
 
     private fun <R> decodeResult(method: TlMethod<R>, deferred: TlDeferredObject, depth: Int): R {
         require(depth <= MAX_CONTAINER_DEPTH) { "MTProto result nesting exceeds the limit" }
@@ -278,8 +350,11 @@ class IntermediateTcpEncryptedTransport(
         }
     }
 
-    private fun decodeTransportObject(body: ByteArray): TlObject =
+    private fun decodeInboundObject(body: ByteArray): TlObject = try {
         TlBinaryCodec.decodeObject(TransportConstructorRegistry, body, TRANSPORT_CONTEXT)
+    } catch (_: TlUnknownConstructorException) {
+        TlBinaryCodec.decode(Updates_faf6aaa3d5BoxedCodec, body, CLOUD_CONTEXT)
+    }
 
     private fun encodeMethod(method: TlMethod<*>): ByteArray =
         TlBinaryWriter().also { methodRegistry.encodeMethod(it, method) }.toByteArray()
@@ -301,7 +376,7 @@ class IntermediateTcpEncryptedTransport(
         }
     }
 
-    private fun writePacket(packet: ByteArray) {
+    private fun writePacket(packet: ByteArray) = synchronized(writeLock) {
         val activeSocket = connection()
         val frame = IntermediateTransportFraming.encode(
             packet,
@@ -362,7 +437,7 @@ class IntermediateTcpEncryptedTransport(
         }
         if (activeSocket.isConnected) return activeSocket
         try {
-            activeSocket.soTimeout = readTimeoutMillis
+            activeSocket.soTimeout = 0
             activeSocket.tcpNoDelay = true
             activeSocket.connect(InetSocketAddress(host, port), connectTimeoutMillis)
             synchronized(stateLock) {
@@ -380,22 +455,31 @@ class IntermediateTcpEncryptedTransport(
         }
     }
 
-    private fun disconnect() = synchronized(stateLock) {
-        val current = socket
+    private fun disconnect(expectedSocket: Socket? = null) = synchronized(stateLock) {
+        val current = socket?.takeIf { expectedSocket == null || it === expectedSocket }
+        if (current == null) return@synchronized
         socket = null
+        if (readerSocket === current) readerSocket = null
         preambleSent = false
-        runCatching { current?.close() }
+        runCatching { current.close() }
         Unit
     }
 
     override fun close() {
+        val pending: PendingRequest?
         synchronized(stateLock) {
             closed = true
             val current = socket
             socket = null
+            readerSocket = null
             preambleSent = false
             runCatching { current?.close() }
+            pending = pendingRequest
+            pendingRequest = null
         }
+        pending?.completion?.cancel()
+        readerScope.cancel()
+        updates.close()
         session.close()
     }
 
@@ -406,19 +490,48 @@ class IntermediateTcpEncryptedTransport(
 
     private fun protocolFailure(message: String): IllegalArgumentException = IllegalArgumentException(message)
 
+    private fun TerminalAction.complete() {
+        val completed = when (this) {
+            is TerminalAction.Result -> pending.completion.complete(outcome)
+            is TerminalAction.Failure -> pending.completion.completeExceptionally(failure)
+        }
+        check(completed) { "Active MTProto RPC already has a terminal result" }
+    }
+
     private sealed interface RpcOutcome<out R> {
-        data object Continue : RpcOutcome<Nothing>
         data object RetrySalt : RpcOutcome<Nothing>
         data class Success<R>(val value: R) : RpcOutcome<R>
     }
 
+    private data class PendingRequest(
+        val metadata: MtProtoEncryptedMessageMetadata,
+        val method: TlMethod<*>,
+        val completion: CompletableDeferred<RpcOutcome<Any?>>,
+    )
+
+    private sealed interface TerminalAction {
+        data class Result(
+            val pending: PendingRequest,
+            val outcome: RpcOutcome<Any?>,
+        ) : TerminalAction
+
+        data class Failure(
+            val pending: PendingRequest,
+            val failure: Throwable,
+        ) : TerminalAction
+    }
+
     private companion object {
         const val MAX_QUICK_ACKS = 16
-        const val MAX_SERVICE_ENVELOPES = 64
         const val MAX_CONTAINER_DEPTH = 8
         const val MAX_SALT_RETRIES = 1
         val TRANSPORT_CONTEXT = TlDecodeContext(
             TlSchemaIdentity(TlSchemaKind.TRANSPORT, null),
+            0,
+            TlLimits.DEFAULT,
+        )
+        val CLOUD_CONTEXT = TlDecodeContext(
+            TlSchemaIdentity(TlSchemaKind.CLOUD, 223),
             0,
             TlLimits.DEFAULT,
         )

@@ -74,15 +74,28 @@ internal class AndroidMtProtoUpdateCursorStore(context: Context) : MtProtoUpdate
         mutex.withLock { file(scope).delete() }
     }
 
-    private fun file(scope: MtProtoAuthKeyScope) = AtomicFile(
-        File(
-            File(File(directory, scope.environment.storageName), scope.accountSlot),
-            "dc${scope.dcId}.cursor",
-        ),
-    )
+    override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
+        withContext(Dispatchers.IO) {
+            val accountDirectory = accountDirectory(MtProtoAuthKeyScope(accountSlot, environment, 1))
+            mutex.withLock {
+                accountDirectory.listFiles().orEmpty()
+                    .filter { it.name.startsWith(DC_PREFIX) && it.name.endsWith(FILE_SUFFIX) }
+                    .forEach { AtomicFile(it).delete() }
+                accountDirectory.delete()
+                Unit
+            }
+        }
+
+    private fun accountDirectory(scope: MtProtoAuthKeyScope) =
+        File(File(directory, scope.environment.storageName), scope.accountSlot)
+
+    private fun file(scope: MtProtoAuthKeyScope) =
+        AtomicFile(File(accountDirectory(scope), "$DC_PREFIX${scope.dcId}$FILE_SUFFIX"))
 
     private companion object {
         const val DIRECTORY_NAME = "mtproto-updates"
+        const val DC_PREFIX = "dc"
+        const val FILE_SUFFIX = ".cursor"
         const val MAX_FILE_BYTES = 256
     }
 }

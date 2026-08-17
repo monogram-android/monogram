@@ -14,6 +14,7 @@ internal interface MtProtoUpdateCursorStore {
     suspend fun load(scope: MtProtoAuthKeyScope): MtProtoUpdateCursorLoadResult
     suspend fun save(scope: MtProtoAuthKeyScope, cursor: MtProtoUpdateCursor)
     suspend fun delete(scope: MtProtoAuthKeyScope)
+    suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
 
 internal object MtProtoUpdateCursorCodec {

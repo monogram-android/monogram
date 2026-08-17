@@ -50,6 +50,9 @@ import org.monogram.mtproto.tl.runtime.TlSchemaKind
 import org.monogram.mtproto.tl.runtime.TlUnknownConstructorException
 
 interface MtProtoRpcTransport : AutoCloseable {
+    val updates: MtProtoApiUpdateInbox?
+        get() = null
+
     suspend fun <R> execute(method: TlMethod<R>): R
 }
 
@@ -77,7 +80,7 @@ class IntermediateTcpEncryptedTransport(
     private var closed = false
     private var pendingRequest: PendingRequest? = null
     private val methodContext = TlDecodeContext(methodRegistry.schema, 0, TlLimits.DEFAULT)
-    val updates = MtProtoApiUpdateInbox()
+    override val updates = MtProtoApiUpdateInbox()
 
     init {
         require(host.isNotBlank()) { "host must not be blank" }

@@ -101,6 +101,15 @@ class CloudLayer223RpcTransportTest {
     }
 
     @Test
+    fun forwardsDelegateUpdateInbox() {
+        val delegate = InboxTransport()
+        val transport = CloudLayer223RpcTransport(delegate, config())
+
+        assertSame(delegate.inbox, transport.updates)
+        transport.close()
+    }
+
+    @Test
     fun doesNotRetryWhenClosedAfterConnectionError() = runBlocking {
         lateinit var transport: CloudLayer223RpcTransport
         val delegate = ScriptedTransport(
@@ -260,5 +269,16 @@ class CloudLayer223RpcTransportTest {
         override fun close() {
             closeCalls += 1
         }
+    }
+
+    private class InboxTransport : MtProtoRpcTransport {
+        val inbox = MtProtoApiUpdateInbox()
+
+        override val updates: MtProtoApiUpdateInbox
+            get() = inbox
+
+        override suspend fun <R> execute(method: TlMethod<R>): R = error("Not used")
+
+        override fun close() = Unit
     }
 }

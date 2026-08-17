@@ -52,6 +52,9 @@ class CloudLayer223RpcTransport(
         else -> config.languageCode
     }
 
+    override val updates: MtProtoApiUpdateInbox?
+        get() = delegate.updates
+
     override suspend fun <R> execute(method: TlMethod<R>): R = mutex.withLock {
         check(!closed.get()) { "Transport is closed" }
         val includeHeader = headerRequired

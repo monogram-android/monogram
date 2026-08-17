@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.repository.AuthError
+import org.monogram.mtproto.transport.MtProtoRpcException
 
 class TdLibExceptionAuthMappingTest {
 
@@ -49,6 +50,34 @@ class TdLibExceptionAuthMappingTest {
         val error = TdLibException(TdApi.Error(400, "SOMETHING_ELSE"))
 
         assertEquals(AuthError.Unexpected, error.toAuthError())
+    }
+
+    @Test
+    fun `maps mtproto auth errors using the same domain categories`() {
+        assertEquals(
+            AuthError.InvalidCode,
+            MtProtoRpcException(400, "PHONE_CODE_INVALID").toAuthError()
+        )
+        assertEquals(
+            AuthError.InvalidPassword,
+            MtProtoRpcException(400, "PASSWORD_HASH_INVALID").toAuthError()
+        )
+        assertEquals(
+            AuthError.CodeExpired,
+            MtProtoRpcException(400, "EMAIL_CODE_EXPIRED").toAuthError()
+        )
+        assertEquals(
+            AuthError.RateLimited(42),
+            MtProtoRpcException(420, "FLOOD_WAIT_42").toAuthError()
+        )
+    }
+
+    @Test
+    fun `maps unknown mtproto error to unexpected`() {
+        assertEquals(
+            AuthError.Unexpected,
+            MtProtoRpcException(400, "PHONE_NUMBER_INVALID").toAuthError()
+        )
     }
 
     @Test

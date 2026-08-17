@@ -3,6 +3,7 @@ package org.monogram.data.gateway
 import org.drinkless.tdlib.TdApi
 import org.monogram.domain.repository.AUTH_NETWORK_TIMEOUT_ERROR
 import org.monogram.domain.repository.AuthError
+import org.monogram.mtproto.transport.MtProtoRpcException
 
 class TdLibException(val error: TdApi.Error) : Exception(error.message)
 
@@ -47,8 +48,12 @@ fun Throwable.toUserMessage(defaultMessage: String = "Unknown error"): String {
 fun Throwable.toAuthError(): AuthError {
     if (message == AUTH_NETWORK_TIMEOUT_ERROR) return AuthError.NetworkTimeout
 
-    val tdError = (this as? TdLibException)?.error
-    val normalizedMessage = tdError?.message.orEmpty().uppercase()
+    val errorMessage = when (this) {
+        is TdLibException -> error.message
+        is MtProtoRpcException -> rpcMessage
+        else -> null
+    }
+    val normalizedMessage = errorMessage.orEmpty().uppercase()
 
     return when {
         normalizedMessage.contains("PHONE_CODE_INVALID") ||

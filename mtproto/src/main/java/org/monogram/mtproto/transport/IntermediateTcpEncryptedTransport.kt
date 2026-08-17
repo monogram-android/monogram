@@ -49,7 +49,7 @@ import org.monogram.mtproto.tl.runtime.TlSchemaIdentity
 import org.monogram.mtproto.tl.runtime.TlSchemaKind
 import org.monogram.mtproto.tl.runtime.TlUnknownConstructorException
 
-interface MtProtoRpcTransport {
+interface MtProtoRpcTransport : AutoCloseable {
     suspend fun <R> execute(method: TlMethod<R>): R
 }
 
@@ -66,7 +66,7 @@ class IntermediateTcpEncryptedTransport(
     private val methodRegistry: TlMethodRegistry = CloudLayer223ConstructorRegistry,
     private val connectTimeoutMillis: Int = 10_000,
     private val readTimeoutMillis: Int = 15_000,
-) : MtProtoRpcTransport, AutoCloseable {
+) : MtProtoRpcTransport {
     private val requestMutex = Mutex()
     private val stateLock = Any()
     private val writeLock = Any()

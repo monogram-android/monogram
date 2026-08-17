@@ -1,9 +1,17 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.monogram.domain.repository.AuthCodeDelivery
 import org.monogram.domain.repository.AuthCodeInputKind
 import org.monogram.domain.repository.AuthStep
 import org.monogram.mtproto.auth.MtProtoAuthorizationApi
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeType
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeTypeCall
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeTypeFlashCall
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeTypeFragmentSms
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeTypeMissedCall
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeTypeSms
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_fb610807ca
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.AuthorizationSignUpRequired
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodePaymentRequired
@@ -28,31 +36,38 @@ internal class MtProtoPhoneAuthSession(
     private val apiHash: String,
     private val codeSettings: CodeSettings_fb610807ca,
 ) {
+    private val mutex = Mutex()
     private var phoneNumber: String? = null
     private var phoneCodeHash: String? = null
+    @Volatile
     private var state: AuthStep = AuthStep.InputPhone
 
     fun currentState(): AuthStep = state
 
-    suspend fun requestCode(phone: String): AuthStep {
+    suspend fun requestCode(phone: String): AuthStep = mutex.withLock {
         val sent = api.sendCode(phone, codeSettings, apiId, apiHash)
-        phoneNumber = phone
-        return applySentCode(sent)
+        val outcome = mapSentCode(sent)
+        commitOutcome(phone, outcome)
+        state
     }
 
-    suspend fun resendCode(): AuthStep {
+    suspend fun resendCode(): AuthStep = mutex.withLock {
         val phone = phoneNumber ?: error("Phone authorization has not started")
         val hash = phoneCodeHash ?: error("No phone code is available to resend")
-        return applySentCode(api.resendCode(phone, hash))
+        check((state as? AuthStep.InputCode)?.canResend == true) { "Phone code cannot be resent" }
+        val outcome = mapSentCode(api.resendCode(phone, hash))
+        commitOutcome(phone, outcome)
+        state
     }
 
-    suspend fun submitCode(code: String): AuthStep {
+    suspend fun submitCode(code: String): AuthStep = mutex.withLock {
         val phone = phoneNumber ?: error("Phone authorization has not started")
         val hash = phoneCodeHash ?: error("No phone code is available")
+        check(state is AuthStep.InputCode) { "Phone code is not expected" }
         require(code.isNotBlank()) { "code must not be blank" }
         return when (val authorization = api.signIn(phone, hash, code)) {
             is org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3 -> {
-                state = AuthStep.Ready
+                markReady()
                 state
             }
             is AuthorizationSignUpRequired -> throw UnsupportedOperationException("MTProto signup is not implemented")
@@ -60,32 +75,39 @@ internal class MtProtoPhoneAuthSession(
         }
     }
 
-    private fun applySentCode(sent: org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_250764ccd9): AuthStep =
+    private data class SentCodeOutcome(
+        val state: AuthStep,
+        val phoneCodeHash: String?,
+    )
+
+    private fun mapSentCode(
+        sent: org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_250764ccd9,
+    ): SentCodeOutcome =
         when (sent) {
             is SentCodeSuccess -> when (sent.authorization) {
                 is org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3 -> {
-                    phoneCodeHash = null
-                    state = AuthStep.Ready
-                    state
+                    SentCodeOutcome(AuthStep.Ready, null)
                 }
                 is AuthorizationSignUpRequired -> throw UnsupportedOperationException("MTProto signup is not implemented")
                 else -> throw IllegalStateException("Unsupported MTProto authorization result")
             }
             is SentCodePaymentRequired -> throw UnsupportedOperationException("MTProto paid-code flow is not implemented")
             is SentCode_f9e8fc1d16 -> {
-                phoneCodeHash = sent.phoneCodeHash
                 val details = sent.type.toDomainDetails()
-                state = AuthStep.InputCode(
-                    delivery = details.delivery,
-                    codeLength = details.length,
-                    inputKind = AuthCodeInputKind.NUMERIC,
-                    codeHint = details.hint,
-                    timeout = sent.timeout ?: 0,
-                    isEmailCode = details.emailPattern != null,
-                    emailPattern = details.emailPattern,
-                    canResend = true,
+                SentCodeOutcome(
+                    state = AuthStep.InputCode(
+                        delivery = details.delivery,
+                        codeLength = details.length,
+                        inputKind = details.inputKind,
+                        codeHint = details.hint,
+                        nextDelivery = sent.nextType?.toDomainDelivery(),
+                        timeout = sent.timeout ?: 0,
+                        isEmailCode = details.emailPattern != null,
+                        emailPattern = details.emailPattern,
+                        canResend = sent.nextType != null,
+                    ),
+                    phoneCodeHash = sent.phoneCodeHash,
                 )
-                state
             }
             else -> throw IllegalStateException("Unsupported MTProto sent-code result")
         }
@@ -93,6 +115,7 @@ internal class MtProtoPhoneAuthSession(
     private data class CodeDetails(
         val delivery: AuthCodeDelivery,
         val length: Int,
+        val inputKind: AuthCodeInputKind = AuthCodeInputKind.NUMERIC,
         val hint: String? = null,
         val emailPattern: String? = null,
     )
@@ -100,15 +123,40 @@ internal class MtProtoPhoneAuthSession(
     private fun SentCodeType.toDomainDetails(): CodeDetails = when (this) {
         is SentCodeTypeApp -> CodeDetails(AuthCodeDelivery.TELEGRAM_MESSAGE, length)
         is SentCodeTypeSms -> CodeDetails(AuthCodeDelivery.SMS, length)
-        is SentCodeTypeSmsWord -> CodeDetails(AuthCodeDelivery.SMS_WORD, 0, beginning)
-        is SentCodeTypeSmsPhrase -> CodeDetails(AuthCodeDelivery.SMS_PHRASE, 0, beginning)
+        is SentCodeTypeSmsWord -> CodeDetails(AuthCodeDelivery.SMS_WORD, 0, AuthCodeInputKind.TEXT, beginning)
+        is SentCodeTypeSmsPhrase -> CodeDetails(AuthCodeDelivery.SMS_PHRASE, 0, AuthCodeInputKind.TEXT, beginning)
         is SentCodeTypeCall -> CodeDetails(AuthCodeDelivery.CALL, length)
-        is SentCodeTypeFlashCall -> CodeDetails(AuthCodeDelivery.FLASH_CALL, 0, pattern)
-        is SentCodeTypeMissedCall -> CodeDetails(AuthCodeDelivery.MISSED_CALL, length, prefix)
-        is SentCodeTypeFragmentSms -> CodeDetails(AuthCodeDelivery.FRAGMENT, length, url)
+        is SentCodeTypeFlashCall -> CodeDetails(AuthCodeDelivery.FLASH_CALL, 0, hint = pattern)
+        is SentCodeTypeMissedCall -> CodeDetails(AuthCodeDelivery.MISSED_CALL, length, hint = prefix)
+        is SentCodeTypeFragmentSms -> CodeDetails(AuthCodeDelivery.FRAGMENT, length, hint = url)
         is SentCodeTypeFirebaseSms -> CodeDetails(AuthCodeDelivery.FIREBASE_ANDROID, length)
-        is SentCodeTypeEmailCode -> CodeDetails(AuthCodeDelivery.EMAIL, length, emailPattern = emailPattern)
+        is SentCodeTypeEmailCode -> throw UnsupportedOperationException("MTProto email-code sign-in is not implemented")
         is SentCodeTypeSetUpEmailRequired -> throw UnsupportedOperationException("MTProto email setup is not implemented")
         else -> throw IllegalStateException("Unsupported MTProto sent-code type: ${constructorId}")
+    }
+
+    private fun CodeType.toDomainDelivery(): AuthCodeDelivery = when (this) {
+        CodeTypeSms -> AuthCodeDelivery.SMS
+        CodeTypeCall -> AuthCodeDelivery.CALL
+        CodeTypeFlashCall -> AuthCodeDelivery.FLASH_CALL
+        CodeTypeMissedCall -> AuthCodeDelivery.MISSED_CALL
+        CodeTypeFragmentSms -> AuthCodeDelivery.FRAGMENT
+        else -> AuthCodeDelivery.UNKNOWN
+    }
+
+    private fun commitOutcome(phone: String, outcome: SentCodeOutcome) {
+        if (outcome.state is AuthStep.Ready) {
+            markReady()
+            return
+        }
+        phoneNumber = phone
+        phoneCodeHash = outcome.phoneCodeHash
+        state = outcome.state
+    }
+
+    private fun markReady() {
+        phoneNumber = null
+        phoneCodeHash = null
+        state = AuthStep.Ready
     }
 }

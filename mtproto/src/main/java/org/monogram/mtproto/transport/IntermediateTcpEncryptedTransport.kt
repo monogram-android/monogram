@@ -69,6 +69,7 @@ class IntermediateTcpEncryptedTransport(
     private val methodRegistry: TlMethodRegistry = CloudLayer223ConstructorRegistry,
     private val connectTimeoutMillis: Int = 10_000,
     private val readTimeoutMillis: Int = 15_000,
+    private val onServerSaltChanged: (suspend (Long) -> Unit)? = null,
 ) : MtProtoRpcTransport {
     private val requestMutex = Mutex()
     private val stateLock = Any()
@@ -166,7 +167,7 @@ class IntermediateTcpEncryptedTransport(
         if (shouldStart) readerScope.launch { readLoop(activeSocket) }
     }
 
-    private fun readLoop(activeSocket: Socket) {
+    private suspend fun readLoop(activeSocket: Socket) {
         try {
             while (!activeSocket.isClosed) {
                 readAndDispatch(activeSocket)
@@ -186,7 +187,7 @@ class IntermediateTcpEncryptedTransport(
         }
     }
 
-    private fun readAndDispatch(activeSocket: Socket) {
+    private suspend fun readAndDispatch(activeSocket: Socket) {
             val packet = readMessage(activeSocket)
             val decoded = try {
                 session.decodeTracked(packet)
@@ -224,7 +225,7 @@ class IntermediateTcpEncryptedTransport(
             terminal?.complete()
     }
 
-    private fun processBody(
+    private suspend fun processBody(
         metadata: MtProtoEncryptedMessageMetadata,
         body: ByteArray,
         acknowledgements: MutableList<Long>,
@@ -255,11 +256,13 @@ class IntermediateTcpEncryptedTransport(
             }
             is NewSessionCreated -> {
                 session.updateServerSalt(value.serverSalt)
+                onServerSaltChanged?.invoke(value.serverSalt)
                 null
             }
             is BadServerSalt -> {
                 val pending = pendingFor(value.badMsgId, value.badMsgSeqno) ?: return null
                 session.updateServerSalt(value.newServerSalt)
+                onServerSaltChanged?.invoke(value.newServerSalt)
                 TerminalAction.Result(pending, RpcOutcome.RetrySalt)
             }
             is BadMsgNotification_96e011accc -> {
@@ -278,7 +281,7 @@ class IntermediateTcpEncryptedTransport(
         }
     }
 
-    private fun processContainer(
+    private suspend fun processContainer(
         outer: MtProtoEncryptedMessageMetadata,
         container: MsgContainer,
         acknowledgements: MutableList<Long>,

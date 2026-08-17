@@ -314,6 +314,7 @@ class IntermediateTcpEncryptedTransportTest {
             val clientAuth = authKey()
             val serverAuth = authKey()
             val session = MtProtoEncryptedSession(clientAuth, CounterEntropy(), NOW_MILLIS)
+            val observedSalts = mutableListOf<Long>()
             val failure = AtomicReference<Throwable?>()
             val worker = thread(name = "mtproto-encrypted-loopback") {
                 try {
@@ -381,11 +382,13 @@ class IntermediateTcpEncryptedTransportTest {
                 server.localPort,
                 session,
                 TransportConstructorRegistry,
+                onServerSaltChanged = { observedSalts += it },
             )
             try {
                 val pong = runBlocking { transport.execute(Ping(PING_ID)) } as Pong_fbc65fe5b1
                 assertEquals(PING_ID, pong.pingId)
                 assertEquals(UPDATED_SALT, session.serverSalt)
+                assertEquals(listOf(UPDATED_SALT), observedSalts)
                 assertEquals(UpdatesTooLong, runBlocking { withTimeout(5_000) { transport.updates.receive() } })
             } finally {
                 transport.close()

@@ -32,7 +32,7 @@ class TelegramMtProtoSessionFactoryTest {
                 BootstrappedMtProtoAuthKey(authKey, MtProtoAuthKeySource.ESTABLISHED)
             },
             handshakeConnectionFactory = { handshake },
-            encryptedTransportFactory = { actualEndpoint, key, _ ->
+            encryptedTransportFactory = { _, actualEndpoint, key, _ ->
                 assertEquals(endpoint, actualEndpoint)
                 receivedKey = key
                 transport
@@ -79,7 +79,7 @@ class TelegramMtProtoSessionFactoryTest {
                 BootstrappedMtProtoAuthKey(authKey, MtProtoAuthKeySource.STORED)
             },
             handshakeConnectionFactory = { handshake },
-            encryptedTransportFactory = { _, _, _ -> error("assembly failed") },
+            encryptedTransportFactory = { _, _, _, _ -> error("assembly failed") },
         )
 
         assertThrows(IllegalStateException::class.java) { runBlocking { factory.open("slot_a") } }

@@ -86,14 +86,24 @@ internal class TelegramMtProtoBootstrapConfigProvider(
 internal class TelegramMtProtoSessionFactory(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val keyLoader: MtProtoAuthKeyLoader,
+    private val authKeyPersistence: MtProtoAuthKeyPersistence? = null,
     private val handshakeConnectionFactory: (TelegramMtProtoEndpoint) -> MtProtoHandshakeConnection = {
         IntermediateTcpHandshakeTransport(it.host, it.port)
     },
     private val encryptedTransportFactory: (
+        MtProtoAuthKeyScope,
         TelegramMtProtoEndpoint,
         MtProtoAuthKey,
         CloudLayer223ConnectionConfig,
-    ) -> MtProtoRpcTransport = ::createEncryptedTransport,
+    ) -> MtProtoRpcTransport = { scope, endpoint, authKey, cloudConfig ->
+        createEncryptedTransport(
+            scope,
+            endpoint,
+            authKey,
+            cloudConfig,
+            requireNotNull(authKeyPersistence) { "MTProto auth-key persistence is required" },
+        )
+    },
 ) {
     suspend fun open(accountSlot: String = DEFAULT_ACCOUNT_SLOT): MtProtoRpcTransport {
         val config = configSource.create()
@@ -103,7 +113,7 @@ internal class TelegramMtProtoSessionFactory(
             keyLoader.load(scope, connection, config.handshake)
         }
         return try {
-            encryptedTransportFactory(config.endpoint, bootstrapped.authKey, config.cloud)
+            encryptedTransportFactory(scope, config.endpoint, bootstrapped.authKey, config.cloud)
         } catch (failure: Throwable) {
             bootstrapped.authKey.close()
             throw failure
@@ -114,9 +124,11 @@ internal class TelegramMtProtoSessionFactory(
         const val DEFAULT_ACCOUNT_SLOT = "default"
 
         fun createEncryptedTransport(
+            scope: MtProtoAuthKeyScope,
             endpoint: TelegramMtProtoEndpoint,
             authKey: MtProtoAuthKey,
             cloudConfig: CloudLayer223ConnectionConfig,
+            authKeyPersistence: MtProtoAuthKeyPersistence,
         ): MtProtoRpcTransport {
             val session = try {
                 MtProtoEncryptedSession(authKey)
@@ -125,7 +137,14 @@ internal class TelegramMtProtoSessionFactory(
                 throw failure
             }
             val raw = try {
-                IntermediateTcpEncryptedTransport(endpoint.host, endpoint.port, session)
+                IntermediateTcpEncryptedTransport(
+                    host = endpoint.host,
+                    port = endpoint.port,
+                    session = session,
+                    onServerSaltChanged = { serverSalt ->
+                        authKeyPersistence.updateServerSalt(scope, authKey, serverSalt)
+                    },
+                )
             } catch (failure: Throwable) {
                 session.close()
                 throw failure

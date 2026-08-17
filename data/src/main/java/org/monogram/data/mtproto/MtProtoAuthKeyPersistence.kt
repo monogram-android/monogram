@@ -56,6 +56,25 @@ internal class MtProtoAuthKeyPersistence(
 
     suspend fun delete(scope: MtProtoAuthKeyScope) = store.delete(scope)
 
+    suspend fun updateServerSalt(scope: MtProtoAuthKeyScope, authKey: MtProtoAuthKey, serverSalt: Long) {
+        val material = authKey.toByteArray()
+        val stored = try {
+            StoredMtProtoAuthKey.create(
+                material = material,
+                id = authKey.id,
+                serverSalt = serverSalt,
+                createdAt = authKey.createdAt,
+            )
+        } finally {
+            material.fill(0)
+        }
+        try {
+            store.save(scope, stored)
+        } finally {
+            stored.close()
+        }
+    }
+
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
         store.deleteAccount(accountSlot, environment)
 }

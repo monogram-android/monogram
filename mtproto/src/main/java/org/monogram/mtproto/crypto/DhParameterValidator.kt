@@ -26,16 +26,7 @@ internal object DhParameterValidator {
         val primeBytes = inner.dhPrime.toByteArray()
         val gABytes = inner.gA.toByteArray()
         try {
-            if (primeBytes.size != PRIME_BYTES || primeBytes[0].toInt() and 0x80 == 0) {
-                fail(DhParameterFailure.INVALID_DH_PRIME_ENCODING)
-            }
-            val prime = BigInteger(1, primeBytes)
-            validateGenerator(inner.g, prime)
-            if (!primeBytes.contentEquals(KNOWN_GOOD_PRIME) &&
-                (!prime.isProbablePrime(PRIME_CERTAINTY) || !prime.subtract(ONE).shiftRight(1).isProbablePrime(PRIME_CERTAINTY))
-            ) {
-                fail(DhParameterFailure.UNSAFE_DH_PRIME)
-            }
+            val prime = validatePrime(inner.g, primeBytes)
             if (gABytes.isEmpty() || gABytes.size > PRIME_BYTES || gABytes[0] == 0.toByte()) {
                 fail(DhParameterFailure.INVALID_G_A_ENCODING)
             }
@@ -47,6 +38,20 @@ internal object DhParameterValidator {
             primeBytes.fill(0)
             gABytes.fill(0)
         }
+    }
+
+    fun validatePrime(generator: Int, primeBytes: ByteArray): BigInteger {
+        if (primeBytes.size != PRIME_BYTES || primeBytes[0].toInt() and 0x80 == 0) {
+            fail(DhParameterFailure.INVALID_DH_PRIME_ENCODING)
+        }
+        val prime = BigInteger(1, primeBytes)
+        validateGenerator(generator, prime)
+        if (!primeBytes.contentEquals(KNOWN_GOOD_PRIME) &&
+            (!prime.isProbablePrime(PRIME_CERTAINTY) || !prime.subtract(ONE).shiftRight(1).isProbablePrime(PRIME_CERTAINTY))
+        ) {
+            fail(DhParameterFailure.UNSAFE_DH_PRIME)
+        }
+        return prime
     }
 
     private fun validateGenerator(generator: Int, prime: BigInteger) {

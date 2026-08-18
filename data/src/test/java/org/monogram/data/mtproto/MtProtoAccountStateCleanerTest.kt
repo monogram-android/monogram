@@ -13,12 +13,14 @@ class MtProtoAccountStateCleanerTest {
     fun `deletes auth keys and cursors for the same account scope`() = runBlocking {
         val authStore = FakeAuthKeyStore()
         val cursorStore = FakeCursorStore()
-        val cleaner = MtProtoAccountStateCleaner(MtProtoAuthKeyPersistence(authStore), cursorStore)
+        val pendingStore = FakePendingStore()
+        val cleaner = MtProtoAccountStateCleaner(MtProtoAuthKeyPersistence(authStore), cursorStore, pendingStore)
 
         cleaner.deleteAccount("slot_a", MtProtoEnvironment.TEST)
 
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), authStore.deletedAccounts)
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), cursorStore.deletedAccounts)
+        assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), pendingStore.deletedAccounts)
     }
 
     @Test
@@ -26,7 +28,8 @@ class MtProtoAccountStateCleanerTest {
         val authFailure = IllegalStateException("auth delete failed")
         val authStore = FakeAuthKeyStore(deleteFailure = authFailure)
         val cursorStore = FakeCursorStore()
-        val cleaner = MtProtoAccountStateCleaner(MtProtoAuthKeyPersistence(authStore), cursorStore)
+        val pendingStore = FakePendingStore()
+        val cleaner = MtProtoAccountStateCleaner(MtProtoAuthKeyPersistence(authStore), cursorStore, pendingStore)
 
         val thrown = assertThrows(IllegalStateException::class.java) {
             runBlocking { cleaner.deleteAccount("slot_a", MtProtoEnvironment.PRODUCTION) }
@@ -34,16 +37,19 @@ class MtProtoAccountStateCleanerTest {
 
         assertSame(authFailure, thrown)
         assertEquals(1, cursorStore.deletedAccounts.size)
+        assertEquals(1, pendingStore.deletedAccounts.size)
         Unit
     }
 
     @Test
-    fun `retains both failures when both stores fail`() = runBlocking {
+    fun `retains all failures when all stores fail`() = runBlocking {
         val authFailure = IllegalStateException("auth delete failed")
         val cursorFailure = IllegalArgumentException("cursor delete failed")
+        val pendingFailure = UnsupportedOperationException("pending delete failed")
         val cleaner = MtProtoAccountStateCleaner(
             MtProtoAuthKeyPersistence(FakeAuthKeyStore(deleteFailure = authFailure)),
             FakeCursorStore(deleteFailure = cursorFailure),
+            FakePendingStore(deleteFailure = pendingFailure),
         )
 
         val thrown = assertThrows(IllegalStateException::class.java) {
@@ -51,7 +57,7 @@ class MtProtoAccountStateCleanerTest {
         }
 
         assertSame(authFailure, thrown)
-        assertEquals(listOf(cursorFailure), thrown.suppressed.toList())
+        assertEquals(listOf(cursorFailure, pendingFailure), thrown.suppressed.toList())
         Unit
     }
 
@@ -62,6 +68,7 @@ class MtProtoAccountStateCleanerTest {
         val cleaner = MtProtoAccountStateCleaner(
             MtProtoAuthKeyPersistence(FakeAuthKeyStore(deleteFailure = cancelled)),
             cursorStore,
+            FakePendingStore(),
         )
 
         val thrown = assertThrows(CancellationException::class.java) {
@@ -95,6 +102,25 @@ class MtProtoAccountStateCleanerTest {
         override suspend fun load(scope: MtProtoAuthKeyScope) = MtProtoUpdateCursorLoadResult.Missing
         override suspend fun save(scope: MtProtoAuthKeyScope, cursor: MtProtoUpdateCursor) = Unit
         override suspend fun delete(scope: MtProtoAuthKeyScope) = Unit
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
+            deletedAccounts += accountSlot to environment
+            deleteFailure?.let { throw it }
+        }
+    }
+
+    private class FakePendingStore(
+        private val deleteFailure: Throwable? = null,
+    ) : MtProtoPendingEnvelopeStore {
+        val deletedAccounts = mutableListOf<Pair<String, MtProtoEnvironment>>()
+
+        override suspend fun enqueue(
+            scope: MtProtoAuthKeyScope,
+            envelope: org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5,
+        ): MtProtoPendingEnvelope.Decoded = error("not used")
+
+        override suspend fun pending(scope: MtProtoAuthKeyScope): List<MtProtoPendingEnvelope> = error("not used")
+        override suspend fun delete(sequenceId: Long) = error("not used")
+
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
             deletedAccounts += accountSlot to environment
             deleteFailure?.let { throw it }

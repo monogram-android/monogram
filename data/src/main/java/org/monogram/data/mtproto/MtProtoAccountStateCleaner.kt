@@ -5,23 +5,31 @@ import kotlinx.coroutines.CancellationException
 internal class MtProtoAccountStateCleaner(
     private val authKeyPersistence: MtProtoAuthKeyPersistence,
     private val updateCursorStore: MtProtoUpdateCursorStore,
+    private val pendingEnvelopeStore: MtProtoPendingEnvelopeStore,
 ) {
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
         var failure: Throwable? = null
-        try {
+        failure = collectFailure(failure) {
             authKeyPersistence.deleteAccount(accountSlot, environment)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (authFailure: Throwable) {
-            failure = authFailure
         }
-        try {
+        failure = collectFailure(failure) {
             updateCursorStore.deleteAccount(accountSlot, environment)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (cursorFailure: Throwable) {
-            failure?.addSuppressed(cursorFailure) ?: run { failure = cursorFailure }
+        }
+        failure = collectFailure(failure) {
+            pendingEnvelopeStore.deleteAccount(accountSlot, environment)
         }
         failure?.let { throw it }
+    }
+
+    private suspend fun collectFailure(
+        current: Throwable?,
+        cleanup: suspend () -> Unit,
+    ): Throwable? = try {
+        cleanup()
+        current
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (cleanupFailure: Throwable) {
+        current?.apply { addSuppressed(cleanupFailure) } ?: cleanupFailure
     }
 }

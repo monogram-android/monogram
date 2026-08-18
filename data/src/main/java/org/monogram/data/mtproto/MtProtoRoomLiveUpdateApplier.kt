@@ -17,11 +17,21 @@ internal sealed interface MtProtoLiveUpdateApplyResult {
     data object RecoveryRequired : MtProtoLiveUpdateApplyResult
     data class Unsupported(val constructorId: UInt) : MtProtoLiveUpdateApplyResult
     data class Gap(val transition: MtProtoUpdateStateTransitionResult) : MtProtoLiveUpdateApplyResult
+    data class CorruptEnvelope(val sequenceId: Long) : MtProtoLiveUpdateApplyResult
+}
+
+internal sealed interface MtProtoPendingReplayResult {
+    data class Completed(val processedCount: Int) : MtProtoPendingReplayResult
+    data class Blocked(
+        val processedCount: Int,
+        val result: MtProtoLiveUpdateApplyResult,
+    ) : MtProtoPendingReplayResult
 }
 
 /** Serial live-envelope boundary. No entities or cursors are committed unless all counters are contiguous. */
 internal class MtProtoRoomLiveUpdateApplier(
     private val stateStore: MtProtoTransactionalUpdateStateStore,
+    private val pendingStore: MtProtoPendingEnvelopeStore,
 ) {
     private val mutex = Mutex()
 
@@ -30,26 +40,60 @@ internal class MtProtoRoomLiveUpdateApplier(
         envelope: Updates_faf6aaa3d5,
         applyEntities: suspend (Updates_faf6aaa3d5) -> Unit,
     ): MtProtoLiveUpdateApplyResult = mutex.withLock {
+        val pending = pendingStore.enqueue(scope, envelope)
+        processPending(scope, pending, applyEntities)
+    }
+
+    suspend fun replayPending(
+        scope: MtProtoAuthKeyScope,
+        applyEntities: suspend (Updates_faf6aaa3d5) -> Unit,
+    ): MtProtoPendingReplayResult = mutex.withLock {
+        var processedCount = 0
+        for (pending in pendingStore.pending(scope)) {
+            val result = processPending(scope, pending, applyEntities)
+            if (result is MtProtoLiveUpdateApplyResult.Applied || result == MtProtoLiveUpdateApplyResult.Duplicate) {
+                processedCount++
+            } else {
+                return@withLock MtProtoPendingReplayResult.Blocked(processedCount, result)
+            }
+        }
+        MtProtoPendingReplayResult.Completed(processedCount)
+    }
+
+    private suspend fun processPending(
+        scope: MtProtoAuthKeyScope,
+        pending: MtProtoPendingEnvelope,
+        applyEntities: suspend (Updates_faf6aaa3d5) -> Unit,
+    ): MtProtoLiveUpdateApplyResult {
+        if (pending is MtProtoPendingEnvelope.Corrupt) {
+            return MtProtoLiveUpdateApplyResult.CorruptEnvelope(pending.sequenceId)
+        }
+        pending as MtProtoPendingEnvelope.Decoded
+        val envelope = pending.envelope
         val initial = when (val loaded = stateStore.loadState(scope)) {
-            MtProtoUpdateStateLoadResult.Missing -> return@withLock MtProtoLiveUpdateApplyResult.NotInitialized
-            MtProtoUpdateStateLoadResult.Corrupt -> return@withLock MtProtoLiveUpdateApplyResult.CorruptState
+            MtProtoUpdateStateLoadResult.Missing -> return MtProtoLiveUpdateApplyResult.NotInitialized
+            MtProtoUpdateStateLoadResult.Corrupt -> return MtProtoLiveUpdateApplyResult.CorruptState
             is MtProtoUpdateStateLoadResult.Found -> loaded.state
         }
         val metadata = when (val extracted = MtProtoUpdateMetadataExtractor.extract(envelope)) {
             MtProtoUpdateMetadataResult.RecoveryRequired -> {
-                return@withLock MtProtoLiveUpdateApplyResult.RecoveryRequired
+                return MtProtoLiveUpdateApplyResult.RecoveryRequired
             }
             is MtProtoUpdateMetadataResult.Unsupported -> {
-                return@withLock MtProtoLiveUpdateApplyResult.Unsupported(extracted.constructorId)
+                return MtProtoLiveUpdateApplyResult.Unsupported(extracted.constructorId)
             }
             is MtProtoUpdateMetadataResult.Ordered -> extracted.metadata
         }
-        when (val transition = MtProtoUpdateStateTransition.apply(initial, metadata)) {
-            MtProtoUpdateStateTransitionResult.Duplicate -> MtProtoLiveUpdateApplyResult.Duplicate
+        return when (val transition = MtProtoUpdateStateTransition.apply(initial, metadata)) {
+            MtProtoUpdateStateTransitionResult.Duplicate -> {
+                pendingStore.delete(pending.sequenceId)
+                MtProtoLiveUpdateApplyResult.Duplicate
+            }
             is MtProtoUpdateStateTransitionResult.GlobalGap,
             is MtProtoUpdateStateTransitionResult.ChannelGap -> MtProtoLiveUpdateApplyResult.Gap(transition)
             is MtProtoUpdateStateTransitionResult.Applied -> {
                 stateStore.applyState(scope, transition.state) { applyEntities(envelope) }
+                pendingStore.delete(pending.sequenceId)
                 MtProtoLiveUpdateApplyResult.Applied(transition.state)
             }
         }

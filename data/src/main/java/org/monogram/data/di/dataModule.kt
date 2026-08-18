@@ -70,6 +70,8 @@ import org.monogram.data.mtproto.MtProtoRoomCloudObjectStager
 import org.monogram.data.mtproto.MtProtoCloudObjectStager
 import org.monogram.data.mtproto.MtProtoRoomUserProjectionStore
 import org.monogram.data.mtproto.MtProtoUserProjectionStore
+import org.monogram.data.mtproto.MtProtoRoomChatProjectionStore
+import org.monogram.data.mtproto.MtProtoChatProjectionStore
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
 import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
@@ -234,7 +236,7 @@ val dataModule = module {
         }
     }
     single<TelegramMtProtoBootstrapConfigSource> { TelegramMtProtoBootstrapConfigProvider(get()) }
-    single { TelegramMtProtoSessionFactory(get(), get(), get(), get()) }
+    single { TelegramMtProtoSessionFactory(get(), get(), get(), get(), get()) }
     single(createdAtStart = true) { TdLibParametersProvider(androidContext(), get()) }
     single(createdAtStart = true) {
         OfflineWarmup(
@@ -352,6 +354,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_39_40,
                 MonogramMigrations.MIGRATION_40_41,
                 MonogramMigrations.MIGRATION_41_42,
+                MonogramMigrations.MIGRATION_42_43,
             )
             .build()
     }
@@ -362,9 +365,12 @@ val dataModule = module {
     single { get<MonogramDatabase>().mtProtoPendingEnvelopeDao() }
     single { get<MonogramDatabase>().mtProtoCloudObjectDao() }
     single { get<MonogramDatabase>().mtProtoUserProjectionDao() }
+    single { get<MonogramDatabase>().mtProtoChatProjectionDao() }
     single { MtProtoRoomUserProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoUserProjectionStore> { get<MtProtoRoomUserProjectionStore>() }
-    single { MtProtoRoomCloudObjectStager(get(), userProjectionStore = get()) }
+    single { MtProtoRoomChatProjectionStore(get(), cloudObjectDao = get()) }
+    single<MtProtoChatProjectionStore> { get<MtProtoRoomChatProjectionStore>() }
+    single { MtProtoRoomCloudObjectStager(get(), userProjectionStore = get(), chatProjectionStore = get()) }
     single<MtProtoCloudObjectStager> { get<MtProtoRoomCloudObjectStager>() }
     single { MtProtoRoomPendingEnvelopeStore(get()) }
     single<MtProtoPendingEnvelopeStore> { get<MtProtoRoomPendingEnvelopeStore>() }

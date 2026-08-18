@@ -88,6 +88,7 @@ internal class TelegramMtProtoSessionFactory(
     private val keyLoader: MtProtoAuthKeyLoader,
     private val authKeyPersistence: MtProtoAuthKeyPersistence? = null,
     private val userProjectionStore: MtProtoUserProjectionStore = NoOpMtProtoUserProjectionStore,
+    private val chatProjectionStore: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
     private val handshakeConnectionFactory: (TelegramMtProtoEndpoint) -> MtProtoHandshakeConnection = {
         IntermediateTcpHandshakeTransport(it.host, it.port)
     },
@@ -121,6 +122,7 @@ internal class TelegramMtProtoSessionFactory(
         }
         return try {
             userProjectionStore.backfill(scope)
+            chatProjectionStore.backfill(scope)
             transport
         } catch (failure: Throwable) {
             transport.close()

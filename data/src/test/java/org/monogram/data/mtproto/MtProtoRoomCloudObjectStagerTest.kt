@@ -8,6 +8,7 @@ import org.monogram.data.db.dao.MtProtoCloudObjectDao
 import org.monogram.data.db.model.MtProtoCloudObjectEntity
 import org.monogram.mtproto.codec.CloudTlObjectCodec
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.Chat_7fdd7beb6e
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesCombined
@@ -23,7 +24,8 @@ class MtProtoRoomCloudObjectStagerTest {
     fun `stages typed difference objects once within account dc scope`() = runBlocking {
         val dao = FakeCloudObjectDao()
         val userStore = RecordingUserProjectionStore()
-        val stager = MtProtoRoomCloudObjectStager(dao, { 1234L }, userStore)
+        val chatStore = RecordingChatProjectionStore()
+        val stager = MtProtoRoomCloudObjectStager(dao, { 1234L }, userStore, chatStore)
         val batch = MtProtoUpdateDifferenceBatch(
             newMessages = listOf(MessageEmpty(30, null)),
             newEncryptedMessages = emptyList(),
@@ -44,6 +46,7 @@ class MtProtoRoomCloudObjectStagerTest {
             stored.take(3).map { CloudTlObjectCodec.decode(it.payload) },
         )
         assertEquals(listOf(UserEmpty(10), UserEmpty(10)), userStore.upsertedUsers)
+        assertEquals(listOf(ChatEmpty(20), ChatEmpty(20)), chatStore.upsertedChats)
     }
 
     @Test
@@ -118,6 +121,19 @@ class MtProtoRoomCloudObjectStagerTest {
         override suspend fun get(scope: MtProtoAuthKeyScope, userId: Long): MtProtoUserReadModel? = null
         override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoUserReadModel> = emptyList()
         override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoUserProjectionBackfillResult(0, 0)
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
+    }
+
+    private class RecordingChatProjectionStore : MtProtoChatProjectionStore {
+        val upsertedChats = mutableListOf<Chat_7fdd7beb6e>()
+
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, chats: List<Chat_7fdd7beb6e>) {
+            upsertedChats += chats
+        }
+
+        override suspend fun get(scope: MtProtoAuthKeyScope, chatId: Long): MtProtoChatReadModel? = null
+        override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoChatReadModel> = emptyList()
+        override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoChatProjectionBackfillResult(0, 0)
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
     }
 }

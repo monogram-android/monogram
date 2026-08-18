@@ -45,6 +45,29 @@ class MonogramMigrationTest {
         }
     }
 
+    @Test
+    fun migration38To39CreatesScopedMtProtoUpdateState() {
+        helper.createDatabase(TEST_DATABASE_38, 38).use { }
+
+        helper.runMigrationsAndValidate(
+            TEST_DATABASE_38,
+            39,
+            true,
+            MonogramMigrations.MIGRATION_38_39,
+        ).use { database ->
+            database.query("PRAGMA table_info(mtproto_update_state)").use { cursor ->
+                val columns = buildSet {
+                    val nameIndex = cursor.getColumnIndexOrThrow("name")
+                    while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+                }
+                assertEquals(
+                    setOf("accountSlot", "environment", "dcId", "pts", "qts", "date", "seq", "channelPtsData"),
+                    columns,
+                )
+            }
+        }
+    }
+
     private fun SupportSQLiteDatabase.insertMessageRow(
         chatId: Long,
         messageId: Long,
@@ -78,5 +101,6 @@ class MonogramMigrationTest {
 
     private companion object {
         const val TEST_DATABASE = "migration-37-38"
+        const val TEST_DATABASE_38 = "migration-38-39"
     }
 }

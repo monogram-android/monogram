@@ -61,6 +61,9 @@ import org.monogram.data.datasource.remote.UserRemoteDataSource
 import org.monogram.data.datasource.remote.createMonogramHttpClient
 import org.monogram.data.db.MonogramDatabase
 import org.monogram.data.db.MonogramMigrations
+import org.monogram.data.mtproto.MtProtoRoomUpdateStateStore
+import org.monogram.data.mtproto.MtProtoUpdateCursorStore
+import org.monogram.data.mtproto.MtProtoAccountStateCleaner
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.TelegramGatewayImpl
 import org.monogram.data.gateway.UpdateDispatcher
@@ -334,13 +337,18 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_34_35,
                 MonogramMigrations.MIGRATION_35_36,
                 MonogramMigrations.MIGRATION_36_37,
-                MonogramMigrations.MIGRATION_37_38
+                MonogramMigrations.MIGRATION_37_38,
+                MonogramMigrations.MIGRATION_38_39,
             )
             .build()
     }
     single { get<MonogramDatabase>().chatDao() }
     single { get<MonogramDatabase>().messageDao() }
     single { get<MonogramDatabase>().messageWindowDao() }
+    single { get<MonogramDatabase>().mtProtoUpdateStateDao() }
+    single { MtProtoRoomUpdateStateStore(get(), get()) }
+    single<MtProtoUpdateCursorStore> { get<MtProtoRoomUpdateStateStore>() }
+    single { MtProtoAccountStateCleaner(get<MtProtoAuthKeyPersistence>(), get()) }
     single { get<MonogramDatabase>().userDao() }
     single { get<MonogramDatabase>().chatFullInfoDao() }
     single { get<MonogramDatabase>().topicDao() }

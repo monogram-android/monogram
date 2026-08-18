@@ -417,6 +417,26 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_38_39 = object : Migration(38, 39) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_update_state` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `pts` INTEGER NOT NULL,
+                    `qts` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `seq` INTEGER NOT NULL,
+                    `channelPtsData` TEXT,
+                    PRIMARY KEY(`accountSlot`, `environment`, `dcId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
     private fun SupportSQLiteDatabase.addColumn(table: String, column: String, definition: String) {
         execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
     }

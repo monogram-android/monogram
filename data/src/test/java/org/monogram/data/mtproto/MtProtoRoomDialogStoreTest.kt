@@ -137,6 +137,7 @@ class MtProtoRoomDialogStoreTest {
 
     private class FakeUserDao(private val users: List<MtProtoUserProjectionEntity>) : MtProtoUserProjectionDao {
         override suspend fun get(accountSlot: String, environment: String, dcId: Int, userId: Long) = users.firstOrNull { it.userId == userId }
+        override suspend fun getSelf(accountSlot: String, environment: String, dcId: Int) = users.firstOrNull { it.isSelf }
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) = users
         override suspend fun upsert(entity: MtProtoUserProjectionEntity) = Unit
         override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit

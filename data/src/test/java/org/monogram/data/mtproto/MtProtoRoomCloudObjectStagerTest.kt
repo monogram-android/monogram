@@ -122,6 +122,7 @@ class MtProtoRoomCloudObjectStagerTest {
         }
 
         override suspend fun get(scope: MtProtoAuthKeyScope, userId: Long): MtProtoUserReadModel? = null
+        override suspend fun getSelf(scope: MtProtoAuthKeyScope): MtProtoUserReadModel? = null
         override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoUserReadModel> = emptyList()
         override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoUserProjectionBackfillResult(0, 0)
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit

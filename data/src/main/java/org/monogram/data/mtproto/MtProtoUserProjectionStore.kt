@@ -34,6 +34,8 @@ internal interface MtProtoUserProjectionStore {
 
     suspend fun get(scope: MtProtoAuthKeyScope, userId: Long): MtProtoUserReadModel?
 
+    suspend fun getSelf(scope: MtProtoAuthKeyScope): MtProtoUserReadModel?
+
     suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoUserReadModel>
 
     suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoUserProjectionBackfillResult
@@ -50,6 +52,8 @@ internal object NoOpMtProtoUserProjectionStore : MtProtoUserProjectionStore {
     override suspend fun upsert(scope: MtProtoAuthKeyScope, users: List<User_655b5dfc57>) = Unit
 
     override suspend fun get(scope: MtProtoAuthKeyScope, userId: Long): MtProtoUserReadModel? = null
+
+    override suspend fun getSelf(scope: MtProtoAuthKeyScope): MtProtoUserReadModel? = null
 
     override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoUserReadModel> = emptyList()
 
@@ -73,6 +77,9 @@ internal class MtProtoRoomUserProjectionStore(
 
     override suspend fun get(scope: MtProtoAuthKeyScope, userId: Long): MtProtoUserReadModel? =
         dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId, userId)?.toReadModel()
+
+    override suspend fun getSelf(scope: MtProtoAuthKeyScope): MtProtoUserReadModel? =
+        dao.getSelf(scope.accountSlot, scope.environment.storageName, scope.dcId)?.toReadModel()
 
     override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoUserReadModel> =
         dao.getAll(scope.accountSlot, scope.environment.storageName, scope.dcId).map { it.toReadModel() }

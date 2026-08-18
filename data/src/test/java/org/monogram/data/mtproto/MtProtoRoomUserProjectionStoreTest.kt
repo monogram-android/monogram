@@ -91,8 +91,22 @@ class MtProtoRoomUserProjectionStoreTest {
         assertEquals(true, store.get(scope, 30)?.isDeleted)
     }
 
+    @Test
+    fun `current user lookup remains account environment and dc scoped`() = runBlocking {
+        val store = MtProtoRoomUserProjectionStore(FakeUserProjectionDao())
+        store.upsert(scope, listOf(user(id = 10, self = true, firstName = "Test")))
+        store.upsert(
+            scope.copy(environment = MtProtoEnvironment.PRODUCTION),
+            listOf(user(id = 20, self = true, firstName = "Production")),
+        )
+
+        assertEquals(10L, store.getSelf(scope)?.userId)
+        assertEquals(20L, store.getSelf(scope.copy(environment = MtProtoEnvironment.PRODUCTION))?.userId)
+    }
+
     private fun user(
         id: Long,
+        self: Boolean = false,
         accessHash: Long? = null,
         firstName: String? = null,
         username: String? = null,
@@ -101,7 +115,7 @@ class MtProtoRoomUserProjectionStoreTest {
         premium: Boolean = false,
         min: Boolean = false,
     ) = User_1990f29d1e(
-        self = false,
+        self = self,
         contact = contact,
         mutualContact = false,
         deleted = false,
@@ -157,6 +171,12 @@ class MtProtoRoomUserProjectionStoreTest {
             entities.firstOrNull {
                 it.accountSlot == accountSlot && it.environment == environment &&
                     it.dcId == dcId && it.userId == userId
+            }
+
+        override suspend fun getSelf(accountSlot: String, environment: String, dcId: Int) =
+            entities.firstOrNull {
+                it.accountSlot == accountSlot && it.environment == environment &&
+                    it.dcId == dcId && it.isSelf
             }
 
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) =

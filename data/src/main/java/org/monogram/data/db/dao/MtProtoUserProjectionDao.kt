@@ -18,6 +18,13 @@ interface MtProtoUserProjectionDao {
     @Query(
         "SELECT * FROM mtproto_user_projection " +
             "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND isSelf = 1 ORDER BY userId ASC LIMIT 1"
+    )
+    suspend fun getSelf(accountSlot: String, environment: String, dcId: Int): MtProtoUserProjectionEntity?
+
+    @Query(
+        "SELECT * FROM mtproto_user_projection " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
             "ORDER BY userId ASC"
     )
     suspend fun getAll(accountSlot: String, environment: String, dcId: Int): List<MtProtoUserProjectionEntity>

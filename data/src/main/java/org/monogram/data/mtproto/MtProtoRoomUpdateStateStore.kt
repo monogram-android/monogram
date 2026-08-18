@@ -13,11 +13,21 @@ internal sealed interface MtProtoUpdateStateLoadResult {
     data class Found(val state: MtProtoUpdateState) : MtProtoUpdateStateLoadResult
 }
 
+internal interface MtProtoTransactionalUpdateStateStore {
+    suspend fun loadState(scope: MtProtoAuthKeyScope): MtProtoUpdateStateLoadResult
+
+    suspend fun applyState(
+        scope: MtProtoAuthKeyScope,
+        state: MtProtoUpdateState,
+        applyEntities: suspend () -> Unit,
+    )
+}
+
 /** Room-backed cursor boundary for the first transactional MTProto update slice. */
 internal class MtProtoRoomUpdateStateStore(
     private val database: MonogramDatabase,
     private val dao: MtProtoUpdateStateDao,
-) : MtProtoUpdateCursorStore {
+) : MtProtoUpdateCursorStore, MtProtoTransactionalUpdateStateStore {
     override suspend fun load(scope: MtProtoAuthKeyScope): MtProtoUpdateCursorLoadResult =
         dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId)
             ?.let { MtProtoUpdateCursorLoadResult.Found(it.toCursor()) }
@@ -26,7 +36,7 @@ internal class MtProtoRoomUpdateStateStore(
     suspend fun loadOrNull(scope: MtProtoAuthKeyScope): MtProtoUpdateCursor? =
         (load(scope) as? MtProtoUpdateCursorLoadResult.Found)?.cursor
 
-    suspend fun loadState(scope: MtProtoAuthKeyScope): MtProtoUpdateStateLoadResult {
+    override suspend fun loadState(scope: MtProtoAuthKeyScope): MtProtoUpdateStateLoadResult {
         val entity = dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId)
             ?: return MtProtoUpdateStateLoadResult.Missing
         return try {
@@ -65,7 +75,7 @@ internal class MtProtoRoomUpdateStateStore(
         }
     }
 
-    suspend fun applyState(
+    override suspend fun applyState(
         scope: MtProtoAuthKeyScope,
         state: MtProtoUpdateState,
         applyEntities: suspend () -> Unit,

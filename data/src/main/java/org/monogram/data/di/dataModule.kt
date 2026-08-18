@@ -63,6 +63,8 @@ import org.monogram.data.db.MonogramDatabase
 import org.monogram.data.db.MonogramMigrations
 import org.monogram.data.mtproto.MtProtoRoomUpdateStateStore
 import org.monogram.data.mtproto.MtProtoRoomUpdateRecovery
+import org.monogram.data.mtproto.MtProtoRoomLiveUpdateApplier
+import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
 import org.monogram.data.mtproto.MtProtoAccountStateCleaner
 import org.monogram.data.gateway.TelegramGateway
@@ -348,7 +350,9 @@ val dataModule = module {
     single { get<MonogramDatabase>().messageWindowDao() }
     single { get<MonogramDatabase>().mtProtoUpdateStateDao() }
     single { MtProtoRoomUpdateStateStore(get(), get()) }
+    single<MtProtoTransactionalUpdateStateStore> { get<MtProtoRoomUpdateStateStore>() }
     single { MtProtoRoomUpdateRecovery(get()) }
+    single { MtProtoRoomLiveUpdateApplier(get()) }
     single<MtProtoUpdateCursorStore> { get<MtProtoRoomUpdateStateStore>() }
     single { MtProtoAccountStateCleaner(get<MtProtoAuthKeyPersistence>(), get()) }
     single { get<MonogramDatabase>().userDao() }

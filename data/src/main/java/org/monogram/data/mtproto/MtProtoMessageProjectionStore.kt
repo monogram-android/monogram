@@ -54,11 +54,17 @@ internal data class MtProtoMessageReadModel(
     val hasMedia: Boolean,
 )
 
+internal data class MtProtoMessageHistoryCursor(
+    val date: Int,
+    val messageId: Int,
+)
+
 internal interface MtProtoMessageProjectionStore {
     suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5)
     suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch)
     suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel?
     suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel>
+    suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel>
     suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoMessageProjectionBackfillResult
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
@@ -73,6 +79,7 @@ internal object NoOpMtProtoMessageProjectionStore : MtProtoMessageProjectionStor
     override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) = Unit
     override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? = null
     override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()
+    override suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoMessageProjectionBackfillResult(0, 0)
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
@@ -113,6 +120,26 @@ internal class MtProtoRoomMessageProjectionStore(
 
     override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> =
         dao.getAll(scope.accountSlot, scope.environment.storageName, scope.dcId, peerType.name, peerId).map { it.toReadModel() }
+
+    override suspend fun getPage(
+        scope: MtProtoAuthKeyScope,
+        peerType: MtProtoMessagePeerType,
+        peerId: Long,
+        before: MtProtoMessageHistoryCursor?,
+        limit: Int,
+    ): List<MtProtoMessageReadModel> {
+        require(limit in 1..MAX_HISTORY_PAGE_SIZE)
+        return dao.getPage(
+            scope.accountSlot,
+            scope.environment.storageName,
+            scope.dcId,
+            peerType.name,
+            peerId,
+            before?.date,
+            before?.messageId,
+            limit,
+        ).map { it.toReadModel() }
+    }
 
     override suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoMessageProjectionBackfillResult {
         val source = cloudObjectDao ?: return MtProtoMessageProjectionBackfillResult(0, 0)
@@ -225,5 +252,6 @@ internal class MtProtoRoomMessageProjectionStore(
         const val MESSAGE_OBJECT_TYPE = "message"
         const val UPDATE_OBJECT_TYPE = "update"
         const val LIVE_UPDATES_OBJECT_TYPE = "live_updates"
+        const val MAX_HISTORY_PAGE_SIZE = 100
     }
 }

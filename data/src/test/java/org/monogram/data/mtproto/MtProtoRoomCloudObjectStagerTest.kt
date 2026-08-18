@@ -149,6 +149,7 @@ class MtProtoRoomCloudObjectStagerTest {
         }
         override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? = null
         override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()
+        override suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel> = emptyList()
         override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoMessageProjectionBackfillResult(0, 0)
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
     }

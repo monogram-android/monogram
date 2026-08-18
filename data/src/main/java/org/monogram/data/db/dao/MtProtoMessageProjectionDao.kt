@@ -36,6 +36,25 @@ interface MtProtoMessageProjectionDao {
     ): List<MtProtoMessageProjectionEntity>
 
     @Query(
+        "SELECT * FROM mtproto_message_projection " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId " +
+            "AND (:beforeDate IS NULL OR date < :beforeDate " +
+            "OR (date = :beforeDate AND messageId < :beforeMessageId)) " +
+            "ORDER BY date DESC, messageId DESC LIMIT :limit"
+    )
+    suspend fun getPage(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        beforeDate: Int?,
+        beforeMessageId: Int?,
+        limit: Int,
+    ): List<MtProtoMessageProjectionEntity>
+
+    @Query(
         "SELECT * FROM mtproto_message_projection AS message " +
             "WHERE message.accountSlot = :accountSlot AND message.environment = :environment " +
             "AND message.dcId = :dcId AND NOT EXISTS (" +

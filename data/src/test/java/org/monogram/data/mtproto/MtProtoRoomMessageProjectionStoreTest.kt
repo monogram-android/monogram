@@ -71,6 +71,28 @@ class MtProtoRoomMessageProjectionStoreTest {
         assertTrue(store.get(scope, MtProtoMessagePeerType.USER, 6, 31)?.isDeleted == false)
     }
 
+    @Test
+    fun `history page uses date and message id cursor without overlap`() = runBlocking {
+        val dao = FakeMessageProjectionDao()
+        dao.upsert(entity(MtProtoMessagePeerType.USER, 7, 13, date = 101))
+        dao.upsert(entity(MtProtoMessagePeerType.USER, 7, 12, date = 100))
+        dao.upsert(entity(MtProtoMessagePeerType.USER, 7, 11, date = 100))
+        dao.upsert(entity(MtProtoMessagePeerType.USER, 8, 20, date = 200))
+        val store = MtProtoRoomMessageProjectionStore(dao)
+
+        val firstPage = store.getPage(scope, MtProtoMessagePeerType.USER, 7, before = null, limit = 2)
+        val secondPage = store.getPage(
+            scope,
+            MtProtoMessagePeerType.USER,
+            7,
+            before = MtProtoMessageHistoryCursor(firstPage.last().date, firstPage.last().messageId),
+            limit = 2,
+        )
+
+        assertEquals(listOf(13, 12), firstPage.map { it.messageId })
+        assertEquals(listOf(11), secondPage.map { it.messageId })
+    }
+
     private fun shortMessage(id: Int, userId: Long, text: String) = UpdateShortMessage(
         out_ = false,
         mentioned = true,
@@ -100,7 +122,7 @@ class MtProtoRoomMessageProjectionStoreTest {
         cursor = MtProtoUpdateCursor(1, 0, 1, 1),
     )
 
-    private fun entity(peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int) =
+    private fun entity(peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int, date: Int = 1) =
         MtProtoMessageProjectionEntity(
             accountSlot = "account-1",
             environment = "test",
@@ -110,7 +132,7 @@ class MtProtoRoomMessageProjectionStoreTest {
             messageId = messageId,
             senderType = null,
             senderId = null,
-            date = 1,
+            date = date,
             text = "message",
             isService = false,
             isDeleted = false,
@@ -145,6 +167,11 @@ class MtProtoRoomMessageProjectionStoreTest {
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long) =
             entities.filter { it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.peerType == peerType && it.peerId == peerId }
                 .sortedWith(compareByDescending<MtProtoMessageProjectionEntity> { it.date }.thenByDescending { it.messageId })
+
+        override suspend fun getPage(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, beforeDate: Int?, beforeMessageId: Int?, limit: Int) =
+            getAll(accountSlot, environment, dcId, peerType, peerId)
+                .filter { beforeDate == null || it.date < beforeDate || (it.date == beforeDate && it.messageId < checkNotNull(beforeMessageId)) }
+                .take(limit)
 
         override suspend fun getLatestByPeer(accountSlot: String, environment: String, dcId: Int) =
             entities.filter { it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId }

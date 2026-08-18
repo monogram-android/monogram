@@ -234,7 +234,7 @@ val dataModule = module {
         }
     }
     single<TelegramMtProtoBootstrapConfigSource> { TelegramMtProtoBootstrapConfigProvider(get()) }
-    single { TelegramMtProtoSessionFactory(get(), get(), get()) }
+    single { TelegramMtProtoSessionFactory(get(), get(), get(), get()) }
     single(createdAtStart = true) { TdLibParametersProvider(androidContext(), get()) }
     single(createdAtStart = true) {
         OfflineWarmup(

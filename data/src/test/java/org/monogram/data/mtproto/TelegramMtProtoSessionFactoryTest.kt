@@ -22,6 +22,7 @@ class TelegramMtProtoSessionFactoryTest {
         val authKey = authKey()
         var receivedKey: MtProtoAuthKey? = null
         val transport = FakeRpcTransport()
+        val projectionStore = RecordingUserProjectionStore()
         val factory = TelegramMtProtoSessionFactory(
             configSource = TelegramMtProtoBootstrapConfigSource { config },
             keyLoader = MtProtoAuthKeyLoader { scope, connection, handshakeConfig ->
@@ -37,12 +38,17 @@ class TelegramMtProtoSessionFactoryTest {
                 receivedKey = key
                 transport
             },
+            userProjectionStore = projectionStore,
         )
 
         val result = factory.open()
 
         assertSame(transport, result)
         assertSame(authKey, receivedKey)
+        assertEquals(
+            listOf(MtProtoAuthKeyScope("default", MtProtoEnvironment.PRODUCTION, 2)),
+            projectionStore.backfilledScopes,
+        )
         assertEquals(1, handshake.closeCalls)
         assertTrue(handshake.closed)
         val copy = authKey.toByteArray()
@@ -88,6 +94,32 @@ class TelegramMtProtoSessionFactoryTest {
         Unit
     }
 
+    @Test
+    fun closesEncryptedTransportWhenProjectionBackfillFails() = runBlocking {
+        val failure = IllegalStateException("backfill failed")
+        val authKey = authKey()
+        val transport = FakeRpcTransport()
+        val factory = TelegramMtProtoSessionFactory(
+            configSource = TelegramMtProtoBootstrapConfigSource { config(TelegramMtProtoEndpoint(2, "dc", 443)) },
+            keyLoader = MtProtoAuthKeyLoader { _, _, _ ->
+                BootstrappedMtProtoAuthKey(authKey, MtProtoAuthKeySource.STORED)
+            },
+            userProjectionStore = object : MtProtoUserProjectionStore by NoOpMtProtoUserProjectionStore {
+                override suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoUserProjectionBackfillResult {
+                    throw failure
+                }
+            },
+            handshakeConnectionFactory = { FakeHandshakeConnection() },
+            encryptedTransportFactory = { _, _, _, _ -> transport },
+        )
+
+        val thrown = assertThrows(IllegalStateException::class.java) { runBlocking { factory.open("slot_a") } }
+
+        assertSame(failure, thrown)
+        assertEquals(1, transport.closeCalls)
+        authKey.close()
+    }
+
     private fun config(endpoint: TelegramMtProtoEndpoint) = TelegramMtProtoBootstrapConfig(
         endpoint = endpoint,
         handshake = MtProtoHandshakeConfig(endpoint.dcId, listOf("test-key")),
@@ -123,7 +155,20 @@ class TelegramMtProtoSessionFactoryTest {
     }
 
     private class FakeRpcTransport : MtProtoRpcTransport {
+        var closeCalls = 0
+
         override suspend fun <R> execute(method: TlMethod<R>): R = error("Not used")
-        override fun close() = Unit
+        override fun close() {
+            closeCalls += 1
+        }
+    }
+
+    private class RecordingUserProjectionStore : MtProtoUserProjectionStore by NoOpMtProtoUserProjectionStore {
+        val backfilledScopes = mutableListOf<MtProtoAuthKeyScope>()
+
+        override suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoUserProjectionBackfillResult {
+            backfilledScopes += scope
+            return MtProtoUserProjectionBackfillResult(0, 0)
+        }
     }
 }

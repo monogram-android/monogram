@@ -21,6 +21,7 @@ internal data class MtProtoDialogMessagePreview(
 
 internal data class MtProtoDialogReadModel(
     val peerType: MtProtoMessagePeerType,
+    val peerKind: MtProtoDialogPeerKind,
     val peerId: Long,
     val title: String?,
     val username: String?,
@@ -29,6 +30,14 @@ internal data class MtProtoDialogReadModel(
     val isPeerForbidden: Boolean,
     val latestMessage: MtProtoDialogMessagePreview,
 )
+
+internal enum class MtProtoDialogPeerKind {
+    PRIVATE,
+    BASIC_GROUP,
+    SUPERGROUP,
+    CHANNEL,
+    UNKNOWN,
+}
 
 internal interface MtProtoDialogStore {
     suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoDialogReadModel>
@@ -60,6 +69,7 @@ internal class MtProtoRoomDialogStore(
         chat: MtProtoChatProjectionEntity?,
     ) = MtProtoDialogReadModel(
         peerType = peerType,
+        peerKind = peerKind(peerType, chat),
         peerId = peerId,
         title = user?.displayTitle() ?: chat?.title,
         username = user?.username ?: chat?.username,
@@ -78,6 +88,19 @@ internal class MtProtoRoomDialogStore(
             hasMedia = hasMedia,
         ),
     )
+
+    private fun peerKind(
+        peerType: MtProtoMessagePeerType,
+        chat: MtProtoChatProjectionEntity?,
+    ) = when (peerType) {
+        MtProtoMessagePeerType.USER -> MtProtoDialogPeerKind.PRIVATE
+        MtProtoMessagePeerType.GROUP -> MtProtoDialogPeerKind.BASIC_GROUP
+        MtProtoMessagePeerType.CHANNEL -> when (chat?.type?.let(MtProtoChatType::valueOf)) {
+            MtProtoChatType.SUPERGROUP -> MtProtoDialogPeerKind.SUPERGROUP
+            MtProtoChatType.CHANNEL -> MtProtoDialogPeerKind.CHANNEL
+            else -> MtProtoDialogPeerKind.UNKNOWN
+        }
+    }
 
     private fun MtProtoUserProjectionEntity.displayTitle(): String? =
         listOfNotNull(firstName, lastName)

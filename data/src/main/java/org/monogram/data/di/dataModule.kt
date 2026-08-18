@@ -76,6 +76,7 @@ import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomDialogStore
 import org.monogram.data.mtproto.MtProtoDialogStore
+import org.monogram.data.mtproto.MtProtoDialogSnapshotRepository
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
 import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
@@ -390,6 +391,7 @@ val dataModule = module {
     single<MtProtoMessageProjectionStore> { get<MtProtoRoomMessageProjectionStore>() }
     single { MtProtoRoomDialogStore(get(), get(), get()) }
     single<MtProtoDialogStore> { get<MtProtoRoomDialogStore>() }
+    single { MtProtoDialogSnapshotRepository(get(), get()) }
     single {
         MtProtoRoomCloudObjectStager(
             get(),

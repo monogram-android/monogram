@@ -33,7 +33,9 @@ class MtProtoRoomDialogStoreTest {
 
         assertEquals(listOf(20L, 30L, 10L), dialogs.map { it.peerId })
         assertEquals("Group", dialogs[0].title)
+        assertEquals(MtProtoDialogPeerKind.BASIC_GROUP, dialogs[0].peerKind)
         assertFalse(dialogs[1].isPeerResolved)
+        assertEquals(MtProtoDialogPeerKind.UNKNOWN, dialogs[1].peerKind)
         assertEquals("Alice Doe", dialogs[2].title)
         assertEquals(1, dialogs[2].latestMessage.messageId)
         assertTrue(dialogs.none { it.peerId == 99L })

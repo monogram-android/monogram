@@ -20,14 +20,14 @@ class MtProtoRoomLiveUpdateApplierTest {
         val events = mutableListOf<String>()
         val stateStore = FakeStateStore(initial, events)
         val pendingStore = FakePendingStore(events)
-        val applier = MtProtoRoomLiveUpdateApplier(stateStore, pendingStore)
+        val applier = MtProtoRoomLiveUpdateApplier(stateStore, pendingStore, RecordingCloudObjectStager(events))
 
         val result = applier.apply(scope, envelope(pts = 11, seq = 41)) { events += "entities" }
 
         val expected = MtProtoUpdateState(MtProtoUpdateCursor(11, 20, 31, 41))
         assertEquals(MtProtoLiveUpdateApplyResult.Applied(expected), result)
         assertEquals(expected, stateStore.state)
-        assertEquals(listOf("enqueue", "entities", "state", "delete"), events)
+        assertEquals(listOf("enqueue", "stage", "entities", "state", "delete"), events)
         assertEquals(0, pendingStore.records.size)
     }
 
@@ -160,6 +160,21 @@ class MtProtoRoomLiveUpdateApplierTest {
             records.removeAll { it.sequenceId == sequenceId }
             events += "delete"
         }
+
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
+    }
+
+    private class RecordingCloudObjectStager(
+        private val events: MutableList<String>,
+    ) : MtProtoCloudObjectStager {
+        override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
+            events += "stage"
+        }
+
+        override suspend fun stageDifference(
+            scope: MtProtoAuthKeyScope,
+            batch: org.monogram.mtproto.updates.MtProtoUpdateDifferenceBatch,
+        ) = Unit
 
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
     }

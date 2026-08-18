@@ -6,6 +6,7 @@ internal class MtProtoAccountStateCleaner(
     private val authKeyPersistence: MtProtoAuthKeyPersistence,
     private val updateCursorStore: MtProtoUpdateCursorStore,
     private val pendingEnvelopeStore: MtProtoPendingEnvelopeStore,
+    private val cloudObjectStager: MtProtoCloudObjectStager,
 ) {
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
         var failure: Throwable? = null
@@ -17,6 +18,9 @@ internal class MtProtoAccountStateCleaner(
         }
         failure = collectFailure(failure) {
             pendingEnvelopeStore.deleteAccount(accountSlot, environment)
+        }
+        failure = collectFailure(failure) {
+            cloudObjectStager.deleteAccount(accountSlot, environment)
         }
         failure?.let { throw it }
     }

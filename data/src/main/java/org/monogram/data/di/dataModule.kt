@@ -66,6 +66,8 @@ import org.monogram.data.mtproto.MtProtoRoomUpdateRecovery
 import org.monogram.data.mtproto.MtProtoRoomLiveUpdateApplier
 import org.monogram.data.mtproto.MtProtoPendingEnvelopeStore
 import org.monogram.data.mtproto.MtProtoRoomPendingEnvelopeStore
+import org.monogram.data.mtproto.MtProtoRoomCloudObjectStager
+import org.monogram.data.mtproto.MtProtoCloudObjectStager
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
 import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
@@ -346,6 +348,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_37_38,
                 MonogramMigrations.MIGRATION_38_39,
                 MonogramMigrations.MIGRATION_39_40,
+                MonogramMigrations.MIGRATION_40_41,
             )
             .build()
     }
@@ -354,15 +357,18 @@ val dataModule = module {
     single { get<MonogramDatabase>().messageWindowDao() }
     single { get<MonogramDatabase>().mtProtoUpdateStateDao() }
     single { get<MonogramDatabase>().mtProtoPendingEnvelopeDao() }
+    single { get<MonogramDatabase>().mtProtoCloudObjectDao() }
+    single { MtProtoRoomCloudObjectStager(get()) }
+    single<MtProtoCloudObjectStager> { get<MtProtoRoomCloudObjectStager>() }
     single { MtProtoRoomPendingEnvelopeStore(get()) }
     single<MtProtoPendingEnvelopeStore> { get<MtProtoRoomPendingEnvelopeStore>() }
     single { MtProtoRoomUpdateStateStore(get(), get()) }
     single<MtProtoTransactionalUpdateStateStore> { get<MtProtoRoomUpdateStateStore>() }
-    single { MtProtoRoomLiveUpdateApplier(get(), get()) }
+    single { MtProtoRoomLiveUpdateApplier(get(), get(), get()) }
     single<MtProtoRecoveryStateStore> { get<MtProtoRoomUpdateStateStore>() }
-    single { MtProtoRoomUpdateRecovery(get(), get()) }
+    single { MtProtoRoomUpdateRecovery(get(), get(), get()) }
     single<MtProtoUpdateCursorStore> { get<MtProtoRoomUpdateStateStore>() }
-    single { MtProtoAccountStateCleaner(get<MtProtoAuthKeyPersistence>(), get(), get()) }
+    single { MtProtoAccountStateCleaner(get<MtProtoAuthKeyPersistence>(), get(), get(), get()) }
     single { get<MonogramDatabase>().userDao() }
     single { get<MonogramDatabase>().chatFullInfoDao() }
     single { get<MonogramDatabase>().topicDao() }

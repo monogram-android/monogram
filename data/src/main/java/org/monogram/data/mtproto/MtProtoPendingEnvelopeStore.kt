@@ -1,6 +1,5 @@
 package org.monogram.data.mtproto
 
-import java.security.MessageDigest
 import org.monogram.data.db.dao.MtProtoPendingEnvelopeDao
 import org.monogram.data.db.model.MtProtoPendingEnvelopeEntity
 import org.monogram.mtproto.codec.CloudTlObjectCodec
@@ -34,7 +33,7 @@ internal class MtProtoRoomPendingEnvelopeStore(
         envelope: Updates_faf6aaa3d5,
     ): MtProtoPendingEnvelope.Decoded {
         val payload = CloudTlObjectCodec.encode(envelope)
-        val payloadHash = sha256(payload)
+        val payloadHash = MtProtoPayloadHash.sha256(payload)
         val insertedId = dao.insert(
             MtProtoPendingEnvelopeEntity(
                 accountSlot = scope.accountSlot,
@@ -80,19 +79,7 @@ internal class MtProtoRoomPendingEnvelopeStore(
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
         dao.deleteAccount(accountSlot, environment.storageName)
 
-    private fun sha256(payload: ByteArray): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(payload)
-        return buildString(digest.size * 2) {
-            digest.forEach { byte ->
-                val value = byte.toInt() and 0xff
-                append(HEX[value ushr 4])
-                append(HEX[value and 0x0f])
-            }
-        }
-    }
-
     private companion object {
         const val INSERT_CONFLICT = -1L
-        const val HEX = "0123456789abcdef"
     }
 }

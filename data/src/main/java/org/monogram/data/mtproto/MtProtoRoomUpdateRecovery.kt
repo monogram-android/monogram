@@ -45,6 +45,7 @@ internal class MtProtoRoomRecoverySession(
 internal class MtProtoRoomUpdateRecovery(
     private val stateStore: MtProtoRecoveryStateStore,
     private val liveUpdateApplier: MtProtoRoomLiveUpdateApplier,
+    private val cloudObjectStager: MtProtoCloudObjectStager = NoOpMtProtoCloudObjectStager,
 ) {
     suspend fun open(
         scope: MtProtoAuthKeyScope,
@@ -66,6 +67,7 @@ internal class MtProtoRoomUpdateRecovery(
                     },
                     applyBatch = { batch ->
                         stateStore.applyRecovery(scope, batch.cursor) {
+                            cloudObjectStager.stageDifference(scope, batch)
                             applyEntities(batch)
                         }
                     },

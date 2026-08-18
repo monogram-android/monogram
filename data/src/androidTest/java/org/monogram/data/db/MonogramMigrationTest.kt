@@ -98,6 +98,33 @@ class MonogramMigrationTest {
         }
     }
 
+    @Test
+    fun migration40To41PreservesPendingEnvelopesAndCreatesCloudObjectStaging() {
+        helper.createDatabase(TEST_DATABASE_40, 40).use { database ->
+            database.execSQL(
+                "INSERT INTO mtproto_pending_envelopes " +
+                    "(accountSlot, environment, dcId, payloadHash, payload, createdAt) " +
+                    "VALUES ('account-1', 'prod', 2, 'hash-1', X'0102', 1234)"
+            )
+        }
+
+        helper.runMigrationsAndValidate(
+            TEST_DATABASE_40,
+            41,
+            true,
+            MonogramMigrations.MIGRATION_40_41,
+        ).use { database ->
+            database.query("SELECT payloadHash FROM mtproto_pending_envelopes").use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals("hash-1", cursor.getString(0))
+            }
+            database.query("SELECT COUNT(*) FROM mtproto_cloud_objects").use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        }
+    }
+
     private fun SupportSQLiteDatabase.insertMessageRow(
         chatId: Long,
         messageId: Long,
@@ -133,5 +160,6 @@ class MonogramMigrationTest {
         const val TEST_DATABASE = "migration-37-38"
         const val TEST_DATABASE_38 = "migration-38-39"
         const val TEST_DATABASE_39 = "migration-39-40"
+        const val TEST_DATABASE_40 = "migration-40-41"
     }
 }

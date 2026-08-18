@@ -34,6 +34,7 @@ internal sealed interface MtProtoPendingReplayResult {
 internal class MtProtoRoomLiveUpdateApplier(
     private val stateStore: MtProtoTransactionalUpdateStateStore,
     private val pendingStore: MtProtoPendingEnvelopeStore,
+    private val cloudObjectStager: MtProtoCloudObjectStager = NoOpMtProtoCloudObjectStager,
 ) {
     private val mutex = Mutex()
 
@@ -126,7 +127,10 @@ internal class MtProtoRoomLiveUpdateApplier(
             is MtProtoUpdateStateTransitionResult.GlobalGap,
             is MtProtoUpdateStateTransitionResult.ChannelGap -> MtProtoLiveUpdateApplyResult.Gap(transition)
             is MtProtoUpdateStateTransitionResult.Applied -> {
-                stateStore.applyState(scope, transition.state) { applyEntities(envelope) }
+                stateStore.applyState(scope, transition.state) {
+                    cloudObjectStager.stageLive(scope, envelope)
+                    applyEntities(envelope)
+                }
                 pendingStore.delete(pending.sequenceId)
                 MtProtoLiveUpdateApplyResult.Applied(transition.state)
             }

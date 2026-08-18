@@ -68,6 +68,36 @@ class MonogramMigrationTest {
         }
     }
 
+    @Test
+    fun migration39To40PreservesUpdateStateAndCreatesPendingEnvelopeQueue() {
+        helper.createDatabase(TEST_DATABASE_39, 39).use { database ->
+            database.execSQL(
+                "INSERT INTO mtproto_update_state " +
+                    "(accountSlot, environment, dcId, pts, qts, date, seq, channelPtsData) " +
+                    "VALUES ('account-1', 'production', 2, 10, 20, 30, 40, NULL)"
+            )
+        }
+
+        helper.runMigrationsAndValidate(
+            TEST_DATABASE_39,
+            40,
+            true,
+            MonogramMigrations.MIGRATION_39_40,
+        ).use { database ->
+            database.query("SELECT pts, qts, date, seq FROM mtproto_update_state").use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals(10, cursor.getInt(0))
+                assertEquals(20, cursor.getInt(1))
+                assertEquals(30, cursor.getInt(2))
+                assertEquals(40, cursor.getInt(3))
+            }
+            database.query("SELECT COUNT(*) FROM mtproto_pending_envelopes").use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        }
+    }
+
     private fun SupportSQLiteDatabase.insertMessageRow(
         chatId: Long,
         messageId: Long,
@@ -102,5 +132,6 @@ class MonogramMigrationTest {
     private companion object {
         const val TEST_DATABASE = "migration-37-38"
         const val TEST_DATABASE_38 = "migration-38-39"
+        const val TEST_DATABASE_39 = "migration-39-40"
     }
 }

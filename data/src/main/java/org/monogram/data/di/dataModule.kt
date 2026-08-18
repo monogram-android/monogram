@@ -342,6 +342,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_36_37,
                 MonogramMigrations.MIGRATION_37_38,
                 MonogramMigrations.MIGRATION_38_39,
+                MonogramMigrations.MIGRATION_39_40,
             )
             .build()
     }
@@ -349,6 +350,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().messageDao() }
     single { get<MonogramDatabase>().messageWindowDao() }
     single { get<MonogramDatabase>().mtProtoUpdateStateDao() }
+    single { get<MonogramDatabase>().mtProtoPendingEnvelopeDao() }
     single { MtProtoRoomUpdateStateStore(get(), get()) }
     single<MtProtoTransactionalUpdateStateStore> { get<MtProtoRoomUpdateStateStore>() }
     single { MtProtoRoomUpdateRecovery(get()) }

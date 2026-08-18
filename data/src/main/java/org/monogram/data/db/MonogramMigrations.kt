@@ -437,6 +437,34 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_39_40 = object : Migration(39, 40) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_pending_envelopes` (
+                    `sequenceId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `payloadHash` TEXT NOT NULL,
+                    `payload` BLOB NOT NULL,
+                    `createdAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                    "`index_mtproto_pending_envelopes_accountSlot_environment_dcId_payloadHash` " +
+                    "ON `mtproto_pending_envelopes` (`accountSlot`, `environment`, `dcId`, `payloadHash`)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS " +
+                    "`index_mtproto_pending_envelopes_accountSlot_environment_dcId_sequenceId` " +
+                    "ON `mtproto_pending_envelopes` (`accountSlot`, `environment`, `dcId`, `sequenceId`)"
+            )
+        }
+    }
+
     private fun SupportSQLiteDatabase.addColumn(table: String, column: String, definition: String) {
         execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
     }

@@ -37,9 +37,11 @@ internal class MtProtoRoomCloudObjectStager(
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val userProjectionStore: MtProtoUserProjectionStore = NoOpMtProtoUserProjectionStore,
     private val chatProjectionStore: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
+    private val messageProjectionStore: MtProtoMessageProjectionStore = NoOpMtProtoMessageProjectionStore,
 ) : MtProtoCloudObjectStager {
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
         stage(scope, envelope.liveObjects())
+        messageProjectionStore.stageLive(scope, envelope)
     }
 
     override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) {
@@ -53,6 +55,7 @@ internal class MtProtoRoomCloudObjectStager(
                 batch.otherUpdates.forEach { add(MtProtoCloudObject("update", it)) }
             },
         )
+        messageProjectionStore.stageDifference(scope, batch)
     }
 
     private suspend fun stage(scope: MtProtoAuthKeyScope, objects: List<MtProtoCloudObject>) {
@@ -99,6 +102,7 @@ internal class MtProtoRoomCloudObjectStager(
         dao.deleteAccount(accountSlot, environment.storageName)
         userProjectionStore.deleteAccount(accountSlot, environment)
         chatProjectionStore.deleteAccount(accountSlot, environment)
+        messageProjectionStore.deleteAccount(accountSlot, environment)
     }
 
     private data class MtProtoCloudObject(

@@ -181,6 +181,36 @@ class MonogramMigrationTest {
         }
     }
 
+    @Test
+    fun migration43To44CreatesMessageProjectionAndPreservesChatProjection() {
+        helper.createDatabase(TEST_DATABASE_43, 43).use { database ->
+            database.execSQL(
+                "INSERT INTO mtproto_chat_projection " +
+                    "(accountSlot, environment, dcId, chatId, type, accessHash, title, username, participantsCount, " +
+                    "isDeleted, isForbidden, isLeft, isDeactivated, isBroadcast, isMegagroup, isVerified, " +
+                    "isRestricted, isScam, isFake, isForum, isMin, updatedAt) " +
+                    "VALUES ('account-1', 'prod', 2, 7, 'BASIC_GROUP', NULL, 'Group', NULL, NULL, " +
+                    "0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1234)"
+            )
+        }
+
+        helper.runMigrationsAndValidate(
+            TEST_DATABASE_43,
+            44,
+            true,
+            MonogramMigrations.MIGRATION_43_44,
+        ).use { database ->
+            database.query("SELECT title FROM mtproto_chat_projection").use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals("Group", cursor.getString(0))
+            }
+            database.query("SELECT COUNT(*) FROM mtproto_message_projection").use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        }
+    }
+
     private fun SupportSQLiteDatabase.insertMessageRow(
         chatId: Long,
         messageId: Long,
@@ -219,5 +249,6 @@ class MonogramMigrationTest {
         const val TEST_DATABASE_40 = "migration-40-41"
         const val TEST_DATABASE_41 = "migration-41-42"
         const val TEST_DATABASE_42 = "migration-42-43"
+        const val TEST_DATABASE_43 = "migration-43-44"
     }
 }

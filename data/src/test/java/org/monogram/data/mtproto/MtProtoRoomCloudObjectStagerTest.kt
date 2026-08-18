@@ -12,6 +12,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.Chat_7fdd7beb6e
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesCombined
+import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57
 import org.monogram.mtproto.updates.MtProtoUpdateCursor
@@ -25,7 +26,8 @@ class MtProtoRoomCloudObjectStagerTest {
         val dao = FakeCloudObjectDao()
         val userStore = RecordingUserProjectionStore()
         val chatStore = RecordingChatProjectionStore()
-        val stager = MtProtoRoomCloudObjectStager(dao, { 1234L }, userStore, chatStore)
+        val messageStore = RecordingMessageProjectionStore()
+        val stager = MtProtoRoomCloudObjectStager(dao, { 1234L }, userStore, chatStore, messageStore)
         val batch = MtProtoUpdateDifferenceBatch(
             newMessages = listOf(MessageEmpty(30, null)),
             newEncryptedMessages = emptyList(),
@@ -47,6 +49,7 @@ class MtProtoRoomCloudObjectStagerTest {
         )
         assertEquals(listOf(UserEmpty(10), UserEmpty(10)), userStore.upsertedUsers)
         assertEquals(listOf(ChatEmpty(20), ChatEmpty(20)), chatStore.upsertedChats)
+        assertEquals(2, messageStore.differenceCalls)
     }
 
     @Test
@@ -134,6 +137,19 @@ class MtProtoRoomCloudObjectStagerTest {
         override suspend fun get(scope: MtProtoAuthKeyScope, chatId: Long): MtProtoChatReadModel? = null
         override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoChatReadModel> = emptyList()
         override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoChatProjectionBackfillResult(0, 0)
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
+    }
+
+    private class RecordingMessageProjectionStore : MtProtoMessageProjectionStore {
+        var differenceCalls = 0
+
+        override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) = Unit
+        override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) {
+            differenceCalls += 1
+        }
+        override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? = null
+        override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()
+        override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoMessageProjectionBackfillResult(0, 0)
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
     }
 }

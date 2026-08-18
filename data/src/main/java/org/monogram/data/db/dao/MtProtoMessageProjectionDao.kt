@@ -1,0 +1,70 @@
+package org.monogram.data.db.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import org.monogram.data.db.model.MtProtoMessageProjectionEntity
+
+@Dao
+interface MtProtoMessageProjectionDao {
+    @Query(
+        "SELECT * FROM mtproto_message_projection " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId AND messageId = :messageId LIMIT 1"
+    )
+    suspend fun get(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        messageId: Int,
+    ): MtProtoMessageProjectionEntity?
+
+    @Query(
+        "SELECT * FROM mtproto_message_projection " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId ORDER BY date DESC, messageId DESC"
+    )
+    suspend fun getAll(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+    ): List<MtProtoMessageProjectionEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: MtProtoMessageProjectionEntity)
+
+    @Query(
+        "UPDATE mtproto_message_projection SET isDeleted = 1, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType != 'CHANNEL' AND messageId IN (:messageIds)"
+    )
+    suspend fun markDeletedNonChannel(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        messageIds: List<Int>,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "UPDATE mtproto_message_projection SET isDeleted = 1, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = 'CHANNEL' AND peerId = :peerId AND messageId IN (:messageIds)"
+    )
+    suspend fun markDeletedChannel(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerId: Long,
+        messageIds: List<Int>,
+        updatedAt: Long,
+    )
+
+    @Query("DELETE FROM mtproto_message_projection WHERE accountSlot = :accountSlot AND environment = :environment")
+    suspend fun deleteAccount(accountSlot: String, environment: String)
+}

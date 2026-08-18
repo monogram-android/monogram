@@ -13,6 +13,7 @@ import org.monogram.data.db.dao.MtProtoUpdateStateDao
 import org.monogram.data.db.dao.MtProtoPendingEnvelopeDao
 import org.monogram.data.db.dao.MtProtoCloudObjectDao
 import org.monogram.data.db.dao.MtProtoChatProjectionDao
+import org.monogram.data.db.dao.MtProtoMessageProjectionDao
 import org.monogram.data.db.dao.MtProtoUserProjectionDao
 import org.monogram.data.db.dao.NotificationExceptionDao
 import org.monogram.data.db.dao.NotificationSettingDao
@@ -37,6 +38,7 @@ import org.monogram.data.db.model.MtProtoUpdateStateEntity
 import org.monogram.data.db.model.MtProtoPendingEnvelopeEntity
 import org.monogram.data.db.model.MtProtoCloudObjectEntity
 import org.monogram.data.db.model.MtProtoChatProjectionEntity
+import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.data.db.model.MtProtoUserProjectionEntity
 import org.monogram.data.db.model.NotificationExceptionEntity
 import org.monogram.data.db.model.NotificationSettingEntity
@@ -61,6 +63,7 @@ import org.monogram.data.db.model.WallpaperEntity
         MtProtoCloudObjectEntity::class,
         MtProtoUserProjectionEntity::class,
         MtProtoChatProjectionEntity::class,
+        MtProtoMessageProjectionEntity::class,
         UserEntity::class,
         ChatFullInfoEntity::class,
         TopicEntity::class,
@@ -78,7 +81,7 @@ import org.monogram.data.db.model.WallpaperEntity
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 43,
+    version = 44,
     exportSchema = true
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -90,6 +93,7 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun mtProtoCloudObjectDao(): MtProtoCloudObjectDao
     abstract fun mtProtoUserProjectionDao(): MtProtoUserProjectionDao
     abstract fun mtProtoChatProjectionDao(): MtProtoChatProjectionDao
+    abstract fun mtProtoMessageProjectionDao(): MtProtoMessageProjectionDao
     abstract fun userDao(): UserDao
     abstract fun chatFullInfoDao(): ChatFullInfoDao
     abstract fun topicDao(): TopicDao

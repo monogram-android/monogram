@@ -1,0 +1,176 @@
+package org.monogram.data.mtproto
+
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.monogram.data.db.dao.MtProtoCloudObjectDao
+import org.monogram.data.db.dao.MtProtoMessageProjectionDao
+import org.monogram.data.db.model.MtProtoCloudObjectEntity
+import org.monogram.data.db.model.MtProtoMessageProjectionEntity
+import org.monogram.mtproto.codec.CloudTlObjectCodec
+import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteChannelMessages
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShort
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShortMessage
+import org.monogram.mtproto.updates.MtProtoUpdateCursor
+import org.monogram.mtproto.updates.MtProtoUpdateDifferenceBatch
+
+class MtProtoRoomMessageProjectionStoreTest {
+    private val scope = MtProtoAuthKeyScope("account-1", MtProtoEnvironment.TEST, 4)
+
+    @Test
+    fun `projects short private message and applies non-channel deletion`() = runBlocking {
+        val store = MtProtoRoomMessageProjectionStore(FakeMessageProjectionDao(), nowMillis = { 1234L })
+        store.stageLive(
+            scope,
+            shortMessage(id = 10, userId = 7, text = "hello"),
+        )
+
+        assertEquals("hello", store.get(scope, MtProtoMessagePeerType.USER, 7, 10)?.text)
+        store.stageLive(scope, UpdateShort(UpdateDeleteMessages(listOf(10), 2, 1), 101))
+
+        assertTrue(store.get(scope, MtProtoMessagePeerType.USER, 7, 10)?.isDeleted == true)
+    }
+
+    @Test
+    fun `channel deletion remains peer scoped`() = runBlocking {
+        val dao = FakeMessageProjectionDao()
+        dao.upsert(entity(MtProtoMessagePeerType.CHANNEL, 50, 20))
+        dao.upsert(entity(MtProtoMessagePeerType.CHANNEL, 60, 20))
+        val store = MtProtoRoomMessageProjectionStore(dao, nowMillis = { 1234L })
+
+        store.stageDifference(
+            scope,
+            batch(otherUpdates = listOf(UpdateDeleteChannelMessages(50, listOf(20), 2, 1))),
+        )
+
+        assertTrue(store.get(scope, MtProtoMessagePeerType.CHANNEL, 50, 20)?.isDeleted == true)
+        assertTrue(store.get(scope, MtProtoMessagePeerType.CHANNEL, 60, 20)?.isDeleted == false)
+    }
+
+    @Test
+    fun `backfill projects peer-resolved message and rejects corrupt payload`() = runBlocking {
+        val cloudDao = FakeCloudObjectDao(
+            listOf(
+                cloudEntity(1, "message", CloudTlObjectCodec.encode(MessageEmpty(30, PeerChat(5)))),
+                cloudEntity(2, "message", CloudTlObjectCodec.encode(MessageEmpty(31, PeerUser(6)))),
+                cloudEntity(3, "message", byteArrayOf(1, 2, 3)),
+                cloudEntity(4, "live_updates", CloudTlObjectCodec.encode(shortMessage(31, 6, "restored"))),
+            )
+        )
+        val store = MtProtoRoomMessageProjectionStore(FakeMessageProjectionDao(), cloudObjectDao = cloudDao)
+
+        assertEquals(MtProtoMessageProjectionBackfillResult(3, 1), store.backfill(scope))
+        assertTrue(store.get(scope, MtProtoMessagePeerType.GROUP, 5, 30)?.isDeleted == true)
+        assertEquals("restored", store.get(scope, MtProtoMessagePeerType.USER, 6, 31)?.text)
+        assertTrue(store.get(scope, MtProtoMessagePeerType.USER, 6, 31)?.isDeleted == false)
+    }
+
+    private fun shortMessage(id: Int, userId: Long, text: String) = UpdateShortMessage(
+        out_ = false,
+        mentioned = true,
+        mediaUnread = false,
+        silent = false,
+        id = id,
+        userId = userId,
+        message = text,
+        pts = 1,
+        ptsCount = 1,
+        date = 100,
+        fwdFrom = null,
+        viaBotId = null,
+        replyTo = null,
+        entities = null,
+        ttlPeriod = null,
+    )
+
+    private fun batch(
+        otherUpdates: List<org.monogram.mtproto.tl.generated.cloud.layer223.Update>,
+    ) = MtProtoUpdateDifferenceBatch(
+        newMessages = emptyList(),
+        newEncryptedMessages = emptyList(),
+        otherUpdates = otherUpdates,
+        chats = emptyList(),
+        users = emptyList(),
+        cursor = MtProtoUpdateCursor(1, 0, 1, 1),
+    )
+
+    private fun entity(peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int) =
+        MtProtoMessageProjectionEntity(
+            accountSlot = "account-1",
+            environment = "test",
+            dcId = 4,
+            peerType = peerType.name,
+            peerId = peerId,
+            messageId = messageId,
+            senderType = null,
+            senderId = null,
+            date = 1,
+            text = "message",
+            isService = false,
+            isDeleted = false,
+            isOutgoing = false,
+            isMentioned = false,
+            isMediaUnread = false,
+            isSilent = false,
+            isPinned = false,
+            editDate = null,
+            groupedId = null,
+            hasMedia = false,
+            updatedAt = 1,
+        )
+
+    private fun cloudEntity(id: Long, type: String, payload: ByteArray) = MtProtoCloudObjectEntity(
+        sequenceId = id,
+        accountSlot = "account-1",
+        environment = "test",
+        dcId = 4,
+        objectType = type,
+        payloadHash = "hash-$id",
+        payload = payload,
+        createdAt = 0,
+    )
+
+    private class FakeMessageProjectionDao : MtProtoMessageProjectionDao {
+        private val entities = mutableListOf<MtProtoMessageProjectionEntity>()
+
+        override suspend fun get(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int) =
+            entities.firstOrNull { it.matches(accountSlot, environment, dcId, peerType, peerId, messageId) }
+
+        override suspend fun getAll(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long) =
+            entities.filter { it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.peerType == peerType && it.peerId == peerId }
+                .sortedWith(compareByDescending<MtProtoMessageProjectionEntity> { it.date }.thenByDescending { it.messageId })
+
+        override suspend fun upsert(entity: MtProtoMessageProjectionEntity) {
+            entities.removeAll { it.matches(entity.accountSlot, entity.environment, entity.dcId, entity.peerType, entity.peerId, entity.messageId) }
+            entities += entity
+        }
+
+        override suspend fun markDeletedNonChannel(accountSlot: String, environment: String, dcId: Int, messageIds: List<Int>, updatedAt: Long) {
+            entities.replaceAll { if (it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.peerType != "CHANNEL" && it.messageId in messageIds) it.copy(isDeleted = true, updatedAt = updatedAt) else it }
+        }
+
+        override suspend fun markDeletedChannel(accountSlot: String, environment: String, dcId: Int, peerId: Long, messageIds: List<Int>, updatedAt: Long) {
+            entities.replaceAll { if (it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.peerType == "CHANNEL" && it.peerId == peerId && it.messageId in messageIds) it.copy(isDeleted = true, updatedAt = updatedAt) else it }
+        }
+
+        override suspend fun deleteAccount(accountSlot: String, environment: String) {
+            entities.removeAll { it.accountSlot == accountSlot && it.environment == environment }
+        }
+
+        private fun MtProtoMessageProjectionEntity.matches(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int) =
+            this.accountSlot == accountSlot && this.environment == environment && this.dcId == dcId && this.peerType == peerType && this.peerId == peerId && this.messageId == messageId
+    }
+
+    private class FakeCloudObjectDao(private val entities: List<MtProtoCloudObjectEntity>) : MtProtoCloudObjectDao {
+        override suspend fun insertAll(objects: List<MtProtoCloudObjectEntity>) = emptyList<Long>()
+        override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) = entities
+        override suspend fun getByType(accountSlot: String, environment: String, dcId: Int, objectType: String) = entities.filter { it.objectType == objectType }
+        override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
+    }
+}

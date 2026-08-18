@@ -24,6 +24,7 @@ class TelegramMtProtoSessionFactoryTest {
         val transport = FakeRpcTransport()
         val projectionStore = RecordingUserProjectionStore()
         val chatProjectionStore = RecordingChatProjectionStore()
+        val messageProjectionStore = RecordingMessageProjectionStore()
         val factory = TelegramMtProtoSessionFactory(
             configSource = TelegramMtProtoBootstrapConfigSource { config },
             keyLoader = MtProtoAuthKeyLoader { scope, connection, handshakeConfig ->
@@ -41,6 +42,7 @@ class TelegramMtProtoSessionFactoryTest {
             },
             userProjectionStore = projectionStore,
             chatProjectionStore = chatProjectionStore,
+            messageProjectionStore = messageProjectionStore,
         )
 
         val result = factory.open()
@@ -54,6 +56,10 @@ class TelegramMtProtoSessionFactoryTest {
         assertEquals(
             listOf(MtProtoAuthKeyScope("default", MtProtoEnvironment.PRODUCTION, 2)),
             chatProjectionStore.backfilledScopes,
+        )
+        assertEquals(
+            listOf(MtProtoAuthKeyScope("default", MtProtoEnvironment.PRODUCTION, 2)),
+            messageProjectionStore.backfilledScopes,
         )
         assertEquals(1, handshake.closeCalls)
         assertTrue(handshake.closed)
@@ -184,6 +190,15 @@ class TelegramMtProtoSessionFactoryTest {
         override suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoChatProjectionBackfillResult {
             backfilledScopes += scope
             return MtProtoChatProjectionBackfillResult(0, 0)
+        }
+    }
+
+    private class RecordingMessageProjectionStore : MtProtoMessageProjectionStore by NoOpMtProtoMessageProjectionStore {
+        val backfilledScopes = mutableListOf<MtProtoAuthKeyScope>()
+
+        override suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoMessageProjectionBackfillResult {
+            backfilledScopes += scope
+            return MtProtoMessageProjectionBackfillResult(0, 0)
         }
     }
 }

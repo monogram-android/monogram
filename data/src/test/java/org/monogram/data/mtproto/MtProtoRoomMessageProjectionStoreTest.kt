@@ -146,6 +146,13 @@ class MtProtoRoomMessageProjectionStoreTest {
             entities.filter { it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.peerType == peerType && it.peerId == peerId }
                 .sortedWith(compareByDescending<MtProtoMessageProjectionEntity> { it.date }.thenByDescending { it.messageId })
 
+        override suspend fun getLatestByPeer(accountSlot: String, environment: String, dcId: Int) =
+            entities.filter { it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId }
+                .groupBy { it.peerType to it.peerId }
+                .values
+                .map { peerMessages -> peerMessages.maxWith(compareBy<MtProtoMessageProjectionEntity> { it.date }.thenBy { it.messageId }) }
+                .sortedWith(compareByDescending<MtProtoMessageProjectionEntity> { it.date }.thenByDescending { it.messageId })
+
         override suspend fun upsert(entity: MtProtoMessageProjectionEntity) {
             entities.removeAll { it.matches(entity.accountSlot, entity.environment, entity.dcId, entity.peerType, entity.peerId, entity.messageId) }
             entities += entity

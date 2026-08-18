@@ -1,0 +1,148 @@
+package org.monogram.data.mtproto
+
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.monogram.data.db.dao.MtProtoChatProjectionDao
+import org.monogram.data.db.dao.MtProtoMessageProjectionDao
+import org.monogram.data.db.dao.MtProtoUserProjectionDao
+import org.monogram.data.db.model.MtProtoChatProjectionEntity
+import org.monogram.data.db.model.MtProtoMessageProjectionEntity
+import org.monogram.data.db.model.MtProtoUserProjectionEntity
+
+class MtProtoRoomDialogStoreTest {
+    private val scope = MtProtoAuthKeyScope("account-1", MtProtoEnvironment.TEST, 4)
+
+    @Test
+    fun `derives ordered dialogs from latest peer messages and resolves display metadata`() = runBlocking {
+        val messages = listOf(
+            message(MtProtoMessagePeerType.USER, 10, 1, date = 100, text = "user latest"),
+            message(MtProtoMessagePeerType.USER, 10, 2, date = 50, text = "user older"),
+            message(MtProtoMessagePeerType.GROUP, 20, 3, date = 200, text = "group latest"),
+            message(MtProtoMessagePeerType.CHANNEL, 30, 4, date = 150, text = "unresolved"),
+        )
+        val store = MtProtoRoomDialogStore(
+            messageDao = FakeMessageDao(messages),
+            userDao = FakeUserDao(listOf(user(10, "Alice", "Doe"), user(99, "Not", "A dialog"))),
+            chatDao = FakeChatDao(listOf(chat(20, "Group"))),
+        )
+
+        val dialogs = store.getAll(scope)
+
+        assertEquals(listOf(20L, 30L, 10L), dialogs.map { it.peerId })
+        assertEquals("Group", dialogs[0].title)
+        assertFalse(dialogs[1].isPeerResolved)
+        assertEquals("Alice Doe", dialogs[2].title)
+        assertEquals(1, dialogs[2].latestMessage.messageId)
+        assertTrue(dialogs.none { it.peerId == 99L })
+    }
+
+    private fun message(
+        peerType: MtProtoMessagePeerType,
+        peerId: Long,
+        messageId: Int,
+        date: Int,
+        text: String,
+    ) = MtProtoMessageProjectionEntity(
+        accountSlot = "account-1",
+        environment = "test",
+        dcId = 4,
+        peerType = peerType.name,
+        peerId = peerId,
+        messageId = messageId,
+        senderType = null,
+        senderId = null,
+        date = date,
+        text = text,
+        isService = false,
+        isDeleted = false,
+        isOutgoing = false,
+        isMentioned = false,
+        isMediaUnread = false,
+        isSilent = false,
+        isPinned = false,
+        editDate = null,
+        groupedId = null,
+        hasMedia = false,
+        updatedAt = 1,
+    )
+
+    private fun user(id: Long, firstName: String, lastName: String) = MtProtoUserProjectionEntity(
+        accountSlot = "account-1",
+        environment = "test",
+        dcId = 4,
+        userId = id,
+        accessHash = null,
+        firstName = firstName,
+        lastName = lastName,
+        username = null,
+        phone = null,
+        isSelf = false,
+        isContact = false,
+        isMutualContact = false,
+        isDeleted = false,
+        isBot = false,
+        isVerified = false,
+        isRestricted = false,
+        isScam = false,
+        isFake = false,
+        isPremium = false,
+        isMin = false,
+        updatedAt = 1,
+    )
+
+    private fun chat(id: Long, title: String) = MtProtoChatProjectionEntity(
+        accountSlot = "account-1",
+        environment = "test",
+        dcId = 4,
+        chatId = id,
+        type = MtProtoChatType.BASIC_GROUP.name,
+        accessHash = null,
+        title = title,
+        username = null,
+        participantsCount = null,
+        isDeleted = false,
+        isForbidden = false,
+        isLeft = false,
+        isDeactivated = false,
+        isBroadcast = false,
+        isMegagroup = false,
+        isVerified = false,
+        isRestricted = false,
+        isScam = false,
+        isFake = false,
+        isForum = false,
+        isMin = false,
+        updatedAt = 1,
+    )
+
+    private class FakeMessageDao(private val messages: List<MtProtoMessageProjectionEntity>) : MtProtoMessageProjectionDao {
+        override suspend fun get(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int) = messages.firstOrNull { it.peerType == peerType && it.peerId == peerId && it.messageId == messageId }
+        override suspend fun getAll(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long) = messages.filter { it.peerType == peerType && it.peerId == peerId }
+        override suspend fun getLatestByPeer(accountSlot: String, environment: String, dcId: Int) = messages
+            .groupBy { it.peerType to it.peerId }
+            .values
+            .map { it.maxWith(compareBy<MtProtoMessageProjectionEntity> { message -> message.date }.thenBy { message -> message.messageId }) }
+            .sortedWith(compareByDescending<MtProtoMessageProjectionEntity> { it.date }.thenByDescending { it.messageId })
+        override suspend fun upsert(entity: MtProtoMessageProjectionEntity) = Unit
+        override suspend fun markDeletedNonChannel(accountSlot: String, environment: String, dcId: Int, messageIds: List<Int>, updatedAt: Long) = Unit
+        override suspend fun markDeletedChannel(accountSlot: String, environment: String, dcId: Int, peerId: Long, messageIds: List<Int>, updatedAt: Long) = Unit
+        override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
+    }
+
+    private class FakeUserDao(private val users: List<MtProtoUserProjectionEntity>) : MtProtoUserProjectionDao {
+        override suspend fun get(accountSlot: String, environment: String, dcId: Int, userId: Long) = users.firstOrNull { it.userId == userId }
+        override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) = users
+        override suspend fun upsert(entity: MtProtoUserProjectionEntity) = Unit
+        override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
+    }
+
+    private class FakeChatDao(private val chats: List<MtProtoChatProjectionEntity>) : MtProtoChatProjectionDao {
+        override suspend fun get(accountSlot: String, environment: String, dcId: Int, chatId: Long) = chats.firstOrNull { it.chatId == chatId }
+        override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) = chats
+        override suspend fun upsert(entity: MtProtoChatProjectionEntity) = Unit
+        override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
+    }
+}

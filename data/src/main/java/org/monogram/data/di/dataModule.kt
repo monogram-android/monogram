@@ -74,6 +74,8 @@ import org.monogram.data.mtproto.MtProtoRoomChatProjectionStore
 import org.monogram.data.mtproto.MtProtoChatProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
+import org.monogram.data.mtproto.MtProtoRoomDialogStore
+import org.monogram.data.mtproto.MtProtoDialogStore
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
 import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
@@ -367,6 +369,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_41_42,
                 MonogramMigrations.MIGRATION_42_43,
                 MonogramMigrations.MIGRATION_43_44,
+                MonogramMigrations.MIGRATION_44_45,
             )
             .build()
     }
@@ -385,6 +388,8 @@ val dataModule = module {
     single<MtProtoChatProjectionStore> { get<MtProtoRoomChatProjectionStore>() }
     single { MtProtoRoomMessageProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoMessageProjectionStore> { get<MtProtoRoomMessageProjectionStore>() }
+    single { MtProtoRoomDialogStore(get(), get(), get()) }
+    single<MtProtoDialogStore> { get<MtProtoRoomDialogStore>() }
     single {
         MtProtoRoomCloudObjectStager(
             get(),

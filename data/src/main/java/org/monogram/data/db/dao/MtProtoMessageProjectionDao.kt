@@ -35,6 +35,22 @@ interface MtProtoMessageProjectionDao {
         peerId: Long,
     ): List<MtProtoMessageProjectionEntity>
 
+    @Query(
+        "SELECT * FROM mtproto_message_projection AS message " +
+            "WHERE message.accountSlot = :accountSlot AND message.environment = :environment " +
+            "AND message.dcId = :dcId AND NOT EXISTS (" +
+            "SELECT 1 FROM mtproto_message_projection AS newer " +
+            "WHERE newer.accountSlot = message.accountSlot AND newer.environment = message.environment " +
+            "AND newer.dcId = message.dcId AND newer.peerType = message.peerType AND newer.peerId = message.peerId " +
+            "AND (newer.date > message.date OR (newer.date = message.date AND newer.messageId > message.messageId))) " +
+            "ORDER BY message.date DESC, message.messageId DESC, message.peerType ASC, message.peerId ASC"
+    )
+    suspend fun getLatestByPeer(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+    ): List<MtProtoMessageProjectionEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: MtProtoMessageProjectionEntity)
 

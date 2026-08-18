@@ -211,6 +211,32 @@ class MonogramMigrationTest {
         }
     }
 
+    @Test
+    fun migration44To45IndexesMessagesAndPreservesRows() {
+        helper.createDatabase(TEST_DATABASE_44, 44).use { database ->
+            database.execSQL(
+                "INSERT INTO mtproto_message_projection " +
+                    "(accountSlot, environment, dcId, peerType, peerId, messageId, senderType, senderId, date, text, " +
+                    "isService, isDeleted, isOutgoing, isMentioned, isMediaUnread, isSilent, isPinned, editDate, " +
+                    "groupedId, hasMedia, updatedAt) " +
+                    "VALUES ('account-1', 'prod', 2, 'USER', 7, 10, NULL, NULL, 100, 'hello', " +
+                    "0, 0, 0, 0, 0, 0, 0, NULL, NULL, 0, 1234)"
+            )
+        }
+
+        helper.runMigrationsAndValidate(
+            TEST_DATABASE_44,
+            45,
+            true,
+            MonogramMigrations.MIGRATION_44_45,
+        ).use { database ->
+            database.query("SELECT text FROM mtproto_message_projection").use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals("hello", cursor.getString(0))
+            }
+        }
+    }
+
     private fun SupportSQLiteDatabase.insertMessageRow(
         chatId: Long,
         messageId: Long,
@@ -250,5 +276,6 @@ class MonogramMigrationTest {
         const val TEST_DATABASE_41 = "migration-41-42"
         const val TEST_DATABASE_42 = "migration-42-43"
         const val TEST_DATABASE_43 = "migration-43-44"
+        const val TEST_DATABASE_44 = "migration-44-45"
     }
 }

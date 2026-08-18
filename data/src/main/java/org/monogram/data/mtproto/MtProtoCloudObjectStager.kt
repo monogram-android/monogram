@@ -11,6 +11,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShort
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShortChatMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShortMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShortSentMessage
+import org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57
 import org.monogram.mtproto.tl.runtime.TlObject
 import org.monogram.mtproto.updates.MtProtoUpdateDifferenceBatch
 
@@ -33,6 +34,7 @@ internal object NoOpMtProtoCloudObjectStager : MtProtoCloudObjectStager {
 internal class MtProtoRoomCloudObjectStager(
     private val dao: MtProtoCloudObjectDao,
     private val nowMillis: () -> Long = System::currentTimeMillis,
+    private val userProjectionStore: MtProtoUserProjectionStore = NoOpMtProtoUserProjectionStore,
 ) : MtProtoCloudObjectStager {
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
         stage(scope, envelope.liveObjects())
@@ -67,6 +69,7 @@ internal class MtProtoRoomCloudObjectStager(
                 )
             }
         )
+        userProjectionStore.upsert(scope, objects.mapNotNull { it.value as? User_655b5dfc57 })
     }
 
     private fun Updates_faf6aaa3d5.liveObjects(): List<MtProtoCloudObject> = when (this) {
@@ -89,8 +92,10 @@ internal class MtProtoRoomCloudObjectStager(
         UpdatesTooLong -> emptyList()
     }
 
-    override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
+    override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
         dao.deleteAccount(accountSlot, environment.storageName)
+        userProjectionStore.deleteAccount(accountSlot, environment)
+    }
 
     private data class MtProtoCloudObject(
         val type: String,

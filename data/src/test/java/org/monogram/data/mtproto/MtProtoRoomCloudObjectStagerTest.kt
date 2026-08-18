@@ -12,6 +12,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesCombined
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57
 import org.monogram.mtproto.updates.MtProtoUpdateCursor
 import org.monogram.mtproto.updates.MtProtoUpdateDifferenceBatch
 
@@ -21,7 +22,8 @@ class MtProtoRoomCloudObjectStagerTest {
     @Test
     fun `stages typed difference objects once within account dc scope`() = runBlocking {
         val dao = FakeCloudObjectDao()
-        val stager = MtProtoRoomCloudObjectStager(dao) { 1234L }
+        val userStore = RecordingUserProjectionStore()
+        val stager = MtProtoRoomCloudObjectStager(dao, { 1234L }, userStore)
         val batch = MtProtoUpdateDifferenceBatch(
             newMessages = listOf(MessageEmpty(30, null)),
             newEncryptedMessages = emptyList(),
@@ -41,6 +43,7 @@ class MtProtoRoomCloudObjectStagerTest {
             listOf(UserEmpty(10), ChatEmpty(20), MessageEmpty(30, null)),
             stored.take(3).map { CloudTlObjectCodec.decode(it.payload) },
         )
+        assertEquals(listOf(UserEmpty(10), UserEmpty(10)), userStore.upsertedUsers)
     }
 
     @Test
@@ -93,8 +96,28 @@ class MtProtoRoomCloudObjectStagerTest {
                 it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId
             }.sortedBy { it.sequenceId }
 
+        override suspend fun getByType(
+            accountSlot: String,
+            environment: String,
+            dcId: Int,
+            objectType: String,
+        ) = getAll(accountSlot, environment, dcId).filter { it.objectType == objectType }
+
         override suspend fun deleteAccount(accountSlot: String, environment: String) {
             entities.removeAll { it.accountSlot == accountSlot && it.environment == environment }
         }
+    }
+
+    private class RecordingUserProjectionStore : MtProtoUserProjectionStore {
+        val upsertedUsers = mutableListOf<User_655b5dfc57>()
+
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, users: List<User_655b5dfc57>) {
+            upsertedUsers += users
+        }
+
+        override suspend fun get(scope: MtProtoAuthKeyScope, userId: Long): MtProtoUserReadModel? = null
+        override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoUserReadModel> = emptyList()
+        override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoUserProjectionBackfillResult(0, 0)
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
     }
 }

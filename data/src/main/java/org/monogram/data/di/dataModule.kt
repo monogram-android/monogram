@@ -68,6 +68,8 @@ import org.monogram.data.mtproto.MtProtoPendingEnvelopeStore
 import org.monogram.data.mtproto.MtProtoRoomPendingEnvelopeStore
 import org.monogram.data.mtproto.MtProtoRoomCloudObjectStager
 import org.monogram.data.mtproto.MtProtoCloudObjectStager
+import org.monogram.data.mtproto.MtProtoRoomUserProjectionStore
+import org.monogram.data.mtproto.MtProtoUserProjectionStore
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
 import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
@@ -349,6 +351,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_38_39,
                 MonogramMigrations.MIGRATION_39_40,
                 MonogramMigrations.MIGRATION_40_41,
+                MonogramMigrations.MIGRATION_41_42,
             )
             .build()
     }
@@ -358,7 +361,10 @@ val dataModule = module {
     single { get<MonogramDatabase>().mtProtoUpdateStateDao() }
     single { get<MonogramDatabase>().mtProtoPendingEnvelopeDao() }
     single { get<MonogramDatabase>().mtProtoCloudObjectDao() }
-    single { MtProtoRoomCloudObjectStager(get()) }
+    single { get<MonogramDatabase>().mtProtoUserProjectionDao() }
+    single { MtProtoRoomUserProjectionStore(get(), cloudObjectDao = get()) }
+    single<MtProtoUserProjectionStore> { get<MtProtoRoomUserProjectionStore>() }
+    single { MtProtoRoomCloudObjectStager(get(), userProjectionStore = get()) }
     single<MtProtoCloudObjectStager> { get<MtProtoRoomCloudObjectStager>() }
     single { MtProtoRoomPendingEnvelopeStore(get()) }
     single<MtProtoPendingEnvelopeStore> { get<MtProtoRoomPendingEnvelopeStore>() }

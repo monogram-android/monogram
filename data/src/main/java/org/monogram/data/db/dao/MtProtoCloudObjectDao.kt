@@ -18,6 +18,18 @@ interface MtProtoCloudObjectDao {
     )
     suspend fun getAll(accountSlot: String, environment: String, dcId: Int): List<MtProtoCloudObjectEntity>
 
+    @Query(
+        "SELECT * FROM mtproto_cloud_objects " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND objectType = :objectType ORDER BY sequenceId ASC"
+    )
+    suspend fun getByType(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        objectType: String,
+    ): List<MtProtoCloudObjectEntity>
+
     @Query("DELETE FROM mtproto_cloud_objects WHERE accountSlot = :accountSlot AND environment = :environment")
     suspend fun deleteAccount(accountSlot: String, environment: String)
 }

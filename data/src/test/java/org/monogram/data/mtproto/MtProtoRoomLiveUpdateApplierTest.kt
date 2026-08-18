@@ -84,6 +84,21 @@ class MtProtoRoomLiveUpdateApplierTest {
     }
 
     @Test
+    fun `normal replay retains recovery marker`() = runBlocking {
+        val pendingStore = FakePendingStore()
+        pendingStore.enqueue(scope, UpdatesTooLong)
+        val applier = MtProtoRoomLiveUpdateApplier(FakeStateStore(initial), pendingStore)
+
+        val result = applier.replayPending(scope) { error("must not apply") }
+
+        assertEquals(
+            MtProtoPendingReplayResult.Blocked(0, MtProtoLiveUpdateApplyResult.RecoveryRequired),
+            result,
+        )
+        assertEquals(1, pendingStore.records.size)
+    }
+
+    @Test
     fun `stops replay at corrupt durable envelope without deleting it`() = runBlocking {
         val pendingStore = FakePendingStore().apply { records += MtProtoPendingEnvelope.Corrupt(7) }
         val applier = MtProtoRoomLiveUpdateApplier(FakeStateStore(initial), pendingStore)

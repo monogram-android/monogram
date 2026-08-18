@@ -3,8 +3,10 @@ package org.monogram.data.mtproto
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.updates.MtProtoUpdateMetadataExtractor
 import org.monogram.mtproto.updates.MtProtoUpdateMetadataResult
+import org.monogram.mtproto.updates.MtProtoUpdateRecoveryResult
 import org.monogram.mtproto.updates.MtProtoUpdateState
 import org.monogram.mtproto.updates.MtProtoUpdateStateTransition
 import org.monogram.mtproto.updates.MtProtoUpdateStateTransitionResult
@@ -48,16 +50,48 @@ internal class MtProtoRoomLiveUpdateApplier(
         scope: MtProtoAuthKeyScope,
         applyEntities: suspend (Updates_faf6aaa3d5) -> Unit,
     ): MtProtoPendingReplayResult = mutex.withLock {
+        replayPendingLocked(scope, acknowledgeRecoveryMarkers = false, applyEntities)
+    }
+
+    suspend fun recoverAndReplay(
+        scope: MtProtoAuthKeyScope,
+        recover: suspend () -> MtProtoUpdateRecoveryResult,
+        applyEntities: suspend (Updates_faf6aaa3d5) -> Unit,
+    ): MtProtoRoomRecoveryResult = mutex.withLock {
+        when (val result = recover()) {
+            is MtProtoUpdateRecoveryResult.Completed -> MtProtoRoomRecoveryResult.Completed(
+                cursor = result.cursor,
+                replay = replayPendingLocked(scope, acknowledgeRecoveryMarkers = true, applyEntities),
+            )
+
+            MtProtoUpdateRecoveryResult.ResyncRequired -> MtProtoRoomRecoveryResult.ResyncRequired
+        }
+    }
+
+    private suspend fun replayPendingLocked(
+        scope: MtProtoAuthKeyScope,
+        acknowledgeRecoveryMarkers: Boolean,
+        applyEntities: suspend (Updates_faf6aaa3d5) -> Unit,
+    ): MtProtoPendingReplayResult {
         var processedCount = 0
         for (pending in pendingStore.pending(scope)) {
+            if (
+                acknowledgeRecoveryMarkers &&
+                pending is MtProtoPendingEnvelope.Decoded &&
+                pending.envelope === UpdatesTooLong
+            ) {
+                pendingStore.delete(pending.sequenceId)
+                processedCount++
+                continue
+            }
             val result = processPending(scope, pending, applyEntities)
             if (result is MtProtoLiveUpdateApplyResult.Applied || result == MtProtoLiveUpdateApplyResult.Duplicate) {
                 processedCount++
             } else {
-                return@withLock MtProtoPendingReplayResult.Blocked(processedCount, result)
+                return MtProtoPendingReplayResult.Blocked(processedCount, result)
             }
         }
-        MtProtoPendingReplayResult.Completed(processedCount)
+        return MtProtoPendingReplayResult.Completed(processedCount)
     }
 
     private suspend fun processPending(

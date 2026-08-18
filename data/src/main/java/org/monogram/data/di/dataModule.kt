@@ -66,6 +66,7 @@ import org.monogram.data.mtproto.MtProtoRoomUpdateRecovery
 import org.monogram.data.mtproto.MtProtoRoomLiveUpdateApplier
 import org.monogram.data.mtproto.MtProtoPendingEnvelopeStore
 import org.monogram.data.mtproto.MtProtoRoomPendingEnvelopeStore
+import org.monogram.data.mtproto.MtProtoRecoveryStateStore
 import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
 import org.monogram.data.mtproto.MtProtoAccountStateCleaner
@@ -357,8 +358,9 @@ val dataModule = module {
     single<MtProtoPendingEnvelopeStore> { get<MtProtoRoomPendingEnvelopeStore>() }
     single { MtProtoRoomUpdateStateStore(get(), get()) }
     single<MtProtoTransactionalUpdateStateStore> { get<MtProtoRoomUpdateStateStore>() }
-    single { MtProtoRoomUpdateRecovery(get()) }
     single { MtProtoRoomLiveUpdateApplier(get(), get()) }
+    single<MtProtoRecoveryStateStore> { get<MtProtoRoomUpdateStateStore>() }
+    single { MtProtoRoomUpdateRecovery(get(), get()) }
     single<MtProtoUpdateCursorStore> { get<MtProtoRoomUpdateStateStore>() }
     single { MtProtoAccountStateCleaner(get<MtProtoAuthKeyPersistence>(), get(), get()) }
     single { get<MonogramDatabase>().userDao() }

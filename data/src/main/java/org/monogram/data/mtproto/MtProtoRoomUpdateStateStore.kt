@@ -23,11 +23,21 @@ internal interface MtProtoTransactionalUpdateStateStore {
     )
 }
 
+internal interface MtProtoRecoveryStateStore {
+    suspend fun loadState(scope: MtProtoAuthKeyScope): MtProtoUpdateStateLoadResult
+
+    suspend fun applyRecovery(
+        scope: MtProtoAuthKeyScope,
+        cursor: MtProtoUpdateCursor,
+        applyEntities: suspend () -> Unit,
+    )
+}
+
 /** Room-backed cursor boundary for the first transactional MTProto update slice. */
 internal class MtProtoRoomUpdateStateStore(
     private val database: MonogramDatabase,
     private val dao: MtProtoUpdateStateDao,
-) : MtProtoUpdateCursorStore, MtProtoTransactionalUpdateStateStore {
+) : MtProtoUpdateCursorStore, MtProtoTransactionalUpdateStateStore, MtProtoRecoveryStateStore {
     override suspend fun load(scope: MtProtoAuthKeyScope): MtProtoUpdateCursorLoadResult =
         dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId)
             ?.let { MtProtoUpdateCursorLoadResult.Found(it.toCursor()) }
@@ -62,7 +72,7 @@ internal class MtProtoRoomUpdateStateStore(
      * Applies mapped entities and advances ordering state atomically. The cursor is written last so
      * a failed or cancelled entity apply can never acknowledge an update that was not committed.
      */
-    suspend fun apply(
+    override suspend fun applyRecovery(
         scope: MtProtoAuthKeyScope,
         cursor: MtProtoUpdateCursor,
         applyEntities: suspend () -> Unit,

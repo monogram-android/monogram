@@ -5,6 +5,13 @@ import org.monogram.data.db.MonogramDatabase
 import org.monogram.data.db.dao.MtProtoUpdateStateDao
 import org.monogram.data.db.model.MtProtoUpdateStateEntity
 import org.monogram.mtproto.updates.MtProtoUpdateCursor
+import org.monogram.mtproto.updates.MtProtoUpdateState
+
+internal sealed interface MtProtoUpdateStateLoadResult {
+    data object Missing : MtProtoUpdateStateLoadResult
+    data object Corrupt : MtProtoUpdateStateLoadResult
+    data class Found(val state: MtProtoUpdateState) : MtProtoUpdateStateLoadResult
+}
 
 /** Room-backed cursor boundary for the first transactional MTProto update slice. */
 internal class MtProtoRoomUpdateStateStore(
@@ -19,18 +26,26 @@ internal class MtProtoRoomUpdateStateStore(
     suspend fun loadOrNull(scope: MtProtoAuthKeyScope): MtProtoUpdateCursor? =
         (load(scope) as? MtProtoUpdateCursorLoadResult.Found)?.cursor
 
+    suspend fun loadState(scope: MtProtoAuthKeyScope): MtProtoUpdateStateLoadResult {
+        val entity = dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId)
+            ?: return MtProtoUpdateStateLoadResult.Missing
+        return try {
+            MtProtoUpdateStateLoadResult.Found(entity.toState())
+        } catch (_: IllegalArgumentException) {
+            MtProtoUpdateStateLoadResult.Corrupt
+        }
+    }
+
     override suspend fun save(scope: MtProtoAuthKeyScope, cursor: MtProtoUpdateCursor) {
-        dao.upsert(
-            MtProtoUpdateStateEntity(
-                accountSlot = scope.accountSlot,
-                environment = scope.environment.storageName,
-                dcId = scope.dcId,
-                pts = cursor.pts,
-                qts = cursor.qts,
-                date = cursor.date,
-                seq = cursor.seq,
-            )
-        )
+        database.withTransaction {
+            val channelPts = dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId)
+                ?.channelPtsData
+            dao.upsert(cursor.toEntity(scope, channelPts))
+        }
+    }
+
+    suspend fun saveState(scope: MtProtoAuthKeyScope, state: MtProtoUpdateState) = database.withTransaction {
+        dao.upsert(state.cursor.toEntity(scope, MtProtoChannelPtsCodec.encode(state.channelPts)))
     }
 
     /**
@@ -44,17 +59,20 @@ internal class MtProtoRoomUpdateStateStore(
     ) {
         database.withTransaction {
             applyEntities()
-            dao.upsert(
-                MtProtoUpdateStateEntity(
-                    accountSlot = scope.accountSlot,
-                    environment = scope.environment.storageName,
-                    dcId = scope.dcId,
-                    pts = cursor.pts,
-                    qts = cursor.qts,
-                    date = cursor.date,
-                    seq = cursor.seq,
-                )
-            )
+            val channelPts = dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId)
+                ?.channelPtsData
+            dao.upsert(cursor.toEntity(scope, channelPts))
+        }
+    }
+
+    suspend fun applyState(
+        scope: MtProtoAuthKeyScope,
+        state: MtProtoUpdateState,
+        applyEntities: suspend () -> Unit,
+    ) {
+        database.withTransaction {
+            applyEntities()
+            dao.upsert(state.cursor.toEntity(scope, MtProtoChannelPtsCodec.encode(state.channelPts)))
         }
     }
 
@@ -65,4 +83,23 @@ internal class MtProtoRoomUpdateStateStore(
         dao.deleteAccount(accountSlot, environment.storageName)
 
     private fun MtProtoUpdateStateEntity.toCursor() = MtProtoUpdateCursor(pts, qts, date, seq)
+
+    private fun MtProtoUpdateStateEntity.toState() = MtProtoUpdateState(
+        cursor = toCursor(),
+        channelPts = MtProtoChannelPtsCodec.decode(channelPtsData),
+    )
+
+    private fun MtProtoUpdateCursor.toEntity(
+        scope: MtProtoAuthKeyScope,
+        channelPtsData: String?,
+    ) = MtProtoUpdateStateEntity(
+        accountSlot = scope.accountSlot,
+        environment = scope.environment.storageName,
+        dcId = scope.dcId,
+        pts = pts,
+        qts = qts,
+        date = date,
+        seq = seq,
+        channelPtsData = channelPtsData,
+    )
 }

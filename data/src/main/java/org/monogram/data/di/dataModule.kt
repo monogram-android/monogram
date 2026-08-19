@@ -18,6 +18,8 @@ import org.monogram.data.backend.LegacyMessageHistorySnapshotRepository
 import org.monogram.data.backend.LegacyUserProfileSnapshotRepository
 import org.monogram.data.backend.LegacyDialogSnapshotRepository
 import org.monogram.data.backend.TelegramBackendAuthRouter
+import org.monogram.data.backend.TelegramBackendChatReadRouter
+import org.monogram.data.backend.LegacyChatReadContracts
 import org.monogram.data.backend.TelegramBackendReadRouter
 import org.monogram.data.backend.TelegramBackendSelectionStore
 import org.monogram.data.backend.TelegramBackendSwitchService
@@ -90,6 +92,7 @@ import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomDialogStore
 import org.monogram.data.mtproto.MtProtoDialogStore
 import org.monogram.data.mtproto.MtProtoDialogSnapshotRepository
+import org.monogram.data.mtproto.MtProtoDialogChatListRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
@@ -806,9 +809,29 @@ val dataModule = module {
             stringProvider = get()
         )
     }
-    single<ChatListRepository> { get<ChatsListRepositoryImpl>() }
-    single<ChatFolderRepository> { get<ChatsListRepositoryImpl>() }
-    single<ChatOperationsRepository> { get<ChatsListRepositoryImpl>() }
+    single {
+        MtProtoDialogChatListRepository(
+            dialogRepository = get<MtProtoDialogSnapshotRepository>(),
+            scope = get(),
+        )
+    }
+    single {
+        TelegramBackendChatReadRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                LegacyChatReadContracts(
+                    chatListRepository = get<ChatsListRepositoryImpl>(),
+                    chatFolderRepository = get<ChatsListRepositoryImpl>(),
+                    chatOperationsRepository = get<ChatsListRepositoryImpl>(),
+                )
+            },
+            mtProtoFactory = { get<MtProtoDialogChatListRepository>() },
+            scope = get(),
+        )
+    }
+    single<ChatListRepository> { get<TelegramBackendChatReadRouter>() }
+    single<ChatFolderRepository> { get<TelegramBackendChatReadRouter>() }
+    single<ChatOperationsRepository> { get<TelegramBackendChatReadRouter>() }
     single<ChatSearchRepository> { get<ChatsListRepositoryImpl>() }
     single<ForumTopicsRepository> { get<ChatsListRepositoryImpl>() }
     single<ChatSettingsRepository> { get<ChatsListRepositoryImpl>() }

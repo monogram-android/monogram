@@ -16,10 +16,12 @@ import org.monogram.domain.models.FolderModel
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.repository.ChatFolderRepository
 import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.domain.repository.DialogSnapshotRepository
 import org.monogram.domain.repository.FolderChatsUpdate
 import org.monogram.domain.repository.FolderLoadingUpdate
+import org.monogram.data.backend.TelegramBackendChatReadRouter
 
 /**
  * Read-only chat list backed by the persisted MTProto dialog projection.
@@ -31,7 +33,7 @@ internal class MtProtoDialogChatListRepository(
     private val dialogRepository: DialogSnapshotRepository,
     private val scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
-) : ChatListRepository, ChatFolderRepository {
+) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
     override val chatListFlow: StateFlow<List<ChatModel>> = _chatListFlow.asStateFlow()
     private val _isLoadingFlow = MutableStateFlow(false)
@@ -44,6 +46,8 @@ internal class MtProtoDialogChatListRepository(
     override val foldersFlow: StateFlow<List<FolderModel>> = _foldersFlow.asStateFlow()
     private val _folderLoadingFlow = MutableSharedFlow<FolderLoadingUpdate>(replay = 1, extraBufferCapacity = 1)
     override val folderLoadingFlow: Flow<FolderLoadingUpdate> = _folderLoadingFlow.asSharedFlow()
+    override val isArchivePinned = MutableStateFlow(false).asStateFlow()
+    override val isArchiveAlwaysVisible = MutableStateFlow(false).asStateFlow()
 
     init {
         refresh()
@@ -122,8 +126,27 @@ internal class MtProtoDialogChatListRepository(
         )
     }
 
+    override suspend fun toggleMuteChats(chatIds: Set<Long>, mute: Boolean) = unsupportedOperations()
+    override suspend fun toggleArchiveChats(chatIds: Set<Long>, archive: Boolean) = unsupportedOperations()
+    override suspend fun togglePinChats(chatIds: Set<Long>, pin: Boolean, folderId: Int) = unsupportedOperations()
+    override suspend fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) = unsupportedOperations()
+    override fun markChatsAsRead(chatIds: Set<Long>) = unsupportedOperations()
+    override fun markFolderAsRead(folderId: Int, chatIds: Set<Long>) = unsupportedOperations()
+    override suspend fun deleteChats(chatIds: Set<Long>) = unsupportedOperations()
+    override suspend fun leaveChats(chatIds: Set<Long>) = unsupportedOperations()
+    override suspend fun leaveChat(chatId: Long) = unsupportedOperations()
+    override fun setArchivePinned(pinned: Boolean) = unsupportedOperations()
+    override suspend fun clearChatHistories(chatIds: Set<Long>, revoke: Boolean) = unsupportedOperations()
+    override suspend fun clearChatHistory(chatId: Long, revoke: Boolean) = unsupportedOperations()
+    override suspend fun getChatLink(chatId: Long): String? = unsupportedOperations()
+    override suspend fun reportChats(chatIds: Set<Long>, reason: String, messageIds: List<Long>) = unsupportedOperations()
+    override suspend fun reportChat(chatId: Long, reason: String, messageIds: List<Long>) = unsupportedOperations()
+
     private fun unsupportedFolders(): Nothing =
         throw UnsupportedOperationException("MTProto custom folders are not available")
+
+    private fun unsupportedOperations(): Nothing =
+        throw UnsupportedOperationException("MTProto chat operations are not available")
 
     private companion object {
         const val DEFAULT_ACCOUNT_ID = "default"

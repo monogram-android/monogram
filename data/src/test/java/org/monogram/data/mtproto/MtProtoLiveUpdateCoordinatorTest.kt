@@ -110,6 +110,29 @@ class MtProtoLiveUpdateCoordinatorTest {
     }
 
     @Test
+    fun `auth reset cancels in-flight startup and closes transport`() = runTest {
+        val auth = FakeAuthRepository(AuthStep.Ready)
+        val entered = CompletableDeferred<Unit>()
+        val transport = RecordingTransport(onExecute = {
+            entered.complete(Unit)
+            CompletableDeferred<TlObject>().await()
+        })
+        coordinator(
+            selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            auth = auth,
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            scope = backgroundScope,
+        )
+
+        testScheduler.runCurrent()
+        entered.await()
+        auth.step.value = AuthStep.InputPhone
+        testScheduler.runCurrent()
+
+        assertTrue(transport.closed)
+    }
+
+    @Test
     fun `deselection cancels in-flight startup and closes transport`() = runTest {
         val selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO)
         val entered = CompletableDeferred<Unit>()
@@ -170,8 +193,8 @@ class MtProtoLiveUpdateCoordinatorTest {
     }
 
     private class FakeAuthRepository(initial: AuthStep) : AuthRepository {
-        private val state = MutableStateFlow(initial)
-        override val authState = state.asStateFlow()
+        val step = MutableStateFlow(initial)
+        override val authState = step.asStateFlow()
         override val authUiStatus = MutableStateFlow<AuthUiStatus>(AuthUiStatus.Idle).asStateFlow()
         override val errors = MutableSharedFlow<AuthError>().asSharedFlow()
         override fun sendPhone(phone: String) = Unit

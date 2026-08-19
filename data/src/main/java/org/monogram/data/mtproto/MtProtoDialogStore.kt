@@ -8,6 +8,7 @@ import org.monogram.data.db.model.MtProtoChatProjectionEntity
 import org.monogram.data.db.model.MtProtoDialogProjectionEntity
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.data.db.model.MtProtoUserProjectionEntity
+import org.monogram.mtproto.tl.generated.cloud.layer223.Dialog_cf9860a8bd
 
 internal data class MtProtoDialogMessagePreview(
     val messageId: Int,
@@ -43,6 +44,8 @@ internal enum class MtProtoDialogPeerKind {
 
 internal interface MtProtoDialogStore {
     suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoDialogReadModel>
+
+    suspend fun upsert(scope: MtProtoAuthKeyScope, dialogs: List<Dialog_cf9860a8bd>) = Unit
 }
 
 internal class MtProtoRoomDialogStore(
@@ -51,6 +54,28 @@ internal class MtProtoRoomDialogStore(
     private val chatDao: MtProtoChatProjectionDao,
     private val dialogDao: MtProtoDialogProjectionDao,
 ) : MtProtoDialogStore {
+    override suspend fun upsert(scope: MtProtoAuthKeyScope, dialogs: List<Dialog_cf9860a8bd>) {
+        if (dialogs.isEmpty()) return
+        dialogDao.upsertAll(dialogs.map { dialog ->
+            val (peerType, peerId) = dialog.peer.toProjectionKey()
+            MtProtoDialogProjectionEntity(
+                accountSlot = scope.accountSlot,
+                environment = scope.environment.storageName,
+                dcId = scope.dcId,
+                peerType = peerType.name,
+                peerId = peerId,
+                pinned = dialog.pinned,
+                unreadMark = dialog.unreadMark,
+                topMessageId = dialog.topMessage,
+                unreadCount = dialog.unreadCount,
+                unreadMentionsCount = dialog.unreadMentionsCount,
+                unreadReactionsCount = dialog.unreadReactionsCount,
+                folderId = dialog.folderId,
+                updatedAt = System.currentTimeMillis(),
+            )
+        })
+    }
+
     override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoDialogReadModel> {
         val accountSlot = scope.accountSlot
         val environment = scope.environment.storageName
@@ -134,6 +159,12 @@ internal class MtProtoRoomDialogStore(
             hasMedia = message?.hasMedia ?: false,
         ),
     )
+
+    private fun org.monogram.mtproto.tl.generated.cloud.layer223.Peer.toProjectionKey() = when (this) {
+        is org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser -> MtProtoMessagePeerType.USER to userId
+        is org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat -> MtProtoMessagePeerType.GROUP to chatId
+        is org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel -> MtProtoMessagePeerType.CHANNEL to channelId
+    }
 
     private fun peerKind(
         peerType: MtProtoMessagePeerType,

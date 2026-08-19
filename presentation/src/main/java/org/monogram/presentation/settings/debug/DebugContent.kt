@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.repository.PushProvider
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.repository.UnifiedPushDebugStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
@@ -193,6 +194,27 @@ fun DebugContent(component: DebugComponent) {
                         iconColor = Color(0xFFD32F2F),
                         position = ItemPosition.BOTTOM,
                         onCheckedChange = component::onConversationPipelineKillSwitchChanged
+                    )
+                }
+            }
+
+            if (state.isTelegramBackendSwitchAvailable) {
+                item {
+                    SectionHeader("Telegram backend")
+                    SettingsSwitchTile(
+                        icon = Icons.Rounded.SwapVert,
+                        title = "Use Kotlin MTProto",
+                        subtitle = if (state.isTelegramBackendSwitching) {
+                            "Switching and clearing the previous backend state"
+                        } else {
+                            state.telegramBackendMode.name
+                        },
+                        checked = state.telegramBackendMode == TelegramBackendMode.KOTLIN_MTPROTO,
+                        iconColor = Color(0xFF00897B),
+                        position = ItemPosition.STANDALONE,
+                        onCheckedChange = component::onTelegramBackendModeChanged,
+                        enabled = !state.isTelegramBackendSwitching &&
+                            state.telegramBackendMode != TelegramBackendMode.UNKNOWN
                     )
                 }
             }

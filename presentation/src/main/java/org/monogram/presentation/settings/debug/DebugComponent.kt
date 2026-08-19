@@ -2,6 +2,7 @@ package org.monogram.presentation.settings.debug
 
 import com.arkivanov.decompose.value.Value
 import org.monogram.domain.repository.PushProvider
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.repository.UnifiedPushDebugStatus
 
 interface DebugComponent {
@@ -11,6 +12,7 @@ interface DebugComponent {
     fun onCrashClicked()
     fun onForceSponsorSyncClicked()
     fun onConversationPipelineKillSwitchChanged(forceLegacy: Boolean)
+    fun onTelegramBackendModeChanged(useMtProto: Boolean)
     fun onTestPushClicked()
     fun onAdBlockClicked()
     fun onDropDatabasesClicked()
@@ -21,6 +23,9 @@ interface DebugComponent {
     data class State(
         val isConversationPipelineKillSwitchAvailable: Boolean = false,
         val isLegacyConversationPipelineForced: Boolean = false,
+        val isTelegramBackendSwitchAvailable: Boolean = false,
+        val telegramBackendMode: TelegramBackendMode = TelegramBackendMode.UNKNOWN,
+        val isTelegramBackendSwitching: Boolean = false,
         val pushProvider: PushProvider = PushProvider.FCM,
         val backgroundServiceEnabled: Boolean = false,
         val hideForegroundNotification: Boolean = false,

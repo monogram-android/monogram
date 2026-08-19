@@ -23,6 +23,7 @@ import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
 import org.monogram.data.backend.LegacyChatReadContracts
 import org.monogram.data.backend.TelegramBackendReadRouter
 import org.monogram.data.backend.TelegramBackendSelectionStore
+import org.monogram.data.backend.TelegramBackendSwitchRepositoryImpl
 import org.monogram.data.backend.TelegramBackendSwitchService
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.FileDataSource
@@ -239,6 +240,7 @@ import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.TdLibLimitsRepository
 import org.monogram.domain.repository.TelegramBackendModeRepository
+import org.monogram.domain.repository.TelegramBackendSwitchRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_3f851bba91
@@ -524,6 +526,7 @@ val dataModule = module {
             mtProtoLiveSessionResetter = get(),
         )
     }
+    single<TelegramBackendSwitchRepository> { TelegramBackendSwitchRepositoryImpl(get()) }
     single { get<MonogramDatabase>().notificationSettingDao() }
     single { get<MonogramDatabase>().notificationExceptionDao() }
     single { get<MonogramDatabase>().wallpaperDao() }

@@ -19,6 +19,7 @@ import org.monogram.data.backend.LegacyUserProfileSnapshotRepository
 import org.monogram.data.backend.LegacyDialogSnapshotRepository
 import org.monogram.data.backend.TelegramBackendAuthRouter
 import org.monogram.data.backend.TelegramBackendChatReadRouter
+import org.monogram.data.backend.TelegramBackendChatSearchRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
 import org.monogram.data.backend.LegacyChatReadContracts
 import org.monogram.data.backend.TelegramBackendReadRouter
@@ -850,7 +851,13 @@ val dataModule = module {
     single<ChatListRepository> { get<TelegramBackendChatReadRouter>() }
     single<ChatFolderRepository> { get<TelegramBackendChatReadRouter>() }
     single<ChatOperationsRepository> { get<TelegramBackendChatReadRouter>() }
-    single<ChatSearchRepository> { get<ChatsListRepositoryImpl>() }
+    single<ChatSearchRepository> {
+        TelegramBackendChatSearchRouter(
+            selectionStore = get(),
+            legacyFactory = { get<ChatsListRepositoryImpl>() },
+            scope = get(),
+        )
+    }
     single<ForumTopicsRepository> { get<ChatsListRepositoryImpl>() }
     single<ChatSettingsRepository> { get<ChatsListRepositoryImpl>() }
     single<ChatCreationRepository> { get<ChatsListRepositoryImpl>() }

@@ -480,7 +480,7 @@ val dataModule = module {
     single<MtProtoMessageProjectionStore> { get<MtProtoRoomMessageProjectionStore>() }
     single { MtProtoRoomDialogStore(get(), get(), get(), get()) }
     single<MtProtoDialogStore> { get<MtProtoRoomDialogStore>() }
-    single { MtProtoDialogResultStager(get()) }
+    single { MtProtoDialogResultStager(get(), get(), get()) }
     single { MtProtoDialogSnapshotRepository(get(), get(), get(), get()) }
     single<MtProtoMessageDeletionRepository> {
         MtProtoMessageDeletionRepositoryImpl(get(), get(), get())

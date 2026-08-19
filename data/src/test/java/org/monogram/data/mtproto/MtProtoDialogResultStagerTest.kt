@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.tl.generated.cloud.layer223.Dialog_cf9860a8bd
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DialogsNotModified
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DialogsSlice
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.Dialogs_d319adbade
 
 class MtProtoDialogResultStagerTest {
@@ -18,6 +19,14 @@ class MtProtoDialogResultStagerTest {
         assertTrue(stager.stage(scope(), result))
         assertTrue(store.calls == 1)
         assertTrue(store.dialogs.isEmpty())
+    }
+
+    @Test
+    fun `stages dialogs slice`() = runBlocking {
+        val store = RecordingStore()
+
+        assertTrue(MtProtoDialogResultStager(store).stage(scope(), DialogsSlice(3, emptyList(), emptyList(), emptyList(), emptyList())))
+        assertTrue(store.calls == 1)
     }
 
     @Test

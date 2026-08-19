@@ -9,6 +9,8 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
+import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.RichTextParseMode
@@ -44,14 +46,26 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
                 visibleMessageIds = visibleMessageIds
             )
         }
-        repositoryMessage.markMessagesAsRead(
-            chatId = targetChatId,
-            messageIds = visibleMessageIds,
-            threadId = currentState.effectiveThreadId()
-        )
-        if (hadUnreadTarget) {
-            repositoryMessage.markAllMentionsAsRead(targetChatId)
-            repositoryMessage.markAllReactionsAsRead(targetChatId)
+        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+            mtProtoReadHistoryRepository.markRead(
+                chatId = targetChatId,
+                peerType = peer.type,
+                maxMessageId = visibleMessageIds.max(),
+            )
+        } else {
+            repositoryMessage.markMessagesAsRead(
+                chatId = targetChatId,
+                messageIds = visibleMessageIds,
+                threadId = currentState.effectiveThreadId()
+            )
+            if (hadUnreadTarget) {
+                repositoryMessage.markAllMentionsAsRead(targetChatId)
+                repositoryMessage.markAllReactionsAsRead(targetChatId)
+            }
         }
 
         visibleMessage?.let { requestSenderRefreshIfNeeded(it) }

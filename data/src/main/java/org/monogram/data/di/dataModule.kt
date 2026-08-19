@@ -97,6 +97,7 @@ import org.monogram.data.mtproto.MtProtoRoomDialogStore
 import org.monogram.data.mtproto.MtProtoDialogStore
 import org.monogram.data.mtproto.MtProtoDialogSnapshotRepository
 import org.monogram.data.mtproto.MtProtoTextMessageRepositoryImpl
+import org.monogram.data.mtproto.MtProtoReadHistoryRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogChatListRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
@@ -223,6 +224,7 @@ import org.monogram.domain.repository.MessageAiRepository
 import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.MtProtoTextMessageRepository
+import org.monogram.domain.repository.MtProtoReadHistoryRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.PaymentRepository
@@ -474,6 +476,14 @@ val dataModule = module {
     single { MtProtoRoomDialogStore(get(), get(), get()) }
     single<MtProtoDialogStore> { get<MtProtoRoomDialogStore>() }
     single { MtProtoDialogSnapshotRepository(get(), get()) }
+    single<MtProtoReadHistoryRepository> {
+        MtProtoReadHistoryRepositoryImpl(
+            configSource = get(),
+            transportFactory = get(),
+            users = get(),
+            chats = get(),
+        )
+    }
     single<MtProtoTextMessageRepository> {
         MtProtoTextMessageRepositoryImpl(
             configSource = get(),

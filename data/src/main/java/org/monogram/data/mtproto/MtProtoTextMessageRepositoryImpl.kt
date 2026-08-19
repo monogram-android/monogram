@@ -8,8 +8,10 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendReaction
 
 /** Basic plain-text sending backed by an authenticated owned MTProto transport. */
 internal class MtProtoTextMessageRepositoryImpl(
@@ -80,6 +82,33 @@ internal class MtProtoTextMessageRepositoryImpl(
                     scheduleDate = null,
                     scheduleRepeatPeriod = null,
                     quickReplyShortcutId = null,
+                )
+            )
+            messages.stageLive(scope, updates)
+        } finally {
+            transport.close()
+        }
+    }
+
+    override suspend fun setEmojiReaction(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+        emoji: String?,
+    ) {
+        require(messageId in 1..Int.MAX_VALUE) { "MTProto message id must fit a positive int" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = resolvePeer(scope, chatId, peerType)
+        val transport = transportFactory.open(accountSlot)
+        try {
+            val updates = transport.execute(
+                SendReaction(
+                    big = false,
+                    addToRecent = emoji != null,
+                    peer = peer,
+                    msgId = messageId.toInt(),
+                    reaction = emoji?.let { listOf(ReactionEmoji(it)) },
                 )
             )
             messages.stageLive(scope, updates)

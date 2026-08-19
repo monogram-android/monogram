@@ -16,4 +16,11 @@ interface MtProtoTextMessageRepository {
         messageId: Long,
         text: String,
     )
+
+    suspend fun setEmojiReaction(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+        emoji: String?,
+    )
 }

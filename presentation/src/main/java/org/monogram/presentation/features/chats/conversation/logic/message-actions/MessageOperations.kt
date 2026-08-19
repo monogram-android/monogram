@@ -470,6 +470,10 @@ internal fun DefaultChatComponent.handleDraftChange(text: String) {
 }
 
 internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: String) {
+    if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO && reaction.all(Char::isDigit)) {
+        toastMessageDisplayer.show("MTProto custom emoji reactions are not available")
+        return
+    }
     val suppressUntil = System.currentTimeMillis() + REACTION_UPDATE_SUPPRESSION_MS
     reactionUpdateSuppressedUntil[messageId] = suppressUntil
     scope.launch {
@@ -508,7 +512,15 @@ internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: 
                 newReactions.remove(reactionToUpdate)
             }
             scope.launch {
-                repositoryMessage.removeMessageReaction(chatId, messageId, reaction)
+                if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+                    val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
+                        "MTProto target chat is not projected"
+                    }
+                    val peer = TelegramPeerChatId.decode(message.chatId, chat.isChannel)
+                    mtProtoTextMessageRepository.setEmojiReaction(message.chatId, peer.type, messageId, null)
+                } else {
+                    repositoryMessage.removeMessageReaction(chatId, messageId, reaction)
+                }
             }
         } else {
             if (existingReaction != null) {
@@ -530,7 +542,15 @@ internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: 
                 )
             }
             scope.launch {
-                repositoryMessage.addMessageReaction(chatId, messageId, reaction)
+                if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+                    val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
+                        "MTProto target chat is not projected"
+                    }
+                    val peer = TelegramPeerChatId.decode(message.chatId, chat.isChannel)
+                    mtProtoTextMessageRepository.setEmojiReaction(message.chatId, peer.type, messageId, reaction)
+                } else {
+                    repositoryMessage.addMessageReaction(chatId, messageId, reaction)
+                }
             }
         }
 

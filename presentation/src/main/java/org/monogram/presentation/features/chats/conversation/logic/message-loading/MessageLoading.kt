@@ -518,8 +518,8 @@ private suspend fun DefaultChatComponent.loadMtProtoHistorySnapshot(request: His
     require(request.key.scope == ConversationScope.Main) {
         "MTProto snapshot history supports only main conversations"
     }
-    require(request.direction == org.monogram.domain.repository.HistoryDirection.Initial) {
-        "MTProto snapshot history currently supports only initial pages"
+    require(request.direction != HistoryDirection.Newer) {
+        "MTProto snapshot history does not support newer pages"
     }
     val chat = chatListRepository.getChatById(request.key.chatId)
     val peer = TelegramPeerChatId.decode(request.key.chatId, chat?.isChannel)
@@ -528,7 +528,17 @@ private suspend fun DefaultChatComponent.loadMtProtoHistorySnapshot(request: His
             accountId = "default",
             peerType = peer.type,
             peerId = peer.id,
-            before = null,
+            before = when (val anchor = request.anchor) {
+                HistoryAnchor.Latest -> null
+                is HistoryAnchor.Message -> {
+                    val anchorMessage = _state.value.messages.firstOrNull { it.id == anchor.id }
+                        ?: error("MTProto history anchor is not loaded")
+                    org.monogram.domain.models.MessageHistoryCursorModel(
+                        date = anchorMessage.date,
+                        messageId = anchorMessage.id,
+                    )
+                }
+            },
             limit = request.limit,
         )
     )

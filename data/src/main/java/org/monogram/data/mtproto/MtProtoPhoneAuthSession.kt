@@ -71,8 +71,13 @@ internal class MtProtoPhoneAuthSession(
         val hash = phoneCodeHash ?: error("No phone code is available")
         check(state is AuthStep.InputCode) { "Phone code is not expected" }
         require(code.isNotBlank()) { "code must not be blank" }
+        val isEmailCode = (state as AuthStep.InputCode).isEmailCode
         return try {
-            when (val authorization = api.signIn(phone, hash, code)) {
+            when (val authorization = if (isEmailCode) {
+                api.signInWithEmailCode(phone, hash, code)
+            } else {
+                api.signIn(phone, hash, code)
+            }) {
                 is org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3 -> {
                     markReady()
                     state
@@ -179,7 +184,11 @@ internal class MtProtoPhoneAuthSession(
         is SentCodeTypeMissedCall -> CodeDetails(AuthCodeDelivery.MISSED_CALL, length, hint = prefix)
         is SentCodeTypeFragmentSms -> CodeDetails(AuthCodeDelivery.FRAGMENT, length, hint = url)
         is SentCodeTypeFirebaseSms -> CodeDetails(AuthCodeDelivery.FIREBASE_ANDROID, length)
-        is SentCodeTypeEmailCode -> throw UnsupportedOperationException("MTProto email-code sign-in is not implemented")
+        is SentCodeTypeEmailCode -> CodeDetails(
+            delivery = AuthCodeDelivery.EMAIL,
+            length = length,
+            emailPattern = emailPattern,
+        )
         is SentCodeTypeSetUpEmailRequired -> throw UnsupportedOperationException("MTProto email setup is not implemented")
         else -> throw IllegalStateException("Unsupported MTProto sent-code type: ${constructorId}")
     }

@@ -65,19 +65,43 @@ class MtProtoPhoneAuthSessionTest {
     }
 
     @Test
-    fun rejectsUnsupportedPaymentAndEmailResultsWithoutChangingState() = runBlocking {
+    fun rejectsUnsupportedPaymentResultWithoutChangingState() = runBlocking {
         val paymentApi = FakeApi(sentCodes = ArrayDeque(listOf(SentCodePaymentRequired("p", "h", "e", "s", "USD", 1))))
         val payment = MtProtoPhoneAuthSession(paymentApi, 12345, "hash", settings())
         assertThrows(UnsupportedOperationException::class.java) { runBlocking { payment.requestCode("+1") } }
         assertEquals(AuthStep.InputPhone, payment.currentState())
 
-        val emailApi = FakeApi(sentCodes = ArrayDeque(listOf(
-            SentCode_f9e8fc1d16(SentCodeTypeEmailCode(false, false, "e***", 6, null, null), "hash", null, 0),
-        )))
-        val email = MtProtoPhoneAuthSession(emailApi, 12345, "hash", settings())
-        assertThrows(UnsupportedOperationException::class.java) { runBlocking { email.requestCode("+1") } }
-        assertEquals(AuthStep.InputPhone, email.currentState())
         Unit
+    }
+
+    @Test
+    fun mapsEmailCodeAndSubmitsItAsEmailVerification() = runBlocking {
+        val authorization = Authorization_d8660c55a3(false, null, null, null, fakeUser())
+        val api = FakeApi(
+            sentCodes = ArrayDeque(listOf(
+                SentCode_f9e8fc1d16(
+                    SentCodeTypeEmailCode(false, false, "e***", 6, null, null),
+                    "hash-1",
+                    null,
+                    0,
+                ),
+            )),
+            authorization = authorization,
+        )
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+
+        assertEquals(
+            AuthStep.InputCode(
+                delivery = AuthCodeDelivery.EMAIL,
+                codeLength = 6,
+                isEmailCode = true,
+                emailPattern = "e***",
+            ),
+            session.requestCode("+1"),
+        )
+        assertEquals(AuthStep.Ready, session.submitCode("123456"))
+        assertEquals("+1", api.lastPhone)
+        assertEquals("hash-1", api.lastHash)
     }
 
     @Test
@@ -200,6 +224,12 @@ class MtProtoPhoneAuthSessionTest {
                 phoneCode: String,
             ): Authorization_fb75ff221f = error("Unexpected sign-in")
 
+            override suspend fun signInWithEmailCode(
+                phoneNumber: String,
+                phoneCodeHash: String,
+                emailCode: String,
+            ): Authorization_fb75ff221f = error("Unexpected email sign-in")
+
             override suspend fun signUp(
                 phoneNumber: String,
                 phoneCodeHash: String,
@@ -262,6 +292,16 @@ class MtProtoPhoneAuthSessionTest {
             lastHash = phoneCodeHash
             signInError?.let { throw it }
             return authorization ?: error("No authorization result")
+        }
+
+        override suspend fun signInWithEmailCode(
+            phoneNumber: String,
+            phoneCodeHash: String,
+            emailCode: String,
+        ): Authorization_fb75ff221f {
+            lastPhone = phoneNumber
+            lastHash = phoneCodeHash
+            return authorization ?: error("No email authorization result")
         }
 
         override suspend fun signUp(

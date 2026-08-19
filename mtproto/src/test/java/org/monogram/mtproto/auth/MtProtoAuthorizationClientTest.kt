@@ -6,6 +6,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.mtproto.crypto.DhParameterValidatorTest
 import org.monogram.mtproto.crypto.EntropySource
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmailVerificationCode
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputCheckPasswordSrp_5100d694df
 import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoSha256Sha256Pbkdf2Hmacsha512Iter100000Sha256ModPow
 import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoUnknown
@@ -75,6 +76,22 @@ class MtProtoAuthorizationClientTest {
     }
 
     @Test
+    fun buildsEmailCodeSignInRequest() {
+        val transport = CapturingTransport()
+        val client = MtProtoAuthorizationClient(transport)
+
+        assertThrows(Capture::class.java) {
+            runBlocking { client.signInWithEmailCode("+10000000000", "hash", "123456") }
+        }
+
+        val signIn = transport.method as SignIn
+        assertEquals("+10000000000", signIn.phoneNumber)
+        assertEquals("hash", signIn.phoneCodeHash)
+        assertEquals(null, signIn.phoneCode)
+        assertEquals(EmailVerificationCode("123456"), signIn.emailVerification)
+    }
+
+    @Test
     fun buildsSignupRequestWithVerifiedPhoneAndName() {
         val transport = CapturingTransport()
         val client = MtProtoAuthorizationClient(transport)
@@ -107,6 +124,9 @@ class MtProtoAuthorizationClientTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking { client.signUp("+1", "hash", "", "") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { client.signInWithEmailCode("+1", "hash", "") }
         }
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking { client.checkPassword("") }

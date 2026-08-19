@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import org.monogram.mtproto.crypto.EntropySource
 import org.monogram.mtproto.crypto.SecureEntropySource
 import org.monogram.mtproto.crypto.TelegramPasswordSrp
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmailVerificationCode
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputCheckPasswordSrp_5100d694df
 import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoSha256Sha256Pbkdf2Hmacsha512Iter100000Sha256ModPow
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_fb610807ca
@@ -37,6 +38,12 @@ interface MtProtoAuthorizationApi {
     suspend fun resendCode(phoneNumber: String, phoneCodeHash: String, reason: String? = null): SentCode_250764ccd9
 
     suspend fun signIn(phoneNumber: String, phoneCodeHash: String, phoneCode: String): Authorization_fb75ff221f
+
+    suspend fun signInWithEmailCode(
+        phoneNumber: String,
+        phoneCodeHash: String,
+        emailCode: String,
+    ): Authorization_fb75ff221f
 
     suspend fun signUp(
         phoneNumber: String,
@@ -88,6 +95,17 @@ class MtProtoAuthorizationClient internal constructor(
         require(phoneCodeHash.isNotBlank()) { "phoneCodeHash must not be blank" }
         require(phoneCode.isNotBlank()) { "phoneCode must not be blank" }
         return transport.execute(SignIn(phoneNumber, phoneCodeHash, phoneCode, emailVerification = null))
+    }
+
+    override suspend fun signInWithEmailCode(
+        phoneNumber: String,
+        phoneCodeHash: String,
+        emailCode: String,
+    ): Authorization_fb75ff221f {
+        require(phoneNumber.isNotBlank()) { "phoneNumber must not be blank" }
+        require(phoneCodeHash.isNotBlank()) { "phoneCodeHash must not be blank" }
+        require(emailCode.isNotBlank()) { "emailCode must not be blank" }
+        return transport.execute(SignIn(phoneNumber, phoneCodeHash, null, EmailVerificationCode(emailCode)))
     }
 
     override suspend fun signUp(

@@ -101,6 +101,7 @@ class TelegramBackendAuthRouterTest {
             codes += code
         }
         override fun sendPassword(password: String) = Unit
+        override fun signUp(firstName: String, lastName: String) = Unit
         override fun retryLastAction() = Unit
         override fun reset() = Unit
     }

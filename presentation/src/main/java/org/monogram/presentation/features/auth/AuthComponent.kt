@@ -14,6 +14,7 @@ interface AuthComponent {
     fun onCodeEntered(code: String)
     fun onResendCode()
     fun onPasswordEntered(password: String)
+    fun onSignUpSubmitted(firstName: String, lastName: String)
     fun onBackToPhone()
     fun onRetry()
     fun onProxyClicked()
@@ -49,5 +50,7 @@ interface AuthComponent {
             val hasRecoveryEmail: Boolean = false,
             val recoveryEmailPattern: String? = null
         ) : AuthState()
+
+        object InputSignUp : AuthState()
     }
 }

@@ -25,6 +25,7 @@ sealed class AuthStep {
         val hasRecoveryEmail: Boolean = false,
         val recoveryEmailPattern: String? = null
     ) : AuthStep()
+    object InputSignUp : AuthStep()
     object Ready : AuthStep()
 }
 
@@ -52,7 +53,8 @@ enum class AuthSubmissionStage {
     PHONE,
     CODE,
     RESEND,
-    PASSWORD
+    PASSWORD,
+    SIGN_UP
 }
 
 sealed class AuthUiStatus {
@@ -83,6 +85,7 @@ interface AuthRepository {
     fun resendCode()
     fun sendCode(code: String)
     fun sendPassword(password: String)
+    fun signUp(firstName: String, lastName: String)
     fun retryLastAction()
     fun reset()
 }

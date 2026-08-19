@@ -202,6 +202,7 @@ class SponsorSyncManagerTest {
         override fun resendCode() = Unit
         override fun sendCode(code: String) = Unit
         override fun sendPassword(password: String) = Unit
+        override fun signUp(firstName: String, lastName: String) = Unit
         override fun retryLastAction() = Unit
         override fun reset() = Unit
     }

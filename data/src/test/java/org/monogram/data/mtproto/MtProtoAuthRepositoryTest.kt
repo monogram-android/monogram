@@ -65,6 +65,35 @@ class MtProtoAuthRepositoryTest {
     }
 
     @Test
+    fun `submits registration only after signup state and closes ready session`() = runTest {
+        val handle = FakeHandle(
+            requestCode = { AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5) },
+            submitCode = { AuthStep.InputSignUp },
+            submitSignUp = { _, _ -> AuthStep.Ready },
+        )
+        val repository = MtProtoAuthRepository(
+            sessionFactory = MtProtoAuthSessionHandleFactory { handle },
+            scope = backgroundScope,
+        )
+
+        repository.signUp("Ada", "Lovelace")
+        testScheduler.runCurrent()
+        assertEquals(emptyList<Pair<String, String>>(), handle.signUps)
+
+        repository.sendPhone("+10000000000")
+        testScheduler.runCurrent()
+        repository.sendCode("12345")
+        testScheduler.runCurrent()
+        assertEquals(AuthStep.InputSignUp, repository.authState.value)
+
+        repository.signUp("Ada", "Lovelace")
+        testScheduler.runCurrent()
+        assertEquals(listOf("Ada" to "Lovelace"), handle.signUps)
+        assertEquals(AuthStep.Ready, repository.authState.value)
+        assertEquals(1, handle.closeCalls.get())
+    }
+
+    @Test
     fun `maps failure and retry reuses session while preserving state`() = runTest {
         var attempt = 0
         val inputCode = AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 6)
@@ -180,10 +209,12 @@ class MtProtoAuthRepositoryTest {
         private val resendCode: suspend () -> AuthStep = { error("unexpected resend") },
         private val submitCode: suspend (String) -> AuthStep = { error("unexpected code") },
         private val submitPassword: suspend (String) -> AuthStep = { error("unexpected password") },
+        private val submitSignUp: suspend (String, String) -> AuthStep = { _, _ -> error("unexpected sign-up") },
     ) : MtProtoAuthSessionHandle {
         val phones = mutableListOf<String>()
         val codes = mutableListOf<String>()
         val passwords = mutableListOf<String>()
+        val signUps = mutableListOf<Pair<String, String>>()
         val resendCalls = AtomicInteger()
         val closeCalls = AtomicInteger()
 
@@ -207,6 +238,11 @@ class MtProtoAuthRepositoryTest {
         override suspend fun submitPassword(password: String): AuthStep {
             passwords += password
             return submitPassword.invoke(password)
+        }
+
+        override suspend fun submitSignUp(firstName: String, lastName: String): AuthStep {
+            signUps += firstName to lastName
+            return submitSignUp.invoke(firstName, lastName)
         }
 
         override fun close() {

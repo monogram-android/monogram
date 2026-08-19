@@ -19,6 +19,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CheckPassword
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.ResendCode
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SendCode
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SignIn
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SignUp
 import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.MtProtoRpcException
@@ -74,6 +75,23 @@ class MtProtoAuthorizationClientTest {
     }
 
     @Test
+    fun buildsSignupRequestWithVerifiedPhoneAndName() {
+        val transport = CapturingTransport()
+        val client = MtProtoAuthorizationClient(transport)
+
+        assertThrows(Capture::class.java) {
+            runBlocking { client.signUp("+10000000000", "hash", "Ada", "Lovelace") }
+        }
+
+        val signUp = transport.method as SignUp
+        assertEquals(false, signUp.noJoinedNotifications)
+        assertEquals("+10000000000", signUp.phoneNumber)
+        assertEquals("hash", signUp.phoneCodeHash)
+        assertEquals("Ada", signUp.firstName)
+        assertEquals("Lovelace", signUp.lastName)
+    }
+
+    @Test
     fun rejectsInvalidAuthInputsBeforeTransport() {
         val client = MtProtoAuthorizationClient(CapturingTransport())
         val settings = CodeSettings_3f851bba91(false, false, false, false, false, false, null, null, null)
@@ -86,6 +104,9 @@ class MtProtoAuthorizationClientTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking { client.signIn("+1", "hash", "") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { client.signUp("+1", "hash", "", "") }
         }
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking { client.checkPassword("") }

@@ -77,7 +77,10 @@ internal class MtProtoPhoneAuthSession(
                     markReady()
                     state
                 }
-                is AuthorizationSignUpRequired -> throw MtProtoSignUpRequiredException()
+                is AuthorizationSignUpRequired -> {
+                    state = AuthStep.InputSignUp
+                    state
+                }
                 else -> throw IllegalStateException("Unsupported MTProto authorization result: ${authorization.constructorId}")
             }
         } catch (rpc: MtProtoRpcException) {
@@ -90,6 +93,21 @@ internal class MtProtoPhoneAuthSession(
                 hasRecoveryEmail = challenge.hasRecoveryEmail,
             )
             state
+        }
+    }
+
+    suspend fun submitSignUp(firstName: String, lastName: String): AuthStep = mutex.withLock {
+        val phone = phoneNumber ?: error("Phone authorization has not started")
+        val hash = phoneCodeHash ?: error("No phone code is available")
+        check(state is AuthStep.InputSignUp) { "Sign-up is not expected" }
+        require(firstName.isNotBlank()) { "firstName must not be blank" }
+        when (val authorization = api.signUp(phone, hash, firstName, lastName)) {
+            is org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3 -> {
+                markReady()
+                state
+            }
+            is AuthorizationSignUpRequired -> throw IllegalStateException("Sign-up still requires registration")
+            else -> throw IllegalStateException("Unsupported MTProto authorization result: ${authorization.constructorId}")
         }
     }
 

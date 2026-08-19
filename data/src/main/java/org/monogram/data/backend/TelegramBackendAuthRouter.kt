@@ -79,6 +79,10 @@ internal class TelegramBackendAuthRouter(
         selectedRepository()?.sendPassword(password)
     }
 
+    override fun signUp(firstName: String, lastName: String) {
+        selectedRepository()?.signUp(firstName, lastName)
+    }
+
     override fun retryLastAction() {
         selectedRepository()?.retryLastAction()
     }

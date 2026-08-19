@@ -64,6 +64,7 @@ class DefaultAuthComponent(
                         hasRecoveryEmail = step.hasRecoveryEmail,
                         recoveryEmailPattern = step.recoveryEmailPattern
                     )
+                    AuthStep.InputSignUp -> AuthComponent.AuthState.InputSignUp
                     else -> null
                 }
                 if (newAuthState != null) {
@@ -118,6 +119,11 @@ class DefaultAuthComponent(
     override fun onPasswordEntered(password: String) {
         _model.update { it.copy(isSubmitting = true) }
         repository.sendPassword(password)
+    }
+
+    override fun onSignUpSubmitted(firstName: String, lastName: String) {
+        _model.update { it.copy(isSubmitting = true) }
+        repository.signUp(firstName, lastName)
     }
 
     override fun onBackToPhone() {

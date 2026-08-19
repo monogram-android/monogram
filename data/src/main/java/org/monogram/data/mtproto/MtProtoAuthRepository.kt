@@ -33,6 +33,7 @@ internal class MtProtoAuthRepository(
     private data class PendingAction(
         val stage: AuthSubmissionStage,
         val payload: String? = null,
+        val secondaryPayload: String? = null,
     )
 
     private val lock = Any()
@@ -62,6 +63,10 @@ internal class MtProtoAuthRepository(
 
     override fun sendPassword(password: String) {
         submit(PendingAction(AuthSubmissionStage.PASSWORD, password))
+    }
+
+    override fun signUp(firstName: String, lastName: String) {
+        submit(PendingAction(AuthSubmissionStage.SIGN_UP, firstName, lastName))
     }
 
     override fun retryLastAction() {
@@ -175,6 +180,10 @@ internal class MtProtoAuthRepository(
             AuthSubmissionStage.CODE -> handle.submitCode(requireNotNull(action.payload))
             AuthSubmissionStage.RESEND -> handle.resendCode()
             AuthSubmissionStage.PASSWORD -> handle.submitPassword(requireNotNull(action.payload))
+            AuthSubmissionStage.SIGN_UP -> handle.submitSignUp(
+                firstName = requireNotNull(action.payload),
+                lastName = requireNotNull(action.secondaryPayload),
+            )
         }
     }
 
@@ -218,6 +227,7 @@ internal class MtProtoAuthRepository(
         AuthSubmissionStage.CODE -> _authState.value is AuthStep.InputCode
         AuthSubmissionStage.RESEND -> (_authState.value as? AuthStep.InputCode)?.canResend == true
         AuthSubmissionStage.PASSWORD -> _authState.value is AuthStep.InputPassword
+        AuthSubmissionStage.SIGN_UP -> _authState.value is AuthStep.InputSignUp
     }
 
     private companion object {

@@ -135,7 +135,12 @@
     <string name="unlock_button">Unlock</string>
     <string name="paste_action">Paste</string>
     <string name="auth_error_title">Authentication Error</string>
-    <string name="auth_signup_required_error">This phone number needs account registration, which is not available in the MTProto backend yet.</string>
+    <string name="auth_signup_required_error">This phone number needs account registration, which is not available with this backend.</string>
+    <string name="auth_signup_title">Create Account</string>
+    <string name="auth_signup_description">Enter your name to create your Telegram account.</string>
+    <string name="auth_signup_first_name">First name</string>
+    <string name="auth_signup_last_name">Last name (optional)</string>
+    <string name="auth_signup_continue">Continue</string>
     <string name="dismiss_button">Dismiss</string>
 
     <!-- Loading -->

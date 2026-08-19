@@ -81,7 +81,7 @@ class MtProtoPhoneAuthSessionTest {
     }
 
     @Test
-    fun preservesCodeStateWhenSignInRequiresSignup() = runBlocking {
+    fun transitionsToSignupWhenSignInRequiresSignup() = runBlocking {
         val api = FakeApi(
             sentCodes = ArrayDeque(listOf(
                 SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0),
@@ -89,11 +89,30 @@ class MtProtoPhoneAuthSessionTest {
             authorization = AuthorizationSignUpRequired(null),
         )
         val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
-        val codeState = session.requestCode("+1")
+        session.requestCode("+1")
 
-        assertThrows(UnsupportedOperationException::class.java) { runBlocking { session.submitCode("12345") } }
-        assertEquals(codeState, session.currentState())
+        assertEquals(AuthStep.InputSignUp, session.submitCode("12345"))
+        assertEquals(AuthStep.InputSignUp, session.currentState())
         assertEquals("hash-1", api.lastHash)
+    }
+
+    @Test
+    fun submitsRegistrationWithVerifiedPhoneAndCodeHash() = runBlocking {
+        val authorization = Authorization_d8660c55a3(false, null, null, null, fakeUser())
+        val api = FakeApi(
+            sentCodes = ArrayDeque(listOf(SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0))),
+            authorization = AuthorizationSignUpRequired(null),
+            signUpAuthorization = authorization,
+        )
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+
+        session.requestCode("+10000000000")
+        assertEquals(AuthStep.InputSignUp, session.submitCode("12345"))
+        assertEquals(AuthStep.Ready, session.submitSignUp("Ada", "Lovelace"))
+        assertEquals("+10000000000", api.lastPhone)
+        assertEquals("hash-1", api.lastHash)
+        assertEquals("Ada", api.lastFirstName)
+        assertEquals("Lovelace", api.lastLastName)
     }
 
     @Test
@@ -181,6 +200,13 @@ class MtProtoPhoneAuthSessionTest {
                 phoneCode: String,
             ): Authorization_fb75ff221f = error("Unexpected sign-in")
 
+            override suspend fun signUp(
+                phoneNumber: String,
+                phoneCodeHash: String,
+                firstName: String,
+                lastName: String,
+            ): Authorization_fb75ff221f = error("Unexpected sign-up")
+
             override suspend fun getPasswordChallengeInfo(): MtProtoPasswordChallengeInfo =
                 error("Unexpected password challenge")
 
@@ -215,9 +241,12 @@ class MtProtoPhoneAuthSessionTest {
         private val passwordInfo: MtProtoPasswordChallengeInfo? = null,
         private val passwordAuthorization: Authorization_fb75ff221f? = null,
         private val passwordError: Throwable? = null,
+        private val signUpAuthorization: Authorization_fb75ff221f? = null,
     ) : MtProtoAuthorizationApi {
         var lastHash: String? = null
         var lastPhone: String? = null
+        var lastFirstName: String? = null
+        var lastLastName: String? = null
 
         override suspend fun sendCode(phoneNumber: String, settings: CodeSettings_fb610807ca, apiId: Int, apiHash: String): SentCode_250764ccd9 {
             lastPhone = phoneNumber
@@ -233,6 +262,19 @@ class MtProtoPhoneAuthSessionTest {
             lastHash = phoneCodeHash
             signInError?.let { throw it }
             return authorization ?: error("No authorization result")
+        }
+
+        override suspend fun signUp(
+            phoneNumber: String,
+            phoneCodeHash: String,
+            firstName: String,
+            lastName: String,
+        ): Authorization_fb75ff221f {
+            lastPhone = phoneNumber
+            lastHash = phoneCodeHash
+            lastFirstName = firstName
+            lastLastName = lastName
+            return signUpAuthorization ?: error("No sign-up authorization result")
         }
 
         override suspend fun getPasswordChallengeInfo(): MtProtoPasswordChallengeInfo =

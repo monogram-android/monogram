@@ -16,6 +16,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.auth.ResendCode
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SendCode
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_250764ccd9
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SignIn
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SignUp
 import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.transport.MtProtoRpcException
 import org.monogram.mtproto.transport.MtProtoRpcTransport
@@ -36,6 +37,13 @@ interface MtProtoAuthorizationApi {
     suspend fun resendCode(phoneNumber: String, phoneCodeHash: String, reason: String? = null): SentCode_250764ccd9
 
     suspend fun signIn(phoneNumber: String, phoneCodeHash: String, phoneCode: String): Authorization_fb75ff221f
+
+    suspend fun signUp(
+        phoneNumber: String,
+        phoneCodeHash: String,
+        firstName: String,
+        lastName: String,
+    ): Authorization_fb75ff221f
 
     suspend fun getPasswordChallengeInfo(): MtProtoPasswordChallengeInfo
 
@@ -80,6 +88,18 @@ class MtProtoAuthorizationClient internal constructor(
         require(phoneCodeHash.isNotBlank()) { "phoneCodeHash must not be blank" }
         require(phoneCode.isNotBlank()) { "phoneCode must not be blank" }
         return transport.execute(SignIn(phoneNumber, phoneCodeHash, phoneCode, emailVerification = null))
+    }
+
+    override suspend fun signUp(
+        phoneNumber: String,
+        phoneCodeHash: String,
+        firstName: String,
+        lastName: String,
+    ): Authorization_fb75ff221f {
+        require(phoneNumber.isNotBlank()) { "phoneNumber must not be blank" }
+        require(phoneCodeHash.isNotBlank()) { "phoneCodeHash must not be blank" }
+        require(firstName.isNotBlank()) { "firstName must not be blank" }
+        return transport.execute(SignUp(false, phoneNumber, phoneCodeHash, firstName, lastName))
     }
 
     override suspend fun getPasswordChallengeInfo(): MtProtoPasswordChallengeInfo {

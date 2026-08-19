@@ -166,6 +166,10 @@ class AuthRepositoryImpl(
         }
     }
 
+    override fun signUp(firstName: String, lastName: String) {
+        _errors.tryEmit(AuthError.SignUpRequired)
+    }
+
     override fun retryLastAction() {
         when (val action = pendingAction) {
             null -> Unit
@@ -174,6 +178,7 @@ class AuthRepositoryImpl(
                 AuthSubmissionStage.CODE -> sendCode(action.payload)
                 AuthSubmissionStage.RESEND -> resendCode()
                 AuthSubmissionStage.PASSWORD -> sendPassword(action.payload)
+                AuthSubmissionStage.SIGN_UP -> Unit
             }
         }
     }
@@ -258,6 +263,7 @@ class AuthRepositoryImpl(
             AuthSubmissionStage.CODE -> _authState.value is AuthStep.InputCode
             AuthSubmissionStage.RESEND -> _authState.value is AuthStep.InputCode
             AuthSubmissionStage.PASSWORD -> _authState.value is AuthStep.InputPassword
+            AuthSubmissionStage.SIGN_UP -> false
         }
     }
 
@@ -274,6 +280,7 @@ class AuthRepositoryImpl(
                     state is AuthStep.Ready
             AuthSubmissionStage.RESEND -> state is AuthStep.InputCode
             AuthSubmissionStage.PASSWORD -> state is AuthStep.Ready
+            AuthSubmissionStage.SIGN_UP -> false
         }
     }
 
@@ -291,6 +298,7 @@ class AuthRepositoryImpl(
             AuthSubmissionStage.RESEND -> listOf("resendAuthenticationCode")
 
             AuthSubmissionStage.PASSWORD -> listOf("checkAuthenticationPassword")
+            AuthSubmissionStage.SIGN_UP -> emptyList()
         }
 
         return isExpectedNextState(stage, _authState.value) &&

@@ -5,6 +5,7 @@ import kotlinx.coroutines.sync.withLock
 import org.monogram.data.mtproto.MtProtoAccountStateResetter
 import org.monogram.data.mtproto.MtProtoAuthSessionResetter
 import org.monogram.data.mtproto.MtProtoEnvironment
+import org.monogram.data.mtproto.MtProtoLiveSessionResetter
 
 /**
  * Switches a single account only after invalidating all state owned by its previous backend.
@@ -17,6 +18,7 @@ internal class TelegramBackendSwitchService(
     private val legacyActiveAccountBinding: LegacyActiveAccountBinding,
     private val mtProtoAccountStateResetter: MtProtoAccountStateResetter,
     private val mtProtoAuthSessionResetter: MtProtoAuthSessionResetter = MtProtoAuthSessionResetter {},
+    private val mtProtoLiveSessionResetter: MtProtoLiveSessionResetter = MtProtoLiveSessionResetter {},
 ) {
     private val switchMutex = Mutex()
 
@@ -42,6 +44,7 @@ internal class TelegramBackendSwitchService(
         when (backend) {
             TelegramBackendKind.LEGACY -> legacyActiveAccountBinding.clear(accountId)
             TelegramBackendKind.KOTLIN_MTPROTO -> {
+                mtProtoLiveSessionResetter.resetLiveSession()
                 mtProtoAuthSessionResetter.resetAuthSession()
                 mtProtoAccountStateResetter.deleteAccount(
                     accountSlot = accountId,

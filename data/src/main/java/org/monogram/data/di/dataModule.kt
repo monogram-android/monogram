@@ -74,6 +74,9 @@ import org.monogram.data.db.MonogramMigrations
 import org.monogram.data.mtproto.MtProtoRoomUpdateStateStore
 import org.monogram.data.mtproto.MtProtoRoomUpdateRecovery
 import org.monogram.data.mtproto.MtProtoRoomLiveUpdateApplier
+import org.monogram.data.mtproto.MtProtoLiveSessionResetter
+import org.monogram.data.mtproto.MtProtoLiveUpdateCoordinator
+import org.monogram.data.mtproto.MtProtoSessionTransportFactory
 import org.monogram.data.mtproto.MtProtoPendingEnvelopeStore
 import org.monogram.data.mtproto.MtProtoRoomPendingEnvelopeStore
 import org.monogram.data.mtproto.MtProtoRoomCloudObjectStager
@@ -293,6 +296,11 @@ val dataModule = module {
         )
     }
     single<MtProtoAuthSessionHandleFactory> { get<MtProtoPhoneAuthSessionFactory>() }
+    single<MtProtoSessionTransportFactory> {
+        MtProtoSessionTransportFactory { accountSlot ->
+            get<TelegramMtProtoSessionFactory>().open(accountSlot)
+        }
+    }
     single { MtProtoAuthRepository(get(), get()) }
     single<MtProtoAuthSessionResetter> { get<MtProtoAuthRepository>() }
     single { TdLibParametersProvider(androidContext(), get()) }
@@ -487,6 +495,18 @@ val dataModule = module {
     single { get<MonogramDatabase>().keyValueDao() }
     single { KeyValueTelegramBackendSelectionStore(get()) }
     single<TelegramBackendSelectionStore> { get<KeyValueTelegramBackendSelectionStore>() }
+    single(createdAtStart = true) {
+        MtProtoLiveUpdateCoordinator(
+            selectionStore = get(),
+            authRepository = get(),
+            transportFactory = get(),
+            configSource = get(),
+            recovery = get(),
+            liveUpdateApplier = get(),
+            scope = get(),
+        )
+    }
+    single<MtProtoLiveSessionResetter> { get<MtProtoLiveUpdateCoordinator>() }
     single { LegacyActiveAccountBinding() }
     single { LegacyBackendAccessGuard(get(), get()) }
     single {
@@ -495,6 +515,7 @@ val dataModule = module {
             legacyActiveAccountBinding = get(),
             mtProtoAccountStateResetter = get<MtProtoAccountStateResetter>(),
             mtProtoAuthSessionResetter = get(),
+            mtProtoLiveSessionResetter = get(),
         )
     }
     single { get<MonogramDatabase>().notificationSettingDao() }

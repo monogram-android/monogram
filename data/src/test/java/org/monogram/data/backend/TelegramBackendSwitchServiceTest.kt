@@ -13,6 +13,7 @@ import org.junit.Test
 import org.monogram.data.mtproto.MtProtoAccountStateResetter
 import org.monogram.data.mtproto.MtProtoAuthSessionResetter
 import org.monogram.data.mtproto.MtProtoEnvironment
+import org.monogram.data.mtproto.MtProtoLiveSessionResetter
 
 class TelegramBackendSwitchServiceTest {
     @Test
@@ -59,12 +60,13 @@ class TelegramBackendSwitchServiceTest {
             legacyActiveAccountBinding = LegacyActiveAccountBinding("account_1"),
             mtProtoAccountStateResetter = RecordingMtProtoResetter(events),
             mtProtoAuthSessionResetter = MtProtoAuthSessionResetter { events += "mtproto-auth-reset" },
+            mtProtoLiveSessionResetter = MtProtoLiveSessionResetter { events += "mtproto-live-reset" },
         )
 
         service.switch("account_1", TelegramBackendKind.LEGACY)
 
         assertEquals(
-            listOf("mtproto-auth-reset", "mtproto-reset", "select-LEGACY"),
+            listOf("mtproto-live-reset", "mtproto-auth-reset", "mtproto-reset", "select-LEGACY"),
             events,
         )
     }

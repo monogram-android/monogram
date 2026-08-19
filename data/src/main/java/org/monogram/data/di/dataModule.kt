@@ -11,6 +11,8 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.BuildConfig
+import org.monogram.data.backend.KeyValueTelegramBackendSelectionStore
+import org.monogram.data.backend.TelegramBackendSelectionStore
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.PlayerDataSourceFactoryImpl
@@ -424,6 +426,8 @@ val dataModule = module {
     single { get<MonogramDatabase>().chatFolderDao() }
     single { get<MonogramDatabase>().attachBotDao() }
     single { get<MonogramDatabase>().keyValueDao() }
+    single { KeyValueTelegramBackendSelectionStore(get()) }
+    single<TelegramBackendSelectionStore> { get<KeyValueTelegramBackendSelectionStore>() }
     single { get<MonogramDatabase>().notificationSettingDao() }
     single { get<MonogramDatabase>().notificationExceptionDao() }
     single { get<MonogramDatabase>().wallpaperDao() }

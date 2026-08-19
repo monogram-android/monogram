@@ -1,9 +1,11 @@
 package org.monogram.data.mtproto
 
 import org.monogram.data.db.dao.MtProtoChatProjectionDao
+import org.monogram.data.db.dao.MtProtoDialogProjectionDao
 import org.monogram.data.db.dao.MtProtoMessageProjectionDao
 import org.monogram.data.db.dao.MtProtoUserProjectionDao
 import org.monogram.data.db.model.MtProtoChatProjectionEntity
+import org.monogram.data.db.model.MtProtoDialogProjectionEntity
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.data.db.model.MtProtoUserProjectionEntity
 
@@ -47,6 +49,7 @@ internal class MtProtoRoomDialogStore(
     private val messageDao: MtProtoMessageProjectionDao,
     private val userDao: MtProtoUserProjectionDao,
     private val chatDao: MtProtoChatProjectionDao,
+    private val dialogDao: MtProtoDialogProjectionDao,
 ) : MtProtoDialogStore {
     override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoDialogReadModel> {
         val accountSlot = scope.accountSlot
@@ -54,13 +57,29 @@ internal class MtProtoRoomDialogStore(
         val dcId = scope.dcId
         val users = userDao.getAll(accountSlot, environment, dcId).associateBy { it.userId }
         val chats = chatDao.getAll(accountSlot, environment, dcId).associateBy { it.chatId }
-        return messageDao.getLatestByPeer(accountSlot, environment, dcId).map { message ->
-            when (val peerType = MtProtoMessagePeerType.valueOf(message.peerType)) {
-                MtProtoMessagePeerType.USER -> message.toDialog(peerType, users[message.peerId], null)
-                MtProtoMessagePeerType.GROUP,
-                MtProtoMessagePeerType.CHANNEL -> message.toDialog(peerType, null, chats[message.peerId])
+        val latest = messageDao.getLatestByPeer(accountSlot, environment, dcId)
+            .associateBy { it.peerType to it.peerId }
+        val persisted = dialogDao.getAll(accountSlot, environment, dcId)
+            .mapNotNull { dialog ->
+                val peerType = MtProtoMessagePeerType.valueOf(dialog.peerType)
+                dialog.toDialog(
+                    peerType = peerType,
+                    user = users[dialog.peerId],
+                    chat = chats[dialog.peerId],
+                    message = latest[dialog.peerType to dialog.peerId],
+                )
             }
-        }
+        val persistedKeys = persisted.map { it.peerType.name to it.peerId }.toSet()
+        return persisted + latest
+            .filterKeys { it !in persistedKeys }
+            .map { (key, message) ->
+                val peerType = MtProtoMessagePeerType.valueOf(key.first)
+                when (peerType) {
+                    MtProtoMessagePeerType.USER -> message.toDialog(peerType, users[key.second], null)
+                    MtProtoMessagePeerType.GROUP,
+                    MtProtoMessagePeerType.CHANNEL -> message.toDialog(peerType, null, chats[key.second])
+                }
+            }
     }
 
     private fun MtProtoMessageProjectionEntity.toDialog(
@@ -86,6 +105,33 @@ internal class MtProtoRoomDialogStore(
             isDeleted = isDeleted,
             isOutgoing = isOutgoing,
             hasMedia = hasMedia,
+        ),
+    )
+
+    private fun MtProtoDialogProjectionEntity.toDialog(
+        peerType: MtProtoMessagePeerType,
+        user: MtProtoUserProjectionEntity?,
+        chat: MtProtoChatProjectionEntity?,
+        message: MtProtoMessageProjectionEntity?,
+    ) = MtProtoDialogReadModel(
+        peerType = peerType,
+        peerKind = peerKind(peerType, chat),
+        peerId = peerId,
+        title = user?.displayTitle() ?: chat?.title,
+        username = user?.username ?: chat?.username,
+        isPeerResolved = user != null || chat != null,
+        isPeerDeleted = user?.isDeleted ?: chat?.isDeleted ?: false,
+        isPeerForbidden = chat?.isForbidden ?: false,
+        latestMessage = MtProtoDialogMessagePreview(
+            messageId = message?.messageId ?: topMessageId,
+            senderType = message?.senderType?.let(MtProtoMessagePeerType::valueOf),
+            senderId = message?.senderId,
+            date = message?.date ?: 0,
+            text = message?.text,
+            isService = message?.isService ?: false,
+            isDeleted = message?.isDeleted ?: false,
+            isOutgoing = message?.isOutgoing ?: false,
+            hasMedia = message?.hasMedia ?: false,
         ),
     )
 

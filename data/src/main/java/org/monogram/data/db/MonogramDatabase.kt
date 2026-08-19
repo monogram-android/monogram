@@ -13,6 +13,7 @@ import org.monogram.data.db.dao.MtProtoUpdateStateDao
 import org.monogram.data.db.dao.MtProtoPendingEnvelopeDao
 import org.monogram.data.db.dao.MtProtoCloudObjectDao
 import org.monogram.data.db.dao.MtProtoChatProjectionDao
+import org.monogram.data.db.dao.MtProtoDialogProjectionDao
 import org.monogram.data.db.dao.MtProtoMessageProjectionDao
 import org.monogram.data.db.dao.MtProtoUserProjectionDao
 import org.monogram.data.db.dao.NotificationExceptionDao
@@ -38,6 +39,7 @@ import org.monogram.data.db.model.MtProtoUpdateStateEntity
 import org.monogram.data.db.model.MtProtoPendingEnvelopeEntity
 import org.monogram.data.db.model.MtProtoCloudObjectEntity
 import org.monogram.data.db.model.MtProtoChatProjectionEntity
+import org.monogram.data.db.model.MtProtoDialogProjectionEntity
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.data.db.model.MtProtoUserProjectionEntity
 import org.monogram.data.db.model.NotificationExceptionEntity
@@ -63,6 +65,7 @@ import org.monogram.data.db.model.WallpaperEntity
         MtProtoCloudObjectEntity::class,
         MtProtoUserProjectionEntity::class,
         MtProtoChatProjectionEntity::class,
+        MtProtoDialogProjectionEntity::class,
         MtProtoMessageProjectionEntity::class,
         UserEntity::class,
         ChatFullInfoEntity::class,
@@ -81,7 +84,7 @@ import org.monogram.data.db.model.WallpaperEntity
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 45,
+    version = 46,
     exportSchema = true
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -93,6 +96,7 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun mtProtoCloudObjectDao(): MtProtoCloudObjectDao
     abstract fun mtProtoUserProjectionDao(): MtProtoUserProjectionDao
     abstract fun mtProtoChatProjectionDao(): MtProtoChatProjectionDao
+    abstract fun mtProtoDialogProjectionDao(): MtProtoDialogProjectionDao
     abstract fun mtProtoMessageProjectionDao(): MtProtoMessageProjectionDao
     abstract fun userDao(): UserDao
     abstract fun chatFullInfoDao(): ChatFullInfoDao

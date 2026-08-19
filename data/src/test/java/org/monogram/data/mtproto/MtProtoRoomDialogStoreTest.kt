@@ -27,6 +27,7 @@ class MtProtoRoomDialogStoreTest {
             messageDao = FakeMessageDao(messages),
             userDao = FakeUserDao(listOf(user(10, "Alice", "Doe"), user(99, "Not", "A dialog"))),
             chatDao = FakeChatDao(listOf(chat(20, "Group"))),
+            dialogDao = FakeDialogDao(),
         )
 
         val dialogs = store.getAll(scope)
@@ -39,6 +40,41 @@ class MtProtoRoomDialogStoreTest {
         assertEquals("Alice Doe", dialogs[2].title)
         assertEquals(1, dialogs[2].latestMessage.messageId)
         assertTrue(dialogs.none { it.peerId == 99L })
+    }
+
+    @Test
+    fun `retains persisted dialog without a message preview`() = runBlocking {
+        val store = MtProtoRoomDialogStore(
+            messageDao = FakeMessageDao(emptyList()),
+            userDao = FakeUserDao(listOf(user(42, "Empty", "Dialog"))),
+            chatDao = FakeChatDao(emptyList()),
+            dialogDao = FakeDialogDao(
+                listOf(
+                    org.monogram.data.db.model.MtProtoDialogProjectionEntity(
+                        accountSlot = "account-1",
+                        environment = "test",
+                        dcId = 4,
+                        peerType = MtProtoMessagePeerType.USER.name,
+                        peerId = 42,
+                        pinned = false,
+                        unreadMark = false,
+                        topMessageId = 0,
+                        unreadCount = 0,
+                        unreadMentionsCount = 0,
+                        unreadReactionsCount = 0,
+                        folderId = null,
+                        updatedAt = 1,
+                    ),
+                ),
+            ),
+        )
+
+        val dialog = store.getAll(scope).single()
+
+        assertEquals(42L, dialog.peerId)
+        assertEquals("Empty Dialog", dialog.title)
+        assertEquals(0, dialog.latestMessage.messageId)
+        assertTrue(dialog.isPeerResolved)
     }
 
     private fun message(
@@ -140,6 +176,15 @@ class MtProtoRoomDialogStoreTest {
         override suspend fun getSelf(accountSlot: String, environment: String, dcId: Int) = users.firstOrNull { it.isSelf }
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) = users
         override suspend fun upsert(entity: MtProtoUserProjectionEntity) = Unit
+        override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
+    }
+
+    private class FakeDialogDao(
+        private val dialogs: List<org.monogram.data.db.model.MtProtoDialogProjectionEntity> = emptyList(),
+    ) : org.monogram.data.db.dao.MtProtoDialogProjectionDao {
+        override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) = dialogs
+        override suspend fun upsert(entity: org.monogram.data.db.model.MtProtoDialogProjectionEntity) = Unit
+        override suspend fun upsertAll(entities: List<org.monogram.data.db.model.MtProtoDialogProjectionEntity>) = Unit
         override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
     }
 

@@ -22,6 +22,7 @@ import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.AuthUiStatus
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.updates.DifferenceEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.updates.DifferenceTooLong
 import org.monogram.mtproto.tl.generated.cloud.layer223.updates.State_ddba9d7af9
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.tl.runtime.TlObject
@@ -73,6 +74,33 @@ class MtProtoLiveUpdateCoordinatorTest {
         assertEquals(1, opens)
         assertTrue(transport.closed)
         assertEquals(MtProtoUpdateCursor(10, 20, 31, 41), stateStore.state?.cursor)
+    }
+
+    @Test
+    fun `initial difference resync requirement stops selected session without reconnecting`() = runTest {
+        val transport = RecordingTransport(
+            responses = ArrayDeque<TlObject>().apply {
+                add(State_ddba9d7af9(pts = 10, qts = 20, date = 30, seq = 40, unreadCount = 0))
+                add(DifferenceTooLong(99))
+            },
+        )
+        var opens = 0
+        coordinator(
+            selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            auth = FakeAuthRepository(AuthStep.Ready),
+            transportFactory = MtProtoSessionTransportFactory {
+                opens++
+                transport
+            },
+            scope = backgroundScope,
+        )
+
+        testScheduler.runCurrent()
+        testScheduler.advanceTimeBy(1_000)
+        testScheduler.runCurrent()
+
+        assertEquals(1, opens)
+        assertTrue(transport.closed)
     }
 
     @Test

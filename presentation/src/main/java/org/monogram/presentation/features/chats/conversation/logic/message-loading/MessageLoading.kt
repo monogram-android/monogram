@@ -17,16 +17,22 @@ import org.monogram.domain.models.ConversationUpdate
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageDownloadEvent
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageHistorySnapshotModel
+import org.monogram.domain.models.MessageHistorySnapshotRequest
 import org.monogram.domain.models.MessageReactionModel
+import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.BoundaryState
 import org.monogram.domain.repository.ConversationPipelineMode
+import org.monogram.domain.repository.ConversationScope
 import org.monogram.domain.repository.HistoryAnchor
 import org.monogram.domain.repository.HistoryDirection
 import org.monogram.domain.repository.HistoryRequest
 import org.monogram.domain.repository.HistorySource
+import org.monogram.domain.repository.HistoryPage
 import org.monogram.domain.repository.ReadUpdate
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ChatConversationLog
@@ -493,7 +499,9 @@ private fun MessageContent.projectMediaRuntime(incoming: MessageContent): Messag
 }
 
 private suspend fun DefaultChatComponent.loadHistoryPage(request: HistoryRequest) = try {
-    if (conversationPipelineMode == ConversationPipelineMode.Legacy) {
+    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+        loadMtProtoHistorySnapshot(request)
+    } else if (conversationPipelineMode == ConversationPipelineMode.Legacy) {
         repositoryMessage.getHistoryPage(request)
     } else {
         conversationSession.loadHistory(loadingGeneration, request)
@@ -504,6 +512,46 @@ private suspend fun DefaultChatComponent.loadHistoryPage(request: HistoryRequest
     }
     throw error
 }
+
+private suspend fun DefaultChatComponent.loadMtProtoHistorySnapshot(request: HistoryRequest): HistoryPage {
+    require(request.key.scope == ConversationScope.Main) {
+        "MTProto snapshot history supports only main conversations"
+    }
+    require(request.direction == org.monogram.domain.repository.HistoryDirection.Initial) {
+        "MTProto snapshot history currently supports only initial pages"
+    }
+    val chat = chatListRepository.getChatById(request.key.chatId)
+    val peer = TelegramPeerChatId.decode(request.key.chatId, chat?.isChannel)
+    val page = messageHistorySnapshotRepository.getHistory(
+        MessageHistorySnapshotRequest(
+            accountId = "default",
+            peerType = peer.type,
+            peerId = peer.id,
+            before = null,
+            limit = request.limit,
+        )
+    )
+    return HistoryPage(
+        messages = page.messages.map { it.toMessageModel(request.key.chatId) },
+        olderBoundary = if (page.nextCursor == null) BoundaryState.Reached else BoundaryState.Open,
+        newerBoundary = BoundaryState.Reached,
+        source = HistorySource.RoomSnapshot,
+    )
+}
+
+private fun MessageHistorySnapshotModel.toMessageModel(chatId: Long) = MessageModel(
+    id = messageId,
+    date = date,
+    isOutgoing = isOutgoing,
+    senderName = "",
+    chatId = chatId,
+    content = if (isService) MessageContent.Service(text.orEmpty()) else MessageContent.Text(text.orEmpty()),
+    senderId = senderId ?: 0L,
+    editDate = editDate ?: 0,
+    mediaAlbumId = groupedId ?: 0L,
+    isPinned = isPinned,
+    hasUnreadMention = isMentioned,
+)
 
 private fun pruneDeliveredPendingDuplicates(messages: List<MessageModel>): List<MessageModel> {
     if (messages.none { it.sendingState is MessageSendingState.Pending }) return messages

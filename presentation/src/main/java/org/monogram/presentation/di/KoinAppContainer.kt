@@ -39,6 +39,7 @@ import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.LocationRepository
 import org.monogram.domain.repository.MessageAiRepository
 import org.monogram.domain.repository.MessageDisplayer
+import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
@@ -95,6 +96,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val chatSettingsRepository: ChatSettingsRepository by lazy { koin.get() }
     override val chatCreationRepository: ChatCreationRepository by lazy { koin.get() }
     override val messageRepository: MessageRepository by lazy { koin.get() }
+    override val messageHistorySnapshotRepository: MessageHistorySnapshotRepository by lazy { koin.get() }
     override val inlineBotRepository: InlineBotRepository by lazy { koin.get() }
     override val chatEventLogRepository: ChatEventLogRepository by lazy { koin.get() }
     override val messageAiRepository: MessageAiRepository by lazy { koin.get() }

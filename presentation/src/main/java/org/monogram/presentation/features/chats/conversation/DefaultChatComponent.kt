@@ -62,6 +62,8 @@ import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.TelegramBackendModeRepository
+import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
@@ -311,7 +313,10 @@ class DefaultChatComponent(
     internal val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     internal val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
     internal val forumTopicsRepository: ForumTopicsRepository = container.repositories.forumTopicsRepository
-    override val repositoryMessage: MessageRepository = container.repositories.messageRepository
+    internal val backendModeRepository: TelegramBackendModeRepository = container.repositories.telegramBackendModeRepository
+    internal val messageHistorySnapshotRepository: MessageHistorySnapshotRepository =
+        container.repositories.messageHistorySnapshotRepository
+    override val repositoryMessage: MessageRepository by lazy { container.repositories.messageRepository }
     internal val pinnedMessageVisibilityRepository: PinnedMessageVisibilityRepository =
         container.repositories.pinnedMessageVisibilityRepository
     internal val inlineBotRepository: InlineBotRepository = container.repositories.inlineBotRepository
@@ -357,7 +362,7 @@ class DefaultChatComponent(
     internal var activeLoadSession: ConversationLoadSession? = null
     internal val conversationSession = ConversationSession(
         scope = scope,
-        historyLoader = repositoryMessage::getHistoryPage
+        historyLoader = { request -> repositoryMessage.getHistoryPage(request) }
     )
 
     internal fun isLoadingGenerationCurrent(generation: Long): Boolean =

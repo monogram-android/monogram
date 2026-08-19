@@ -186,6 +186,8 @@ class MtProtoRoomDialogStoreTest {
         override suspend fun upsert(entity: org.monogram.data.db.model.MtProtoDialogProjectionEntity) = Unit
         override suspend fun upsertAll(entities: List<org.monogram.data.db.model.MtProtoDialogProjectionEntity>) = Unit
         override suspend fun updateTopMessage(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int, updatedAt: Long) = Unit
+        override suspend fun updatePinned(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, pinned: Boolean, folderId: Int?, updatedAt: Long) = Unit
+        override suspend fun updateUnreadMark(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, unread: Boolean, updatedAt: Long) = Unit
         override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
     }
 

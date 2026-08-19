@@ -9,6 +9,8 @@ import org.monogram.data.db.model.MtProtoDialogProjectionEntity
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.data.db.model.MtProtoUserProjectionEntity
 import org.monogram.mtproto.tl.generated.cloud.layer223.Dialog_cf9860a8bd
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogPinned
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogUnreadMark
 
 internal data class MtProtoDialogMessagePreview(
     val messageId: Int,
@@ -49,6 +51,10 @@ internal interface MtProtoDialogStore {
 
     suspend fun updateTopMessage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int) = Unit
 
+    suspend fun updatePinned(scope: MtProtoAuthKeyScope, update: UpdateDialogPinned) = Unit
+
+    suspend fun updateUnreadMark(scope: MtProtoAuthKeyScope, update: UpdateDialogUnreadMark) = Unit
+
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
 
@@ -76,6 +82,20 @@ internal class MtProtoRoomDialogStore(
         messageId = messageId,
         updatedAt = System.currentTimeMillis(),
     )
+
+    override suspend fun updatePinned(scope: MtProtoAuthKeyScope, update: UpdateDialogPinned) {
+        val peer = (update.peer as? org.monogram.mtproto.tl.generated.cloud.layer223.DialogPeer_2011bde660)?.peer
+            ?: return
+        val key = peer.toProjectionKey()
+        dialogDao.updatePinned(scope.accountSlot, scope.environment.storageName, scope.dcId, key.first.name, key.second, update.pinned, update.folderId, System.currentTimeMillis())
+    }
+
+    override suspend fun updateUnreadMark(scope: MtProtoAuthKeyScope, update: UpdateDialogUnreadMark) {
+        val peer = (update.peer as? org.monogram.mtproto.tl.generated.cloud.layer223.DialogPeer_2011bde660)?.peer
+            ?: return
+        val key = peer.toProjectionKey()
+        dialogDao.updateUnreadMark(scope.accountSlot, scope.environment.storageName, scope.dcId, key.first.name, key.second, update.unread, System.currentTimeMillis())
+    }
 
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
         dialogDao.deleteAccount(accountSlot, environment.storageName)

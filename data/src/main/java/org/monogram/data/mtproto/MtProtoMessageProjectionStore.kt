@@ -15,6 +15,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.Update
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteChannelMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogPinned
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogUnreadMark
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateEditChannelMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateEditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateNewChannelMessage
@@ -199,6 +201,14 @@ internal class MtProtoRoomMessageProjectionStore(
         is UpdateDeleteChannelMessages -> {
             if (update.messages.isNotEmpty()) dao.markDeletedChannel(scope.accountSlot, scope.environment.storageName, scope.dcId, update.channelId, update.messages, nowMillis())
             true
+        }
+        is UpdateDialogPinned -> {
+            dialogStore?.updatePinned(scope, update)
+            dialogStore != null
+        }
+        is UpdateDialogUnreadMark -> {
+            dialogStore?.updateUnreadMark(scope, update)
+            dialogStore != null
         }
         else -> false
     }

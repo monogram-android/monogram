@@ -41,6 +41,37 @@ interface MtProtoDialogProjectionDao {
         updatedAt: Long,
     )
 
+    @Query(
+        "UPDATE mtproto_dialog_projection SET pinned = :pinned, folderId = :folderId, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updatePinned(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        pinned: Boolean,
+        folderId: Int?,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "UPDATE mtproto_dialog_projection SET unreadMark = :unread, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updateUnreadMark(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        unread: Boolean,
+        updatedAt: Long,
+    )
+
     @Query("DELETE FROM mtproto_dialog_projection WHERE accountSlot = :accountSlot AND environment = :environment")
     suspend fun deleteAccount(accountSlot: String, environment: String)
 }

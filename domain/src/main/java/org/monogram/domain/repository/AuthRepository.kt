@@ -66,6 +66,7 @@ sealed class AuthError {
     object InvalidCode : AuthError()
     object InvalidPassword : AuthError()
     object CodeExpired : AuthError()
+    object SignUpRequired : AuthError()
     data class RateLimited(val retryAfterSeconds: Int?) : AuthError()
     object NetworkTimeout : AuthError()
     object Unexpected : AuthError()

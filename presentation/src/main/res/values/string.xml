@@ -135,6 +135,7 @@
     <string name="unlock_button">Unlock</string>
     <string name="paste_action">Paste</string>
     <string name="auth_error_title">Authentication Error</string>
+    <string name="auth_signup_required_error">This phone number needs account registration, which is not available in the MTProto backend yet.</string>
     <string name="dismiss_button">Dismiss</string>
 
     <!-- Loading -->

@@ -5,6 +5,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.CancellationException
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.mtproto.MtProtoSignUpRequiredException
 import org.monogram.domain.repository.AUTH_NETWORK_TIMEOUT_ERROR
 import org.monogram.domain.repository.AuthError
 import org.monogram.mtproto.handshake.MtProtoHandshakeException
@@ -52,6 +53,7 @@ fun Throwable.toUserMessage(defaultMessage: String = "Unknown error"): String {
 }
 
 fun Throwable.toAuthError(): AuthError {
+    if (this is MtProtoSignUpRequiredException) return AuthError.SignUpRequired
     if (this is CancellationException) return AuthError.Unexpected
     if (message == AUTH_NETWORK_TIMEOUT_ERROR) return AuthError.NetworkTimeout
     if (this is SocketTimeoutException || this is SocketException || this is UnknownHostException) {

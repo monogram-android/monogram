@@ -12,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.data.mtproto.MtProtoSignUpRequiredException
 import org.monogram.domain.repository.AuthError
 import org.monogram.mtproto.handshake.MtProtoHandshakeException
 import org.monogram.mtproto.handshake.MtProtoHandshakeFailure
@@ -79,6 +80,11 @@ class TdLibExceptionAuthMappingTest {
             AuthError.RateLimited(42),
             MtProtoRpcException(420, "FLOOD_WAIT_42").toAuthError()
         )
+    }
+
+    @Test
+    fun `maps MTProto signup requirement distinctly`() {
+        assertEquals(AuthError.SignUpRequired, MtProtoSignUpRequiredException().toAuthError())
     }
 
     @Test

@@ -32,6 +32,10 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSmsWord
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_f9e8fc1d16
 import org.monogram.mtproto.transport.MtProtoRpcException
 
+internal class MtProtoSignUpRequiredException : UnsupportedOperationException(
+    "MTProto signup is not implemented"
+)
+
 internal class MtProtoPhoneAuthSession(
     private val api: MtProtoAuthorizationApi,
     private val apiId: Int,
@@ -73,7 +77,7 @@ internal class MtProtoPhoneAuthSession(
                     markReady()
                     state
                 }
-                is AuthorizationSignUpRequired -> throw UnsupportedOperationException("MTProto signup is not implemented")
+                is AuthorizationSignUpRequired -> throw MtProtoSignUpRequiredException()
                 else -> throw IllegalStateException("Unsupported MTProto authorization result: ${authorization.constructorId}")
             }
         } catch (rpc: MtProtoRpcException) {
@@ -97,7 +101,7 @@ internal class MtProtoPhoneAuthSession(
                 markReady()
                 state
             }
-            is AuthorizationSignUpRequired -> throw UnsupportedOperationException("MTProto signup is not implemented")
+            is AuthorizationSignUpRequired -> throw MtProtoSignUpRequiredException()
             else -> throw IllegalStateException("Unsupported MTProto authorization result: ${authorization.constructorId}")
         }
     }
@@ -115,7 +119,7 @@ internal class MtProtoPhoneAuthSession(
                 is org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3 -> {
                     SentCodeOutcome(AuthStep.Ready, null)
                 }
-                is AuthorizationSignUpRequired -> throw UnsupportedOperationException("MTProto signup is not implemented")
+                is AuthorizationSignUpRequired -> throw MtProtoSignUpRequiredException()
                 else -> throw IllegalStateException("Unsupported MTProto authorization result")
             }
             is SentCodePaymentRequired -> throw UnsupportedOperationException("MTProto paid-code flow is not implemented")

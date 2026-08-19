@@ -1,14 +1,24 @@
 package org.monogram.data.mtproto
 
 import org.monogram.domain.models.UserProfileSnapshotModel
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputUserSelf
+import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetUsers
 import org.monogram.domain.repository.UserProfileSnapshotRepository
 
 internal class MtProtoUserProfileSnapshotRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val userStore: MtProtoUserProjectionStore,
+    private val sessionFactory: TelegramMtProtoSessionFactory? = null,
 ) : UserProfileSnapshotRepository {
-    override suspend fun getCurrentUser(accountId: String): UserProfileSnapshotModel? =
-        userStore.getSelf(scope(accountId))?.toDomain()
+    override suspend fun getCurrentUser(accountId: String): UserProfileSnapshotModel? {
+        val scope = scope(accountId)
+        if (sessionFactory != null) {
+            sessionFactory.open(accountId).use { transport ->
+                userStore.upsert(scope, transport.execute(GetUsers(listOf(InputUserSelf))))
+            }
+        }
+        return userStore.getSelf(scope)?.toDomain()
+    }
 
     override suspend fun getUser(accountId: String, userId: Long): UserProfileSnapshotModel? =
         userStore.get(scope(accountId), userId)?.toDomain()

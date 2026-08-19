@@ -504,7 +504,7 @@ val dataModule = module {
         )
     }
     single { MtProtoMessageHistorySnapshotRepository(get(), get()) }
-    single { MtProtoUserProfileSnapshotRepository(get(), get()) }
+    single { MtProtoUserProfileSnapshotRepository(get(), get(), get()) }
     single {
         MtProtoRoomCloudObjectStager(
             get(),

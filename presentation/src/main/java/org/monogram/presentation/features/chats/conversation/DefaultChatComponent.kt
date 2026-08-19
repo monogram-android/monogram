@@ -41,6 +41,7 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.TdLibLimits
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WallpaperModel
@@ -321,7 +322,7 @@ class DefaultChatComponent(
         container.repositories.pinnedMessageVisibilityRepository
     internal val inlineBotRepository: InlineBotRepository = container.repositories.inlineBotRepository
     internal val paymentRepository: PaymentRepository = container.repositories.paymentRepository
-    internal val tdLibLimitsRepository = container.repositories.tdLibLimitsRepository
+    internal val tdLibLimitsRepository by lazy { container.repositories.tdLibLimitsRepository }
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     internal val conversationPipelineMode: ConversationPipelineMode =
         ConversationPipelineFallbackGate.modeFor(appPreferences.conversationPipelineMode.value)
@@ -402,7 +403,11 @@ class DefaultChatComponent(
             isWhitelistedInAdBlock = appPreferences.adBlockWhitelistedChannels.value.contains(chatId),
             scrollToMessageId = initialMessageId,
             currentTopicId = initialTopicId,
-            tdLibLimits = tdLibLimitsRepository.limits.value,
+            tdLibLimits = if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+                TdLibLimits()
+            } else {
+                tdLibLimitsRepository.limits.value
+            },
             initialShare = initialShare,
             lastScrollPosition = cacheProvider.getChatScrollPosition(chatId),
             lastSavedViewport = cacheProvider.getChatViewport(chatId, null),
@@ -493,9 +498,11 @@ class DefaultChatComponent(
     }
 
     private fun setupCollectors() {
-        tdLibLimitsRepository.limits
-            .onEach { limits -> _state.update { it.copy(tdLibLimits = limits) } }
-            .launchIn(scope)
+        if (backendModeRepository.backendMode.value != org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+            tdLibLimitsRepository.limits
+                .onEach { limits -> _state.update { it.copy(tdLibLimits = limits) } }
+                .launchIn(scope)
+        }
         setupMessageCollectors()
         setupPinnedMessageCollector()
         observeUserUpdates()

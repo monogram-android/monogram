@@ -1,0 +1,87 @@
+package org.monogram.data.mtproto
+
+import java.security.SecureRandom
+import org.monogram.domain.models.DialogPeerType
+import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.MtProtoTextMessageRepository
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
+
+/** Basic plain-text sending backed by an authenticated owned MTProto transport. */
+internal class MtProtoTextMessageRepositoryImpl(
+    private val configSource: TelegramMtProtoBootstrapConfigSource,
+    private val transportFactory: MtProtoSessionTransportFactory,
+    private val users: MtProtoUserProjectionStore,
+    private val chats: MtProtoChatProjectionStore,
+    private val messages: MtProtoMessageProjectionStore,
+    private val randomId: () -> Long = { SecureRandom().nextLong() },
+    private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
+) : MtProtoTextMessageRepository {
+    override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String) {
+        require(text.isNotBlank()) { "Message text must not be blank" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = resolvePeer(scope, chatId, peerType)
+        val transport = transportFactory.open(accountSlot)
+        try {
+            val updates = transport.execute(
+                SendMessage(
+                    noWebpage = false,
+                    silent = false,
+                    background = false,
+                    clearDraft = true,
+                    noforwards = false,
+                    updateStickersetsOrder = false,
+                    invertMedia = false,
+                    allowPaidFloodskip = false,
+                    peer = peer,
+                    replyTo = null,
+                    message = text,
+                    randomId = randomId(),
+                    replyMarkup = null,
+                    entities = null,
+                    scheduleDate = null,
+                    scheduleRepeatPeriod = null,
+                    sendAs = null,
+                    quickReplyShortcut = null,
+                    effect = null,
+                    allowPaidStars = null,
+                    suggestedPost = null,
+                )
+            )
+            messages.stageLive(scope, updates)
+        } finally {
+            transport.close()
+        }
+    }
+
+    private suspend fun resolvePeer(
+        scope: MtProtoAuthKeyScope,
+        chatId: Long,
+        peerType: DialogPeerType,
+    ): InputPeer {
+        val peer = TelegramPeerChatId.decode(chatId, peerType == DialogPeerType.CHANNEL)
+        return when (peer.type) {
+            DialogPeerType.PRIVATE -> {
+                val user = requireNotNull(users.get(scope, peer.id)) { "Missing MTProto user projection: ${peer.id}" }
+                InputPeerUser(peer.id, requireNotNull(user.accessHash) { "Missing MTProto user access hash: ${peer.id}" })
+            }
+
+            DialogPeerType.BASIC_GROUP -> InputPeerChat(peer.id)
+            DialogPeerType.SUPERGROUP,
+            DialogPeerType.CHANNEL -> {
+                val chat = requireNotNull(chats.get(scope, peer.id)) { "Missing MTProto chat projection: ${peer.id}" }
+                InputPeerChannel(peer.id, requireNotNull(chat.accessHash) { "Missing MTProto channel access hash: ${peer.id}" })
+            }
+
+            DialogPeerType.UNKNOWN -> error("Cannot send to an unknown peer")
+        }
+    }
+
+    private companion object {
+        const val DEFAULT_ACCOUNT_SLOT = "default"
+    }
+}

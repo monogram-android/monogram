@@ -58,6 +58,7 @@ import org.monogram.domain.repository.GifRepository
 import org.monogram.domain.repository.InlineBotRepository
 import org.monogram.domain.repository.MessageDisplayer
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.domain.repository.PaymentRepository
 import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PrivacyRepository
@@ -319,6 +320,9 @@ class DefaultChatComponent(
         container.repositories.messageHistorySnapshotRepository
     internal val userProfileSnapshotRepository = container.repositories.userProfileSnapshotRepository
     override val repositoryMessage: MessageRepository by lazy { container.repositories.messageRepository }
+    internal val mtProtoTextMessageRepository: MtProtoTextMessageRepository by lazy {
+        container.repositories.mtProtoTextMessageRepository
+    }
     internal val pinnedMessageVisibilityRepository: PinnedMessageVisibilityRepository =
         container.repositories.pinnedMessageVisibilityRepository
     internal val inlineBotRepository: InlineBotRepository = container.repositories.inlineBotRepository

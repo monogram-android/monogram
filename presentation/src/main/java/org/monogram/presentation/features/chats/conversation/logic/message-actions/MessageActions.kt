@@ -19,6 +19,8 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.PollDraft
+import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
@@ -35,6 +37,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 private const val MaxCompressedPhotoLongSide = 3840
+private const val MtProtoPlainTextLimit = 4_096
 
 internal fun DefaultChatComponent.ensureTdLibTextLimit(
     text: String,
@@ -52,6 +55,9 @@ internal fun DefaultChatComponent.ensureTdLibMessageLimit(
     text: String,
     rich: Boolean
 ): Boolean {
+    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+        return ensureTdLibTextLimit(text, MtProtoPlainTextLimit, "Message")
+    }
     val limits = tdLibLimitsRepository.limits.value
     return ensureTdLibTextLimit(
         text = text,
@@ -196,7 +202,17 @@ internal fun DefaultChatComponent.handleSendMessage(
         val replyId = currentState.replyMessage?.id
         val threadId = currentState.effectiveThreadId()
         val targetChatId = currentState.effectiveThreadChatId(chatId)
-        if (parseMode == null) {
+        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            require(parseMode == null) { "MTProto rich-text sending is not available" }
+            require(entities.isEmpty()) { "MTProto entity sending is not available" }
+            require(replyId == null && threadId == null) { "MTProto reply and topic sending is not available" }
+            require(sendOptions.scheduleDate == null) { "MTProto scheduled sending is not available" }
+            val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+            mtProtoTextMessageRepository.sendText(targetChatId, peer.type, text)
+        } else if (parseMode == null) {
             repositoryMessage.sendMessage(
                 targetChatId,
                 text,

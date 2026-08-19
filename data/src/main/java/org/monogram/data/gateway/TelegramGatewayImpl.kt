@@ -8,8 +8,10 @@ import org.monogram.data.di.TdLibClient
 import kotlin.coroutines.CoroutineContext
 
 internal class TelegramGatewayImpl(
-    private val client: TdLibClient
+    clientProvider: () -> TdLibClient,
 ) : TelegramGateway {
+    private val client by lazy(clientProvider)
+
     override suspend fun <T : TdApi.Object> execute(function: TdApi.Function<T>): T =
         client.sendSuspend(function)
 

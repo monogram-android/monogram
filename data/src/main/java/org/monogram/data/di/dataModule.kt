@@ -361,7 +361,7 @@ val dataModule = module {
 
     single { ChatCache() }
     single<TelegramGateway> {
-        TelegramGatewayImpl(get())
+        TelegramGatewayImpl { get<TdLibClient>() }
     }
     single<UpdateDispatcher> {
         UpdateDispatcherImpl(

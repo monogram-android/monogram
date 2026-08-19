@@ -110,9 +110,15 @@ class IntermediateTcpEncryptedTransport(
                 pendingRequest = pending
             }
             try {
+                MtProtoTransportLog.debug {
+                    "send rpc endpoint=$host:$port msgId=${request.metadata.messageId} seqNo=${request.metadata.sequenceNumber} method=${method.debugName()} bytes=${request.packet.size}"
+                }
                 sendRequest(request.packet)
                 when (val outcome = withTimeout(readTimeoutMillis.toLong()) { completion.await() }) {
                     is RpcOutcome.Success -> {
+                        MtProtoTransportLog.debug {
+                            "receive rpc endpoint=$host:$port msgId=${request.metadata.messageId} method=${method.debugName()} result=${outcome.value.debugName()}"
+                        }
                         @Suppress("UNCHECKED_CAST")
                         return outcome.value as R
                     }
@@ -123,10 +129,18 @@ class IntermediateTcpEncryptedTransport(
                     }
                 }
             } catch (rpc: MtProtoRpcException) {
+                MtProtoTransportLog.warn {
+                    "rpc failure endpoint=$host:$port msgId=${request.metadata.messageId} method=${method.debugName()} code=${rpc.errorCode}"
+                }
                 if (rpc.suppressed.isNotEmpty()) disconnect()
                 throw rpc
             } catch (failure: Throwable) {
-                if (failure !is CancellationException) disconnect()
+                if (failure !is CancellationException) {
+                    MtProtoTransportLog.warn {
+                        "rpc transport failure endpoint=$host:$port msgId=${request.metadata.messageId} method=${method.debugName()} cause=${failure.javaClass.simpleName}"
+                    }
+                    disconnect()
+                }
                 throw failure
             } finally {
                 synchronized(stateLock) {
@@ -495,6 +509,15 @@ class IntermediateTcpEncryptedTransport(
     }
 
     private fun protocolFailure(message: String): IllegalArgumentException = IllegalArgumentException(message)
+
+    private fun TlObject.debugName(): String =
+        "${this::class.java.simpleName}#${constructorId.toString(16)}"
+
+    private fun Any?.debugName(): String = when (this) {
+        null -> "null"
+        is TlObject -> debugName()
+        else -> this::class.java.simpleName
+    }
 
     private fun TerminalAction.complete() {
         val completed = when (this) {

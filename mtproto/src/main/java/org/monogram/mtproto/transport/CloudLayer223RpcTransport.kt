@@ -58,22 +58,48 @@ class CloudLayer223RpcTransport(
     override suspend fun <R> execute(method: TlMethod<R>): R = mutex.withLock {
         check(!closed.get()) { "Transport is closed" }
         val includeHeader = headerRequired
+        MtProtoTransportLog.debug {
+            "send api method=${method.debugName()} connectionHeader=$includeHeader"
+        }
         try {
-            delegate.execute(if (includeHeader) wrap(method) else method).also {
+            delegate.execute(if (includeHeader) wrap(method) else method).also { result ->
                 headerRequired = false
+                MtProtoTransportLog.debug {
+                    "receive api method=${method.debugName()} result=${result.debugName()}"
+                }
             }
         } catch (rpc: MtProtoRpcException) {
-            if (includeHeader || !rpc.requiresConnectionHeader()) throw rpc
+            if (includeHeader || !rpc.requiresConnectionHeader()) {
+                MtProtoTransportLog.warn {
+                    "api failure method=${method.debugName()} code=${rpc.errorCode}"
+                }
+                throw rpc
+            }
+            MtProtoTransportLog.debug {
+                "retry api method=${method.debugName()} with connection header"
+            }
             headerRequired = true
             check(!closed.get()) { "Transport is closed" }
-            delegate.execute(wrap(method)).also {
+            delegate.execute(wrap(method)).also { result ->
                 headerRequired = false
+                MtProtoTransportLog.debug {
+                    "receive api method=${method.debugName()} result=${result.debugName()}"
+                }
             }
         }
     }
 
     override fun close() {
         if (closed.compareAndSet(false, true)) delegate.close()
+    }
+
+    private fun org.monogram.mtproto.tl.runtime.TlObject.debugName(): String =
+        "${this::class.java.simpleName}#${constructorId.toString(16)}"
+
+    private fun Any?.debugName(): String = when (this) {
+        null -> "null"
+        is org.monogram.mtproto.tl.runtime.TlObject -> debugName()
+        else -> this::class.java.simpleName
     }
 
     private fun <R> wrap(method: TlMethod<R>): TlMethod<R> = InvokeWithLayer(

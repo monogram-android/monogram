@@ -63,6 +63,9 @@ class IntermediateTcpHandshakeTransport(
             envelope.fill(0)
         }
         try {
+            MtProtoTransportLog.debug {
+                "send handshake endpoint=$host:$port method=${method.debugName()} bytes=${envelope.size}"
+            }
             activeSocket.getOutputStream().apply {
                 write(frame)
                 flush()
@@ -70,11 +73,18 @@ class IntermediateTcpHandshakeTransport(
             synchronized(stateLock) { preambleSent = true }
             val response = readMessage(activeSocket)
             return try {
-                UnencryptedMessageCodec.decodeResult(method, response, DECODE_CONTEXT)
+                UnencryptedMessageCodec.decodeResult(method, response, DECODE_CONTEXT).also { result ->
+                    MtProtoTransportLog.debug {
+                        "receive handshake endpoint=$host:$port method=${method.debugName()} result=${result.debugName()} bytes=${response.size}"
+                    }
+                }
             } finally {
                 response.fill(0)
             }
         } catch (failure: IOException) {
+            MtProtoTransportLog.warn {
+                "handshake transport failure endpoint=$host:$port method=${method.debugName()} cause=${failure.javaClass.simpleName}"
+            }
             disconnect()
             throw failure
         } finally {
@@ -149,6 +159,9 @@ class IntermediateTcpHandshakeTransport(
         runCatching { current?.close() }
         Unit
     }
+
+    private fun TlObject.debugName(): String =
+        "${this::class.java.simpleName}#${constructorId.toString(16)}"
 
     private companion object {
         const val MAX_QUICK_ACKS = 16

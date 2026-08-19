@@ -199,8 +199,25 @@ internal class MtProtoAuthRepository(
     ): AuthStep = try {
         handle.requestCode(phone)
     } catch (rpc: org.monogram.mtproto.transport.MtProtoRpcException) {
-        val dcId = rpc.phoneMigrationDcId() ?: throw rpc
-        val replacement = sessionFactory.open(accountSlot, dcId)
+        val dcId = rpc.phoneMigrationDcId()
+        when {
+            dcId != null -> replaceSessionAndRequestCode(phone, handle, actionGeneration, dcId)
+            rpc.isAuthRestart() -> replaceSessionAndRequestCode(phone, handle, actionGeneration, null)
+            else -> throw rpc
+        }
+    }
+
+    private suspend fun replaceSessionAndRequestCode(
+        phone: String,
+        handle: MtProtoAuthSessionHandle,
+        actionGeneration: Long,
+        dcId: Int?,
+    ): AuthStep {
+        val replacement = if (dcId == null) {
+            sessionFactory.open(accountSlot)
+        } else {
+            sessionFactory.open(accountSlot, dcId)
+        }
         val accepted = synchronized(lock) {
             if (generation != actionGeneration || session !== handle) {
                 false
@@ -215,8 +232,8 @@ internal class MtProtoAuthRepository(
         }
         handle.close()
         val nextState = replacement.requestCode(phone)
-        accountDcStore.save(accountSlot, dcId)
-        nextState
+        if (dcId != null) accountDcStore.save(accountSlot, dcId)
+        return nextState
     }
 
     private fun org.monogram.mtproto.transport.MtProtoRpcException.phoneMigrationDcId(): Int? {
@@ -226,6 +243,9 @@ internal class MtProtoAuthRepository(
             ?.toIntOrNull()
             ?.takeIf { it > 0 }
     }
+
+    private fun org.monogram.mtproto.transport.MtProtoRpcException.isAuthRestart(): Boolean =
+        rpcMessage.trim().uppercase() == AUTH_RESTART
 
     private fun canSubmit(stage: AuthSubmissionStage): Boolean = when (stage) {
         AuthSubmissionStage.PHONE -> _authState.value is AuthStep.InputPhone
@@ -240,5 +260,6 @@ internal class MtProtoAuthRepository(
         const val DEFAULT_ACCOUNT_SLOT = "default"
         const val PHONE_MIGRATE_ERROR_CODE = 303
         const val PHONE_MIGRATE_PREFIX = "PHONE_MIGRATE_"
+        const val AUTH_RESTART = "AUTH_RESTART"
     }
 }

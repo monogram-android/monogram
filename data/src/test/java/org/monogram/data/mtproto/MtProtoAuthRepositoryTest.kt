@@ -210,6 +210,36 @@ class MtProtoAuthRepositoryTest {
     }
 
     @Test
+    fun `reopens once on auth restart and resends phone request`() = runTest {
+        val initial = FakeHandle(
+            requestCode = { throw MtProtoRpcException(500, "AUTH_RESTART") },
+        )
+        val restarted = FakeHandle(
+            requestCode = { AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5) },
+        )
+        val openCalls = AtomicInteger()
+        val repository = MtProtoAuthRepository(
+            sessionFactory = MtProtoAuthSessionHandleFactory {
+                when (openCalls.incrementAndGet()) {
+                    1 -> initial
+                    2 -> restarted
+                    else -> error("AUTH_RESTART must only replace the session once")
+                }
+            },
+            scope = backgroundScope,
+        )
+
+        repository.sendPhone("+10000000000")
+        testScheduler.runCurrent()
+
+        assertEquals(2, openCalls.get())
+        assertEquals(listOf("+10000000000"), initial.phones)
+        assertEquals(listOf("+10000000000"), restarted.phones)
+        assertEquals(1, initial.closeCalls.get())
+        assertEquals(AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5), repository.authState.value)
+    }
+
+    @Test
     fun `reset closes handle and rejects cancelled stale completion`() = runTest {
         val releaseRequest = CompletableDeferred<Unit>()
         val started = CompletableDeferred<Unit>()

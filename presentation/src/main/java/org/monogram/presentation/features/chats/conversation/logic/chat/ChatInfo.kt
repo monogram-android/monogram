@@ -14,17 +14,19 @@ import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.ChatMemberStatus
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.conversation.ChatConversationLog
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 internal fun DefaultChatComponent.loadChatInfo() {
+    val isMtProto = backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO
     scope.launch {
         val baseChat = chatListRepository.getChatById(chatId)
         if (baseChat != null) {
             updateBaseChatState(baseChat)
-            if (baseChat.viewAsTopics && _state.value.topics.isEmpty()) {
+            if (!isMtProto && baseChat.viewAsTopics && _state.value.topics.isEmpty()) {
                 loadTopics()
             }
 
@@ -74,7 +76,7 @@ internal fun DefaultChatComponent.loadChatInfo() {
         .onEach { chat ->
             val wasTopics = _state.value.viewAsTopics
             updateBaseChatState(chat)
-            if (chat.viewAsTopics) {
+            if (!isMtProto && chat.viewAsTopics) {
                 if (_state.value.topics.isEmpty()) {
                     loadTopics()
                 }
@@ -125,15 +127,18 @@ internal fun DefaultChatComponent.loadChatInfo() {
         .onEach(::updateEffectiveChatState)
         .launchIn(scope)
 
-    forumTopicsRepository.forumTopicsFlow
-        .filter { it.first == chatId }
-        .onEach { (_, topics) ->
-            _state.update { it.copy(topics = topics) }
-        }
-        .launchIn(scope)
+    if (!isMtProto) {
+        forumTopicsRepository.forumTopicsFlow
+            .filter { it.first == chatId }
+            .onEach { (_, topics) ->
+                _state.update { it.copy(topics = topics) }
+            }
+            .launchIn(scope)
+    }
 }
 
 internal fun DefaultChatComponent.loadTopics() {
+    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     if (_state.value.isLoadingTopics) return
     scope.launch {
         _state.update { it.copy(isLoadingTopics = true) }

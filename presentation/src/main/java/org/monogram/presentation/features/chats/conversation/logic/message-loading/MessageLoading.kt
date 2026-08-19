@@ -2529,7 +2529,7 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
         componentInstanceId = componentInstanceId,
         extra = "topicId=$topicId"
     )
-    if (topicId != 0) {
+    if (topicId != 0 && backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
         scope.launch {
             forumTopicsRepository.markForumTopicAsRead(chatId, topicId)
         }

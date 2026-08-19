@@ -313,7 +313,7 @@ class DefaultChatComponent(
     internal val toastMessageDisplayer: MessageDisplayer = container.utils.messageDisplayer()
     internal val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     internal val chatOperationsRepository: ChatOperationsRepository by lazy { container.repositories.chatOperationsRepository }
-    internal val forumTopicsRepository: ForumTopicsRepository = container.repositories.forumTopicsRepository
+    internal val forumTopicsRepository: ForumTopicsRepository by lazy { container.repositories.forumTopicsRepository }
     internal val backendModeRepository: TelegramBackendModeRepository = container.repositories.telegramBackendModeRepository
     internal val messageHistorySnapshotRepository: MessageHistorySnapshotRepository =
         container.repositories.messageHistorySnapshotRepository

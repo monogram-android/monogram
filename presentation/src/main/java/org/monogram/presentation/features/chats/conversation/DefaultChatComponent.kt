@@ -602,24 +602,26 @@ class DefaultChatComponent(
             }
             .launchIn(scope)
 
-        repositoryMessage.fileDownloadFlow
-            .filterIsInstance<org.monogram.domain.models.FileDownloadEvent.Completed>()
-            .onEach { event ->
-                refreshDraftLinkPreviewOnPhotoDownloadIfNeeded(event.fileId)
-            }
-            .launchIn(scope)
+        if (backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
+            repositoryMessage.fileDownloadFlow
+                .filterIsInstance<org.monogram.domain.models.FileDownloadEvent.Completed>()
+                .onEach { event ->
+                    refreshDraftLinkPreviewOnPhotoDownloadIfNeeded(event.fileId)
+                }
+                .launchIn(scope)
 
-        repositoryMessage.messageDownloadFlow
-            .filterIsInstance<org.monogram.domain.models.MessageDownloadEvent.Completed>()
-            .onEach { event ->
-                if (event.chatId != chatId) return@onEach
-                refreshSponsoredMessageAfterMediaDownload(
-                    messageId = event.messageId,
-                    fileId = event.fileId,
-                    path = event.path
-                )
-            }
-            .launchIn(scope)
+            repositoryMessage.messageDownloadFlow
+                .filterIsInstance<org.monogram.domain.models.MessageDownloadEvent.Completed>()
+                .onEach { event ->
+                    if (event.chatId != chatId) return@onEach
+                    refreshSponsoredMessageAfterMediaDownload(
+                        messageId = event.messageId,
+                        fileId = event.fileId,
+                        path = event.path
+                    )
+                }
+                .launchIn(scope)
+        }
     }
 
     private fun initialLoad() {
@@ -935,6 +937,7 @@ class DefaultChatComponent(
             visibleMessageIds = visibleMessageIds,
             nearbyMessageIds = nearbyMessageIds
         )
+        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
         val state = _state.value
         val networkEnabled = when {
             downloadUtils.isRoaming() -> state.autoDownloadRoaming

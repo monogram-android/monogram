@@ -62,6 +62,8 @@ internal data class MtProtoMessageHistoryCursor(
 internal interface MtProtoMessageProjectionStore {
     suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5)
     suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch)
+
+    suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>)
     suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel?
     suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel>
     suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel>
@@ -77,6 +79,8 @@ internal data class MtProtoMessageProjectionBackfillResult(
 internal object NoOpMtProtoMessageProjectionStore : MtProtoMessageProjectionStore {
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) = Unit
     override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) = Unit
+
+    override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>) = Unit
     override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? = null
     override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel> = emptyList()
@@ -113,6 +117,10 @@ internal class MtProtoRoomMessageProjectionStore(
     override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) {
         batch.newMessages.forEach { upsert(scope, it) }
         applyUpdates(scope, batch.otherUpdates)
+    }
+
+    override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>) {
+        messages.forEach { upsert(scope, it) }
     }
 
     override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? =

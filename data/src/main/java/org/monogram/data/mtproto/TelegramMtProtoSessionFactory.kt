@@ -9,6 +9,8 @@ import org.monogram.mtproto.transport.CloudLayer223RpcTransport
 import org.monogram.mtproto.transport.IntermediateTcpEncryptedTransport
 import org.monogram.mtproto.transport.IntermediateTcpHandshakeTransport
 import org.monogram.mtproto.transport.MtProtoHandshakeConnection
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 import org.monogram.mtproto.transport.MtProtoEncryptedSession
 
@@ -179,16 +181,25 @@ internal class TelegramMtProtoSessionFactory(
                 authKey.close()
                 throw failure
             }
+            val stateLock = Mutex()
+            var serverSalt = authKey.serverSalt
+            var serverTimeSeconds = authKey.createdAt.toLong()
             val raw = try {
                 IntermediateTcpEncryptedTransport(
                     host = endpoint.host,
                     port = endpoint.port,
                     session = session,
-                    onServerSaltChanged = { serverSalt ->
-                        authKeyPersistence.updateServerSalt(scope, authKey, serverSalt)
+                    onServerSaltChanged = { updatedSalt ->
+                        stateLock.withLock {
+                            serverSalt = updatedSalt
+                            authKeyPersistence.updateServerState(scope, authKey, serverSalt, serverTimeSeconds)
+                        }
                     },
-                    onServerTimeChanged = { serverTimeSeconds ->
-                        authKeyPersistence.updateServerTime(scope, authKey, serverTimeSeconds)
+                    onServerTimeChanged = { updatedTime ->
+                        stateLock.withLock {
+                            serverTimeSeconds = updatedTime
+                            authKeyPersistence.updateServerState(scope, authKey, serverSalt, serverTimeSeconds)
+                        }
                     },
                 )
             } catch (failure: Throwable) {

@@ -56,14 +56,19 @@ internal class MtProtoAuthKeyPersistence(
 
     suspend fun delete(scope: MtProtoAuthKeyScope) = store.delete(scope)
 
-    suspend fun updateServerTime(scope: MtProtoAuthKeyScope, authKey: MtProtoAuthKey, serverTimeSeconds: Long) {
+    suspend fun updateServerState(
+        scope: MtProtoAuthKeyScope,
+        authKey: MtProtoAuthKey,
+        serverSalt: Long,
+        serverTimeSeconds: Long,
+    ) {
         require(serverTimeSeconds in 0..Int.MAX_VALUE) { "MTProto server time is outside the persisted range" }
         val material = authKey.toByteArray()
         val stored = try {
             StoredMtProtoAuthKey.create(
                 material = material,
                 id = authKey.id,
-                serverSalt = authKey.serverSalt,
+                serverSalt = serverSalt,
                 createdAt = serverTimeSeconds.toInt(),
             )
         } finally {
@@ -76,24 +81,11 @@ internal class MtProtoAuthKeyPersistence(
         }
     }
 
-    suspend fun updateServerSalt(scope: MtProtoAuthKeyScope, authKey: MtProtoAuthKey, serverSalt: Long) {
-        val material = authKey.toByteArray()
-        val stored = try {
-            StoredMtProtoAuthKey.create(
-                material = material,
-                id = authKey.id,
-                serverSalt = serverSalt,
-                createdAt = authKey.createdAt,
-            )
-        } finally {
-            material.fill(0)
-        }
-        try {
-            store.save(scope, stored)
-        } finally {
-            stored.close()
-        }
-    }
+    suspend fun updateServerTime(scope: MtProtoAuthKeyScope, authKey: MtProtoAuthKey, serverTimeSeconds: Long) =
+        updateServerState(scope, authKey, authKey.serverSalt, serverTimeSeconds)
+
+    suspend fun updateServerSalt(scope: MtProtoAuthKeyScope, authKey: MtProtoAuthKey, serverSalt: Long) =
+        updateServerState(scope, authKey, serverSalt, authKey.createdAt.toLong())
 
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
         store.deleteAccount(accountSlot, environment)

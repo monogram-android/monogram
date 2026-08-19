@@ -155,6 +155,26 @@ class MtProtoAuthKeyPersistenceTest {
     }
 
     @Test
+    fun updatesServerSaltAndTimeAsOneStoredState() = runBlocking {
+        val store = FakeStore()
+        val persistence = MtProtoAuthKeyPersistence(store)
+        val scope = MtProtoAuthKeyScope("default", MtProtoEnvironment.PRODUCTION, 2)
+        val key = authKey()
+        try {
+            persistence.save(scope, key)
+            persistence.updateServerState(scope, key, serverSalt = 99L, serverTimeSeconds = 1_783_002_000L)
+            val loaded = persistence.load(scope) as PersistedMtProtoAuthKeyResult.Found
+            loaded.authKey.use { restored ->
+                assertEquals(99L, restored.serverSalt)
+                assertEquals(1_783_002_000, restored.createdAt)
+            }
+        } finally {
+            key.close()
+            store.close()
+        }
+    }
+
+    @Test
     fun updatesStoredServerTimeAnchorWithoutReplacingKeyMaterial() = runBlocking {
         val store = FakeStore()
         val persistence = MtProtoAuthKeyPersistence(store)

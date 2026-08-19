@@ -36,6 +36,12 @@ internal data class TelegramMtProtoBootstrapConfig(
 
 internal fun interface TelegramMtProtoBootstrapConfigSource {
     fun create(): TelegramMtProtoBootstrapConfig
+
+    fun createForDc(dcId: Int): TelegramMtProtoBootstrapConfig {
+        val config = create()
+        require(config.endpoint.dcId == dcId) { "MTProto bootstrap source does not support DC $dcId" }
+        return config
+    }
 }
 
 internal fun interface MtProtoAuthKeyLoader {
@@ -49,10 +55,12 @@ internal fun interface MtProtoAuthKeyLoader {
 internal class TelegramMtProtoBootstrapConfigProvider(
     private val metadataProvider: TelegramClientMetadataProvider,
 ) : TelegramMtProtoBootstrapConfigSource {
-    override fun create(): TelegramMtProtoBootstrapConfig {
+    override fun create(): TelegramMtProtoBootstrapConfig = createForDc(DEFAULT_DC_ID)
+
+    override fun createForDc(dcId: Int): TelegramMtProtoBootstrapConfig {
         require(BuildConfig.API_ID > 0) { "API_ID must be configured before starting MTProto" }
         val metadata = metadataProvider.create()
-        val endpoint = TelegramMtProtoEndpoint(dcId = 2, host = "149.154.167.51", port = 443)
+        val endpoint = endpointForDc(dcId)
         return TelegramMtProtoBootstrapConfig(
             endpoint = endpoint,
             handshake = MtProtoHandshakeConfig(
@@ -70,6 +78,17 @@ internal class TelegramMtProtoBootstrapConfigProvider(
     }
 
     private companion object {
+        const val DEFAULT_DC_ID = 2
+
+        fun endpointForDc(dcId: Int): TelegramMtProtoEndpoint = when (dcId) {
+            1 -> TelegramMtProtoEndpoint(dcId, "149.154.175.50", 443)
+            2 -> TelegramMtProtoEndpoint(dcId, "149.154.167.51", 443)
+            3 -> TelegramMtProtoEndpoint(dcId, "149.154.175.100", 443)
+            4 -> TelegramMtProtoEndpoint(dcId, "149.154.167.91", 443)
+            5 -> TelegramMtProtoEndpoint(dcId, "91.108.56.130", 443)
+            else -> throw IllegalArgumentException("Unsupported Telegram production DC: $dcId")
+        }
+
         val MAIN_RSA_PUBLIC_KEY = """
             -----BEGIN RSA PUBLIC KEY-----
             MIIBCgKCAQEA6LszBcC1LGzyr992NzE0ieY+BSaOW622Aa9Bd4ZHLl+TuFQ4lo4g
@@ -108,8 +127,10 @@ internal class TelegramMtProtoSessionFactory(
         )
     },
 ) {
-    suspend fun open(accountSlot: String = DEFAULT_ACCOUNT_SLOT): MtProtoRpcTransport {
-        val config = configSource.create()
+    suspend fun open(accountSlot: String = DEFAULT_ACCOUNT_SLOT): MtProtoRpcTransport = open(accountSlot, null)
+
+    suspend fun open(accountSlot: String, dcId: Int?): MtProtoRpcTransport {
+        val config = dcId?.let(configSource::createForDc) ?: configSource.create()
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val handshake = handshakeConnectionFactory(config.endpoint)
         val bootstrapped = handshake.use { connection ->

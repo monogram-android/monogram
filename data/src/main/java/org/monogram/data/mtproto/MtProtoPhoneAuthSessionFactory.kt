@@ -50,10 +50,15 @@ internal interface MtProtoAuthSessionHandle : AutoCloseable {
 
 internal fun interface MtProtoAuthSessionHandleFactory {
     suspend fun open(accountSlot: String): MtProtoAuthSessionHandle
+
+    suspend fun open(accountSlot: String, dcId: Int): MtProtoAuthSessionHandle = open(accountSlot)
 }
 
 internal class MtProtoPhoneAuthSessionFactory(
     private val openTransport: suspend (String) -> MtProtoRpcTransport,
+    private val openTransportForDc: suspend (String, Int) -> MtProtoRpcTransport = { _, dcId ->
+        error("MTProto auth transport does not support DC migration to $dcId")
+    },
     private val apiId: Int,
     private val apiHash: String,
     private val codeSettings: CodeSettings_fb610807ca,
@@ -63,8 +68,12 @@ internal class MtProtoPhoneAuthSessionFactory(
         require(apiHash.isNotBlank()) { "apiHash must not be blank" }
     }
 
-    override suspend fun open(accountSlot: String): MtProtoPhoneAuthSessionHandle {
-        val transport = openTransport(accountSlot)
+    override suspend fun open(accountSlot: String): MtProtoPhoneAuthSessionHandle = openSession(accountSlot, null)
+
+    override suspend fun open(accountSlot: String, dcId: Int): MtProtoPhoneAuthSessionHandle = openSession(accountSlot, dcId)
+
+    private suspend fun openSession(accountSlot: String, dcId: Int?): MtProtoPhoneAuthSessionHandle {
+        val transport = openTransport(accountSlot, dcId)
         return try {
             MtProtoPhoneAuthSessionHandle(
                 transport = transport,
@@ -82,6 +91,9 @@ internal class MtProtoPhoneAuthSessionFactory(
     }
 
     suspend fun open(): MtProtoPhoneAuthSessionHandle = open(DEFAULT_ACCOUNT_SLOT)
+
+    private suspend fun openTransport(accountSlot: String, dcId: Int?): MtProtoRpcTransport =
+        if (dcId == null) openTransport(accountSlot) else openTransportForDc(accountSlot, dcId)
 
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"

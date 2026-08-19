@@ -166,11 +166,48 @@ internal class MtProtoAuthRepository(
         }
 
         return when (action.stage) {
-            AuthSubmissionStage.PHONE -> handle.requestCode(requireNotNull(action.payload))
+            AuthSubmissionStage.PHONE -> requestCodeWithDcMigration(
+                phone = requireNotNull(action.payload),
+                handle = handle,
+                actionGeneration = actionGeneration,
+            )
             AuthSubmissionStage.CODE -> handle.submitCode(requireNotNull(action.payload))
             AuthSubmissionStage.RESEND -> handle.resendCode()
             AuthSubmissionStage.PASSWORD -> handle.submitPassword(requireNotNull(action.payload))
         }
+    }
+
+    private suspend fun requestCodeWithDcMigration(
+        phone: String,
+        handle: MtProtoAuthSessionHandle,
+        actionGeneration: Long,
+    ): AuthStep = try {
+        handle.requestCode(phone)
+    } catch (rpc: org.monogram.mtproto.transport.MtProtoRpcException) {
+        val dcId = rpc.phoneMigrationDcId() ?: throw rpc
+        val replacement = sessionFactory.open(accountSlot, dcId)
+        val accepted = synchronized(lock) {
+            if (generation != actionGeneration || session !== handle) {
+                false
+            } else {
+                session = replacement
+                true
+            }
+        }
+        if (!accepted) {
+            replacement.close()
+            throw CancellationException("MTProto auth session was reset")
+        }
+        handle.close()
+        replacement.requestCode(phone)
+    }
+
+    private fun org.monogram.mtproto.transport.MtProtoRpcException.phoneMigrationDcId(): Int? {
+        if (errorCode != PHONE_MIGRATE_ERROR_CODE) return null
+        return rpcMessage.removePrefix(PHONE_MIGRATE_PREFIX)
+            .takeIf { rpcMessage.startsWith(PHONE_MIGRATE_PREFIX) }
+            ?.toIntOrNull()
+            ?.takeIf { it > 0 }
     }
 
     private fun canSubmit(stage: AuthSubmissionStage): Boolean = when (stage) {
@@ -182,5 +219,7 @@ internal class MtProtoAuthRepository(
 
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"
+        const val PHONE_MIGRATE_ERROR_CODE = 303
+        const val PHONE_MIGRATE_PREFIX = "PHONE_MIGRATE_"
     }
 }

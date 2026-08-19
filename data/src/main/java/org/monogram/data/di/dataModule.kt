@@ -287,6 +287,9 @@ val dataModule = module {
             openTransport = { accountSlot ->
                 get<TelegramMtProtoSessionFactory>().open(accountSlot)
             },
+            openTransportForDc = { accountSlot, dcId ->
+                get<TelegramMtProtoSessionFactory>().open(accountSlot, dcId)
+            },
             apiId = BuildConfig.API_ID,
             apiHash = BuildConfig.API_HASH,
             codeSettings = CodeSettings_3f851bba91(

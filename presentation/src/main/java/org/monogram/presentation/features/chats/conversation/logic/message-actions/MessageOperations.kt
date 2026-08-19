@@ -56,6 +56,10 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
                 peerType = peer.type,
                 maxMessageId = visibleMessageIds.max(),
             )
+            if (hadUnreadTarget) {
+                mtProtoTextMessageRepository.markMentionsRead(targetChatId, peer.type)
+                mtProtoTextMessageRepository.markReactionsRead(targetChatId, peer.type)
+            }
         } else {
             repositoryMessage.markMessagesAsRead(
                 chatId = targetChatId,

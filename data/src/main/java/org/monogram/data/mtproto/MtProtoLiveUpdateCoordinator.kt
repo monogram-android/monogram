@@ -1,10 +1,12 @@
 package org.monogram.data.mtproto
 
 import android.util.Log
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.monogram.data.backend.TelegramBackendKind
 import org.monogram.data.backend.TelegramBackendSelectionStore
@@ -67,26 +69,36 @@ internal class MtProtoLiveUpdateCoordinator(
                         resetLiveSession()
                         return@collectLatest
                     }
-                    runSelectedSession()
+                    while (runSelectedSession()) {
+                        delay(RECONNECT_DELAY_MILLIS)
+                    }
                 }
         }
     }
 
-    private suspend fun runSelectedSession() {
+    /** Returns true only when a transient transport termination should reconnect. */
+    private suspend fun runSelectedSession(): Boolean {
         val config = configSource.create()
         val scope = MtProtoAuthKeyScope(
             accountSlot = accountSlot,
             environment = MtProtoEnvironment.PRODUCTION,
             dcId = config.endpoint.dcId,
         )
-        val transport = transportFactory.open(accountSlot)
+        val transport = try {
+            transportFactory.open(accountSlot)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            Log.w(TAG, "MTProto session open failed; scheduling reconnect", failure)
+            return true
+        }
         activeTransport = transport
         try {
             val session = when (val opened = recovery.open(scope, transport) { }) {
                 is MtProtoRoomRecoveryOpenResult.Opened -> opened.session
                 MtProtoRoomRecoveryOpenResult.CorruptState -> {
                     Log.e(TAG, "MTProto update state is corrupt; refusing to start live updates")
-                    return
+                    return false
                 }
             }
             session.initialize()
@@ -94,12 +106,12 @@ internal class MtProtoLiveUpdateCoordinator(
                 is MtProtoRoomRecoveryResult.Completed -> Unit
                 MtProtoRoomRecoveryResult.ResyncRequired -> {
                     Log.e(TAG, "MTProto difference requires a full resync; refusing live updates")
-                    return
+                    return false
                 }
             }
-            val inbox = transport.updates ?: return
+            val inbox = transport.updates ?: return true
             while (true) {
-                val envelope = inbox.receive() ?: return
+                val envelope = inbox.receive() ?: return true
                 when (liveUpdateApplier.apply(scope, envelope) { }) {
                     is MtProtoLiveUpdateApplyResult.Applied,
                     MtProtoLiveUpdateApplyResult.Duplicate -> Unit
@@ -108,7 +120,7 @@ internal class MtProtoLiveUpdateCoordinator(
                     MtProtoLiveUpdateApplyResult.RecoveryRequired -> {
                         if (session.recoverAndReplay { } is MtProtoRoomRecoveryResult.ResyncRequired) {
                             Log.e(TAG, "MTProto live update requires a full resync; stopping session")
-                            return
+                            return false
                         }
                     }
 
@@ -117,10 +129,15 @@ internal class MtProtoLiveUpdateCoordinator(
                     MtProtoLiveUpdateApplyResult.CorruptState,
                     MtProtoLiveUpdateApplyResult.NotInitialized -> {
                         Log.e(TAG, "MTProto live update could not be applied; stopping session")
-                        return
+                        return false
                     }
                 }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            Log.w(TAG, "MTProto live session failed; scheduling reconnect", failure)
+            return true
         } finally {
             if (activeTransport === transport) activeTransport = null
             transport.close()
@@ -129,6 +146,7 @@ internal class MtProtoLiveUpdateCoordinator(
 
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"
+        const val RECONNECT_DELAY_MILLIS = 1_000L
         const val TAG = "MtProtoLiveUpdates"
     }
 }

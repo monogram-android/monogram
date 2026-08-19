@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -69,11 +69,44 @@ class MtProtoLiveUpdateCoordinatorTest {
         )
 
         testScheduler.runCurrent()
-        testScheduler.advanceUntilIdle()
 
         assertEquals(1, opens)
         assertTrue(transport.closed)
         assertEquals(MtProtoUpdateCursor(10, 20, 31, 41), stateStore.state?.cursor)
+    }
+
+    @Test
+    fun `closed MTProto transport is reopened after backoff`() = runTest {
+        val first = RecordingTransport(
+            responses = ArrayDeque<TlObject>().apply {
+                add(State_ddba9d7af9(pts = 10, qts = 20, date = 30, seq = 40, unreadCount = 0))
+                add(DifferenceEmpty(date = 31, seq = 41))
+            },
+        )
+        val secondEntered = CompletableDeferred<Unit>()
+        val second = RecordingTransport(onExecute = {
+            secondEntered.complete(Unit)
+            CompletableDeferred<TlObject>().await()
+        })
+        var opens = 0
+        coordinator(
+            selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            auth = FakeAuthRepository(AuthStep.Ready),
+            transportFactory = MtProtoSessionTransportFactory {
+                opens++
+                if (opens == 1) first else second
+            },
+            scope = backgroundScope,
+        )
+
+        testScheduler.runCurrent()
+        assertEquals(1, opens)
+        assertTrue(first.closed)
+
+        testScheduler.advanceTimeBy(1_000)
+        testScheduler.runCurrent()
+        secondEntered.await()
+        assertEquals(2, opens)
     }
 
     @Test

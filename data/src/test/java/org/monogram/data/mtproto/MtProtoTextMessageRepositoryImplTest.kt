@@ -13,6 +13,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ForwardMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendScheduledMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendReaction
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.UpdatePinnedMessage
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -39,6 +40,27 @@ class MtProtoTextMessageRepositoryImplTest {
         assertEquals("hello", request.message)
         assertEquals(99L, request.randomId)
         assertEquals(InputPeerUser(7L, 70L), request.peer)
+        assertEquals(1, messageStore.staged.size)
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `sends scheduled message now and stages returned updates`() = runBlocking {
+        val transport = RecordingTransport()
+        val messageStore = RecordingMessageStore()
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = messageStore,
+        )
+
+        repository.sendScheduledNow(7L, DialogPeerType.PRIVATE, 8L)
+
+        val request = transport.method as SendScheduledMessages
+        assertEquals(InputPeerUser(7L, 70L), request.peer)
+        assertEquals(listOf(8), request.id)
         assertEquals(1, messageStore.staged.size)
         assertTrue(transport.closed)
     }

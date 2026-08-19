@@ -591,7 +591,15 @@ internal fun DefaultChatComponent.handleClearMessages() {
 
 internal fun DefaultChatComponent.handleSendScheduledNow(message: MessageModel) {
     scope.launch {
-        repositoryMessage.sendScheduledNow(chatId, message.id)
+        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+            val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(chatId, chat.isChannel)
+            mtProtoTextMessageRepository.sendScheduledNow(chatId, peer.type, message.id)
+        } else {
+            repositoryMessage.sendScheduledNow(chatId, message.id)
+        }
         loadScheduledMessages()
     }
 }

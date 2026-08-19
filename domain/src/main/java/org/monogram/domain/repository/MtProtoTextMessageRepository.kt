@@ -36,4 +36,10 @@ interface MtProtoTextMessageRepository {
         peerType: DialogPeerType,
         messageId: Long,
     )
+
+    suspend fun sendScheduledNow(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+    )
 }

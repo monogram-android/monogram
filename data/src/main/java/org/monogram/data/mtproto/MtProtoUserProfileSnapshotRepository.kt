@@ -13,8 +13,8 @@ internal class MtProtoUserProfileSnapshotRepository(
     override suspend fun getUser(accountId: String, userId: Long): UserProfileSnapshotModel? =
         userStore.get(scope(accountId), userId)?.toDomain()
 
-    private fun scope(accountId: String): MtProtoAuthKeyScope {
-        val config = configSource.create()
+    private suspend fun scope(accountId: String): MtProtoAuthKeyScope {
+        val config = configSource.createForAccount(accountId)
         return MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
     }
 

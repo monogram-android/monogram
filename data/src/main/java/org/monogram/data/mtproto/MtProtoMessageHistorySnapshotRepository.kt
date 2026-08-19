@@ -13,7 +13,7 @@ internal class MtProtoMessageHistorySnapshotRepository(
 ) : MessageHistorySnapshotRepository {
     override suspend fun getHistory(request: MessageHistorySnapshotRequest): MessageHistorySnapshotPage {
         require(request.limit in 1..MAX_PAGE_SIZE) { "History page size must be between 1 and $MAX_PAGE_SIZE" }
-        val config = configSource.create()
+        val config = configSource.createForAccount(request.accountId)
         val scope = MtProtoAuthKeyScope(request.accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val messages = messageStore.getPage(
             scope = scope,

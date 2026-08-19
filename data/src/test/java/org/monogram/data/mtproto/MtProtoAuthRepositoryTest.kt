@@ -109,6 +109,7 @@ class MtProtoAuthRepositoryTest {
             requestCode = { AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5) },
         )
         val openedDcs = mutableListOf<Int>()
+        val savedDcs = mutableListOf<Int>()
         val repository = MtProtoAuthRepository(
             sessionFactory = object : MtProtoAuthSessionHandleFactory {
                 override suspend fun open(accountSlot: String): MtProtoAuthSessionHandle = initial
@@ -119,12 +120,18 @@ class MtProtoAuthRepositoryTest {
                 }
             },
             scope = backgroundScope,
+            accountDcStore = object : MtProtoAccountDcStore {
+                override suspend fun get(accountSlot: String): Int? = null
+                override suspend fun save(accountSlot: String, dcId: Int) { savedDcs += dcId }
+                override suspend fun delete(accountSlot: String) = Unit
+            },
         )
 
         repository.sendPhone("+10000000000")
         testScheduler.runCurrent()
 
         assertEquals(listOf(5), openedDcs)
+        assertEquals(listOf(5), savedDcs)
         assertEquals(listOf("+10000000000"), initial.phones)
         assertEquals(listOf("+10000000000"), migrated.phones)
         assertEquals(1, initial.closeCalls.get())

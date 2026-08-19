@@ -35,13 +35,15 @@ internal data class TelegramMtProtoBootstrapConfig(
 }
 
 internal fun interface TelegramMtProtoBootstrapConfigSource {
-    fun create(): TelegramMtProtoBootstrapConfig
+    suspend fun create(): TelegramMtProtoBootstrapConfig
 
-    fun createForDc(dcId: Int): TelegramMtProtoBootstrapConfig {
+    suspend fun createForDc(dcId: Int): TelegramMtProtoBootstrapConfig {
         val config = create()
         require(config.endpoint.dcId == dcId) { "MTProto bootstrap source does not support DC $dcId" }
         return config
     }
+
+    suspend fun createForAccount(accountSlot: String): TelegramMtProtoBootstrapConfig = create()
 }
 
 internal fun interface MtProtoAuthKeyLoader {
@@ -54,10 +56,11 @@ internal fun interface MtProtoAuthKeyLoader {
 
 internal class TelegramMtProtoBootstrapConfigProvider(
     private val metadataProvider: TelegramClientMetadataProvider,
+    private val accountDcStore: MtProtoAccountDcStore? = null,
 ) : TelegramMtProtoBootstrapConfigSource {
-    override fun create(): TelegramMtProtoBootstrapConfig = createForDc(DEFAULT_DC_ID)
+    override suspend fun create(): TelegramMtProtoBootstrapConfig = createForDc(DEFAULT_DC_ID)
 
-    override fun createForDc(dcId: Int): TelegramMtProtoBootstrapConfig {
+    override suspend fun createForDc(dcId: Int): TelegramMtProtoBootstrapConfig {
         require(BuildConfig.API_ID > 0) { "API_ID must be configured before starting MTProto" }
         val metadata = metadataProvider.create()
         val endpoint = endpointForDc(dcId)
@@ -76,6 +79,9 @@ internal class TelegramMtProtoBootstrapConfigProvider(
             ),
         )
     }
+
+    override suspend fun createForAccount(accountSlot: String): TelegramMtProtoBootstrapConfig =
+        createForDc(accountDcStore?.get(accountSlot) ?: DEFAULT_DC_ID)
 
     private companion object {
         const val DEFAULT_DC_ID = 2
@@ -130,7 +136,11 @@ internal class TelegramMtProtoSessionFactory(
     suspend fun open(accountSlot: String = DEFAULT_ACCOUNT_SLOT): MtProtoRpcTransport = open(accountSlot, null)
 
     suspend fun open(accountSlot: String, dcId: Int?): MtProtoRpcTransport {
-        val config = dcId?.let(configSource::createForDc) ?: configSource.create()
+        val config = if (dcId == null) {
+            configSource.createForAccount(accountSlot)
+        } else {
+            configSource.createForDc(dcId)
+        }
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val handshake = handshakeConnectionFactory(config.endpoint)
         val bootstrapped = handshake.use { connection ->

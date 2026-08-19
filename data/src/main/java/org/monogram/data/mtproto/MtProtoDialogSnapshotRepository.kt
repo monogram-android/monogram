@@ -10,7 +10,7 @@ internal class MtProtoDialogSnapshotRepository(
     private val dialogStore: MtProtoDialogStore,
 ) : DialogSnapshotRepository {
     override suspend fun getDialogs(accountId: String): List<DialogSnapshotModel> {
-        val config = configSource.create()
+        val config = configSource.createForAccount(accountId)
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         return dialogStore.getAll(scope).map { it.toDomain() }
     }

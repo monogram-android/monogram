@@ -143,6 +143,8 @@ import org.monogram.data.mtproto.MtProtoAuthKeyPersistence
 import org.monogram.data.mtproto.MtProtoAuthKeyEstablisher
 import org.monogram.data.mtproto.MtProtoAuthKeySessionBootstrap
 import org.monogram.data.mtproto.MtProtoAuthKeyStore
+import org.monogram.data.mtproto.MtProtoAccountDcStore
+import org.monogram.data.mtproto.KeyValueMtProtoAccountDcStore
 import org.monogram.data.mtproto.MtProtoAuthKeyLoader
 import org.monogram.data.mtproto.TelegramMtProtoBootstrapConfigProvider
 import org.monogram.data.mtproto.TelegramMtProtoBootstrapConfigSource
@@ -262,6 +264,7 @@ val dataModule = module {
     single<StringProvider> { AndroidStringProvider(androidContext()) }
     single<MtProtoAuthKeyStore> { AndroidMtProtoAuthKeyStore(androidContext()) }
     single { MtProtoAuthKeyPersistence(get()) }
+    single<MtProtoAccountDcStore> { KeyValueMtProtoAccountDcStore(get()) }
     single<MtProtoAuthKeyEstablisher> {
         MtProtoAuthKeyEstablisher { transport, config -> MtProtoAuthHandshake().execute(transport, config) }
     }
@@ -271,7 +274,12 @@ val dataModule = module {
             get<MtProtoAuthKeySessionBootstrap>().loadOrEstablish(scope, transport, config)
         }
     }
-    single<TelegramMtProtoBootstrapConfigSource> { TelegramMtProtoBootstrapConfigProvider(get()) }
+    single<TelegramMtProtoBootstrapConfigSource> {
+        TelegramMtProtoBootstrapConfigProvider(
+            metadataProvider = get(),
+            accountDcStore = get(),
+        )
+    }
     single {
         TelegramMtProtoSessionFactory(
             configSource = get(),
@@ -311,7 +319,7 @@ val dataModule = module {
             get<TelegramMtProtoSessionFactory>().open(accountSlot)
         }
     }
-    single { MtProtoAuthRepository(get(), get()) }
+    single { MtProtoAuthRepository(get(), get(), get()) }
     single<MtProtoAuthSessionResetter> { get<MtProtoAuthRepository>() }
     single { TdLibParametersProvider(androidContext(), get()) }
     single {
@@ -490,6 +498,7 @@ val dataModule = module {
             userProjectionStore = get(),
             chatProjectionStore = get(),
             messageProjectionStore = get(),
+            accountDcStore = get(),
         )
     }
     single<MtProtoAccountStateResetter> { get<MtProtoAccountStateCleaner>() }

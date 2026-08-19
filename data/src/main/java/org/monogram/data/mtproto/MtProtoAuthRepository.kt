@@ -27,6 +27,7 @@ internal fun interface MtProtoAuthSessionResetter {
 internal class MtProtoAuthRepository(
     private val sessionFactory: MtProtoAuthSessionHandleFactory,
     private val scope: CoroutineScope,
+    private val accountDcStore: MtProtoAccountDcStore = NoOpMtProtoAccountDcStore,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : AuthRepository, MtProtoAuthSessionResetter {
     private data class PendingAction(
@@ -199,7 +200,9 @@ internal class MtProtoAuthRepository(
             throw CancellationException("MTProto auth session was reset")
         }
         handle.close()
-        replacement.requestCode(phone)
+        val nextState = replacement.requestCode(phone)
+        accountDcStore.save(accountSlot, dcId)
+        nextState
     }
 
     private fun org.monogram.mtproto.transport.MtProtoRpcException.phoneMigrationDcId(): Int? {

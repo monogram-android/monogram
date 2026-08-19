@@ -78,7 +78,7 @@ internal class MtProtoLiveUpdateCoordinator(
 
     /** Returns true only when a transient transport termination should reconnect. */
     private suspend fun runSelectedSession(): Boolean {
-        val config = configSource.create()
+        val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(
             accountSlot = accountSlot,
             environment = MtProtoEnvironment.PRODUCTION,

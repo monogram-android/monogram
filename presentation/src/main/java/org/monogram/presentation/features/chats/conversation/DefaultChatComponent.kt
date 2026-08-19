@@ -66,6 +66,7 @@ import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.repository.TelegramBackendModeRepository
 import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.TelegramLinkRepository
@@ -261,6 +262,7 @@ internal class RichMessageCoordinator(
     }
 
     private fun request(key: RichMessageKey) {
+        if (component.backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
         if (!inFlightMessageIds.add(key)) return
         component.scope.launch(component.dispatcherProvider.io) {
             ChatConversationLog.logViewport(

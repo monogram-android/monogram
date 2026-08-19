@@ -87,20 +87,41 @@ class MtProtoEncryptedSessionTest {
     }
 
     @Test
-    fun rejectsAuthenticatedPacketsOutsideServerTimeWindow() {
+    fun calibratesServerTimeFromFirstAuthenticatedPacketBeforeEnforcingReplayWindow() {
         val authKey = authKey()
         val session = MtProtoEncryptedSession(authKey, CounterEntropy(), { 1_700_000_000_000L })
-        val packet = EncryptedMessageCodec.encode(
+        val firstPacket = EncryptedMessageCodec.encode(
             authKey,
             MtProtoEncryptedMessageMetadata(91L, session.sessionId, (1_699_999_699L shl 32) or 1L, 1),
             BODY,
             CounterEntropy(),
             EncryptedMessageCodec.SERVER_X,
         )
+        val stalePacket = EncryptedMessageCodec.encode(
+            authKey,
+            MtProtoEncryptedMessageMetadata(91L, session.sessionId, (1_699_998_699L shl 32) or 1L, 1),
+            BODY,
+            CounterEntropy(),
+            EncryptedMessageCodec.SERVER_X,
+        )
+        var outboundPacket: ByteArray? = null
+        var outbound: MtProtoEncryptedMessage? = null
         try {
-            assertThrows(IllegalArgumentException::class.java) { session.decode(packet) }
+            session.decode(firstPacket).close()
+            outboundPacket = session.encode(BODY, contentRelated = true)
+            outbound = EncryptedMessageCodec.decode(
+                authKey,
+                session.sessionId,
+                outboundPacket,
+                EncryptedMessageCodec.CLIENT_X,
+            )
+            assertEquals(1_699_999_699L, outbound.metadata.messageId ushr 32)
+            assertThrows(IllegalArgumentException::class.java) { session.decode(stalePacket) }
         } finally {
-            packet.fill(0)
+            outbound?.close()
+            outboundPacket?.fill(0)
+            firstPacket.fill(0)
+            stalePacket.fill(0)
             session.close()
         }
     }

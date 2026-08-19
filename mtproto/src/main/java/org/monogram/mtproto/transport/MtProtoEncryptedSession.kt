@@ -23,9 +23,10 @@ class MtProtoEncryptedSession internal constructor(
     constructor(authKey: MtProtoAuthKey) : this(authKey, SecureEntropySource, System::currentTimeMillis)
 
     private val lock = Any()
-    private val serverTimeOffsetMillis = authKey.createdAt * 1_000L - currentTimeMillis()
-    private val serverTimeMillis = { currentTimeMillis() + serverTimeOffsetMillis }
-    private val messageIds = ClientMessageIdGenerator(serverTimeMillis)
+    private val currentTimeMillis = currentTimeMillis
+    private var serverTimeOffsetMillis = authKey.createdAt * 1_000L - currentTimeMillis()
+    private var serverTimeCalibrated = false
+    private val messageIds = ClientMessageIdGenerator { currentTimeMillis() + serverTimeOffsetMillis }
     private val inboundMessageIds = LinkedHashSet<Long>()
     val sessionId: Long = generateSessionId(entropy)
     private var salt = authKey.serverSalt
@@ -90,7 +91,7 @@ class MtProtoEncryptedSession internal constructor(
     }
 
     private fun isFresh(messageId: Long): Boolean {
-        val nowSeconds = serverTimeMillis() / 1_000L
+        val nowSeconds = (currentTimeMillis() + serverTimeOffsetMillis) / 1_000L
         val messageSeconds = messageId ushr 32
         return messageSeconds > nowSeconds - MAX_INBOUND_AGE_SECONDS &&
             messageSeconds < nowSeconds + MAX_INBOUND_FUTURE_SECONDS
@@ -101,13 +102,23 @@ class MtProtoEncryptedSession internal constructor(
             "Server message ID must be non-zero and odd"
         }
         require(metadata.sequenceNumber >= 0) { "Encrypted MTProto sequence number must not be negative" }
-        require(isFresh(metadata.messageId)) { "Encrypted MTProto message ID is outside the accepted time window" }
         if (metadata.messageId in inboundMessageIds) return false
+        calibrateServerTime(metadata.messageId)
+        require(isFresh(metadata.messageId)) { "Encrypted MTProto message ID is outside the accepted time window" }
         require(inboundMessageIds.size < MAX_TRACKED_INBOUND_IDS) {
             "Encrypted MTProto replay window capacity exceeded"
         }
         inboundMessageIds += metadata.messageId
         return true
+    }
+
+    /** TDLib calibrates from the first authenticated server message before enforcing its replay window. */
+    private fun calibrateServerTime(messageId: Long) {
+        val observedOffsetMillis = (messageId ushr 32) * 1_000L - currentTimeMillis()
+        if (!serverTimeCalibrated || observedOffsetMillis > serverTimeOffsetMillis) {
+            serverTimeOffsetMillis = observedOffsetMillis
+            serverTimeCalibrated = true
+        }
     }
 
     override fun close() = synchronized(lock) {

@@ -48,4 +48,8 @@ interface MtProtoTextMessageRepository {
         peerType: DialogPeerType,
         revoke: Boolean,
     )
+
+    suspend fun markMentionsRead(chatId: Long, peerType: DialogPeerType)
+
+    suspend fun markReactionsRead(chatId: Long, peerType: DialogPeerType)
 }

@@ -14,6 +14,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AffectedHistory
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DeleteHistory
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ForwardMessages
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ReadMentions
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ReadReactions
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendScheduledMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendReaction
@@ -44,6 +46,32 @@ class MtProtoTextMessageRepositoryImplTest {
         assertEquals(InputPeerUser(7L, 70L), request.peer)
         assertEquals(1, messageStore.staged.size)
         assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `marks projected mentions and reactions read through owned transport`() = runBlocking {
+        val mentionTransport = RecordingTransport()
+        val reactionTransport = RecordingTransport()
+        fun repository(transport: RecordingTransport) = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = NoOpMtProtoMessageProjectionStore,
+        )
+
+        repository(mentionTransport).markMentionsRead(7L, DialogPeerType.PRIVATE)
+        repository(reactionTransport).markReactionsRead(7L, DialogPeerType.PRIVATE)
+
+        val mentions = mentionTransport.method as ReadMentions
+        assertEquals(InputPeerUser(7L, 70L), mentions.peer)
+        assertEquals(null, mentions.topMsgId)
+        val reactions = reactionTransport.method as ReadReactions
+        assertEquals(InputPeerUser(7L, 70L), reactions.peer)
+        assertEquals(null, reactions.topMsgId)
+        assertEquals(null, reactions.savedPeerId)
+        assertTrue(mentionTransport.closed)
+        assertTrue(reactionTransport.closed)
     }
 
     @Test

@@ -12,6 +12,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DeleteHistory
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ForwardMessages
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ReadMentions
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ReadReactions
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendScheduledMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendReaction
@@ -211,6 +213,31 @@ internal class MtProtoTextMessageRepositoryImpl(
         val transport = transportFactory.open(accountSlot)
         try {
             transport.execute(DeleteHistory(false, revoke, peer, 0, null, null))
+        } finally {
+            transport.close()
+        }
+    }
+
+    override suspend fun markMentionsRead(chatId: Long, peerType: DialogPeerType) {
+        executeReceipt(chatId, peerType) { peer -> ReadMentions(peer, null) }
+    }
+
+    override suspend fun markReactionsRead(chatId: Long, peerType: DialogPeerType) {
+        executeReceipt(chatId, peerType) { peer -> ReadReactions(peer, null, null) }
+    }
+
+    private suspend fun executeReceipt(
+        chatId: Long,
+        peerType: DialogPeerType,
+        request: (InputPeer) -> org.monogram.mtproto.tl.runtime.TlMethod<*>,
+    ) {
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = resolvePeer(scope, chatId, peerType)
+        val transport = transportFactory.open(accountSlot)
+        try {
+            @Suppress("UNCHECKED_CAST")
+            transport.execute(request(peer) as org.monogram.mtproto.tl.runtime.TlMethod<Any>)
         } finally {
             transport.close()
         }

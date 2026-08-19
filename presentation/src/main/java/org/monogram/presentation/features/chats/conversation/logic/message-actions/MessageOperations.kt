@@ -121,9 +121,20 @@ private fun DefaultChatComponent.clearUnreadShortcut(type: UnreadShortcutType) {
         )
     }
     scope.launch {
-        when (type) {
-            UnreadShortcutType.Mention -> repositoryMessage.markAllMentionsAsRead(targetChatId)
-            UnreadShortcutType.Reaction -> repositoryMessage.markAllReactionsAsRead(targetChatId)
+        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+            when (type) {
+                UnreadShortcutType.Mention -> mtProtoTextMessageRepository.markMentionsRead(targetChatId, peer.type)
+                UnreadShortcutType.Reaction -> mtProtoTextMessageRepository.markReactionsRead(targetChatId, peer.type)
+            }
+        } else {
+            when (type) {
+                UnreadShortcutType.Mention -> repositoryMessage.markAllMentionsAsRead(targetChatId)
+                UnreadShortcutType.Reaction -> repositoryMessage.markAllReactionsAsRead(targetChatId)
+            }
         }
     }
 }

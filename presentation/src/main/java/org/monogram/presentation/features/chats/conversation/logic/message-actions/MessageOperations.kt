@@ -184,7 +184,15 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
 
     scope.launch {
         runCatching {
-            when (editingMsg.content) {
+            if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+                require(editingMsg.content is MessageContent.Text) { "MTProto only supports plain-text editing" }
+                require(entities.isEmpty()) { "MTProto entity editing is not available" }
+                val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
+                    "MTProto target chat is not projected"
+                }
+                val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+                mtProtoTextMessageRepository.editText(targetChatId, peer.type, editingMsg.id, text)
+            } else when (editingMsg.content) {
                 is MessageContent.RichMessage -> repositoryMessage.editRichMessage(
                     chatId = targetChatId,
                     messageId = editingMsg.id,

@@ -9,4 +9,11 @@ interface MtProtoTextMessageRepository {
         peerType: DialogPeerType,
         text: String,
     )
+
+    suspend fun editText(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+        text: String,
+    )
 }

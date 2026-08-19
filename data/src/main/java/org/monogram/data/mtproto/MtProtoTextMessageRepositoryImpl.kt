@@ -8,6 +8,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
 
 /** Basic plain-text sending backed by an authenticated owned MTProto transport. */
@@ -50,6 +51,35 @@ internal class MtProtoTextMessageRepositoryImpl(
                     effect = null,
                     allowPaidStars = null,
                     suggestedPost = null,
+                )
+            )
+            messages.stageLive(scope, updates)
+        } finally {
+            transport.close()
+        }
+    }
+
+    override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) {
+        require(text.isNotBlank()) { "Message text must not be blank" }
+        require(messageId in 1..Int.MAX_VALUE) { "MTProto message id must fit a positive int" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = resolvePeer(scope, chatId, peerType)
+        val transport = transportFactory.open(accountSlot)
+        try {
+            val updates = transport.execute(
+                EditMessage(
+                    noWebpage = false,
+                    invertMedia = false,
+                    peer = peer,
+                    id = messageId.toInt(),
+                    message = text,
+                    media = null,
+                    replyMarkup = null,
+                    entities = null,
+                    scheduleDate = null,
+                    scheduleRepeatPeriod = null,
+                    quickReplyShortcutId = null,
                 )
             )
             messages.stageLive(scope, updates)

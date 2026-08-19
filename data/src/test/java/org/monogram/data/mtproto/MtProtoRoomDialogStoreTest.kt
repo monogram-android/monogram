@@ -11,6 +11,10 @@ import org.monogram.data.db.dao.MtProtoUserProjectionDao
 import org.monogram.data.db.model.MtProtoChatProjectionEntity
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.data.db.model.MtProtoUserProjectionEntity
+import org.monogram.mtproto.tl.generated.cloud.layer223.DialogPeer_2011bde660
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogPinned
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogUnreadMark
 
 class MtProtoRoomDialogStoreTest {
     private val scope = MtProtoAuthKeyScope("account-1", MtProtoEnvironment.TEST, 4)
@@ -40,6 +44,27 @@ class MtProtoRoomDialogStoreTest {
         assertEquals("Alice Doe", dialogs[2].title)
         assertEquals(1, dialogs[2].latestMessage.messageId)
         assertTrue(dialogs.none { it.peerId == 99L })
+    }
+
+    @Test
+    fun `applies live pin and unread metadata to a dialog`() = runBlocking {
+        val dao = FakeDialogDao()
+        val store = MtProtoRoomDialogStore(
+            messageDao = FakeMessageDao(emptyList()),
+            userDao = FakeUserDao(emptyList()),
+            chatDao = FakeChatDao(emptyList()),
+            dialogDao = dao,
+        )
+        val peer = DialogPeer_2011bde660(PeerUser(42))
+
+        store.updatePinned(scope, UpdateDialogPinned(true, 3, peer))
+        store.updateUnreadMark(scope, UpdateDialogUnreadMark(true, peer, null))
+
+        assertEquals("USER", dao.pinnedPeerType)
+        assertEquals(42L, dao.pinnedPeerId)
+        assertTrue(dao.pinned)
+        assertEquals(3, dao.folderId)
+        assertTrue(dao.unread)
     }
 
     @Test
@@ -182,12 +207,24 @@ class MtProtoRoomDialogStoreTest {
     private class FakeDialogDao(
         private val dialogs: List<org.monogram.data.db.model.MtProtoDialogProjectionEntity> = emptyList(),
     ) : org.monogram.data.db.dao.MtProtoDialogProjectionDao {
+        var pinnedPeerType: String? = null
+        var pinnedPeerId: Long? = null
+        var pinned = false
+        var folderId: Int? = null
+        var unread = false
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) = dialogs
         override suspend fun upsert(entity: org.monogram.data.db.model.MtProtoDialogProjectionEntity) = Unit
         override suspend fun upsertAll(entities: List<org.monogram.data.db.model.MtProtoDialogProjectionEntity>) = Unit
         override suspend fun updateTopMessage(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int, updatedAt: Long) = Unit
-        override suspend fun updatePinned(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, pinned: Boolean, folderId: Int?, updatedAt: Long) = Unit
-        override suspend fun updateUnreadMark(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, unread: Boolean, updatedAt: Long) = Unit
+        override suspend fun updatePinned(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, pinned: Boolean, folderId: Int?, updatedAt: Long) {
+            pinnedPeerType = peerType
+            pinnedPeerId = peerId
+            this.pinned = pinned
+            this.folderId = folderId
+        }
+        override suspend fun updateUnreadMark(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, unread: Boolean, updatedAt: Long) {
+            this.unread = unread
+        }
         override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
     }
 

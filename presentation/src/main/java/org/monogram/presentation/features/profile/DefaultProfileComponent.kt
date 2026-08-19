@@ -87,7 +87,7 @@ class DefaultProfileComponent(
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
     private val chatSettingsRepository: ChatSettingsRepository = container.repositories.chatSettingsRepository
-    private val userRepository: UserRepository = container.repositories.userRepository
+    private val userRepository: UserRepository by lazy { container.repositories.userRepository }
     private val userProfileSnapshotRepository: UserProfileSnapshotRepository =
         container.repositories.userProfileSnapshotRepository
     private val telegramBackendModeRepository = container.repositories.telegramBackendModeRepository
@@ -276,12 +276,23 @@ class DefaultProfileComponent(
     )
 
     private fun observeCurrentUser() {
-        userRepository.currentUserFlow
-            .onEach { user ->
-                _state.update { it.copy(currentUser = user) }
-                refreshProfileStories()
+        if (telegramBackendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            scope.launch {
+                userProfileSnapshotRepository.getCurrentUser(DEFAULT_ACCOUNT_ID)
+                    ?.toUserModel()
+                    ?.let { user ->
+                        _state.update { it.copy(currentUser = user) }
+                        refreshProfileStories()
+                    }
             }
-            .launchIn(scope)
+        } else {
+            userRepository.currentUserFlow
+                .onEach { user ->
+                    _state.update { it.copy(currentUser = user) }
+                    refreshProfileStories()
+                }
+                .launchIn(scope)
+        }
 
         storyRepository.activeStories
             .onEach { activeStories ->

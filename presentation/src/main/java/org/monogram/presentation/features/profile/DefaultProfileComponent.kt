@@ -20,11 +20,13 @@ import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.ChatRevenueStatisticsModel
 import org.monogram.domain.models.ChatStatisticsModel
+import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.ProfilePhotoMedia
 import org.monogram.domain.models.StatisticsGraphModel
+import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.domain.models.UserTypeEnum
@@ -243,7 +245,13 @@ class DefaultProfileComponent(
 
     private suspend fun loadProfileUser(userId: Long): UserModel? =
         if (telegramBackendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
-            userProfileSnapshotRepository.getUser(DEFAULT_ACCOUNT_ID, userId)?.toUserModel()
+            runCatching { TelegramPeerChatId.decode(userId) }
+                .getOrNull()
+                ?.takeIf { it.type == DialogPeerType.PRIVATE }
+                ?.let { peer ->
+                    userProfileSnapshotRepository.getUser(DEFAULT_ACCOUNT_ID, peer.id)
+                }
+                ?.toUserModel()
         } else {
             userRepository.getUser(userId)
         }

@@ -624,7 +624,9 @@ class DefaultChatComponent(
                     }
                 }
             }
-            repositoryMessage.openChat(chatId, ownerTag = componentInstanceId)
+            if (backendModeRepository.backendMode.value != org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+                repositoryMessage.openChat(chatId, ownerTag = componentInstanceId)
+            }
             ChatConversationLog.logViewport(
                 chatId = chatId,
                 threadId = _state.value.currentMessageThreadId ?: _state.value.currentTopicId,
@@ -633,9 +635,11 @@ class DefaultChatComponent(
             )
             withContext(Dispatchers.Main) {
                 loadChatInfo()
-                loadDraft()
-                loadPinnedMessage()
-                loadScheduledMessages()
+                if (backendModeRepository.backendMode.value != org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+                    loadDraft()
+                    loadPinnedMessage()
+                    loadScheduledMessages()
+                }
                 loadMembers()
             }
         }

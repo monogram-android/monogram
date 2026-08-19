@@ -6,11 +6,13 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 
 internal fun DefaultChatComponent.loadPinnedMessage() {
+    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     scope.launch {
         val threadId = activeThreadId()
         val targetChatId = activeThreadChatId()
@@ -49,6 +51,7 @@ internal fun DefaultChatComponent.handleShowPinnedMessage() {
 }
 
 internal fun DefaultChatComponent.loadAllPinnedMessages() {
+    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     scope.launch {
         val threadId = activeThreadId()
         val targetChatId = activeThreadChatId()
@@ -69,6 +72,7 @@ internal fun DefaultChatComponent.loadAllPinnedMessages() {
 }
 
 internal fun DefaultChatComponent.loadScheduledMessages() {
+    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     scope.launch {
         if (!canLoadScheduledMessages()) {
             _state.update { it.copy(scheduledMessages = emptyList()) }
@@ -97,6 +101,7 @@ private suspend fun DefaultChatComponent.canLoadScheduledMessages(): Boolean {
 }
 
 internal fun DefaultChatComponent.setupPinnedMessageCollector() {
+    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     repositoryMessage.pinnedMessageFlow
         .onEach { cId ->
             if (cId == chatId) {

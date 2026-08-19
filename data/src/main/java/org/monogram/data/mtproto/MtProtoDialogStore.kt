@@ -46,6 +46,12 @@ internal interface MtProtoDialogStore {
     suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoDialogReadModel>
 
     suspend fun upsert(scope: MtProtoAuthKeyScope, dialogs: List<Dialog_cf9860a8bd>) = Unit
+
+    suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
+}
+
+internal object NoOpMtProtoDialogStore : MtProtoDialogStore {
+    override suspend fun getAll(scope: MtProtoAuthKeyScope) = emptyList<MtProtoDialogReadModel>()
 }
 
 internal class MtProtoRoomDialogStore(
@@ -54,6 +60,9 @@ internal class MtProtoRoomDialogStore(
     private val chatDao: MtProtoChatProjectionDao,
     private val dialogDao: MtProtoDialogProjectionDao,
 ) : MtProtoDialogStore {
+    override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
+        dialogDao.deleteAccount(accountSlot, environment.storageName)
+
     override suspend fun upsert(scope: MtProtoAuthKeyScope, dialogs: List<Dialog_cf9860a8bd>) {
         if (dialogs.isEmpty()) return
         dialogDao.upsertAll(dialogs.map { dialog ->

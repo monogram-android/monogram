@@ -15,6 +15,7 @@ internal class MtProtoAccountStateCleaner(
     private val chatProjectionStore: MtProtoChatProjectionStore,
     private val messageProjectionStore: MtProtoMessageProjectionStore,
     private val accountDcStore: MtProtoAccountDcStore = NoOpMtProtoAccountDcStore,
+    private val dialogStore: MtProtoDialogStore = NoOpMtProtoDialogStore,
 ) : MtProtoAccountStateResetter {
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
         var failure: Throwable? = null
@@ -38,6 +39,9 @@ internal class MtProtoAccountStateCleaner(
         }
         failure = collectFailure(failure) {
             messageProjectionStore.deleteAccount(accountSlot, environment)
+        }
+        failure = collectFailure(failure) {
+            dialogStore.deleteAccount(accountSlot, environment)
         }
         failure = collectFailure(failure) {
             accountDcStore.delete(accountSlot)

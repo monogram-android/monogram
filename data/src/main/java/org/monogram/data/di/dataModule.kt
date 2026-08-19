@@ -531,6 +531,7 @@ val dataModule = module {
             chatProjectionStore = get(),
             messageProjectionStore = get(),
             accountDcStore = get(),
+            dialogStore = get(),
         )
     }
     single<MtProtoAccountStateResetter> { get<MtProtoAccountStateCleaner>() }

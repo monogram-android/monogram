@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
+import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.ChatMemberStatus
@@ -248,7 +249,15 @@ internal fun DefaultChatComponent.handleRemoveFromAdBlockWhitelist() {
 
 internal fun DefaultChatComponent.handleClearHistory() {
     runChatAction(ChatActionType.ClearHistory) {
-        chatOperationsRepository.clearChatHistory(chatId, true)
+        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(chatId, chat.isChannel)
+            mtProtoTextMessageRepository.clearHistory(chatId, peer.type, revoke = true)
+        } else {
+            chatOperationsRepository.clearChatHistory(chatId, true)
+        }
     }
 }
 

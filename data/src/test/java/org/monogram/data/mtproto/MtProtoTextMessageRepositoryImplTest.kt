@@ -47,7 +47,7 @@ class MtProtoTextMessageRepositoryImplTest {
     }
 
     @Test
-    fun `clears projected chat history through owned transport`() = runBlocking {
+    fun `clears projected chat history with requested revoke semantics`() = runBlocking {
         val transport = RecordingTransport()
         val repository = MtProtoTextMessageRepositoryImpl(
             configSource = configSource(),
@@ -57,12 +57,12 @@ class MtProtoTextMessageRepositoryImplTest {
             messages = NoOpMtProtoMessageProjectionStore,
         )
 
-        repository.clearHistory(7L, DialogPeerType.PRIVATE, revoke = false)
+        repository.clearHistory(7L, DialogPeerType.PRIVATE, revoke = true)
 
         val request = transport.method as DeleteHistory
         assertEquals(InputPeerUser(7L, 70L), request.peer)
         assertTrue(!request.justClear)
-        assertTrue(!request.revoke)
+        assertTrue(request.revoke)
         assertEquals(0, request.maxId)
         assertTrue(transport.closed)
     }

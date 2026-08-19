@@ -60,6 +60,7 @@ import org.monogram.domain.repository.MessageDisplayer
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.domain.repository.MtProtoReadHistoryRepository
+import org.monogram.domain.repository.MtProtoMessageDeletionRepository
 import org.monogram.domain.repository.PaymentRepository
 import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PrivacyRepository
@@ -326,6 +327,9 @@ class DefaultChatComponent(
     }
     internal val mtProtoReadHistoryRepository: MtProtoReadHistoryRepository by lazy {
         container.repositories.mtProtoReadHistoryRepository
+    }
+    internal val mtProtoMessageDeletionRepository: MtProtoMessageDeletionRepository by lazy {
+        container.repositories.mtProtoMessageDeletionRepository
     }
     internal val pinnedMessageVisibilityRepository: PinnedMessageVisibilityRepository =
         container.repositories.pinnedMessageVisibilityRepository

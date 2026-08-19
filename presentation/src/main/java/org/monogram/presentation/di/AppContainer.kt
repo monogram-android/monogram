@@ -42,6 +42,7 @@ import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.domain.repository.MtProtoReadHistoryRepository
+import org.monogram.domain.repository.MtProtoMessageDeletionRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.PaymentRepository
@@ -102,6 +103,7 @@ interface RepositoriesContainer {
     val messageRepository: MessageRepository
     val mtProtoTextMessageRepository: MtProtoTextMessageRepository
     val mtProtoReadHistoryRepository: MtProtoReadHistoryRepository
+    val mtProtoMessageDeletionRepository: MtProtoMessageDeletionRepository
     val messageHistorySnapshotRepository: MessageHistorySnapshotRepository
     val inlineBotRepository: InlineBotRepository
     val chatEventLogRepository: ChatEventLogRepository

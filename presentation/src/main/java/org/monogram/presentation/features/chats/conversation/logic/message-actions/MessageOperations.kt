@@ -143,7 +143,15 @@ internal fun DefaultChatComponent.handleDeleteMessage(message: MessageModel, rev
     }
 
     scope.launch {
-        repositoryMessage.deleteMessage(message.chatId, messageIdsToDelete, revoke)
+        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(message.chatId, chat.isChannel)
+            mtProtoMessageDeletionRepository.delete(message.chatId, peer.type, messageIdsToDelete, revoke)
+        } else {
+            repositoryMessage.deleteMessage(message.chatId, messageIdsToDelete, revoke)
+        }
     }
 }
 

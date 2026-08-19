@@ -43,6 +43,7 @@ import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.domain.repository.MtProtoReadHistoryRepository
+import org.monogram.domain.repository.MtProtoMessageDeletionRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.PaymentRepository
@@ -103,6 +104,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val messageRepository: MessageRepository by lazy { koin.get() }
     override val mtProtoTextMessageRepository: MtProtoTextMessageRepository by lazy { koin.get() }
     override val mtProtoReadHistoryRepository: MtProtoReadHistoryRepository by lazy { koin.get() }
+    override val mtProtoMessageDeletionRepository: MtProtoMessageDeletionRepository by lazy { koin.get() }
     override val messageHistorySnapshotRepository: MessageHistorySnapshotRepository by lazy { koin.get() }
     override val inlineBotRepository: InlineBotRepository by lazy { koin.get() }
     override val chatEventLogRepository: ChatEventLogRepository by lazy { koin.get() }

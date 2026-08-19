@@ -9,6 +9,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DeleteHistory
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ForwardMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
@@ -194,6 +195,22 @@ internal class MtProtoTextMessageRepositoryImpl(
         try {
             val updates = transport.execute(SendScheduledMessages(peer, listOf(messageId.toInt())))
             messages.stageLive(scope, updates)
+        } finally {
+            transport.close()
+        }
+    }
+
+    override suspend fun clearHistory(
+        chatId: Long,
+        peerType: DialogPeerType,
+        revoke: Boolean,
+    ) {
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = resolvePeer(scope, chatId, peerType)
+        val transport = transportFactory.open(accountSlot)
+        try {
+            transport.execute(DeleteHistory(false, revoke, peer, 0, null, null))
         } finally {
             transport.close()
         }

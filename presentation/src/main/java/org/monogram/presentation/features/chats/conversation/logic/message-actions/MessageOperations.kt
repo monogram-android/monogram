@@ -585,7 +585,15 @@ private fun DefaultChatComponent.updatePinnedMessage(message: MessageModel, pinn
 
 internal fun DefaultChatComponent.handleClearMessages() {
     scope.launch {
-        chatOperationsRepository.clearChatHistory(chatId, false)
+        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+            val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(chatId, chat.isChannel)
+            mtProtoTextMessageRepository.clearHistory(chatId, peer.type, revoke = false)
+        } else {
+            chatOperationsRepository.clearChatHistory(chatId, false)
+        }
     }
 }
 

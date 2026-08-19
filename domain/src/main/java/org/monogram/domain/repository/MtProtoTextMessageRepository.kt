@@ -42,4 +42,10 @@ interface MtProtoTextMessageRepository {
         peerType: DialogPeerType,
         messageId: Long,
     )
+
+    suspend fun clearHistory(
+        chatId: Long,
+        peerType: DialogPeerType,
+        revoke: Boolean,
+    )
 }

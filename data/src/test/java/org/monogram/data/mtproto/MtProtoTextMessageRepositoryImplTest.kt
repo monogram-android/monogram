@@ -10,6 +10,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AffectedHistory_608e824b28
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DeleteHistory
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ForwardMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
@@ -41,6 +43,27 @@ class MtProtoTextMessageRepositoryImplTest {
         assertEquals(99L, request.randomId)
         assertEquals(InputPeerUser(7L, 70L), request.peer)
         assertEquals(1, messageStore.staged.size)
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `clears projected chat history through owned transport`() = runBlocking {
+        val transport = RecordingTransport()
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = NoOpMtProtoMessageProjectionStore,
+        )
+
+        repository.clearHistory(7L, DialogPeerType.PRIVATE, revoke = false)
+
+        val request = transport.method as DeleteHistory
+        assertEquals(InputPeerUser(7L, 70L), request.peer)
+        assertTrue(!request.justClear)
+        assertTrue(!request.revoke)
+        assertEquals(0, request.maxId)
         assertTrue(transport.closed)
     }
 
@@ -183,7 +206,11 @@ class MtProtoTextMessageRepositoryImplTest {
         @Suppress("UNCHECKED_CAST")
         override suspend fun <R> execute(method: TlMethod<R>): R {
             this.method = method
-            return UpdatesTooLong as R
+            return if (method is DeleteHistory) {
+                AffectedHistory_608e824b28(0, 0, 0) as R
+            } else {
+                UpdatesTooLong as R
+            }
         }
 
         override fun close() { closed = true }

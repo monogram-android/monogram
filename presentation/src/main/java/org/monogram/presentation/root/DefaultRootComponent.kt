@@ -49,6 +49,8 @@ import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.CacheProvider
 import org.monogram.domain.repository.ExternalNavigator
+import org.monogram.domain.repository.ForwardRequest
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.repository.LinkAction
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.MessageDisplayer
@@ -110,6 +112,8 @@ class DefaultRootComponent(
 
     private val authRepository: AuthRepository = container.repositories.authRepository
     private val messageRepository: MessageRepository = container.repositories.messageRepository
+    private val mtProtoTextMessageRepository = container.repositories.mtProtoTextMessageRepository
+    private val backendModeRepository = container.repositories.telegramBackendModeRepository
     private val storageRepository: StorageRepository = container.repositories.storageRepository
     private val linkHandlerRepository: LinkHandlerRepository = container.repositories.linkHandlerRepository
     private val proxyRepository: ProxyRepository = container.repositories.proxyRepository
@@ -722,7 +726,11 @@ class DefaultRootComponent(
                         if (config.forwardingMessageIds != null) {
                             scope.launch {
                                 try {
-                                    messageRepository.forwardMessages(request)
+                                    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+                                        mtProtoTextMessageRepository.forwardMessages(request)
+                                    } else {
+                                        messageRepository.forwardMessages(request)
+                                    }
                                     val commentText = request.options.commentText.trim()
                                     if (commentText.isNotEmpty()) {
                                         request.targets.forEach { target ->

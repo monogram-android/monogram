@@ -5,6 +5,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.models.DialogPeerType
+import org.monogram.domain.repository.ForwardOptions
+import org.monogram.domain.repository.ForwardRequest
+import org.monogram.domain.repository.ForwardTarget
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
@@ -142,6 +145,40 @@ class MtProtoTextMessageRepositoryImplTest {
     }
 
     @Test
+    fun `forwards messages to each target with copy options`() = runBlocking {
+        val transport = RecordingTransport()
+        val messageStore = RecordingMessageStore()
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = messageStore,
+            randomId = { 99L },
+        )
+
+        repository.forwardMessages(
+            ForwardRequest(
+                fromChatId = 7L,
+                messageIds = listOf(8L, 9L),
+                targets = listOf(ForwardTarget(7L), ForwardTarget(-11L)),
+                options = ForwardOptions(sendCopy = true, removeCaption = true),
+            ),
+        )
+
+        assertEquals(2, transport.methods.size)
+        val first = transport.methods[0] as ForwardMessages
+        val second = transport.methods[1] as ForwardMessages
+        assertEquals(InputPeerUser(7L, 70L), first.fromPeer)
+        assertEquals(InputPeerUser(7L, 70L), first.toPeer)
+        assertEquals(InputPeerChat(11L), second.toPeer)
+        assertTrue(first.dropAuthor)
+        assertTrue(first.dropMediaCaptions)
+        assertEquals(listOf(8, 9), first.id)
+        assertEquals(2, messageStore.staged.size)
+    }
+
+    @Test
     fun `pins message and stages returned updates`() = runBlocking {
         val transport = RecordingTransport()
         val messageStore = RecordingMessageStore()
@@ -229,11 +266,13 @@ class MtProtoTextMessageRepositoryImplTest {
 
     private class RecordingTransport : MtProtoRpcTransport {
         lateinit var method: TlMethod<*>
+        val methods = mutableListOf<TlMethod<*>>()
         var closed = false
 
         @Suppress("UNCHECKED_CAST")
         override suspend fun <R> execute(method: TlMethod<R>): R {
             this.method = method
+            methods += method
             return if (method is DeleteHistory) {
                 AffectedHistory_608e824b28(0, 0, 0) as R
             } else {

@@ -37,6 +37,8 @@ interface MtProtoTextMessageRepository {
         messageId: Long,
     )
 
+    suspend fun forwardMessages(request: ForwardRequest)
+
     suspend fun sendScheduledNow(
         chatId: Long,
         peerType: DialogPeerType,

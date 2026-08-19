@@ -3,6 +3,7 @@ package org.monogram.data.mtproto
 import java.security.SecureRandom
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.ForwardRequest
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
@@ -147,38 +148,56 @@ internal class MtProtoTextMessageRepositoryImpl(
         peerType: DialogPeerType,
         messageId: Long,
     ) {
-        require(messageId in 1..Int.MAX_VALUE) { "MTProto message id must fit a positive int" }
+        forwardMessages(
+            ForwardRequest(
+                fromChatId = chatId,
+                messageIds = listOf(messageId),
+                targets = listOf(org.monogram.domain.repository.ForwardTarget(chatId)),
+                options = org.monogram.domain.repository.ForwardOptions(sendCopy = true),
+            ),
+        )
+    }
+
+    override suspend fun forwardMessages(request: ForwardRequest) {
+        require(request.messageIds.isNotEmpty()) { "At least one MTProto message id is required" }
+        require(request.targets.isNotEmpty()) { "At least one MTProto forwarding target is required" }
+        require(request.messageIds.all { it in 1..Int.MAX_VALUE }) {
+            "MTProto message ids must fit positive ints"
+        }
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
-        val peer = resolvePeer(scope, chatId, peerType)
+        val fromPeer = resolvePeerFromChatId(scope, request.fromChatId)
         val transport = transportFactory.open(accountSlot)
         try {
-            val updates = transport.execute(
-                ForwardMessages(
-                    silent = false,
-                    background = false,
-                    withMyScore = false,
-                    dropAuthor = true,
-                    dropMediaCaptions = false,
-                    noforwards = false,
-                    allowPaidFloodskip = false,
-                    fromPeer = peer,
-                    id = listOf(messageId.toInt()),
-                    randomId = listOf(randomId()),
-                    toPeer = peer,
-                    topMsgId = null,
-                    replyTo = null,
-                    scheduleDate = null,
-                    scheduleRepeatPeriod = null,
-                    sendAs = null,
-                    quickReplyShortcut = null,
-                    effect = null,
-                    videoTimestamp = null,
-                    allowPaidStars = null,
-                    suggestedPost = null,
+            request.targets.forEach { target ->
+                val toPeer = resolvePeerFromChatId(scope, target.chatId)
+                val updates = transport.execute(
+                    ForwardMessages(
+                        silent = false,
+                        background = false,
+                        withMyScore = false,
+                        dropAuthor = request.options.sendCopy,
+                        dropMediaCaptions = request.options.removeCaption,
+                        noforwards = false,
+                        allowPaidFloodskip = false,
+                        fromPeer = fromPeer,
+                        id = request.messageIds.map(Long::toInt),
+                        randomId = request.messageIds.map { randomId() },
+                        toPeer = toPeer,
+                        topMsgId = target.forumTopicId,
+                        replyTo = null,
+                        scheduleDate = null,
+                        scheduleRepeatPeriod = null,
+                        sendAs = null,
+                        quickReplyShortcut = null,
+                        effect = null,
+                        videoTimestamp = null,
+                        allowPaidStars = null,
+                        suggestedPost = null,
+                    ),
                 )
-            )
-            messages.stageLive(scope, updates)
+                messages.stageLive(scope, updates)
+            }
         } finally {
             transport.close()
         }
@@ -241,6 +260,17 @@ internal class MtProtoTextMessageRepositoryImpl(
         } finally {
             transport.close()
         }
+    }
+
+    private suspend fun resolvePeerFromChatId(scope: MtProtoAuthKeyScope, chatId: Long): InputPeer {
+        val peer = if (chatId <= -1_000_000_000_001L) {
+            val peerId = -(chatId + 1_000_000_000_000L)
+            val chat = requireNotNull(chats.get(scope, peerId)) { "Missing MTProto chat projection: $peerId" }
+            TelegramPeerChatId.decode(chatId, chat.type == MtProtoChatType.CHANNEL)
+        } else {
+            TelegramPeerChatId.decode(chatId)
+        }
+        return resolvePeer(scope, chatId, peer.type)
     }
 
     private suspend fun resolvePeer(

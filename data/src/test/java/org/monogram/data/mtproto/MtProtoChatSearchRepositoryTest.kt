@@ -32,6 +32,9 @@ class MtProtoChatSearchRepositoryTest {
         assertThrows(UnsupportedOperationException::class.java) {
             runBlocking { repository.searchMessages("hello") }
         }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.searchMessages("hello", offset = "not-a-number") }
+        }
     }
 
     private class FakeDialogRepository : DialogSnapshotRepository {

@@ -38,10 +38,14 @@ internal class MtProtoChatSearchRepository(
         require(limit in 1..MAX_SEARCH_PAGE_SIZE) { "Search page size must be between 1 and $MAX_SEARCH_PAGE_SIZE" }
         val normalized = query.trim()
         if (normalized.isEmpty()) return SearchMessagesResult(emptyList(), "")
+        val start = when {
+            offset.isEmpty() -> 0
+            else -> offset.toIntOrNull()?.takeIf { it >= 0 }
+                ?: throw IllegalArgumentException("MTProto message search offset is invalid")
+        }
         val store = messageStore ?: unsupported("MTProto message search is not available")
         val config = configSource?.createForAccount(accountId)
             ?: unsupported("MTProto message search is not available")
-        val start = offset.toIntOrNull()?.takeIf { it >= 0 } ?: 0
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val rows = store.search(scope, normalized, limit + 1, start)
         val page = rows.take(limit)

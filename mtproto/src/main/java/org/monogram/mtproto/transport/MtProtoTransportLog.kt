@@ -20,5 +20,14 @@ internal object MtProtoTransportLog {
         }
     }
 
+    fun localDetail(failure: Throwable): String {
+        val detail = failure.message
+            ?.replace(Regex("[\\r\\n\\t]"), " ")
+            ?.take(MAX_DETAIL_CHARACTERS)
+            ?.takeIf(String::isNotBlank)
+        return detail?.let { "${failure.javaClass.simpleName}: $it" } ?: failure.javaClass.simpleName
+    }
+
     private const val TAG = "MonogramMtProto"
+    private const val MAX_DETAIL_CHARACTERS = 256
 }

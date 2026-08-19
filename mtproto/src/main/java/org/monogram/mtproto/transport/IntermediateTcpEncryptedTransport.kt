@@ -137,7 +137,7 @@ class IntermediateTcpEncryptedTransport(
             } catch (failure: Throwable) {
                 if (failure !is CancellationException) {
                     MtProtoTransportLog.warn {
-                        "rpc transport failure endpoint=$host:$port msgId=${request.metadata.messageId} method=${method.debugName()} cause=${failure.javaClass.simpleName}"
+                        "rpc transport failure endpoint=$host:$port msgId=${request.metadata.messageId} method=${method.debugName()} detail=${MtProtoTransportLog.localDetail(failure)}"
                     }
                     disconnect()
                 }
@@ -187,6 +187,9 @@ class IntermediateTcpEncryptedTransport(
                 readAndDispatch(activeSocket)
             }
         } catch (failure: Exception) {
+            MtProtoTransportLog.warn {
+                "rpc reader failure endpoint=$host:$port detail=${MtProtoTransportLog.localDetail(failure)}"
+            }
             val pending = synchronized(stateLock) {
                 if (readerSocket === activeSocket && !closed) {
                     readerSocket = null

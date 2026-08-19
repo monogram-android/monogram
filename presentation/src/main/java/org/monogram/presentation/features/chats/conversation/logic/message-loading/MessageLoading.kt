@@ -532,19 +532,28 @@ private suspend fun DefaultChatComponent.loadMtProtoHistorySnapshot(request: His
             limit = request.limit,
         )
     )
+    val senderNames = page.messages.mapNotNull { it.senderId }.distinct().associateWith { senderId ->
+        runCatching {
+            userProfileSnapshotRepository.getUser("default", senderId)?.let { user ->
+                listOfNotNull(user.firstName, user.lastName)
+                    .joinToString(" ")
+                    .ifBlank { user.username.orEmpty() }
+            }
+        }.getOrNull().orEmpty()
+    }
     return HistoryPage(
-        messages = page.messages.map { it.toMessageModel(request.key.chatId) },
+        messages = page.messages.map { it.toMessageModel(request.key.chatId, senderNames[it.senderId].orEmpty()) },
         olderBoundary = if (page.nextCursor == null) BoundaryState.Reached else BoundaryState.Open,
         newerBoundary = BoundaryState.Reached,
         source = HistorySource.RoomSnapshot,
     )
 }
 
-private fun MessageHistorySnapshotModel.toMessageModel(chatId: Long) = MessageModel(
+private fun MessageHistorySnapshotModel.toMessageModel(chatId: Long, senderName: String) = MessageModel(
     id = messageId,
     date = date,
     isOutgoing = isOutgoing,
-    senderName = "",
+    senderName = senderName,
     chatId = chatId,
     content = if (isService) MessageContent.Service(text.orEmpty()) else MessageContent.Text(text.orEmpty()),
     senderId = senderId ?: 0L,

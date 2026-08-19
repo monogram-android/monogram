@@ -317,6 +317,7 @@ class DefaultChatComponent(
     internal val backendModeRepository: TelegramBackendModeRepository = container.repositories.telegramBackendModeRepository
     internal val messageHistorySnapshotRepository: MessageHistorySnapshotRepository =
         container.repositories.messageHistorySnapshotRepository
+    internal val userProfileSnapshotRepository = container.repositories.userProfileSnapshotRepository
     override val repositoryMessage: MessageRepository by lazy { container.repositories.messageRepository }
     internal val pinnedMessageVisibilityRepository: PinnedMessageVisibilityRepository =
         container.repositories.pinnedMessageVisibilityRepository

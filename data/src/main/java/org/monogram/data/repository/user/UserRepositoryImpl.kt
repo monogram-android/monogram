@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.backend.LegacyActiveAccountBinding
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.cache.ChatLocalDataSource
@@ -49,6 +50,7 @@ class UserRepositoryImpl(
     private val fileObserverHub: FileObserverHub,
     private val keyValueDao: KeyValueDao,
     private val cacheProvider: CacheProvider,
+    private val legacyActiveAccountBinding: LegacyActiveAccountBinding,
     private val scope: CoroutineScope
 ) : UserRepository {
     private val mediaResolver = UserMediaResolver(gateway = gateway, fileQueue = fileQueue)
@@ -104,6 +106,7 @@ class UserRepositoryImpl(
         val user = userLocal.getUser(cachedUserId) ?: return
         val model = mapUserModel(user, userLocal.getUserFullInfo(cachedUserId))
         _currentUserFlow.value = model
+        legacyActiveAccountBinding.bindDefault()
     }
 
     private suspend fun refreshCurrentUser() {
@@ -115,6 +118,7 @@ class UserRepositoryImpl(
     override suspend fun getMe(): UserModel {
         val user = remote.getMe() ?: return UserModel(0, "Error")
         currentUserId = user.id
+        legacyActiveAccountBinding.bindDefault()
         coRunCatching { keyValueDao.insertValue(KeyValueEntity(KEY_CURRENT_USER_ID, user.id.toString())) }
         cacheUser(user)
         val model = mapUserModel(user, userLocal.getUserFullInfo(user.id))
@@ -365,6 +369,7 @@ class UserRepositoryImpl(
     }
 
     override fun logOut() {
+        legacyActiveAccountBinding.clearDefault()
         scope.launch { coRunCatching { remote.logout() } }
         scope.launch { userLocal.clearAll() }
         scope.launch { userLocal.clearDatabase() }

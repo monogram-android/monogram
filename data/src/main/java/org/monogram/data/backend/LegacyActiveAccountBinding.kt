@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-internal class LegacyActiveAccountBinding(
+class LegacyActiveAccountBinding(
     initialAccountId: String = DEFAULT_ACCOUNT_ID,
 ) {
     private val _accountId = MutableStateFlow<String?>(validate(initialAccountId))
@@ -14,9 +14,13 @@ internal class LegacyActiveAccountBinding(
         _accountId.value = validate(accountId)
     }
 
+    fun bindDefault() = bind(DEFAULT_ACCOUNT_ID)
+
     fun clear(accountId: String) {
         _accountId.compareAndSet(validate(accountId), null)
     }
+
+    fun clearDefault() = clear(DEFAULT_ACCOUNT_ID)
 
     fun requireActive(accountId: String) {
         check(_accountId.value == validate(accountId)) {

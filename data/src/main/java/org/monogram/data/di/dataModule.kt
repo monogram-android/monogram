@@ -478,7 +478,8 @@ val dataModule = module {
             fileQueue = get(),
             fileObserverHub = get(),
             keyValueDao = get(),
-            cacheProvider = get()
+            cacheProvider = get(),
+            legacyActiveAccountBinding = get()
         )
     }
     single { LegacyUserProfileSnapshotRepository(get(), get<UserRepository>()) }

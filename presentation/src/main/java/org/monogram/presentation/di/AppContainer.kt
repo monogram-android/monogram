@@ -56,6 +56,7 @@ import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.TdLibLimitsRepository
+import org.monogram.domain.repository.TelegramBackendModeRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
@@ -84,6 +85,7 @@ interface PreferencesContainer {
 
 interface RepositoriesContainer {
     val authRepository: AuthRepository
+    val telegramBackendModeRepository: TelegramBackendModeRepository
     val chatListRepository: ChatListRepository
     val chatFolderRepository: ChatFolderRepository
     val chatOperationsRepository: ChatOperationsRepository

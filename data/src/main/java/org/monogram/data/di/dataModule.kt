@@ -19,6 +19,7 @@ import org.monogram.data.backend.LegacyUserProfileSnapshotRepository
 import org.monogram.data.backend.LegacyDialogSnapshotRepository
 import org.monogram.data.backend.TelegramBackendAuthRouter
 import org.monogram.data.backend.TelegramBackendChatReadRouter
+import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
 import org.monogram.data.backend.LegacyChatReadContracts
 import org.monogram.data.backend.TelegramBackendReadRouter
 import org.monogram.data.backend.TelegramBackendSelectionStore
@@ -237,6 +238,7 @@ import org.monogram.domain.repository.StreamingRepository
 import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.TdLibLimitsRepository
+import org.monogram.domain.repository.TelegramBackendModeRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_3f851bba91
@@ -498,6 +500,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().keyValueDao() }
     single { KeyValueTelegramBackendSelectionStore(get()) }
     single<TelegramBackendSelectionStore> { get<KeyValueTelegramBackendSelectionStore>() }
+    single<TelegramBackendModeRepository> { TelegramBackendModeRepositoryImpl(get(), get()) }
     single(createdAtStart = true) {
         MtProtoLiveUpdateCoordinator(
             selectionStore = get(),

@@ -1,11 +1,13 @@
 package org.monogram.presentation.features.auth
 
+import android.util.Log
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import org.monogram.domain.repository.AuthError
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.AuthUiStatus
@@ -143,7 +145,13 @@ class DefaultAuthComponent(
             _model.update { it.copy(isTelegramBackendSwitching = true) }
             runCatching { backendSwitchRepository.switchTo(target) }
                 .onFailure { error ->
-                    _model.update { it.copy(isTelegramBackendSwitching = false) }
+                    Log.e(TAG, "Unable to switch Telegram backend", error)
+                    _model.update {
+                        it.copy(
+                            error = AuthError.Unexpected,
+                            isTelegramBackendSwitching = false,
+                        )
+                    }
                 }
         }
     }
@@ -157,6 +165,8 @@ class DefaultAuthComponent(
         repository.reset()
     }
 }
+
+private const val TAG = "DefaultAuthComponent"
 
 private fun AuthUiStatus.isSubmitting(): Boolean {
     return this is AuthUiStatus.Submitting || this is AuthUiStatus.SlowNetwork

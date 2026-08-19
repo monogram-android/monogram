@@ -17,6 +17,7 @@ import org.monogram.data.backend.LegacyBackendAccessGuard
 import org.monogram.data.backend.LegacyMessageHistorySnapshotRepository
 import org.monogram.data.backend.LegacyUserProfileSnapshotRepository
 import org.monogram.data.backend.LegacyDialogSnapshotRepository
+import org.monogram.data.backend.TelegramBackendAuthRouter
 import org.monogram.data.backend.TelegramBackendReadRouter
 import org.monogram.data.backend.TelegramBackendSelectionStore
 import org.monogram.data.backend.TelegramBackendSwitchService
@@ -244,7 +245,7 @@ val dataModule = module {
 
     single { CoroutineScope(SupervisorJob() + get<DispatcherProvider>().default) }
 
-    single(createdAtStart = true) { TdLibClient() }
+    single { TdLibClient() }
 
     single<DispatcherProvider> { DefaultDispatcherProvider() }
     single { TelegramClientMetadataProvider(androidContext()) }
@@ -294,8 +295,8 @@ val dataModule = module {
     single<MtProtoAuthSessionHandleFactory> { get<MtProtoPhoneAuthSessionFactory>() }
     single { MtProtoAuthRepository(get(), get()) }
     single<MtProtoAuthSessionResetter> { get<MtProtoAuthRepository>() }
-    single(createdAtStart = true) { TdLibParametersProvider(androidContext(), get()) }
-    single(createdAtStart = true) {
+    single { TdLibParametersProvider(androidContext(), get()) }
+    single {
         OfflineWarmup(
             scope = get(),
             dispatchers = get(),
@@ -312,7 +313,7 @@ val dataModule = module {
             storyRepository = get()
         )
     }
-    single(createdAtStart = true) {
+    single {
         SponsorSyncManager(
             scope = get(),
             gateway = get(),
@@ -322,7 +323,7 @@ val dataModule = module {
     }
 
     single { ChatCache() }
-    single<TelegramGateway>(createdAtStart = true) {
+    single<TelegramGateway> {
         TelegramGatewayImpl(get())
     }
     single<UpdateDispatcher> {
@@ -365,12 +366,20 @@ val dataModule = module {
         )
     }
 
-    single<AuthRepository>(createdAtStart = true) {
+    single {
         AuthRepositoryImpl(
             parametersProvider = get(),
             remote = get(),
             updates = get(),
             scope = get()
+        )
+    }
+    single<AuthRepository>(createdAtStart = true) {
+        TelegramBackendAuthRouter(
+            selectionStore = get(),
+            legacyFactory = { get<AuthRepositoryImpl>() },
+            mtProtoFactory = { get<MtProtoAuthRepository>() },
+            scope = get(),
         )
     }
 
@@ -801,7 +810,7 @@ val dataModule = module {
         )
     }
 
-    single<TdLibLimitsRepository>(createdAtStart = true) {
+    single<TdLibLimitsRepository> {
         TdLibLimitsRepositoryImpl(
             remote = get(),
             updates = get(),
@@ -1010,7 +1019,7 @@ val dataModule = module {
     }
 
     if (BuildConfig.DEBUG) {
-        single(createdAtStart = true) {
+        single {
             DataMemoryDiagnostics(
                 scope = get(),
                 memoryPressureHandler = get()
@@ -1165,7 +1174,7 @@ val dataModule = module {
         )
     }
 
-    single(createdAtStart = true) {
+    single {
         TdNotificationManager(
             androidContext(),
             get(),

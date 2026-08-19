@@ -63,6 +63,7 @@ import org.monogram.domain.repository.TelegramBackendSwitchRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
+import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.domain.repository.WebAppRepository
@@ -107,6 +108,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val fileRepository: FileRepository by lazy { koin.get() }
     override val webAppRepository: WebAppRepository by lazy { koin.get() }
     override val userRepository: UserRepository by lazy { koin.get() }
+    override val userProfileSnapshotRepository: UserProfileSnapshotRepository by lazy { koin.get() }
     override val userProfileEditRepository: UserProfileEditRepository by lazy { koin.get() }
     override val contactEditRepository: ContactEditRepository by lazy { koin.get() }
     override val profilePhotoRepository: ProfilePhotoRepository by lazy { koin.get() }

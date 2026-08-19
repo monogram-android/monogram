@@ -62,6 +62,7 @@ import org.monogram.domain.repository.TelegramBackendSwitchRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
+import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.domain.repository.WebAppRepository
@@ -106,6 +107,7 @@ interface RepositoriesContainer {
     val fileRepository: FileRepository
     val webAppRepository: WebAppRepository
     val userRepository: UserRepository
+    val userProfileSnapshotRepository: UserProfileSnapshotRepository
     val userProfileEditRepository: UserProfileEditRepository
     val contactEditRepository: ContactEditRepository
     val profilePhotoRepository: ProfilePhotoRepository

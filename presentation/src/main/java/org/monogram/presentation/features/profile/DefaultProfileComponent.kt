@@ -25,6 +25,8 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.ProfilePhotoMedia
 import org.monogram.domain.models.StatisticsGraphModel
+import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.BotPreferencesProvider
 import org.monogram.domain.repository.BotRepository
@@ -47,7 +49,9 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
 import org.monogram.domain.repository.StoryRepository
+import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.repository.TelegramLinkRepository
+import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
@@ -55,6 +59,8 @@ import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.root.AppComponentContext
+
+private const val DEFAULT_ACCOUNT_ID = "default"
 
 class DefaultProfileComponent(
     context: AppComponentContext,
@@ -80,6 +86,9 @@ class DefaultProfileComponent(
     private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
     private val chatSettingsRepository: ChatSettingsRepository = container.repositories.chatSettingsRepository
     private val userRepository: UserRepository = container.repositories.userRepository
+    private val userProfileSnapshotRepository: UserProfileSnapshotRepository =
+        container.repositories.userProfileSnapshotRepository
+    private val telegramBackendModeRepository = container.repositories.telegramBackendModeRepository
     private val profilePhotoRepository: ProfilePhotoRepository = container.repositories.profilePhotoRepository
     private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
     private val botRepository: BotRepository = container.repositories.botRepository
@@ -121,7 +130,7 @@ class DefaultProfileComponent(
             try {
                 val chat = coRunCatching { chatListRepository.getChatById(chatId) }.getOrNull()
                 val user = if (chat == null || (!chat.isGroup && !chat.isChannel)) {
-                    userRepository.getUser(chatId)
+                    loadProfileUser(chatId)
                 } else null
                 val isBlocked = if (user != null) {
                     privacyRepository.getBlockedUsers().contains(user.id)
@@ -231,6 +240,32 @@ class DefaultProfileComponent(
             }
         }
     }
+
+    private suspend fun loadProfileUser(userId: Long): UserModel? =
+        if (telegramBackendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            userProfileSnapshotRepository.getUser(DEFAULT_ACCOUNT_ID, userId)?.toUserModel()
+        } else {
+            userRepository.getUser(userId)
+        }
+
+    private fun UserProfileSnapshotModel.toUserModel() = UserModel(
+        id = userId,
+        firstName = firstName.orEmpty(),
+        lastName = lastName,
+        username = username,
+        phoneNumber = phoneNumber,
+        isPremium = isPremium,
+        isVerified = isVerified,
+        isScam = isScam,
+        isFake = isFake,
+        isContact = isContact,
+        isMutualContact = isMutualContact,
+        type = when {
+            isDeleted -> UserTypeEnum.DELETED
+            isBot -> UserTypeEnum.BOT
+            else -> UserTypeEnum.REGULAR
+        },
+    )
 
     private fun observeCurrentUser() {
         userRepository.currentUserFlow

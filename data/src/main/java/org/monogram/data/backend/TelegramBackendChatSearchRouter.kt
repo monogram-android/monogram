@@ -16,11 +16,15 @@ import org.monogram.domain.repository.SearchMessagesResult
 internal class TelegramBackendChatSearchRouter(
     selectionStore: TelegramBackendSelectionStore,
     private val legacyFactory: () -> ChatSearchRepository,
+    private val mtProtoFactory: () -> ChatSearchRepository = {
+        throw UnsupportedOperationException("MTProto chat search is not available")
+    },
     scope: CoroutineScope,
     accountId: String = DEFAULT_ACCOUNT_ID,
 ) : ChatSearchRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
 
     init {
         scope.launch {
@@ -51,13 +55,13 @@ internal class TelegramBackendChatSearchRouter(
 
     private suspend fun selected(): ChatSearchRepository = when (selectedBackend.value) {
         TelegramBackendKind.LEGACY -> legacy
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto
         null -> error("Telegram backend selection is not loaded")
     }
 
     private fun selectedOrThrow(): ChatSearchRepository = when (selectedBackend.value) {
         TelegramBackendKind.LEGACY -> legacy
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto
         null -> error("Telegram backend selection is not loaded")
     }
 

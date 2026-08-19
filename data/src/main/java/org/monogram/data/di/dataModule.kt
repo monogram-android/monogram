@@ -101,6 +101,7 @@ import org.monogram.data.mtproto.MtProtoTextMessageRepositoryImpl
 import org.monogram.data.mtproto.MtProtoReadHistoryRepositoryImpl
 import org.monogram.data.mtproto.MtProtoMessageDeletionRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogChatListRepository
+import org.monogram.data.mtproto.MtProtoChatSearchRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
@@ -884,10 +885,12 @@ val dataModule = module {
     single<ChatListRepository> { get<TelegramBackendChatReadRouter>() }
     single<ChatFolderRepository> { get<TelegramBackendChatReadRouter>() }
     single<ChatOperationsRepository> { get<TelegramBackendChatReadRouter>() }
+    single { MtProtoChatSearchRepository(get<MtProtoDialogSnapshotRepository>()) }
     single<ChatSearchRepository> {
         TelegramBackendChatSearchRouter(
             selectionStore = get(),
             legacyFactory = { get<ChatsListRepositoryImpl>() },
+            mtProtoFactory = { get<MtProtoChatSearchRepository>() },
             scope = get(),
         )
     }

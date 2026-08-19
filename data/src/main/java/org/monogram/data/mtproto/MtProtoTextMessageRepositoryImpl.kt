@@ -10,6 +10,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ForwardMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendReaction
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.UpdatePinnedMessage
@@ -131,6 +132,48 @@ internal class MtProtoTextMessageRepositoryImpl(
         val transport = transportFactory.open(accountSlot)
         try {
             val updates = transport.execute(UpdatePinnedMessage(false, !pinned, false, peer, messageId.toInt()))
+            messages.stageLive(scope, updates)
+        } finally {
+            transport.close()
+        }
+    }
+
+    override suspend fun forwardToSelf(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+    ) {
+        require(messageId in 1..Int.MAX_VALUE) { "MTProto message id must fit a positive int" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = resolvePeer(scope, chatId, peerType)
+        val transport = transportFactory.open(accountSlot)
+        try {
+            val updates = transport.execute(
+                ForwardMessages(
+                    silent = false,
+                    background = false,
+                    withMyScore = false,
+                    dropAuthor = true,
+                    dropMediaCaptions = false,
+                    noforwards = false,
+                    allowPaidFloodskip = false,
+                    fromPeer = peer,
+                    id = listOf(messageId.toInt()),
+                    randomId = listOf(randomId()),
+                    toPeer = peer,
+                    topMsgId = null,
+                    replyTo = null,
+                    scheduleDate = null,
+                    scheduleRepeatPeriod = null,
+                    sendAs = null,
+                    quickReplyShortcut = null,
+                    effect = null,
+                    videoTimestamp = null,
+                    allowPaidStars = null,
+                    suggestedPost = null,
+                )
+            )
             messages.stageLive(scope, updates)
         } finally {
             transport.close()

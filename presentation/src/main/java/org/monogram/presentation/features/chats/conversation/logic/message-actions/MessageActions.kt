@@ -966,7 +966,16 @@ internal fun DefaultChatComponent.handleRepeatMessage(message: MessageModel) {
     scope.launch {
         val key = OutgoingMessageReducer.Key(message.chatId, message.id)
         val outgoingState = _state.value.outgoingMessageStates[key]
-        if (outgoingState is OutgoingMessageReducer.State.Failed && outgoingState.retryable) {
+        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            require(outgoingState !is OutgoingMessageReducer.State.Failed || !outgoingState.retryable) {
+                "MTProto retrying failed messages is not available"
+            }
+            val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(chatId, chat.isChannel)
+            mtProtoTextMessageRepository.forwardToSelf(chatId, peer.type, message.id)
+        } else if (outgoingState is OutgoingMessageReducer.State.Failed && outgoingState.retryable) {
             repositoryMessage.retryFailedMessage(message.chatId, message.id)
         } else {
             repositoryMessage.forwardMessage(chatId, chatId, message.id, sendCopy = true)

@@ -30,4 +30,10 @@ interface MtProtoTextMessageRepository {
         messageId: Long,
         pinned: Boolean,
     )
+
+    suspend fun forwardToSelf(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+    )
 }

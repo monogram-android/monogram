@@ -11,6 +11,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ForwardMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendReaction
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.UpdatePinnedMessage
@@ -38,6 +39,31 @@ class MtProtoTextMessageRepositoryImplTest {
         assertEquals("hello", request.message)
         assertEquals(99L, request.randomId)
         assertEquals(InputPeerUser(7L, 70L), request.peer)
+        assertEquals(1, messageStore.staged.size)
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `forwards message to its projected chat and stages returned updates`() = runBlocking {
+        val transport = RecordingTransport()
+        val messageStore = RecordingMessageStore()
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = messageStore,
+            randomId = { 99L },
+        )
+
+        repository.forwardToSelf(7L, DialogPeerType.PRIVATE, 8L)
+
+        val request = transport.method as ForwardMessages
+        assertEquals(InputPeerUser(7L, 70L), request.fromPeer)
+        assertEquals(request.fromPeer, request.toPeer)
+        assertEquals(listOf(8), request.id)
+        assertEquals(listOf(99L), request.randomId)
+        assertTrue(request.dropAuthor)
         assertEquals(1, messageStore.staged.size)
         assertTrue(transport.closed)
     }

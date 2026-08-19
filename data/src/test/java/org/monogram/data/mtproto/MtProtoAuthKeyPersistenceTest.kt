@@ -155,6 +155,34 @@ class MtProtoAuthKeyPersistenceTest {
     }
 
     @Test
+    fun updatesStoredServerTimeAnchorWithoutReplacingKeyMaterial() = runBlocking {
+        val store = FakeStore()
+        val persistence = MtProtoAuthKeyPersistence(store)
+        val scope = MtProtoAuthKeyScope("default", MtProtoEnvironment.PRODUCTION, 2)
+        val key = authKey()
+        try {
+            persistence.save(scope, key)
+            persistence.updateServerTime(scope, key, 1_783_001_999L)
+            val loaded = persistence.load(scope) as PersistedMtProtoAuthKeyResult.Found
+            loaded.authKey.use { restored ->
+                assertEquals(1_783_001_999, restored.createdAt)
+                assertEquals(73L, restored.serverSalt)
+                val material = restored.toByteArray()
+                val expected = key.toByteArray()
+                try {
+                    assertArrayEquals(expected, material)
+                } finally {
+                    material.fill(0)
+                    expected.fill(0)
+                }
+            }
+        } finally {
+            key.close()
+            store.close()
+        }
+    }
+
+    @Test
     fun bootstrapClosesNewKeyWhenPersistenceFails() {
         val store = FakeStore().apply { failSave = true }
         lateinit var established: MtProtoAuthKey

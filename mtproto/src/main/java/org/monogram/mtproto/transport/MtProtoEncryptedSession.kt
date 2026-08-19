@@ -35,6 +35,10 @@ class MtProtoEncryptedSession internal constructor(
 
     val serverSalt: Long get() = synchronized(lock) { salt }
 
+    internal fun serverTimeSeconds(): Long = synchronized(lock) {
+        (currentTimeMillis() + serverTimeOffsetMillis) / 1_000L
+    }
+
     fun encode(body: ByteArray, contentRelated: Boolean): ByteArray =
         encodeTracked(body, contentRelated).packet
 

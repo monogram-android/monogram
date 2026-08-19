@@ -56,6 +56,26 @@ internal class MtProtoAuthKeyPersistence(
 
     suspend fun delete(scope: MtProtoAuthKeyScope) = store.delete(scope)
 
+    suspend fun updateServerTime(scope: MtProtoAuthKeyScope, authKey: MtProtoAuthKey, serverTimeSeconds: Long) {
+        require(serverTimeSeconds in 0..Int.MAX_VALUE) { "MTProto server time is outside the persisted range" }
+        val material = authKey.toByteArray()
+        val stored = try {
+            StoredMtProtoAuthKey.create(
+                material = material,
+                id = authKey.id,
+                serverSalt = authKey.serverSalt,
+                createdAt = serverTimeSeconds.toInt(),
+            )
+        } finally {
+            material.fill(0)
+        }
+        try {
+            store.save(scope, stored)
+        } finally {
+            stored.close()
+        }
+    }
+
     suspend fun updateServerSalt(scope: MtProtoAuthKeyScope, authKey: MtProtoAuthKey, serverSalt: Long) {
         val material = authKey.toByteArray()
         val stored = try {

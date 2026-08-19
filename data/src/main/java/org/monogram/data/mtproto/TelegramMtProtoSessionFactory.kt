@@ -187,6 +187,9 @@ internal class TelegramMtProtoSessionFactory(
                     onServerSaltChanged = { serverSalt ->
                         authKeyPersistence.updateServerSalt(scope, authKey, serverSalt)
                     },
+                    onServerTimeChanged = { serverTimeSeconds ->
+                        authKeyPersistence.updateServerTime(scope, authKey, serverTimeSeconds)
+                    },
                 )
             } catch (failure: Throwable) {
                 session.close()

@@ -70,6 +70,7 @@ class IntermediateTcpEncryptedTransport(
     private val connectTimeoutMillis: Int = 10_000,
     private val readTimeoutMillis: Int = 15_000,
     private val onServerSaltChanged: (suspend (Long) -> Unit)? = null,
+    private val onServerTimeChanged: (suspend (Long) -> Unit)? = null,
 ) : MtProtoRpcTransport {
     private val requestMutex = Mutex()
     private val stateLock = Any()
@@ -221,6 +222,7 @@ class IntermediateTcpEncryptedTransport(
                 packet.fill(0)
             }
             val metadata = decoded.message.metadata
+            onServerTimeChanged?.invoke(session.serverTimeSeconds())
             if (decoded.duplicate) {
                 val acknowledgements = if (metadata.sequenceNumber and 1 == 1) {
                     listOf(metadata.messageId)

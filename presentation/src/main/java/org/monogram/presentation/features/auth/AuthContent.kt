@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.SettingsEthernet
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -36,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.auth.components.AuthErrorDialog
@@ -95,6 +97,20 @@ fun AuthContent(component: AuthComponent) {
                             }
                         },
                         actions = {
+                            if (BuildConfig.DEBUG && model.authState is AuthComponent.AuthState.InputPhone) {
+                                IconButton(
+                                    enabled = !model.isTelegramBackendSwitching &&
+                                        model.telegramBackendMode != org.monogram.domain.repository.TelegramBackendMode.UNKNOWN,
+                                    onClick = component::onTelegramBackendToggleRequested
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.SwapVert,
+                                        contentDescription = if (
+                                            model.telegramBackendMode == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO
+                                        ) "Switch to legacy backend" else "Switch to Kotlin MTProto"
+                                    )
+                                }
+                            }
                             IconButton(onClick = component::onProxyClicked) {
                                 Icon(
                                     imageVector = Icons.Rounded.SettingsEthernet,

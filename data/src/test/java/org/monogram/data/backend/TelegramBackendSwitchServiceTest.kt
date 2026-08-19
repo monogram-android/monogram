@@ -11,6 +11,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.data.mtproto.MtProtoAccountStateResetter
+import org.monogram.data.mtproto.MtProtoAuthSessionResetter
 import org.monogram.data.mtproto.MtProtoEnvironment
 
 class TelegramBackendSwitchServiceTest {
@@ -48,6 +49,24 @@ class TelegramBackendSwitchServiceTest {
         assertSame(cleanupFailure, thrown)
         assertEquals(TelegramBackendKind.KOTLIN_MTPROTO, selection.backend)
         assertEquals("account_1", binding.accountId.value)
+    }
+
+    @Test
+    fun `resets MTProto auth before deleting its account state`() = runBlocking {
+        val events = mutableListOf<String>()
+        val service = TelegramBackendSwitchService(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO, events),
+            legacyActiveAccountBinding = LegacyActiveAccountBinding("account_1"),
+            mtProtoAccountStateResetter = RecordingMtProtoResetter(events),
+            mtProtoAuthSessionResetter = MtProtoAuthSessionResetter { events += "mtproto-auth-reset" },
+        )
+
+        service.switch("account_1", TelegramBackendKind.LEGACY)
+
+        assertEquals(
+            listOf("mtproto-auth-reset", "mtproto-reset", "select-LEGACY"),
+            events,
+        )
     }
 
     @Test

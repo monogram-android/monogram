@@ -3,6 +3,7 @@ package org.monogram.data.backend
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.monogram.data.mtproto.MtProtoAccountStateResetter
+import org.monogram.data.mtproto.MtProtoAuthSessionResetter
 import org.monogram.data.mtproto.MtProtoEnvironment
 
 /**
@@ -15,6 +16,7 @@ internal class TelegramBackendSwitchService(
     private val selectionStore: TelegramBackendSelectionStore,
     private val legacyActiveAccountBinding: LegacyActiveAccountBinding,
     private val mtProtoAccountStateResetter: MtProtoAccountStateResetter,
+    private val mtProtoAuthSessionResetter: MtProtoAuthSessionResetter = MtProtoAuthSessionResetter {},
 ) {
     private val switchMutex = Mutex()
 
@@ -39,10 +41,13 @@ internal class TelegramBackendSwitchService(
     private suspend fun cleanup(backend: TelegramBackendKind, accountId: String) {
         when (backend) {
             TelegramBackendKind.LEGACY -> legacyActiveAccountBinding.clear(accountId)
-            TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoAccountStateResetter.deleteAccount(
-                accountSlot = accountId,
-                environment = MtProtoEnvironment.PRODUCTION,
-            )
+            TelegramBackendKind.KOTLIN_MTPROTO -> {
+                mtProtoAuthSessionResetter.resetAuthSession()
+                mtProtoAccountStateResetter.deleteAccount(
+                    accountSlot = accountId,
+                    environment = MtProtoEnvironment.PRODUCTION,
+                )
+            }
         }
     }
 

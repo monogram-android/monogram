@@ -94,6 +94,7 @@ import org.monogram.data.mtproto.MtProtoUpdateCursorStore
 import org.monogram.data.mtproto.MtProtoAccountStateCleaner
 import org.monogram.data.mtproto.MtProtoAccountStateResetter
 import org.monogram.data.mtproto.MtProtoAuthRepository
+import org.monogram.data.mtproto.MtProtoAuthSessionResetter
 import org.monogram.data.mtproto.MtProtoAuthSessionHandleFactory
 import org.monogram.data.mtproto.MtProtoPhoneAuthSessionFactory
 import org.monogram.data.gateway.TelegramGateway
@@ -292,6 +293,7 @@ val dataModule = module {
     }
     single<MtProtoAuthSessionHandleFactory> { get<MtProtoPhoneAuthSessionFactory>() }
     single { MtProtoAuthRepository(get(), get()) }
+    single<MtProtoAuthSessionResetter> { get<MtProtoAuthRepository>() }
     single(createdAtStart = true) { TdLibParametersProvider(androidContext(), get()) }
     single(createdAtStart = true) {
         OfflineWarmup(
@@ -483,6 +485,7 @@ val dataModule = module {
             selectionStore = get(),
             legacyActiveAccountBinding = get(),
             mtProtoAccountStateResetter = get<MtProtoAccountStateResetter>(),
+            mtProtoAuthSessionResetter = get(),
         )
     }
     single { get<MonogramDatabase>().notificationSettingDao() }

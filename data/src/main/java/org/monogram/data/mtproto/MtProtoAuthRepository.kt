@@ -18,12 +18,17 @@ import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.AuthSubmissionStage
 import org.monogram.domain.repository.AuthUiStatus
 
-/** Candidate MTProto auth adapter. It is intentionally not selected by DI yet. */
+/** Resets an in-flight MTProto auth session before its account state is deleted. */
+internal fun interface MtProtoAuthSessionResetter {
+    fun resetAuthSession()
+}
+
+/** Candidate MTProto auth adapter. It remains unselected until legacy auth lifecycle can stop safely. */
 internal class MtProtoAuthRepository(
     private val sessionFactory: MtProtoAuthSessionHandleFactory,
     private val scope: CoroutineScope,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
-) : AuthRepository {
+) : AuthRepository, MtProtoAuthSessionResetter {
     private data class PendingAction(
         val stage: AuthSubmissionStage,
         val payload: String? = null,
@@ -64,6 +69,8 @@ internal class MtProtoAuthRepository(
         } ?: return
         submit(action, replaceSession = false)
     }
+
+    override fun resetAuthSession() = reset()
 
     override fun reset() {
         val handleToClose: MtProtoAuthSessionHandle?

@@ -95,6 +95,7 @@ import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomDialogStore
 import org.monogram.data.mtproto.MtProtoDialogStore
+import org.monogram.data.mtproto.MtProtoDialogResultStager
 import org.monogram.data.mtproto.MtProtoDialogSnapshotRepository
 import org.monogram.data.mtproto.MtProtoTextMessageRepositoryImpl
 import org.monogram.data.mtproto.MtProtoReadHistoryRepositoryImpl
@@ -479,7 +480,8 @@ val dataModule = module {
     single<MtProtoMessageProjectionStore> { get<MtProtoRoomMessageProjectionStore>() }
     single { MtProtoRoomDialogStore(get(), get(), get(), get()) }
     single<MtProtoDialogStore> { get<MtProtoRoomDialogStore>() }
-    single { MtProtoDialogSnapshotRepository(get(), get()) }
+    single { MtProtoDialogResultStager(get()) }
+    single { MtProtoDialogSnapshotRepository(get(), get(), get(), get()) }
     single<MtProtoMessageDeletionRepository> {
         MtProtoMessageDeletionRepositoryImpl(get(), get(), get())
     }

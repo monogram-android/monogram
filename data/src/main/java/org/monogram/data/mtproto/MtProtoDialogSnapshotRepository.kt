@@ -1,7 +1,7 @@
 package org.monogram.data.mtproto
 
 import org.monogram.domain.models.DialogMessagePreviewModel
-import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerSelf
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetDialogs
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.DialogSnapshotModel
@@ -24,7 +24,7 @@ internal class MtProtoDialogSnapshotRepository(
                         folderId = null,
                         offsetDate = 0,
                         offsetId = 0,
-                        offsetPeer = InputPeerSelf,
+                        offsetPeer = InputPeerEmpty,
                         limit = INITIAL_PAGE_SIZE,
                         hash = 0L,
                     ),

@@ -109,7 +109,7 @@ internal class MtProtoPhoneAuthSession(
                 else -> throw IllegalStateException("Unsupported MTProto authorization result: ${authorization.constructorId}")
             }
         } catch (rpc: MtProtoRpcException) {
-            if (rpc.errorCode != 400 || rpc.rpcMessage != SESSION_PASSWORD_NEEDED) throw rpc
+            if (rpc.rpcMessage != SESSION_PASSWORD_NEEDED) throw rpc
             val challenge = api.getPasswordChallengeInfo()
             phoneNumber = null
             phoneCodeHash = null

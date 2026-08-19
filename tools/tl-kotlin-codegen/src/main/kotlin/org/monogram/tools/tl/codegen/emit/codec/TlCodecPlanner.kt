@@ -436,7 +436,8 @@ class TlCodecPlanner {
             val element = expression.arguments.singleOrNull()
                 ?: fail(TlCodecPlanningFailure.UNSUPPORTED_EXPRESSION, declaration, path, "Vector requires exactly one element")
             TlValueCodecPlan.Vector(
-                planExpression(
+                boxed = (expression.constructor as? TlExpression.Identifier)?.name == "Vector",
+                element = planExpression(
                     element,
                     declaration,
                     symbols,
@@ -448,7 +449,7 @@ class TlCodecPlanner {
                     "$path.element",
                     allowObject = false,
                 ),
-                types.render(expression, declaration),
+                kotlinType = types.render(expression, declaration),
             )
         } else {
             val head = expression.constructor as? TlExpression.Identifier

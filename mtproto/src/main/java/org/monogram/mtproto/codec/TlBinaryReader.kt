@@ -62,6 +62,10 @@ class TlBinaryReader(
     override fun <T> readVector(codec: TlCodec<T>, context: TlDecodeContext): List<T> {
         val constructor = readUInt()
         if (constructor != VECTOR_ID) throw malformed("Unknown vector constructor ${constructor.toString(16)}", context)
+        return readVectorElements(codec, context)
+    }
+
+    private fun <T> readVectorElements(codec: TlCodec<T>, context: TlDecodeContext): List<T> {
         val count = readInt()
         if (count < 0) throw malformed("Negative vector element count $count", context)
         if (count > maxVectorElements) {

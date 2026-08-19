@@ -71,7 +71,7 @@ class CloudLayer223RpcTransport(
         } catch (rpc: MtProtoRpcException) {
             if (includeHeader || !rpc.requiresConnectionHeader()) {
                 MtProtoTransportLog.warn {
-                    "api failure method=${method.debugName()} code=${rpc.errorCode}"
+                    "api failure method=${method.debugName()} code=${rpc.errorCode} error=${MtProtoTransportLog.sanitizeRpcError(rpc.rpcMessage)}"
                 }
                 throw rpc
             }

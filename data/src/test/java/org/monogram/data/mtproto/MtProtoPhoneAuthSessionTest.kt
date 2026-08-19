@@ -181,11 +181,11 @@ class MtProtoPhoneAuthSessionTest {
     }
 
     @Test
-    fun mapsPasswordNeededToInputPasswordAndSubmitsPassword() = runBlocking {
+    fun mapsPasswordNeededToInputPasswordForServerUnauthorizedAndSubmitsPassword() = runBlocking {
         val authorization = Authorization_d8660c55a3(false, null, null, null, fakeUser())
         val api = FakeApi(
             sentCodes = ArrayDeque(listOf(SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0))),
-            signInError = MtProtoRpcException(400, "SESSION_PASSWORD_NEEDED"),
+            signInError = MtProtoRpcException(401, "SESSION_PASSWORD_NEEDED"),
             passwordInfo = MtProtoPasswordChallengeInfo("secret", true),
             passwordAuthorization = authorization,
         )

@@ -27,6 +27,27 @@ interface TlReader {
     fun <T> readVector(codec: TlCodec<T>, context: TlDecodeContext): List<T>
 }
 
+internal fun <T> readBareVector(
+    reader: TlReader,
+    codec: TlCodec<T>,
+    context: TlDecodeContext,
+): List<T> {
+    val count = reader.readInt()
+    require(count >= 0) { "Negative vector element count $count" }
+    require(count <= TlLimits.DEFAULT.maxVectorElements) { "Vector exceeds configured element limit" }
+    return List(count) { codec.read(reader, context.nested()) }
+}
+
+internal fun <T> writeBareVector(
+    writer: TlWriter,
+    values: List<T>,
+    codec: TlCodec<T>,
+) {
+    require(values.size <= TlLimits.DEFAULT.maxVectorElements) { "Vector exceeds configured element limit" }
+    writer.writeInt(values.size)
+    values.forEach { codec.write(writer, it) }
+}
+
 interface TlWriter {
     val absoluteOffset: Long
     val size: Long

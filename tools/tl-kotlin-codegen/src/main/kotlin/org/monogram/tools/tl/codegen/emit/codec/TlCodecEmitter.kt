@@ -347,7 +347,11 @@ class TlCodecEmitter {
         is TlValueCodecPlan.Generic ->
             "${genericCodecs[codec.typeParameter] ?: codec.codecParameterName}.read($reader, $context.nested())"
         is TlValueCodecPlan.Vector ->
-            "$reader.readVector(${codecExpression(codec.element, genericCodecs)}, $context)"
+            if (codec.boxed) {
+                "$reader.readVector(${codecExpression(codec.element, genericCodecs)}, $context)"
+            } else {
+                "org.monogram.mtproto.tl.runtime.readBareVector($reader, ${codecExpression(codec.element, genericCodecs)}, $context)"
+            }
         is TlValueCodecPlan.NamedBoxed ->
             "${codec.familyCodec.qualifiedName}.read($reader, $context.nested())"
         is TlValueCodecPlan.UnconstrainedObject ->
@@ -404,7 +408,11 @@ class TlCodecEmitter {
         }
         is TlValueCodecPlan.Generic ->
             "${genericCodecs[codec.typeParameter] ?: codec.codecParameterName}.write($writer, $value)"
-        is TlValueCodecPlan.Vector -> "$writer.writeVector($value, ${codecExpression(codec.element, genericCodecs)})"
+        is TlValueCodecPlan.Vector -> if (codec.boxed) {
+            "$writer.writeVector($value, ${codecExpression(codec.element, genericCodecs)})"
+        } else {
+            "org.monogram.mtproto.tl.runtime.writeBareVector($writer, $value, ${codecExpression(codec.element, genericCodecs)})"
+        }
         is TlValueCodecPlan.NamedBoxed -> "${codec.familyCodec.qualifiedName}.write($writer, $value)"
         is TlValueCodecPlan.UnconstrainedObject -> "${codec.registry.qualifiedName}.encode($writer, $value)"
         is TlValueCodecPlan.NamedBare -> {

@@ -20,6 +20,9 @@ internal object MtProtoTransportLog {
         }
     }
 
+    fun sanitizeRpcError(message: String): String =
+        message.replace(Regex("[^A-Za-z0-9_+-]"), "_").take(MAX_DETAIL_CHARACTERS)
+
     fun localDetail(failure: Throwable): String {
         val detail = failure.message
             ?.replace(Regex("[\\r\\n\\t]"), " ")

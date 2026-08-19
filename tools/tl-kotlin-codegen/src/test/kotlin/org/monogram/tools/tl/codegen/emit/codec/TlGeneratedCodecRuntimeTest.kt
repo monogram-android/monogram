@@ -116,7 +116,7 @@ class TlGeneratedCodecRuntimeTest {
                     "int:${BOX_A_ID.toInt()}",
                     "string:boxed",
                     "string:bare",
-                    "vector:2",
+                    "int:2",
                     "int:7",
                     "int:8",
                     "string:label",
@@ -125,9 +125,8 @@ class TlGeneratedCodecRuntimeTest {
             )
 
             val reader = RecordingReader(
-                ints = listOf(3, BOX_A_ID.toInt(), 7, 8),
+                ints = listOf(3, BOX_A_ID.toInt(), 2, 7, 8),
                 strings = listOf("boxed", "bare", "label"),
-                vectorValues = listOf(7, 8),
             )
             val decoded = registry.decode(WRAPPER_ID, reader, context)
             assertEquals(WRAPPER_ID, decoded.constructorId)
@@ -136,8 +135,8 @@ class TlGeneratedCodecRuntimeTest {
             assertEquals(true, getter(decoded, "getEnabled"))
             assertEquals(listOf(7, 8), getter(decoded, "getNumbers"))
             assertEquals("label", getter(decoded, "getLabel"))
-            assertEquals(listOf(3, BOX_A_ID.toInt(), 7, 8), reader.readInts)
-            assertEquals(listOf(1), reader.vectorContexts)
+            assertEquals(listOf(3, BOX_A_ID.toInt(), 2, 7, 8), reader.readInts)
+            assertEquals(emptyList<Int>(), reader.vectorContexts)
             assertEquals(listOf(2, 2, 1), reader.stringContexts)
 
             val incoherent = wrapperClass.declaredConstructors.single().newInstance(
@@ -596,6 +595,7 @@ class TlGeneratedCodecRuntimeTest {
             vectorContexts += context.depth
             return List(vectorValues.size) { codec.read(this, context) }
         }
+
     }
 
     private class RecordingWriter : TlWriter {
@@ -615,6 +615,7 @@ class TlGeneratedCodecRuntimeTest {
             events += "vector:${values.size}"
             values.forEach { codec.write(this, it) }
         }
+
     }
 
     private class RecordingIntCodec : TlCodec<Int> {

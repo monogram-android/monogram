@@ -96,6 +96,7 @@ class IntermediateTcpEncryptedTransport(
 
     private suspend fun <R> exchange(method: TlMethod<R>): R {
         var saltRetries = 0
+        var messageIdRetries = 0
         while (true) {
             val requestBody = encodeMethod(method)
             val request = try {
@@ -127,10 +128,18 @@ class IntermediateTcpEncryptedTransport(
                             throw protocolFailure("Repeated bad_server_salt for one request")
                         }
                     }
+                    RpcOutcome.RetryMessageId -> {
+                        if (messageIdRetries++ >= MAX_MESSAGE_ID_RETRIES) {
+                            throw protocolFailure("Repeated bad_msg_notification time error for one request")
+                        }
+                        MtProtoTransportLog.debug {
+                            "retry rpc endpoint=$host:$port method=${method.debugName()} reason=message-id-time"
+                        }
+                    }
                 }
             } catch (rpc: MtProtoRpcException) {
                 MtProtoTransportLog.warn {
-                    "rpc failure endpoint=$host:$port msgId=${request.metadata.messageId} method=${method.debugName()} code=${rpc.errorCode}"
+                    "rpc failure endpoint=$host:$port msgId=${request.metadata.messageId} method=${method.debugName()} code=${rpc.errorCode} error=${MtProtoTransportLog.sanitizeRpcError(rpc.rpcMessage)}"
                 }
                 if (rpc.suppressed.isNotEmpty()) disconnect()
                 throw rpc
@@ -284,10 +293,14 @@ class IntermediateTcpEncryptedTransport(
             }
             is BadMsgNotification_96e011accc -> {
                 val pending = pendingFor(value.badMsgId, value.badMsgSeqno) ?: return null
-                TerminalAction.Failure(
-                    pending,
-                    protocolFailure("Server rejected the active request with code ${value.errorCode}"),
-                )
+                if (value.errorCode in MESSAGE_ID_TIME_ERROR_CODES) {
+                    TerminalAction.Result(pending, RpcOutcome.RetryMessageId)
+                } else {
+                    TerminalAction.Failure(
+                        pending,
+                        protocolFailure("Server rejected the active request with code ${value.errorCode}"),
+                    )
+                }
             }
             is MsgsAck_3546e430bb -> null
             is Updates_faf6aaa3d5 -> {
@@ -532,6 +545,7 @@ class IntermediateTcpEncryptedTransport(
 
     private sealed interface RpcOutcome<out R> {
         data object RetrySalt : RpcOutcome<Nothing>
+        data object RetryMessageId : RpcOutcome<Nothing>
         data class Success<R>(val value: R) : RpcOutcome<R>
     }
 
@@ -557,6 +571,8 @@ class IntermediateTcpEncryptedTransport(
         const val MAX_QUICK_ACKS = 16
         const val MAX_CONTAINER_DEPTH = 8
         const val MAX_SALT_RETRIES = 1
+        const val MAX_MESSAGE_ID_RETRIES = 1
+        val MESSAGE_ID_TIME_ERROR_CODES = setOf(16, 20)
         val TRANSPORT_CONTEXT = TlDecodeContext(
             TlSchemaIdentity(TlSchemaKind.TRANSPORT, null),
             0,

@@ -167,6 +167,7 @@ sealed interface TlValueCodecPlan {
 
     data class Vector(
         val element: TlValueCodecPlan,
+        val boxed: Boolean,
         override val kotlinType: String,
     ) : TlValueCodecPlan
 

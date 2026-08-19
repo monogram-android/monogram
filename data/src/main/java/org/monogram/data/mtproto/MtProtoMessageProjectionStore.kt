@@ -1,5 +1,7 @@
 package org.monogram.data.mtproto
 
+import androidx.room.withTransaction
+import org.monogram.data.db.MonogramDatabase
 import org.monogram.data.db.dao.MtProtoCloudObjectDao
 import org.monogram.data.db.dao.MtProtoMessageProjectionDao
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
@@ -95,6 +97,7 @@ internal class MtProtoRoomMessageProjectionStore(
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val cloudObjectDao: MtProtoCloudObjectDao? = null,
     private val dialogStore: MtProtoDialogStore? = null,
+    private val database: MonogramDatabase? = null,
 ) : MtProtoMessageProjectionStore {
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
         applyLive(scope, envelope)
@@ -220,13 +223,16 @@ internal class MtProtoRoomMessageProjectionStore(
     }
 
     private suspend fun persist(scope: MtProtoAuthKeyScope, entity: MtProtoMessageProjectionEntity) {
-        dao.upsert(entity)
-        dialogStore?.updateTopMessage(
-            scope = scope,
-            peerType = MtProtoMessagePeerType.valueOf(entity.peerType),
-            peerId = entity.peerId,
-            messageId = entity.messageId,
-        )
+        suspend fun persistProjection() {
+            dao.upsert(entity)
+            dialogStore?.updateTopMessage(
+                scope = scope,
+                peerType = MtProtoMessagePeerType.valueOf(entity.peerType),
+                peerId = entity.peerId,
+                messageId = entity.messageId,
+            )
+        }
+        database?.withTransaction { persistProjection() } ?: persistProjection()
     }
 
     private fun Message_73e57f95e4.toEntity(scope: MtProtoAuthKeyScope, updatedAt: Long): MtProtoMessageProjectionEntity? = when (this) {

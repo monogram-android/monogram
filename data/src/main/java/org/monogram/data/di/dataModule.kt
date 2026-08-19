@@ -858,6 +858,7 @@ val dataModule = module {
     single {
         MtProtoDialogChatListRepository(
             dialogRepository = get<MtProtoDialogSnapshotRepository>(),
+            readHistoryRepository = get<MtProtoReadHistoryRepository>(),
             scope = get(),
         )
     }

@@ -11,6 +11,7 @@ import org.monogram.domain.models.DialogMessagePreviewModel
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.DialogSnapshotModel
 import org.monogram.domain.repository.DialogSnapshotRepository
+import org.monogram.domain.repository.MtProtoReadHistoryRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MtProtoDialogChatListRepositoryTest {
@@ -25,6 +26,7 @@ class MtProtoDialogChatListRepositoryTest {
                     dialog(DialogPeerType.BASIC_GROUP, 10L, date = 40, title = "Deleted", deleted = true),
                 ),
             ),
+            readHistoryRepository = RecordingReadHistoryRepository(),
             scope = backgroundScope,
         )
 
@@ -43,7 +45,7 @@ class MtProtoDialogChatListRepositoryTest {
     @Test
     fun `failed refresh preserves the current projection and allows retry`() = runTest {
         val source = FakeDialogRepository(listOf(dialog(DialogPeerType.PRIVATE, 42L, date = 1, title = "One")))
-        val repository = MtProtoDialogChatListRepository(source, backgroundScope)
+        val repository = MtProtoDialogChatListRepository(source, RecordingReadHistoryRepository(), backgroundScope)
         runCurrent()
         source.failure = IllegalStateException("offline")
 
@@ -56,12 +58,54 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `marks projected chats read through owned receipt repository`() = runTest {
+        val receipts = RecordingReadHistoryRepository()
+        val repository = MtProtoDialogChatListRepository(
+            FakeDialogRepository(listOf(dialog(DialogPeerType.PRIVATE, 42L, date = 7, title = "Peer"))),
+            receipts,
+            backgroundScope,
+        )
+        runCurrent()
+
+        repository.markChatsAsRead(setOf(42L))
+        runCurrent()
+
+        assertEquals(listOf(Triple(42L, DialogPeerType.PRIVATE, 7L)), receipts.requests)
+    }
+
+    @Test
+    fun `mark unread is rejected rather than delegated to TDLib`() = runTest {
+        val repository = MtProtoDialogChatListRepository(
+            FakeDialogRepository(emptyList()),
+            RecordingReadHistoryRepository(),
+            backgroundScope,
+        )
+        runCurrent()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repository.toggleReadChats(emptySet(), markAsUnread = true) }
+        }
+    }
+
+    @Test
     fun `custom folders are rejected rather than delegated to TDLib`() = runTest {
-        val repository = MtProtoDialogChatListRepository(FakeDialogRepository(emptyList()), backgroundScope)
+        val repository = MtProtoDialogChatListRepository(
+            FakeDialogRepository(emptyList()),
+            RecordingReadHistoryRepository(),
+            backgroundScope,
+        )
         runCurrent()
 
         assertThrows(IllegalArgumentException::class.java) {
             repository.selectFolder(0)
+        }
+    }
+
+    private class RecordingReadHistoryRepository : MtProtoReadHistoryRepository {
+        val requests = mutableListOf<Triple<Long, DialogPeerType, Long>>()
+
+        override suspend fun markRead(chatId: Long, peerType: DialogPeerType, maxMessageId: Long) {
+            requests += Triple(chatId, peerType, maxMessageId)
         }
     }
 

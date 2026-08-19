@@ -21,6 +21,7 @@ import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.domain.repository.DialogSnapshotRepository
 import org.monogram.domain.repository.FolderChatsUpdate
 import org.monogram.domain.repository.FolderLoadingUpdate
+import org.monogram.domain.repository.MtProtoReadHistoryRepository
 import org.monogram.data.backend.TelegramBackendChatReadRouter
 
 /**
@@ -31,6 +32,7 @@ import org.monogram.data.backend.TelegramBackendChatReadRouter
  */
 internal class MtProtoDialogChatListRepository(
     private val dialogRepository: DialogSnapshotRepository,
+    private val readHistoryRepository: MtProtoReadHistoryRepository,
     private val scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
@@ -129,9 +131,20 @@ internal class MtProtoDialogChatListRepository(
     override suspend fun toggleMuteChats(chatIds: Set<Long>, mute: Boolean) = unsupportedOperations()
     override suspend fun toggleArchiveChats(chatIds: Set<Long>, archive: Boolean) = unsupportedOperations()
     override suspend fun togglePinChats(chatIds: Set<Long>, pin: Boolean, folderId: Int) = unsupportedOperations()
-    override suspend fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) = unsupportedOperations()
-    override fun markChatsAsRead(chatIds: Set<Long>) = unsupportedOperations()
-    override fun markFolderAsRead(folderId: Int, chatIds: Set<Long>) = unsupportedOperations()
+
+    override suspend fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) {
+        require(!markAsUnread) { "MTProto mark-unread is not available" }
+        markChatsRead(chatIds)
+    }
+
+    override fun markChatsAsRead(chatIds: Set<Long>) {
+        scope.launch { markChatsRead(chatIds) }
+    }
+
+    override fun markFolderAsRead(folderId: Int, chatIds: Set<Long>) {
+        require(folderId == ALL_CHATS_FOLDER_ID) { "MTProto custom folders are not available" }
+        scope.launch { markChatsRead(chatIds) }
+    }
     override suspend fun deleteChats(chatIds: Set<Long>) = unsupportedOperations()
     override suspend fun leaveChats(chatIds: Set<Long>) = unsupportedOperations()
     override suspend fun leaveChat(chatId: Long) = unsupportedOperations()
@@ -141,6 +154,16 @@ internal class MtProtoDialogChatListRepository(
     override suspend fun getChatLink(chatId: Long): String? = unsupportedOperations()
     override suspend fun reportChats(chatIds: Set<Long>, reason: String, messageIds: List<Long>) = unsupportedOperations()
     override suspend fun reportChat(chatId: Long, reason: String, messageIds: List<Long>) = unsupportedOperations()
+
+    private suspend fun markChatsRead(chatIds: Set<Long>) {
+        chatListFlow.value
+            .asSequence()
+            .filter { it.id in chatIds && it.lastMessageId > 0L }
+            .forEach { chat ->
+                val peer = TelegramPeerChatId.decode(chat.id, chat.isChannel)
+                readHistoryRepository.markRead(chat.id, peer.type, chat.lastMessageId)
+            }
+    }
 
     private fun unsupportedFolders(): Nothing =
         throw UnsupportedOperationException("MTProto custom folders are not available")

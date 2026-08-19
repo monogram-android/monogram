@@ -27,7 +27,7 @@ class TelegramBackendChatReadRouterTest {
                 error("Legacy TDLib chat contracts must not be constructed")
             },
             mtProtoFactory = {
-                MtProtoDialogChatListRepository(FakeDialogRepository(), backgroundScope)
+                MtProtoDialogChatListRepository(FakeDialogRepository(), NoOpReadHistoryRepository, backgroundScope)
             },
             scope = backgroundScope,
         )
@@ -51,6 +51,7 @@ class TelegramBackendChatReadRouterTest {
             mtProtoFactory = {
                 MtProtoDialogChatListRepository(
                     dialogRepository = FakeDialogRepository(),
+                    readHistoryRepository = NoOpReadHistoryRepository,
                     scope = backgroundScope,
                 )
             },
@@ -64,6 +65,14 @@ class TelegramBackendChatReadRouterTest {
         assertEquals(listOf(-1), router.foldersFlow.value.map { it.id })
         assertTrue(router.isArchivePinned.value.not())
         assertTrue(router.isArchiveAlwaysVisible.value.not())
+    }
+
+    private object NoOpReadHistoryRepository : org.monogram.domain.repository.MtProtoReadHistoryRepository {
+        override suspend fun markRead(
+            chatId: Long,
+            peerType: DialogPeerType,
+            maxMessageId: Long,
+        ) = Unit
     }
 
     private class FakeSelectionStore(

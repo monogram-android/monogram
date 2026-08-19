@@ -26,6 +26,21 @@ interface MtProtoDialogProjectionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entities: List<MtProtoDialogProjectionEntity>)
 
+    @Query(
+        "UPDATE mtproto_dialog_projection SET topMessageId = :messageId, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updateTopMessage(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        messageId: Int,
+        updatedAt: Long,
+    )
+
     @Query("DELETE FROM mtproto_dialog_projection WHERE accountSlot = :accountSlot AND environment = :environment")
     suspend fun deleteAccount(accountSlot: String, environment: String)
 }

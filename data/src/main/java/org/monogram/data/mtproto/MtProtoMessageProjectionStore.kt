@@ -92,6 +92,7 @@ internal class MtProtoRoomMessageProjectionStore(
     private val dao: MtProtoMessageProjectionDao,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val cloudObjectDao: MtProtoCloudObjectDao? = null,
+    private val dialogStore: MtProtoDialogStore? = null,
 ) : MtProtoMessageProjectionStore {
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
         applyLive(scope, envelope)
@@ -103,11 +104,11 @@ internal class MtProtoRoomMessageProjectionStore(
             is Updates_02c952992b -> applyUpdates(scope, envelope.updates)
             is UpdateShort -> applyUpdate(scope, envelope.update)
             is UpdateShortMessage -> {
-                dao.upsert(envelope.toEntity(scope))
+                persist(scope, envelope.toEntity(scope))
                 true
             }
             is UpdateShortChatMessage -> {
-                dao.upsert(envelope.toEntity(scope))
+                persist(scope, envelope.toEntity(scope))
                 true
             }
             is UpdateShortSentMessage -> false
@@ -204,8 +205,18 @@ internal class MtProtoRoomMessageProjectionStore(
 
     private suspend fun upsert(scope: MtProtoAuthKeyScope, message: Message_73e57f95e4): Boolean {
         val entity = message.toEntity(scope, nowMillis()) ?: return false
-        dao.upsert(entity)
+        persist(scope, entity)
         return true
+    }
+
+    private suspend fun persist(scope: MtProtoAuthKeyScope, entity: MtProtoMessageProjectionEntity) {
+        dao.upsert(entity)
+        dialogStore?.updateTopMessage(
+            scope = scope,
+            peerType = MtProtoMessagePeerType.valueOf(entity.peerType),
+            peerId = entity.peerId,
+            messageId = entity.messageId,
+        )
     }
 
     private fun Message_73e57f95e4.toEntity(scope: MtProtoAuthKeyScope, updatedAt: Long): MtProtoMessageProjectionEntity? = when (this) {

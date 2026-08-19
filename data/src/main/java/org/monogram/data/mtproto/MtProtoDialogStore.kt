@@ -47,6 +47,8 @@ internal interface MtProtoDialogStore {
 
     suspend fun upsert(scope: MtProtoAuthKeyScope, dialogs: List<Dialog_cf9860a8bd>) = Unit
 
+    suspend fun updateTopMessage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int) = Unit
+
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
 
@@ -60,6 +62,21 @@ internal class MtProtoRoomDialogStore(
     private val chatDao: MtProtoChatProjectionDao,
     private val dialogDao: MtProtoDialogProjectionDao,
 ) : MtProtoDialogStore {
+    override suspend fun updateTopMessage(
+        scope: MtProtoAuthKeyScope,
+        peerType: MtProtoMessagePeerType,
+        peerId: Long,
+        messageId: Int,
+    ) = dialogDao.updateTopMessage(
+        accountSlot = scope.accountSlot,
+        environment = scope.environment.storageName,
+        dcId = scope.dcId,
+        peerType = peerType.name,
+        peerId = peerId,
+        messageId = messageId,
+        updatedAt = System.currentTimeMillis(),
+    )
+
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
         dialogDao.deleteAccount(accountSlot, environment.storageName)
 

@@ -106,6 +106,7 @@ internal fun DefaultChatComponent.requestSenderRefreshIfNeeded(message: MessageM
 }
 
 internal fun DefaultChatComponent.requestSenderRefresh(senderId: Long) {
+    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     if (senderId <= 0L) return
     val now = System.currentTimeMillis()
     val lastRequestedAt = senderRefreshRequestedAtMs[senderId]
@@ -2349,6 +2350,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
 }
 
 private fun DefaultChatComponent.observeSenderUpdates() {
+    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     repositoryMessage.senderUpdateFlow
         .onEach { senderId ->
             if (senderId <= 0L) return@onEach

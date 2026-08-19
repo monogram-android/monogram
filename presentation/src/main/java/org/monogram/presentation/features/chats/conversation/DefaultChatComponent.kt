@@ -300,8 +300,8 @@ class DefaultChatComponent(
 
     internal val wallpaperRepository: WallpaperRepository = container.repositories.wallpaperRepository
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
-    internal val userRepository: UserRepository = container.repositories.userRepository
-    internal val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
+    internal val userRepository: UserRepository by lazy { container.repositories.userRepository }
+    internal val chatInfoRepository: ChatInfoRepository by lazy { container.repositories.chatInfoRepository }
     internal val botRepository: BotRepository = container.repositories.botRepository
     override val stickerRepository: StickerRepository = container.repositories.stickerRepository
     internal val gifRepository: GifRepository = container.repositories.gifRepository
@@ -311,7 +311,7 @@ class DefaultChatComponent(
     internal val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     internal val toastMessageDisplayer: MessageDisplayer = container.utils.messageDisplayer()
     internal val chatListRepository: ChatListRepository = container.repositories.chatListRepository
-    internal val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
+    internal val chatOperationsRepository: ChatOperationsRepository by lazy { container.repositories.chatOperationsRepository }
     internal val forumTopicsRepository: ForumTopicsRepository = container.repositories.forumTopicsRepository
     internal val backendModeRepository: TelegramBackendModeRepository = container.repositories.telegramBackendModeRepository
     internal val messageHistorySnapshotRepository: MessageHistorySnapshotRepository =
@@ -692,6 +692,7 @@ class DefaultChatComponent(
     }
 
     private fun loadMembers() {
+        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
         scope.launch {
             val currentState = _state.value
             if (currentState.isGroup || currentState.isChannel) {
@@ -709,6 +710,7 @@ class DefaultChatComponent(
     }
 
     private fun observeCurrentUser() {
+        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
         userRepository.currentUserFlow
             .onEach { user ->
                 _state.update { it.copy(currentUser = user) }

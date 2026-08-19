@@ -28,7 +28,8 @@ internal fun DefaultChatComponent.loadChatInfo() {
                 loadTopics()
             }
 
-            val isBot = baseChat.type == ChatType.PRIVATE && baseChat.isBot
+            val isBot = backendModeRepository.backendMode.value != org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO &&
+                    baseChat.type == ChatType.PRIVATE && baseChat.isBot
             if (isBot) {
                 val botInfo = botRepository.getBotInfo(chatId)
                 if (botInfo != null) {
@@ -146,6 +147,7 @@ internal fun DefaultChatComponent.loadTopics() {
 }
 
 internal fun DefaultChatComponent.observeUserUpdates() {
+    if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
     if (_state.value.isGroup || _state.value.isChannel) return
     scope.launch {
         userRepository.getUserFlow(chatId).collectLatest { user ->
@@ -323,6 +325,7 @@ internal fun DefaultChatComponent.handleConfirmRestrict(
 }
 
 private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
+    if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
     val me = runCatching { userRepository.getMe() }.getOrNull() ?: return
     val effectiveChatId = _state.value.effectiveThreadChatId(chatId)
     val effectiveChat = runCatching { chatListRepository.getChatById(effectiveChatId) }.getOrNull()
@@ -350,6 +353,7 @@ private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
 }
 
 private suspend fun DefaultChatComponent.refreshEffectiveChatDetails(effectiveChatId: Long) {
+    if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
     runCatching { chatInfoRepository.getChatFullInfo(effectiveChatId) }
         .getOrNull()
         ?.let { fullInfo ->

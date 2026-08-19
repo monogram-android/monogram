@@ -70,6 +70,7 @@ internal interface MtProtoMessageProjectionStore {
     suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>)
     suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel?
     suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel>
+    suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel>
     suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel>
     suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoMessageProjectionBackfillResult
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
@@ -87,6 +88,7 @@ internal object NoOpMtProtoMessageProjectionStore : MtProtoMessageProjectionStor
     override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>) = Unit
     override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? = null
     override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()
+    override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoMessageProjectionBackfillResult(0, 0)
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
@@ -134,6 +136,9 @@ internal class MtProtoRoomMessageProjectionStore(
 
     override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> =
         dao.getAll(scope.accountSlot, scope.environment.storageName, scope.dcId, peerType.name, peerId).map { it.toReadModel() }
+
+    override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel> =
+        dao.search(scope.accountSlot, scope.environment.storageName, scope.dcId, query, limit, offset).map { it.toReadModel() }
 
     override suspend fun getPage(
         scope: MtProtoAuthKeyScope,

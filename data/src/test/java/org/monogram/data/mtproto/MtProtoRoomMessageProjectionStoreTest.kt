@@ -72,6 +72,20 @@ class MtProtoRoomMessageProjectionStoreTest {
     }
 
     @Test
+    fun `search returns matching projections in stable paged order`() = runBlocking {
+        val dao = FakeMessageProjectionDao()
+        dao.upsert(entity(MtProtoMessagePeerType.USER, 7, 13, date = 101).copy(text = "alpha one"))
+        dao.upsert(entity(MtProtoMessagePeerType.USER, 7, 12, date = 100).copy(text = "beta"))
+        dao.upsert(entity(MtProtoMessagePeerType.GROUP, 8, 11, date = 99).copy(text = "alpha two"))
+        val store = MtProtoRoomMessageProjectionStore(dao)
+
+        val page = store.search(scope, "alpha", limit = 1, offset = 1)
+
+        assertEquals(listOf(11), page.map { it.messageId })
+        assertEquals(MtProtoMessagePeerType.GROUP, page.single().peerType)
+    }
+
+    @Test
     fun `history page uses date and message id cursor without overlap`() = runBlocking {
         val dao = FakeMessageProjectionDao()
         dao.upsert(entity(MtProtoMessagePeerType.USER, 7, 13, date = 101))
@@ -167,6 +181,12 @@ class MtProtoRoomMessageProjectionStoreTest {
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long) =
             entities.filter { it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.peerType == peerType && it.peerId == peerId }
                 .sortedWith(compareByDescending<MtProtoMessageProjectionEntity> { it.date }.thenByDescending { it.messageId })
+
+        override suspend fun search(accountSlot: String, environment: String, dcId: Int, query: String, limit: Int, offset: Int) = entities
+            .filter { it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && !it.isDeleted && it.text?.contains(query, ignoreCase = true) == true }
+            .sortedWith(compareByDescending<MtProtoMessageProjectionEntity> { it.date }.thenByDescending { it.messageId })
+            .drop(offset)
+            .take(limit)
 
         override suspend fun getPage(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, beforeDate: Int?, beforeMessageId: Int?, limit: Int) =
             getAll(accountSlot, environment, dcId, peerType, peerId)

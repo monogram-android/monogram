@@ -55,6 +55,21 @@ interface MtProtoMessageProjectionDao {
     ): List<MtProtoMessageProjectionEntity>
 
     @Query(
+        "SELECT * FROM mtproto_message_projection " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND isDeleted = 0 AND text IS NOT NULL AND lower(text) LIKE '%' || lower(:query) || '%' " +
+            "ORDER BY date DESC, messageId DESC LIMIT :limit OFFSET :offset"
+    )
+    suspend fun search(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        query: String,
+        limit: Int,
+        offset: Int,
+    ): List<MtProtoMessageProjectionEntity>
+
+    @Query(
         "SELECT * FROM mtproto_message_projection AS message " +
             "WHERE message.accountSlot = :accountSlot AND message.environment = :environment " +
             "AND message.dcId = :dcId AND NOT EXISTS (" +

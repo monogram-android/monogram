@@ -148,6 +148,7 @@ class MtProtoRoomCloudObjectStagerTest {
         override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) {
             differenceCalls += 1
         }
+        override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int) = emptyList<MtProtoMessageReadModel>()
         override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4>) = Unit
         override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? = null
         override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()

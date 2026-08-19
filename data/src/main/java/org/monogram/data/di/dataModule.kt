@@ -885,7 +885,13 @@ val dataModule = module {
     single<ChatListRepository> { get<TelegramBackendChatReadRouter>() }
     single<ChatFolderRepository> { get<TelegramBackendChatReadRouter>() }
     single<ChatOperationsRepository> { get<TelegramBackendChatReadRouter>() }
-    single { MtProtoChatSearchRepository(get<MtProtoDialogSnapshotRepository>()) }
+    single {
+        MtProtoChatSearchRepository(
+            dialogRepository = get<MtProtoDialogSnapshotRepository>(),
+            messageStore = get(),
+            configSource = get(),
+        )
+    }
     single<ChatSearchRepository> {
         TelegramBackendChatSearchRouter(
             selectionStore = get(),

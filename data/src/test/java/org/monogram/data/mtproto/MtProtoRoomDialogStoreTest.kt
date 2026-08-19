@@ -184,6 +184,7 @@ class MtProtoRoomDialogStoreTest {
     private class FakeMessageDao(private val messages: List<MtProtoMessageProjectionEntity>) : MtProtoMessageProjectionDao {
         override suspend fun get(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int) = messages.firstOrNull { it.peerType == peerType && it.peerId == peerId && it.messageId == messageId }
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long) = messages.filter { it.peerType == peerType && it.peerId == peerId }
+        override suspend fun search(accountSlot: String, environment: String, dcId: Int, query: String, limit: Int, offset: Int) = emptyList<MtProtoMessageProjectionEntity>()
         override suspend fun getPage(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, beforeDate: Int?, beforeMessageId: Int?, limit: Int) = getAll(accountSlot, environment, dcId, peerType, peerId).take(limit)
         override suspend fun getLatestByPeer(accountSlot: String, environment: String, dcId: Int) = messages
             .groupBy { it.peerType to it.peerId }

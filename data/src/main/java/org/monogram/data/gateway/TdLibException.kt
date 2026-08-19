@@ -1,8 +1,14 @@
 package org.monogram.data.gateway
 
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import java.util.concurrent.CancellationException
 import org.drinkless.tdlib.TdApi
 import org.monogram.domain.repository.AUTH_NETWORK_TIMEOUT_ERROR
 import org.monogram.domain.repository.AuthError
+import org.monogram.mtproto.handshake.MtProtoHandshakeException
+import org.monogram.mtproto.handshake.MtProtoHandshakeFailure
 import org.monogram.mtproto.transport.MtProtoRpcException
 
 class TdLibException(val error: TdApi.Error) : Exception(error.message)
@@ -46,7 +52,16 @@ fun Throwable.toUserMessage(defaultMessage: String = "Unknown error"): String {
 }
 
 fun Throwable.toAuthError(): AuthError {
+    if (this is CancellationException) return AuthError.Unexpected
     if (message == AUTH_NETWORK_TIMEOUT_ERROR) return AuthError.NetworkTimeout
+    if (this is SocketTimeoutException || this is SocketException || this is UnknownHostException) {
+        return AuthError.NetworkTimeout
+    }
+    if (this is MtProtoHandshakeException &&
+        (failure == MtProtoHandshakeFailure.TIMEOUT || failure == MtProtoHandshakeFailure.TRANSPORT)
+    ) {
+        return AuthError.NetworkTimeout
+    }
 
     val errorMessage = when (this) {
         is TdLibException -> error.message

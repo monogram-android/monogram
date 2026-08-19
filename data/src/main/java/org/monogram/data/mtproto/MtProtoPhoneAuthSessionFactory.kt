@@ -10,21 +10,21 @@ import org.monogram.mtproto.transport.MtProtoRpcTransport
 internal class MtProtoPhoneAuthSessionHandle internal constructor(
     private val transport: MtProtoRpcTransport,
     val session: MtProtoPhoneAuthSession,
-) : AutoCloseable {
+) : MtProtoAuthSessionHandle {
     private val closed = AtomicBoolean(false)
 
-    fun currentState(): AuthStep {
+    override fun currentState(): AuthStep {
         check(!closed.get()) { CLOSED_MESSAGE }
         return session.currentState()
     }
 
-    suspend fun requestCode(phone: String) = withOpen { session.requestCode(phone) }
+    override suspend fun requestCode(phone: String) = withOpen { session.requestCode(phone) }
 
-    suspend fun resendCode() = withOpen { session.resendCode() }
+    override suspend fun resendCode() = withOpen { session.resendCode() }
 
-    suspend fun submitCode(code: String) = withOpen { session.submitCode(code) }
+    override suspend fun submitCode(code: String) = withOpen { session.submitCode(code) }
 
-    suspend fun submitPassword(password: String) = withOpen { session.submitPassword(password) }
+    override suspend fun submitPassword(password: String) = withOpen { session.submitPassword(password) }
 
     override fun close() {
         if (closed.compareAndSet(false, true)) transport.close()
@@ -40,18 +40,30 @@ internal class MtProtoPhoneAuthSessionHandle internal constructor(
     }
 }
 
+internal interface MtProtoAuthSessionHandle : AutoCloseable {
+    fun currentState(): AuthStep
+    suspend fun requestCode(phone: String): AuthStep
+    suspend fun resendCode(): AuthStep
+    suspend fun submitCode(code: String): AuthStep
+    suspend fun submitPassword(password: String): AuthStep
+}
+
+internal fun interface MtProtoAuthSessionHandleFactory {
+    suspend fun open(accountSlot: String): MtProtoAuthSessionHandle
+}
+
 internal class MtProtoPhoneAuthSessionFactory(
     private val openTransport: suspend (String) -> MtProtoRpcTransport,
     private val apiId: Int,
     private val apiHash: String,
     private val codeSettings: CodeSettings_fb610807ca,
-) {
+) : MtProtoAuthSessionHandleFactory {
     init {
         require(apiId > 0) { "apiId must be positive" }
         require(apiHash.isNotBlank()) { "apiHash must not be blank" }
     }
 
-    suspend fun open(accountSlot: String = DEFAULT_ACCOUNT_SLOT): MtProtoPhoneAuthSessionHandle {
+    override suspend fun open(accountSlot: String): MtProtoPhoneAuthSessionHandle {
         val transport = openTransport(accountSlot)
         return try {
             MtProtoPhoneAuthSessionHandle(
@@ -68,6 +80,8 @@ internal class MtProtoPhoneAuthSessionFactory(
             throw failure
         }
     }
+
+    suspend fun open(): MtProtoPhoneAuthSessionHandle = open(DEFAULT_ACCOUNT_SLOT)
 
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"

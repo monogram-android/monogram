@@ -1,11 +1,20 @@
 package org.monogram.data.gateway
 
+import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import java.util.concurrent.CancellationException
 import org.drinkless.tdlib.TdApi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.repository.AuthError
+import org.monogram.mtproto.handshake.MtProtoHandshakeException
+import org.monogram.mtproto.handshake.MtProtoHandshakeFailure
 import org.monogram.mtproto.transport.MtProtoRpcException
 
 class TdLibExceptionAuthMappingTest {
@@ -77,6 +86,47 @@ class TdLibExceptionAuthMappingTest {
         assertEquals(
             AuthError.Unexpected,
             MtProtoRpcException(400, "PHONE_NUMBER_INVALID").toAuthError()
+        )
+    }
+
+    @Test
+    fun `maps mtproto handshake timeout and transport failures to network timeout`() {
+        assertEquals(
+            AuthError.NetworkTimeout,
+            MtProtoHandshakeException(MtProtoHandshakeFailure.TIMEOUT).toAuthError()
+        )
+        assertEquals(
+            AuthError.NetworkTimeout,
+            MtProtoHandshakeException(
+                MtProtoHandshakeFailure.TRANSPORT,
+                ConnectException("connection refused")
+            ).toAuthError()
+        )
+    }
+
+    @Test
+    fun `maps concrete socket connectivity failures to network timeout`() {
+        val failures = listOf(
+            SocketTimeoutException("read timed out"),
+            ConnectException("connection refused"),
+            UnknownHostException("host"),
+            NoRouteToHostException("unreachable"),
+            SocketException("connection reset")
+        )
+
+        failures.forEach { failure ->
+            assertEquals(AuthError.NetworkTimeout, failure.toAuthError())
+        }
+    }
+
+    @Test
+    fun `does not map cancellation or generic failures as network timeout`() {
+        assertEquals(AuthError.Unexpected, CancellationException("cancelled").toAuthError())
+        assertEquals(AuthError.Unexpected, IOException("malformed frame").toAuthError())
+        assertEquals(AuthError.Unexpected, IllegalStateException("bug").toAuthError())
+        assertEquals(
+            AuthError.Unexpected,
+            MtProtoHandshakeException(MtProtoHandshakeFailure.PROTOCOL_VALIDATION).toAuthError()
         )
     }
 

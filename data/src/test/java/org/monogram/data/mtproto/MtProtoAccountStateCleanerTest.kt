@@ -10,16 +10,22 @@ import org.monogram.mtproto.updates.MtProtoUpdateCursor
 
 class MtProtoAccountStateCleanerTest {
     @Test
-    fun `deletes auth keys and cursors for the same account scope`() = runBlocking {
+    fun `deletes all owned stores for the same account scope`() = runBlocking {
         val authStore = FakeAuthKeyStore()
         val cursorStore = FakeCursorStore()
         val pendingStore = FakePendingStore()
         val cloudStore = FakeCloudObjectStager()
+        val userStore = FakeUserProjectionStore()
+        val chatStore = FakeChatProjectionStore()
+        val messageStore = FakeMessageProjectionStore()
         val cleaner = MtProtoAccountStateCleaner(
             MtProtoAuthKeyPersistence(authStore),
             cursorStore,
             pendingStore,
             cloudStore,
+            userStore,
+            chatStore,
+            messageStore,
         )
 
         cleaner.deleteAccount("slot_a", MtProtoEnvironment.TEST)
@@ -28,20 +34,29 @@ class MtProtoAccountStateCleanerTest {
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), cursorStore.deletedAccounts)
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), pendingStore.deletedAccounts)
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), cloudStore.deletedAccounts)
+        assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), userStore.deletedAccounts)
+        assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), chatStore.deletedAccounts)
+        assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), messageStore.deletedAccounts)
     }
 
     @Test
-    fun `attempts cursor cleanup when auth cleanup fails`() = runBlocking {
+    fun `attempts every remaining cleanup when auth cleanup fails`() = runBlocking {
         val authFailure = IllegalStateException("auth delete failed")
         val authStore = FakeAuthKeyStore(deleteFailure = authFailure)
         val cursorStore = FakeCursorStore()
         val pendingStore = FakePendingStore()
         val cloudStore = FakeCloudObjectStager()
+        val userStore = FakeUserProjectionStore()
+        val chatStore = FakeChatProjectionStore()
+        val messageStore = FakeMessageProjectionStore()
         val cleaner = MtProtoAccountStateCleaner(
             MtProtoAuthKeyPersistence(authStore),
             cursorStore,
             pendingStore,
             cloudStore,
+            userStore,
+            chatStore,
+            messageStore,
         )
 
         val thrown = assertThrows(IllegalStateException::class.java) {
@@ -52,6 +67,9 @@ class MtProtoAccountStateCleanerTest {
         assertEquals(1, cursorStore.deletedAccounts.size)
         assertEquals(1, pendingStore.deletedAccounts.size)
         assertEquals(1, cloudStore.deletedAccounts.size)
+        assertEquals(1, userStore.deletedAccounts.size)
+        assertEquals(1, chatStore.deletedAccounts.size)
+        assertEquals(1, messageStore.deletedAccounts.size)
         Unit
     }
 
@@ -61,11 +79,17 @@ class MtProtoAccountStateCleanerTest {
         val cursorFailure = IllegalArgumentException("cursor delete failed")
         val pendingFailure = UnsupportedOperationException("pending delete failed")
         val cloudFailure = IllegalStateException("cloud delete failed")
+        val userFailure = IllegalArgumentException("user delete failed")
+        val chatFailure = UnsupportedOperationException("chat delete failed")
+        val messageFailure = IllegalStateException("message delete failed")
         val cleaner = MtProtoAccountStateCleaner(
             MtProtoAuthKeyPersistence(FakeAuthKeyStore(deleteFailure = authFailure)),
             FakeCursorStore(deleteFailure = cursorFailure),
             FakePendingStore(deleteFailure = pendingFailure),
             FakeCloudObjectStager(deleteFailure = cloudFailure),
+            FakeUserProjectionStore(deleteFailure = userFailure),
+            FakeChatProjectionStore(deleteFailure = chatFailure),
+            FakeMessageProjectionStore(deleteFailure = messageFailure),
         )
 
         val thrown = assertThrows(IllegalStateException::class.java) {
@@ -73,7 +97,35 @@ class MtProtoAccountStateCleanerTest {
         }
 
         assertSame(authFailure, thrown)
-        assertEquals(listOf(cursorFailure, pendingFailure, cloudFailure), thrown.suppressed.toList())
+        assertEquals(
+            listOf(cursorFailure, pendingFailure, cloudFailure, userFailure, chatFailure, messageFailure),
+            thrown.suppressed.toList(),
+        )
+        Unit
+    }
+
+    @Test
+    fun `propagates cancellation from a projection without continuing cleanup`() = runBlocking {
+        val cancelled = CancellationException("cancelled")
+        val chatStore = FakeChatProjectionStore()
+        val messageStore = FakeMessageProjectionStore()
+        val cleaner = MtProtoAccountStateCleaner(
+            MtProtoAuthKeyPersistence(FakeAuthKeyStore()),
+            FakeCursorStore(),
+            FakePendingStore(),
+            FakeCloudObjectStager(),
+            FakeUserProjectionStore(deleteFailure = cancelled),
+            chatStore,
+            messageStore,
+        )
+
+        val thrown = assertThrows(CancellationException::class.java) {
+            runBlocking { cleaner.deleteAccount("slot_a", MtProtoEnvironment.TEST) }
+        }
+
+        assertSame(cancelled, thrown)
+        assertEquals(0, chatStore.deletedAccounts.size)
+        assertEquals(0, messageStore.deletedAccounts.size)
         Unit
     }
 
@@ -86,6 +138,9 @@ class MtProtoAccountStateCleanerTest {
             cursorStore,
             FakePendingStore(),
             FakeCloudObjectStager(),
+            FakeUserProjectionStore(),
+            FakeChatProjectionStore(),
+            FakeMessageProjectionStore(),
         )
 
         val thrown = assertThrows(CancellationException::class.java) {
@@ -137,6 +192,39 @@ class MtProtoAccountStateCleanerTest {
 
         override suspend fun pending(scope: MtProtoAuthKeyScope): List<MtProtoPendingEnvelope> = error("not used")
         override suspend fun delete(sequenceId: Long) = error("not used")
+
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
+            deletedAccounts += accountSlot to environment
+            deleteFailure?.let { throw it }
+        }
+    }
+
+    private class FakeUserProjectionStore(
+        private val deleteFailure: Throwable? = null,
+    ) : MtProtoUserProjectionStore by NoOpMtProtoUserProjectionStore {
+        val deletedAccounts = mutableListOf<Pair<String, MtProtoEnvironment>>()
+
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
+            deletedAccounts += accountSlot to environment
+            deleteFailure?.let { throw it }
+        }
+    }
+
+    private class FakeChatProjectionStore(
+        private val deleteFailure: Throwable? = null,
+    ) : MtProtoChatProjectionStore by NoOpMtProtoChatProjectionStore {
+        val deletedAccounts = mutableListOf<Pair<String, MtProtoEnvironment>>()
+
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
+            deletedAccounts += accountSlot to environment
+            deleteFailure?.let { throw it }
+        }
+    }
+
+    private class FakeMessageProjectionStore(
+        private val deleteFailure: Throwable? = null,
+    ) : MtProtoMessageProjectionStore by NoOpMtProtoMessageProjectionStore {
+        val deletedAccounts = mutableListOf<Pair<String, MtProtoEnvironment>>()
 
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
             deletedAccounts += accountSlot to environment

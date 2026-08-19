@@ -14,9 +14,12 @@ import org.monogram.data.BuildConfig
 import org.monogram.data.backend.KeyValueTelegramBackendSelectionStore
 import org.monogram.data.backend.LegacyActiveAccountBinding
 import org.monogram.data.backend.LegacyBackendAccessGuard
+import org.monogram.data.backend.LegacyMessageHistorySnapshotRepository
 import org.monogram.data.backend.LegacyUserProfileSnapshotRepository
 import org.monogram.data.backend.LegacyDialogSnapshotRepository
+import org.monogram.data.backend.TelegramBackendReadRouter
 import org.monogram.data.backend.TelegramBackendSelectionStore
+import org.monogram.data.backend.TelegramBackendSwitchService
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.PlayerDataSourceFactoryImpl
@@ -89,6 +92,10 @@ import org.monogram.data.mtproto.MtProtoRecoveryStateStore
 import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
 import org.monogram.data.mtproto.MtProtoAccountStateCleaner
+import org.monogram.data.mtproto.MtProtoAccountStateResetter
+import org.monogram.data.mtproto.MtProtoAuthRepository
+import org.monogram.data.mtproto.MtProtoAuthSessionHandleFactory
+import org.monogram.data.mtproto.MtProtoPhoneAuthSessionFactory
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.TelegramGatewayImpl
 import org.monogram.data.gateway.UpdateDispatcher
@@ -188,6 +195,7 @@ import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.domain.repository.ChatStatisticsRepository
 import org.monogram.domain.repository.ClientOptionsRepository
 import org.monogram.domain.repository.ContactEditRepository
+import org.monogram.domain.repository.DialogSnapshotRepository
 import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.ForumTopicsRepository
@@ -197,6 +205,7 @@ import org.monogram.domain.repository.InlineBotRepository
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.LocationRepository
 import org.monogram.domain.repository.MessageAiRepository
+import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
@@ -218,9 +227,11 @@ import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StreamingRepository
 import org.monogram.domain.repository.StringProvider
+import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.TdLibLimitsRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
+import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_3f851bba91
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
@@ -259,6 +270,28 @@ val dataModule = module {
             messageProjectionStore = get(),
         )
     }
+    single {
+        MtProtoPhoneAuthSessionFactory(
+            openTransport = { accountSlot ->
+                get<TelegramMtProtoSessionFactory>().open(accountSlot)
+            },
+            apiId = BuildConfig.API_ID,
+            apiHash = BuildConfig.API_HASH,
+            codeSettings = CodeSettings_3f851bba91(
+                allowFlashcall = false,
+                currentNumber = false,
+                allowAppHash = true,
+                allowMissedCall = false,
+                allowFirebase = false,
+                unknownNumber = false,
+                logoutTokens = null,
+                token = null,
+                appSandbox = null,
+            ),
+        )
+    }
+    single<MtProtoAuthSessionHandleFactory> { get<MtProtoPhoneAuthSessionFactory>() }
+    single { MtProtoAuthRepository(get(), get()) }
     single(createdAtStart = true) { TdLibParametersProvider(androidContext(), get()) }
     single(createdAtStart = true) {
         OfflineWarmup(
@@ -419,7 +452,18 @@ val dataModule = module {
     single<MtProtoRecoveryStateStore> { get<MtProtoRoomUpdateStateStore>() }
     single { MtProtoRoomUpdateRecovery(get(), get(), get()) }
     single<MtProtoUpdateCursorStore> { get<MtProtoRoomUpdateStateStore>() }
-    single { MtProtoAccountStateCleaner(get<MtProtoAuthKeyPersistence>(), get(), get(), get()) }
+    single {
+        MtProtoAccountStateCleaner(
+            authKeyPersistence = get(),
+            updateCursorStore = get(),
+            pendingEnvelopeStore = get(),
+            cloudObjectStager = get(),
+            userProjectionStore = get(),
+            chatProjectionStore = get(),
+            messageProjectionStore = get(),
+        )
+    }
+    single<MtProtoAccountStateResetter> { get<MtProtoAccountStateCleaner>() }
     single { get<MonogramDatabase>().userDao() }
     single { get<MonogramDatabase>().chatFullInfoDao() }
     single { get<MonogramDatabase>().topicDao() }
@@ -434,6 +478,13 @@ val dataModule = module {
     single<TelegramBackendSelectionStore> { get<KeyValueTelegramBackendSelectionStore>() }
     single { LegacyActiveAccountBinding() }
     single { LegacyBackendAccessGuard(get(), get()) }
+    single {
+        TelegramBackendSwitchService(
+            selectionStore = get(),
+            legacyActiveAccountBinding = get(),
+            mtProtoAccountStateResetter = get<MtProtoAccountStateResetter>(),
+        )
+    }
     single { get<MonogramDatabase>().notificationSettingDao() }
     single { get<MonogramDatabase>().notificationExceptionDao() }
     single { get<MonogramDatabase>().wallpaperDao() }
@@ -485,6 +536,21 @@ val dataModule = module {
     }
     single { LegacyUserProfileSnapshotRepository(get(), get<UserRepository>()) }
     single { LegacyDialogSnapshotRepository(get(), get<ChatListRepository>(), get()) }
+    single { LegacyMessageHistorySnapshotRepository(get(), get<MessageRepository>(), get()) }
+    single {
+        TelegramBackendReadRouter(
+            selectionStore = get(),
+            legacyDialogs = get<LegacyDialogSnapshotRepository>(),
+            mtProtoDialogs = get<MtProtoDialogSnapshotRepository>(),
+            legacyMessageHistory = get<LegacyMessageHistorySnapshotRepository>(),
+            mtProtoMessageHistory = get<MtProtoMessageHistorySnapshotRepository>(),
+            legacyUserProfiles = get<LegacyUserProfileSnapshotRepository>(),
+            mtProtoUserProfiles = get<MtProtoUserProfileSnapshotRepository>(),
+        )
+    }
+    single<DialogSnapshotRepository> { get<TelegramBackendReadRouter>() }
+    single<MessageHistorySnapshotRepository> { get<TelegramBackendReadRouter>() }
+    single<UserProfileSnapshotRepository> { get<TelegramBackendReadRouter>() }
 
     single<UserProfileEditRepository> {
         UserProfileEditRepositoryImpl(

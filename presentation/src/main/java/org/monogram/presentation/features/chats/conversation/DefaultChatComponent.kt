@@ -496,7 +496,9 @@ class DefaultChatComponent(
                     componentInstanceId = componentInstanceId
                 )
                 conversationSession.close(loadingGeneration + 1L)
-                repositoryMessage.closeChat(chatId, ownerTag = componentInstanceId)
+                if (backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
+                    repositoryMessage.closeChat(chatId, ownerTag = componentInstanceId)
+                }
             }
         }
 

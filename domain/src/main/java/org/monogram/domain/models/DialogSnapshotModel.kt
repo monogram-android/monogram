@@ -9,6 +9,10 @@ data class DialogSnapshotModel(
     val isPeerDeleted: Boolean,
     val isPeerForbidden: Boolean,
     val latestMessage: DialogMessagePreviewModel,
+    val unreadCount: Int = 0,
+    val unreadMentionsCount: Int = 0,
+    val unreadReactionsCount: Int = 0,
+    val isPinned: Boolean = false,
 )
 
 enum class DialogPeerType {

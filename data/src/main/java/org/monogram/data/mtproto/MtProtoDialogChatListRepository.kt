@@ -107,7 +107,7 @@ internal class MtProtoDialogChatListRepository(
         return ChatModel(
             id = chatId,
             title = title?.takeIf(String::isNotBlank) ?: username.orEmpty().ifBlank { chatId.toString() },
-            unreadCount = 0,
+            unreadCount = unreadCount,
             lastMessageText = latestMessage.text.orEmpty(),
             lastMessageDate = latestMessage.date,
             lastMessageId = latestMessage.messageId,

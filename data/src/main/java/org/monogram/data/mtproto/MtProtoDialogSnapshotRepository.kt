@@ -77,6 +77,10 @@ internal class MtProtoDialogSnapshotRepository(
         isPeerResolved = isPeerResolved,
         isPeerDeleted = isPeerDeleted,
         isPeerForbidden = isPeerForbidden,
+        unreadCount = unreadCount,
+        unreadMentionsCount = unreadMentionsCount,
+        unreadReactionsCount = unreadReactionsCount,
+        isPinned = isPinned,
         latestMessage = DialogMessagePreviewModel(
             messageId = latestMessage.messageId.toLong(),
             senderId = latestMessage.senderId,

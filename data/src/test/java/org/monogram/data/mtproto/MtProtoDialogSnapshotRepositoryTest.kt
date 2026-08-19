@@ -23,6 +23,9 @@ class MtProtoDialogSnapshotRepositoryTest {
         assertEquals(DialogPeerType.SUPERGROUP, dialogs.single().peerType)
         assertEquals("Group", dialogs.single().title)
         assertEquals("hello", dialogs.single().latestMessage.text)
+        assertEquals(2, dialogs.single().unreadCount)
+        assertEquals(1, dialogs.single().unreadMentionsCount)
+        assertEquals(true, dialogs.single().isPinned)
     }
 
     private fun config(dcId: Int) = TelegramMtProtoBootstrapConfig(
@@ -52,6 +55,10 @@ class MtProtoDialogSnapshotRepositoryTest {
                     isPeerResolved = true,
                     isPeerDeleted = false,
                     isPeerForbidden = false,
+                    unreadCount = 2,
+                    unreadMentionsCount = 1,
+                    unreadReactionsCount = 0,
+                    isPinned = true,
                     latestMessage = MtProtoDialogMessagePreview(
                         messageId = 20,
                         senderType = MtProtoMessagePeerType.USER,

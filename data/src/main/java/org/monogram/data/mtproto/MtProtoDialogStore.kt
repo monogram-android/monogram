@@ -33,6 +33,10 @@ internal data class MtProtoDialogReadModel(
     val isPeerResolved: Boolean,
     val isPeerDeleted: Boolean,
     val isPeerForbidden: Boolean,
+    val unreadCount: Int,
+    val unreadMentionsCount: Int,
+    val unreadReactionsCount: Int,
+    val isPinned: Boolean,
     val latestMessage: MtProtoDialogMessagePreview,
 )
 
@@ -166,6 +170,10 @@ internal class MtProtoRoomDialogStore(
         isPeerResolved = user != null || chat != null,
         isPeerDeleted = user?.isDeleted ?: chat?.isDeleted ?: false,
         isPeerForbidden = chat?.isForbidden ?: false,
+        unreadCount = 0,
+        unreadMentionsCount = 0,
+        unreadReactionsCount = 0,
+        isPinned = false,
         latestMessage = MtProtoDialogMessagePreview(
             messageId = messageId,
             senderType = senderType?.let(MtProtoMessagePeerType::valueOf),
@@ -193,6 +201,10 @@ internal class MtProtoRoomDialogStore(
         isPeerResolved = user != null || chat != null,
         isPeerDeleted = user?.isDeleted ?: chat?.isDeleted ?: false,
         isPeerForbidden = chat?.isForbidden ?: false,
+        unreadCount = this.unreadCount,
+        unreadMentionsCount = this.unreadMentionsCount,
+        unreadReactionsCount = this.unreadReactionsCount,
+        isPinned = pinned,
         latestMessage = MtProtoDialogMessagePreview(
             messageId = message?.messageId ?: topMessageId,
             senderType = message?.senderType?.let(MtProtoMessagePeerType::valueOf),

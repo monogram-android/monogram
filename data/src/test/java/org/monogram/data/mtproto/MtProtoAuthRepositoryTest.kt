@@ -94,6 +94,48 @@ class MtProtoAuthRepositoryTest {
     }
 
     @Test
+    fun `submits login email only from setup state`() = runTest {
+        val handle = FakeHandle(
+            requestCode = { AuthStep.InputLoginEmail },
+            submitLoginEmail = {
+                AuthStep.InputCode(
+                    delivery = AuthCodeDelivery.EMAIL,
+                    codeLength = 6,
+                    isEmailCode = true,
+                    isLoginEmailSetupCode = true,
+                    emailPattern = "e***",
+                )
+            },
+        )
+        val repository = MtProtoAuthRepository(
+            sessionFactory = MtProtoAuthSessionHandleFactory { handle },
+            scope = backgroundScope,
+        )
+
+        repository.sendLoginEmail("ada@example.com")
+        testScheduler.runCurrent()
+        assertEquals(emptyList<String>(), handle.loginEmails)
+
+        repository.sendPhone("+10000000000")
+        testScheduler.runCurrent()
+        assertEquals(AuthStep.InputLoginEmail, repository.authState.value)
+
+        repository.sendLoginEmail("ada@example.com")
+        testScheduler.runCurrent()
+        assertEquals(listOf("ada@example.com"), handle.loginEmails)
+        assertEquals(
+            AuthStep.InputCode(
+                delivery = AuthCodeDelivery.EMAIL,
+                codeLength = 6,
+                isEmailCode = true,
+                isLoginEmailSetupCode = true,
+                emailPattern = "e***",
+            ),
+            repository.authState.value,
+        )
+    }
+
+    @Test
     fun `maps failure and retry reuses session while preserving state`() = runTest {
         var attempt = 0
         val inputCode = AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 6)
@@ -210,11 +252,13 @@ class MtProtoAuthRepositoryTest {
         private val submitCode: suspend (String) -> AuthStep = { error("unexpected code") },
         private val submitPassword: suspend (String) -> AuthStep = { error("unexpected password") },
         private val submitSignUp: suspend (String, String) -> AuthStep = { _, _ -> error("unexpected sign-up") },
+        private val submitLoginEmail: suspend (String) -> AuthStep = { error("unexpected login email") },
     ) : MtProtoAuthSessionHandle {
         val phones = mutableListOf<String>()
         val codes = mutableListOf<String>()
         val passwords = mutableListOf<String>()
         val signUps = mutableListOf<Pair<String, String>>()
+        val loginEmails = mutableListOf<String>()
         val resendCalls = AtomicInteger()
         val closeCalls = AtomicInteger()
 
@@ -243,6 +287,11 @@ class MtProtoAuthRepositoryTest {
         override suspend fun submitSignUp(firstName: String, lastName: String): AuthStep {
             signUps += firstName to lastName
             return submitSignUp.invoke(firstName, lastName)
+        }
+
+        override suspend fun submitLoginEmail(email: String): AuthStep {
+            loginEmails += email
+            return submitLoginEmail.invoke(email)
         }
 
         override fun close() {

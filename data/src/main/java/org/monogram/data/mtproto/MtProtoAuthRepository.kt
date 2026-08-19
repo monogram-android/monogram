@@ -69,6 +69,10 @@ internal class MtProtoAuthRepository(
         submit(PendingAction(AuthSubmissionStage.SIGN_UP, firstName, lastName))
     }
 
+    override fun sendLoginEmail(email: String) {
+        submit(PendingAction(AuthSubmissionStage.LOGIN_EMAIL, email))
+    }
+
     override fun retryLastAction() {
         val action = synchronized(lock) {
             if (activeJob?.isActive == true) null else pendingAction
@@ -184,6 +188,7 @@ internal class MtProtoAuthRepository(
                 firstName = requireNotNull(action.payload),
                 lastName = requireNotNull(action.secondaryPayload),
             )
+            AuthSubmissionStage.LOGIN_EMAIL -> handle.submitLoginEmail(requireNotNull(action.payload))
         }
     }
 
@@ -228,6 +233,7 @@ internal class MtProtoAuthRepository(
         AuthSubmissionStage.RESEND -> (_authState.value as? AuthStep.InputCode)?.canResend == true
         AuthSubmissionStage.PASSWORD -> _authState.value is AuthStep.InputPassword
         AuthSubmissionStage.SIGN_UP -> _authState.value is AuthStep.InputSignUp
+        AuthSubmissionStage.LOGIN_EMAIL -> _authState.value is AuthStep.InputLoginEmail
     }
 
     private companion object {

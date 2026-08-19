@@ -66,14 +66,34 @@ internal class MtProtoPhoneAuthSession(
         state
     }
 
+    suspend fun submitLoginEmail(email: String): AuthStep = mutex.withLock {
+        val phone = phoneNumber ?: error("Phone authorization has not started")
+        val hash = phoneCodeHash ?: error("No phone code is available")
+        check(state is AuthStep.InputLoginEmail) { "Login email is not expected" }
+        val sent = api.sendLoginSetupEmail(phone, hash, email)
+        state = AuthStep.InputCode(
+            delivery = AuthCodeDelivery.EMAIL,
+            codeLength = sent.length,
+            isEmailCode = true,
+            isLoginEmailSetupCode = true,
+            emailPattern = sent.emailPattern,
+        )
+        state
+    }
+
     suspend fun submitCode(code: String): AuthStep = mutex.withLock {
         val phone = phoneNumber ?: error("Phone authorization has not started")
         val hash = phoneCodeHash ?: error("No phone code is available")
         check(state is AuthStep.InputCode) { "Phone code is not expected" }
         require(code.isNotBlank()) { "code must not be blank" }
-        val isEmailCode = (state as AuthStep.InputCode).isEmailCode
+        val codeState = state as AuthStep.InputCode
+        if (codeState.isLoginEmailSetupCode) {
+            val outcome = mapSentCode(api.verifyLoginSetupEmail(phone, hash, code))
+            commitOutcome(phone, outcome)
+            return@withLock state
+        }
         return try {
-            when (val authorization = if (isEmailCode) {
+            when (val authorization = if (codeState.isEmailCode) {
                 api.signInWithEmailCode(phone, hash, code)
             } else {
                 api.signIn(phone, hash, code)
@@ -147,6 +167,9 @@ internal class MtProtoPhoneAuthSession(
             }
             is SentCodePaymentRequired -> throw UnsupportedOperationException("MTProto paid-code flow is not implemented")
             is SentCode_f9e8fc1d16 -> {
+                if (sent.type is SentCodeTypeSetUpEmailRequired) {
+                    return SentCodeOutcome(AuthStep.InputLoginEmail, sent.phoneCodeHash)
+                }
                 val details = sent.type.toDomainDetails()
                 SentCodeOutcome(
                     state = AuthStep.InputCode(
@@ -189,7 +212,7 @@ internal class MtProtoPhoneAuthSession(
             length = length,
             emailPattern = emailPattern,
         )
-        is SentCodeTypeSetUpEmailRequired -> throw UnsupportedOperationException("MTProto email setup is not implemented")
+        is SentCodeTypeSetUpEmailRequired -> CodeDetails(AuthCodeDelivery.EMAIL, length = 0)
         else -> throw IllegalStateException("Unsupported MTProto sent-code type: ${constructorId}")
     }
 

@@ -45,6 +45,7 @@ import org.monogram.presentation.features.auth.components.CodeInputScreen
 import org.monogram.presentation.features.auth.components.PasswordInputScreen
 import org.monogram.presentation.features.auth.components.PhoneInputScreen
 import org.monogram.presentation.features.auth.components.SignUpInputScreen
+import org.monogram.presentation.features.auth.components.LoginEmailInputScreen
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -59,7 +60,8 @@ fun AuthContent(component: AuthComponent) {
 
     val isCustomBackHandlingEnabled = model.authState is AuthComponent.AuthState.InputCode ||
         model.authState is AuthComponent.AuthState.InputPassword ||
-        model.authState is AuthComponent.AuthState.InputSignUp
+        model.authState is AuthComponent.AuthState.InputSignUp ||
+        model.authState is AuthComponent.AuthState.InputLoginEmail
 
     BackHandler(enabled = isCustomBackHandlingEnabled) {
         component.onBackToPhone()
@@ -85,6 +87,7 @@ fun AuthContent(component: AuthComponent) {
                                     is AuthComponent.AuthState.InputCode -> stringResource(R.string.auth_title_verification)
                                     is AuthComponent.AuthState.InputPassword -> stringResource(R.string.auth_title_password)
                                     AuthComponent.AuthState.InputSignUp -> stringResource(R.string.auth_signup_title)
+                                    AuthComponent.AuthState.InputLoginEmail -> stringResource(R.string.auth_login_email_title)
                                 },
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
@@ -93,7 +96,8 @@ fun AuthContent(component: AuthComponent) {
                         navigationIcon = {
                             if (model.authState is AuthComponent.AuthState.InputCode ||
                                 model.authState is AuthComponent.AuthState.InputPassword ||
-                                model.authState is AuthComponent.AuthState.InputSignUp
+                                model.authState is AuthComponent.AuthState.InputSignUp ||
+                                model.authState is AuthComponent.AuthState.InputLoginEmail
                             ) {
                                 IconButton(onClick = component::onBackToPhone) {
                                     Icon(
@@ -201,6 +205,11 @@ fun AuthContent(component: AuthComponent) {
                             onConfirm = component::onSignUpSubmitted,
                             isSubmitting = model.isSubmitting,
                         )
+
+                        AuthComponent.AuthState.InputLoginEmail -> LoginEmailInputScreen(
+                            onConfirm = component::onLoginEmailSubmitted,
+                            isSubmitting = model.isSubmitting,
+                        )
                     }
                 }
             }
@@ -223,4 +232,5 @@ private val AuthComponent.AuthState.index: Int
         is AuthComponent.AuthState.InputCode -> 2
         is AuthComponent.AuthState.InputPassword -> 3
         AuthComponent.AuthState.InputSignUp -> 4
+        AuthComponent.AuthState.InputLoginEmail -> 5
     }

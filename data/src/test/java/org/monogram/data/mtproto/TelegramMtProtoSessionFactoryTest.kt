@@ -15,6 +15,14 @@ import org.monogram.mtproto.tl.runtime.TlMethod
 
 class TelegramMtProtoSessionFactoryTest {
     @Test
+    fun usesTDLibProductionFallbackForDcFive() {
+        assertEquals(
+            TelegramMtProtoEndpoint(5, "149.154.171.5", 443),
+            telegramMtProtoEndpointForDc(5),
+        )
+    }
+
+    @Test
     fun closesHandshakeAndTransfersKeyToEncryptedAssembler() = runBlocking {
         val endpoint = TelegramMtProtoEndpoint(2, "149.154.167.51", 443)
         val config = config(endpoint)

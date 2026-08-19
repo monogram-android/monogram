@@ -29,6 +29,8 @@ internal class MtProtoPhoneAuthSessionHandle internal constructor(
     override suspend fun submitSignUp(firstName: String, lastName: String) =
         withOpen { session.submitSignUp(firstName, lastName) }
 
+    override suspend fun submitLoginEmail(email: String) = withOpen { session.submitLoginEmail(email) }
+
     override fun close() {
         if (closed.compareAndSet(false, true)) transport.close()
     }
@@ -50,6 +52,7 @@ internal interface MtProtoAuthSessionHandle : AutoCloseable {
     suspend fun submitCode(code: String): AuthStep
     suspend fun submitPassword(password: String): AuthStep
     suspend fun submitSignUp(firstName: String, lastName: String): AuthStep
+    suspend fun submitLoginEmail(email: String): AuthStep
 }
 
 internal fun interface MtProtoAuthSessionHandleFactory {

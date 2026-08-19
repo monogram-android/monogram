@@ -141,6 +141,9 @@
     <string name="auth_signup_first_name">First name</string>
     <string name="auth_signup_last_name">Last name (optional)</string>
     <string name="auth_signup_continue">Continue</string>
+    <string name="auth_login_email_title">Add Email</string>
+    <string name="auth_login_email_description">Enter an email address to finish setting up sign-in.</string>
+    <string name="auth_login_email_address">Email address</string>
     <string name="dismiss_button">Dismiss</string>
 
     <!-- Loading -->

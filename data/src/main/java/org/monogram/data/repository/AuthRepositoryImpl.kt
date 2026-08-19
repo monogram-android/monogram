@@ -179,6 +179,7 @@ class AuthRepositoryImpl(
                 AuthSubmissionStage.RESEND -> resendCode()
                 AuthSubmissionStage.PASSWORD -> sendPassword(action.payload)
                 AuthSubmissionStage.SIGN_UP -> Unit
+                AuthSubmissionStage.LOGIN_EMAIL -> Unit
             }
         }
     }
@@ -264,6 +265,7 @@ class AuthRepositoryImpl(
             AuthSubmissionStage.RESEND -> _authState.value is AuthStep.InputCode
             AuthSubmissionStage.PASSWORD -> _authState.value is AuthStep.InputPassword
             AuthSubmissionStage.SIGN_UP -> false
+            AuthSubmissionStage.LOGIN_EMAIL -> false
         }
     }
 
@@ -281,6 +283,7 @@ class AuthRepositoryImpl(
             AuthSubmissionStage.RESEND -> state is AuthStep.InputCode
             AuthSubmissionStage.PASSWORD -> state is AuthStep.Ready
             AuthSubmissionStage.SIGN_UP -> false
+            AuthSubmissionStage.LOGIN_EMAIL -> false
         }
     }
 
@@ -298,7 +301,8 @@ class AuthRepositoryImpl(
             AuthSubmissionStage.RESEND -> listOf("resendAuthenticationCode")
 
             AuthSubmissionStage.PASSWORD -> listOf("checkAuthenticationPassword")
-            AuthSubmissionStage.SIGN_UP -> emptyList()
+            AuthSubmissionStage.SIGN_UP,
+            AuthSubmissionStage.LOGIN_EMAIL -> emptyList()
         }
 
         return isExpectedNextState(stage, _authState.value) &&

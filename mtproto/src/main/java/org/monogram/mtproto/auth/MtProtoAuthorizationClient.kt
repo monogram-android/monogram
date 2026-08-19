@@ -6,10 +6,15 @@ import org.monogram.mtproto.crypto.EntropySource
 import org.monogram.mtproto.crypto.SecureEntropySource
 import org.monogram.mtproto.crypto.TelegramPasswordSrp
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmailVerificationCode
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmailVerifyPurposeLoginSetup
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputCheckPasswordSrp_5100d694df
 import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoSha256Sha256Pbkdf2Hmacsha512Iter100000Sha256ModPow
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_fb610807ca
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.EmailVerifiedLogin
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetPassword
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.SendVerifyEmailCode
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.SentEmailCode_c0a17c9b71
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.VerifyEmail
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.Password_ac67a26d5c
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_fb75ff221f
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CheckPassword
@@ -21,6 +26,11 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SignUp
 import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.transport.MtProtoRpcException
 import org.monogram.mtproto.transport.MtProtoRpcTransport
+
+data class MtProtoLoginSetupEmailCode(
+    val emailPattern: String,
+    val length: Int,
+)
 
 data class MtProtoPasswordChallengeInfo(
     val hint: String?,
@@ -44,6 +54,18 @@ interface MtProtoAuthorizationApi {
         phoneCodeHash: String,
         emailCode: String,
     ): Authorization_fb75ff221f
+
+    suspend fun sendLoginSetupEmail(
+        phoneNumber: String,
+        phoneCodeHash: String,
+        email: String,
+    ): MtProtoLoginSetupEmailCode
+
+    suspend fun verifyLoginSetupEmail(
+        phoneNumber: String,
+        phoneCodeHash: String,
+        code: String,
+    ): SentCode_250764ccd9
 
     suspend fun signUp(
         phoneNumber: String,
@@ -106,6 +128,37 @@ class MtProtoAuthorizationClient internal constructor(
         require(phoneCodeHash.isNotBlank()) { "phoneCodeHash must not be blank" }
         require(emailCode.isNotBlank()) { "emailCode must not be blank" }
         return transport.execute(SignIn(phoneNumber, phoneCodeHash, null, EmailVerificationCode(emailCode)))
+    }
+
+    override suspend fun sendLoginSetupEmail(
+        phoneNumber: String,
+        phoneCodeHash: String,
+        email: String,
+    ): MtProtoLoginSetupEmailCode {
+        require(phoneNumber.isNotBlank()) { "phoneNumber must not be blank" }
+        require(phoneCodeHash.isNotBlank()) { "phoneCodeHash must not be blank" }
+        require(email.isNotBlank()) { "email must not be blank" }
+        val result = transport.execute(
+            SendVerifyEmailCode(EmailVerifyPurposeLoginSetup(phoneNumber, phoneCodeHash), email)
+        ) as? SentEmailCode_c0a17c9b71 ?: error("Unsupported login setup email result")
+        return MtProtoLoginSetupEmailCode(result.emailPattern, result.length)
+    }
+
+    override suspend fun verifyLoginSetupEmail(
+        phoneNumber: String,
+        phoneCodeHash: String,
+        code: String,
+    ): SentCode_250764ccd9 {
+        require(phoneNumber.isNotBlank()) { "phoneNumber must not be blank" }
+        require(phoneCodeHash.isNotBlank()) { "phoneCodeHash must not be blank" }
+        require(code.isNotBlank()) { "code must not be blank" }
+        val result = transport.execute(
+            VerifyEmail(
+                EmailVerifyPurposeLoginSetup(phoneNumber, phoneCodeHash),
+                EmailVerificationCode(code),
+            )
+        ) as? EmailVerifiedLogin ?: error("Login setup email was not verified")
+        return result.sentCode
     }
 
     override suspend fun signUp(

@@ -7,6 +7,7 @@ import org.junit.Test
 import org.monogram.mtproto.crypto.DhParameterValidatorTest
 import org.monogram.mtproto.crypto.EntropySource
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmailVerificationCode
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmailVerifyPurposeLoginSetup
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputCheckPasswordSrp_5100d694df
 import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoSha256Sha256Pbkdf2Hmacsha512Iter100000Sha256ModPow
 import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoUnknown
@@ -14,6 +15,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.SecurePasswordKdfAlgoUnk
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_3f851bba91
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetPassword
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.SendVerifyEmailCode
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.VerifyEmail
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.Password_ac67a26d5c
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CheckPassword
@@ -73,6 +76,32 @@ class MtProtoAuthorizationClientTest {
         assertEquals("+10000000000", signIn.phoneNumber)
         assertEquals("hash", signIn.phoneCodeHash)
         assertEquals("12345", signIn.phoneCode)
+    }
+
+    @Test
+    fun buildsLoginSetupEmailRequests() {
+        val transport = CapturingTransport()
+        val client = MtProtoAuthorizationClient(transport)
+
+        assertThrows(Capture::class.java) {
+            runBlocking { client.sendLoginSetupEmail("+10000000000", "hash", "ada@example.com") }
+        }
+        val send = transport.method as SendVerifyEmailCode
+        assertEquals(
+            EmailVerifyPurposeLoginSetup("+10000000000", "hash"),
+            send.purpose,
+        )
+        assertEquals("ada@example.com", send.email)
+
+        assertThrows(Capture::class.java) {
+            runBlocking { client.verifyLoginSetupEmail("+10000000000", "hash", "123456") }
+        }
+        val verify = transport.method as VerifyEmail
+        assertEquals(
+            EmailVerifyPurposeLoginSetup("+10000000000", "hash"),
+            verify.purpose,
+        )
+        assertEquals(EmailVerificationCode("123456"), verify.verification)
     }
 
     @Test

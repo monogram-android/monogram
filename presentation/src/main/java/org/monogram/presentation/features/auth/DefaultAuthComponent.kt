@@ -56,7 +56,8 @@ class DefaultAuthComponent(
                         nextDelivery = step.nextDelivery,
                         timeout = step.timeout,
                         emailPattern = step.emailPattern,
-                        canResend = step.canResend
+                        canResend = step.canResend,
+                        isLoginEmailSetupCode = step.isLoginEmailSetupCode,
                     )
 
                     is AuthStep.InputPassword -> AuthComponent.AuthState.InputPassword(
@@ -65,6 +66,7 @@ class DefaultAuthComponent(
                         recoveryEmailPattern = step.recoveryEmailPattern
                     )
                     AuthStep.InputSignUp -> AuthComponent.AuthState.InputSignUp
+                    AuthStep.InputLoginEmail -> AuthComponent.AuthState.InputLoginEmail
                     else -> null
                 }
                 if (newAuthState != null) {
@@ -124,6 +126,11 @@ class DefaultAuthComponent(
     override fun onSignUpSubmitted(firstName: String, lastName: String) {
         _model.update { it.copy(isSubmitting = true) }
         repository.signUp(firstName, lastName)
+    }
+
+    override fun onLoginEmailSubmitted(email: String) {
+        _model.update { it.copy(isSubmitting = true) }
+        repository.sendLoginEmail(email)
     }
 
     override fun onBackToPhone() {

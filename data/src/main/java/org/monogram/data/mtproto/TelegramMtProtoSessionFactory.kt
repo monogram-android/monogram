@@ -63,7 +63,7 @@ internal class TelegramMtProtoBootstrapConfigProvider(
     override suspend fun createForDc(dcId: Int): TelegramMtProtoBootstrapConfig {
         require(BuildConfig.API_ID > 0) { "API_ID must be configured before starting MTProto" }
         val metadata = metadataProvider.create()
-        val endpoint = endpointForDc(dcId)
+        val endpoint = telegramMtProtoEndpointForDc(dcId)
         return TelegramMtProtoBootstrapConfig(
             endpoint = endpoint,
             handshake = MtProtoHandshakeConfig(
@@ -86,15 +86,6 @@ internal class TelegramMtProtoBootstrapConfigProvider(
     private companion object {
         const val DEFAULT_DC_ID = 2
 
-        fun endpointForDc(dcId: Int): TelegramMtProtoEndpoint = when (dcId) {
-            1 -> TelegramMtProtoEndpoint(dcId, "149.154.175.50", 443)
-            2 -> TelegramMtProtoEndpoint(dcId, "149.154.167.51", 443)
-            3 -> TelegramMtProtoEndpoint(dcId, "149.154.175.100", 443)
-            4 -> TelegramMtProtoEndpoint(dcId, "149.154.167.91", 443)
-            5 -> TelegramMtProtoEndpoint(dcId, "91.108.56.130", 443)
-            else -> throw IllegalArgumentException("Unsupported Telegram production DC: $dcId")
-        }
-
         val MAIN_RSA_PUBLIC_KEY = """
             -----BEGIN RSA PUBLIC KEY-----
             MIIBCgKCAQEA6LszBcC1LGzyr992NzE0ieY+BSaOW622Aa9Bd4ZHLl+TuFQ4lo4g
@@ -106,6 +97,15 @@ internal class TelegramMtProtoBootstrapConfigProvider(
             -----END RSA PUBLIC KEY-----
         """.trimIndent()
     }
+}
+
+internal fun telegramMtProtoEndpointForDc(dcId: Int): TelegramMtProtoEndpoint = when (dcId) {
+    1 -> TelegramMtProtoEndpoint(dcId, "149.154.175.50", 443)
+    2 -> TelegramMtProtoEndpoint(dcId, "149.154.167.51", 443)
+    3 -> TelegramMtProtoEndpoint(dcId, "149.154.175.100", 443)
+    4 -> TelegramMtProtoEndpoint(dcId, "149.154.167.91", 443)
+    5 -> TelegramMtProtoEndpoint(dcId, "149.154.171.5", 443)
+    else -> throw IllegalArgumentException("Unsupported Telegram production DC: $dcId")
 }
 
 internal class TelegramMtProtoSessionFactory(

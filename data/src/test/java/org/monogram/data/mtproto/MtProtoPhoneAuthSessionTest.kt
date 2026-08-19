@@ -13,6 +13,7 @@ import org.monogram.domain.repository.AuthCodeDelivery
 import org.monogram.domain.repository.AuthCodeInputKind
 import org.monogram.domain.repository.AuthStep
 import org.monogram.mtproto.auth.MtProtoAuthorizationApi
+import org.monogram.mtproto.auth.MtProtoLoginSetupEmailCode
 import org.monogram.mtproto.auth.MtProtoPasswordChallengeInfo
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_3f851bba91
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_fb610807ca
@@ -22,6 +23,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_fb75f
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeTypeSms
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodePaymentRequired
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeEmailCode
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSetUpEmailRequired
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSmsWord
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSms
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_f9e8fc1d16
@@ -72,6 +74,45 @@ class MtProtoPhoneAuthSessionTest {
         assertEquals(AuthStep.InputPhone, payment.currentState())
 
         Unit
+    }
+
+    @Test
+    fun setsUpLoginEmailThenSubmitsReturnedLoginCode() = runBlocking {
+        val authorization = Authorization_d8660c55a3(false, null, null, null, fakeUser())
+        val api = FakeApi(
+            sentCodes = ArrayDeque(listOf(
+                SentCode_f9e8fc1d16(
+                    SentCodeTypeSetUpEmailRequired(false, false),
+                    "hash-1",
+                    null,
+                    0,
+                ),
+            )),
+            authorization = authorization,
+            loginSetupEmailCode = MtProtoLoginSetupEmailCode("e***", 6),
+            verifiedLoginCode = SentCode_f9e8fc1d16(SentCodeTypeSms(5), "login-hash", null, 0),
+        )
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+
+        assertEquals(AuthStep.InputLoginEmail, session.requestCode("+1"))
+        assertEquals(
+            AuthStep.InputCode(
+                delivery = AuthCodeDelivery.EMAIL,
+                codeLength = 6,
+                isEmailCode = true,
+                isLoginEmailSetupCode = true,
+                emailPattern = "e***",
+            ),
+            session.submitLoginEmail("ada@example.com"),
+        )
+        assertEquals(
+            AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5),
+            session.submitCode("123456"),
+        )
+        assertEquals(AuthStep.Ready, session.submitCode("654321"))
+        assertEquals("+1", api.lastPhone)
+        assertEquals("login-hash", api.lastHash)
+        assertEquals("123456", api.lastLoginSetupCode)
     }
 
     @Test
@@ -224,6 +265,18 @@ class MtProtoPhoneAuthSessionTest {
                 phoneCode: String,
             ): Authorization_fb75ff221f = error("Unexpected sign-in")
 
+            override suspend fun sendLoginSetupEmail(
+                phoneNumber: String,
+                phoneCodeHash: String,
+                email: String,
+            ): MtProtoLoginSetupEmailCode = error("Unexpected login email")
+
+            override suspend fun verifyLoginSetupEmail(
+                phoneNumber: String,
+                phoneCodeHash: String,
+                code: String,
+            ): SentCode_250764ccd9 = error("Unexpected login email verification")
+
             override suspend fun signInWithEmailCode(
                 phoneNumber: String,
                 phoneCodeHash: String,
@@ -272,11 +325,14 @@ class MtProtoPhoneAuthSessionTest {
         private val passwordAuthorization: Authorization_fb75ff221f? = null,
         private val passwordError: Throwable? = null,
         private val signUpAuthorization: Authorization_fb75ff221f? = null,
+        private val loginSetupEmailCode: MtProtoLoginSetupEmailCode? = null,
+        private val verifiedLoginCode: SentCode_250764ccd9? = null,
     ) : MtProtoAuthorizationApi {
         var lastHash: String? = null
         var lastPhone: String? = null
         var lastFirstName: String? = null
         var lastLastName: String? = null
+        var lastLoginSetupCode: String? = null
 
         override suspend fun sendCode(phoneNumber: String, settings: CodeSettings_fb610807ca, apiId: Int, apiHash: String): SentCode_250764ccd9 {
             lastPhone = phoneNumber
@@ -292,6 +348,27 @@ class MtProtoPhoneAuthSessionTest {
             lastHash = phoneCodeHash
             signInError?.let { throw it }
             return authorization ?: error("No authorization result")
+        }
+
+        override suspend fun sendLoginSetupEmail(
+            phoneNumber: String,
+            phoneCodeHash: String,
+            email: String,
+        ): MtProtoLoginSetupEmailCode {
+            lastPhone = phoneNumber
+            lastHash = phoneCodeHash
+            return loginSetupEmailCode ?: error("No login setup email result")
+        }
+
+        override suspend fun verifyLoginSetupEmail(
+            phoneNumber: String,
+            phoneCodeHash: String,
+            code: String,
+        ): SentCode_250764ccd9 {
+            lastPhone = phoneNumber
+            lastHash = phoneCodeHash
+            lastLoginSetupCode = code
+            return verifiedLoginCode ?: error("No verified login code")
         }
 
         override suspend fun signInWithEmailCode(

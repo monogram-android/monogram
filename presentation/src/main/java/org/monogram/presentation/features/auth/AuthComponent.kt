@@ -15,6 +15,7 @@ interface AuthComponent {
     fun onResendCode()
     fun onPasswordEntered(password: String)
     fun onSignUpSubmitted(firstName: String, lastName: String)
+    fun onLoginEmailSubmitted(email: String)
     fun onBackToPhone()
     fun onRetry()
     fun onProxyClicked()
@@ -42,7 +43,8 @@ interface AuthComponent {
             val nextDelivery: AuthCodeDelivery? = null,
             val timeout: Int = 0,
             val emailPattern: String? = null,
-            val canResend: Boolean = false
+            val canResend: Boolean = false,
+            val isLoginEmailSetupCode: Boolean = false,
         ) : AuthState()
 
         data class InputPassword(
@@ -52,5 +54,6 @@ interface AuthComponent {
         ) : AuthState()
 
         object InputSignUp : AuthState()
+        object InputLoginEmail : AuthState()
     }
 }

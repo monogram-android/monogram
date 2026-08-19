@@ -2,6 +2,7 @@ package org.monogram.data.mtproto
 
 import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputUserSelf
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputUser_4020eae812
 import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetUsers
 import org.monogram.domain.repository.UserProfileSnapshotRepository
 
@@ -20,8 +21,21 @@ internal class MtProtoUserProfileSnapshotRepository(
         return userStore.getSelf(scope)?.toDomain()
     }
 
-    override suspend fun getUser(accountId: String, userId: Long): UserProfileSnapshotModel? =
-        userStore.get(scope(accountId), userId)?.toDomain()
+    override suspend fun getUser(accountId: String, userId: Long): UserProfileSnapshotModel? {
+        val scope = scope(accountId)
+        val cached = userStore.get(scope, userId)
+        if (sessionFactory != null && cached?.accessHash != null) {
+            sessionFactory.open(accountId).use { transport ->
+                userStore.upsert(
+                    scope,
+                    transport.execute(
+                        GetUsers(listOf(InputUser_4020eae812(userId, cached.accessHash))),
+                    ),
+                )
+            }
+        }
+        return userStore.get(scope, userId)?.toDomain()
+    }
 
     private suspend fun scope(accountId: String): MtProtoAuthKeyScope {
         val config = configSource.createForAccount(accountId)

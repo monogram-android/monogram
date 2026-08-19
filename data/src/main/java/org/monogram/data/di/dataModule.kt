@@ -12,6 +12,9 @@ import org.koin.dsl.module
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.BuildConfig
 import org.monogram.data.backend.KeyValueTelegramBackendSelectionStore
+import org.monogram.data.backend.LegacyActiveAccountBinding
+import org.monogram.data.backend.LegacyBackendAccessGuard
+import org.monogram.data.backend.LegacyUserProfileSnapshotRepository
 import org.monogram.data.backend.TelegramBackendSelectionStore
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.FileDataSource
@@ -428,6 +431,8 @@ val dataModule = module {
     single { get<MonogramDatabase>().keyValueDao() }
     single { KeyValueTelegramBackendSelectionStore(get()) }
     single<TelegramBackendSelectionStore> { get<KeyValueTelegramBackendSelectionStore>() }
+    single { LegacyActiveAccountBinding() }
+    single { LegacyBackendAccessGuard(get(), get()) }
     single { get<MonogramDatabase>().notificationSettingDao() }
     single { get<MonogramDatabase>().notificationExceptionDao() }
     single { get<MonogramDatabase>().wallpaperDao() }
@@ -476,6 +481,7 @@ val dataModule = module {
             cacheProvider = get()
         )
     }
+    single { LegacyUserProfileSnapshotRepository(get(), get<UserRepository>()) }
 
     single<UserProfileEditRepository> {
         UserProfileEditRepositoryImpl(

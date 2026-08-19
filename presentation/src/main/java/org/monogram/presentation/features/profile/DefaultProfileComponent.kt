@@ -905,6 +905,16 @@ class DefaultProfileComponent(
         }
 
     private fun observeUserUpdates() {
+        if (telegramBackendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            if (isGroupOrChannelProfile()) return
+            scope.launch {
+                loadProfileUser(chatId)?.let { user ->
+                    _state.update { it.copy(user = user, personalAvatarPath = user.personalAvatarPath) }
+                }
+            }
+            return
+        }
+
         userRepository.getUserFlow(chatId)
             .onEach { user ->
                 if (user != null) {

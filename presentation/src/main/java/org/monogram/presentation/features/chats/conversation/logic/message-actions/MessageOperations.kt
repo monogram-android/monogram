@@ -560,14 +560,26 @@ internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: 
 }
 
 internal fun DefaultChatComponent.handlePinMessage(message: MessageModel) {
-    scope.launch {
-        repositoryMessage.pinMessage(chatId, message.id)
-    }
+    updatePinnedMessage(message, pinned = true)
 }
 
 internal fun DefaultChatComponent.handleUnpinMessage(message: MessageModel) {
+    updatePinnedMessage(message, pinned = false)
+}
+
+private fun DefaultChatComponent.updatePinnedMessage(message: MessageModel, pinned: Boolean) {
     scope.launch {
-        repositoryMessage.unpinMessage(chatId, message.id)
+        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+            val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(message.chatId, chat.isChannel)
+            mtProtoTextMessageRepository.setPinned(message.chatId, peer.type, message.id, pinned)
+        } else if (pinned) {
+            repositoryMessage.pinMessage(chatId, message.id)
+        } else {
+            repositoryMessage.unpinMessage(chatId, message.id)
+        }
     }
 }
 

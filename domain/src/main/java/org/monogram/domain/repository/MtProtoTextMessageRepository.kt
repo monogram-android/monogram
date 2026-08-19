@@ -23,4 +23,11 @@ interface MtProtoTextMessageRepository {
         messageId: Long,
         emoji: String?,
     )
+
+    suspend fun setPinned(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+        pinned: Boolean,
+    )
 }

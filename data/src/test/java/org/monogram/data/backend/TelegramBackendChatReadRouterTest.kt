@@ -18,6 +18,28 @@ import org.monogram.domain.repository.DialogSnapshotRepository
 @OptIn(ExperimentalCoroutinesApi::class)
 class TelegramBackendChatReadRouterTest {
     @Test
+    fun `MTProto selection rejects unsupported chat mutations without constructing legacy chat contracts`() = runTest {
+        var legacyFactoryCalls = 0
+        val router = TelegramBackendChatReadRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = {
+                legacyFactoryCalls++
+                error("Legacy TDLib chat contracts must not be constructed")
+            },
+            mtProtoFactory = {
+                MtProtoDialogChatListRepository(FakeDialogRepository(), backgroundScope)
+            },
+            scope = backgroundScope,
+        )
+
+        runCurrent()
+        val result = runCatching { router.clearChatHistory(42L, revoke = false) }
+
+        assertTrue(result.exceptionOrNull() is UnsupportedOperationException)
+        assertEquals(0, legacyFactoryCalls)
+    }
+
+    @Test
     fun `MTProto selection publishes projected dialogs without constructing legacy chat contracts`() = runTest {
         var legacyFactoryCalls = 0
         val router = TelegramBackendChatReadRouter(

@@ -18,6 +18,7 @@ class MtProtoAccountStateCleanerTest {
         val userStore = FakeUserProjectionStore()
         val chatStore = FakeChatProjectionStore()
         val messageStore = FakeMessageProjectionStore()
+        val dcStore = FakeAccountDcStore()
         val cleaner = MtProtoAccountStateCleaner(
             MtProtoAuthKeyPersistence(authStore),
             cursorStore,
@@ -26,6 +27,7 @@ class MtProtoAccountStateCleanerTest {
             userStore,
             chatStore,
             messageStore,
+            dcStore,
         )
 
         cleaner.deleteAccount("slot_a", MtProtoEnvironment.TEST)
@@ -37,6 +39,7 @@ class MtProtoAccountStateCleanerTest {
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), userStore.deletedAccounts)
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), chatStore.deletedAccounts)
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), messageStore.deletedAccounts)
+        assertEquals(listOf("slot_a"), dcStore.deletedAccounts)
     }
 
     @Test
@@ -150,6 +153,14 @@ class MtProtoAccountStateCleanerTest {
         assertSame(cancelled, thrown)
         assertEquals(0, cursorStore.deletedAccounts.size)
         Unit
+    }
+
+    private class FakeAccountDcStore : MtProtoAccountDcStore {
+        val deletedAccounts = mutableListOf<String>()
+
+        override suspend fun get(accountSlot: String): Int? = null
+        override suspend fun save(accountSlot: String, dcId: Int) = Unit
+        override suspend fun delete(accountSlot: String) { deletedAccounts += accountSlot }
     }
 
     private class FakeAuthKeyStore(

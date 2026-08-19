@@ -1017,14 +1017,23 @@ class DefaultChatComponent(
         store.accept(ChatStore.Intent.SendReaction(messageId, reaction))
 
     override suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int {
+        check(backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
+            "MTProto message read-date diagnostics are not available"
+        }
         return repositoryMessage.getMessageReadDate(chatId, messageId, messageDate)
     }
 
     override suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel> {
+        check(backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
+            "MTProto message viewer diagnostics are not available"
+        }
         return repositoryMessage.getMessageViewers(chatId, messageId)
     }
 
     override suspend fun getRawMessageJson(chatId: Long, messageId: Long): String? {
+        check(backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
+            "MTProto raw message diagnostics are not available"
+        }
         return repositoryMessage.getRawMessageJson(chatId, messageId)
     }
 

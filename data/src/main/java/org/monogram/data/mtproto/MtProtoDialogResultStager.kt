@@ -1,5 +1,7 @@
 package org.monogram.data.mtproto
 
+import androidx.room.withTransaction
+import org.monogram.data.db.MonogramDatabase
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DialogsSlice
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.Dialogs_ba027bdead
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.Dialogs_d319adbade
@@ -9,6 +11,7 @@ internal class MtProtoDialogResultStager(
     private val userStore: MtProtoUserProjectionStore? = null,
     private val chatStore: MtProtoChatProjectionStore? = null,
     private val messageStore: MtProtoMessageProjectionStore? = null,
+    private val database: MonogramDatabase? = null,
 ) {
     suspend fun stage(scope: MtProtoAuthKeyScope, result: Dialogs_ba027bdead): Boolean {
         val payload = when (result) {
@@ -16,13 +19,16 @@ internal class MtProtoDialogResultStager(
             is DialogsSlice -> DialogPayload(result.dialogs, result.messages, result.users, result.chats)
             else -> return false
         }
-        dialogStore.upsert(
-            scope,
-            payload.dialogs.filterIsInstance<org.monogram.mtproto.tl.generated.cloud.layer223.Dialog_cf9860a8bd>(),
-        )
-        userStore?.upsert(scope, payload.users)
-        chatStore?.upsert(scope, payload.chats)
-        messageStore?.stageMessages(scope, payload.messages)
+        suspend fun persist() {
+            dialogStore.upsert(
+                scope,
+                payload.dialogs.filterIsInstance<org.monogram.mtproto.tl.generated.cloud.layer223.Dialog_cf9860a8bd>(),
+            )
+            userStore?.upsert(scope, payload.users)
+            chatStore?.upsert(scope, payload.chats)
+            messageStore?.stageMessages(scope, payload.messages)
+        }
+        database?.withTransaction { persist() } ?: persist()
         return true
     }
 

@@ -35,7 +35,7 @@ class MtProtoMessageHistorySnapshotRepositoryTest {
         assertEquals(MtProtoAuthKeyScope("account-1", MtProtoEnvironment.PRODUCTION, 4), store.scope)
         assertEquals(MtProtoMessagePeerType.CHANNEL, store.peerType)
         assertEquals(MtProtoMessageHistoryCursor(101, 13), store.before)
-        assertEquals(listOf(12, 11), page.messages.map { it.messageId })
+        assertEquals(listOf(12L, 11L), page.messages.map { it.messageId })
         assertEquals("message-12", page.messages.first().text)
         assertEquals(MessageHistoryCursorModel(99, 11), page.nextCursor)
     }
@@ -56,6 +56,27 @@ class MtProtoMessageHistorySnapshotRepositoryTest {
             }
         }
         Unit
+    }
+
+    @Test
+    fun `rejects cursor message ids outside MTProto range`() {
+        val repository = MtProtoMessageHistorySnapshotRepository(
+            configSource = TelegramMtProtoBootstrapConfigSource { config(dcId = 2) },
+            messageStore = RecordingMessageStore(emptyList()),
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking {
+                repository.getHistory(
+                    MessageHistorySnapshotRequest(
+                        accountId = "account",
+                        peerType = DialogPeerType.PRIVATE,
+                        peerId = 5,
+                        before = MessageHistoryCursorModel(10, Int.MAX_VALUE.toLong() + 1),
+                    )
+                )
+            }
+        }
     }
 
     private fun message(id: Int, date: Int) = MtProtoMessageReadModel(

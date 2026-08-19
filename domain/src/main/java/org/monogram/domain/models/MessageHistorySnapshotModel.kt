@@ -10,7 +10,7 @@ data class MessageHistorySnapshotRequest(
 
 data class MessageHistoryCursorModel(
     val date: Int,
-    val messageId: Int,
+    val messageId: Long,
 )
 
 data class MessageHistorySnapshotPage(
@@ -19,7 +19,7 @@ data class MessageHistorySnapshotPage(
 )
 
 data class MessageHistorySnapshotModel(
-    val messageId: Int,
+    val messageId: Long,
     val senderId: Long?,
     val date: Int,
     val text: String?,

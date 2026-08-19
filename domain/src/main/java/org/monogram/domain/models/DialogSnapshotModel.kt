@@ -20,7 +20,7 @@ enum class DialogPeerType {
 }
 
 data class DialogMessagePreviewModel(
-    val messageId: Int,
+    val messageId: Long,
     val senderId: Long?,
     val date: Int,
     val text: String?,

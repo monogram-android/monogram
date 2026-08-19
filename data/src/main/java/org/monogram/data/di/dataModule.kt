@@ -15,6 +15,7 @@ import org.monogram.data.backend.KeyValueTelegramBackendSelectionStore
 import org.monogram.data.backend.LegacyActiveAccountBinding
 import org.monogram.data.backend.LegacyBackendAccessGuard
 import org.monogram.data.backend.LegacyUserProfileSnapshotRepository
+import org.monogram.data.backend.LegacyDialogSnapshotRepository
 import org.monogram.data.backend.TelegramBackendSelectionStore
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.FileDataSource
@@ -483,6 +484,7 @@ val dataModule = module {
         )
     }
     single { LegacyUserProfileSnapshotRepository(get(), get<UserRepository>()) }
+    single { LegacyDialogSnapshotRepository(get(), get<ChatListRepository>(), get()) }
 
     single<UserProfileEditRepository> {
         UserProfileEditRepositoryImpl(

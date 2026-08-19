@@ -19,14 +19,16 @@ internal class MtProtoMessageHistorySnapshotRepository(
             scope = scope,
             peerType = request.peerType.toMtProtoPeerType(),
             peerId = request.peerId,
-            before = request.before?.let { MtProtoMessageHistoryCursor(it.date, it.messageId) },
+            before = request.before?.let {
+                MtProtoMessageHistoryCursor(it.date, it.messageId.toMtProtoMessageId())
+            },
             limit = request.limit,
         )
         return MessageHistorySnapshotPage(
             messages = messages.map { it.toDomain() },
             nextCursor = messages.lastOrNull()
                 ?.takeIf { messages.size == request.limit }
-                ?.let { MessageHistoryCursorModel(it.date, it.messageId) },
+                ?.let { MessageHistoryCursorModel(it.date, it.messageId.toLong()) },
         )
     }
 
@@ -39,7 +41,7 @@ internal class MtProtoMessageHistorySnapshotRepository(
     }
 
     private fun MtProtoMessageReadModel.toDomain() = MessageHistorySnapshotModel(
-        messageId = messageId,
+        messageId = messageId.toLong(),
         senderId = senderId,
         date = date,
         text = text,
@@ -57,5 +59,12 @@ internal class MtProtoMessageHistorySnapshotRepository(
 
     private companion object {
         const val MAX_PAGE_SIZE = 100
+    }
+
+    private fun Long.toMtProtoMessageId(): Int {
+        require(this in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
+            "MTProto history cursor message id is out of range"
+        }
+        return toInt()
     }
 }

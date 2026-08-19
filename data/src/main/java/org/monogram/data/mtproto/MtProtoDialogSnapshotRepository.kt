@@ -30,7 +30,7 @@ internal class MtProtoDialogSnapshotRepository(
         isPeerDeleted = isPeerDeleted,
         isPeerForbidden = isPeerForbidden,
         latestMessage = DialogMessagePreviewModel(
-            messageId = latestMessage.messageId,
+            messageId = latestMessage.messageId.toLong(),
             senderId = latestMessage.senderId,
             date = latestMessage.date,
             text = latestMessage.text,

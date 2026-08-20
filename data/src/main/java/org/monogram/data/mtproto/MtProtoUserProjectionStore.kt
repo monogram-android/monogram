@@ -1,5 +1,9 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
+
 import org.monogram.data.db.dao.MtProtoCloudObjectDao
 import org.monogram.data.db.dao.MtProtoUserProjectionDao
 import org.monogram.data.db.model.MtProtoUserProjectionEntity
@@ -30,6 +34,9 @@ internal data class MtProtoUserReadModel(
 )
 
 internal interface MtProtoUserProjectionStore {
+    val updates: Flow<Long>
+        get() = emptyFlow()
+
     suspend fun upsert(scope: MtProtoAuthKeyScope, users: List<User_655b5dfc57>)
 
     suspend fun get(scope: MtProtoAuthKeyScope, userId: Long): MtProtoUserReadModel?
@@ -67,11 +74,15 @@ internal class MtProtoRoomUserProjectionStore(
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val cloudObjectDao: MtProtoCloudObjectDao? = null,
 ) : MtProtoUserProjectionStore {
+    private val _updates = MutableSharedFlow<Long>(extraBufferCapacity = 16)
+    override val updates: Flow<Long> = _updates
+
     override suspend fun upsert(scope: MtProtoAuthKeyScope, users: List<User_655b5dfc57>) {
         users.forEach { user ->
             val incoming = user.toEntity(scope, nowMillis())
             val existing = dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId, incoming.userId)
             dao.upsert(if (incoming.isMin) incoming.mergeMin(existing) else incoming)
+            _updates.emit(incoming.userId)
         }
     }
 

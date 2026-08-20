@@ -27,6 +27,7 @@ internal class TelegramBackendUserRouter(
     private val mtProtoAccountStateResetter: MtProtoAccountStateResetter = MtProtoAccountStateResetter { _, _ -> },
     private val mtProtoAuthSessionResetter: MtProtoAuthSessionResetter = MtProtoAuthSessionResetter {},
     private val mtProtoLiveSessionResetter: MtProtoLiveSessionResetter = MtProtoLiveSessionResetter {},
+    private val mtProtoUserUpdates: Flow<Long> = emptyFlow(),
 ) : UserRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
@@ -54,6 +55,10 @@ internal class TelegramBackendUserRouter(
                 if (backend == TelegramBackendKind.LEGACY) {
                     legacyUpdateCollection = scope.launch {
                         legacy.anyUserUpdateFlow.collect { _userUpdates.emit(it) }
+                    }
+                } else {
+                    legacyUpdateCollection = scope.launch {
+                        mtProtoUserUpdates.collect { _userUpdates.emit(it) }
                     }
                 }
             }

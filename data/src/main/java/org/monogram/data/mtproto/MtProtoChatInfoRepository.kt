@@ -76,9 +76,10 @@ internal class MtProtoChatInfoRepository(
         }
     }
 
-    override suspend fun searchPublicChat(username: String): ChatModel? =
-        search?.searchPublicChats(username.trim())?.firstOrNull()
-            ?: unsupported()
+    override suspend fun searchPublicChat(username: String): ChatModel? {
+        val searchRepository = search ?: unsupported()
+        return searchRepository.searchPublicChats(username.trim()).firstOrNull()
+    }
     override suspend fun getSimilarChatIds(chatId: Long): List<Long> = unsupported()
     override suspend fun getChatMembers(chatId: Long, offset: Int, limit: Int, filter: ChatMembersFilter): List<GroupMemberModel> = unsupported()
     override suspend fun getChatMember(chatId: Long, userId: Long): GroupMemberModel? = unsupported()

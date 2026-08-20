@@ -404,8 +404,12 @@ val dataModule = module {
         TelegramMtProtoAuthorizedSessionRestorer(get(), get(), get(), get())
     }
     single<MtProtoSessionTransportFactory> {
-        MtProtoSessionTransportFactory { accountSlot ->
-            get<TelegramMtProtoSessionFactory>().open(accountSlot)
+        object : MtProtoSessionTransportFactory {
+            override suspend fun open(accountSlot: String) =
+                get<TelegramMtProtoSessionFactory>().open(accountSlot)
+
+            override suspend fun open(accountSlot: String, dcId: Int) =
+                get<TelegramMtProtoSessionFactory>().open(accountSlot, dcId)
         }
     }
     single { MtProtoAuthRepository(get(), get(), get(), get(), get()) }

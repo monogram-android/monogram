@@ -17,6 +17,8 @@ import org.monogram.mtproto.transport.MtProtoRpcTransport
 
 internal fun interface MtProtoSessionTransportFactory {
     suspend fun open(accountSlot: String): MtProtoRpcTransport
+
+    suspend fun open(accountSlot: String, dcId: Int): MtProtoRpcTransport = open(accountSlot)
 }
 
 internal fun interface MtProtoLiveSessionResetter {

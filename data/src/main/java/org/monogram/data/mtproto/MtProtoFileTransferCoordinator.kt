@@ -25,10 +25,12 @@ internal class MtProtoFileTransferCoordinator(
     suspend fun download(
         location: InputFileLocation_7d0b23428a,
         sink: MtProtoFileTransferSink,
+        dcId: Int? = null,
     ) {
         var offset = sink.committedOffset()
         require(offset >= 0L) { "MTProto file transfer offset must not be negative" }
-        val transport = transportFactory.open(accountSlot)
+        val transport = dcId?.let { transportFactory.open(accountSlot, it) }
+            ?: transportFactory.open(accountSlot)
         try {
             while (true) {
                 currentCoroutineContext().ensureActive()

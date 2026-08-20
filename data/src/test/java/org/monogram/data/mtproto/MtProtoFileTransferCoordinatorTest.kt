@@ -32,6 +32,27 @@ class MtProtoFileTransferCoordinatorTest {
     }
 
     @Test
+    fun `opens document transfer at its persisted DC`() = runBlocking {
+        val transport = RecordingTransport(listOf(byteArrayOf(5)))
+        var requestedDc: Int? = null
+        val coordinator = MtProtoFileTransferCoordinator(
+            transportFactory = object : MtProtoSessionTransportFactory {
+                override suspend fun open(accountSlot: String): MtProtoRpcTransport = error("home DC must not open")
+                override suspend fun open(accountSlot: String, dcId: Int): MtProtoRpcTransport {
+                    requestedDc = dcId
+                    return transport
+                }
+            },
+            chunkSize = 1024,
+        )
+
+        coordinator.download(location(), RecordingSink(), dcId = 4)
+
+        assertEquals(4, requestedDc)
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
     fun `fails closed on CDN redirect and closes transport`() = runBlocking {
         val transport = RecordingTransport(emptyList(), redirect = true)
         val coordinator = MtProtoFileTransferCoordinator(

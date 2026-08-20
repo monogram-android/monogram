@@ -16,7 +16,11 @@ internal interface MtProtoUserProfileReader {
     suspend fun getCurrentUser(accountId: String): UserProfileSnapshotModel?
     suspend fun getUser(accountId: String, userId: Long): UserProfileSnapshotModel?
     suspend fun getContacts(accountId: String): List<UserProfileSnapshotModel>
-    suspend fun addContact(accountId: String, user: UserProfileSnapshotModel) {
+    suspend fun addContact(
+        accountId: String,
+        user: UserProfileSnapshotModel,
+        sharePhoneNumber: Boolean = true,
+    ) {
         throw UnsupportedOperationException("MTProto contact mutation is not available")
     }
     suspend fun removeContact(accountId: String, userId: Long) {
@@ -49,7 +53,11 @@ internal class MtProtoUserProfileSnapshotRepository(
         return userStore.getAll(scope).filter { it.isContact }.map { it.toDomain() }
     }
 
-    override suspend fun addContact(accountId: String, user: UserProfileSnapshotModel) {
+    override suspend fun addContact(
+        accountId: String,
+        user: UserProfileSnapshotModel,
+        sharePhoneNumber: Boolean,
+    ) {
         val scope = scope(accountId)
         val accessHash = requireNotNull(userStore.get(scope, user.userId)?.accessHash) {
             "Missing MTProto user access hash: ${user.userId}"
@@ -58,7 +66,7 @@ internal class MtProtoUserProfileSnapshotRepository(
         try {
             transport.execute(
                 AddContact(
-                    addPhonePrivacyException = true,
+                    addPhonePrivacyException = sharePhoneNumber,
                     id = InputUser_4020eae812(user.userId, accessHash),
                     firstName = user.firstName.orEmpty(),
                     lastName = user.lastName.orEmpty(),

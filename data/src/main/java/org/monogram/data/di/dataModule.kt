@@ -20,6 +20,7 @@ import org.monogram.data.backend.LegacyDialogSnapshotRepository
 import org.monogram.data.backend.TelegramBackendAuthRouter
 import org.monogram.data.backend.TelegramBackendChatReadRouter
 import org.monogram.data.backend.TelegramBackendChatSearchRouter
+import org.monogram.data.backend.TelegramBackendContactEditRouter
 import org.monogram.data.backend.TelegramBackendMessageRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
 import org.monogram.data.backend.LegacyChatReadContracts
@@ -762,9 +763,17 @@ val dataModule = module {
     }
 
     single<ContactEditRepository> {
-        ContactEditRepositoryImpl(
-            userRepository = get(),
-            userRemoteDataSource = get()
+        TelegramBackendContactEditRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                ContactEditRepositoryImpl(
+                    userRepository = get(),
+                    userRemoteDataSource = get(),
+                )
+            },
+            users = get(),
+            mtProtoProfiles = get(),
+            scope = get(),
         )
     }
 

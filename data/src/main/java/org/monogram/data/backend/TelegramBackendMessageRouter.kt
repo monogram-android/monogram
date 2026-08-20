@@ -140,13 +140,11 @@ internal class TelegramBackendMessageRouter(
                     }
                     "sendPhoto" -> invokeDraft(method, args) { values ->
                         val options = values[7] as org.monogram.domain.models.MessageSendOptions
-                        require((values[3] as List<*>).isEmpty()) { "MTProto photo caption entities are not available" }
-                        media.sendPhoto(values[0] as Long, values[1] as String, values[2] as String, values[5] as Long?, values[6] as Long?, options)
+                        media.sendPhoto(values[0] as Long, values[1] as String, values[2] as String, values[3] as List<org.monogram.domain.models.MessageEntity>, values[5] as Long?, values[6] as Long?, options)
                     }
                     "sendDocument" -> invokeDraft(method, args) { values ->
                         val options = values[6] as org.monogram.domain.models.MessageSendOptions
-                        require((values[3] as List<*>).isEmpty()) { "MTProto document caption entities are not available" }
-                        media.sendDocument(values[0] as Long, values[1] as String, values[2] as String, values[4] as Long?, values[5] as Long?, options)
+                        media.sendDocument(values[0] as Long, values[1] as String, values[2] as String, values[3] as List<org.monogram.domain.models.MessageEntity>, values[4] as Long?, values[5] as Long?, options)
                     }
                     "editMessage" -> invokeDraft(method, args) { values ->
                         text.editText(

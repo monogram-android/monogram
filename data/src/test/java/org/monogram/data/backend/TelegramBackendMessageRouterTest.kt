@@ -660,11 +660,11 @@ class TelegramBackendMessageRouterTest {
         router.repository.sendPhoto(7, "photo.jpg", "caption", replyToMsgId = 9, threadId = 10, sendOptions = MessageSendOptions(silent = true, scheduleDate = 11))
         router.repository.sendDocument(7, "file.pdf", "doc", replyToMsgId = 12, threadId = 13)
 
-        assertEquals(listOf("photo:7:photo.jpg:caption:9:10:true:11", "document:7:file.pdf:doc:12:13:false:null"), media.calls)
+        assertEquals(listOf("photo:7:photo.jpg:caption:0:9:10:true:11", "document:7:file.pdf:doc:0:12:13:false:null"), media.calls)
     }
 
     @Test
-    fun `MTProto rejects entity-bearing media captions without legacy`() = runBlocking {
+    fun `MTProto routes entity-bearing media captions without legacy`() = runBlocking {
         val media = RecordingMedia()
         val router = TelegramBackendMessageRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
@@ -674,26 +674,22 @@ class TelegramBackendMessageRouterTest {
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
-        assertThrows(IllegalArgumentException::class.java) {
-            runBlocking {
-                router.repository.sendPhoto(
-                    chatId = 7,
-                    photoPath = "photo.jpg",
-                    caption = "caption",
-                    captionEntities = listOf(org.monogram.domain.models.MessageEntity(0, 7, org.monogram.domain.models.MessageEntityType.Bold)),
-                )
-            }
-        }
-        assertEquals(emptyList<String>(), media.calls)
+        router.repository.sendPhoto(
+            chatId = 7,
+            photoPath = "photo.jpg",
+            caption = "caption",
+            captionEntities = listOf(org.monogram.domain.models.MessageEntity(0, 7, org.monogram.domain.models.MessageEntityType.Bold)),
+        )
+        assertEquals(listOf("photo:7:photo.jpg:caption:1:null:null:false:null"), media.calls)
     }
 
     private class RecordingMedia : MtProtoMediaMessageRepository {
         val calls = mutableListOf<String>()
-        override suspend fun sendPhoto(chatId: Long, path: String, caption: String, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
-            calls += "photo:$chatId:$path:$caption:$replyTo:$threadId:${options.silent}:${options.scheduleDate}"
+        override suspend fun sendPhoto(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
+            calls += "photo:$chatId:$path:$caption:${entities.size}:$replyTo:$threadId:${options.silent}:${options.scheduleDate}"
         }
-        override suspend fun sendDocument(chatId: Long, path: String, caption: String, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
-            calls += "document:$chatId:$path:$caption:$replyTo:$threadId:${options.silent}:${options.scheduleDate}"
+        override suspend fun sendDocument(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
+            calls += "document:$chatId:$path:$caption:${entities.size}:$replyTo:$threadId:${options.silent}:${options.scheduleDate}"
         }
     }
 

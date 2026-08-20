@@ -108,6 +108,8 @@ import org.monogram.data.mtproto.MtProtoRoomUserProjectionStore
 import org.monogram.data.mtproto.MtProtoUserProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomChatProjectionStore
 import org.monogram.data.mtproto.MtProtoChatProjectionStore
+import org.monogram.data.mtproto.MtProtoBotCommandRepository
+import org.monogram.data.mtproto.MtProtoBotCommandRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatSettingsRepository
 import org.monogram.data.mtproto.MtProtoChatSettingsRepositoryImpl
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
@@ -988,6 +990,13 @@ val dataModule = module {
         TelegramBackendBotRouter(
             selectionStore = get(),
             legacyFactory = { BotRepositoryImpl(remote = get()) },
+            mtProtoFactory = {
+                MtProtoBotCommandRepositoryImpl(
+                    configSource = get(),
+                    transportFactory = get(),
+                    users = get(),
+                )
+            },
             scope = get(),
         )
     }

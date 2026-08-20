@@ -3,6 +3,7 @@ package org.monogram.data.backend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import org.monogram.data.mtproto.MtProtoBotCommandRepository
 import org.monogram.domain.models.BotCommandModel
 import org.monogram.domain.models.BotInfoModel
 import org.monogram.domain.repository.BotRepository
@@ -11,16 +12,18 @@ internal class TelegramBackendBotRouter(
     selectionStore: TelegramBackendSelectionStore,
     private val legacyFactory: () -> BotRepository,
     scope: CoroutineScope,
+    private val mtProtoFactory: () -> MtProtoBotCommandRepository = { throw UnsupportedOperationException("MTProto bot commands are not configured") },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : BotRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
 
     init { scope.launch { selectionStore.observe(accountId).collect { selectedBackend.value = it } } }
 
     override suspend fun getBotCommands(botId: Long): List<BotCommandModel> = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getBotCommands(botId)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getCommands(botId)
     }
 
     override suspend fun getBotInfo(botId: Long): BotInfoModel? = when (selected()) {

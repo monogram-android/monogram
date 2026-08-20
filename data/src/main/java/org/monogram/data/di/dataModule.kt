@@ -22,6 +22,7 @@ import org.monogram.data.backend.TelegramBackendAttachMenuBotRouter
 import org.monogram.data.backend.TelegramBackendChatReadRouter
 import org.monogram.data.backend.TelegramBackendChatSearchRouter
 import org.monogram.data.backend.TelegramBackendChatInfoRouter
+import org.monogram.data.backend.TelegramBackendEmojiRouter
 import org.monogram.data.backend.TelegramBackendContactEditRouter
 import org.monogram.data.backend.TelegramBackendMessageRouter
 import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
@@ -122,6 +123,7 @@ import org.monogram.data.mtproto.MtProtoReportPeerRepository
 import org.monogram.data.mtproto.MtProtoReportPeerRepositoryImpl
 import org.monogram.data.mtproto.MtProtoMessageDeletionRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogChatListRepository
+import org.monogram.data.mtproto.MtProtoEmojiRepository
 import org.monogram.data.mtproto.MtProtoArchiveRepository
 import org.monogram.data.mtproto.MtProtoArchiveRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogPinRepository
@@ -1458,13 +1460,20 @@ val dataModule = module {
     }
 
     single<EmojiRepository> {
-        EmojiRepositoryImpl(
-            remote = get(),
-            localDataSource = get(),
-            cacheProvider = get(),
-            dispatchers = get(),
-            context = androidContext(),
-            scope = get()
+        TelegramBackendEmojiRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                EmojiRepositoryImpl(
+                    remote = get(),
+                    localDataSource = get(),
+                    cacheProvider = get(),
+                    dispatchers = get(),
+                    context = androidContext(),
+                    scope = get(),
+                )
+            },
+            mtProtoFactory = { MtProtoEmojiRepository(androidContext(), get()) },
+            scope = get(),
         )
     }
 

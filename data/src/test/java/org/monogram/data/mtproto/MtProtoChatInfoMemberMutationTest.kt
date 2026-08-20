@@ -6,9 +6,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.repository.ChatMemberStatus.Administrator
 import org.monogram.domain.repository.ChatMemberStatus.Member
+import org.monogram.domain.repository.ChatMemberStatus.Banned
+import org.monogram.domain.repository.ChatMemberStatus.Restricted
+import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.EditAdmin
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.EditBanned
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAdmin
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -39,6 +43,38 @@ class MtProtoChatInfoMemberMutationTest {
         assertTrue(transport.request is EditAdmin)
         assertEquals(1, stager.calls)
         assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `maps channel restrictions and bans to inverted rights`() = runTest {
+        val transport = RecordingTransport(UpdatesTooLong)
+        val repository = repository(transport, MtProtoChatType.SUPERGROUP)
+
+        repository.setChatMemberStatus(
+            -1_000_000_000_042L,
+            7,
+            Restricted(
+                restrictedUntilDate = 123,
+                permissions = ChatPermissionsModel(
+                    canSendBasicMessages = false,
+                    canSendPhotos = false,
+                    canSendVideos = true,
+                    canAddLinkPreviews = false,
+                ),
+            ),
+        )
+        val restricted = (transport.request as EditBanned).bannedRights as org.monogram.mtproto.tl.generated.cloud.layer223.ChatBannedRights_2339df02a7
+        assertTrue(restricted.sendMessages)
+        assertTrue(restricted.sendPhotos)
+        assertEquals(false, restricted.sendVideos)
+        assertTrue(restricted.embedLinks)
+        assertEquals(123, restricted.untilDate)
+
+        repository.setChatMemberStatus(-1_000_000_000_042L, 7, Banned(456))
+        val banned = (transport.request as EditBanned).bannedRights as org.monogram.mtproto.tl.generated.cloud.layer223.ChatBannedRights_2339df02a7
+        assertTrue(banned.viewMessages)
+        assertTrue(banned.sendMessages)
+        assertEquals(456, banned.untilDate)
     }
 
     private fun repository(

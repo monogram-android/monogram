@@ -7,6 +7,7 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.ChatMemberStatus.Administrator
 import org.monogram.domain.repository.ChatMemberStatus.Banned
+import org.monogram.domain.repository.ChatMemberStatus.Restricted as RestrictedStatus
 import org.monogram.domain.repository.ChatMemberStatus.Creator
 import org.monogram.domain.repository.ChatMemberStatus.Left
 import org.monogram.domain.repository.ChatMemberStatus.Member
@@ -171,7 +172,7 @@ internal class MtProtoChatInfoRepository(
     override suspend fun getChatMember(chatId: Long, userId: Long): GroupMemberModel? =
         getChatMembers(chatId, 0, PAGE_SIZE, Recent).firstOrNull { it.user.id == userId }
     override suspend fun setChatMemberStatus(chatId: Long, userId: Long, status: ChatMemberStatus) {
-        require(status is Member || status is Administrator) {
+        require(status is Member || status is Administrator || status is Banned || status is RestrictedStatus) {
             "MTProto chat member status is not available: ${status::class.simpleName}"
         }
         val config = configSource.createForAccount(accountSlot)
@@ -184,15 +185,20 @@ internal class MtProtoChatInfoRepository(
         val transport = requireNotNull(transportFactory) { "MTProto chat member transport is unavailable" }.open(accountSlot)
         try {
             when (chat.type) {
-                MtProtoChatType.BASIC_GROUP -> check(
-                    transport.execute(
-                        EditChatAdmin(
-                            peer.id,
-                            InputUser_4020eae812(userId, accessHash),
-                            status is Administrator,
+                MtProtoChatType.BASIC_GROUP -> {
+                    require(status is Member || status is Administrator) {
+                        "MTProto basic groups cannot restrict or ban members"
+                    }
+                    check(
+                        transport.execute(
+                            EditChatAdmin(
+                                peer.id,
+                                InputUser_4020eae812(userId, accessHash),
+                                status is Administrator,
+                            )
                         )
-                    )
-                ) { "MTProto basic-group member update was rejected" }
+                    ) { "MTProto basic-group member update was rejected" }
+                }
                 MtProtoChatType.SUPERGROUP, MtProtoChatType.CHANNEL -> {
                     val request = if (status is Administrator) {
                         val admin = status
@@ -221,14 +227,23 @@ internal class MtProtoChatInfoRepository(
                             admin.customTitle,
                         )
                     } else {
-                        EditBanned(
-                            InputChannel_d22292516d(peer.id, requireNotNull(chat.accessHash)),
-                            InputPeerUser(userId, accessHash),
-                            ChatBannedRights_2339df02a7(
+                        val rights = when (status) {
+                            Member -> ChatBannedRights_2339df02a7(
                                 false, false, false, false, false, false, false, false,
                                 false, false, false, false, false, false, false, false,
                                 false, false, false, false, false, 0,
-                            ),
+                            )
+                            is Banned -> ChatBannedRights_2339df02a7(
+                                true, true, true, true, true, true, true, true,
+                                true, true, true, true, true, true, true, true,
+                                true, true, true, true, true, status.bannedUntilDate,
+                            )
+                            is RestrictedStatus -> status.permissions.toMtProtoBannedRights(status.restrictedUntilDate)
+                        }
+                        EditBanned(
+                            InputChannel_d22292516d(peer.id, requireNotNull(chat.accessHash)),
+                            InputPeerUser(userId, accessHash),
+                            rights,
                         )
                     }
                     cloudObjectStager.stageLive(scope, transport.execute(request))
@@ -238,6 +253,32 @@ internal class MtProtoChatInfoRepository(
             transport.close()
         }
     }
+
+    private fun org.monogram.domain.models.ChatPermissionsModel.toMtProtoBannedRights(untilDate: Int) =
+        ChatBannedRights_2339df02a7(
+            viewMessages = false,
+            sendMessages = !canSendBasicMessages,
+            sendMedia = !(canSendAudios && canSendDocuments && canSendPhotos && canSendVideos && canSendVideoNotes && canSendVoiceNotes),
+            sendStickers = false,
+            sendGifs = false,
+            sendGames = false,
+            sendInline = false,
+            embedLinks = !canAddLinkPreviews,
+            sendPolls = !canSendPolls,
+            changeInfo = !canChangeInfo,
+            inviteUsers = !canInviteUsers,
+            pinMessages = !canPinMessages,
+            manageTopics = !canCreateTopics,
+            sendPhotos = !canSendPhotos,
+            sendVideos = !canSendVideos,
+            sendRoundvideos = !canSendVideoNotes,
+            sendAudios = !canSendAudios,
+            sendVoices = !canSendVoiceNotes,
+            sendDocs = !canSendDocuments,
+            sendPlain = !canSendOtherMessages,
+            editRank = !canEditTag,
+            untilDate = untilDate,
+        )
 
     private data class MemberRecord(val userId: Long, val rank: String?, val status: org.monogram.domain.repository.ChatMemberStatus)
 

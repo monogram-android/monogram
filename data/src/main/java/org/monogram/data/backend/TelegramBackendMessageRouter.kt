@@ -368,6 +368,15 @@ internal class TelegramBackendMessageRouter(
                 supportsStreaming = supportsStreaming,
             )
         } else genericDocument(path, caption)
+        MtProtoDocumentMediaKind.VIDEO_NOTE -> if (width != null && duration != null) {
+            MessageContent.VideoNote(
+                path = path,
+                thumbnail = null,
+                duration = duration,
+                length = width,
+                fileId = fileId,
+            )
+        } else genericDocument(path, caption)
         MtProtoDocumentMediaKind.GIF -> if (width != null && height != null) {
             MessageContent.Gif(path = path, width = width, height = height, caption = caption, fileId = fileId)
         } else genericDocument(path, caption)

@@ -12,6 +12,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
 internal enum class MtProtoDocumentMediaKind {
     DOCUMENT,
     VIDEO,
+    VIDEO_NOTE,
     GIF,
     AUDIO,
     VOICE,
@@ -59,6 +60,7 @@ internal class MtProtoRoomDocumentLocationStore(
             audio?.voice == true -> MtProtoDocumentMediaKind.VOICE
             audio != null -> MtProtoDocumentMediaKind.AUDIO
             document.attributes.any { it is DocumentAttributeAnimated } -> MtProtoDocumentMediaKind.GIF
+            video?.roundMessage == true -> MtProtoDocumentMediaKind.VIDEO_NOTE
             video != null -> MtProtoDocumentMediaKind.VIDEO
             else -> MtProtoDocumentMediaKind.DOCUMENT
         }

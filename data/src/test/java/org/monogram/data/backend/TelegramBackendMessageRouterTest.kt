@@ -246,6 +246,61 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto maps projected round videos to video notes`() = runBlocking {
+        val files = RecordingMtProtoFiles().apply {
+            document = org.monogram.data.mtproto.MtProtoDocumentFile(
+                fileId = 15,
+                fileName = "note.mp4",
+                mimeType = "video/mp4",
+                size = 42L,
+                mediaKind = org.monogram.data.mtproto.MtProtoDocumentMediaKind.VIDEO_NOTE,
+                width = 384,
+                height = 384,
+                duration = 8,
+            )
+        }
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            pinnedReadFactory = {
+                MtProtoPinnedMessageReader { _, _ ->
+                    listOf(
+                        MtProtoMessageReadModel(
+                            peerType = MtProtoMessagePeerType.USER,
+                            peerId = 1L,
+                            messageId = 10,
+                            senderType = null,
+                            senderId = null,
+                            date = 100,
+                            text = null,
+                            isService = false,
+                            isDeleted = false,
+                            isOutgoing = false,
+                            isMentioned = false,
+                            isMediaUnread = false,
+                            isSilent = false,
+                            isPinned = false,
+                            editDate = null,
+                            groupedId = null,
+                            hasMedia = true,
+                            documentId = 101L,
+                        )
+                    )
+                }
+            },
+            fileFactory = { files },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        val content = router.repository.getPinnedMessage(1L)?.content as org.monogram.domain.models.MessageContent.VideoNote
+
+        assertEquals(15, content.fileId)
+        assertEquals(384, content.length)
+        assertEquals(8, content.duration)
+    }
+
+    @Test
     fun `MTProto maps projected documents to opaque download handles`() = runBlocking {
         val files = RecordingMtProtoFiles().apply {
             document = org.monogram.data.mtproto.MtProtoDocumentFile(

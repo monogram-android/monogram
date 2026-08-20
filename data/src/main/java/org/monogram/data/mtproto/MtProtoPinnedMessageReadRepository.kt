@@ -9,6 +9,10 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputMessagesFilterPinned
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.Search
 
+internal fun interface MtProtoPinnedMessageReader {
+    suspend fun get(chatId: Long, threadId: Long?): List<MtProtoMessageReadModel>
+}
+
 internal class MtProtoPinnedMessageReadRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory,
@@ -17,8 +21,8 @@ internal class MtProtoPinnedMessageReadRepository(
     private val messageStore: MtProtoMessageProjectionStore,
     private val resultStager: MtProtoHistoryResultStager,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
-) {
-    suspend fun get(chatId: Long, threadId: Long?): List<MtProtoMessageReadModel> {
+) : MtProtoPinnedMessageReader {
+    override suspend fun get(chatId: Long, threadId: Long?): List<MtProtoMessageReadModel> {
         val config = configSource.createForAccount(accountId)
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val peer = resolvePeer(scope, chatId)

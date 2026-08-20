@@ -27,7 +27,7 @@ import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoMessageReadModel
 import org.monogram.data.mtproto.MtProtoScheduledMessageRepository
-import org.monogram.data.mtproto.MtProtoPinnedMessageReadRepository
+import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 
 /**
  * Keeps TDLib-owned message commands unavailable when the account uses the Kotlin MTProto
@@ -46,7 +46,7 @@ internal class TelegramBackendMessageRouter(
     private val scheduledFactory: () -> MtProtoScheduledMessageRepository = {
         error("MTProto scheduled message repository is not configured")
     },
-    private val pinnedReadFactory: () -> MtProtoPinnedMessageReadRepository = {
+    private val pinnedReadFactory: () -> MtProtoPinnedMessageReader = {
         error("MTProto pinned message read repository is not configured")
     },
     private val historyRepository: MessageHistorySnapshotRepository? = null,
@@ -93,6 +93,9 @@ internal class TelegramBackendMessageRouter(
                     }
                     "getPinnedMessage" -> invokeDraft(method, args) { values ->
                         pinnedRead.get(values[0] as Long, values[1] as Long?).firstOrNull()?.toMessageModel(values[0] as Long)
+                    }
+                    "getAllPinnedMessages" -> invokeDraft(method, args) { values ->
+                        pinnedRead.get(values[0] as Long, values[1] as Long?).map { it.toMessageModel(values[0] as Long) }
                     }
                     "getPinnedMessageCount" -> invokeDraft(method, args) { values ->
                         pinnedRead.get(values[0] as Long, values[1] as Long?).size

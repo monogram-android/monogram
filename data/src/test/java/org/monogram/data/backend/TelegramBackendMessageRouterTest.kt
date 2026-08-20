@@ -22,6 +22,9 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.data.mtproto.MtProtoDeleteMessageRepository
 import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
+import org.monogram.data.mtproto.MtProtoPinnedMessageReader
+import org.monogram.data.mtproto.MtProtoMessagePeerType
+import org.monogram.data.mtproto.MtProtoMessageReadModel
 
 class TelegramBackendMessageRouterTest {
     @Test
@@ -88,6 +91,46 @@ class TelegramBackendMessageRouterTest {
         assertEquals("default", accountId)
         assertEquals("hello", (page.messages.single().content as org.monogram.domain.models.MessageContent.Text).text)
         assertEquals(org.monogram.domain.repository.BoundaryState.Reached, page.olderBoundary)
+    }
+
+    @Test
+    fun `MTProto maps all pinned messages from the selected reader`() = runBlocking {
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            pinnedReadFactory = {
+                MtProtoPinnedMessageReader { _, _ ->
+                    listOf(
+                    MtProtoMessageReadModel(
+                        peerType = MtProtoMessagePeerType.USER,
+                        peerId = 1L,
+                        messageId = 7,
+                        senderType = MtProtoMessagePeerType.USER,
+                        senderId = 2L,
+                        date = 100,
+                        text = "pinned",
+                        isService = false,
+                        isDeleted = false,
+                        isOutgoing = false,
+                        isMentioned = false,
+                        isMediaUnread = false,
+                        isSilent = false,
+                        isPinned = true,
+                        editDate = null,
+                        groupedId = null,
+                        hasMedia = false,
+                    ),
+                    )
+                }
+            },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        val messages = router.repository.getAllPinnedMessages(1L)
+
+        assertEquals(listOf(7L), messages.map { it.id })
+        assertEquals("pinned", (messages.single().content as org.monogram.domain.models.MessageContent.Text).text)
     }
 
     @Test

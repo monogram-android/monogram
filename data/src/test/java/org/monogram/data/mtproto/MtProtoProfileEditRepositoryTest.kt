@@ -9,6 +9,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateUsername
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -63,6 +65,28 @@ class MtProtoProfileEditRepositoryTest {
 
         repository.setEmojiStatus(null)
         assertEquals(UpdateEmojiStatus(EmojiStatusEmpty), transport.request)
+    }
+
+    @Test
+    fun `sets personal channel from projected access hash`() = runBlocking {
+        val transport = Transport(true)
+        val channelId = 42L
+        val repository = MtProtoProfileEditRepository(
+            Config { config() },
+            MtProtoSessionTransportFactory { transport },
+            Users(),
+            chats = object : MtProtoChatProjectionStore by NoOpMtProtoChatProjectionStore {
+                override suspend fun get(scope: MtProtoAuthKeyScope, chatId: Long) = MtProtoChatReadModel(
+                    chatId, MtProtoChatType.CHANNEL, 9, null, null, null,
+                    false, false, false, false, false, false, false, false, false, false, false, false, false,
+                )
+            },
+        )
+
+        repository.setPersonalChat(-1_000_000_000_042L)
+
+        assertEquals(UpdatePersonalChannel(InputChannel_d22292516d(channelId, 9)), transport.request)
+        assertTrue(transport.closed)
     }
 
     private fun config() = TelegramMtProtoBootstrapConfig(

@@ -4,8 +4,10 @@ import org.monogram.domain.models.BirthdateModel
 import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.photos.UploadProfilePhoto
@@ -14,6 +16,7 @@ internal class MtProtoProfileEditRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory,
     private val users: MtProtoUserProjectionStore,
+    private val chats: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
     private val uploader: MtProtoFileUploader = MtProtoFileUploader {
         throw UnsupportedOperationException("MTProto file upload is not configured")
     },
@@ -71,7 +74,23 @@ internal class MtProtoProfileEditRepository(
         }
     }
     override suspend fun setBirthdate(birthdate: BirthdateModel?) = unsupported()
-    override suspend fun setPersonalChat(chatId: Long) = unsupported()
+    override suspend fun setPersonalChat(chatId: Long) {
+        require(chatId <= -CHANNEL_OFFSET - 1L) { "MTProto personal chat must be a channel or supergroup" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val channelId = -(chatId + CHANNEL_OFFSET)
+        val channel = requireNotNull(chats.get(scope, channelId)) {
+            "Missing MTProto personal channel projection: $channelId"
+        }
+        val accessHash = requireNotNull(channel.accessHash) {
+            "Missing MTProto personal channel access hash: $channelId"
+        }
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(UpdatePersonalChannel(InputChannel_d22292516d(channelId, accessHash)))) {
+                "MTProto personal channel update was rejected"
+            }
+        }
+    }
     override suspend fun setBusinessBio(bio: String) = unsupported()
     override suspend fun setBusinessLocation(address: String, latitude: Double, longitude: Double) = unsupported()
     override suspend fun setBusinessOpeningHours(openingHours: BusinessOpeningHoursModel?) = unsupported()
@@ -79,4 +98,8 @@ internal class MtProtoProfileEditRepository(
     override suspend fun reorderActiveUsernames(usernames: List<String>) = unsupported()
 
     private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto profile edit is not available")
+
+    private companion object {
+        const val CHANNEL_OFFSET = 1_000_000_000_000L
+    }
 }

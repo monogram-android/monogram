@@ -903,6 +903,7 @@ val dataModule = module {
             configSource = get(),
             transportFactory = get(),
             users = get(),
+            chats = get(),
             uploader = get(),
         )
     }

@@ -9,6 +9,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ContentSettings_33d483dc78
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAccountTtl
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetPassword
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.Password_ac67a26d5c
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetContentSettings
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetAccountTtl
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetContentSettings
@@ -83,7 +85,10 @@ internal class MtProtoPrivacyRepository(
             }
         }
     }
-    override suspend fun getPasswordState(): Boolean = unsupported()
+    override suspend fun getPasswordState(): Boolean = transportFactory.open(accountSlot).use { transport ->
+        (transport.execute(GetPassword) as? Password_ac67a26d5c)?.hasPassword
+            ?: error("Unsupported MTProto password response")
+    }
 
     override suspend fun canShowSensitiveContent(): Boolean = contentSettings().sensitiveCanChange
 

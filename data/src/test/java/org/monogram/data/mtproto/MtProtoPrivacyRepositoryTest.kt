@@ -6,6 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.AccountDaysTtl_f6ad918c54
+import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoUnknown
+import org.monogram.mtproto.tl.generated.cloud.layer223.SecurePasswordKdfAlgoUnknown
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ContentSettings_33d483dc78
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerBlocked_161238e123
@@ -13,6 +15,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAccountTtl
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetContentSettings
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetPassword
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.Password_ac67a26d5c
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetAccountTtl
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetContentSettings
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Block
@@ -90,6 +94,16 @@ class MtProtoPrivacyRepositoryTest {
     }
 
     @Test
+    fun `reads password state without exposing password material`() = runBlocking {
+        val transport = Transport(listOf(password(hasPassword = true)))
+        val repository = MtProtoPrivacyRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, Users())
+
+        assertEquals(true, repository.getPasswordState())
+        assertEquals(GetPassword, transport.requests.single())
+        assertTrue(transport.closed)
+    }
+
+    @Test
     fun `reads and updates sensitive content settings`() = runBlocking {
         val transport = Transport(
             listOf(
@@ -124,6 +138,22 @@ class MtProtoPrivacyRepositoryTest {
         }
         assertEquals(false, opened)
     }
+
+    private fun password(hasPassword: Boolean) = Password_ac67a26d5c(
+        hasRecovery = false,
+        hasSecureValues = false,
+        hasPassword = hasPassword,
+        currentAlgo = null,
+        srpB = null,
+        srpId = null,
+        hint = null,
+        emailUnconfirmedPattern = null,
+        newAlgo = PasswordKdfAlgoUnknown,
+        newSecureAlgo = SecurePasswordKdfAlgoUnknown,
+        secureRandom = org.monogram.mtproto.tl.runtime.TlBytes.copyOf(byteArrayOf()),
+        pendingResetDate = null,
+        loginEmailPattern = null,
+    )
 
     private fun blocked(userId: Long) = PeerBlocked_161238e123(PeerUser(userId), 0)
 

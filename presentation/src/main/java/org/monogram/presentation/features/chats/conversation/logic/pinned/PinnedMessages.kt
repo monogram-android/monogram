@@ -12,7 +12,6 @@ import org.monogram.presentation.features.chats.conversation.DefaultChatComponen
 
 
 internal fun DefaultChatComponent.loadPinnedMessage() {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     scope.launch {
         val threadId = activeThreadId()
         val targetChatId = activeThreadChatId()
@@ -51,7 +50,6 @@ internal fun DefaultChatComponent.handleShowPinnedMessage() {
 }
 
 internal fun DefaultChatComponent.loadAllPinnedMessages() {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     scope.launch {
         val threadId = activeThreadId()
         val targetChatId = activeThreadChatId()
@@ -72,7 +70,6 @@ internal fun DefaultChatComponent.loadAllPinnedMessages() {
 }
 
 internal fun DefaultChatComponent.loadScheduledMessages() {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     scope.launch {
         if (!canLoadScheduledMessages()) {
             _state.update { it.copy(scheduledMessages = emptyList()) }

@@ -34,12 +34,27 @@ internal class TelegramBackendChatSettingsRouter(
     override suspend fun setChatPermissions(chatId: Long, permissions: ChatPermissionsModel) = call { legacy.setChatPermissions(chatId, permissions) }
     override suspend fun setChatHasProtectedContent(chatId: Long, hasProtectedContent: Boolean) = call { legacy.setChatHasProtectedContent(chatId, hasProtectedContent) }
     override suspend fun setChatSignMessages(chatId: Long, signMessages: Boolean) = call { legacy.setChatSignMessages(chatId, signMessages) }
-    override suspend fun setChatHasHiddenMembers(chatId: Long, hasHiddenMembers: Boolean) = call { legacy.setChatHasHiddenMembers(chatId, hasHiddenMembers) }
-    override suspend fun setChatHasAggressiveAntiSpamEnabled(chatId: Long, enabled: Boolean) = call { legacy.setChatHasAggressiveAntiSpamEnabled(chatId, enabled) }
-    override suspend fun setChatJoinToSendMessages(chatId: Long, joinToSendMessages: Boolean) = call { legacy.setChatJoinToSendMessages(chatId, joinToSendMessages) }
-    override suspend fun setChatJoinByRequest(chatId: Long, joinByRequest: Boolean) = call { legacy.setChatJoinByRequest(chatId, joinByRequest) }
+    override suspend fun setChatHasHiddenMembers(chatId: Long, hasHiddenMembers: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatHasHiddenMembers(chatId, hasHiddenMembers)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setParticipantsHidden(chatId, hasHiddenMembers)
+    }
+    override suspend fun setChatHasAggressiveAntiSpamEnabled(chatId: Long, enabled: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatHasAggressiveAntiSpamEnabled(chatId, enabled)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setAntiSpamEnabled(chatId, enabled)
+    }
+    override suspend fun setChatJoinToSendMessages(chatId: Long, joinToSendMessages: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatJoinToSendMessages(chatId, joinToSendMessages)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setJoinToSend(chatId, joinToSendMessages)
+    }
+    override suspend fun setChatJoinByRequest(chatId: Long, joinByRequest: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatJoinByRequest(chatId, joinByRequest)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setJoinByRequest(chatId, joinByRequest)
+    }
     override suspend fun setChatAvailableReactions(chatId: Long, availableReactions: List<String>) = call { legacy.setChatAvailableReactions(chatId, availableReactions) }
-    override suspend fun setChatSlowModeDelay(chatId: Long, slowModeDelay: Int) = call { legacy.setChatSlowModeDelay(chatId, slowModeDelay) }
+    override suspend fun setChatSlowModeDelay(chatId: Long, slowModeDelay: Int) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatSlowModeDelay(chatId, slowModeDelay)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setSlowModeDelay(chatId, slowModeDelay)
+    }
     override suspend fun toggleChatIsForum(chatId: Long, isForum: Boolean) = call { legacy.toggleChatIsForum(chatId, isForum) }
     private suspend fun call(action: suspend () -> Unit) { when (selected()) { TelegramBackendKind.LEGACY -> action(); TelegramBackendKind.KOTLIN_MTPROTO -> unsupported() } }
     private fun selected() = checkNotNull(selectedBackend.value) { "Telegram backend selection is not loaded" }

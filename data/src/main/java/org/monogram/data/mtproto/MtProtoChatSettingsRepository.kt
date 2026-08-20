@@ -7,6 +7,11 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.EditTitle
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.UpdateUsername
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleAntiSpam
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleJoinRequest
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleJoinToSend
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleParticipantsHidden
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSlowMode
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
 
@@ -14,6 +19,11 @@ internal interface MtProtoChatSettingsRepository {
     suspend fun setTitle(chatId: Long, title: String)
     suspend fun setDescription(chatId: Long, description: String)
     suspend fun setUsername(chatId: Long, username: String)
+    suspend fun setSlowModeDelay(chatId: Long, seconds: Int)
+    suspend fun setParticipantsHidden(chatId: Long, enabled: Boolean)
+    suspend fun setAntiSpamEnabled(chatId: Long, enabled: Boolean)
+    suspend fun setJoinToSend(chatId: Long, enabled: Boolean)
+    suspend fun setJoinByRequest(chatId: Long, enabled: Boolean)
 }
 
 internal class MtProtoChatSettingsRepositoryImpl(
@@ -56,6 +66,23 @@ internal class MtProtoChatSettingsRepositoryImpl(
         }
     }
 
+    override suspend fun setSlowModeDelay(chatId: Long, seconds: Int) {
+        require(seconds >= 0) { "MTProto slow mode delay must not be negative" }
+        mutateChannel(chatId) { channel -> ToggleSlowMode(channel, seconds) }
+    }
+
+    override suspend fun setParticipantsHidden(chatId: Long, enabled: Boolean) =
+        mutateChannel(chatId) { channel -> ToggleParticipantsHidden(channel, enabled) }
+
+    override suspend fun setAntiSpamEnabled(chatId: Long, enabled: Boolean) =
+        mutateChannel(chatId) { channel -> ToggleAntiSpam(channel, enabled) }
+
+    override suspend fun setJoinToSend(chatId: Long, enabled: Boolean) =
+        mutateChannel(chatId) { channel -> ToggleJoinToSend(channel, enabled) }
+
+    override suspend fun setJoinByRequest(chatId: Long, enabled: Boolean) =
+        mutateChannel(chatId) { channel -> ToggleJoinRequest(channel, enabled) }
+
     override suspend fun setDescription(chatId: Long, description: String) {
         val (scope, peer) = resolve(chatId)
         val inputPeer = when (peer.type) {
@@ -72,6 +99,22 @@ internal class MtProtoChatSettingsRepositoryImpl(
             check(transport.execute(EditChatAbout(inputPeer, description))) {
                 "messages.editChatAbout was rejected"
             }
+        }
+    }
+
+    private suspend fun mutateChannel(
+        chatId: Long,
+        request: (InputChannel_d22292516d) -> org.monogram.mtproto.tl.runtime.TlMethod<org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5>,
+    ) {
+        val (scope, peer) = resolve(chatId)
+        require(peer.type == DialogPeerType.SUPERGROUP || peer.type == DialogPeerType.CHANNEL) {
+            "MTProto setting requires a supergroup or channel"
+        }
+        val accessHash = requireNotNull(chats.get(scope, peer.id)?.accessHash) {
+            "Missing MTProto channel access hash: ${peer.id}"
+        }
+        transportFactory.open(accountSlot).use { transport ->
+            cloudObjectStager.stageLive(scope, transport.execute(request(InputChannel_d22292516d(peer.id, accessHash))))
         }
     }
 

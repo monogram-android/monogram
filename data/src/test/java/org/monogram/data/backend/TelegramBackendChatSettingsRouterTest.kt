@@ -23,8 +23,13 @@ class TelegramBackendChatSettingsRouterTest {
         router.setChatTitle(-7, "Team")
         router.setChatDescription(-7, "Owned MTProto")
         router.setChatUsername(-7, "team")
+        router.setChatSlowModeDelay(-7, 10)
+        router.setChatHasHiddenMembers(-7, true)
+        router.setChatHasAggressiveAntiSpamEnabled(-7, true)
+        router.setChatJoinToSendMessages(-7, true)
+        router.setChatJoinByRequest(-7, true)
 
-        assertEquals(listOf("title:-7:Team", "description:-7:Owned MTProto", "username:-7:team"), settings.calls)
+        assertEquals(listOf("title:-7:Team", "description:-7:Owned MTProto", "username:-7:team", "slow:10", "hidden:true", "spam:true", "join:true", "request:true"), settings.calls)
     }
 
     private class RecordingSettings : MtProtoChatSettingsRepository {
@@ -38,6 +43,11 @@ class TelegramBackendChatSettingsRouterTest {
         override suspend fun setUsername(chatId: Long, username: String) {
             calls += "username:$chatId:$username"
         }
+        override suspend fun setSlowModeDelay(chatId: Long, seconds: Int) { calls += "slow:$seconds" }
+        override suspend fun setParticipantsHidden(chatId: Long, enabled: Boolean) { calls += "hidden:$enabled" }
+        override suspend fun setAntiSpamEnabled(chatId: Long, enabled: Boolean) { calls += "spam:$enabled" }
+        override suspend fun setJoinToSend(chatId: Long, enabled: Boolean) { calls += "join:$enabled" }
+        override suspend fun setJoinByRequest(chatId: Long, enabled: Boolean) { calls += "request:$enabled" }
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

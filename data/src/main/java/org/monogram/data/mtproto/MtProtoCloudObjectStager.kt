@@ -38,10 +38,12 @@ internal class MtProtoRoomCloudObjectStager(
     private val userProjectionStore: MtProtoUserProjectionStore = NoOpMtProtoUserProjectionStore,
     private val chatProjectionStore: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
     private val messageProjectionStore: MtProtoMessageProjectionStore = NoOpMtProtoMessageProjectionStore,
+    private val draftStore: MtProtoDraftStore = NoOpMtProtoDraftStore,
 ) : MtProtoCloudObjectStager {
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
         stage(scope, envelope.liveObjects())
         messageProjectionStore.stageLive(scope, envelope)
+        draftStore.stageLive(scope, envelope)
     }
 
     override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) {
@@ -103,6 +105,7 @@ internal class MtProtoRoomCloudObjectStager(
         userProjectionStore.deleteAccount(accountSlot, environment)
         chatProjectionStore.deleteAccount(accountSlot, environment)
         messageProjectionStore.deleteAccount(accountSlot, environment)
+        draftStore.deleteAccount(accountSlot, environment)
     }
 
     private data class MtProtoCloudObject(

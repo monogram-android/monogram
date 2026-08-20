@@ -95,10 +95,14 @@ import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomDialogStore
 import org.monogram.data.mtproto.MtProtoDialogStore
+import org.monogram.data.mtproto.MtProtoDraftStore
+import org.monogram.data.mtproto.MtProtoRoomDraftStore
 import org.monogram.data.mtproto.MtProtoDialogResultStager
 import org.monogram.data.mtproto.MtProtoHistoryResultStager
 import org.monogram.data.mtproto.MtProtoDialogSnapshotRepository
 import org.monogram.data.mtproto.MtProtoTextMessageRepositoryImpl
+import org.monogram.data.mtproto.MtProtoDraftRepository
+import org.monogram.data.mtproto.MtProtoDraftRepositoryImpl
 import org.monogram.data.mtproto.MtProtoReadHistoryRepositoryImpl
 import org.monogram.data.mtproto.MtProtoMessageDeletionRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogChatListRepository
@@ -461,6 +465,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_43_44,
                 MonogramMigrations.MIGRATION_44_45,
                 MonogramMigrations.MIGRATION_45_46,
+                MonogramMigrations.MIGRATION_46_47,
             )
             .build()
     }
@@ -474,6 +479,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().mtProtoChatProjectionDao() }
     single { get<MonogramDatabase>().mtProtoDialogProjectionDao() }
     single { get<MonogramDatabase>().mtProtoMessageProjectionDao() }
+    single { get<MonogramDatabase>().mtProtoDraftProjectionDao() }
     single { MtProtoRoomUserProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoUserProjectionStore> { get<MtProtoRoomUserProjectionStore>() }
     single { MtProtoRoomChatProjectionStore(get(), cloudObjectDao = get()) }
@@ -482,6 +488,8 @@ val dataModule = module {
     single<MtProtoMessageProjectionStore> { get<MtProtoRoomMessageProjectionStore>() }
     single { MtProtoRoomDialogStore(get(), get(), get(), get()) }
     single<MtProtoDialogStore> { get<MtProtoRoomDialogStore>() }
+    single { MtProtoRoomDraftStore(get()) }
+    single<MtProtoDraftStore> { get<MtProtoRoomDraftStore>() }
     single { MtProtoDialogResultStager(get(), get(), get(), get(), get()) }
     single { MtProtoHistoryResultStager(get(), get(), get(), get()) }
     single { MtProtoDialogSnapshotRepository(get(), get(), get(), get()) }
@@ -494,6 +502,15 @@ val dataModule = module {
             transportFactory = get(),
             users = get(),
             chats = get(),
+        )
+    }
+    single<MtProtoDraftRepository> {
+        MtProtoDraftRepositoryImpl(
+            configSource = get(),
+            transportFactory = get(),
+            users = get(),
+            chats = get(),
+            drafts = get(),
         )
     }
     single<MtProtoTextMessageRepository> {
@@ -522,6 +539,7 @@ val dataModule = module {
             userProjectionStore = get(),
             chatProjectionStore = get(),
             messageProjectionStore = get(),
+            draftStore = get(),
         )
     }
     single<MtProtoCloudObjectStager> { get<MtProtoRoomCloudObjectStager>() }
@@ -544,6 +562,7 @@ val dataModule = module {
             messageProjectionStore = get(),
             accountDcStore = get(),
             dialogStore = get(),
+            draftStore = get(),
         )
     }
     single<MtProtoAccountStateResetter> { get<MtProtoAccountStateCleaner>() }
@@ -1065,6 +1084,7 @@ val dataModule = module {
         TelegramBackendMessageRouter(
             selectionStore = get(),
             legacyFactory = { get<MessageRepositoryImpl>() },
+            draftFactory = { get<MtProtoDraftRepository>() },
             scope = get(),
         ).repository
     }

@@ -10,6 +10,10 @@ import org.monogram.mtproto.codec.CloudTlObjectCodec
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.Chat_7fdd7beb6e
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.DraftMessage_3aaf32dfa6
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDraftMessage
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShort
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesCombined
 import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
@@ -53,6 +57,25 @@ class MtProtoRoomCloudObjectStagerTest {
     }
 
     @Test
+    fun `forwards live draft updates to the draft projection`() = runBlocking {
+        val drafts = RecordingDraftStore()
+        val stager = MtProtoRoomCloudObjectStager(FakeCloudObjectDao(), draftStore = drafts)
+        val update = UpdateShort(
+            UpdateDraftMessage(
+                peer = PeerUser(42L),
+                topMsgId = null,
+                savedPeerId = null,
+                draft = DraftMessage_3aaf32dfa6(false, false, null, "draft", null, null, 1, null, null),
+            ),
+            1,
+        )
+
+        stager.stageLive(scope, update)
+
+        assertEquals(listOf(update), drafts.staged)
+    }
+
+    @Test
     fun `stages live envelope and deletes only selected account environment`() = runBlocking {
         val dao = FakeCloudObjectDao()
         val stager = MtProtoRoomCloudObjectStager(dao)
@@ -74,6 +97,17 @@ class MtProtoRoomCloudObjectStagerTest {
             listOf("update"),
             dao.getAll("account-1", "prod", 4).map { it.objectType },
         )
+    }
+
+    private class RecordingDraftStore : MtProtoDraftStore {
+        val staged = mutableListOf<Updates_faf6aaa3d5>()
+
+        override suspend fun get(scope: MtProtoAuthKeyScope, chatId: Long): String? = null
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, chatId: Long, text: String) = Unit
+        override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
+            staged += envelope
+        }
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
     }
 
     private class FakeCloudObjectDao : MtProtoCloudObjectDao {

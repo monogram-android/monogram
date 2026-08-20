@@ -14,6 +14,7 @@ import org.monogram.data.db.dao.MtProtoPendingEnvelopeDao
 import org.monogram.data.db.dao.MtProtoCloudObjectDao
 import org.monogram.data.db.dao.MtProtoChatProjectionDao
 import org.monogram.data.db.dao.MtProtoDialogProjectionDao
+import org.monogram.data.db.dao.MtProtoDraftProjectionDao
 import org.monogram.data.db.dao.MtProtoMessageProjectionDao
 import org.monogram.data.db.dao.MtProtoUserProjectionDao
 import org.monogram.data.db.dao.NotificationExceptionDao
@@ -53,6 +54,7 @@ import org.monogram.data.db.model.TextCompositionStyleEntity
 import org.monogram.data.db.model.TopicEntity
 import org.monogram.data.db.model.UserEntity
 import org.monogram.data.db.model.UserFullInfoEntity
+import org.monogram.data.db.model.MtProtoDraftProjectionEntity
 import org.monogram.data.db.model.WallpaperEntity
 
 @Database(
@@ -67,6 +69,7 @@ import org.monogram.data.db.model.WallpaperEntity
         MtProtoChatProjectionEntity::class,
         MtProtoDialogProjectionEntity::class,
         MtProtoMessageProjectionEntity::class,
+        MtProtoDraftProjectionEntity::class,
         UserEntity::class,
         ChatFullInfoEntity::class,
         TopicEntity::class,
@@ -84,7 +87,7 @@ import org.monogram.data.db.model.WallpaperEntity
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 46,
+    version = 47,
     exportSchema = true
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -98,6 +101,7 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun mtProtoChatProjectionDao(): MtProtoChatProjectionDao
     abstract fun mtProtoDialogProjectionDao(): MtProtoDialogProjectionDao
     abstract fun mtProtoMessageProjectionDao(): MtProtoMessageProjectionDao
+    abstract fun mtProtoDraftProjectionDao(): MtProtoDraftProjectionDao
     abstract fun userDao(): UserDao
     abstract fun chatFullInfoDao(): ChatFullInfoDao
     abstract fun topicDao(): TopicDao

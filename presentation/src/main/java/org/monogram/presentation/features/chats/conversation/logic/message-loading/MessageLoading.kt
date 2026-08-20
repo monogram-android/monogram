@@ -2481,7 +2481,10 @@ internal fun DefaultChatComponent.handleEditedRichMessage(message: MessageModel)
 }
 
 internal fun DefaultChatComponent.loadDraft() {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
+    if (
+        backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO &&
+        activeThreadId() != null
+    ) return
     scope.launch {
         _state.value.currentTopicId
         val draft = repositoryMessage.getChatDraft(activeThreadChatId(), activeThreadId())

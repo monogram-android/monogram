@@ -464,6 +464,10 @@ private fun ChecklistTask.withCompletion(
 }
 
 internal fun DefaultChatComponent.handleDraftChange(text: String) {
+    if (
+        backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO &&
+        _state.value.effectiveThreadId() != null
+    ) return
     val isEditing = _state.value.editingMessage != null
     recomputeDraftLinkPreview(
         text = text,

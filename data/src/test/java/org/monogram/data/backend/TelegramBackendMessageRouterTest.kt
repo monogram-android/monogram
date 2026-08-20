@@ -12,6 +12,7 @@ import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.data.mtproto.MtProtoDraftRepository
 
 class TelegramBackendMessageRouterTest {
     @Test
@@ -19,10 +20,11 @@ class TelegramBackendMessageRouterTest {
         val router = TelegramBackendMessageRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository failure") },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
-        assertThrows(UnsupportedOperationException::class.java) {
+        assertThrows(IllegalStateException::class.java) {
             runBlocking { router.repository.getChatDraft(1L) }
         }
         Unit
@@ -39,6 +41,7 @@ class TelegramBackendMessageRouterTest {
         val router = TelegramBackendMessageRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.LEGACY),
             legacyFactory = { legacy },
+            draftFactory = { error("draft repository must not be created") },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
@@ -46,14 +49,41 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto draft commands use the selected repository`() = runBlocking {
+        val drafts = FakeMtProtoDraftRepository()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { drafts },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.saveChatDraft(1L, "draft", null)
+
+        assertEquals("draft", router.repository.getChatDraft(1L))
+        assertEquals("draft", drafts.text)
+    }
+
+    @Test
     fun `MTProto message update flows are inert`() = runBlocking {
         val router = TelegramBackendMessageRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
         assertNull(router.repository.newMessageFlow.firstOrNull())
+    }
+
+    private class FakeMtProtoDraftRepository : MtProtoDraftRepository {
+        var text: String? = null
+
+        override suspend fun getDraft(chatId: Long, threadId: Long?) = text
+
+        override suspend fun saveDraft(chatId: Long, text: String, replyToMsgId: Long?, threadId: Long?) {
+            this.text = text
+        }
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

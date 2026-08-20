@@ -4,6 +4,9 @@ import java.lang.reflect.InvocationHandler
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.startCoroutine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +14,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.RichTextParsingRepository
+import org.monogram.data.mtproto.MtProtoDraftRepository
 
 /**
  * Keeps TDLib-owned message commands unavailable when the account uses the Kotlin MTProto
@@ -19,11 +23,13 @@ import org.monogram.domain.repository.RichTextParsingRepository
 internal class TelegramBackendMessageRouter(
     selectionStore: TelegramBackendSelectionStore,
     legacyFactory: () -> MessageRepository,
+    private val draftFactory: () -> MtProtoDraftRepository,
     scope: CoroutineScope,
     accountId: String = DEFAULT_ACCOUNT_ID,
 ) {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val drafts by lazy(LazyThreadSafetyMode.NONE, draftFactory)
 
     val repository: MessageRepository = Proxy.newProxyInstance(
         MessageRepository::class.java.classLoader,
@@ -50,14 +56,32 @@ internal class TelegramBackendMessageRouter(
 
             return when (selectedBackend.value) {
                 TelegramBackendKind.LEGACY -> invokeLegacy(method, args)
-                TelegramBackendKind.KOTLIN_MTPROTO -> {
-                    if (Flow::class.java.isAssignableFrom(method.returnType)) emptyFlow<Any>()
-                    else unsupported(method)
+                TelegramBackendKind.KOTLIN_MTPROTO -> when (method.name) {
+                    "getChatDraft" -> invokeDraft(method, args) { values ->
+                        drafts.getDraft(values[0] as Long, values[1] as Long?)
+                    }
+                    "saveChatDraft" -> invokeDraft(method, args) { values ->
+                        drafts.saveDraft(values[0] as Long, values[1] as String, values[2] as Long?, values[3] as Long?)
+                    }
+                    else -> if (Flow::class.java.isAssignableFrom(method.returnType)) emptyFlow<Any>() else unsupported(method)
                 }
 
                 null -> error("Telegram backend selection is not loaded")
             }
         }
+    }
+
+    private fun invokeDraft(
+        method: Method,
+        args: Array<out Any?>?,
+        operation: suspend (Array<out Any?>) -> Any?,
+    ): Any? {
+        val values = requireNotNull(args) { "Missing arguments for ${method.name}" }
+        @Suppress("UNCHECKED_CAST")
+        val continuation = values.last() as? Continuation<Any?>
+            ?: error("Missing continuation for ${method.name}")
+        suspend { operation(values) }.startCoroutine(continuation)
+        return COROUTINE_SUSPENDED
     }
 
     private fun invokeLegacy(method: Method, args: Array<out Any?>?): Any? = try {

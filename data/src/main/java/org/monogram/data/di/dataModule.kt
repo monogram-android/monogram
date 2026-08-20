@@ -36,6 +36,7 @@ import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
 import org.monogram.data.backend.TelegramBackendNetworkStatisticsRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
 import org.monogram.data.backend.TelegramBackendLimitsRouter
+import org.monogram.data.backend.TelegramBackendLinkHandlerRouter
 import org.monogram.data.backend.TelegramBackendLinkRouter
 import org.monogram.data.backend.TelegramBackendSessionRouter
 import org.monogram.data.backend.LegacyChatReadContracts
@@ -1576,7 +1577,11 @@ val dataModule = module {
     }
 
     single<LinkHandlerRepository> {
-        LinkHandlerRepositoryImpl(get(), get(), get(), get(), get())
+        TelegramBackendLinkHandlerRouter(
+            selectionStore = get(),
+            legacyFactory = { LinkHandlerRepositoryImpl(get(), get(), get(), get(), get()) },
+            scope = get(),
+        )
     }
 
     single<StoryRepository> {

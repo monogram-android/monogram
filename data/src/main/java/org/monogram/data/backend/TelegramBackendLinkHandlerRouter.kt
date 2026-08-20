@@ -1,0 +1,32 @@
+package org.monogram.data.backend
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import org.monogram.domain.repository.LinkAction
+import org.monogram.domain.repository.LinkHandlerRepository
+
+internal class TelegramBackendLinkHandlerRouter(
+    selectionStore: TelegramBackendSelectionStore,
+    private val legacyFactory: () -> LinkHandlerRepository,
+    scope: CoroutineScope,
+    private val accountId: String = "default",
+) : LinkHandlerRepository {
+    private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
+    private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    init { scope.launch { selectionStore.observe(accountId).collect { selectedBackend.value = it } } }
+    override suspend fun handleLink(link: String): LinkAction = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.handleLink(link)
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+    override suspend fun joinChat(inviteLink: String): Long? = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.joinChat(inviteLink)
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+    override suspend fun joinChatAction(inviteLink: String): LinkAction = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.joinChatAction(inviteLink)
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+    private fun selected() = checkNotNull(selectedBackend.value) { "Telegram backend selection is not loaded" }
+    private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto link handling is not available")
+}

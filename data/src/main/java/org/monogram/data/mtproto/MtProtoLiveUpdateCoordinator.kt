@@ -12,6 +12,7 @@ import org.monogram.data.backend.TelegramBackendKind
 import org.monogram.data.backend.TelegramBackendSelectionStore
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
+import org.monogram.domain.repository.DialogSnapshotRepository
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 
 internal fun interface MtProtoSessionTransportFactory {
@@ -37,6 +38,9 @@ internal class MtProtoLiveUpdateCoordinator(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val recovery: MtProtoRoomUpdateRecovery,
     private val liveUpdateApplier: MtProtoRoomLiveUpdateApplier,
+    private val dialogs: DialogSnapshotRepository = object : DialogSnapshotRepository {
+        override suspend fun getDialogs(accountId: String) = emptyList<org.monogram.domain.models.DialogSnapshotModel>()
+    },
     scope: CoroutineScope,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : MtProtoLiveSessionResetter {
@@ -109,6 +113,7 @@ internal class MtProtoLiveUpdateCoordinator(
                     return false
                 }
             }
+            dialogs.getDialogs(accountSlot)
             val inbox = transport.updates ?: return true
             while (true) {
                 val envelope = inbox.receive() ?: return true

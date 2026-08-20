@@ -17,6 +17,7 @@ internal class MtProtoAccountStateCleaner(
     private val accountDcStore: MtProtoAccountDcStore = NoOpMtProtoAccountDcStore,
     private val dialogStore: MtProtoDialogStore = NoOpMtProtoDialogStore,
     private val draftStore: MtProtoDraftStore = NoOpMtProtoDraftStore,
+    private val authorizationStore: MtProtoAccountAuthorizationStore = NoOpMtProtoAccountAuthorizationStore,
 ) : MtProtoAccountStateResetter {
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
         var failure: Throwable? = null
@@ -49,6 +50,9 @@ internal class MtProtoAccountStateCleaner(
         }
         failure = collectFailure(failure) {
             accountDcStore.delete(accountSlot)
+        }
+        failure = collectFailure(failure) {
+            authorizationStore.clear(accountSlot)
         }
         failure?.let { throw it }
     }

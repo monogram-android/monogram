@@ -1,6 +1,8 @@
 package org.monogram.data.mtproto
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import org.monogram.domain.models.DialogMessagePreviewModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
@@ -29,6 +31,9 @@ internal class MtProtoDialogSnapshotRepository(
     private val sessionFactory: TelegramMtProtoSessionFactory? = null,
     private val resultStager: MtProtoDialogResultStager? = null,
 ) : DialogSnapshotRepository {
+    private val _dialogUpdates = MutableSharedFlow<List<DialogSnapshotModel>>(replay = 1, extraBufferCapacity = 1)
+    internal val dialogUpdates = _dialogUpdates.asSharedFlow()
+
     override suspend fun getDialogs(accountId: String): List<DialogSnapshotModel> {
         val config = configSource.createForAccount(accountId)
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
@@ -43,7 +48,7 @@ internal class MtProtoDialogSnapshotRepository(
                     val result = executeDialogsPage(
                         transport = transport,
                         request = GetDialogs(
-                            excludePinned = false,
+                            excludePinned = pageIndex > 0,
                             folderId = null,
                             offsetDate = offsetDate,
                             offsetId = offsetId,
@@ -53,6 +58,7 @@ internal class MtProtoDialogSnapshotRepository(
                         ),
                     )
                     check(resultStager.stage(scope, result)) { "Unsupported messages.getDialogs result" }
+                    _dialogUpdates.emit(dialogStore.getAll(scope).map { it.toDomain() })
                     val page = result.dialogPage()
                     loadedDialogs += page.dialogs.size
                     if (!page.hasMore(loadedDialogs)) break
@@ -124,7 +130,8 @@ internal class MtProtoDialogSnapshotRepository(
         fun hasMore(loadedDialogs: Int): Boolean = totalCount?.let { loadedDialogs < it } ?: false
 
         fun cursor(toInputPeer: (org.monogram.mtproto.tl.generated.cloud.layer223.Peer, List<org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57>, List<org.monogram.mtproto.tl.generated.cloud.layer223.Chat_7fdd7beb6e>) -> InputPeer): DialogCursor {
-            val dialog = dialogs.lastOrNull() ?: error("messages.getDialogs returned an empty slice")
+            val dialog = dialogs.lastUnpinnedDialog()
+                ?: error("messages.getDialogs returned no unpinned dialog cursor")
             val message = messages.firstOrNull { it.messageId() == dialog.topMessage }
             val peer = dialog.peer
             return DialogCursor(
@@ -178,6 +185,9 @@ internal class MtProtoDialogSnapshotRepository(
         const val MAX_FLOOD_WAIT_RETRIES = 3
     }
 }
+
+internal fun List<Dialog_cf9860a8bd>.lastUnpinnedDialog(): Dialog_cf9860a8bd? =
+    lastOrNull { !it.pinned }
 
 internal fun MtProtoRpcException.floodWaitSeconds(): Long? =
     DIALOG_FLOOD_WAIT_PATTERN.matchEntire(rpcMessage)?.groupValues?.get(1)?.toLongOrNull()

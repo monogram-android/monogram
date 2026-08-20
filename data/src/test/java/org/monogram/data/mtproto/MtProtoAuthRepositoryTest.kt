@@ -65,6 +65,64 @@ class MtProtoAuthRepositoryTest {
     }
 
     @Test
+    fun `persists authorization before publishing ready`() = runTest {
+        val storedSlots = mutableListOf<String>()
+        val handle = FakeHandle(
+            requestCode = { AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5) },
+            submitCode = { AuthStep.Ready },
+        )
+        val repository = MtProtoAuthRepository(
+            sessionFactory = MtProtoAuthSessionHandleFactory { handle },
+            scope = backgroundScope,
+            authorizationStore = object : MtProtoAccountAuthorizationStore {
+                override suspend fun isAuthorized(accountSlot: String) = false
+                override suspend fun markAuthorized(accountSlot: String) { storedSlots += accountSlot }
+                override suspend fun clear(accountSlot: String) = Unit
+            },
+        )
+
+        repository.sendPhone("+10000000000")
+        testScheduler.runCurrent()
+        repository.sendCode("12345")
+        testScheduler.runCurrent()
+
+        assertEquals(listOf("default"), storedSlots)
+        assertEquals(AuthStep.Ready, repository.authState.value)
+    }
+
+    @Test
+    fun `restores ready only after authenticated session validation`() = runTest {
+        val restoreCalls = AtomicInteger()
+        val repository = MtProtoAuthRepository(
+            sessionFactory = MtProtoAuthSessionHandleFactory { error("unexpected auth session") },
+            scope = backgroundScope,
+            authorizedSessionRestorer = MtProtoAuthorizedSessionRestorer {
+                restoreCalls.incrementAndGet()
+                true
+            },
+        )
+
+        assertEquals(AuthStep.InputPhone, repository.authState.value)
+        testScheduler.runCurrent()
+
+        assertEquals(1, restoreCalls.get())
+        assertEquals(AuthStep.Ready, repository.authState.value)
+    }
+
+    @Test
+    fun `does not restore ready when authenticated session validation fails`() = runTest {
+        val repository = MtProtoAuthRepository(
+            sessionFactory = MtProtoAuthSessionHandleFactory { error("unexpected auth session") },
+            scope = backgroundScope,
+            authorizedSessionRestorer = MtProtoAuthorizedSessionRestorer { false },
+        )
+
+        testScheduler.runCurrent()
+
+        assertEquals(AuthStep.InputPhone, repository.authState.value)
+    }
+
+    @Test
     fun `submits registration only after signup state and closes ready session`() = runTest {
         val handle = FakeHandle(
             requestCode = { AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5) },

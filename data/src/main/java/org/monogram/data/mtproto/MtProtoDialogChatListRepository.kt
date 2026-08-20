@@ -1,5 +1,6 @@
 package org.monogram.data.mtproto
 
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -34,6 +35,7 @@ internal class MtProtoDialogChatListRepository(
     private val dialogRepository: DialogSnapshotRepository,
     private val readHistoryRepository: MtProtoReadHistoryRepository,
     private val scope: CoroutineScope,
+    private val dialogUpdates: Flow<List<DialogSnapshotModel>>? = null,
     private val archiveRepository: MtProtoArchiveRepository = MtProtoArchiveRepository { _, _ -> },
     private val dialogPinRepository: MtProtoDialogPinRepository = MtProtoDialogPinRepository { _, _ -> },
     private val muteRepository: MtProtoMuteRepository = MtProtoMuteRepository { _, _ -> },
@@ -60,6 +62,11 @@ internal class MtProtoDialogChatListRepository(
     override val isArchiveAlwaysVisible = MutableStateFlow(false).asStateFlow()
 
     init {
+        dialogUpdates?.let { updates ->
+            scope.launch {
+                updates.collect(::publishDialogs)
+            }
+        }
         refresh()
     }
 
@@ -74,15 +81,13 @@ internal class MtProtoDialogChatListRepository(
         scope.launch {
             _isLoadingFlow.value = true
             _folderLoadingFlow.emit(FolderLoadingUpdate(ALL_CHATS_FOLDER_ID, true))
-            runCatching { dialogRepository.getDialogs(accountId) }
-                .onSuccess { dialogs ->
-                    _chatListFlow.value = dialogs.mapNotNull(::toChatModel)
-                        .sortedWith(compareByDescending<ChatModel> { it.lastMessageDate }.thenByDescending { it.lastMessageId })
-                    publishCurrentChats()
-                }
-                .onFailure {
-                    _connectionStateFlow.value = ConnectionStatus.Connecting
-                }
+            try {
+                publishDialogs(dialogRepository.getDialogs(accountId))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                _connectionStateFlow.value = ConnectionStatus.Connecting
+            }
             _isLoadingFlow.value = false
             _folderLoadingFlow.emit(FolderLoadingUpdate(ALL_CHATS_FOLDER_ID, false))
         }
@@ -104,6 +109,12 @@ internal class MtProtoDialogChatListRepository(
     override suspend fun updateFolder(folderId: Int, title: String, iconName: String?, includedChatIds: List<Long>) = unsupportedFolders()
 
     override suspend fun reorderFolders(folderIds: List<Int>) = unsupportedFolders()
+
+    private suspend fun publishDialogs(dialogs: List<DialogSnapshotModel>) {
+        _chatListFlow.value = dialogs.mapNotNull(::toChatModel)
+            .sortedWith(compareByDescending<ChatModel> { it.lastMessageDate }.thenByDescending { it.lastMessageId })
+        publishCurrentChats()
+    }
 
     private suspend fun publishCurrentChats() {
         _folderChatsFlow.emit(FolderChatsUpdate(ALL_CHATS_FOLDER_ID, chatListFlow.value))

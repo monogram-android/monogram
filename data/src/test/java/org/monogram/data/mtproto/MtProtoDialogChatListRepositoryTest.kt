@@ -1,6 +1,7 @@
 package org.monogram.data.mtproto
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -40,6 +41,23 @@ class MtProtoDialogChatListRepositoryTest {
             listOf(42L, -1_003_768_707_135L),
             repository.folderChatsFlow.first().chats.map { it.id },
         )
+    }
+
+    @Test
+    fun `publishes staged dialog pages before snapshot completion`() = runTest {
+        val updates = MutableSharedFlow<List<DialogSnapshotModel>>(replay = 1)
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = FakeDialogRepository(emptyList()),
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+            dialogUpdates = updates,
+        )
+        runCurrent()
+
+        updates.emit(listOf(dialog(DialogPeerType.PRIVATE, 42L, date = 7, title = "Peer")))
+        runCurrent()
+
+        assertEquals(listOf(42L), repository.chatListFlow.value.map { it.id })
     }
 
     @Test

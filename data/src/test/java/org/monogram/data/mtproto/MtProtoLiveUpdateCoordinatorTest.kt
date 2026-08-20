@@ -20,6 +20,7 @@ import org.monogram.domain.repository.AuthError
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.AuthUiStatus
+import org.monogram.domain.repository.DialogSnapshotRepository
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.updates.DifferenceEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.updates.DifferenceTooLong
@@ -57,6 +58,7 @@ class MtProtoLiveUpdateCoordinatorTest {
             },
         )
         var opens = 0
+        var dialogRequests = 0
         val stateStore = FakeStateStore()
         coordinator(
             selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
@@ -66,6 +68,12 @@ class MtProtoLiveUpdateCoordinatorTest {
                 transport
             },
             stateStore = stateStore,
+            dialogs = object : DialogSnapshotRepository {
+                override suspend fun getDialogs(accountId: String): List<org.monogram.domain.models.DialogSnapshotModel> {
+                    dialogRequests++
+                    return emptyList()
+                }
+            },
             scope = backgroundScope,
         )
 
@@ -73,6 +81,7 @@ class MtProtoLiveUpdateCoordinatorTest {
 
         assertEquals(1, opens)
         assertTrue(transport.closed)
+        assertEquals(1, dialogRequests)
         assertEquals(MtProtoUpdateCursor(10, 20, 31, 41), stateStore.state?.cursor)
     }
 
@@ -188,6 +197,9 @@ class MtProtoLiveUpdateCoordinatorTest {
         auth: FakeAuthRepository,
         transportFactory: MtProtoSessionTransportFactory,
         stateStore: FakeStateStore = FakeStateStore(),
+        dialogs: DialogSnapshotRepository = object : DialogSnapshotRepository {
+            override suspend fun getDialogs(accountId: String) = emptyList<org.monogram.domain.models.DialogSnapshotModel>()
+        },
         scope: CoroutineScope,
     ) = MtProtoLiveUpdateCoordinator(
         selectionStore = selection,
@@ -199,6 +211,7 @@ class MtProtoLiveUpdateCoordinatorTest {
             liveUpdateApplier = MtProtoRoomLiveUpdateApplier(stateStore, FakePendingStore()),
         ),
         liveUpdateApplier = MtProtoRoomLiveUpdateApplier(stateStore, FakePendingStore()),
+        dialogs = dialogs,
         scope = scope,
     )
 

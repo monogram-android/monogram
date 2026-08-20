@@ -41,6 +41,14 @@ class MtProtoDialogSnapshotRepositoryTest {
     }
 
     @Test
+    fun `uses the last unpinned dialog as pagination cursor`() {
+        val unpinned = dialog(10)
+        val pinned = dialog(11, pinned = true)
+
+        assertEquals(unpinned, listOf(unpinned, pinned).lastUnpinnedDialog())
+    }
+
+    @Test
     fun `stops dialog pagination when cumulative slice count reaches total`() {
         val first = DialogsSlice(2, listOf(dialog(10), dialog(11)), emptyList(), emptyList(), emptyList())
         val second = DialogsSlice(2, listOf(dialog(12)), emptyList(), emptyList(), emptyList())
@@ -58,8 +66,8 @@ class MtProtoDialogSnapshotRepositoryTest {
         fun hasMore(loadedDialogs: Int) = loadedDialogs < totalCount
     }
 
-    private fun dialog(topMessage: Int) = Dialog_cf9860a8bd(
-        pinned = false,
+    private fun dialog(topMessage: Int, pinned: Boolean = false) = Dialog_cf9860a8bd(
+        pinned = pinned,
         unreadMark = false,
         viewForumAsMessages = false,
         peer = PeerChat(topMessage.toLong()),

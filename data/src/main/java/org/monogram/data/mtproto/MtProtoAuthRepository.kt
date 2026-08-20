@@ -28,6 +28,8 @@ internal class MtProtoAuthRepository(
     private val sessionFactory: MtProtoAuthSessionHandleFactory,
     private val scope: CoroutineScope,
     private val accountDcStore: MtProtoAccountDcStore = NoOpMtProtoAccountDcStore,
+    private val authorizationStore: MtProtoAccountAuthorizationStore? = null,
+    private val authorizedSessionRestorer: MtProtoAuthorizedSessionRestorer? = null,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : AuthRepository, MtProtoAuthSessionResetter {
     private data class PendingAction(
@@ -48,6 +50,20 @@ internal class MtProtoAuthRepository(
     private var activeJob: Job? = null
     private var pendingAction: PendingAction? = null
     private var generation = 0L
+
+    init {
+        authorizedSessionRestorer?.let { restorer ->
+            scope.launch {
+                if (restorer.restore(accountSlot)) {
+                    synchronized(lock) {
+                        if (activeJob == null && _authState.value is AuthStep.InputPhone) {
+                            _authState.value = AuthStep.Ready
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     override fun sendPhone(phone: String) {
         submit(PendingAction(AuthSubmissionStage.PHONE, phone), replaceSession = true)
@@ -107,6 +123,7 @@ internal class MtProtoAuthRepository(
             val job = scope.launch(start = CoroutineStart.LAZY) {
                 try {
                     val nextState = execute(action, replaceSession, actionGeneration)
+                    if (nextState is AuthStep.Ready) authorizationStore?.markAuthorized(accountSlot)
                     currentCoroutineContext().ensureActive()
                     var completedSession: MtProtoAuthSessionHandle? = null
                     synchronized(lock) {

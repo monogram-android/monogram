@@ -129,6 +129,7 @@ import org.monogram.data.mtproto.MtProtoClearHistoryRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatSearchRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
+import org.monogram.data.mtproto.MtProtoUserProfileReader
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
 import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
@@ -177,6 +178,10 @@ import org.monogram.data.mtproto.MtProtoAuthKeySessionBootstrap
 import org.monogram.data.mtproto.MtProtoAuthKeyStore
 import org.monogram.data.mtproto.MtProtoAccountDcStore
 import org.monogram.data.mtproto.KeyValueMtProtoAccountDcStore
+import org.monogram.data.mtproto.MtProtoAccountAuthorizationStore
+import org.monogram.data.mtproto.KeyValueMtProtoAccountAuthorizationStore
+import org.monogram.data.mtproto.MtProtoAuthorizedSessionRestorer
+import org.monogram.data.mtproto.TelegramMtProtoAuthorizedSessionRestorer
 import org.monogram.data.mtproto.MtProtoAuthKeyLoader
 import org.monogram.data.mtproto.TelegramMtProtoBootstrapConfigProvider
 import org.monogram.data.mtproto.TelegramMtProtoBootstrapConfigSource
@@ -208,6 +213,11 @@ import org.monogram.data.repository.PinnedMessageVisibilityRepositoryImpl
 import org.monogram.data.repository.PollRepositoryImpl
 import org.monogram.data.repository.PremiumRepositoryImpl
 import org.monogram.data.repository.PrivacyRepositoryImpl
+import org.monogram.data.backend.TelegramBackendPrivacyRouter
+import org.monogram.data.mtproto.MtProtoPrivacyRepository
+import org.monogram.data.mtproto.MtProtoProfileEditRepository
+import org.monogram.data.backend.TelegramBackendProfileEditRouter
+import org.monogram.data.backend.TelegramBackendUserRouter
 import org.monogram.data.repository.ProfilePhotoRepositoryImpl
 import org.monogram.data.repository.ProxyDiagnosticsRepositoryImpl
 import org.monogram.data.repository.ProxyRepositoryImpl
@@ -349,12 +359,16 @@ val dataModule = module {
         )
     }
     single<MtProtoAuthSessionHandleFactory> { get<MtProtoPhoneAuthSessionFactory>() }
+    single<MtProtoAccountAuthorizationStore> { KeyValueMtProtoAccountAuthorizationStore(get()) }
+    single<MtProtoAuthorizedSessionRestorer> {
+        TelegramMtProtoAuthorizedSessionRestorer(get(), get(), get(), get())
+    }
     single<MtProtoSessionTransportFactory> {
         MtProtoSessionTransportFactory { accountSlot ->
             get<TelegramMtProtoSessionFactory>().open(accountSlot)
         }
     }
-    single { MtProtoAuthRepository(get(), get(), get()) }
+    single { MtProtoAuthRepository(get(), get(), get(), get(), get()) }
     single<MtProtoAuthSessionResetter> { get<MtProtoAuthRepository>() }
     single { TdLibParametersProvider(androidContext(), get()) }
     single {
@@ -585,6 +599,7 @@ val dataModule = module {
         )
     }
     single { MtProtoUserProfileSnapshotRepository(get(), get(), get()) }
+    single<MtProtoUserProfileReader> { get<MtProtoUserProfileSnapshotRepository>() }
     single {
         MtProtoRoomCloudObjectStager(
             get(),
@@ -615,6 +630,7 @@ val dataModule = module {
             accountDcStore = get(),
             dialogStore = get(),
             draftStore = get(),
+            authorizationStore = get(),
         )
     }
     single<MtProtoAccountStateResetter> { get<MtProtoAccountStateCleaner>() }
@@ -639,6 +655,7 @@ val dataModule = module {
             configSource = get(),
             recovery = get(),
             liveUpdateApplier = get(),
+            dialogs = get<MtProtoDialogSnapshotRepository>(),
             scope = get(),
         )
     }
@@ -688,7 +705,7 @@ val dataModule = module {
         )
     }
 
-    single<UserRepository> {
+    single {
         UserRepositoryImpl(
             remote = get(),
             userLocal = get(),
@@ -702,6 +719,14 @@ val dataModule = module {
             keyValueDao = get(),
             cacheProvider = get(),
             legacyActiveAccountBinding = get()
+        )
+    }
+    single<UserRepository> {
+        TelegramBackendUserRouter(
+            selectionStore = get(),
+            legacyFactory = { get<UserRepositoryImpl>() },
+            mtProtoProfiles = get<MtProtoUserProfileReader>(),
+            scope = get(),
         )
     }
     single { LegacyUserProfileSnapshotRepository(get(), get<UserRepository>()) }
@@ -722,9 +747,14 @@ val dataModule = module {
     single<MessageHistorySnapshotRepository> { get<TelegramBackendReadRouter>() }
     single<UserProfileSnapshotRepository> { get<TelegramBackendReadRouter>() }
 
+    single { UserProfileEditRepositoryImpl(remote = get()) }
+    single { MtProtoProfileEditRepository(configSource = get(), transportFactory = get(), users = get()) }
     single<UserProfileEditRepository> {
-        UserProfileEditRepositoryImpl(
-            remote = get()
+        TelegramBackendProfileEditRouter(
+            selectionStore = get(),
+            legacyFactory = { get<UserProfileEditRepositoryImpl>() },
+            mtProtoFactory = { get<MtProtoProfileEditRepository>() },
+            scope = get(),
         )
     }
 
@@ -991,6 +1021,7 @@ val dataModule = module {
             dialogRepository = get<MtProtoDialogSnapshotRepository>(),
             readHistoryRepository = get<MtProtoReadHistoryRepository>(),
             scope = get(),
+            dialogUpdates = get<MtProtoDialogSnapshotRepository>().dialogUpdates,
             archiveRepository = get(),
             dialogPinRepository = get(),
             muteRepository = get(),
@@ -1333,10 +1364,14 @@ val dataModule = module {
         )
     }
 
+    single { PrivacyRepositoryImpl(remote = get(), updates = get()) }
+    single { MtProtoPrivacyRepository(configSource = get(), transportFactory = get(), users = get()) }
     single<PrivacyRepository> {
-        PrivacyRepositoryImpl(
-            remote = get(),
-            updates = get()
+        TelegramBackendPrivacyRouter(
+            selectionStore = get(),
+            legacyFactory = { get<PrivacyRepositoryImpl>() },
+            mtProtoFactory = { get<MtProtoPrivacyRepository>() },
+            scope = get(),
         )
     }
 

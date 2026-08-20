@@ -6,11 +6,16 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputUser_4020eae812
 import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetUsers
 import org.monogram.domain.repository.UserProfileSnapshotRepository
 
+internal interface MtProtoUserProfileReader {
+    suspend fun getCurrentUser(accountId: String): UserProfileSnapshotModel?
+    suspend fun getUser(accountId: String, userId: Long): UserProfileSnapshotModel?
+}
+
 internal class MtProtoUserProfileSnapshotRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val userStore: MtProtoUserProjectionStore,
     private val sessionFactory: TelegramMtProtoSessionFactory? = null,
-) : UserProfileSnapshotRepository {
+) : UserProfileSnapshotRepository, MtProtoUserProfileReader {
     override suspend fun getCurrentUser(accountId: String): UserProfileSnapshotModel? {
         val scope = scope(accountId)
         if (sessionFactory != null) {

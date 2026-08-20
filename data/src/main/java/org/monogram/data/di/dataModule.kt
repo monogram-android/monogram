@@ -963,6 +963,7 @@ val dataModule = module {
             chats = get(),
             users = get(),
             search = get<MtProtoChatSearchRepository>(),
+            cloudObjectStager = get(),
         )
     }
     single<ChatInfoRepository> {

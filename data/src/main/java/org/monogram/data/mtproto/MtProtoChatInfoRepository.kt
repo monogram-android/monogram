@@ -39,12 +39,19 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.channels.GetParticipants
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.GetChannelRecommendations
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatFull_af753dccbf
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelFull
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatAdminRights_6ef21779c3
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputUser_4020eae812
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatBannedRights_2339df02a7
 import org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ChatFull_86a406fd8f
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAdmin
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetFullChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.Chats_1cc0cbc238
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ChatsSlice
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.EditAdmin
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.EditBanned
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.GetFullChannel
 
 internal class MtProtoChatInfoRepository(
@@ -53,6 +60,7 @@ internal class MtProtoChatInfoRepository(
     private val chats: MtProtoChatProjectionStore,
     private val users: MtProtoUserProjectionStore = NoOpMtProtoUserProjectionStore,
     private val search: ChatSearchRepository? = null,
+    private val cloudObjectStager: MtProtoCloudObjectStager = NoOpMtProtoCloudObjectStager,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : ChatInfoRepository {
     override suspend fun getChatFullInfo(chatId: Long): ChatFullInfoModel? {
@@ -162,7 +170,74 @@ internal class MtProtoChatInfoRepository(
 
     override suspend fun getChatMember(chatId: Long, userId: Long): GroupMemberModel? =
         getChatMembers(chatId, 0, PAGE_SIZE, Recent).firstOrNull { it.user.id == userId }
-    override suspend fun setChatMemberStatus(chatId: Long, userId: Long, status: ChatMemberStatus) = unsupported()
+    override suspend fun setChatMemberStatus(chatId: Long, userId: Long, status: ChatMemberStatus) {
+        require(status is Member || status is Administrator) {
+            "MTProto chat member status is not available: ${status::class.simpleName}"
+        }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val isChannelRange = chatId <= -CHANNEL_OFFSET - 1L
+        val peer = TelegramPeerChatId.decode(chatId, isChannelRange)
+        val chat = requireNotNull(chats.get(scope, peer.id)) { "Missing MTProto chat projection: ${peer.id}" }
+        val user = requireNotNull(users.get(scope, userId)) { "Missing MTProto user projection: $userId" }
+        val accessHash = requireNotNull(user.accessHash) { "Missing MTProto user access hash: $userId" }
+        val transport = requireNotNull(transportFactory) { "MTProto chat member transport is unavailable" }.open(accountSlot)
+        try {
+            when (chat.type) {
+                MtProtoChatType.BASIC_GROUP -> check(
+                    transport.execute(
+                        EditChatAdmin(
+                            peer.id,
+                            InputUser_4020eae812(userId, accessHash),
+                            status is Administrator,
+                        )
+                    )
+                ) { "MTProto basic-group member update was rejected" }
+                MtProtoChatType.SUPERGROUP, MtProtoChatType.CHANNEL -> {
+                    val request = if (status is Administrator) {
+                        val admin = status
+                        EditAdmin(
+                            InputChannel_d22292516d(peer.id, requireNotNull(chat.accessHash)),
+                            InputUser_4020eae812(userId, accessHash),
+                            ChatAdminRights_6ef21779c3(
+                                admin.canChangeInfo,
+                                admin.canPostMessages,
+                                admin.canEditMessages,
+                                admin.canDeleteMessages,
+                                admin.canRestrictMembers,
+                                admin.canInviteUsers,
+                                admin.canPinMessages,
+                                admin.canPromoteMembers,
+                                admin.isAnonymous,
+                                admin.canManageVideoChats,
+                                admin.canManageChat,
+                                admin.canManageTopics,
+                                admin.canPostStories,
+                                admin.canEditStories,
+                                admin.canDeleteStories,
+                                admin.canManageDirectMessages,
+                                admin.canPromoteMembers,
+                            ),
+                            admin.customTitle,
+                        )
+                    } else {
+                        EditBanned(
+                            InputChannel_d22292516d(peer.id, requireNotNull(chat.accessHash)),
+                            InputPeerUser(userId, accessHash),
+                            ChatBannedRights_2339df02a7(
+                                false, false, false, false, false, false, false, false,
+                                false, false, false, false, false, false, false, false,
+                                false, false, false, false, false, 0,
+                            ),
+                        )
+                    }
+                    cloudObjectStager.stageLive(scope, transport.execute(request))
+                }
+            }
+        } finally {
+            transport.close()
+        }
+    }
 
     private data class MemberRecord(val userId: Long, val rank: String?, val status: org.monogram.domain.repository.ChatMemberStatus)
 
@@ -250,6 +325,7 @@ internal class MtProtoChatInfoRepository(
     private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto chat info operation is not available")
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"
+        const val CHANNEL_OFFSET = 1_000_000_000_000L
         const val PAGE_SIZE = 200
     }
 }

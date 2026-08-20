@@ -594,6 +594,23 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_52_53 = object : Migration(52, 53) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_file_handle` (" +
+                    "`fileId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`accountSlot` TEXT NOT NULL, " +
+                    "`environment` TEXT NOT NULL, " +
+                    "`sessionDcId` INTEGER NOT NULL, " +
+                    "`documentId` INTEGER NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_mtproto_file_handle_accountSlot_environment_sessionDcId_documentId` " +
+                    "ON `mtproto_file_handle` (`accountSlot`, `environment`, `sessionDcId`, `documentId`)"
+            )
+        }
+    }
+
     val MIGRATION_51_52 = object : Migration(51, 52) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.addColumn("mtproto_message_projection", "documentId", "INTEGER")

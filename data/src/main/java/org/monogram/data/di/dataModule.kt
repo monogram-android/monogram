@@ -112,6 +112,8 @@ import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomDocumentLocationStore
 import org.monogram.data.mtproto.MtProtoDocumentLocationStore
+import org.monogram.data.mtproto.MtProtoFileHandleStore
+import org.monogram.data.mtproto.MtProtoRoomFileHandleStore
 import org.monogram.data.mtproto.MtProtoRoomDialogStore
 import org.monogram.data.mtproto.MtProtoDialogStore
 import org.monogram.data.mtproto.MtProtoDraftStore
@@ -549,6 +551,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_49_50,
                 MonogramMigrations.MIGRATION_50_51,
                 MonogramMigrations.MIGRATION_51_52,
+                MonogramMigrations.MIGRATION_52_53,
             )
             .build()
     }
@@ -564,6 +567,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().mtProtoMessageProjectionDao() }
     single { get<MonogramDatabase>().mtProtoDraftProjectionDao() }
     single { get<MonogramDatabase>().mtProtoDocumentLocationDao() }
+    single { get<MonogramDatabase>().mtProtoFileHandleDao() }
     single { get<MonogramDatabase>().mtProtoFileTransferDao() }
     single { MtProtoRoomUserProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoUserProjectionStore> { get<MtProtoRoomUserProjectionStore>() }
@@ -571,6 +575,7 @@ val dataModule = module {
     single<MtProtoChatProjectionStore> { get<MtProtoRoomChatProjectionStore>() }
     single { MtProtoRoomDocumentLocationStore(get()) }
     single<MtProtoDocumentLocationStore> { get<MtProtoRoomDocumentLocationStore>() }
+    single<MtProtoFileHandleStore> { MtProtoRoomFileHandleStore(get()) }
     single {
         MtProtoRoomMessageProjectionStore(
             get(),
@@ -719,6 +724,7 @@ val dataModule = module {
             accountDcStore = get(),
             dialogStore = get(),
             draftStore = get(),
+            fileHandleStore = get(),
             authorizationStore = get(),
         )
     }

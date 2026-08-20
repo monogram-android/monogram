@@ -3,6 +3,9 @@ package org.monogram.data.mtproto
 import org.monogram.domain.models.BirthdateModel
 import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.domain.repository.UserProfileEditRepository
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.photos.UploadProfilePhoto
@@ -46,7 +49,12 @@ internal class MtProtoProfileEditRepository(
         }
     }
 
-    override suspend fun setEmojiStatus(customEmojiId: Long?) = unsupported()
+    override suspend fun setEmojiStatus(customEmojiId: Long?) {
+        val status = customEmojiId?.let { EmojiStatus_c46bf14186(it, null) } ?: EmojiStatusEmpty
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(UpdateEmojiStatus(status))) { "MTProto emoji status update was rejected" }
+        }
+    }
     override suspend fun setProfilePhoto(path: String) {
         val uploaded = uploader.upload(path)
         transportFactory.open(accountSlot).use { transport ->

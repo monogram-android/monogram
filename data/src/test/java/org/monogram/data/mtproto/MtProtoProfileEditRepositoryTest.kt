@@ -5,7 +5,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateUsername
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -47,6 +50,19 @@ class MtProtoProfileEditRepositoryTest {
         repository.setBio("Mathematician")
 
         assertEquals(UpdateProfile(null, null, "Mathematician"), transport.request)
+    }
+
+    @Test
+    fun `updates and clears emoji status through authoritative bool`() = runBlocking {
+        val transport = Transport(true)
+        val repository = MtProtoProfileEditRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, Users())
+
+        repository.setEmojiStatus(42)
+        assertEquals(UpdateEmojiStatus(EmojiStatus_c46bf14186(42, null)), transport.request)
+        assertTrue(transport.closed)
+
+        repository.setEmojiStatus(null)
+        assertEquals(UpdateEmojiStatus(EmojiStatusEmpty), transport.request)
     }
 
     private fun config() = TelegramMtProtoBootstrapConfig(

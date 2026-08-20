@@ -8,6 +8,8 @@ interface MtProtoTextMessageRepository {
         chatId: Long,
         peerType: DialogPeerType,
         text: String,
+        silent: Boolean = false,
+        scheduleDate: Int? = null,
     )
 
     suspend fun editText(

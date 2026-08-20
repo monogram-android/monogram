@@ -42,7 +42,7 @@ class MtProtoPinnedMessageRepositoryTest {
         override suspend fun setPinned(chatId: Long, peerType: DialogPeerType, messageId: Long, pinned: Boolean) {
             this.pinned += Triple(chatId, peerType, messageId)
         }
-        override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String) = Unit
+        override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String, silent: Boolean, scheduleDate: Int?) = Unit
         override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) = Unit
         override suspend fun setEmojiReaction(chatId: Long, peerType: DialogPeerType, messageId: Long, emoji: String?) = Unit
         override suspend fun forwardToSelf(chatId: Long, peerType: DialogPeerType, messageId: Long) = Unit

@@ -52,6 +52,29 @@ class MtProtoTextMessageRepositoryImplTest {
     }
 
     @Test
+    fun `sends scheduled silent text and stages returned updates`() = runBlocking {
+        val transport = RecordingTransport()
+        val messageStore = RecordingMessageStore()
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = messageStore,
+            randomId = { 99L },
+        )
+
+        repository.sendText(7L, DialogPeerType.PRIVATE, "later", silent = true, scheduleDate = 1_700_000_000)
+
+        val request = transport.method as SendMessage
+        assertEquals("later", request.message)
+        assertTrue(request.silent)
+        assertEquals(1_700_000_000, request.scheduleDate)
+        assertEquals(1, messageStore.staged.size)
+        assertTrue(transport.closed)
+    }
+
+    @Test
     fun `marks projected mentions and reactions read through owned transport`() = runBlocking {
         val mentionTransport = RecordingTransport()
         val reactionTransport = RecordingTransport()

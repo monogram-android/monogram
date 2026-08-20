@@ -206,12 +206,17 @@ internal fun DefaultChatComponent.handleSendMessage(
             require(parseMode == null) { "MTProto rich-text sending is not available" }
             require(entities.isEmpty()) { "MTProto entity sending is not available" }
             require(replyId == null && threadId == null) { "MTProto reply and topic sending is not available" }
-            require(sendOptions.scheduleDate == null) { "MTProto scheduled sending is not available" }
             val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
                 "MTProto target chat is not projected"
             }
             val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
-            mtProtoTextMessageRepository.sendText(targetChatId, peer.type, text)
+            mtProtoTextMessageRepository.sendText(
+                chatId = targetChatId,
+                peerType = peer.type,
+                text = text,
+                silent = sendOptions.silent,
+                scheduleDate = sendOptions.scheduleDate,
+            )
         } else if (parseMode == null) {
             repositoryMessage.sendMessage(
                 targetChatId,

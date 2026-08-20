@@ -31,8 +31,15 @@ internal class MtProtoTextMessageRepositoryImpl(
     private val randomId: () -> Long = { SecureRandom().nextLong() },
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : MtProtoTextMessageRepository {
-    override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String) {
+    override suspend fun sendText(
+        chatId: Long,
+        peerType: DialogPeerType,
+        text: String,
+        silent: Boolean,
+        scheduleDate: Int?,
+    ) {
         require(text.isNotBlank()) { "Message text must not be blank" }
+        require(scheduleDate == null || scheduleDate > 0) { "MTProto schedule date must be positive" }
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val peer = resolvePeer(scope, chatId, peerType)
@@ -41,7 +48,7 @@ internal class MtProtoTextMessageRepositoryImpl(
             val updates = transport.execute(
                 SendMessage(
                     noWebpage = false,
-                    silent = false,
+                    silent = silent,
                     background = false,
                     clearDraft = true,
                     noforwards = false,
@@ -54,7 +61,7 @@ internal class MtProtoTextMessageRepositoryImpl(
                     randomId = randomId(),
                     replyMarkup = null,
                     entities = null,
-                    scheduleDate = null,
+                    scheduleDate = scheduleDate,
                     scheduleRepeatPeriod = null,
                     sendAs = null,
                     quickReplyShortcut = null,

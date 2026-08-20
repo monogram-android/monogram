@@ -57,6 +57,7 @@ internal data class MtProtoMessageReadModel(
     val editDate: Int?,
     val groupedId: Long?,
     val hasMedia: Boolean,
+    val isScheduled: Boolean = false,
 )
 
 internal data class MtProtoMessageHistoryCursor(
@@ -68,7 +69,7 @@ internal interface MtProtoMessageProjectionStore {
     suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5)
     suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch)
 
-    suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>)
+    suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>, isScheduled: Boolean = false)
     suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel?
     suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel>
     suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel>
@@ -87,7 +88,7 @@ internal object NoOpMtProtoMessageProjectionStore : MtProtoMessageProjectionStor
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) = Unit
     override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) = Unit
 
-    override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>) = Unit
+    override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>, isScheduled: Boolean) = Unit
     override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? = null
     override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel> = emptyList()
@@ -130,8 +131,8 @@ internal class MtProtoRoomMessageProjectionStore(
         applyUpdates(scope, batch.otherUpdates)
     }
 
-    override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>) {
-        messages.forEach { upsert(scope, it) }
+    override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>, isScheduled: Boolean) {
+        messages.forEach { upsert(scope, it, isScheduled) }
     }
 
     override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? =
@@ -242,8 +243,8 @@ internal class MtProtoRoomMessageProjectionStore(
         else -> false
     }
 
-    private suspend fun upsert(scope: MtProtoAuthKeyScope, message: Message_73e57f95e4): Boolean {
-        val entity = message.toEntity(scope, nowMillis()) ?: return false
+    private suspend fun upsert(scope: MtProtoAuthKeyScope, message: Message_73e57f95e4, isScheduled: Boolean = false): Boolean {
+        val entity = message.toEntity(scope, nowMillis(), isScheduled) ?: return false
         persist(scope, entity)
         return true
     }
@@ -261,10 +262,10 @@ internal class MtProtoRoomMessageProjectionStore(
         database?.withTransaction { persistProjection() } ?: persistProjection()
     }
 
-    private fun Message_73e57f95e4.toEntity(scope: MtProtoAuthKeyScope, updatedAt: Long): MtProtoMessageProjectionEntity? = when (this) {
+    private fun Message_73e57f95e4.toEntity(scope: MtProtoAuthKeyScope, updatedAt: Long, scheduled: Boolean = false): MtProtoMessageProjectionEntity? = when (this) {
         is MessageEmpty -> peerId?.toPeerKey()?.let { (type, id) -> entity(scope, type, id, this.id, updatedAt, isDeleted = true) }
         is MessageService -> peerId.toPeerKey().let { (type, id) -> entity(scope, type, id, this.id, updatedAt, sender = fromId, date = date, isService = true, isOutgoing = out_, isMentioned = mentioned, isMediaUnread = mediaUnread, isSilent = silent) }
-        is Message_7b7ecf54a3 -> peerId.toPeerKey().let { (type, id) -> entity(scope, type, id, this.id, updatedAt, sender = fromId, date = date, text = message, isOutgoing = out_, isMentioned = mentioned, isMediaUnread = mediaUnread, isSilent = silent, isPinned = pinned, editDate = editDate, groupedId = groupedId, hasMedia = media != null) }
+        is Message_7b7ecf54a3 -> peerId.toPeerKey().let { (type, id) -> entity(scope, type, id, this.id, updatedAt, sender = fromId, date = date, text = message, isOutgoing = out_, isMentioned = mentioned, isMediaUnread = mediaUnread, isSilent = silent, isPinned = pinned, editDate = editDate, groupedId = groupedId, hasMedia = media != null, isScheduled = scheduled || fromScheduled) }
     }
 
     private fun UpdateShortMessage.toEntity(scope: MtProtoAuthKeyScope) = entity(
@@ -302,12 +303,12 @@ internal class MtProtoRoomMessageProjectionStore(
         is PeerChannel -> MtProtoMessagePeerType.CHANNEL to channelId
     }
 
-    private fun entity(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int, updatedAt: Long, sender: Peer? = null, date: Int = 0, text: String? = null, isService: Boolean = false, isDeleted: Boolean = false, isOutgoing: Boolean = false, isMentioned: Boolean = false, isMediaUnread: Boolean = false, isSilent: Boolean = false, isPinned: Boolean = false, editDate: Int? = null, groupedId: Long? = null, hasMedia: Boolean = false): MtProtoMessageProjectionEntity {
+    private fun entity(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int, updatedAt: Long, sender: Peer? = null, date: Int = 0, text: String? = null, isService: Boolean = false, isDeleted: Boolean = false, isOutgoing: Boolean = false, isMentioned: Boolean = false, isMediaUnread: Boolean = false, isSilent: Boolean = false, isPinned: Boolean = false, editDate: Int? = null, groupedId: Long? = null, hasMedia: Boolean = false, isScheduled: Boolean = false): MtProtoMessageProjectionEntity {
         val senderKey = sender?.toPeerKey()
-        return MtProtoMessageProjectionEntity(scope.accountSlot, scope.environment.storageName, scope.dcId, peerType.name, peerId, messageId, senderKey?.first?.name, senderKey?.second, date, text, isService, isDeleted, isOutgoing, isMentioned, isMediaUnread, isSilent, isPinned, editDate, groupedId, hasMedia, updatedAt)
+        return MtProtoMessageProjectionEntity(scope.accountSlot, scope.environment.storageName, scope.dcId, peerType.name, peerId, messageId, senderKey?.first?.name, senderKey?.second, date, text, isService, isDeleted, isOutgoing, isMentioned, isMediaUnread, isSilent, isPinned, editDate, groupedId, hasMedia, isScheduled, updatedAt)
     }
 
-    private fun MtProtoMessageProjectionEntity.toReadModel() = MtProtoMessageReadModel(MtProtoMessagePeerType.valueOf(peerType), peerId, messageId, senderType?.let(MtProtoMessagePeerType::valueOf), senderId, date, text, isService, isDeleted, isOutgoing, isMentioned, isMediaUnread, isSilent, isPinned, editDate, groupedId, hasMedia)
+    private fun MtProtoMessageProjectionEntity.toReadModel() = MtProtoMessageReadModel(MtProtoMessagePeerType.valueOf(peerType), peerId, messageId, senderType?.let(MtProtoMessagePeerType::valueOf), senderId, date, text, isService, isDeleted, isOutgoing, isMentioned, isMediaUnread, isSilent, isPinned, editDate, groupedId, hasMedia, isScheduled)
 
     private companion object {
         const val MESSAGE_OBJECT_TYPE = "message"

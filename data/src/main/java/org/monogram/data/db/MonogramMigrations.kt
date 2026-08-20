@@ -594,6 +594,12 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_48_49 = object : Migration(48, 49) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_message_projection", "isScheduled", "INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     val MIGRATION_47_48 = object : Migration(47, 48) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.addColumn("mtproto_dialog_projection", "muted", "INTEGER NOT NULL DEFAULT 0")

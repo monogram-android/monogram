@@ -25,7 +25,7 @@ interface MtProtoMessageProjectionDao {
     @Query(
         "SELECT * FROM mtproto_message_projection " +
             "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
-            "AND peerType = :peerType AND peerId = :peerId ORDER BY date DESC, messageId DESC"
+            "AND peerType = :peerType AND peerId = :peerId AND isScheduled = 0 ORDER BY date DESC, messageId DESC"
     )
     suspend fun getAll(
         accountSlot: String,
@@ -38,7 +38,7 @@ interface MtProtoMessageProjectionDao {
     @Query(
         "SELECT * FROM mtproto_message_projection " +
             "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
-            "AND peerType = :peerType AND peerId = :peerId " +
+            "AND peerType = :peerType AND peerId = :peerId AND isScheduled = 0 " +
             "AND (:beforeDate IS NULL OR date < :beforeDate " +
             "OR (date = :beforeDate AND messageId < :beforeMessageId)) " +
             "ORDER BY date DESC, messageId DESC LIMIT :limit"
@@ -57,7 +57,7 @@ interface MtProtoMessageProjectionDao {
     @Query(
         "SELECT * FROM mtproto_message_projection " +
             "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
-            "AND isDeleted = 0 AND text IS NOT NULL AND lower(text) LIKE '%' || lower(:query) || '%' " +
+            "AND isDeleted = 0 AND isScheduled = 0 AND text IS NOT NULL AND lower(text) LIKE '%' || lower(:query) || '%' " +
             "ORDER BY date DESC, messageId DESC LIMIT :limit OFFSET :offset"
     )
     suspend fun search(
@@ -72,7 +72,7 @@ interface MtProtoMessageProjectionDao {
     @Query(
         "SELECT * FROM mtproto_message_projection AS message " +
             "WHERE message.accountSlot = :accountSlot AND message.environment = :environment " +
-            "AND message.dcId = :dcId AND NOT EXISTS (" +
+            "AND message.dcId = :dcId AND message.isScheduled = 0 AND NOT EXISTS (" +
             "SELECT 1 FROM mtproto_message_projection AS newer " +
             "WHERE newer.accountSlot = message.accountSlot AND newer.environment = message.environment " +
             "AND newer.dcId = message.dcId AND newer.peerType = message.peerType AND newer.peerId = message.peerId " +

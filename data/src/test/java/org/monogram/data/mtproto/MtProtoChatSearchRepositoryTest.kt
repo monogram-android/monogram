@@ -256,7 +256,7 @@ class MtProtoChatSearchRepositoryTest {
     private class RecordingSearchMessageStore : MtProtoMessageProjectionStore by NoOpMtProtoMessageProjectionStore {
         private val staged = mutableListOf<MtProtoMessageReadModel>()
 
-        override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4>) {
+        override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4>, isScheduled: Boolean) {
             staged += messages.filterIsInstance<MessageEmpty>().map {
                 MtProtoMessageReadModel(
                     peerType = MtProtoMessagePeerType.USER,

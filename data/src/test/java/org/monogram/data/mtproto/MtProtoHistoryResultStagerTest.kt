@@ -19,6 +19,18 @@ class MtProtoHistoryResultStagerTest {
 
         assertEquals(1, staged.size)
         assertEquals(listOf(10), messages.ids)
+        assertEquals(false, messages.scheduled)
+    }
+
+    @Test
+    fun `stages scheduled messages separately`() = runBlocking {
+        val messages = RecordingMessageStore()
+        val result = Messages_3c331441fb(listOf(MessageEmpty(12, PeerChat(7))), emptyList(), emptyList(), emptyList())
+
+        MtProtoHistoryResultStager(messageStore = messages).stageScheduled(scope(), result)
+
+        assertEquals(listOf(12), messages.ids)
+        assertEquals(true, messages.scheduled)
     }
 
     @Test
@@ -34,12 +46,15 @@ class MtProtoHistoryResultStagerTest {
 
     private class RecordingMessageStore : MtProtoMessageProjectionStore by NoOpMtProtoMessageProjectionStore {
         var ids = emptyList<Int>()
+        var scheduled = false
 
         override suspend fun stageMessages(
             scope: MtProtoAuthKeyScope,
             messages: List<org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4>,
+            isScheduled: Boolean,
         ) {
             ids = messages.map { (it as MessageEmpty).id }
+            scheduled = isScheduled
         }
     }
 }

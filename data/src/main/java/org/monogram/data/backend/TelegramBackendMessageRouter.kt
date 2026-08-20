@@ -25,6 +25,7 @@ import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.data.mtproto.MtProtoDeleteMessageRepository
 import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
+import org.monogram.data.mtproto.MtProtoScheduledMessageRepository
 
 /**
  * Keeps TDLib-owned message commands unavailable when the account uses the Kotlin MTProto
@@ -40,6 +41,9 @@ internal class TelegramBackendMessageRouter(
     private val pinnedFactory: () -> MtProtoPinnedMessageRepository = {
         MtProtoPinnedMessageRepository { _, _, _ -> }
     },
+    private val scheduledFactory: () -> MtProtoScheduledMessageRepository = {
+        error("MTProto scheduled message repository is not configured")
+    },
     private val historyRepository: MessageHistorySnapshotRepository? = null,
     scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
@@ -49,6 +53,7 @@ internal class TelegramBackendMessageRouter(
     private val drafts by lazy(LazyThreadSafetyMode.NONE, draftFactory)
     private val deletion by lazy(LazyThreadSafetyMode.NONE, deleteFactory)
     private val pinned by lazy(LazyThreadSafetyMode.NONE, pinnedFactory)
+    private val scheduled by lazy(LazyThreadSafetyMode.NONE, scheduledFactory)
 
     val repository: MessageRepository = Proxy.newProxyInstance(
         MessageRepository::class.java.classLoader,
@@ -79,6 +84,22 @@ internal class TelegramBackendMessageRouter(
                     "openChat", "closeChat" -> invokeDraft(method, args) { Unit }
                     "getHistoryPage" -> invokeDraft(method, args) { values ->
                         getHistoryPage(values[0] as HistoryRequest)
+                    }
+                    "getScheduledMessages" -> invokeDraft(method, args) { values ->
+                        scheduled.get(values[0] as Long).map { message ->
+                            MessageModel(
+                                id = message.messageId.toLong(),
+                                date = message.date,
+                                isOutgoing = message.isOutgoing,
+                                senderName = "",
+                                chatId = values[0] as Long,
+                                content = if (message.isService) MessageContent.Service(message.text.orEmpty()) else MessageContent.Text(message.text.orEmpty()),
+                                senderId = message.senderId ?: 0L,
+                                editDate = message.editDate ?: 0,
+                                mediaAlbumId = message.groupedId ?: 0L,
+                                isPinned = message.isPinned,
+                            )
+                        }
                     }
                     "getChatDraft" -> invokeDraft(method, args) { values ->
                         drafts.getDraft(values[0] as Long, values[1] as Long?)

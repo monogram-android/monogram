@@ -7,8 +7,11 @@ import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.AccountDaysTtl_f6ad918c54
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.ContentSettings_33d483dc78
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAccountTtl
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetContentSettings
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetAccountTtl
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetContentSettings
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Block
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Blocked_31657af965
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.BlockedSlice
@@ -81,9 +84,24 @@ internal class MtProtoPrivacyRepository(
         }
     }
     override suspend fun getPasswordState(): Boolean = unsupported()
-    override suspend fun canShowSensitiveContent(): Boolean = unsupported()
-    override suspend fun isShowSensitiveContentEnabled(): Boolean = unsupported()
-    override suspend fun setShowSensitiveContent(enabled: Boolean) = unsupported()
+
+    override suspend fun canShowSensitiveContent(): Boolean = contentSettings().sensitiveCanChange
+
+    override suspend fun isShowSensitiveContentEnabled(): Boolean = contentSettings().sensitiveEnabled
+
+    override suspend fun setShowSensitiveContent(enabled: Boolean) {
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(SetContentSettings(enabled))) {
+                "MTProto sensitive content update was rejected"
+            }
+        }
+    }
+
+    private suspend fun contentSettings(): ContentSettings_33d483dc78 =
+        transportFactory.open(accountSlot).use { transport ->
+            transport.execute(GetContentSettings) as? ContentSettings_33d483dc78
+                ?: error("Unsupported MTProto content settings response")
+        }
     private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto privacy setting is not available")
     private companion object { const val PAGE_SIZE = 100 }
 }

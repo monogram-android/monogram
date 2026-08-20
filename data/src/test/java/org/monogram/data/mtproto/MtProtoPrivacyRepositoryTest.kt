@@ -6,12 +6,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.AccountDaysTtl_f6ad918c54
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.ContentSettings_33d483dc78
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerBlocked_161238e123
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAccountTtl
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetContentSettings
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetAccountTtl
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetContentSettings
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Block
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.BlockedSlice
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.GetBlocked
@@ -83,6 +86,27 @@ class MtProtoPrivacyRepositoryTest {
 
         assertEquals(GetAccountTtl, transport.requests[0])
         assertEquals(SetAccountTtl(AccountDaysTtl_f6ad918c54(365)), transport.requests[1])
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `reads and updates sensitive content settings`() = runBlocking {
+        val transport = Transport(
+            listOf(
+                ContentSettings_33d483dc78(sensitiveEnabled = true, sensitiveCanChange = false),
+                ContentSettings_33d483dc78(sensitiveEnabled = false, sensitiveCanChange = true),
+                true,
+            ),
+        )
+        val repository = MtProtoPrivacyRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, Users())
+
+        assertEquals(false, repository.canShowSensitiveContent())
+        assertEquals(false, repository.isShowSensitiveContentEnabled())
+        repository.setShowSensitiveContent(true)
+
+        assertEquals(GetContentSettings, transport.requests[0])
+        assertEquals(GetContentSettings, transport.requests[1])
+        assertEquals(SetContentSettings(true), transport.requests[2])
         assertTrue(transport.closed)
     }
 

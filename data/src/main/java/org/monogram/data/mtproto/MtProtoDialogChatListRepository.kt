@@ -185,7 +185,9 @@ internal class MtProtoDialogChatListRepository(
     }
 
     override fun markFolderAsRead(folderId: Int, chatIds: Set<Long>) {
-        require(folderId == ALL_CHATS_FOLDER_ID) { "MTProto custom folders are not available" }
+        require(folderId == ALL_CHATS_FOLDER_ID || _foldersFlow.value.any { it.id == folderId }) {
+            "Unknown MTProto folder: $folderId"
+        }
         scope.launch { markChatsRead(chatIds) }
     }
     override suspend fun deleteChats(chatIds: Set<Long>) {
@@ -228,9 +230,6 @@ internal class MtProtoDialogChatListRepository(
                 readHistoryRepository.markRead(chat.id, peer.type, chat.lastMessageId)
             }
     }
-
-    private fun unsupportedFolders(): Nothing =
-        throw UnsupportedOperationException("MTProto custom folders are not available")
 
     private fun unsupportedOperations(): Nothing =
         throw UnsupportedOperationException("MTProto chat operations are not available")

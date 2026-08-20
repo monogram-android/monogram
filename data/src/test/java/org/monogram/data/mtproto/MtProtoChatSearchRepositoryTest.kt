@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.data.db.dao.SearchHistoryDao
 import org.monogram.data.db.model.SearchHistoryEntity
@@ -40,6 +41,14 @@ class MtProtoChatSearchRepositoryTest {
         assertEquals(1, results.size)
         assertEquals("Alice", results.single().title)
         assertEquals(4, results.single().unreadCount)
+    }
+
+    @Test
+    fun `search history fails closed without persistence`() = runBlocking {
+        val repository = MtProtoChatSearchRepository(FakeDialogRepository())
+
+        val failure = runCatching { repository.searchHistory.first() }.exceptionOrNull()
+        assertTrue(failure is UnsupportedOperationException)
     }
 
     @Test

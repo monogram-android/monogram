@@ -3,7 +3,7 @@ package org.monogram.data.mtproto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 import org.monogram.data.db.dao.SearchHistoryDao
@@ -55,7 +55,9 @@ internal class MtProtoChatSearchRepository(
             .mapNotNull { it.toChatModel() }
             .associateBy { it.id }
         entities.mapNotNull { chatsById[it.chatId] }
-    } ?: emptyFlow()
+    } ?: flow {
+        throw UnsupportedOperationException("MTProto search history persistence is not available")
+    }
 
     override suspend fun searchChats(query: String): List<ChatModel> {
         val normalized = query.trim().lowercase()

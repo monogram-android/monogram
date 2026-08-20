@@ -32,6 +32,7 @@ class TelegramBackendUserRouterTest {
         assertEquals(user, router.currentUserFlow.value)
         assertEquals(listOf(43L), router.getContacts().map { it.id })
         assertEquals(listOf(43L), router.searchContacts("ADA").map { it.id })
+        router.setCachedSimCountryIso("US")
     }
 
     private fun profile(id: Long) = UserProfileSnapshotModel(

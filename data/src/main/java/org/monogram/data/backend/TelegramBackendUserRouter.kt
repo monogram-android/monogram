@@ -89,7 +89,12 @@ internal class TelegramBackendUserRouter(
     }
     override suspend fun addContact(user: UserModel) = unsupported()
     override suspend fun removeContact(userId: Long) = unsupported()
-    override suspend fun setCachedSimCountryIso(iso: String?) = unsupported()
+    override suspend fun setCachedSimCountryIso(iso: String?) {
+        when (selected()) {
+            TelegramBackendKind.LEGACY -> legacy.setCachedSimCountryIso(iso)
+            TelegramBackendKind.KOTLIN_MTPROTO -> Unit
+        }
+    }
 
     private fun selected(): TelegramBackendKind = checkNotNull(selectedBackend.value) {
         "Telegram backend selection is not loaded"

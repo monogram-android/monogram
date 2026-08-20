@@ -3,11 +3,39 @@ package org.monogram.data.mtproto
 import org.monogram.domain.models.ChatFullInfoModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.GroupMemberModel
+import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.UserTypeEnum
+import org.monogram.domain.repository.ChatMemberStatus.Administrator
+import org.monogram.domain.repository.ChatMemberStatus.Banned
+import org.monogram.domain.repository.ChatMemberStatus.Creator
+import org.monogram.domain.repository.ChatMemberStatus.Left
+import org.monogram.domain.repository.ChatMemberStatus.Member
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.repository.ChatInfoRepository
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.ChatMembersFilter
+import org.monogram.domain.repository.ChatMembersFilter.Administrators
+import org.monogram.domain.repository.ChatMembersFilter.Banned as BannedFilter
+import org.monogram.domain.repository.ChatMembersFilter.Bots
+import org.monogram.domain.repository.ChatMembersFilter.Recent
+import org.monogram.domain.repository.ChatMembersFilter.Restricted
+import org.monogram.domain.repository.ChatMembersFilter.Search
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantAdmin
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantBanned
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantCreator
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantLeft
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantSelf
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipant_6287cfc333
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatParticipant_fa363e4647
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantsAdmins
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantsBanned
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantsBots
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantsKicked
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantsRecent
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantsSearch
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ChannelParticipants_cbdd012578
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.GetParticipants
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatFull_af753dccbf
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelFull
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
@@ -20,6 +48,7 @@ internal class MtProtoChatInfoRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory?,
     private val chats: MtProtoChatProjectionStore,
+    private val users: MtProtoUserProjectionStore = NoOpMtProtoUserProjectionStore,
     private val search: ChatSearchRepository? = null,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : ChatInfoRepository {
@@ -81,9 +110,106 @@ internal class MtProtoChatInfoRepository(
         return searchRepository.searchPublicChats(username.trim()).firstOrNull()
     }
     override suspend fun getSimilarChatIds(chatId: Long): List<Long> = unsupported()
-    override suspend fun getChatMembers(chatId: Long, offset: Int, limit: Int, filter: ChatMembersFilter): List<GroupMemberModel> = unsupported()
-    override suspend fun getChatMember(chatId: Long, userId: Long): GroupMemberModel? = unsupported()
+    override suspend fun getChatMembers(chatId: Long, offset: Int, limit: Int, filter: ChatMembersFilter): List<GroupMemberModel> {
+        require(offset >= 0) { "Member offset must not be negative" }
+        require(limit in 1..PAGE_SIZE) { "Member limit must be between 1 and $PAGE_SIZE" }
+        val peer = TelegramPeerChatId.decode(chatId)
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val transport = requireNotNull(transportFactory) { "MTProto chat member transport is unavailable" }.open(accountSlot)
+        try {
+            val chat = requireNotNull(chats.get(scope, peer.id)) { "Missing MTProto chat projection: ${peer.id}" }
+            val records = when (chat.type) {
+                MtProtoChatType.BASIC_GROUP -> basicGroupMembers(transport, scope, peer.id, offset, limit, filter)
+                MtProtoChatType.SUPERGROUP, MtProtoChatType.CHANNEL -> channelMembers(transport, scope, peer.id, requireNotNull(chat.accessHash), offset, limit, filter)
+            }
+            return records.mapNotNull { record ->
+                val user = users.get(scope, record.userId)?.toUserModel() ?: return@mapNotNull null
+                GroupMemberModel(user = user, rank = record.rank, status = record.status)
+            }
+        } finally {
+            transport.close()
+        }
+    }
+
+    override suspend fun getChatMember(chatId: Long, userId: Long): GroupMemberModel? =
+        getChatMembers(chatId, 0, PAGE_SIZE, Recent).firstOrNull { it.user.id == userId }
     override suspend fun setChatMemberStatus(chatId: Long, userId: Long, status: ChatMemberStatus) = unsupported()
+
+    private data class MemberRecord(val userId: Long, val rank: String?, val status: org.monogram.domain.repository.ChatMemberStatus)
+
+    private suspend fun basicGroupMembers(
+        transport: org.monogram.mtproto.transport.MtProtoRpcTransport,
+        scope: MtProtoAuthKeyScope,
+        chatId: Long,
+        offset: Int,
+        limit: Int,
+        filter: ChatMembersFilter,
+    ): List<MemberRecord> {
+        if (offset > 0) return emptyList()
+        val result = transport.execute(GetFullChat(chatId)) as ChatFull_86a406fd8f
+        users.upsert(scope, result.users)
+        val participants = (result.fullChat as? ChatFull_af753dccbf)?.participants
+            as? org.monogram.mtproto.tl.generated.cloud.layer223.ChatParticipants_4110fea440
+            ?: return emptyList()
+        return participants.participants.mapNotNull { participant ->
+            val basicParticipant = participant as? ChatParticipant_fa363e4647 ?: return@mapNotNull null
+            val record = MemberRecord(basicParticipant.userId, basicParticipant.rank, Member)
+            if (filter == Administrators && record.status !is Administrator && record.status !is Creator) null else record
+        }.take(limit)
+    }
+
+    private suspend fun channelMembers(
+        transport: org.monogram.mtproto.transport.MtProtoRpcTransport,
+        scope: MtProtoAuthKeyScope,
+        channelId: Long,
+        accessHash: Long,
+        offset: Int,
+        limit: Int,
+        filter: ChatMembersFilter,
+    ): List<MemberRecord> {
+        val participantFilter = when (filter) {
+            Recent -> ChannelParticipantsRecent
+            Administrators -> ChannelParticipantsAdmins
+            BannedFilter -> ChannelParticipantsBanned("")
+            Restricted -> ChannelParticipantsKicked("")
+            Bots -> ChannelParticipantsBots
+            is Search -> ChannelParticipantsSearch(filter.query)
+        }
+        val result = transport.execute(GetParticipants(
+            InputChannel_d22292516d(channelId, accessHash), participantFilter, offset, limit, 0L
+        )) as? ChannelParticipants_cbdd012578 ?: return emptyList()
+        users.upsert(scope, result.users)
+        return result.participants.map { it.toMemberRecord() }
+    }
+
+    private fun ChannelParticipant_6287cfc333.toMemberRecord() = when (this) {
+        is ChannelParticipantAdmin -> MemberRecord(userId, rank, Administrator(customTitle = rank.orEmpty()))
+        is ChannelParticipantCreator -> MemberRecord(userId, rank, Creator)
+        is ChannelParticipantBanned -> MemberRecord((peer as? org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser)?.userId ?: 0L, rank, Banned(date))
+        is ChannelParticipantLeft -> MemberRecord((peer as? org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser)?.userId ?: 0L, null, Left)
+        is ChannelParticipantSelf -> MemberRecord(userId, rank, Member)
+        is org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipant_de8ee603c1 -> MemberRecord(userId, rank, Member)
+    }
+
+    private fun MtProtoUserReadModel.toUserModel() = UserModel(
+        id = userId,
+        firstName = firstName.orEmpty(),
+        lastName = lastName,
+        username = username,
+        phoneNumber = phone,
+        isContact = isContact,
+        isMutualContact = isMutualContact,
+        isPremium = isPremium,
+        isVerified = isVerified,
+        isScam = isScam,
+        isFake = isFake,
+        type = when {
+            isDeleted -> UserTypeEnum.DELETED
+            isBot -> UserTypeEnum.BOT
+            else -> UserTypeEnum.REGULAR
+        },
+    )
 
     private fun org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_e88393a32f.stickerSetId(): Long =
         (this as? StickerSet_97ab856701)?.id ?: 0L
@@ -94,5 +220,8 @@ internal class MtProtoChatInfoRepository(
     }
 
     private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto chat info operation is not available")
-    private companion object { const val DEFAULT_ACCOUNT_SLOT = "default" }
+    private companion object {
+        const val DEFAULT_ACCOUNT_SLOT = "default"
+        const val PAGE_SIZE = 200
+    }
 }

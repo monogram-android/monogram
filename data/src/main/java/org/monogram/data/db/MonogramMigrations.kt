@@ -594,6 +594,28 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_54_55 = object : Migration(54, 55) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_message_projection", "photoId", "INTEGER")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_photo_location` (" +
+                    "`accountSlot` TEXT NOT NULL, " +
+                    "`environment` TEXT NOT NULL, " +
+                    "`sessionDcId` INTEGER NOT NULL, " +
+                    "`photoId` INTEGER NOT NULL, " +
+                    "`thumbSize` TEXT NOT NULL, " +
+                    "`accessHash` INTEGER NOT NULL, " +
+                    "`fileReference` BLOB NOT NULL, " +
+                    "`photoDcId` INTEGER NOT NULL, " +
+                    "`width` INTEGER NOT NULL, " +
+                    "`height` INTEGER NOT NULL, " +
+                    "`size` INTEGER NOT NULL, " +
+                    "`updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`accountSlot`, `environment`, `sessionDcId`, `photoId`, `thumbSize`))"
+            )
+        }
+    }
+
     val MIGRATION_53_54 = object : Migration(53, 54) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.addColumn("mtproto_document_location", "fileName", "TEXT NOT NULL DEFAULT ''")

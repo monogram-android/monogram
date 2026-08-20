@@ -12,6 +12,9 @@ import org.monogram.mtproto.codec.CloudTlObjectCodec
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageMediaDocument
+import org.monogram.mtproto.tl.generated.cloud.layer223.MessageMediaPhoto
+import org.monogram.mtproto.tl.generated.cloud.layer223.PhotoSize_65b79bf448
+import org.monogram.mtproto.tl.generated.cloud.layer223.Photo_97e0ed8316
 import org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
@@ -88,6 +91,21 @@ class MtProtoRoomMessageProjectionStoreTest {
         assertEquals(9L, store.get(scope, MtProtoMessagePeerType.USER, 7L, 10)?.documentId)
         assertEquals(9L, locations.document?.id)
         assertEquals(4, locations.document?.dcId)
+    }
+
+    @Test
+    fun `projects photo identity with its message`() = runBlocking {
+        val locations = RecordingPhotoLocations()
+        val store = MtProtoRoomMessageProjectionStore(
+            dao = FakeMessageProjectionDao(),
+            photoLocations = locations,
+        )
+
+        store.stageMessages(scope, listOf(photoMessage()))
+
+        assertEquals(19L, store.get(scope, MtProtoMessagePeerType.USER, 7L, 10)?.photoId)
+        assertEquals(19L, locations.photo?.id)
+        assertEquals(4, locations.photo?.dcId)
     }
 
     @Test
@@ -198,6 +216,23 @@ class MtProtoRoomMessageProjectionStoreTest {
         summaryFromLanguage = null,
     )
 
+    private fun photoMessage() = documentMessage().copy(
+        media = MessageMediaPhoto(
+            spoiler = false,
+            photo = Photo_97e0ed8316(
+                hasStickers = false,
+                id = 19L,
+                accessHash = 20L,
+                fileReference = TlBytes.copyOf(byteArrayOf(2)),
+                date = 0,
+                sizes = listOf(PhotoSize_65b79bf448("m", 320, 240, 42)),
+                videoSizes = null,
+                dcId = 4,
+            ),
+            ttlSeconds = null,
+        )
+    )
+
     private fun shortMessage(id: Int, userId: Long, text: String) = UpdateShortMessage(
         out_ = false,
         mentioned = true,
@@ -267,6 +302,13 @@ class MtProtoRoomMessageProjectionStoreTest {
         var document: Document_be725c3b31? = null
         override suspend fun upsert(scope: MtProtoAuthKeyScope, document: Document_be725c3b31) {
             this.document = document
+        }
+    }
+
+    private class RecordingPhotoLocations : MtProtoPhotoLocationStore by NoOpMtProtoPhotoLocationStore {
+        var photo: Photo_97e0ed8316? = null
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, photo: Photo_97e0ed8316) {
+            this.photo = photo
         }
     }
 

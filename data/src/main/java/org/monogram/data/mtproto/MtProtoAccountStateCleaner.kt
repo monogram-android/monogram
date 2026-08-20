@@ -18,6 +18,7 @@ internal class MtProtoAccountStateCleaner(
     private val dialogStore: MtProtoDialogStore = NoOpMtProtoDialogStore,
     private val draftStore: MtProtoDraftStore = NoOpMtProtoDraftStore,
     private val fileHandleStore: MtProtoFileHandleStore = NoOpMtProtoFileHandleStore,
+    private val photoLocationStore: MtProtoPhotoLocationStore = NoOpMtProtoPhotoLocationStore,
     private val authorizationStore: MtProtoAccountAuthorizationStore = NoOpMtProtoAccountAuthorizationStore,
 ) : MtProtoAccountStateResetter {
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
@@ -51,6 +52,9 @@ internal class MtProtoAccountStateCleaner(
         }
         failure = collectFailure(failure) {
             fileHandleStore.deleteAccount(accountSlot, environment)
+        }
+        failure = collectFailure(failure) {
+            photoLocationStore.deleteAccount(accountSlot, environment)
         }
         failure = collectFailure(failure) {
             accountDcStore.delete(accountSlot)

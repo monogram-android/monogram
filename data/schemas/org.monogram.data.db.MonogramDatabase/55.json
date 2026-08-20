@@ -1,0 +1,4035 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 55,
+    "identityHash": "d59f7447de7cfe6132f90200a7b851a5",
+    "entities": [
+      {
+        "tableName": "chats",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `title` TEXT NOT NULL, `unreadCount` INTEGER NOT NULL, `avatarPath` TEXT, `lastMessageText` TEXT NOT NULL, `lastMessageTime` TEXT NOT NULL, `lastMessageDate` INTEGER NOT NULL, `order` INTEGER NOT NULL, `isPinned` INTEGER NOT NULL, `isMuted` INTEGER NOT NULL, `isChannel` INTEGER NOT NULL, `isGroup` INTEGER NOT NULL, `type` TEXT NOT NULL, `privateUserId` INTEGER NOT NULL, `basicGroupId` INTEGER NOT NULL, `supergroupId` INTEGER NOT NULL, `secretChatId` INTEGER NOT NULL, `positionsCache` TEXT, `isArchived` INTEGER NOT NULL, `memberCount` INTEGER NOT NULL, `onlineCount` INTEGER NOT NULL, `unreadMentionCount` INTEGER NOT NULL, `unreadReactionCount` INTEGER NOT NULL, `isMarkedAsUnread` INTEGER NOT NULL, `hasProtectedContent` INTEGER NOT NULL, `isTranslatable` INTEGER NOT NULL, `hasAutomaticTranslation` INTEGER NOT NULL, `messageAutoDeleteTime` INTEGER NOT NULL, `canBeDeletedOnlyForSelf` INTEGER NOT NULL, `canBeDeletedForAllUsers` INTEGER NOT NULL, `canBeReported` INTEGER NOT NULL, `lastReadInboxMessageId` INTEGER NOT NULL, `lastReadOutboxMessageId` INTEGER NOT NULL, `lastMessageId` INTEGER NOT NULL, `isLastMessageOutgoing` INTEGER NOT NULL, `replyMarkupMessageId` INTEGER NOT NULL, `messageSenderId` INTEGER, `blockList` INTEGER NOT NULL, `emojiStatusId` INTEGER, `accentColorId` INTEGER NOT NULL, `profileAccentColorId` INTEGER NOT NULL, `backgroundCustomEmojiId` INTEGER NOT NULL, `photoId` INTEGER NOT NULL, `isSupergroup` INTEGER NOT NULL, `isAdmin` INTEGER NOT NULL, `isOnline` INTEGER NOT NULL, `typingAction` TEXT, `draftMessage` TEXT, `isVerified` INTEGER NOT NULL, `isScam` INTEGER NOT NULL, `isFake` INTEGER NOT NULL, `botVerificationIconCustomEmojiId` INTEGER NOT NULL, `restrictionReason` TEXT, `hasSensitiveContent` INTEGER NOT NULL, `activeStoryStateType` TEXT, `activeStoryId` INTEGER NOT NULL, `boostLevel` INTEGER NOT NULL, `hasForumTabs` INTEGER NOT NULL, `isAdministeredDirectMessagesGroup` INTEGER NOT NULL, `paidMessageStarCount` INTEGER NOT NULL, `isSponsor` INTEGER NOT NULL, `viewAsTopics` INTEGER NOT NULL, `isForum` INTEGER NOT NULL, `isBot` INTEGER NOT NULL, `isMember` INTEGER NOT NULL, `username` TEXT, `description` TEXT, `inviteLink` TEXT, `permissionCanSendBasicMessages` INTEGER NOT NULL, `permissionCanSendAudios` INTEGER NOT NULL, `permissionCanSendDocuments` INTEGER NOT NULL, `permissionCanSendPhotos` INTEGER NOT NULL, `permissionCanSendVideos` INTEGER NOT NULL, `permissionCanSendVideoNotes` INTEGER NOT NULL, `permissionCanSendVoiceNotes` INTEGER NOT NULL, `permissionCanSendPolls` INTEGER NOT NULL, `permissionCanSendOtherMessages` INTEGER NOT NULL, `permissionCanAddLinkPreviews` INTEGER NOT NULL, `permissionCanReactToMessages` INTEGER NOT NULL, `permissionCanEditTag` INTEGER NOT NULL, `permissionCanChangeInfo` INTEGER NOT NULL, `permissionCanInviteUsers` INTEGER NOT NULL, `permissionCanPinMessages` INTEGER NOT NULL, `permissionCanCreateTopics` INTEGER NOT NULL, `lastMessageContentType` TEXT NOT NULL, `lastMessageSenderName` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadCount",
+            "columnName": "unreadCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatarPath",
+            "columnName": "avatarPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastMessageText",
+            "columnName": "lastMessageText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessageTime",
+            "columnName": "lastMessageTime",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessageDate",
+            "columnName": "lastMessageDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "order",
+            "columnName": "order",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPinned",
+            "columnName": "isPinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMuted",
+            "columnName": "isMuted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isChannel",
+            "columnName": "isChannel",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isGroup",
+            "columnName": "isGroup",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "privateUserId",
+            "columnName": "privateUserId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "basicGroupId",
+            "columnName": "basicGroupId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supergroupId",
+            "columnName": "supergroupId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "secretChatId",
+            "columnName": "secretChatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "positionsCache",
+            "columnName": "positionsCache",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isArchived",
+            "columnName": "isArchived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "memberCount",
+            "columnName": "memberCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "onlineCount",
+            "columnName": "onlineCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadMentionCount",
+            "columnName": "unreadMentionCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadReactionCount",
+            "columnName": "unreadReactionCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMarkedAsUnread",
+            "columnName": "isMarkedAsUnread",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasProtectedContent",
+            "columnName": "hasProtectedContent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isTranslatable",
+            "columnName": "isTranslatable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasAutomaticTranslation",
+            "columnName": "hasAutomaticTranslation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "messageAutoDeleteTime",
+            "columnName": "messageAutoDeleteTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canBeDeletedOnlyForSelf",
+            "columnName": "canBeDeletedOnlyForSelf",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canBeDeletedForAllUsers",
+            "columnName": "canBeDeletedForAllUsers",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canBeReported",
+            "columnName": "canBeReported",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastReadInboxMessageId",
+            "columnName": "lastReadInboxMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastReadOutboxMessageId",
+            "columnName": "lastReadOutboxMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessageId",
+            "columnName": "lastMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isLastMessageOutgoing",
+            "columnName": "isLastMessageOutgoing",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "replyMarkupMessageId",
+            "columnName": "replyMarkupMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "messageSenderId",
+            "columnName": "messageSenderId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "blockList",
+            "columnName": "blockList",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "emojiStatusId",
+            "columnName": "emojiStatusId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "accentColorId",
+            "columnName": "accentColorId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileAccentColorId",
+            "columnName": "profileAccentColorId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "backgroundCustomEmojiId",
+            "columnName": "backgroundCustomEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "photoId",
+            "columnName": "photoId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSupergroup",
+            "columnName": "isSupergroup",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAdmin",
+            "columnName": "isAdmin",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isOnline",
+            "columnName": "isOnline",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "typingAction",
+            "columnName": "typingAction",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "draftMessage",
+            "columnName": "draftMessage",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isVerified",
+            "columnName": "isVerified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isScam",
+            "columnName": "isScam",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFake",
+            "columnName": "isFake",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botVerificationIconCustomEmojiId",
+            "columnName": "botVerificationIconCustomEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restrictionReason",
+            "columnName": "restrictionReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "hasSensitiveContent",
+            "columnName": "hasSensitiveContent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeStoryStateType",
+            "columnName": "activeStoryStateType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "activeStoryId",
+            "columnName": "activeStoryId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "boostLevel",
+            "columnName": "boostLevel",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasForumTabs",
+            "columnName": "hasForumTabs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAdministeredDirectMessagesGroup",
+            "columnName": "isAdministeredDirectMessagesGroup",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paidMessageStarCount",
+            "columnName": "paidMessageStarCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSponsor",
+            "columnName": "isSponsor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "viewAsTopics",
+            "columnName": "viewAsTopics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isForum",
+            "columnName": "isForum",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBot",
+            "columnName": "isBot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMember",
+            "columnName": "isMember",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "inviteLink",
+            "columnName": "inviteLink",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "permissionCanSendBasicMessages",
+            "columnName": "permissionCanSendBasicMessages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanSendAudios",
+            "columnName": "permissionCanSendAudios",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanSendDocuments",
+            "columnName": "permissionCanSendDocuments",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanSendPhotos",
+            "columnName": "permissionCanSendPhotos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanSendVideos",
+            "columnName": "permissionCanSendVideos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanSendVideoNotes",
+            "columnName": "permissionCanSendVideoNotes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanSendVoiceNotes",
+            "columnName": "permissionCanSendVoiceNotes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanSendPolls",
+            "columnName": "permissionCanSendPolls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanSendOtherMessages",
+            "columnName": "permissionCanSendOtherMessages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanAddLinkPreviews",
+            "columnName": "permissionCanAddLinkPreviews",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanReactToMessages",
+            "columnName": "permissionCanReactToMessages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanEditTag",
+            "columnName": "permissionCanEditTag",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanChangeInfo",
+            "columnName": "permissionCanChangeInfo",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanInviteUsers",
+            "columnName": "permissionCanInviteUsers",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanPinMessages",
+            "columnName": "permissionCanPinMessages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "permissionCanCreateTopics",
+            "columnName": "permissionCanCreateTopics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessageContentType",
+            "columnName": "lastMessageContentType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessageSenderName",
+            "columnName": "lastMessageSenderName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chats_isPinned_order",
+            "unique": false,
+            "columnNames": [
+              "isPinned",
+              "order"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chats_isPinned_order` ON `${TABLE_NAME}` (`isPinned`, `order`)"
+          },
+          {
+            "name": "index_chats_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chats_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "messages",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `chatId` INTEGER NOT NULL, `senderId` INTEGER NOT NULL, `senderName` TEXT NOT NULL, `content` TEXT NOT NULL, `contentType` TEXT NOT NULL, `contentMeta` TEXT, `mediaFileId` INTEGER NOT NULL, `mediaPath` TEXT, `mediaThumbnailPath` TEXT, `minithumbnail` BLOB, `date` INTEGER NOT NULL, `isOutgoing` INTEGER NOT NULL, `isRead` INTEGER NOT NULL, `replyMarkupData` TEXT, `reactionsData` TEXT, `replyToMessageId` INTEGER NOT NULL, `replyToPreview` TEXT, `replyToPreviewType` TEXT, `replyToPreviewText` TEXT, `replyToPreviewSenderName` TEXT, `replyCount` INTEGER NOT NULL, `threadId` INTEGER, `viaBotUserId` INTEGER NOT NULL, `viaBotName` TEXT, `senderPersonalAvatarPath` TEXT, `senderCustomTitle` TEXT, `isSenderAdmin` INTEGER NOT NULL, `isSenderVerified` INTEGER NOT NULL, `isSenderPremium` INTEGER NOT NULL, `senderStatusEmojiId` INTEGER NOT NULL, `senderStatusEmojiPath` TEXT, `forwardFromName` TEXT, `forwardFromId` INTEGER NOT NULL, `forwardOriginChatId` INTEGER, `forwardOriginMessageId` INTEGER, `forwardDate` INTEGER NOT NULL, `editDate` INTEGER NOT NULL, `canBeEdited` INTEGER NOT NULL, `canBeForwarded` INTEGER NOT NULL, `canBeDeletedOnlyForSelf` INTEGER NOT NULL, `canBeDeletedForAllUsers` INTEGER NOT NULL, `canBeSaved` INTEGER NOT NULL, `canGetMessageThread` INTEGER NOT NULL, `canGetStatistics` INTEGER NOT NULL, `canGetRevenueStatistics` INTEGER NOT NULL, `canGetMediaStatistics` INTEGER NOT NULL, `canGetReadReceipts` INTEGER NOT NULL, `canGetViewers` INTEGER NOT NULL, `readDate` INTEGER NOT NULL, `hasUnreadMention` INTEGER NOT NULL, `hasUnreadReactions` INTEGER NOT NULL, `isPinned` INTEGER NOT NULL, `containsUnreadPollVotes` INTEGER NOT NULL, `suggestedPostInfoData` TEXT, `factCheckData` TEXT, `mediaAlbumId` INTEGER NOT NULL, `entities` TEXT, `viewCount` INTEGER NOT NULL, `forwardCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`chatId`, `id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderId",
+            "columnName": "senderId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderName",
+            "columnName": "senderName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentType",
+            "columnName": "contentType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentMeta",
+            "columnName": "contentMeta",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaFileId",
+            "columnName": "mediaFileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaPath",
+            "columnName": "mediaPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaThumbnailPath",
+            "columnName": "mediaThumbnailPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "minithumbnail",
+            "columnName": "minithumbnail",
+            "affinity": "BLOB"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isOutgoing",
+            "columnName": "isOutgoing",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isRead",
+            "columnName": "isRead",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "replyMarkupData",
+            "columnName": "replyMarkupData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "reactionsData",
+            "columnName": "reactionsData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "replyToMessageId",
+            "columnName": "replyToMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "replyToPreview",
+            "columnName": "replyToPreview",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "replyToPreviewType",
+            "columnName": "replyToPreviewType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "replyToPreviewText",
+            "columnName": "replyToPreviewText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "replyToPreviewSenderName",
+            "columnName": "replyToPreviewSenderName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "replyCount",
+            "columnName": "replyCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "threadId",
+            "columnName": "threadId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "viaBotUserId",
+            "columnName": "viaBotUserId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "viaBotName",
+            "columnName": "viaBotName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "senderPersonalAvatarPath",
+            "columnName": "senderPersonalAvatarPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "senderCustomTitle",
+            "columnName": "senderCustomTitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isSenderAdmin",
+            "columnName": "isSenderAdmin",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSenderVerified",
+            "columnName": "isSenderVerified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSenderPremium",
+            "columnName": "isSenderPremium",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderStatusEmojiId",
+            "columnName": "senderStatusEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderStatusEmojiPath",
+            "columnName": "senderStatusEmojiPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "forwardFromName",
+            "columnName": "forwardFromName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "forwardFromId",
+            "columnName": "forwardFromId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "forwardOriginChatId",
+            "columnName": "forwardOriginChatId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "forwardOriginMessageId",
+            "columnName": "forwardOriginMessageId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "forwardDate",
+            "columnName": "forwardDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "editDate",
+            "columnName": "editDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canBeEdited",
+            "columnName": "canBeEdited",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canBeForwarded",
+            "columnName": "canBeForwarded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canBeDeletedOnlyForSelf",
+            "columnName": "canBeDeletedOnlyForSelf",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canBeDeletedForAllUsers",
+            "columnName": "canBeDeletedForAllUsers",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canBeSaved",
+            "columnName": "canBeSaved",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetMessageThread",
+            "columnName": "canGetMessageThread",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetStatistics",
+            "columnName": "canGetStatistics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetRevenueStatistics",
+            "columnName": "canGetRevenueStatistics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetMediaStatistics",
+            "columnName": "canGetMediaStatistics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetReadReceipts",
+            "columnName": "canGetReadReceipts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetViewers",
+            "columnName": "canGetViewers",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "readDate",
+            "columnName": "readDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasUnreadMention",
+            "columnName": "hasUnreadMention",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasUnreadReactions",
+            "columnName": "hasUnreadReactions",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPinned",
+            "columnName": "isPinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "containsUnreadPollVotes",
+            "columnName": "containsUnreadPollVotes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "suggestedPostInfoData",
+            "columnName": "suggestedPostInfoData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "factCheckData",
+            "columnName": "factCheckData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaAlbumId",
+            "columnName": "mediaAlbumId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entities",
+            "columnName": "entities",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "viewCount",
+            "columnName": "viewCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "forwardCount",
+            "columnName": "forwardCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chatId",
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_messages_chatId_date",
+            "unique": false,
+            "columnNames": [
+              "chatId",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_chatId_date` ON `${TABLE_NAME}` (`chatId`, `date`)"
+          },
+          {
+            "name": "index_messages_chatId_id",
+            "unique": false,
+            "columnNames": [
+              "chatId",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_chatId_id` ON `${TABLE_NAME}` (`chatId`, `id`)"
+          },
+          {
+            "name": "index_messages_chatId_threadId_date",
+            "unique": false,
+            "columnNames": [
+              "chatId",
+              "threadId",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_chatId_threadId_date` ON `${TABLE_NAME}` (`chatId`, `threadId`, `date`)"
+          },
+          {
+            "name": "index_messages_chatId_threadId_id",
+            "unique": false,
+            "columnNames": [
+              "chatId",
+              "threadId",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_chatId_threadId_id` ON `${TABLE_NAME}` (`chatId`, `threadId`, `id`)"
+          },
+          {
+            "name": "index_messages_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "message_windows",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`chatId` INTEGER NOT NULL, `scopeType` TEXT NOT NULL, `scopeId` INTEGER NOT NULL, `oldestMessageId` INTEGER, `newestMessageId` INTEGER, `olderBoundaryReached` INTEGER NOT NULL, `newerBoundaryReached` INTEGER NOT NULL, `lastTdlibSyncAt` INTEGER NOT NULL, `generation` INTEGER NOT NULL, `protectedMessageId` INTEGER, PRIMARY KEY(`chatId`, `scopeType`, `scopeId`))",
+        "fields": [
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scopeType",
+            "columnName": "scopeType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scopeId",
+            "columnName": "scopeId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oldestMessageId",
+            "columnName": "oldestMessageId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "newestMessageId",
+            "columnName": "newestMessageId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "olderBoundaryReached",
+            "columnName": "olderBoundaryReached",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "newerBoundaryReached",
+            "columnName": "newerBoundaryReached",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastTdlibSyncAt",
+            "columnName": "lastTdlibSyncAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generation",
+            "columnName": "generation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "protectedMessageId",
+            "columnName": "protectedMessageId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chatId",
+            "scopeType",
+            "scopeId"
+          ]
+        }
+      },
+      {
+        "tableName": "mtproto_update_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, `pts` INTEGER NOT NULL, `qts` INTEGER NOT NULL, `date` INTEGER NOT NULL, `seq` INTEGER NOT NULL, `channelPtsData` TEXT, PRIMARY KEY(`accountSlot`, `environment`, `dcId`))",
+        "fields": [
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dcId",
+            "columnName": "dcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pts",
+            "columnName": "pts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qts",
+            "columnName": "qts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seq",
+            "columnName": "seq",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "channelPtsData",
+            "columnName": "channelPtsData",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountSlot",
+            "environment",
+            "dcId"
+          ]
+        }
+      },
+      {
+        "tableName": "mtproto_pending_envelopes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`sequenceId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, `payloadHash` TEXT NOT NULL, `payload` BLOB NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "sequenceId",
+            "columnName": "sequenceId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dcId",
+            "columnName": "dcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadHash",
+            "columnName": "payloadHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payload",
+            "columnName": "payload",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "sequenceId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_mtproto_pending_envelopes_accountSlot_environment_dcId_payloadHash",
+            "unique": true,
+            "columnNames": [
+              "accountSlot",
+              "environment",
+              "dcId",
+              "payloadHash"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_mtproto_pending_envelopes_accountSlot_environment_dcId_payloadHash` ON `${TABLE_NAME}` (`accountSlot`, `environment`, `dcId`, `payloadHash`)"
+          },
+          {
+            "name": "index_mtproto_pending_envelopes_accountSlot_environment_dcId_sequenceId",
+            "unique": false,
+            "columnNames": [
+              "accountSlot",
+              "environment",
+              "dcId",
+              "sequenceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_mtproto_pending_envelopes_accountSlot_environment_dcId_sequenceId` ON `${TABLE_NAME}` (`accountSlot`, `environment`, `dcId`, `sequenceId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "mtproto_cloud_objects",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`sequenceId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, `objectType` TEXT NOT NULL, `payloadHash` TEXT NOT NULL, `payload` BLOB NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "sequenceId",
+            "columnName": "sequenceId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dcId",
+            "columnName": "dcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "objectType",
+            "columnName": "objectType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadHash",
+            "columnName": "payloadHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payload",
+            "columnName": "payload",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "sequenceId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_mtproto_cloud_objects_accountSlot_environment_dcId_objectType_payloadHash",
+            "unique": true,
+            "columnNames": [
+              "accountSlot",
+              "environment",
+              "dcId",
+              "objectType",
+              "payloadHash"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_mtproto_cloud_objects_accountSlot_environment_dcId_objectType_payloadHash` ON `${TABLE_NAME}` (`accountSlot`, `environment`, `dcId`, `objectType`, `payloadHash`)"
+          },
+          {
+            "name": "index_mtproto_cloud_objects_accountSlot_environment_dcId_sequenceId",
+            "unique": false,
+            "columnNames": [
+              "accountSlot",
+              "environment",
+              "dcId",
+              "sequenceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_mtproto_cloud_objects_accountSlot_environment_dcId_sequenceId` ON `${TABLE_NAME}` (`accountSlot`, `environment`, `dcId`, `sequenceId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "mtproto_user_projection",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, `userId` INTEGER NOT NULL, `accessHash` INTEGER, `firstName` TEXT, `lastName` TEXT, `username` TEXT, `phone` TEXT, `isSelf` INTEGER NOT NULL, `isContact` INTEGER NOT NULL, `isMutualContact` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `isBot` INTEGER NOT NULL, `isVerified` INTEGER NOT NULL, `isRestricted` INTEGER NOT NULL, `isScam` INTEGER NOT NULL, `isFake` INTEGER NOT NULL, `isPremium` INTEGER NOT NULL, `isMin` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `userId`))",
+        "fields": [
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dcId",
+            "columnName": "dcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accessHash",
+            "columnName": "accessHash",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "firstName",
+            "columnName": "firstName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastName",
+            "columnName": "lastName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isSelf",
+            "columnName": "isSelf",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isContact",
+            "columnName": "isContact",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMutualContact",
+            "columnName": "isMutualContact",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDeleted",
+            "columnName": "isDeleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBot",
+            "columnName": "isBot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isVerified",
+            "columnName": "isVerified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isRestricted",
+            "columnName": "isRestricted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isScam",
+            "columnName": "isScam",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFake",
+            "columnName": "isFake",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPremium",
+            "columnName": "isPremium",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMin",
+            "columnName": "isMin",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountSlot",
+            "environment",
+            "dcId",
+            "userId"
+          ]
+        }
+      },
+      {
+        "tableName": "mtproto_chat_projection",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, `chatId` INTEGER NOT NULL, `type` TEXT NOT NULL, `accessHash` INTEGER, `title` TEXT, `username` TEXT, `participantsCount` INTEGER, `isDeleted` INTEGER NOT NULL, `isForbidden` INTEGER NOT NULL, `isLeft` INTEGER NOT NULL, `isDeactivated` INTEGER NOT NULL, `isBroadcast` INTEGER NOT NULL, `isMegagroup` INTEGER NOT NULL, `isVerified` INTEGER NOT NULL, `isRestricted` INTEGER NOT NULL, `isScam` INTEGER NOT NULL, `isFake` INTEGER NOT NULL, `isForum` INTEGER NOT NULL, `isMin` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `chatId`))",
+        "fields": [
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dcId",
+            "columnName": "dcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accessHash",
+            "columnName": "accessHash",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "participantsCount",
+            "columnName": "participantsCount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "isDeleted",
+            "columnName": "isDeleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isForbidden",
+            "columnName": "isForbidden",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isLeft",
+            "columnName": "isLeft",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDeactivated",
+            "columnName": "isDeactivated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBroadcast",
+            "columnName": "isBroadcast",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMegagroup",
+            "columnName": "isMegagroup",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isVerified",
+            "columnName": "isVerified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isRestricted",
+            "columnName": "isRestricted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isScam",
+            "columnName": "isScam",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFake",
+            "columnName": "isFake",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isForum",
+            "columnName": "isForum",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMin",
+            "columnName": "isMin",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountSlot",
+            "environment",
+            "dcId",
+            "chatId"
+          ]
+        }
+      },
+      {
+        "tableName": "mtproto_dialog_projection",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, `peerType` TEXT NOT NULL, `peerId` INTEGER NOT NULL, `pinned` INTEGER NOT NULL, `muted` INTEGER NOT NULL, `unreadMark` INTEGER NOT NULL, `topMessageId` INTEGER NOT NULL, `unreadCount` INTEGER NOT NULL, `unreadMentionsCount` INTEGER NOT NULL, `unreadReactionsCount` INTEGER NOT NULL, `folderId` INTEGER, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`))",
+        "fields": [
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dcId",
+            "columnName": "dcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peerType",
+            "columnName": "peerType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peerId",
+            "columnName": "peerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinned",
+            "columnName": "pinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "muted",
+            "columnName": "muted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadMark",
+            "columnName": "unreadMark",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "topMessageId",
+            "columnName": "topMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadCount",
+            "columnName": "unreadCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadMentionsCount",
+            "columnName": "unreadMentionsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadReactionsCount",
+            "columnName": "unreadReactionsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "folderId",
+            "columnName": "folderId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountSlot",
+            "environment",
+            "dcId",
+            "peerType",
+            "peerId"
+          ]
+        }
+      },
+      {
+        "tableName": "mtproto_message_projection",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, `peerType` TEXT NOT NULL, `peerId` INTEGER NOT NULL, `messageId` INTEGER NOT NULL, `senderType` TEXT, `senderId` INTEGER, `date` INTEGER NOT NULL, `text` TEXT, `isService` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `isOutgoing` INTEGER NOT NULL, `isMentioned` INTEGER NOT NULL, `isMediaUnread` INTEGER NOT NULL, `isSilent` INTEGER NOT NULL, `isPinned` INTEGER NOT NULL, `editDate` INTEGER, `groupedId` INTEGER, `hasMedia` INTEGER NOT NULL, `documentId` INTEGER, `photoId` INTEGER, `isScheduled` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`, `messageId`))",
+        "fields": [
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dcId",
+            "columnName": "dcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peerType",
+            "columnName": "peerType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peerId",
+            "columnName": "peerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "messageId",
+            "columnName": "messageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderType",
+            "columnName": "senderType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "senderId",
+            "columnName": "senderId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isService",
+            "columnName": "isService",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDeleted",
+            "columnName": "isDeleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isOutgoing",
+            "columnName": "isOutgoing",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMentioned",
+            "columnName": "isMentioned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMediaUnread",
+            "columnName": "isMediaUnread",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSilent",
+            "columnName": "isSilent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPinned",
+            "columnName": "isPinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "editDate",
+            "columnName": "editDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "groupedId",
+            "columnName": "groupedId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "hasMedia",
+            "columnName": "hasMedia",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "documentId",
+            "columnName": "documentId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "photoId",
+            "columnName": "photoId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "isScheduled",
+            "columnName": "isScheduled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountSlot",
+            "environment",
+            "dcId",
+            "peerType",
+            "peerId",
+            "messageId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_mtproto_message_projection_accountSlot_environment_dcId_peerType_peerId_date_messageId",
+            "unique": false,
+            "columnNames": [
+              "accountSlot",
+              "environment",
+              "dcId",
+              "peerType",
+              "peerId",
+              "date",
+              "messageId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_mtproto_message_projection_accountSlot_environment_dcId_peerType_peerId_date_messageId` ON `${TABLE_NAME}` (`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`, `date`, `messageId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "mtproto_photo_location",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `sessionDcId` INTEGER NOT NULL, `photoId` INTEGER NOT NULL, `thumbSize` TEXT NOT NULL, `accessHash` INTEGER NOT NULL, `fileReference` BLOB NOT NULL, `photoDcId` INTEGER NOT NULL, `width` INTEGER NOT NULL, `height` INTEGER NOT NULL, `size` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`accountSlot`, `environment`, `sessionDcId`, `photoId`, `thumbSize`))",
+        "fields": [
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionDcId",
+            "columnName": "sessionDcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "photoId",
+            "columnName": "photoId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thumbSize",
+            "columnName": "thumbSize",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accessHash",
+            "columnName": "accessHash",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileReference",
+            "columnName": "fileReference",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "photoDcId",
+            "columnName": "photoDcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "width",
+            "columnName": "width",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "height",
+            "columnName": "height",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "size",
+            "columnName": "size",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountSlot",
+            "environment",
+            "sessionDcId",
+            "photoId",
+            "thumbSize"
+          ]
+        }
+      },
+      {
+        "tableName": "mtproto_draft_projection",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, `peerType` TEXT NOT NULL, `peerId` INTEGER NOT NULL, `text` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`))",
+        "fields": [
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dcId",
+            "columnName": "dcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peerType",
+            "columnName": "peerType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peerId",
+            "columnName": "peerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountSlot",
+            "environment",
+            "dcId",
+            "peerType",
+            "peerId"
+          ]
+        }
+      },
+      {
+        "tableName": "mtproto_document_location",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `sessionDcId` INTEGER NOT NULL, `documentId` INTEGER NOT NULL, `accessHash` INTEGER NOT NULL, `fileReference` BLOB NOT NULL, `documentDcId` INTEGER NOT NULL, `mimeType` TEXT NOT NULL, `size` INTEGER NOT NULL, `fileName` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`accountSlot`, `environment`, `sessionDcId`, `documentId`))",
+        "fields": [
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionDcId",
+            "columnName": "sessionDcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "documentId",
+            "columnName": "documentId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accessHash",
+            "columnName": "accessHash",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileReference",
+            "columnName": "fileReference",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "documentDcId",
+            "columnName": "documentDcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mimeType",
+            "columnName": "mimeType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "size",
+            "columnName": "size",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "fileName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountSlot",
+            "environment",
+            "sessionDcId",
+            "documentId"
+          ]
+        }
+      },
+      {
+        "tableName": "mtproto_file_handle",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fileId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `sessionDcId` INTEGER NOT NULL, `documentId` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "fileId",
+            "columnName": "fileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionDcId",
+            "columnName": "sessionDcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "documentId",
+            "columnName": "documentId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "fileId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_mtproto_file_handle_accountSlot_environment_sessionDcId_documentId",
+            "unique": true,
+            "columnNames": [
+              "accountSlot",
+              "environment",
+              "sessionDcId",
+              "documentId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_mtproto_file_handle_accountSlot_environment_sessionDcId_documentId` ON `${TABLE_NAME}` (`accountSlot`, `environment`, `sessionDcId`, `documentId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "mtproto_file_transfer",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, `fileKey` TEXT NOT NULL, `path` TEXT NOT NULL, `expectedSize` INTEGER NOT NULL, `committedOffset` INTEGER NOT NULL, `isComplete` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `fileKey`))",
+        "fields": [
+          {
+            "fieldPath": "accountSlot",
+            "columnName": "accountSlot",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "environment",
+            "columnName": "environment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dcId",
+            "columnName": "dcId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileKey",
+            "columnName": "fileKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "path",
+            "columnName": "path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expectedSize",
+            "columnName": "expectedSize",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "committedOffset",
+            "columnName": "committedOffset",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isComplete",
+            "columnName": "isComplete",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "accountSlot",
+            "environment",
+            "dcId",
+            "fileKey"
+          ]
+        }
+      },
+      {
+        "tableName": "users",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `firstName` TEXT NOT NULL, `lastName` TEXT, `phoneNumber` TEXT, `avatarPath` TEXT, `personalAvatarPath` TEXT, `isPremium` INTEGER NOT NULL, `isVerified` INTEGER NOT NULL, `isScam` INTEGER NOT NULL, `isFake` INTEGER NOT NULL, `botVerificationIconCustomEmojiId` INTEGER NOT NULL, `isSupport` INTEGER NOT NULL, `isContact` INTEGER NOT NULL, `isMutualContact` INTEGER NOT NULL, `isCloseFriend` INTEGER NOT NULL, `botTypeCanBeEdited` INTEGER NOT NULL, `botTypeCanJoinGroups` INTEGER NOT NULL, `botTypeCanReadAllGroupMessages` INTEGER NOT NULL, `botTypeHasMainWebApp` INTEGER NOT NULL, `botTypeHasTopics` INTEGER NOT NULL, `botTypeAllowsUsersToCreateTopics` INTEGER NOT NULL, `botTypeCanManageBots` INTEGER NOT NULL, `botTypeIsInline` INTEGER NOT NULL, `botTypeInlineQueryPlaceholder` TEXT, `botTypeSupportsGuestQueries` INTEGER NOT NULL, `botTypeIsGuard` INTEGER NOT NULL, `botTypeNeedLocation` INTEGER NOT NULL, `botTypeCanConnectToBusiness` INTEGER NOT NULL, `botTypeCanBeAddedToAttachmentMenu` INTEGER NOT NULL, `botTypeActiveUserCount` INTEGER NOT NULL, `userType` TEXT NOT NULL, `restrictionReason` TEXT, `hasSensitiveContent` INTEGER NOT NULL, `activeStoryStateType` TEXT, `activeStoryId` INTEGER NOT NULL, `restrictsNewChats` INTEGER NOT NULL, `paidMessageStarCount` INTEGER NOT NULL, `haveAccess` INTEGER NOT NULL, `username` TEXT, `usernamesData` TEXT, `statusType` TEXT NOT NULL, `accentColorId` INTEGER NOT NULL, `backgroundCustomEmojiId` INTEGER NOT NULL, `profileAccentColorId` INTEGER NOT NULL, `profileBackgroundCustomEmojiId` INTEGER NOT NULL, `statusEmojiId` INTEGER NOT NULL, `languageCode` TEXT, `addedToAttachmentMenu` INTEGER NOT NULL, `lastSeen` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstName",
+            "columnName": "firstName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastName",
+            "columnName": "lastName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "phoneNumber",
+            "columnName": "phoneNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "avatarPath",
+            "columnName": "avatarPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "personalAvatarPath",
+            "columnName": "personalAvatarPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isPremium",
+            "columnName": "isPremium",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isVerified",
+            "columnName": "isVerified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isScam",
+            "columnName": "isScam",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFake",
+            "columnName": "isFake",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botVerificationIconCustomEmojiId",
+            "columnName": "botVerificationIconCustomEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSupport",
+            "columnName": "isSupport",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isContact",
+            "columnName": "isContact",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isMutualContact",
+            "columnName": "isMutualContact",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isCloseFriend",
+            "columnName": "isCloseFriend",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeCanBeEdited",
+            "columnName": "botTypeCanBeEdited",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeCanJoinGroups",
+            "columnName": "botTypeCanJoinGroups",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeCanReadAllGroupMessages",
+            "columnName": "botTypeCanReadAllGroupMessages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeHasMainWebApp",
+            "columnName": "botTypeHasMainWebApp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeHasTopics",
+            "columnName": "botTypeHasTopics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeAllowsUsersToCreateTopics",
+            "columnName": "botTypeAllowsUsersToCreateTopics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeCanManageBots",
+            "columnName": "botTypeCanManageBots",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeIsInline",
+            "columnName": "botTypeIsInline",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeInlineQueryPlaceholder",
+            "columnName": "botTypeInlineQueryPlaceholder",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botTypeSupportsGuestQueries",
+            "columnName": "botTypeSupportsGuestQueries",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeIsGuard",
+            "columnName": "botTypeIsGuard",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeNeedLocation",
+            "columnName": "botTypeNeedLocation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeCanConnectToBusiness",
+            "columnName": "botTypeCanConnectToBusiness",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeCanBeAddedToAttachmentMenu",
+            "columnName": "botTypeCanBeAddedToAttachmentMenu",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botTypeActiveUserCount",
+            "columnName": "botTypeActiveUserCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userType",
+            "columnName": "userType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restrictionReason",
+            "columnName": "restrictionReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "hasSensitiveContent",
+            "columnName": "hasSensitiveContent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeStoryStateType",
+            "columnName": "activeStoryStateType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "activeStoryId",
+            "columnName": "activeStoryId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restrictsNewChats",
+            "columnName": "restrictsNewChats",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paidMessageStarCount",
+            "columnName": "paidMessageStarCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "haveAccess",
+            "columnName": "haveAccess",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "usernamesData",
+            "columnName": "usernamesData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "statusType",
+            "columnName": "statusType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accentColorId",
+            "columnName": "accentColorId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "backgroundCustomEmojiId",
+            "columnName": "backgroundCustomEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileAccentColorId",
+            "columnName": "profileAccentColorId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profileBackgroundCustomEmojiId",
+            "columnName": "profileBackgroundCustomEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "statusEmojiId",
+            "columnName": "statusEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "languageCode",
+            "columnName": "languageCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "addedToAttachmentMenu",
+            "columnName": "addedToAttachmentMenu",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSeen",
+            "columnName": "lastSeen",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_users_username",
+            "unique": false,
+            "columnNames": [
+              "username"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_users_username` ON `${TABLE_NAME}` (`username`)"
+          },
+          {
+            "name": "index_users_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_users_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "chat_full_info",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`chatId` INTEGER NOT NULL, `description` TEXT, `inviteLink` TEXT, `memberCount` INTEGER NOT NULL, `onlineCount` INTEGER NOT NULL, `administratorCount` INTEGER NOT NULL, `restrictedCount` INTEGER NOT NULL, `bannedCount` INTEGER NOT NULL, `directMessagesChatId` INTEGER NOT NULL, `commonGroupsCount` INTEGER NOT NULL, `giftCount` INTEGER NOT NULL, `isBlocked` INTEGER NOT NULL, `botInfo` TEXT, `botInfoData` TEXT, `blockListType` TEXT, `publicPhotoPath` TEXT, `usesUnofficialApp` INTEGER NOT NULL, `hasSponsoredMessagesEnabled` INTEGER NOT NULL, `needPhoneNumberPrivacyException` INTEGER NOT NULL, `botVerificationBotUserId` INTEGER NOT NULL, `botVerificationIconCustomEmojiId` INTEGER NOT NULL, `botVerificationCustomDescription` TEXT, `mainProfileTab` TEXT, `firstProfileAudioData` TEXT, `ratingData` TEXT, `pendingRatingData` TEXT, `pendingRatingDate` INTEGER NOT NULL, `slowModeDelay` INTEGER NOT NULL, `slowModeDelayExpiresIn` REAL NOT NULL, `locationAddress` TEXT, `canEnablePaidMessages` INTEGER NOT NULL, `canEnablePaidReaction` INTEGER NOT NULL, `hasHiddenMembers` INTEGER NOT NULL, `canHideMembers` INTEGER NOT NULL, `canSetStickerSet` INTEGER NOT NULL, `canSetLocation` INTEGER NOT NULL, `canGetMembers` INTEGER NOT NULL, `canGetStatistics` INTEGER NOT NULL, `canGetRevenueStatistics` INTEGER NOT NULL, `canGetStarRevenueStatistics` INTEGER NOT NULL, `canToggleAggressiveAntiSpam` INTEGER NOT NULL, `isAllHistoryAvailable` INTEGER NOT NULL, `canHaveSponsoredMessages` INTEGER NOT NULL, `hasAggressiveAntiSpamEnabled` INTEGER NOT NULL, `hasPaidMediaAllowed` INTEGER NOT NULL, `hasPinnedStories` INTEGER NOT NULL, `myBoostCount` INTEGER NOT NULL, `unrestrictBoostCount` INTEGER NOT NULL, `stickerSetId` INTEGER NOT NULL, `customEmojiStickerSetId` INTEGER NOT NULL, `botCommandsData` TEXT, `upgradedFromBasicGroupId` INTEGER NOT NULL, `upgradedFromMaxMessageId` INTEGER NOT NULL, `linkedChatId` INTEGER NOT NULL, `note` TEXT, `canBeCalled` INTEGER NOT NULL, `supportsVideoCalls` INTEGER NOT NULL, `hasPrivateCalls` INTEGER NOT NULL, `hasPrivateForwards` INTEGER NOT NULL, `hasRestrictedVoiceAndVideoNoteMessages` INTEGER NOT NULL, `hasPostedToProfileStories` INTEGER NOT NULL, `setChatBackground` INTEGER NOT NULL, `incomingPaidMessageStarCount` INTEGER NOT NULL, `outgoingPaidMessageStarCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`chatId`))",
+        "fields": [
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "inviteLink",
+            "columnName": "inviteLink",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "memberCount",
+            "columnName": "memberCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "onlineCount",
+            "columnName": "onlineCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "administratorCount",
+            "columnName": "administratorCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restrictedCount",
+            "columnName": "restrictedCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bannedCount",
+            "columnName": "bannedCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "directMessagesChatId",
+            "columnName": "directMessagesChatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "commonGroupsCount",
+            "columnName": "commonGroupsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "giftCount",
+            "columnName": "giftCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBlocked",
+            "columnName": "isBlocked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfo",
+            "columnName": "botInfo",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoData",
+            "columnName": "botInfoData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "blockListType",
+            "columnName": "blockListType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "publicPhotoPath",
+            "columnName": "publicPhotoPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "usesUnofficialApp",
+            "columnName": "usesUnofficialApp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasSponsoredMessagesEnabled",
+            "columnName": "hasSponsoredMessagesEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "needPhoneNumberPrivacyException",
+            "columnName": "needPhoneNumberPrivacyException",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botVerificationBotUserId",
+            "columnName": "botVerificationBotUserId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botVerificationIconCustomEmojiId",
+            "columnName": "botVerificationIconCustomEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botVerificationCustomDescription",
+            "columnName": "botVerificationCustomDescription",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mainProfileTab",
+            "columnName": "mainProfileTab",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "firstProfileAudioData",
+            "columnName": "firstProfileAudioData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ratingData",
+            "columnName": "ratingData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pendingRatingData",
+            "columnName": "pendingRatingData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pendingRatingDate",
+            "columnName": "pendingRatingDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "slowModeDelay",
+            "columnName": "slowModeDelay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "slowModeDelayExpiresIn",
+            "columnName": "slowModeDelayExpiresIn",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "locationAddress",
+            "columnName": "locationAddress",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "canEnablePaidMessages",
+            "columnName": "canEnablePaidMessages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canEnablePaidReaction",
+            "columnName": "canEnablePaidReaction",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasHiddenMembers",
+            "columnName": "hasHiddenMembers",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canHideMembers",
+            "columnName": "canHideMembers",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canSetStickerSet",
+            "columnName": "canSetStickerSet",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canSetLocation",
+            "columnName": "canSetLocation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetMembers",
+            "columnName": "canGetMembers",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetStatistics",
+            "columnName": "canGetStatistics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetRevenueStatistics",
+            "columnName": "canGetRevenueStatistics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetStarRevenueStatistics",
+            "columnName": "canGetStarRevenueStatistics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canToggleAggressiveAntiSpam",
+            "columnName": "canToggleAggressiveAntiSpam",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAllHistoryAvailable",
+            "columnName": "isAllHistoryAvailable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canHaveSponsoredMessages",
+            "columnName": "canHaveSponsoredMessages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasAggressiveAntiSpamEnabled",
+            "columnName": "hasAggressiveAntiSpamEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPaidMediaAllowed",
+            "columnName": "hasPaidMediaAllowed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPinnedStories",
+            "columnName": "hasPinnedStories",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "myBoostCount",
+            "columnName": "myBoostCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unrestrictBoostCount",
+            "columnName": "unrestrictBoostCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stickerSetId",
+            "columnName": "stickerSetId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customEmojiStickerSetId",
+            "columnName": "customEmojiStickerSetId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botCommandsData",
+            "columnName": "botCommandsData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "upgradedFromBasicGroupId",
+            "columnName": "upgradedFromBasicGroupId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upgradedFromMaxMessageId",
+            "columnName": "upgradedFromMaxMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "linkedChatId",
+            "columnName": "linkedChatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "canBeCalled",
+            "columnName": "canBeCalled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supportsVideoCalls",
+            "columnName": "supportsVideoCalls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPrivateCalls",
+            "columnName": "hasPrivateCalls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPrivateForwards",
+            "columnName": "hasPrivateForwards",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasRestrictedVoiceAndVideoNoteMessages",
+            "columnName": "hasRestrictedVoiceAndVideoNoteMessages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPostedToProfileStories",
+            "columnName": "hasPostedToProfileStories",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "setChatBackground",
+            "columnName": "setChatBackground",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "incomingPaidMessageStarCount",
+            "columnName": "incomingPaidMessageStarCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outgoingPaidMessageStarCount",
+            "columnName": "outgoingPaidMessageStarCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chatId"
+          ]
+        }
+      },
+      {
+        "tableName": "topics",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`chatId` INTEGER NOT NULL, `id` INTEGER NOT NULL, `name` TEXT NOT NULL, `iconCustomEmojiId` INTEGER NOT NULL, `iconColor` INTEGER NOT NULL, `isClosed` INTEGER NOT NULL, `isPinned` INTEGER NOT NULL, `unreadCount` INTEGER NOT NULL, `lastReadInboxMessageId` INTEGER NOT NULL, `lastReadOutboxMessageId` INTEGER NOT NULL, `unreadMentionCount` INTEGER NOT NULL, `unreadReactionCount` INTEGER NOT NULL, `unreadPollVoteCount` INTEGER NOT NULL, `lastMessageText` TEXT NOT NULL, `lastMessageTime` TEXT NOT NULL, `order` INTEGER NOT NULL, `lastMessageSenderName` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`chatId`, `id`))",
+        "fields": [
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "iconCustomEmojiId",
+            "columnName": "iconCustomEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "iconColor",
+            "columnName": "iconColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isClosed",
+            "columnName": "isClosed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPinned",
+            "columnName": "isPinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadCount",
+            "columnName": "unreadCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastReadInboxMessageId",
+            "columnName": "lastReadInboxMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastReadOutboxMessageId",
+            "columnName": "lastReadOutboxMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadMentionCount",
+            "columnName": "unreadMentionCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadReactionCount",
+            "columnName": "unreadReactionCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadPollVoteCount",
+            "columnName": "unreadPollVoteCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessageText",
+            "columnName": "lastMessageText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessageTime",
+            "columnName": "lastMessageTime",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "order",
+            "columnName": "order",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessageSenderName",
+            "columnName": "lastMessageSenderName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chatId",
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "user_full_info",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `bio` TEXT, `commonGroupsCount` INTEGER NOT NULL, `giftCount` INTEGER NOT NULL, `botInfoDescription` TEXT, `botInfoShortDescription` TEXT, `botInfoPhotoFileId` INTEGER NOT NULL, `botInfoPhotoPath` TEXT, `botInfoAnimationFileId` INTEGER NOT NULL, `botInfoAnimationPath` TEXT, `botInfoManagerBotUserId` INTEGER NOT NULL, `botInfoMenuButtonText` TEXT, `botInfoMenuButtonUrl` TEXT, `botInfoCommandsData` TEXT, `botInfoPrivacyPolicyUrl` TEXT, `botInfoDefaultGroupRightsData` TEXT, `botInfoDefaultChannelRightsData` TEXT, `botInfoAffiliateProgramData` TEXT, `botInfoWebAppBackgroundLightColor` INTEGER NOT NULL, `botInfoWebAppBackgroundDarkColor` INTEGER NOT NULL, `botInfoWebAppHeaderLightColor` INTEGER NOT NULL, `botInfoWebAppHeaderDarkColor` INTEGER NOT NULL, `botInfoVerificationParametersIconCustomEmojiId` INTEGER NOT NULL, `botInfoVerificationParametersOrganizationName` TEXT, `botInfoVerificationParametersDefaultCustomDescription` TEXT, `botInfoVerificationParametersCanSetCustomDescription` INTEGER NOT NULL, `botInfoCanManageEmojiStatus` INTEGER NOT NULL, `botInfoHasMediaPreviews` INTEGER NOT NULL, `botInfoEditCommandsLinkType` TEXT, `botInfoEditDescriptionLinkType` TEXT, `botInfoEditDescriptionMediaLinkType` TEXT, `botInfoEditSettingsLinkType` TEXT, `personalChatId` INTEGER NOT NULL, `birthdateDay` INTEGER NOT NULL, `birthdateMonth` INTEGER NOT NULL, `birthdateYear` INTEGER NOT NULL, `publicPhotoPath` TEXT, `blockListType` TEXT, `businessLocationAddress` TEXT, `businessLocationLatitude` REAL NOT NULL, `businessLocationLongitude` REAL NOT NULL, `businessOpeningHoursTimeZone` TEXT, `businessNextOpenIn` INTEGER NOT NULL, `businessNextCloseIn` INTEGER NOT NULL, `businessStartPageTitle` TEXT, `businessStartPageMessage` TEXT, `note` TEXT, `personalPhotoPath` TEXT, `isBlocked` INTEGER NOT NULL, `hasSponsoredMessagesEnabled` INTEGER NOT NULL, `needPhoneNumberPrivacyException` INTEGER NOT NULL, `usesUnofficialApp` INTEGER NOT NULL, `botVerificationBotUserId` INTEGER NOT NULL, `botVerificationIconCustomEmojiId` INTEGER NOT NULL, `botVerificationCustomDescription` TEXT, `mainProfileTab` TEXT, `firstProfileAudioDuration` INTEGER NOT NULL, `firstProfileAudioTitle` TEXT, `firstProfileAudioPerformer` TEXT, `firstProfileAudioFileName` TEXT, `firstProfileAudioMimeType` TEXT, `firstProfileAudioFileId` INTEGER NOT NULL, `firstProfileAudioPath` TEXT, `ratingLevel` INTEGER NOT NULL, `ratingIsMaximumLevelReached` INTEGER NOT NULL, `ratingValue` INTEGER NOT NULL, `ratingCurrentLevelValue` INTEGER NOT NULL, `ratingNextLevelValue` INTEGER NOT NULL, `pendingRatingLevel` INTEGER NOT NULL, `pendingRatingIsMaximumLevelReached` INTEGER NOT NULL, `pendingRatingValue` INTEGER NOT NULL, `pendingRatingCurrentLevelValue` INTEGER NOT NULL, `pendingRatingNextLevelValue` INTEGER NOT NULL, `pendingRatingDate` INTEGER NOT NULL, `canBeCalled` INTEGER NOT NULL, `supportsVideoCalls` INTEGER NOT NULL, `hasPrivateCalls` INTEGER NOT NULL, `hasPrivateForwards` INTEGER NOT NULL, `hasRestrictedVoiceAndVideoNoteMessages` INTEGER NOT NULL, `hasPostedToProfileStories` INTEGER NOT NULL, `setChatBackground` INTEGER NOT NULL, `canGetRevenueStatistics` INTEGER NOT NULL, `incomingPaidMessageStarCount` INTEGER NOT NULL, `outgoingPaidMessageStarCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`userId`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bio",
+            "columnName": "bio",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "commonGroupsCount",
+            "columnName": "commonGroupsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "giftCount",
+            "columnName": "giftCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoDescription",
+            "columnName": "botInfoDescription",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoShortDescription",
+            "columnName": "botInfoShortDescription",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoPhotoFileId",
+            "columnName": "botInfoPhotoFileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoPhotoPath",
+            "columnName": "botInfoPhotoPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoAnimationFileId",
+            "columnName": "botInfoAnimationFileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoAnimationPath",
+            "columnName": "botInfoAnimationPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoManagerBotUserId",
+            "columnName": "botInfoManagerBotUserId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoMenuButtonText",
+            "columnName": "botInfoMenuButtonText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoMenuButtonUrl",
+            "columnName": "botInfoMenuButtonUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoCommandsData",
+            "columnName": "botInfoCommandsData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoPrivacyPolicyUrl",
+            "columnName": "botInfoPrivacyPolicyUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoDefaultGroupRightsData",
+            "columnName": "botInfoDefaultGroupRightsData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoDefaultChannelRightsData",
+            "columnName": "botInfoDefaultChannelRightsData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoAffiliateProgramData",
+            "columnName": "botInfoAffiliateProgramData",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoWebAppBackgroundLightColor",
+            "columnName": "botInfoWebAppBackgroundLightColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoWebAppBackgroundDarkColor",
+            "columnName": "botInfoWebAppBackgroundDarkColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoWebAppHeaderLightColor",
+            "columnName": "botInfoWebAppHeaderLightColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoWebAppHeaderDarkColor",
+            "columnName": "botInfoWebAppHeaderDarkColor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoVerificationParametersIconCustomEmojiId",
+            "columnName": "botInfoVerificationParametersIconCustomEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoVerificationParametersOrganizationName",
+            "columnName": "botInfoVerificationParametersOrganizationName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoVerificationParametersDefaultCustomDescription",
+            "columnName": "botInfoVerificationParametersDefaultCustomDescription",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoVerificationParametersCanSetCustomDescription",
+            "columnName": "botInfoVerificationParametersCanSetCustomDescription",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoCanManageEmojiStatus",
+            "columnName": "botInfoCanManageEmojiStatus",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoHasMediaPreviews",
+            "columnName": "botInfoHasMediaPreviews",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botInfoEditCommandsLinkType",
+            "columnName": "botInfoEditCommandsLinkType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoEditDescriptionLinkType",
+            "columnName": "botInfoEditDescriptionLinkType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoEditDescriptionMediaLinkType",
+            "columnName": "botInfoEditDescriptionMediaLinkType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "botInfoEditSettingsLinkType",
+            "columnName": "botInfoEditSettingsLinkType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "personalChatId",
+            "columnName": "personalChatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "birthdateDay",
+            "columnName": "birthdateDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "birthdateMonth",
+            "columnName": "birthdateMonth",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "birthdateYear",
+            "columnName": "birthdateYear",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "publicPhotoPath",
+            "columnName": "publicPhotoPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "blockListType",
+            "columnName": "blockListType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "businessLocationAddress",
+            "columnName": "businessLocationAddress",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "businessLocationLatitude",
+            "columnName": "businessLocationLatitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "businessLocationLongitude",
+            "columnName": "businessLocationLongitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "businessOpeningHoursTimeZone",
+            "columnName": "businessOpeningHoursTimeZone",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "businessNextOpenIn",
+            "columnName": "businessNextOpenIn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "businessNextCloseIn",
+            "columnName": "businessNextCloseIn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "businessStartPageTitle",
+            "columnName": "businessStartPageTitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "businessStartPageMessage",
+            "columnName": "businessStartPageMessage",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "personalPhotoPath",
+            "columnName": "personalPhotoPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isBlocked",
+            "columnName": "isBlocked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasSponsoredMessagesEnabled",
+            "columnName": "hasSponsoredMessagesEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "needPhoneNumberPrivacyException",
+            "columnName": "needPhoneNumberPrivacyException",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "usesUnofficialApp",
+            "columnName": "usesUnofficialApp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botVerificationBotUserId",
+            "columnName": "botVerificationBotUserId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botVerificationIconCustomEmojiId",
+            "columnName": "botVerificationIconCustomEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "botVerificationCustomDescription",
+            "columnName": "botVerificationCustomDescription",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mainProfileTab",
+            "columnName": "mainProfileTab",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "firstProfileAudioDuration",
+            "columnName": "firstProfileAudioDuration",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstProfileAudioTitle",
+            "columnName": "firstProfileAudioTitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "firstProfileAudioPerformer",
+            "columnName": "firstProfileAudioPerformer",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "firstProfileAudioFileName",
+            "columnName": "firstProfileAudioFileName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "firstProfileAudioMimeType",
+            "columnName": "firstProfileAudioMimeType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "firstProfileAudioFileId",
+            "columnName": "firstProfileAudioFileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstProfileAudioPath",
+            "columnName": "firstProfileAudioPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ratingLevel",
+            "columnName": "ratingLevel",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ratingIsMaximumLevelReached",
+            "columnName": "ratingIsMaximumLevelReached",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ratingValue",
+            "columnName": "ratingValue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ratingCurrentLevelValue",
+            "columnName": "ratingCurrentLevelValue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ratingNextLevelValue",
+            "columnName": "ratingNextLevelValue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingRatingLevel",
+            "columnName": "pendingRatingLevel",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingRatingIsMaximumLevelReached",
+            "columnName": "pendingRatingIsMaximumLevelReached",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingRatingValue",
+            "columnName": "pendingRatingValue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingRatingCurrentLevelValue",
+            "columnName": "pendingRatingCurrentLevelValue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingRatingNextLevelValue",
+            "columnName": "pendingRatingNextLevelValue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingRatingDate",
+            "columnName": "pendingRatingDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canBeCalled",
+            "columnName": "canBeCalled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supportsVideoCalls",
+            "columnName": "supportsVideoCalls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPrivateCalls",
+            "columnName": "hasPrivateCalls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPrivateForwards",
+            "columnName": "hasPrivateForwards",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasRestrictedVoiceAndVideoNoteMessages",
+            "columnName": "hasRestrictedVoiceAndVideoNoteMessages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPostedToProfileStories",
+            "columnName": "hasPostedToProfileStories",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "setChatBackground",
+            "columnName": "setChatBackground",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canGetRevenueStatistics",
+            "columnName": "canGetRevenueStatistics",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "incomingPaidMessageStarCount",
+            "columnName": "incomingPaidMessageStarCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outgoingPaidMessageStarCount",
+            "columnName": "outgoingPaidMessageStarCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "userId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_user_full_info_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_user_full_info_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "sticker_sets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `name` TEXT NOT NULL, `type` TEXT NOT NULL, `isInstalled` INTEGER NOT NULL, `isArchived` INTEGER NOT NULL, `data` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isInstalled",
+            "columnName": "isInstalled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isArchived",
+            "columnName": "isArchived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data",
+            "columnName": "data",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sticker_sets_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sticker_sets_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "recent_emojis",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `emoji` TEXT NOT NULL, `stickerId` INTEGER, `data` TEXT NOT NULL, `timestamp` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "emoji",
+            "columnName": "emoji",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stickerId",
+            "columnName": "stickerId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "data",
+            "columnName": "data",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "search_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`chatId` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`chatId`))",
+        "fields": [
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chatId"
+          ]
+        }
+      },
+      {
+        "tableName": "chat_folders",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `data` TEXT NOT NULL, `order` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data",
+            "columnName": "data",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "order",
+            "columnName": "order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "attach_bots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`botUserId` INTEGER NOT NULL, `data` TEXT NOT NULL, PRIMARY KEY(`botUserId`))",
+        "fields": [
+          {
+            "fieldPath": "botUserId",
+            "columnName": "botUserId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "data",
+            "columnName": "data",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "botUserId"
+          ]
+        }
+      },
+      {
+        "tableName": "key_value",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `value` TEXT, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "notification_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`chatId` INTEGER NOT NULL, `muteFor` INTEGER NOT NULL, `useDefault` INTEGER NOT NULL, PRIMARY KEY(`chatId`))",
+        "fields": [
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "muteFor",
+            "columnName": "muteFor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "useDefault",
+            "columnName": "useDefault",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chatId"
+          ]
+        }
+      },
+      {
+        "tableName": "notification_exceptions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`chatId` INTEGER NOT NULL, `scope` TEXT NOT NULL, `title` TEXT NOT NULL, `avatarPath` TEXT, `personalAvatarPath` TEXT, `isMuted` INTEGER NOT NULL, `isGroup` INTEGER NOT NULL, `isChannel` INTEGER NOT NULL, `type` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`chatId`))",
+        "fields": [
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scope",
+            "columnName": "scope",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avatarPath",
+            "columnName": "avatarPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "personalAvatarPath",
+            "columnName": "personalAvatarPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isMuted",
+            "columnName": "isMuted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isGroup",
+            "columnName": "isGroup",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isChannel",
+            "columnName": "isChannel",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chatId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_notification_exceptions_scope",
+            "unique": false,
+            "columnNames": [
+              "scope"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notification_exceptions_scope` ON `${TABLE_NAME}` (`scope`)"
+          }
+        ]
+      },
+      {
+        "tableName": "wallpapers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `slug` TEXT NOT NULL, `title` TEXT NOT NULL, `type` TEXT NOT NULL, `pattern` INTEGER NOT NULL, `documentId` INTEGER NOT NULL, `thumbnailFileId` INTEGER, `thumbnailWidth` INTEGER, `thumbnailHeight` INTEGER, `thumbnailLocalPath` TEXT, `backgroundColor` INTEGER, `secondBackgroundColor` INTEGER, `thirdBackgroundColor` INTEGER, `fourthBackgroundColor` INTEGER, `intensity` INTEGER, `rotation` INTEGER, `isInverted` INTEGER, `settingsIsMoving` INTEGER, `settingsIsBlurred` INTEGER, `themeName` TEXT, `isDownloaded` INTEGER NOT NULL, `localPath` TEXT, `isDefault` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "slug",
+            "columnName": "slug",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pattern",
+            "columnName": "pattern",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "documentId",
+            "columnName": "documentId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thumbnailFileId",
+            "columnName": "thumbnailFileId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "thumbnailWidth",
+            "columnName": "thumbnailWidth",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "thumbnailHeight",
+            "columnName": "thumbnailHeight",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "thumbnailLocalPath",
+            "columnName": "thumbnailLocalPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "backgroundColor",
+            "columnName": "backgroundColor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "secondBackgroundColor",
+            "columnName": "secondBackgroundColor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "thirdBackgroundColor",
+            "columnName": "thirdBackgroundColor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fourthBackgroundColor",
+            "columnName": "fourthBackgroundColor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "intensity",
+            "columnName": "intensity",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rotation",
+            "columnName": "rotation",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "isInverted",
+            "columnName": "isInverted",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "settingsIsMoving",
+            "columnName": "settingsIsMoving",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "settingsIsBlurred",
+            "columnName": "settingsIsBlurred",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "themeName",
+            "columnName": "themeName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isDownloaded",
+            "columnName": "isDownloaded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localPath",
+            "columnName": "localPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isDefault",
+            "columnName": "isDefault",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "sticker_paths",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fileId` INTEGER NOT NULL, `path` TEXT NOT NULL, PRIMARY KEY(`fileId`))",
+        "fields": [
+          {
+            "fieldPath": "fileId",
+            "columnName": "fileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "path",
+            "columnName": "path",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "fileId"
+          ]
+        }
+      },
+      {
+        "tableName": "sponsors",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `sourceChannelId` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`userId`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceChannelId",
+            "columnName": "sourceChannelId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "userId"
+          ]
+        }
+      },
+      {
+        "tableName": "text_composition_styles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`name` TEXT NOT NULL, `customEmojiId` INTEGER NOT NULL, `title` TEXT NOT NULL, PRIMARY KEY(`name`))",
+        "fields": [
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customEmojiId",
+            "columnName": "customEmojiId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "name"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd59f7447de7cfe6132f90200a7b851a5')"
+    ]
+  }
+}

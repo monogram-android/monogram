@@ -256,6 +256,8 @@ import org.monogram.data.repository.PrivacyRepositoryImpl
 import org.monogram.data.backend.TelegramBackendPrivacyRouter
 import org.monogram.data.mtproto.MtProtoPrivacyRepository
 import org.monogram.data.mtproto.MtProtoProfileEditRepository
+import org.monogram.data.mtproto.MtProtoFileUploader
+import org.monogram.data.mtproto.TelegramMtProtoFileUploader
 import org.monogram.data.backend.TelegramBackendProfileEditRouter
 import org.monogram.data.backend.TelegramBackendPremiumRouter
 import org.monogram.data.backend.TelegramBackendProfilePhotoRouter
@@ -874,7 +876,15 @@ val dataModule = module {
     single<UserProfileSnapshotRepository> { get<TelegramBackendReadRouter>() }
 
     single { UserProfileEditRepositoryImpl(remote = get()) }
-    single { MtProtoProfileEditRepository(configSource = get(), transportFactory = get(), users = get()) }
+    single<MtProtoFileUploader> { TelegramMtProtoFileUploader(get()) }
+    single {
+        MtProtoProfileEditRepository(
+            configSource = get(),
+            transportFactory = get(),
+            users = get(),
+            uploader = get(),
+        )
+    }
     single<UserProfileEditRepository> {
         TelegramBackendProfileEditRouter(
             selectionStore = get(),

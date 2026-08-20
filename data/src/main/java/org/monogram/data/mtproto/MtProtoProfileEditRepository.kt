@@ -5,11 +5,15 @@ import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateUsername
+import org.monogram.mtproto.tl.generated.cloud.layer223.photos.UploadProfilePhoto
 
 internal class MtProtoProfileEditRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory,
     private val users: MtProtoUserProjectionStore,
+    private val uploader: MtProtoFileUploader = MtProtoFileUploader {
+        throw UnsupportedOperationException("MTProto file upload is not configured")
+    },
     private val accountSlot: String = "default",
 ) : UserProfileEditRepository {
     override suspend fun setName(firstName: String, lastName: String) = updateProfile(
@@ -43,7 +47,21 @@ internal class MtProtoProfileEditRepository(
     }
 
     override suspend fun setEmojiStatus(customEmojiId: Long?) = unsupported()
-    override suspend fun setProfilePhoto(path: String) = unsupported()
+    override suspend fun setProfilePhoto(path: String) {
+        val uploaded = uploader.upload(path)
+        transportFactory.open(accountSlot).use { transport ->
+            transport.execute(
+                UploadProfilePhoto(
+                    fallback = false,
+                    bot = null,
+                    file_ = uploaded,
+                    video = null,
+                    videoStartTs = null,
+                    videoEmojiMarkup = null,
+                )
+            )
+        }
+    }
     override suspend fun setBirthdate(birthdate: BirthdateModel?) = unsupported()
     override suspend fun setPersonalChat(chatId: Long) = unsupported()
     override suspend fun setBusinessBio(bio: String) = unsupported()

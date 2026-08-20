@@ -22,8 +22,9 @@ class TelegramBackendChatSettingsRouterTest {
 
         router.setChatTitle(-7, "Team")
         router.setChatDescription(-7, "Owned MTProto")
+        router.setChatUsername(-7, "team")
 
-        assertEquals(listOf("title:-7:Team", "description:-7:Owned MTProto"), settings.calls)
+        assertEquals(listOf("title:-7:Team", "description:-7:Owned MTProto", "username:-7:team"), settings.calls)
     }
 
     private class RecordingSettings : MtProtoChatSettingsRepository {
@@ -33,6 +34,9 @@ class TelegramBackendChatSettingsRouterTest {
         }
         override suspend fun setDescription(chatId: Long, description: String) {
             calls += "description:$chatId:$description"
+        }
+        override suspend fun setUsername(chatId: Long, username: String) {
+            calls += "username:$chatId:$username"
         }
     }
 

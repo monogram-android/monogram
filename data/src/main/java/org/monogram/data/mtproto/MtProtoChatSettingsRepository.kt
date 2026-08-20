@@ -6,12 +6,14 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.EditTitle
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.UpdateUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
 
 internal interface MtProtoChatSettingsRepository {
     suspend fun setTitle(chatId: Long, title: String)
     suspend fun setDescription(chatId: Long, description: String)
+    suspend fun setUsername(chatId: Long, username: String)
 }
 
 internal class MtProtoChatSettingsRepositoryImpl(
@@ -36,6 +38,21 @@ internal class MtProtoChatSettingsRepositoryImpl(
                 DialogPeerType.PRIVATE, DialogPeerType.UNKNOWN -> error("MTProto cannot edit this chat title")
             }
             cloudObjectStager.stageLive(scope, updates)
+        }
+    }
+
+    override suspend fun setUsername(chatId: Long, username: String) {
+        val (scope, peer) = resolve(chatId)
+        require(peer.type == DialogPeerType.SUPERGROUP || peer.type == DialogPeerType.CHANNEL) {
+            "MTProto usernames require a supergroup or channel"
+        }
+        val accessHash = requireNotNull(chats.get(scope, peer.id)?.accessHash) {
+            "Missing MTProto channel access hash: ${peer.id}"
+        }
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(UpdateUsername(InputChannel_d22292516d(peer.id, accessHash), username))) {
+                "channels.updateUsername was rejected"
+            }
         }
     }
 

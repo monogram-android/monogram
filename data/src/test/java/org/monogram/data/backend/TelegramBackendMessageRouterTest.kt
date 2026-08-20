@@ -13,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.data.mtproto.MtProtoDraftRepository
+import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 
 class TelegramBackendMessageRouterTest {
     @Test
@@ -65,6 +66,23 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto pin mutations use the selected repository without creating legacy`() = runBlocking {
+        val pinned = RecordingPinnedMessageRepository()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            pinnedFactory = { pinned },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.pinMessage(1L, 2L)
+        router.repository.unpinMessage(1L, 2L)
+
+        assertEquals(listOf(Triple(1L, 2L, true), Triple(1L, 2L, false)), pinned.requests)
+    }
+
+    @Test
     fun `MTProto message update flows are inert`() = runBlocking {
         val router = TelegramBackendMessageRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
@@ -83,6 +101,14 @@ class TelegramBackendMessageRouterTest {
 
         override suspend fun saveDraft(chatId: Long, text: String, replyToMsgId: Long?, threadId: Long?) {
             this.text = text
+        }
+    }
+
+    private class RecordingPinnedMessageRepository : MtProtoPinnedMessageRepository {
+        val requests = mutableListOf<Triple<Long, Long, Boolean>>()
+
+        override suspend fun setPinned(chatId: Long, messageId: Long, pinned: Boolean) {
+            requests += Triple(chatId, messageId, pinned)
         }
     }
 

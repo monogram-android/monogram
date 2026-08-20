@@ -103,6 +103,8 @@ import org.monogram.data.mtproto.MtProtoDialogSnapshotRepository
 import org.monogram.data.mtproto.MtProtoTextMessageRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoDraftRepositoryImpl
+import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
+import org.monogram.data.mtproto.MtProtoPinnedMessageRepositoryImpl
 import org.monogram.data.mtproto.MtProtoReadHistoryRepositoryImpl
 import org.monogram.data.mtproto.MtProtoMessageDeletionRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogChatListRepository
@@ -522,6 +524,12 @@ val dataModule = module {
             users = get(),
             chats = get(),
             drafts = get(),
+        )
+    }
+    single<MtProtoPinnedMessageRepository> {
+        MtProtoPinnedMessageRepositoryImpl(
+            dialogs = get(),
+            messages = get(),
         )
     }
     single<MtProtoTextMessageRepository> {
@@ -1147,6 +1155,7 @@ val dataModule = module {
             selectionStore = get(),
             legacyFactory = { get<MessageRepositoryImpl>() },
             draftFactory = { get<MtProtoDraftRepository>() },
+            pinnedFactory = { get<MtProtoPinnedMessageRepository>() },
             scope = get(),
         ).repository
     }

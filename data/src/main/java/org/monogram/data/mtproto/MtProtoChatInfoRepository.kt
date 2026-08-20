@@ -36,12 +36,15 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantsRecen
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantsSearch
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ChannelParticipants_cbdd012578
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.GetParticipants
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.GetChannelRecommendations
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatFull_af753dccbf
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelFull
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ChatFull_86a406fd8f
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetFullChat
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.Chats_1cc0cbc238
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ChatsSlice
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.GetFullChannel
 
 internal class MtProtoChatInfoRepository(
@@ -109,7 +112,32 @@ internal class MtProtoChatInfoRepository(
         val searchRepository = search ?: unsupported()
         return searchRepository.searchPublicChats(username.trim()).firstOrNull()
     }
-    override suspend fun getSimilarChatIds(chatId: Long): List<Long> = unsupported()
+    override suspend fun getSimilarChatIds(chatId: Long): List<Long> {
+        val peer = TelegramPeerChatId.decode(chatId)
+        require(peer.type == org.monogram.domain.models.DialogPeerType.CHANNEL) {
+            "MTProto similar-chat recommendations require a channel"
+        }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val chat = requireNotNull(chats.get(scope, peer.id)) { "Missing MTProto chat projection: ${peer.id}" }
+        val transport = requireNotNull(transportFactory) { "MTProto chat info transport is unavailable" }.open(accountSlot)
+        try {
+            val result = transport.execute(
+                GetChannelRecommendations(InputChannel_d22292516d(peer.id, requireNotNull(chat.accessHash)))
+            )
+            val recommendations = when (result) {
+                is Chats_1cc0cbc238 -> result.chats
+                is ChatsSlice -> result.chats
+            }
+            chats.upsert(scope, recommendations)
+            return recommendations.mapNotNull { recommended ->
+                (recommended as? org.monogram.mtproto.tl.generated.cloud.layer223.Channel)?.id
+                    ?.let { TelegramPeerChatId.encode(org.monogram.domain.models.DialogPeerType.CHANNEL, it) }
+            }
+        } finally {
+            transport.close()
+        }
+    }
     override suspend fun getChatMembers(chatId: Long, offset: Int, limit: Int, filter: ChatMembersFilter): List<GroupMemberModel> {
         require(offset >= 0) { "Member offset must not be negative" }
         require(limit in 1..PAGE_SIZE) { "Member limit must be between 1 and $PAGE_SIZE" }

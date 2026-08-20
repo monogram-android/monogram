@@ -201,6 +201,38 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto routes plain text mutations and receipts through selected text repository`() = runBlocking {
+        val text = RecordingTextMessageRepository()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            textFactory = { text },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.sendMessage(
+            chatId = 42L,
+            text = "hello",
+            sendOptions = org.monogram.domain.models.MessageSendOptions(
+                silent = true,
+                scheduleDate = 123,
+                disableLinkPreview = true,
+            ),
+        )
+        router.repository.editMessage(42L, 7L, "edited")
+        router.repository.addMessageReaction(42L, 7L, "👍")
+        router.repository.removeMessageReaction(42L, 7L, "👍")
+        router.repository.markAllMentionsAsRead(42L)
+        router.repository.markAllReactionsAsRead(42L)
+        assertEquals(listOf("hello" to true), text.sent)
+        assertEquals(listOf(7L to "edited"), text.edited)
+        assertEquals(listOf("👍", null), text.reactions)
+        assertEquals(1, text.mentionsRead)
+        assertEquals(1, text.reactionsRead)
+    }
+
+    @Test
     fun `MTProto forwards messages through selected text repository`() = runBlocking {
         val text = RecordingTextMessageRepository()
         val router = TelegramBackendMessageRouter(
@@ -281,17 +313,28 @@ class TelegramBackendMessageRouterTest {
 
     private class RecordingTextMessageRepository : MtProtoTextMessageRepository {
         var request: org.monogram.domain.repository.ForwardRequest? = null
-        override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String, silent: Boolean, scheduleDate: Int?, disableLinkPreview: Boolean) = Unit
+        val sent = mutableListOf<Pair<String, Boolean>>()
+        val edited = mutableListOf<Pair<Long, String>>()
+        val reactions = mutableListOf<String?>()
+        var mentionsRead = 0
+        var reactionsRead = 0
+        override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String, silent: Boolean, scheduleDate: Int?, disableLinkPreview: Boolean) {
+            sent += text to silent
+        }
         override suspend fun sendTyping(chatId: Long, peerType: DialogPeerType, threadId: Long?) = Unit
-        override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) = Unit
-        override suspend fun setEmojiReaction(chatId: Long, peerType: DialogPeerType, messageId: Long, emoji: String?) = Unit
+        override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) {
+            edited += messageId to text
+        }
+        override suspend fun setEmojiReaction(chatId: Long, peerType: DialogPeerType, messageId: Long, emoji: String?) {
+            reactions += emoji
+        }
         override suspend fun setPinned(chatId: Long, peerType: DialogPeerType, messageId: Long, pinned: Boolean) = Unit
         override suspend fun forwardToSelf(chatId: Long, peerType: DialogPeerType, messageId: Long) = Unit
         override suspend fun forwardMessages(request: org.monogram.domain.repository.ForwardRequest) { this.request = request }
         override suspend fun sendScheduledNow(chatId: Long, peerType: DialogPeerType, messageId: Long) = Unit
         override suspend fun clearHistory(chatId: Long, peerType: DialogPeerType, revoke: Boolean) = Unit
-        override suspend fun markMentionsRead(chatId: Long, peerType: DialogPeerType) = Unit
-        override suspend fun markReactionsRead(chatId: Long, peerType: DialogPeerType) = Unit
+        override suspend fun markMentionsRead(chatId: Long, peerType: DialogPeerType) { mentionsRead++ }
+        override suspend fun markReactionsRead(chatId: Long, peerType: DialogPeerType) { reactionsRead++ }
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

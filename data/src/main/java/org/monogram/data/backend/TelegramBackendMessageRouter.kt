@@ -93,6 +93,57 @@ internal class TelegramBackendMessageRouter(
                 TelegramBackendKind.LEGACY -> invokeLegacy(method, args)
                 TelegramBackendKind.KOTLIN_MTPROTO -> when (method.name) {
                     "openChat", "closeChat" -> invokeDraft(method, args) { Unit }
+                    "sendMessage" -> invokeDraft(method, args) { values ->
+                        val options = values[5] as org.monogram.domain.models.MessageSendOptions
+                        text.sendText(
+                            chatId = values[0] as Long,
+                            peerType = TelegramPeerChatId.decode(values[0] as Long).type,
+                            text = values[1] as String,
+                            silent = options.silent,
+                            scheduleDate = options.scheduleDate,
+                            disableLinkPreview = options.disableLinkPreview,
+                        )
+                    }
+                    "editMessage" -> invokeDraft(method, args) { values ->
+                        text.editText(
+                            chatId = values[0] as Long,
+                            peerType = TelegramPeerChatId.decode(values[0] as Long).type,
+                            messageId = values[1] as Long,
+                            text = values[2] as String,
+                        )
+                    }
+                    "addMessageReaction" -> invokeDraft(method, args) { values ->
+                        text.setEmojiReaction(
+                            values[0] as Long,
+                            TelegramPeerChatId.decode(values[0] as Long).type,
+                            values[1] as Long,
+                            values[2] as String,
+                        )
+                    }
+                    "removeMessageReaction" -> invokeDraft(method, args) { values ->
+                        text.setEmojiReaction(
+                            values[0] as Long,
+                            TelegramPeerChatId.decode(values[0] as Long).type,
+                            values[1] as Long,
+                            null,
+                        )
+                    }
+                    "sendChatAction" -> invokeDraft(method, args) { values ->
+                        when (values[1]) {
+                            MessageRepository.ChatAction.Typing -> text.sendTyping(
+                                values[0] as Long,
+                                TelegramPeerChatId.decode(values[0] as Long).type,
+                                values[2] as Long?,
+                            )
+                            else -> unsupported(method)
+                        }
+                    }
+                    "markAllMentionsAsRead" -> invokeDraft(method, args) { values ->
+                        text.markMentionsRead(values[0] as Long, TelegramPeerChatId.decode(values[0] as Long).type)
+                    }
+                    "markAllReactionsAsRead" -> invokeDraft(method, args) { values ->
+                        text.markReactionsRead(values[0] as Long, TelegramPeerChatId.decode(values[0] as Long).type)
+                    }
                     "getHistoryPage" -> invokeDraft(method, args) { values ->
                         getHistoryPage(values[0] as HistoryRequest)
                     }

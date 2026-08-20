@@ -5,8 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.monogram.data.mtproto.MtProtoLinkHandler
+import org.monogram.domain.repository.LinkAction
 
 class TelegramBackendLinkHandlerRouterTest {
     @Test
@@ -14,12 +16,15 @@ class TelegramBackendLinkHandlerRouterTest {
         val router = TelegramBackendLinkHandlerRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy link handler must not be created") },
+            mtProtoFactory = {
+                object : MtProtoLinkHandler {
+                    override suspend fun handle(link: String) = LinkAction.OpenUser(7)
+                }
+            },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
-        val failure = runCatching { router.handleLink("https://t.me/example") }.exceptionOrNull()
-
-        assertTrue(failure is UnsupportedOperationException)
+        assertEquals(LinkAction.OpenUser(7), router.handleLink("https://t.me/example"))
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

@@ -5,10 +5,16 @@ import org.monogram.data.repository.ParsedLink
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.repository.LinkAction
+import org.monogram.mtproto.tl.generated.cloud.layer223.Channel
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatInviteAlready
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatInvitePeek
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatInvite_e5c19696c2
+import org.monogram.mtproto.tl.generated.cloud.layer223.Chat_65eab3b078
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.ResolveUsername
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.CheckChatInvite
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.ResolvedPeer_28e60b6802
 
 internal interface MtProtoLinkHandler {
@@ -27,7 +33,49 @@ internal class MtProtoLinkHandlerImpl(
         is ParsedLink.AddProxy -> LinkAction.AddProxy(parsed.server, parsed.port, parsed.type)
         is ParsedLink.OpenUser -> LinkAction.OpenUser(parsed.userId)
         is ParsedLink.OpenPublicChat -> resolveUsername(parsed.username)
+        is ParsedLink.JoinChat -> checkInvite(parsed.inviteLink)
         else -> throw UnsupportedOperationException("MTProto link type is not available")
+    }
+
+    private suspend fun checkInvite(inviteLink: String): LinkAction {
+        val hash = inviteLink.substringAfter("joinchat/", missingDelimiterValue = "")
+            .ifBlank { inviteLink.substringAfter("/+", missingDelimiterValue = "") }
+            .takeIf { it.isNotBlank() && it.none { char -> char == '/' || char == '?' || char == '#' } }
+            ?: throw IllegalArgumentException("MTProto invite link is invalid")
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        return when (val response = transportFactory.open(accountSlot).use { it.execute(CheckChatInvite(hash)) }) {
+            is ChatInvite_e5c19696c2 -> {
+                response.participants?.let { users.upsert(scope, it) }
+                LinkAction.ConfirmJoinInviteLink(
+                    inviteLink = inviteLink,
+                    title = response.title,
+                    description = response.about.orEmpty(),
+                    memberCount = response.participantsCount,
+                    avatarPath = null,
+                    isChannel = response.channel,
+                )
+            }
+            is ChatInviteAlready -> openInvitedChat(scope, response.chat)
+            is ChatInvitePeek -> openInvitedChat(scope, response.chat)
+        }
+    }
+
+    private suspend fun openInvitedChat(
+        scope: MtProtoAuthKeyScope,
+        chat: org.monogram.mtproto.tl.generated.cloud.layer223.Chat_7fdd7beb6e,
+    ): LinkAction {
+        chats.upsert(scope, listOf(chat))
+        return when (chat) {
+            is Chat_65eab3b078 -> LinkAction.OpenChat(TelegramPeerChatId.encode(DialogPeerType.BASIC_GROUP, chat.id))
+            is Channel -> LinkAction.OpenChat(
+                TelegramPeerChatId.encode(
+                    if (chat.megagroup) DialogPeerType.SUPERGROUP else DialogPeerType.CHANNEL,
+                    chat.id,
+                ),
+            )
+            else -> throw UnsupportedOperationException("MTProto invited chat type is not available")
+        }
     }
 
     private suspend fun resolveUsername(username: String): LinkAction {

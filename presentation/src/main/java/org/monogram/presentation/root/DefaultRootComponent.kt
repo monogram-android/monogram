@@ -273,6 +273,7 @@ class DefaultRootComponent(
     }
 
     private suspend fun runStorageMaintenance(limit: Long, time: Int, force: Boolean) {
+        if (backendModeRepository.backendMode.value != TelegramBackendMode.LEGACY) return
         maintenanceMutex.withLock {
             val now = SystemClock.elapsedRealtime()
             val lastCheck = lastMaintenanceCheckAt

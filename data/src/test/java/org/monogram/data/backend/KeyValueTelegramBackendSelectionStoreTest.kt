@@ -12,35 +12,35 @@ import org.monogram.data.db.model.KeyValueEntity
 
 class KeyValueTelegramBackendSelectionStoreTest {
     @Test
-    fun `defaults to legacy and persists accounts independently`() = runBlocking {
+    fun `defaults to Kotlin MTProto and persists accounts independently`() = runBlocking {
         val store = KeyValueTelegramBackendSelectionStore(InMemoryKeyValueDao())
 
-        assertEquals(TelegramBackendKind.LEGACY, store.get("account_a"))
+        assertEquals(TelegramBackendKind.KOTLIN_MTPROTO, store.get("account_a"))
 
         store.select("account_a", TelegramBackendKind.KOTLIN_MTPROTO)
 
         assertEquals(TelegramBackendKind.KOTLIN_MTPROTO, store.get("account_a"))
-        assertEquals(TelegramBackendKind.LEGACY, store.get("account_b"))
+        assertEquals(TelegramBackendKind.KOTLIN_MTPROTO, store.get("account_b"))
     }
 
     @Test
-    fun `observation follows selection and reset returns legacy`() = runBlocking {
+    fun `observation follows selection and reset returns Kotlin MTProto`() = runBlocking {
         val store = KeyValueTelegramBackendSelectionStore(InMemoryKeyValueDao())
 
         store.select("default", TelegramBackendKind.KOTLIN_MTPROTO)
         assertEquals(TelegramBackendKind.KOTLIN_MTPROTO, store.observe("default").first())
 
         store.reset("default")
-        assertEquals(TelegramBackendKind.LEGACY, store.observe("default").first())
+        assertEquals(TelegramBackendKind.KOTLIN_MTPROTO, store.observe("default").first())
     }
 
     @Test
-    fun `unknown persisted value fails closed to legacy`() = runBlocking {
+    fun `unknown persisted value falls back to Kotlin MTProto`() = runBlocking {
         val dao = InMemoryKeyValueDao()
         dao.insertValue(KeyValueEntity("telegram_backend_v1_default", "UNKNOWN"))
         val store = KeyValueTelegramBackendSelectionStore(dao)
 
-        assertEquals(TelegramBackendKind.LEGACY, store.get("default"))
+        assertEquals(TelegramBackendKind.KOTLIN_MTPROTO, store.get("default"))
     }
 
     @Test

@@ -30,6 +30,7 @@ internal data class MtProtoPhotoFile(
 
 internal data class MtProtoDocumentFile(
     val fileId: Int,
+    val documentId: Long = 0L,
     val fileName: String,
     val mimeType: String,
     val size: Long,
@@ -41,6 +42,9 @@ internal data class MtProtoDocumentFile(
     val title: String? = null,
     val performer: String? = null,
     val waveform: ByteArray? = null,
+    val stickerSetId: Long? = null,
+    val stickerEmoji: String? = null,
+    val stickerFormat: String? = null,
 )
 
 /**
@@ -89,6 +93,7 @@ internal class MtProtoDocumentFileRepository(
         messageReferences.computeIfAbsent(handle) { ConcurrentHashMap.newKeySet() }.add(chatId to messageId)
         return MtProtoDocumentFile(
             fileId = handle,
+            documentId = location.documentId,
             fileName = location.fileName,
             mimeType = location.mimeType,
             size = location.size,
@@ -100,6 +105,9 @@ internal class MtProtoDocumentFileRepository(
             title = location.title,
             performer = location.performer,
             waveform = location.waveform,
+            stickerSetId = location.stickerSetId,
+            stickerEmoji = location.stickerEmoji,
+            stickerFormat = location.stickerFormat,
         )
     }
 

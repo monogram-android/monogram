@@ -25,5 +25,8 @@ data class MtProtoDocumentLocationEntity(
     val title: String?,
     val performer: String?,
     val waveform: ByteArray?,
+    val stickerSetId: Long?,
+    val stickerEmoji: String?,
+    val stickerFormat: String?,
     val updatedAt: Long,
 )

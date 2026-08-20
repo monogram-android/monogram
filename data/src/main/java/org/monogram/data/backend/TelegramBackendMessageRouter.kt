@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.StickerFormat
 import org.monogram.domain.models.MessageHistoryCursorModel
 import org.monogram.domain.models.MessageHistorySnapshotModel
 import org.monogram.domain.models.MessageHistorySnapshotRequest
@@ -380,6 +381,20 @@ internal class TelegramBackendMessageRouter(
         MtProtoDocumentMediaKind.GIF -> if (width != null && height != null) {
             MessageContent.Gif(path = path, width = width, height = height, caption = caption, fileId = fileId)
         } else genericDocument(path, caption)
+        MtProtoDocumentMediaKind.STICKER -> stickerFormat?.toStickerFormat()?.let { format ->
+            if (documentId != 0L && stickerSetId != null && width != null && height != null) {
+                MessageContent.Sticker(
+                    id = documentId,
+                    setId = stickerSetId,
+                    path = path,
+                    width = width,
+                    height = height,
+                    emoji = stickerEmoji.orEmpty(),
+                    format = format,
+                    fileId = fileId,
+                )
+            } else genericDocument(path, caption)
+        } ?: genericDocument(path, caption)
         MtProtoDocumentMediaKind.AUDIO -> if (duration != null) {
             MessageContent.Audio(
                 path = path,
@@ -397,6 +412,13 @@ internal class TelegramBackendMessageRouter(
             MessageContent.Voice(path = path, duration = duration, waveform = waveform, fileId = fileId)
         } else genericDocument(path, caption)
         MtProtoDocumentMediaKind.DOCUMENT -> genericDocument(path, caption)
+    }
+
+    private fun String.toStickerFormat(): StickerFormat? = when (this) {
+        "STATIC" -> StickerFormat.STATIC
+        "ANIMATED" -> StickerFormat.ANIMATED
+        "VIDEO" -> StickerFormat.VIDEO
+        else -> null
     }
 
     private fun MtProtoDocumentFile.genericDocument(path: String?, caption: String) = MessageContent.Document(

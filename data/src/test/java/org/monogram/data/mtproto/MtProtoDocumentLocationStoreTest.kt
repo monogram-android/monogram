@@ -6,7 +6,10 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.monogram.data.db.dao.MtProtoDocumentLocationDao
 import org.monogram.data.db.model.MtProtoDocumentLocationEntity
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeImageSize
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeSticker
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetId
 import org.monogram.mtproto.tl.runtime.TlBytes
 
 class MtProtoDocumentLocationStoreTest {
@@ -23,12 +26,20 @@ class MtProtoDocumentLocationStoreTest {
                 accessHash = 10L,
                 fileReference = TlBytes.copyOf(byteArrayOf(1, 2)),
                 date = 0,
-                mimeType = "application/pdf",
+                mimeType = "image/webp",
                 size = 42L,
                 thumbs = null,
                 videoThumbs = null,
                 dcId = 4,
-                attributes = emptyList(),
+                attributes = listOf(
+                    DocumentAttributeImageSize(w = 512, h = 512),
+                    DocumentAttributeSticker(
+                        mask = false,
+                        alt = "ok",
+                        stickerset = InputStickerSetId(id = 11L, accessHash = 12L),
+                        maskCoords = null,
+                    ),
+                ),
             ),
         )
 
@@ -37,9 +48,12 @@ class MtProtoDocumentLocationStoreTest {
         assertEquals(10L, location.accessHash)
         assertEquals(listOf<Byte>(1, 2), location.fileReference.toList())
         assertEquals(4, location.documentDcId)
-        assertEquals("application/pdf", location.mimeType)
+        assertEquals("image/webp", location.mimeType)
         assertEquals(42L, location.size)
-        assertEquals(MtProtoDocumentMediaKind.DOCUMENT, location.mediaKind)
+        assertEquals(MtProtoDocumentMediaKind.STICKER, location.mediaKind)
+        assertEquals(11L, location.stickerSetId)
+        assertEquals("ok", location.stickerEmoji)
+        assertEquals("STATIC", location.stickerFormat)
         assertNull(store.get(scope.copy(dcId = 3), 9L))
         store.deleteAccount("account", MtProtoEnvironment.TEST)
         assertNull(store.get(scope, 9L))

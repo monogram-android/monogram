@@ -7,13 +7,16 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeAudio
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeFilename
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeImageSize
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeVideo
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeSticker
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetId
 
 internal enum class MtProtoDocumentMediaKind {
     DOCUMENT,
     VIDEO,
     VIDEO_NOTE,
     GIF,
+    STICKER,
     AUDIO,
     VOICE,
 }
@@ -34,6 +37,9 @@ internal data class MtProtoDocumentLocation(
     val title: String?,
     val performer: String?,
     val waveform: ByteArray?,
+    val stickerSetId: Long?,
+    val stickerEmoji: String?,
+    val stickerFormat: String?,
 )
 
 internal interface MtProtoDocumentLocationStore {
@@ -56,7 +62,9 @@ internal class MtProtoRoomDocumentLocationStore(
         val video = document.attributes.filterIsInstance<DocumentAttributeVideo>().firstOrNull()
         val audio = document.attributes.filterIsInstance<DocumentAttributeAudio>().firstOrNull()
         val dimensions = document.attributes.filterIsInstance<DocumentAttributeImageSize>().firstOrNull()
+        val sticker = document.attributes.filterIsInstance<DocumentAttributeSticker>().firstOrNull()
         val mediaKind = when {
+            sticker != null -> MtProtoDocumentMediaKind.STICKER
             audio?.voice == true -> MtProtoDocumentMediaKind.VOICE
             audio != null -> MtProtoDocumentMediaKind.AUDIO
             document.attributes.any { it is DocumentAttributeAnimated } -> MtProtoDocumentMediaKind.GIF
@@ -84,6 +92,15 @@ internal class MtProtoRoomDocumentLocationStore(
                 title = audio?.title,
                 performer = audio?.performer,
                 waveform = audio?.waveform?.toByteArray(),
+                stickerSetId = (sticker?.stickerset as? InputStickerSetId)?.id,
+                stickerEmoji = sticker?.alt,
+                stickerFormat = sticker?.let {
+                    when {
+                        video != null || document.mimeType == "video/webm" -> "VIDEO"
+                        document.mimeType == "application/x-tgsticker" -> "ANIMATED"
+                        else -> "STATIC"
+                    }
+                },
                 updatedAt = nowMillis(),
             )
         )
@@ -107,6 +124,9 @@ internal class MtProtoRoomDocumentLocationStore(
                 title = it.title,
                 performer = it.performer,
                 waveform = it.waveform,
+                stickerSetId = it.stickerSetId,
+                stickerEmoji = it.stickerEmoji,
+                stickerFormat = it.stickerFormat,
             )
         }
 

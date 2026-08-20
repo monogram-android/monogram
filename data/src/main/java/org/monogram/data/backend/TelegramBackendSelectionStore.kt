@@ -42,7 +42,7 @@ internal class KeyValueTelegramBackendSelectionStore(
     private fun String?.toBackendKind(): TelegramBackendKind =
         runCatching { this?.let(TelegramBackendKind::valueOf) }
             .getOrNull()
-            ?: TelegramBackendKind.LEGACY
+            ?: TelegramBackendKind.KOTLIN_MTPROTO
 
     private companion object {
         const val KEY_PREFIX = "telegram_backend_v1_"

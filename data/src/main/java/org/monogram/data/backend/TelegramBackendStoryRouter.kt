@@ -3,6 +3,7 @@ package org.monogram.data.backend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.stories.*
 import org.monogram.domain.repository.StoryRepository
@@ -24,35 +25,35 @@ internal class TelegramBackendStoryRouter(
 
     init {
         scope.launch {
-            selectionStore.observe(accountId).collect { selectedBackend.value = it }
+            selectionStore.observe(accountId).collectLatest { backend ->
+                selectedBackend.value = backend
+                if (backend == TelegramBackendKind.LEGACY) {
+                    launch { legacy.activeStories.collect { emptyActiveStories.value = it } }
+                    launch { legacy.storyListChatCounts.collect { emptyStoryCounts.value = it } }
+                    launch { legacy.stealthMode.collect { emptyStealthMode.value = it } }
+                    launch { legacy.storyOptions.collect { emptyOptions.value = it } }
+                    launch { legacy.lastPostResult.collect { emptyPostResult.value = it } }
+                } else {
+                    emptyActiveStories.value = emptyMap()
+                    emptyStoryCounts.value = emptyMap()
+                    emptyStealthMode.value = StoryStealthModeModel()
+                    emptyOptions.value = StoryOptionsModel()
+                    emptyPostResult.value = null
+                }
+            }
         }
     }
 
     override val activeStories: StateFlow<Map<StoryListType, List<ActiveStoryListModel>>>
-        get() = when (selected()) {
-            TelegramBackendKind.LEGACY -> legacy.activeStories
-            TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
-        }
+        get() = emptyActiveStories
     override val storyListChatCounts: StateFlow<Map<StoryListType, Int>>
-        get() = when (selected()) {
-            TelegramBackendKind.LEGACY -> legacy.storyListChatCounts
-            TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
-        }
+        get() = emptyStoryCounts
     override val stealthMode: StateFlow<StoryStealthModeModel>
-        get() = when (selected()) {
-            TelegramBackendKind.LEGACY -> legacy.stealthMode
-            TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
-        }
+        get() = emptyStealthMode
     override val storyOptions: StateFlow<StoryOptionsModel>
-        get() = when (selected()) {
-            TelegramBackendKind.LEGACY -> legacy.storyOptions
-            TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
-        }
+        get() = emptyOptions
     override val lastPostResult: StateFlow<StoryPostResultModel?>
-        get() = when (selected()) {
-            TelegramBackendKind.LEGACY -> legacy.lastPostResult
-            TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
-        }
+        get() = emptyPostResult
 
     override suspend fun loadActiveStories(listType: StoryListType) = dispatch { legacy.loadActiveStories(listType) }
     override suspend fun refreshStoryOptions() = dispatch { legacy.refreshStoryOptions() }

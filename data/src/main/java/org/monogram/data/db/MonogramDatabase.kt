@@ -99,7 +99,7 @@ import org.monogram.data.db.model.WallpaperEntity
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 57,
+    version = 58,
     exportSchema = true
 )
 abstract class MonogramDatabase : RoomDatabase() {

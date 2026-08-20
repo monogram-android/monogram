@@ -301,6 +301,66 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto maps projected stickers with concrete identities`() = runBlocking {
+        val files = RecordingMtProtoFiles().apply {
+            document = org.monogram.data.mtproto.MtProtoDocumentFile(
+                fileId = 16,
+                documentId = 102L,
+                fileName = "sticker.webp",
+                mimeType = "image/webp",
+                size = 42L,
+                mediaKind = org.monogram.data.mtproto.MtProtoDocumentMediaKind.STICKER,
+                width = 512,
+                height = 512,
+                stickerSetId = 103L,
+                stickerEmoji = "ok",
+                stickerFormat = "STATIC",
+            )
+        }
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            pinnedReadFactory = {
+                MtProtoPinnedMessageReader { _, _ ->
+                    listOf(
+                        MtProtoMessageReadModel(
+                            peerType = MtProtoMessagePeerType.USER,
+                            peerId = 1L,
+                            messageId = 11,
+                            senderType = null,
+                            senderId = null,
+                            date = 100,
+                            text = null,
+                            isService = false,
+                            isDeleted = false,
+                            isOutgoing = false,
+                            isMentioned = false,
+                            isMediaUnread = false,
+                            isSilent = false,
+                            isPinned = false,
+                            editDate = null,
+                            groupedId = null,
+                            hasMedia = true,
+                            documentId = 102L,
+                        )
+                    )
+                }
+            },
+            fileFactory = { files },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        val content = router.repository.getPinnedMessage(1L)?.content as org.monogram.domain.models.MessageContent.Sticker
+
+        assertEquals(102L, content.id)
+        assertEquals(103L, content.setId)
+        assertEquals("ok", content.emoji)
+        assertEquals(org.monogram.domain.models.StickerFormat.STATIC, content.format)
+        assertEquals(16, content.fileId)
+    }
+
+    @Test
     fun `MTProto maps projected documents to opaque download handles`() = runBlocking {
         val files = RecordingMtProtoFiles().apply {
             document = org.monogram.data.mtproto.MtProtoDocumentFile(

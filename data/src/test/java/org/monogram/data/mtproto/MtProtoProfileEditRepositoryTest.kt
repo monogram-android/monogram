@@ -10,6 +10,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.Birthday_aa6c995ca2
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.ReorderUsernames
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.ToggleUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
@@ -94,6 +96,34 @@ class MtProtoProfileEditRepositoryTest {
 
         org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
             runBlocking { repository.setBirthdate(BirthdateModel(day = 0, month = 3)) }
+        }
+        assertEquals(false, opened)
+    }
+
+    @Test
+    fun `toggles and reorders usernames through authoritative bool`() = runBlocking {
+        val transport = Transport(true)
+        val repository = MtProtoProfileEditRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, Users())
+
+        repository.toggleUsernameIsActive("alice", true)
+        assertEquals(ToggleUsername("alice", true), transport.request)
+        assertTrue(transport.closed)
+
+        repository.reorderActiveUsernames(listOf("alice", "ada"))
+        assertEquals(ReorderUsernames(listOf("alice", "ada")), transport.request)
+    }
+
+    @Test
+    fun `rejects invalid username lists before opening transport`() = runBlocking {
+        var opened = false
+        val repository = MtProtoProfileEditRepository(
+            Config { config() },
+            MtProtoSessionTransportFactory { opened = true; Transport(true) },
+            Users(),
+        )
+
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.reorderActiveUsernames(listOf("alice", "alice")) }
         }
         assertEquals(false, opened)
     }

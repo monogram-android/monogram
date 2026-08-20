@@ -9,6 +9,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.ReorderUsernames
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.ToggleUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateUsername
@@ -103,8 +105,24 @@ internal class MtProtoProfileEditRepository(
     override suspend fun setBusinessBio(bio: String) = unsupported()
     override suspend fun setBusinessLocation(address: String, latitude: Double, longitude: Double) = unsupported()
     override suspend fun setBusinessOpeningHours(openingHours: BusinessOpeningHoursModel?) = unsupported()
-    override suspend fun toggleUsernameIsActive(username: String, isActive: Boolean) = unsupported()
-    override suspend fun reorderActiveUsernames(usernames: List<String>) = unsupported()
+    override suspend fun toggleUsernameIsActive(username: String, isActive: Boolean) {
+        require(username.isNotBlank()) { "MTProto username must not be blank" }
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(ToggleUsername(username, isActive))) {
+                "MTProto username activation update was rejected"
+            }
+        }
+    }
+
+    override suspend fun reorderActiveUsernames(usernames: List<String>) {
+        require(usernames.all(String::isNotBlank)) { "MTProto usernames must not be blank" }
+        require(usernames.distinct().size == usernames.size) { "MTProto usernames must be unique" }
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(ReorderUsernames(usernames))) {
+                "MTProto username reorder was rejected"
+            }
+        }
+    }
 
     private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto profile edit is not available")
 

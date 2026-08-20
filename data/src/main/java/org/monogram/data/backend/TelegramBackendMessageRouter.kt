@@ -8,9 +8,7 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.startCoroutine
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageHistoryCursorModel
@@ -97,7 +95,7 @@ internal class TelegramBackendMessageRouter(
                     "unpinMessage" -> invokeDraft(method, args) { values ->
                         pinned.setPinned(values[0] as Long, values[1] as Long, pinned = false)
                     }
-                    else -> if (Flow::class.java.isAssignableFrom(method.returnType)) emptyFlow<Any>() else unsupported(method)
+                    else -> unsupported(method)
                 }
 
                 null -> error("Telegram backend selection is not loaded")

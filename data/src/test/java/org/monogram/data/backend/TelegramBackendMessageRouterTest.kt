@@ -4,9 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
@@ -155,7 +153,7 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
-    fun `MTProto message update flows are inert`() = runBlocking {
+    fun `MTProto message update flows fail closed`() = runBlocking {
         val router = TelegramBackendMessageRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy message repository must not be created") },
@@ -163,7 +161,10 @@ class TelegramBackendMessageRouterTest {
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
-        assertNull(router.repository.newMessageFlow.firstOrNull())
+        assertThrows(UnsupportedOperationException::class.java) {
+            router.repository.newMessageFlow
+        }
+        Unit
     }
 
     private class FakeMtProtoDraftRepository : MtProtoDraftRepository {

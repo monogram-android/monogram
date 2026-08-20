@@ -1,7 +1,13 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.launch
+import org.monogram.data.db.dao.SearchHistoryDao
+import org.monogram.data.db.model.SearchHistoryEntity
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -31,6 +37,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Search
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.MessagesSlice
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchGlobal
 
+@OptIn(ExperimentalCoroutinesApi::class)
 internal class MtProtoChatSearchRepository(
     private val dialogRepository: DialogSnapshotRepository,
     private val messageStore: MtProtoMessageProjectionStore? = null,
@@ -40,8 +47,15 @@ internal class MtProtoChatSearchRepository(
     private val chatStore: MtProtoChatProjectionStore? = null,
     private val resultStager: MtProtoHistoryResultStager? = null,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
+    private val searchHistoryDao: SearchHistoryDao? = null,
+    private val scope: CoroutineScope? = null,
 ) : ChatSearchRepository {
-    override val searchHistory: Flow<List<ChatModel>> = emptyFlow()
+    override val searchHistory: Flow<List<ChatModel>> = searchHistoryDao?.getSearchHistory()?.mapLatest { entities ->
+        val chatsById = dialogRepository.getDialogs(accountId)
+            .mapNotNull { it.toChatModel() }
+            .associateBy { it.id }
+        entities.mapNotNull { chatsById[it.chatId] }
+    } ?: emptyFlow()
 
     override suspend fun searchChats(query: String): List<ChatModel> {
         val normalized = query.trim().lowercase()
@@ -142,9 +156,23 @@ internal class MtProtoChatSearchRepository(
         return SearchMessagesResult(page.map { it.toDomain() }, nextOffset)
     }
 
-    override fun addSearchChatId(chatId: Long) = unsupported("MTProto search history is not available")
-    override fun removeSearchChatId(chatId: Long) = unsupported("MTProto search history is not available")
-    override fun clearSearchHistory() = unsupported("MTProto search history is not available")
+    override fun addSearchChatId(chatId: Long) {
+        val dao = searchHistoryDao ?: unsupported("MTProto search history is not available")
+        scope?.launch { dao.insertSearchChatId(SearchHistoryEntity(chatId)) }
+            ?: unsupported("MTProto search history scope is not available")
+    }
+
+    override fun removeSearchChatId(chatId: Long) {
+        val dao = searchHistoryDao ?: unsupported("MTProto search history is not available")
+        scope?.launch { dao.deleteSearchChatId(chatId) }
+            ?: unsupported("MTProto search history scope is not available")
+    }
+
+    override fun clearSearchHistory() {
+        val dao = searchHistoryDao ?: unsupported("MTProto search history is not available")
+        scope?.launch { dao.clearAll() }
+            ?: unsupported("MTProto search history scope is not available")
+    }
 
     private fun DialogSnapshotModel.matches(query: String): Boolean =
         title.orEmpty().lowercase().contains(query) || username.orEmpty().lowercase().contains(query)

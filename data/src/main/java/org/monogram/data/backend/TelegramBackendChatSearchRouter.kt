@@ -35,7 +35,7 @@ internal class TelegramBackendChatSearchRouter(
     override val searchHistory: Flow<List<ChatModel>> = selectedBackend.flatMapLatest { backend ->
         when (backend) {
             TelegramBackendKind.LEGACY -> legacy.searchHistory
-            TelegramBackendKind.KOTLIN_MTPROTO,
+            TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.searchHistory
             null -> emptyFlow()
         }
     }

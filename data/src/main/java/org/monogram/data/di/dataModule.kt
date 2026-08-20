@@ -1061,6 +1061,8 @@ val dataModule = module {
             userStore = get(),
             chatStore = get(),
             resultStager = get(),
+            searchHistoryDao = get(),
+            scope = get(),
         )
     }
     single<ChatSearchRepository> {

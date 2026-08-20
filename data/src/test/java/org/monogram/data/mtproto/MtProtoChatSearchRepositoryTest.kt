@@ -1,10 +1,17 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import org.monogram.data.db.dao.SearchHistoryDao
+import org.monogram.data.db.model.SearchHistoryEntity
 import org.monogram.domain.models.MessageContent
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
@@ -116,6 +123,25 @@ class MtProtoChatSearchRepositoryTest {
     }
 
     @Test
+    fun `persists selected MTProto search history and resolves projected dialogs`() = runBlocking {
+        val dao = RecordingSearchHistoryDao(listOf(SearchHistoryEntity(42)))
+        val repository = MtProtoChatSearchRepository(
+            dialogRepository = FakeDialogRepository(),
+            searchHistoryDao = dao,
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(listOf(42L), repository.searchHistory.first().map { it.id })
+        repository.addSearchChatId(43)
+        repository.removeSearchChatId(42)
+        repository.clearSearchHistory()
+
+        assertEquals(listOf(43L), dao.inserted)
+        assertEquals(listOf(42L), dao.deleted)
+        assertEquals(1, dao.clearCalls)
+    }
+
+    @Test
     fun `unsupported search operations fail closed`(): Unit = runBlocking {
         val repository = MtProtoChatSearchRepository(FakeDialogRepository())
 
@@ -155,6 +181,19 @@ class MtProtoChatSearchRepositoryTest {
         handshake = MtProtoHandshakeConfig(4, listOf("test-key")),
         cloud = CloudLayer223ConnectionConfig(12345, "device", "system", "app", "en"),
     )
+
+    private class RecordingSearchHistoryDao(
+        private val history: List<SearchHistoryEntity>,
+    ) : SearchHistoryDao {
+        val inserted = mutableListOf<Long>()
+        val deleted = mutableListOf<Long>()
+        var clearCalls = 0
+
+        override fun getSearchHistory(): Flow<List<SearchHistoryEntity>> = flowOf(history)
+        override suspend fun insertSearchChatId(entity: SearchHistoryEntity) { inserted += entity.chatId }
+        override suspend fun deleteSearchChatId(chatId: Long) { deleted += chatId }
+        override suspend fun clearAll() { clearCalls++ }
+    }
 
     private class FakeTransport(private val result: Any) : MtProtoRpcTransport {
         override suspend fun <R> execute(method: TlMethod<R>): R {

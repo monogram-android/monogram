@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -32,6 +34,20 @@ class TelegramBackendChatSearchRouterTest {
         router.searchChats("query")
 
         assertEquals(true, created)
+    }
+
+    @Test
+    fun `routes selected MTProto search history`() = runBlocking {
+        val router = TelegramBackendChatSearchRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy search must not be created") },
+            mtProtoFactory = { object : FakeSearchRepository() {
+                override val searchHistory = flowOf(listOf(ChatModel(id = 42, title = "Alice", unreadCount = 0)))
+            } },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(listOf(42L), router.searchHistory.first().map { it.id })
     }
 
     @Test
@@ -78,7 +94,7 @@ class TelegramBackendChatSearchRouterTest {
         override suspend fun reset(accountId: String) = Unit
     }
 
-    private class FakeSearchRepository : ChatSearchRepository {
+    private open class FakeSearchRepository : ChatSearchRepository {
         override val searchHistory: Flow<List<ChatModel>> = emptyFlow()
         override suspend fun searchChats(query: String) = emptyList<ChatModel>()
         override suspend fun searchPublicChats(query: String) = emptyList<ChatModel>()

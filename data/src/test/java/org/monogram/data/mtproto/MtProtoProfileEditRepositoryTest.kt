@@ -24,6 +24,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessWo
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannelEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateUsername
@@ -224,6 +225,9 @@ class MtProtoProfileEditRepositoryTest {
 
         assertEquals(UpdatePersonalChannel(InputChannel_d22292516d(channelId, 9)), transport.request)
         assertTrue(transport.closed)
+
+        repository.setPersonalChat(0L)
+        assertEquals(UpdatePersonalChannel(InputChannelEmpty), transport.request)
     }
 
     private fun config() = TelegramMtProtoBootstrapConfig(

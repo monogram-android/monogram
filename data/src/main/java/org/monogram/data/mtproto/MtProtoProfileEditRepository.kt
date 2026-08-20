@@ -9,6 +9,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.BusinessWorkHours_bd00fc
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputBusinessIntro_7df76090c9
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputGeoPoint_ca056caf04
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannelEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
@@ -93,18 +94,23 @@ internal class MtProtoProfileEditRepository(
         }
     }
     override suspend fun setPersonalChat(chatId: Long) {
-        require(chatId <= -CHANNEL_OFFSET - 1L) { "MTProto personal chat must be a channel or supergroup" }
-        val config = configSource.createForAccount(accountSlot)
-        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
-        val channelId = -(chatId + CHANNEL_OFFSET)
-        val channel = requireNotNull(chats.get(scope, channelId)) {
-            "Missing MTProto personal channel projection: $channelId"
-        }
-        val accessHash = requireNotNull(channel.accessHash) {
-            "Missing MTProto personal channel access hash: $channelId"
+        val inputChannel = if (chatId == 0L) {
+            InputChannelEmpty
+        } else {
+            require(chatId <= -CHANNEL_OFFSET - 1L) { "MTProto personal chat must be a channel or supergroup" }
+            val config = configSource.createForAccount(accountSlot)
+            val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+            val channelId = -(chatId + CHANNEL_OFFSET)
+            val channel = requireNotNull(chats.get(scope, channelId)) {
+                "Missing MTProto personal channel projection: $channelId"
+            }
+            val accessHash = requireNotNull(channel.accessHash) {
+                "Missing MTProto personal channel access hash: $channelId"
+            }
+            InputChannel_d22292516d(channelId, accessHash)
         }
         transportFactory.open(accountSlot).use { transport ->
-            check(transport.execute(UpdatePersonalChannel(InputChannel_d22292516d(channelId, accessHash)))) {
+            check(transport.execute(UpdatePersonalChannel(inputChannel))) {
                 "MTProto personal channel update was rejected"
             }
         }

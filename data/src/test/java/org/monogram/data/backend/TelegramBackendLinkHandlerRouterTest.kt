@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.monogram.data.mtproto.MtProtoLinkHandler
 import org.monogram.domain.repository.LinkAction
+import org.monogram.domain.repository.LinkHandlerRepository
 
 class TelegramBackendLinkHandlerRouterTest {
     @Test
@@ -25,6 +26,39 @@ class TelegramBackendLinkHandlerRouterTest {
         )
 
         assertEquals(LinkAction.OpenUser(7), router.handleLink("https://t.me/example"))
+    }
+
+    @Test
+    fun `link handling follows rollback backend selection`() = runBlocking {
+        val selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO)
+        var legacyCreated = 0
+        val router = TelegramBackendLinkHandlerRouter(
+            selectionStore = selection,
+            legacyFactory = {
+                legacyCreated++
+                object : LinkHandlerRepository {
+                    override suspend fun handleLink(link: String) = LinkAction.OpenUser(2)
+                    override suspend fun joinChat(inviteLink: String) = null
+                    override suspend fun joinChatAction(inviteLink: String) = LinkAction.None
+                }
+            },
+            mtProtoFactory = {
+                object : MtProtoLinkHandler {
+                    override suspend fun handle(link: String) = LinkAction.OpenUser(1)
+                }
+            },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(LinkAction.OpenUser(1), router.handleLink("https://t.me/example"))
+        assertEquals(0, legacyCreated)
+
+        selection.select("default", TelegramBackendKind.LEGACY)
+        assertEquals(LinkAction.OpenUser(2), router.handleLink("https://t.me/example"))
+        assertEquals(1, legacyCreated)
+
+        selection.select("default", TelegramBackendKind.KOTLIN_MTPROTO)
+        assertEquals(LinkAction.OpenUser(1), router.handleLink("https://t.me/example"))
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

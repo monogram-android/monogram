@@ -114,6 +114,8 @@ import org.monogram.data.mtproto.MtProtoLinkHandler
 import org.monogram.data.mtproto.MtProtoLinkHandlerImpl
 import org.monogram.data.mtproto.MtProtoChatSettingsRepository
 import org.monogram.data.mtproto.MtProtoChatSettingsRepositoryImpl
+import org.monogram.data.mtproto.MtProtoChatCreationRepository
+import org.monogram.data.mtproto.MtProtoChatCreationRepositoryImpl
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
@@ -598,6 +600,7 @@ val dataModule = module {
     single { MtProtoRoomChatProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoChatProjectionStore> { get<MtProtoRoomChatProjectionStore>() }
     single<MtProtoChatSettingsRepository> { MtProtoChatSettingsRepositoryImpl(get(), get(), get(), get(), get(), get()) }
+    single<MtProtoChatCreationRepository> { MtProtoChatCreationRepositoryImpl(get(), get(), get(), get()) }
     single { MtProtoRoomDocumentLocationStore(get()) }
     single<MtProtoDocumentLocationStore> { get<MtProtoRoomDocumentLocationStore>() }
     single<MtProtoPhotoLocationStore> { MtProtoRoomPhotoLocationStore(get()) }
@@ -1322,6 +1325,7 @@ val dataModule = module {
         TelegramBackendChatCreationRouter(
             selectionStore = get(),
             legacyFactory = { get<ChatsListRepositoryImpl>() },
+            mtProtoFactory = { get<MtProtoChatCreationRepository>() },
             scope = get(),
         )
     }

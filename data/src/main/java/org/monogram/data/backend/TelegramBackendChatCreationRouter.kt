@@ -3,24 +3,27 @@ package org.monogram.data.backend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import org.monogram.data.mtproto.MtProtoChatCreationRepository
 import org.monogram.domain.repository.ChatCreationRepository
 
 internal class TelegramBackendChatCreationRouter(
     selectionStore: TelegramBackendSelectionStore,
     private val legacyFactory: () -> ChatCreationRepository,
     scope: CoroutineScope,
+    private val mtProtoFactory: () -> MtProtoChatCreationRepository = { throw UnsupportedOperationException("MTProto chat creation is not configured") },
     private val accountId: String = "default",
 ) : ChatCreationRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
     init { scope.launch { selectionStore.observe(accountId).collect { selectedBackend.value = it } } }
     override suspend fun createGroup(title: String, userIds: List<Long>, messageAutoDeleteTime: Int) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.createGroup(title, userIds, messageAutoDeleteTime)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.createGroup(title, userIds, messageAutoDeleteTime)
     }
     override suspend fun createChannel(title: String, description: String, isMegagroup: Boolean, messageAutoDeleteTime: Int) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.createChannel(title, description, isMegagroup, messageAutoDeleteTime)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.createChannel(title, description, isMegagroup, messageAutoDeleteTime)
     }
     override fun getDatabaseSize() = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getDatabaseSize()

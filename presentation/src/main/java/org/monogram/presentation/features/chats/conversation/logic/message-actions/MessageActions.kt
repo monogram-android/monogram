@@ -20,6 +20,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.presentation.features.chats.common.ChatActionType
@@ -186,6 +187,23 @@ private inline fun DefaultChatComponent.launchPendingAttachmentSend(
             block()
         } finally {
             pendingAttachmentSendRegistry.finish(sendToken)
+        }
+    }
+}
+
+internal fun DefaultChatComponent.handleTyping() {
+    scope.launch {
+        val now = System.currentTimeMillis()
+        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            if (now - lastMtProtoTypingAtMillis < 4_000L) return@launch
+            val targetChatId = _state.value.effectiveThreadChatId(chatId)
+            val chat = chatListRepository.getChatById(targetChatId)
+                ?: return@launch
+            val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+            mtProtoTextMessageRepository.sendTyping(targetChatId, peer.type, _state.value.effectiveThreadId())
+            lastMtProtoTypingAtMillis = now
+        } else {
+            repositoryMessage.sendChatAction(chatId, MessageRepository.ChatAction.Typing, activeThreadId())
         }
     }
 }

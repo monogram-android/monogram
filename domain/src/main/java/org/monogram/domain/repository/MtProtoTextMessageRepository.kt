@@ -13,6 +13,12 @@ interface MtProtoTextMessageRepository {
         disableLinkPreview: Boolean = false,
     )
 
+    suspend fun sendTyping(
+        chatId: Long,
+        peerType: DialogPeerType,
+        threadId: Long? = null,
+    )
+
     suspend fun editText(
         chatId: Long,
         peerType: DialogPeerType,

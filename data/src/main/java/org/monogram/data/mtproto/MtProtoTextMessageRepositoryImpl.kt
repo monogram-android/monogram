@@ -10,6 +10,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionCustomEmoji
+import org.monogram.mtproto.tl.generated.cloud.layer223.SendMessageTypingAction
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DeleteHistory
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
@@ -17,6 +18,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ForwardMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ReadMentions
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ReadReactions
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMessage
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetTyping
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendScheduledMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendReaction
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.UpdatePinnedMessage
@@ -72,6 +74,19 @@ internal class MtProtoTextMessageRepositoryImpl(
                 )
             )
             messages.stageLive(scope, updates)
+        } finally {
+            transport.close()
+        }
+    }
+
+    override suspend fun sendTyping(chatId: Long, peerType: DialogPeerType, threadId: Long?) {
+        require(threadId == null || threadId in 1..Int.MAX_VALUE) { "MTProto thread id must fit a positive int" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = resolvePeer(scope, chatId, peerType)
+        val transport = transportFactory.open(accountSlot)
+        try {
+            transport.execute(SetTyping(peer, threadId?.toInt(), SendMessageTypingAction))
         } finally {
             transport.close()
         }

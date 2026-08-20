@@ -56,6 +56,7 @@ class MtProtoDeletePrivateDialogRepositoryTest {
             calls += Triple(chatId, peerType, revoke)
         }
         override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String, silent: Boolean, scheduleDate: Int?, disableLinkPreview: Boolean) = Unit
+        override suspend fun sendTyping(chatId: Long, peerType: DialogPeerType, threadId: Long?) = Unit
         override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) = Unit
         override suspend fun setEmojiReaction(chatId: Long, peerType: DialogPeerType, messageId: Long, emoji: String?) = Unit
         override suspend fun setPinned(chatId: Long, peerType: DialogPeerType, messageId: Long, pinned: Boolean) = Unit

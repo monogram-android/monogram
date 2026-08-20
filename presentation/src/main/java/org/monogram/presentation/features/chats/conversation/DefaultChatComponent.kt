@@ -374,6 +374,7 @@ class DefaultChatComponent(
     internal var sponsoredMessageLoadingJob: Job? = null
     internal var unreadBackfillJob: Job? = null
     internal var lastStartedLoadKey: ChatInitialLoadKey? = null
+    internal var lastMtProtoTypingAtMillis: Long = 0L
     internal var hasStartedInitialLoadForContext: Boolean = false
     internal var activeLoadSession: ConversationLoadSession? = null
     internal val conversationSession = ConversationSession(

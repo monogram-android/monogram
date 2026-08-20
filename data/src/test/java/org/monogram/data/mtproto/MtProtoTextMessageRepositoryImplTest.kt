@@ -53,6 +53,26 @@ class MtProtoTextMessageRepositoryImplTest {
     }
 
     @Test
+    fun `sends typing action with topic id`() = runBlocking {
+        val transport = RecordingTransport()
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = NoOpMtProtoMessageProjectionStore,
+        )
+
+        repository.sendTyping(7L, DialogPeerType.PRIVATE, threadId = 12L)
+
+        val request = transport.method as org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetTyping
+        assertEquals(InputPeerUser(7L, 70L), request.peer)
+        assertEquals(12, request.topMsgId)
+        assertEquals(org.monogram.mtproto.tl.generated.cloud.layer223.SendMessageTypingAction, request.action)
+        assertTrue(transport.closed)
+    }
+
+    @Test
     fun `sends scheduled silent text and stages returned updates`() = runBlocking {
         val transport = RecordingTransport()
         val messageStore = RecordingMessageStore()
@@ -323,10 +343,10 @@ class MtProtoTextMessageRepositoryImplTest {
         override suspend fun <R> execute(method: TlMethod<R>): R {
             this.method = method
             methods += method
-            return if (method is DeleteHistory) {
-                AffectedHistory_608e824b28(0, 0, 0) as R
-            } else {
-                UpdatesTooLong as R
+            return when {
+                method is DeleteHistory -> AffectedHistory_608e824b28(0, 0, 0) as R
+                method is org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetTyping -> true as R
+                else -> UpdatesTooLong as R
             }
         }
 

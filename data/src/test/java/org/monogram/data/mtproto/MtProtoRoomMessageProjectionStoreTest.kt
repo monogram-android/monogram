@@ -9,11 +9,15 @@ import org.monogram.data.db.dao.MtProtoMessageProjectionDao
 import org.monogram.data.db.model.MtProtoCloudObjectEntity
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.mtproto.codec.CloudTlObjectCodec
+import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.MessageMediaDocument
+import org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteChannelMessages
+import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShort
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShortMessage
@@ -72,6 +76,21 @@ class MtProtoRoomMessageProjectionStoreTest {
     }
 
     @Test
+    fun `projects document identity with its message`() = runBlocking {
+        val locations = RecordingDocumentLocations()
+        val store = MtProtoRoomMessageProjectionStore(
+            dao = FakeMessageProjectionDao(),
+            documentLocations = locations,
+        )
+
+        store.stageMessages(scope, listOf(documentMessage()))
+
+        assertEquals(9L, store.get(scope, MtProtoMessagePeerType.USER, 7L, 10)?.documentId)
+        assertEquals(9L, locations.document?.id)
+        assertEquals(4, locations.document?.dcId)
+    }
+
+    @Test
     fun `search returns matching projections in stable paged order`() = runBlocking {
         val dao = FakeMessageProjectionDao()
         dao.upsert(entity(MtProtoMessagePeerType.USER, 7, 13, date = 101).copy(text = "alpha one"))
@@ -106,6 +125,78 @@ class MtProtoRoomMessageProjectionStoreTest {
         assertEquals(listOf(13, 12), firstPage.map { it.messageId })
         assertEquals(listOf(11), secondPage.map { it.messageId })
     }
+
+    private fun documentMessage() = Message_7b7ecf54a3(
+        out_ = false,
+        mentioned = false,
+        mediaUnread = false,
+        silent = false,
+        post = false,
+        fromScheduled = false,
+        legacy = false,
+        editHide = false,
+        pinned = false,
+        noforwards = false,
+        invertMedia = false,
+        offline = false,
+        videoProcessingPending = false,
+        paidSuggestedPostStars = false,
+        paidSuggestedPostTon = false,
+        id = 10,
+        fromId = null,
+        fromBoostsApplied = null,
+        fromRank = null,
+        peerId = PeerUser(7L),
+        savedPeerId = null,
+        fwdFrom = null,
+        viaBotId = null,
+        viaBusinessBotId = null,
+        replyTo = null,
+        date = 100,
+        message = "document",
+        media = MessageMediaDocument(
+            nopremium = false,
+            spoiler = false,
+            video = false,
+            round = false,
+            voice = false,
+            document = Document_be725c3b31(
+                id = 9L,
+                accessHash = 10L,
+                fileReference = TlBytes.copyOf(byteArrayOf(1)),
+                date = 0,
+                mimeType = "application/pdf",
+                size = 42L,
+                thumbs = null,
+                videoThumbs = null,
+                dcId = 4,
+                attributes = emptyList(),
+            ),
+            altDocuments = null,
+            videoCover = null,
+            videoTimestamp = null,
+            ttlSeconds = null,
+        ),
+        replyMarkup = null,
+        entities = null,
+        views = null,
+        forwards = null,
+        replies = null,
+        editDate = null,
+        postAuthor = null,
+        groupedId = null,
+        reactions = null,
+        restrictionReason = null,
+        ttlPeriod = null,
+        quickReplyShortcutId = null,
+        effect = null,
+        factcheck = null,
+        reportDeliveryUntilDate = null,
+        paidMessageStars = null,
+        suggestedPost = null,
+        scheduleRepeatPeriod = null,
+        summaryFromLanguage = null,
+    )
 
     private fun shortMessage(id: Int, userId: Long, text: String) = UpdateShortMessage(
         out_ = false,
@@ -171,6 +262,13 @@ class MtProtoRoomMessageProjectionStoreTest {
         payload = payload,
         createdAt = 0,
     )
+
+    private class RecordingDocumentLocations : MtProtoDocumentLocationStore by NoOpMtProtoDocumentLocationStore {
+        var document: Document_be725c3b31? = null
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, document: Document_be725c3b31) {
+            this.document = document
+        }
+    }
 
     private class FakeMessageProjectionDao : MtProtoMessageProjectionDao {
         private val entities = mutableListOf<MtProtoMessageProjectionEntity>()

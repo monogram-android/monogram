@@ -31,6 +31,7 @@ data class MtProtoMessageProjectionEntity(
     val editDate: Int?,
     val groupedId: Long?,
     val hasMedia: Boolean,
+    val documentId: Long? = null,
     val isScheduled: Boolean = false,
     val updatedAt: Long,
 )

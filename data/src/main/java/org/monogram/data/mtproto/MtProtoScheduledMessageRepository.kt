@@ -7,6 +7,12 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetScheduledMessages
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendScheduledMessages
+
+internal interface MtProtoScheduledMessageOperations {
+    suspend fun get(chatId: Long): List<MtProtoMessageReadModel>
+    suspend fun sendNow(chatId: Long, messageId: Long)
+}
 
 internal class MtProtoScheduledMessageRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
@@ -16,8 +22,8 @@ internal class MtProtoScheduledMessageRepository(
     private val messageStore: MtProtoMessageProjectionStore,
     private val resultStager: MtProtoHistoryResultStager,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
-) {
-    suspend fun get(chatId: Long): List<MtProtoMessageReadModel> {
+) : MtProtoScheduledMessageOperations {
+    override suspend fun get(chatId: Long): List<MtProtoMessageReadModel> {
         val config = configSource.createForAccount(accountId)
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val peer = resolvePeer(scope, chatId)
@@ -26,6 +32,16 @@ internal class MtProtoScheduledMessageRepository(
         }
         return messageStore.getAll(scope, peer.type.toMessagePeerType(), peer.id)
             .filter { it.isScheduled && !it.isDeleted }
+    }
+
+    override suspend fun sendNow(chatId: Long, messageId: Long) {
+        require(messageId in 1..Int.MAX_VALUE) { "MTProto message id must fit a positive int" }
+        val config = configSource.createForAccount(accountId)
+        val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = resolvePeer(scope, chatId)
+        transportFactory.open(accountId).use { transport ->
+            messageStore.stageLive(scope, transport.execute(SendScheduledMessages(toInputPeer(scope, peer), listOf(messageId.toInt()))))
+        }
     }
 
     private suspend fun resolvePeer(scope: MtProtoAuthKeyScope, chatId: Long): TelegramPeerChatId.Peer {

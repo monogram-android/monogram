@@ -25,6 +25,7 @@ import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 import org.monogram.data.mtproto.MtProtoMessagePeerType
 import org.monogram.data.mtproto.MtProtoMessageReadModel
+import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 
 class TelegramBackendMessageRouterTest {
@@ -184,6 +185,22 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto sends scheduled messages through selected repository`() = runBlocking {
+        val scheduled = RecordingScheduledMessages()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            scheduledFactory = { scheduled },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.sendScheduledNow(3L, 7L)
+
+        assertEquals(3L to 7L, scheduled.sent)
+    }
+
+    @Test
     fun `MTProto forwards messages through selected text repository`() = runBlocking {
         val text = RecordingTextMessageRepository()
         val router = TelegramBackendMessageRouter(
@@ -254,6 +271,12 @@ class TelegramBackendMessageRouterTest {
         override suspend fun setPinned(chatId: Long, messageId: Long, pinned: Boolean) {
             requests += Triple(chatId, messageId, pinned)
         }
+    }
+
+    private class RecordingScheduledMessages : MtProtoScheduledMessageOperations {
+        var sent: Pair<Long, Long>? = null
+        override suspend fun get(chatId: Long) = emptyList<MtProtoMessageReadModel>()
+        override suspend fun sendNow(chatId: Long, messageId: Long) { sent = chatId to messageId }
     }
 
     private class RecordingTextMessageRepository : MtProtoTextMessageRepository {

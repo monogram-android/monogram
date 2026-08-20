@@ -26,7 +26,7 @@ import org.monogram.data.mtproto.MtProtoDeleteMessageRepository
 import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoMessageReadModel
-import org.monogram.data.mtproto.MtProtoScheduledMessageRepository
+import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 
@@ -44,7 +44,7 @@ internal class TelegramBackendMessageRouter(
     private val pinnedFactory: () -> MtProtoPinnedMessageRepository = {
         MtProtoPinnedMessageRepository { _, _, _ -> }
     },
-    private val scheduledFactory: () -> MtProtoScheduledMessageRepository = {
+    private val scheduledFactory: () -> MtProtoScheduledMessageOperations = {
         error("MTProto scheduled message repository is not configured")
     },
     private val pinnedReadFactory: () -> MtProtoPinnedMessageReader = {
@@ -104,6 +104,9 @@ internal class TelegramBackendMessageRouter(
                     }
                     "getPinnedMessageCount" -> invokeDraft(method, args) { values ->
                         pinnedRead.get(values[0] as Long, values[1] as Long?).size
+                    }
+                    "sendScheduledNow" -> invokeDraft(method, args) { values ->
+                        scheduled.sendNow(values[0] as Long, values[1] as Long)
                     }
                     "getScheduledMessages" -> invokeDraft(method, args) { values ->
                         scheduled.get(values[0] as Long).map { message ->

@@ -34,7 +34,7 @@ internal class TelegramBackendContactEditRouter(
 
     override suspend fun getNeedPhoneNumberPrivacyException(userId: Long): Boolean = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getNeedPhoneNumberPrivacyException(userId)
-        TelegramBackendKind.KOTLIN_MTPROTO -> false
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported("phone-number privacy exception reads")
     }
 
     override suspend fun upsertContact(user: UserModel, sharePhoneNumber: Boolean): UserModel? = when (selected()) {
@@ -78,8 +78,8 @@ internal class TelegramBackendContactEditRouter(
         isPartial = false,
     )
 
-    private fun unsupported(): Nothing = throw UnsupportedOperationException(
-        "MTProto close-friend editing is not available"
+    private fun unsupported(operation: String = "close-friend editing"): Nothing = throw UnsupportedOperationException(
+        "MTProto $operation is not available"
     )
 
     private companion object {

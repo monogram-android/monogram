@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.data.mtproto.MtProtoUserProfileReader
 import org.monogram.domain.models.ChatFullInfoModel
@@ -37,6 +38,30 @@ class TelegramBackendContactEditRouterTest {
         router.upsertContact(UserModel(id = 7, firstName = "Ada"), sharePhoneNumber = false)
 
         assertEquals(false, sharePhone)
+    }
+
+    @Test
+    fun `selected MTProto privacy exception read fails closed`() = runBlocking {
+        val router = TelegramBackendContactEditRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy contact repository must not be created") },
+            users = FakeUserRepository(),
+            mtProtoProfiles = NoOpMtProtoUserProfileReader,
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertThrows(UnsupportedOperationException::class.java) {
+            runBlocking { router.getNeedPhoneNumberPrivacyException(7) }
+        }
+        Unit
+    }
+
+    private object NoOpMtProtoUserProfileReader : MtProtoUserProfileReader {
+        override suspend fun getCurrentUser(accountId: String) = null
+        override suspend fun getUser(accountId: String, userId: Long) = null
+        override suspend fun getContacts(accountId: String) = emptyList<UserProfileSnapshotModel>()
+        override suspend fun addContact(accountId: String, user: UserProfileSnapshotModel, sharePhoneNumber: Boolean) = Unit
+        override suspend fun removeContact(accountId: String, userId: Long) = Unit
     }
 
     private fun snapshot(id: Long) = UserProfileSnapshotModel(

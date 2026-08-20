@@ -22,6 +22,9 @@ import org.monogram.data.backend.TelegramBackendAttachMenuBotRouter
 import org.monogram.data.backend.TelegramBackendChatReadRouter
 import org.monogram.data.backend.TelegramBackendChatSearchRouter
 import org.monogram.data.backend.TelegramBackendChatInfoRouter
+import org.monogram.data.backend.TelegramBackendChatCreationRouter
+import org.monogram.data.backend.TelegramBackendChatSettingsRouter
+import org.monogram.data.backend.TelegramBackendForumTopicsRouter
 import org.monogram.data.backend.TelegramBackendChatStatisticsRouter
 import org.monogram.data.backend.TelegramBackendClientOptionsRouter
 import org.monogram.data.backend.TelegramBackendBotRouter
@@ -1135,9 +1138,27 @@ val dataModule = module {
             scope = get(),
         )
     }
-    single<ForumTopicsRepository> { get<ChatsListRepositoryImpl>() }
-    single<ChatSettingsRepository> { get<ChatsListRepositoryImpl>() }
-    single<ChatCreationRepository> { get<ChatsListRepositoryImpl>() }
+    single<ForumTopicsRepository> {
+        TelegramBackendForumTopicsRouter(
+            selectionStore = get(),
+            legacyFactory = { get<ChatsListRepositoryImpl>() },
+            scope = get(),
+        )
+    }
+    single<ChatSettingsRepository> {
+        TelegramBackendChatSettingsRouter(
+            selectionStore = get(),
+            legacyFactory = { get<ChatsListRepositoryImpl>() },
+            scope = get(),
+        )
+    }
+    single<ChatCreationRepository> {
+        TelegramBackendChatCreationRouter(
+            selectionStore = get(),
+            legacyFactory = { get<ChatsListRepositoryImpl>() },
+            scope = get(),
+        )
+    }
 
     factory<SettingsRemoteDataSource> {
         TdSettingsRemoteDataSource(

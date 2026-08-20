@@ -106,6 +106,8 @@ import org.monogram.data.mtproto.MtProtoDraftRepositoryImpl
 import org.monogram.data.mtproto.MtProtoReadHistoryRepositoryImpl
 import org.monogram.data.mtproto.MtProtoMessageDeletionRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogChatListRepository
+import org.monogram.data.mtproto.MtProtoArchiveRepository
+import org.monogram.data.mtproto.MtProtoArchiveRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatSearchRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
@@ -891,11 +893,21 @@ val dataModule = module {
             stringProvider = get()
         )
     }
+    single<MtProtoArchiveRepository> {
+        MtProtoArchiveRepositoryImpl(
+            configSource = get(),
+            transportFactory = get(),
+            users = get(),
+            chats = get(),
+            dialogs = get<MtProtoDialogSnapshotRepository>(),
+        )
+    }
     single {
         MtProtoDialogChatListRepository(
             dialogRepository = get<MtProtoDialogSnapshotRepository>(),
             readHistoryRepository = get<MtProtoReadHistoryRepository>(),
             scope = get(),
+            archiveRepository = get(),
         )
     }
     single {

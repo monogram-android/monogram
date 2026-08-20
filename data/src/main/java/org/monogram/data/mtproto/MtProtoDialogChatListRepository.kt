@@ -34,6 +34,7 @@ internal class MtProtoDialogChatListRepository(
     private val dialogRepository: DialogSnapshotRepository,
     private val readHistoryRepository: MtProtoReadHistoryRepository,
     private val scope: CoroutineScope,
+    private val archiveRepository: MtProtoArchiveRepository = MtProtoArchiveRepository { _, _ -> },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
@@ -129,7 +130,10 @@ internal class MtProtoDialogChatListRepository(
     }
 
     override suspend fun toggleMuteChats(chatIds: Set<Long>, mute: Boolean) = unsupportedOperations()
-    override suspend fun toggleArchiveChats(chatIds: Set<Long>, archive: Boolean) = unsupportedOperations()
+    override suspend fun toggleArchiveChats(chatIds: Set<Long>, archive: Boolean) {
+        archiveRepository.setArchived(chatIds, archive)
+        refresh()
+    }
     override suspend fun togglePinChats(chatIds: Set<Long>, pin: Boolean, folderId: Int) = unsupportedOperations()
 
     override suspend fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) {

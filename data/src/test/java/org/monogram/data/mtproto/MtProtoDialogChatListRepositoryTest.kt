@@ -74,6 +74,25 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `archives chats through the owned archive repository then refreshes`() = runTest {
+        val source = FakeDialogRepository(emptyList())
+        val archive = RecordingArchiveRepository()
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = source,
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+            archiveRepository = archive,
+        )
+        runCurrent()
+
+        repository.toggleArchiveChats(setOf(42L), archive = true)
+        runCurrent()
+
+        assertEquals(listOf(setOf(42L) to true), archive.requests)
+        assertEquals(2, source.calls)
+    }
+
+    @Test
     fun `mark unread is rejected rather than delegated to TDLib`() = runTest {
         val repository = MtProtoDialogChatListRepository(
             FakeDialogRepository(emptyList()),
@@ -101,6 +120,14 @@ class MtProtoDialogChatListRepositoryTest {
         }
     }
 
+    private class RecordingArchiveRepository : MtProtoArchiveRepository {
+        val requests = mutableListOf<Pair<Set<Long>, Boolean>>()
+
+        override suspend fun setArchived(chatIds: Set<Long>, archived: Boolean) {
+            requests += chatIds to archived
+        }
+    }
+
     private class RecordingReadHistoryRepository : MtProtoReadHistoryRepository {
         val requests = mutableListOf<Triple<Long, DialogPeerType, Long>>()
 
@@ -113,8 +140,10 @@ class MtProtoDialogChatListRepositoryTest {
         private val dialogs: List<DialogSnapshotModel>,
     ) : DialogSnapshotRepository {
         var failure: Throwable? = null
+        var calls = 0
 
         override suspend fun getDialogs(accountId: String): List<DialogSnapshotModel> {
+            calls++
             failure?.let { throw it }
             return dialogs
         }

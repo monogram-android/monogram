@@ -221,9 +221,7 @@ internal fun DefaultChatComponent.handleSendMessage(
         val threadId = currentState.effectiveThreadId()
         val targetChatId = currentState.effectiveThreadChatId(chatId)
         if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
-            require(parseMode == null) { "MTProto rich-text sending is not available" }
-            require(entities.isEmpty()) { "MTProto entity sending is not available" }
-            require(replyId == null && threadId == null) { "MTProto reply and topic sending is not available" }
+            require(parseMode == null) { "MTProto Markdown and HTML parsing is not available" }
             val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
                 "MTProto target chat is not projected"
             }
@@ -235,6 +233,9 @@ internal fun DefaultChatComponent.handleSendMessage(
                 silent = sendOptions.silent,
                 scheduleDate = sendOptions.scheduleDate,
                 disableLinkPreview = sendOptions.disableLinkPreview,
+                replyToMessageId = replyId,
+                threadId = threadId,
+                entities = entities,
             )
         } else if (parseMode == null) {
             repositoryMessage.sendMessage(

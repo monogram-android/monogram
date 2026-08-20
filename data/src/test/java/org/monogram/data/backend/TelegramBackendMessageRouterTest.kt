@@ -100,6 +100,19 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto chat lifecycle does not initialize TDLib repository`() = runBlocking {
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.openChat(1L, "conversation")
+        router.repository.closeChat(1L, "conversation")
+    }
+
+    @Test
     fun `MTProto message update flows are inert`() = runBlocking {
         val router = TelegramBackendMessageRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),

@@ -67,6 +67,7 @@ internal class TelegramBackendMessageRouter(
             return when (selectedBackend.value) {
                 TelegramBackendKind.LEGACY -> invokeLegacy(method, args)
                 TelegramBackendKind.KOTLIN_MTPROTO -> when (method.name) {
+                    "openChat", "closeChat" -> invokeDraft(method, args) { Unit }
                     "getChatDraft" -> invokeDraft(method, args) { values ->
                         drafts.getDraft(values[0] as Long, values[1] as Long?)
                     }

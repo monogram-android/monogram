@@ -9,6 +9,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetShortName
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ClearRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.RecentStickers_ee91009b24
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickers_7d9ce2d574
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
@@ -48,6 +50,25 @@ class MtProtoStickerRepositoryTest {
         assertEquals(GetRecentStickers(attached = false, hash = 0), transport.requests[0])
         assertEquals(ClearRecentStickers(attached = false), transport.requests[1])
         assertEquals(true, transport.closed)
+    }
+
+    @Test
+    fun `searches stickers with configured language`() = runBlocking {
+        val transport = Transport(FoundStickers_7d9ce2d574(null, 0, emptyList()))
+        val repository = repository { transport }
+
+        assertEquals(emptyList<Any>(), repository.searchStickers("smile"))
+        assertEquals(SearchStickers(false, "smile", "", listOf("en"), 0, 100, 0), transport.request)
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
+    fun `does not open transport for blank sticker search`() = runBlocking {
+        var opened = false
+        val repository = repository { opened = true; Transport(null) }
+
+        assertEquals(emptyList<Any>(), repository.searchStickers("  "))
+        assertEquals(false, opened)
     }
 
     @Test

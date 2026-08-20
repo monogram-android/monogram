@@ -18,6 +18,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSet
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ClearRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickers_7d9ce2d574
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.RecentStickers_ee91009b24
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.StickerSet_ec0b3f33d3
 
@@ -81,7 +83,25 @@ internal class MtProtoStickerRepository(
     override suspend fun toggleStickerSetInstalled(setId: Long, isInstalled: Boolean) = unsupported("sticker installation")
     override suspend fun toggleStickerSetArchived(setId: Long, isArchived: Boolean) = unsupported("sticker archive mutation")
     override suspend fun reorderStickerSets(stickerType: StickerRepository.TdLibStickerType, stickerSetIds: List<Long>) = unsupported("sticker ordering")
-    override suspend fun searchStickers(query: String): List<StickerModel> = unsupported("sticker search")
+    override suspend fun searchStickers(query: String): List<StickerModel> {
+        val normalized = query.trim()
+        if (normalized.isEmpty()) return emptyList()
+        val config = configSource.createForAccount(accountSlot)
+        return transportFactory.open(accountSlot).use { transport ->
+            val result = transport.execute(
+                SearchStickers(
+                    emojis = false,
+                    q = normalized,
+                    emoticon = "",
+                    langCode = listOf(config.cloud.systemLanguageCode),
+                    offset = 0,
+                    limit = SEARCH_LIMIT,
+                    hash = 0,
+                ),
+            ) as? FoundStickers_7d9ce2d574 ?: error("Unsupported MTProto sticker search response")
+            result.stickers.mapNotNull { (it as? Document_be725c3b31)?.toDomain() }
+        }
+    }
     override suspend fun getStickerEmojiHints(query: String): List<String> = unsupported("sticker emoji hints")
     override suspend fun searchStickerSets(query: String): List<StickerSetModel> = unsupported("sticker-set search")
 
@@ -129,5 +149,8 @@ internal class MtProtoStickerRepository(
         "MTProto $operation is not available"
     )
 
-    private companion object { const val DEFAULT_ACCOUNT_SLOT = "default" }
+    private companion object {
+        const val DEFAULT_ACCOUNT_SLOT = "default"
+        const val SEARCH_LIMIT = 100
+    }
 }

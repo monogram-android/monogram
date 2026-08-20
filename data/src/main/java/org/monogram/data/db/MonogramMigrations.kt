@@ -594,6 +594,14 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_58_59 = object : Migration(58, 59) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_chat_projection", "signaturesEnabled", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("mtproto_chat_projection", "signatureProfilesEnabled", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("mtproto_chat_projection", "forumTabs", "INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     val MIGRATION_57_58 = object : Migration(57, 58) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.addColumn("mtproto_document_location", "stickerSetId", "INTEGER")

@@ -27,6 +27,9 @@ data class MtProtoChatProjectionEntity(
     val isScam: Boolean,
     val isFake: Boolean,
     val isForum: Boolean,
+    val signaturesEnabled: Boolean = false,
+    val signatureProfilesEnabled: Boolean = false,
+    val forumTabs: Boolean = false,
     val isMin: Boolean,
     val updatedAt: Long,
 )

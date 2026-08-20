@@ -34,6 +34,9 @@ internal data class MtProtoChatReadModel(
     val isScam: Boolean,
     val isFake: Boolean,
     val isForum: Boolean,
+    val signaturesEnabled: Boolean,
+    val signatureProfilesEnabled: Boolean,
+    val forumTabs: Boolean,
     val isMin: Boolean,
 )
 
@@ -151,6 +154,9 @@ internal class MtProtoRoomChatProjectionStore(
             isScam = scam,
             isFake = fake,
             isForum = forum,
+            signaturesEnabled = signatures,
+            signatureProfilesEnabled = signatureProfiles,
+            forumTabs = forumTabs,
             isMin = min,
         )
     }
@@ -175,6 +181,9 @@ internal class MtProtoRoomChatProjectionStore(
         isScam: Boolean = false,
         isFake: Boolean = false,
         isForum: Boolean = false,
+        signaturesEnabled: Boolean = false,
+        signatureProfilesEnabled: Boolean = false,
+        forumTabs: Boolean = false,
         isMin: Boolean = false,
     ) = MtProtoChatProjectionEntity(
         scope.accountSlot,
@@ -197,6 +206,9 @@ internal class MtProtoRoomChatProjectionStore(
         isScam,
         isFake,
         isForum,
+        signaturesEnabled,
+        signatureProfilesEnabled,
+        forumTabs,
         isMin,
         updatedAt,
     )
@@ -227,6 +239,9 @@ internal class MtProtoRoomChatProjectionStore(
         isScam,
         isFake,
         isForum,
+        signaturesEnabled,
+        signatureProfilesEnabled,
+        forumTabs,
         isMin,
     )
 

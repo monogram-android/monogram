@@ -47,13 +47,16 @@ class MtProtoRoomChatProjectionStoreTest {
     @Test
     fun `channel min update preserves confirmed flags and identity`() = runBlocking {
         val store = MtProtoRoomChatProjectionStore(FakeChatProjectionDao(), nowMillis = { 1234L })
-        store.upsert(scope, listOf(channel(id = 50, accessHash = 99, title = "Group", verified = true, megagroup = true)))
+        store.upsert(scope, listOf(channel(id = 50, accessHash = 99, title = "Group", verified = true, megagroup = true, signatures = true, signatureProfiles = true, forumTabs = true)))
         store.upsert(scope, listOf(channel(id = 50, title = "Group min", min = true, megagroup = true)))
 
         val result = store.get(scope, 50)
         assertEquals("Group min", result?.title)
         assertEquals(99L, result?.accessHash)
         assertTrue(result?.isVerified == true)
+        assertTrue(result?.signaturesEnabled == true)
+        assertTrue(result?.signatureProfilesEnabled == true)
+        assertTrue(result?.forumTabs == true)
         assertTrue(result?.isMin == true)
     }
 
@@ -64,6 +67,9 @@ class MtProtoRoomChatProjectionStoreTest {
         verified: Boolean = false,
         megagroup: Boolean = false,
         min: Boolean = false,
+        signatures: Boolean = false,
+        signatureProfiles: Boolean = false,
+        forumTabs: Boolean = false,
     ) = Channel(
         creator = false,
         left = false,
@@ -71,7 +77,7 @@ class MtProtoRoomChatProjectionStoreTest {
         verified = verified,
         megagroup = megagroup,
         restricted = false,
-        signatures = false,
+        signatures = signatures,
         min = min,
         scam = false,
         hasLink = false,
@@ -88,11 +94,11 @@ class MtProtoRoomChatProjectionStoreTest {
         storiesHidden = false,
         storiesHiddenMin = false,
         storiesUnavailable = false,
-        signatureProfiles = false,
+        signatureProfiles = signatureProfiles,
         autotranslation = false,
         broadcastMessagesAllowed = false,
         monoforum = false,
-        forumTabs = false,
+        forumTabs = forumTabs,
         id = id,
         accessHash = accessHash,
         title = title,

@@ -24,7 +24,7 @@ internal class MtProtoPinnedMessageReadRepository(
         val peer = resolvePeer(scope, chatId)
         require(threadId == null || threadId in 1..Int.MAX_VALUE) { "MTProto thread id must fit a positive int" }
         transportFactory.open(accountId).use { transport ->
-            resultStager.stage(
+            resultStager.stageQuery(
                 scope,
                 transport.execute(
                     Search(

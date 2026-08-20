@@ -56,5 +56,14 @@ class MtProtoHistoryResultStagerTest {
             ids = messages.map { (it as MessageEmpty).id }
             scheduled = isScheduled
         }
+
+        override suspend fun stageQueryMessages(
+            scope: MtProtoAuthKeyScope,
+            messages: List<org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4>,
+            isScheduled: Boolean,
+        ) {
+            ids = messages.map { (it as MessageEmpty).id }
+            scheduled = isScheduled
+        }
     }
 }

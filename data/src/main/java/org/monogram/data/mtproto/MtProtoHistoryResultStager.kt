@@ -39,7 +39,23 @@ internal class MtProtoHistoryResultStager(
         suspend fun persist() {
             userStore?.upsert(scope, payload.users)
             chatStore?.upsert(scope, payload.chats)
-            messageStore?.stageMessages(scope, payload.messages, isScheduled = true)
+            messageStore?.stageQueryMessages(scope, payload.messages, isScheduled = true)
+        }
+        database?.withTransaction { persist() } ?: persist()
+        return payload.messages
+    }
+
+    suspend fun stageQuery(scope: MtProtoAuthKeyScope, result: Messages_08524391b7): List<org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4> {
+        val payload = when (result) {
+            is Messages_3c331441fb -> HistoryPayload(result.messages, result.users, result.chats)
+            is MessagesSlice -> HistoryPayload(result.messages, result.users, result.chats)
+            is MessagesNotModified -> return emptyList()
+            else -> error("Unsupported query messages result")
+        }
+        suspend fun persist() {
+            userStore?.upsert(scope, payload.users)
+            chatStore?.upsert(scope, payload.chats)
+            messageStore?.stageQueryMessages(scope, payload.messages)
         }
         database?.withTransaction { persist() } ?: persist()
         return payload.messages

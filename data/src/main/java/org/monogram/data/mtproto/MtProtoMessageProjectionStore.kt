@@ -70,6 +70,8 @@ internal interface MtProtoMessageProjectionStore {
     suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch)
 
     suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>, isScheduled: Boolean = false)
+    suspend fun stageQueryMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>, isScheduled: Boolean = false) =
+        stageMessages(scope, messages, isScheduled)
     suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel?
     suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel>
     suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel>
@@ -89,6 +91,7 @@ internal object NoOpMtProtoMessageProjectionStore : MtProtoMessageProjectionStor
     override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) = Unit
 
     override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>, isScheduled: Boolean) = Unit
+    override suspend fun stageQueryMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>, isScheduled: Boolean) = Unit
     override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? = null
     override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel> = emptyList()
@@ -132,7 +135,11 @@ internal class MtProtoRoomMessageProjectionStore(
     }
 
     override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>, isScheduled: Boolean) {
-        messages.forEach { upsert(scope, it, isScheduled) }
+        messages.forEach { upsert(scope, it, isScheduled, updateDialog = true) }
+    }
+
+    override suspend fun stageQueryMessages(scope: MtProtoAuthKeyScope, messages: List<Message_73e57f95e4>, isScheduled: Boolean) {
+        messages.forEach { upsert(scope, it, isScheduled, updateDialog = false) }
     }
 
     override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int): MtProtoMessageReadModel? =
@@ -243,16 +250,16 @@ internal class MtProtoRoomMessageProjectionStore(
         else -> false
     }
 
-    private suspend fun upsert(scope: MtProtoAuthKeyScope, message: Message_73e57f95e4, isScheduled: Boolean = false): Boolean {
+    private suspend fun upsert(scope: MtProtoAuthKeyScope, message: Message_73e57f95e4, isScheduled: Boolean = false, updateDialog: Boolean = true): Boolean {
         val entity = message.toEntity(scope, nowMillis(), isScheduled) ?: return false
-        persist(scope, entity)
+        persist(scope, entity, updateDialog)
         return true
     }
 
-    private suspend fun persist(scope: MtProtoAuthKeyScope, entity: MtProtoMessageProjectionEntity) {
+    private suspend fun persist(scope: MtProtoAuthKeyScope, entity: MtProtoMessageProjectionEntity, updateDialog: Boolean = true) {
         suspend fun persistProjection() {
             dao.upsert(entity)
-            dialogStore?.updateTopMessage(
+            if (updateDialog) dialogStore?.updateTopMessage(
                 scope = scope,
                 peerType = MtProtoMessagePeerType.valueOf(entity.peerType),
                 peerId = entity.peerId,

@@ -1677,7 +1677,7 @@ val dataModule = module {
                     scope = get(),
                 )
             },
-            mtProtoFactory = { MtProtoEmojiRepository(androidContext(), get()) },
+            mtProtoFactory = { MtProtoEmojiRepository(androidContext(), get(), get()) },
             scope = get(),
         )
     }

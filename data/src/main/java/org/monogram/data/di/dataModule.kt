@@ -727,6 +727,9 @@ val dataModule = module {
             legacyFactory = { get<UserRepositoryImpl>() },
             mtProtoProfiles = get<MtProtoUserProfileReader>(),
             scope = get(),
+            mtProtoAccountStateResetter = get(),
+            mtProtoAuthSessionResetter = get(),
+            mtProtoLiveSessionResetter = get(),
         )
     }
     single { LegacyUserProfileSnapshotRepository(get(), get<UserRepository>()) }

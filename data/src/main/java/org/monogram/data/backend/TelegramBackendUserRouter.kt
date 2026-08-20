@@ -8,6 +8,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import org.monogram.data.mtproto.MtProtoAccountStateResetter
+import org.monogram.data.mtproto.MtProtoAuthSessionResetter
+import org.monogram.data.mtproto.MtProtoEnvironment
+import org.monogram.data.mtproto.MtProtoLiveSessionResetter
 import org.monogram.data.mtproto.MtProtoUserProfileReader
 import org.monogram.domain.models.ChatFullInfoModel
 import org.monogram.domain.models.UserModel
@@ -20,6 +24,9 @@ internal class TelegramBackendUserRouter(
     private val mtProtoProfiles: MtProtoUserProfileReader,
     private val scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
+    private val mtProtoAccountStateResetter: MtProtoAccountStateResetter = MtProtoAccountStateResetter { _, _ -> },
+    private val mtProtoAuthSessionResetter: MtProtoAuthSessionResetter = MtProtoAuthSessionResetter {},
+    private val mtProtoLiveSessionResetter: MtProtoLiveSessionResetter = MtProtoLiveSessionResetter {},
 ) : UserRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
@@ -72,7 +79,24 @@ internal class TelegramBackendUserRouter(
         TelegramBackendKind.LEGACY -> legacy.getUserFlow(userId)
         TelegramBackendKind.KOTLIN_MTPROTO -> flow { emit(getUser(userId)) }
     }
-    override fun logOut() = unsupported()
+    override fun logOut() {
+        when (selected()) {
+            TelegramBackendKind.LEGACY -> legacy.logOut()
+            TelegramBackendKind.KOTLIN_MTPROTO -> {
+                _currentUserFlow.value = null
+                scope.launch {
+                    runCatching {
+                        mtProtoLiveSessionResetter.resetLiveSession()
+                        mtProtoAuthSessionResetter.resetAuthSession()
+                        mtProtoAccountStateResetter.deleteAccount(
+                            accountSlot = accountId,
+                            environment = MtProtoEnvironment.PRODUCTION,
+                        )
+                    }
+                }
+            }
+        }
+    }
     override suspend fun getContacts(): List<UserModel> = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getContacts()
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoProfiles.getContacts(accountId).map { it.toUserModel() }

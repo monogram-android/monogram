@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.monogram.data.mtproto.MtProtoAccountStateResetter
+import org.monogram.data.mtproto.MtProtoAuthSessionResetter
+import org.monogram.data.mtproto.MtProtoLiveSessionResetter
 import org.monogram.data.mtproto.MtProtoUserProfileReader
 import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.domain.repository.UserRepository
@@ -23,6 +26,9 @@ class TelegramBackendUserRouterTest {
                 override suspend fun getContacts(accountId: String) = listOf(profile(43))
             },
             scope = CoroutineScope(Dispatchers.Unconfined),
+            mtProtoAccountStateResetter = MtProtoAccountStateResetter { _, _ -> resetCalls++ },
+            mtProtoAuthSessionResetter = MtProtoAuthSessionResetter { resetCalls++ },
+            mtProtoLiveSessionResetter = MtProtoLiveSessionResetter { resetCalls++ },
         )
 
         val user = router.getMe()
@@ -33,7 +39,11 @@ class TelegramBackendUserRouterTest {
         assertEquals(listOf(43L), router.getContacts().map { it.id })
         assertEquals(listOf(43L), router.searchContacts("ADA").map { it.id })
         router.setCachedSimCountryIso("US")
+        router.logOut()
+        assertEquals(3, resetCalls)
     }
+
+    private var resetCalls = 0
 
     private fun profile(id: Long) = UserProfileSnapshotModel(
         userId = id,

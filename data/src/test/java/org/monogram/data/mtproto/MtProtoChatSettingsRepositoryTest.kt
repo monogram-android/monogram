@@ -53,7 +53,7 @@ class MtProtoChatSettingsRepositoryTest {
     @Test
     fun `preserves projected signature profile setting`() = runTest {
         val transport = RecordingTransport()
-        val repository = repository(transport, RecordingStager(), channel(MtProtoChatType.CHANNEL, signatureProfiles = true))
+        val repository = repository(transport, RecordingStager(), chats = channel(MtProtoChatType.CHANNEL, signatureProfiles = true))
 
         repository.setSignMessages(TelegramPeerChatId.encode(DialogPeerType.CHANNEL, 42), true)
 
@@ -65,13 +65,29 @@ class MtProtoChatSettingsRepositoryTest {
     @Test
     fun `preserves projected forum tabs setting`() = runTest {
         val transport = RecordingTransport()
-        val repository = repository(transport, RecordingStager(), channel(MtProtoChatType.SUPERGROUP, forumTabs = true))
+        val repository = repository(transport, RecordingStager(), chats = channel(MtProtoChatType.SUPERGROUP, forumTabs = true))
 
         repository.setForumEnabled(TelegramPeerChatId.encode(DialogPeerType.SUPERGROUP, 42), true)
 
         val request = transport.requests.single() as ToggleForum
         assertTrue(request.enabled)
         assertTrue(request.tabs)
+    }
+
+    @Test
+    fun `sets protected content for projected private chat`() = runTest {
+        val transport = RecordingTransport()
+        val repository = repository(transport, RecordingStager(), users = user(77, 123))
+
+        repository.setProtectedContent(77, true)
+
+        val request = transport.requests.single() as ToggleNoForwards
+        assertEquals(
+            org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser(77, 123),
+            request.peer,
+        )
+        assertTrue(request.enabled)
+        assertTrue(transport.closed)
     }
 
     @Test
@@ -104,12 +120,40 @@ class MtProtoChatSettingsRepositoryTest {
         assertEquals(false, (all.availableReactions as ChatReactionsAll).allowCustom)
     }
 
-    private fun repository(transport: RecordingTransport, stager: RecordingStager, chats: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore) = MtProtoChatSettingsRepositoryImpl(
+    private fun repository(
+        transport: RecordingTransport,
+        stager: RecordingStager,
+        users: MtProtoUserProjectionStore = NoOpMtProtoUserProjectionStore,
+        chats: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
+    ) = MtProtoChatSettingsRepositoryImpl(
         configSource = TelegramMtProtoBootstrapConfigSource { config() },
         transportFactory = MtProtoSessionTransportFactory { transport },
+        users = users,
         chats = chats,
         cloudObjectStager = stager,
     )
+
+    private fun user(userId: Long, accessHash: Long) = object : MtProtoUserProjectionStore by NoOpMtProtoUserProjectionStore {
+        override suspend fun get(scope: MtProtoAuthKeyScope, userId: Long) = MtProtoUserReadModel(
+            userId = userId,
+            accessHash = accessHash,
+            firstName = null,
+            lastName = null,
+            username = null,
+            phone = null,
+            isSelf = false,
+            isContact = false,
+            isMutualContact = false,
+            isDeleted = false,
+            isBot = false,
+            isVerified = false,
+            isRestricted = false,
+            isScam = false,
+            isFake = false,
+            isPremium = false,
+            isMin = false,
+        )
+    }
 
     private fun channel(type: MtProtoChatType, signatureProfiles: Boolean = false, forumTabs: Boolean = false) = object : MtProtoChatProjectionStore by NoOpMtProtoChatProjectionStore {
         override suspend fun get(scope: MtProtoAuthKeyScope, chatId: Long) = MtProtoChatReadModel(

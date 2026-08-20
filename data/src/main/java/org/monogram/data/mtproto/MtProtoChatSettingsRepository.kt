@@ -5,6 +5,7 @@ import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsAll
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsSome
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
@@ -40,6 +41,7 @@ internal interface MtProtoChatSettingsRepository {
 internal class MtProtoChatSettingsRepositoryImpl(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory,
+    private val users: MtProtoUserProjectionStore,
     private val chats: MtProtoChatProjectionStore,
     private val cloudObjectStager: MtProtoCloudObjectStager,
     private val accountSlot: String = "default",
@@ -135,7 +137,13 @@ internal class MtProtoChatSettingsRepositoryImpl(
                 }
                 InputPeerChannel(peer.id, accessHash)
             }
-            DialogPeerType.PRIVATE, DialogPeerType.UNKNOWN -> error("MTProto cannot set protected content for this peer")
+            DialogPeerType.PRIVATE -> {
+                val accessHash = requireNotNull(users.get(scope, peer.id)?.accessHash) {
+                    "Missing MTProto user access hash: ${peer.id}"
+                }
+                InputPeerUser(peer.id, accessHash)
+            }
+            DialogPeerType.UNKNOWN -> error("MTProto cannot set protected content for this peer")
         }
         transportFactory.open(accountSlot).use { transport ->
             cloudObjectStager.stageLive(scope, transport.execute(ToggleNoForwards(inputPeer, enabled, null)))

@@ -28,8 +28,10 @@ class TelegramBackendChatSettingsRouterTest {
         router.setChatHasAggressiveAntiSpamEnabled(-7, true)
         router.setChatJoinToSendMessages(-7, true)
         router.setChatJoinByRequest(-7, true)
+        router.setChatSignMessages(-7, true)
+        router.toggleChatIsForum(-7, true)
 
-        assertEquals(listOf("title:-7:Team", "description:-7:Owned MTProto", "username:-7:team", "slow:10", "hidden:true", "spam:true", "join:true", "request:true"), settings.calls)
+        assertEquals(listOf("title:-7:Team", "description:-7:Owned MTProto", "username:-7:team", "slow:10", "hidden:true", "spam:true", "join:true", "request:true", "sign:true", "forum:true"), settings.calls)
     }
 
     private class RecordingSettings : MtProtoChatSettingsRepository {
@@ -48,6 +50,8 @@ class TelegramBackendChatSettingsRouterTest {
         override suspend fun setAntiSpamEnabled(chatId: Long, enabled: Boolean) { calls += "spam:$enabled" }
         override suspend fun setJoinToSend(chatId: Long, enabled: Boolean) { calls += "join:$enabled" }
         override suspend fun setJoinByRequest(chatId: Long, enabled: Boolean) { calls += "request:$enabled" }
+        override suspend fun setSignMessages(chatId: Long, enabled: Boolean) { calls += "sign:$enabled" }
+        override suspend fun setForumEnabled(chatId: Long, enabled: Boolean) { calls += "forum:$enabled" }
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

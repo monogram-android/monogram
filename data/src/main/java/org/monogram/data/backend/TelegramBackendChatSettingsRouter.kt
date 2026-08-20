@@ -33,7 +33,10 @@ internal class TelegramBackendChatSettingsRouter(
     }
     override suspend fun setChatPermissions(chatId: Long, permissions: ChatPermissionsModel) = call { legacy.setChatPermissions(chatId, permissions) }
     override suspend fun setChatHasProtectedContent(chatId: Long, hasProtectedContent: Boolean) = call { legacy.setChatHasProtectedContent(chatId, hasProtectedContent) }
-    override suspend fun setChatSignMessages(chatId: Long, signMessages: Boolean) = call { legacy.setChatSignMessages(chatId, signMessages) }
+    override suspend fun setChatSignMessages(chatId: Long, signMessages: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatSignMessages(chatId, signMessages)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setSignMessages(chatId, signMessages)
+    }
     override suspend fun setChatHasHiddenMembers(chatId: Long, hasHiddenMembers: Boolean) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setChatHasHiddenMembers(chatId, hasHiddenMembers)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setParticipantsHidden(chatId, hasHiddenMembers)
@@ -55,7 +58,10 @@ internal class TelegramBackendChatSettingsRouter(
         TelegramBackendKind.LEGACY -> legacy.setChatSlowModeDelay(chatId, slowModeDelay)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setSlowModeDelay(chatId, slowModeDelay)
     }
-    override suspend fun toggleChatIsForum(chatId: Long, isForum: Boolean) = call { legacy.toggleChatIsForum(chatId, isForum) }
+    override suspend fun toggleChatIsForum(chatId: Long, isForum: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.toggleChatIsForum(chatId, isForum)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setForumEnabled(chatId, isForum)
+    }
     private suspend fun call(action: suspend () -> Unit) { when (selected()) { TelegramBackendKind.LEGACY -> action(); TelegramBackendKind.KOTLIN_MTPROTO -> unsupported() } }
     private fun selected() = checkNotNull(selectedBackend.value) { "Telegram backend selection is not loaded" }
     private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto chat settings are not available")

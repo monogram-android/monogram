@@ -8,6 +8,10 @@ import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleForum
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSignatures
+import org.monogram.domain.models.DialogPeerType
+import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
 import org.monogram.mtproto.transport.MtProtoRpcTransport
@@ -42,12 +46,60 @@ class MtProtoChatSettingsRepositoryTest {
         assertTrue(transport.closed)
     }
 
-    private fun repository(transport: RecordingTransport, stager: RecordingStager) = MtProtoChatSettingsRepositoryImpl(
+    @Test
+    fun `preserves projected signature profile setting`() = runTest {
+        val transport = RecordingTransport()
+        val repository = repository(transport, RecordingStager(), channel(MtProtoChatType.CHANNEL, signatureProfiles = true))
+
+        repository.setSignMessages(TelegramPeerChatId.encode(DialogPeerType.CHANNEL, 42), true)
+
+        val request = transport.requests.single() as ToggleSignatures
+        assertTrue(request.signaturesEnabled)
+        assertTrue(request.profilesEnabled)
+    }
+
+    @Test
+    fun `preserves projected forum tabs setting`() = runTest {
+        val transport = RecordingTransport()
+        val repository = repository(transport, RecordingStager(), channel(MtProtoChatType.SUPERGROUP, forumTabs = true))
+
+        repository.setForumEnabled(TelegramPeerChatId.encode(DialogPeerType.SUPERGROUP, 42), true)
+
+        val request = transport.requests.single() as ToggleForum
+        assertTrue(request.enabled)
+        assertTrue(request.tabs)
+    }
+
+    private fun repository(transport: RecordingTransport, stager: RecordingStager, chats: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore) = MtProtoChatSettingsRepositoryImpl(
         configSource = TelegramMtProtoBootstrapConfigSource { config() },
         transportFactory = MtProtoSessionTransportFactory { transport },
-        chats = NoOpMtProtoChatProjectionStore,
+        chats = chats,
         cloudObjectStager = stager,
     )
+
+    private fun channel(type: MtProtoChatType, signatureProfiles: Boolean = false, forumTabs: Boolean = false) = object : MtProtoChatProjectionStore by NoOpMtProtoChatProjectionStore {
+        override suspend fun get(scope: MtProtoAuthKeyScope, chatId: Long) = MtProtoChatReadModel(
+            chatId = chatId,
+            type = type,
+            accessHash = 99L,
+            title = "Group",
+            username = null,
+            participantsCount = null,
+            isDeleted = false,
+            isForbidden = false,
+            isLeft = false,
+            isDeactivated = false,
+            isVerified = false,
+            isRestricted = false,
+            isScam = false,
+            isFake = false,
+            isForum = false,
+            signaturesEnabled = false,
+            signatureProfilesEnabled = signatureProfiles,
+            forumTabs = forumTabs,
+            isMin = false,
+        )
+    }
 
     private fun config() = TelegramMtProtoBootstrapConfig(
         endpoint = TelegramMtProtoEndpoint(2, "dc", 443),

@@ -12,6 +12,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleJoinReque
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleJoinToSend
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleParticipantsHidden
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSlowMode
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleForum
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSignatures
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
 
@@ -24,6 +26,8 @@ internal interface MtProtoChatSettingsRepository {
     suspend fun setAntiSpamEnabled(chatId: Long, enabled: Boolean)
     suspend fun setJoinToSend(chatId: Long, enabled: Boolean)
     suspend fun setJoinByRequest(chatId: Long, enabled: Boolean)
+    suspend fun setSignMessages(chatId: Long, enabled: Boolean)
+    suspend fun setForumEnabled(chatId: Long, enabled: Boolean)
 }
 
 internal class MtProtoChatSettingsRepositoryImpl(
@@ -83,6 +87,18 @@ internal class MtProtoChatSettingsRepositoryImpl(
     override suspend fun setJoinByRequest(chatId: Long, enabled: Boolean) =
         mutateChannel(chatId) { channel -> ToggleJoinRequest(channel, enabled) }
 
+    override suspend fun setSignMessages(chatId: Long, enabled: Boolean) {
+        val (scope, peer, chat) = projectedChannel(chatId)
+        require(peer.type == DialogPeerType.CHANNEL) { "MTProto signatures require a channel" }
+        mutate(scope, peer.id, chat.accessHash, ToggleSignatures(enabled, chat.signatureProfilesEnabled, InputChannel_d22292516d(peer.id, requireNotNull(chat.accessHash))))
+    }
+
+    override suspend fun setForumEnabled(chatId: Long, enabled: Boolean) {
+        val (scope, peer, chat) = projectedChannel(chatId)
+        require(peer.type == DialogPeerType.SUPERGROUP) { "MTProto forums require a supergroup" }
+        mutate(scope, peer.id, chat.accessHash, ToggleForum(InputChannel_d22292516d(peer.id, requireNotNull(chat.accessHash)), enabled, chat.forumTabs))
+    }
+
     override suspend fun setDescription(chatId: Long, description: String) {
         val (scope, peer) = resolve(chatId)
         val inputPeer = when (peer.type) {
@@ -100,6 +116,24 @@ internal class MtProtoChatSettingsRepositoryImpl(
                 "messages.editChatAbout was rejected"
             }
         }
+    }
+
+    private suspend fun mutate(
+        scope: MtProtoAuthKeyScope,
+        peerId: Long,
+        accessHash: Long?,
+        request: org.monogram.mtproto.tl.runtime.TlMethod<org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5>,
+    ) {
+        requireNotNull(accessHash) { "Missing MTProto channel access hash: $peerId" }
+        transportFactory.open(accountSlot).use { transport ->
+            cloudObjectStager.stageLive(scope, transport.execute(request))
+        }
+    }
+
+    private suspend fun projectedChannel(chatId: Long): Triple<MtProtoAuthKeyScope, TelegramPeerChatId.Peer, MtProtoChatReadModel> {
+        val (scope, peer) = resolve(chatId)
+        val chat = requireNotNull(chats.get(scope, peer.id)) { "Missing MTProto chat projection: ${peer.id}" }
+        return Triple(scope, peer, chat)
     }
 
     private suspend fun mutateChannel(

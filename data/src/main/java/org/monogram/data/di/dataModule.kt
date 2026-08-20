@@ -25,6 +25,7 @@ import org.monogram.data.backend.TelegramBackendContactEditRouter
 import org.monogram.data.backend.TelegramBackendMessageRouter
 import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
+import org.monogram.data.backend.TelegramBackendLimitsRouter
 import org.monogram.data.backend.LegacyChatReadContracts
 import org.monogram.data.backend.TelegramBackendReadRouter
 import org.monogram.data.backend.TelegramBackendSelectionStore
@@ -1131,11 +1132,17 @@ val dataModule = module {
     }
 
     single<TdLibLimitsRepository> {
-        TdLibLimitsRepositoryImpl(
-            remote = get(),
-            updates = get(),
-            authRepository = get(),
-            scope = get()
+        TelegramBackendLimitsRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                TdLibLimitsRepositoryImpl(
+                    remote = get(),
+                    updates = get(),
+                    authRepository = get(),
+                    scope = get(),
+                )
+            },
+            scope = get(),
         )
     }
 

@@ -77,7 +77,16 @@ internal class TelegramBackendUserRouter(
         TelegramBackendKind.LEGACY -> legacy.getContacts()
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoProfiles.getContacts(accountId).map { it.toUserModel() }
     }
-    override suspend fun searchContacts(query: String): List<UserModel> = unsupported()
+    override suspend fun searchContacts(query: String): List<UserModel> = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.searchContacts(query)
+        TelegramBackendKind.KOTLIN_MTPROTO -> {
+            val normalized = query.trim()
+            getContacts().filter { user ->
+                normalized.isEmpty() || listOfNotNull(user.firstName, user.lastName, user.username, user.phoneNumber)
+                    .any { it.contains(normalized, ignoreCase = true) }
+            }
+        }
+    }
     override suspend fun addContact(user: UserModel) = unsupported()
     override suspend fun removeContact(userId: Long) = unsupported()
     override suspend fun setCachedSimCountryIso(iso: String?) = unsupported()

@@ -45,6 +45,7 @@ internal class MtProtoDialogChatListRepository(
     private val reportPeerRepository: MtProtoReportPeerRepository = MtProtoReportPeerRepository { _, _, _ -> },
     private val dialogUnreadRepository: MtProtoDialogUnreadRepository = MtProtoDialogUnreadRepository { _, _ -> },
     private val folderRepository: ChatFolderRepository? = null,
+    private val refreshFolders: suspend () -> Unit = {},
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
@@ -88,6 +89,7 @@ internal class MtProtoDialogChatListRepository(
             _isLoadingFlow.value = true
             _folderLoadingFlow.emit(FolderLoadingUpdate(ALL_CHATS_FOLDER_ID, true))
             try {
+                runCatching { refreshFolders() }
                 publishDialogs(dialogRepository.getDialogs(accountId))
             } catch (cancelled: CancellationException) {
                 throw cancelled

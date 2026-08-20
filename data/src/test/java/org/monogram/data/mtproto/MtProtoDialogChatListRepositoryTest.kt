@@ -67,6 +67,23 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `refresh re-synchronizes folder filters before dialogs`() = runTest {
+        var refreshes = 0
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = FakeDialogRepository(emptyList()),
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+            refreshFolders = { refreshes++ },
+        )
+        runCurrent()
+
+        repository.refresh()
+        runCurrent()
+
+        assertEquals(2, refreshes)
+    }
+
+    @Test
     fun `failed refresh preserves the current projection and allows retry`() = runTest {
         val source = FakeDialogRepository(listOf(dialog(DialogPeerType.PRIVATE, 42L, date = 1, title = "One")))
         val repository = MtProtoDialogChatListRepository(source, RecordingReadHistoryRepository(), backgroundScope)

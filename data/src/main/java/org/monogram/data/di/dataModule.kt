@@ -1137,6 +1137,7 @@ val dataModule = module {
             reportPeerRepository = get(),
             dialogUnreadRepository = get(),
             folderRepository = get(),
+            refreshFolders = { get<MtProtoFolderRepository>().refresh() },
         )
     }
     single {

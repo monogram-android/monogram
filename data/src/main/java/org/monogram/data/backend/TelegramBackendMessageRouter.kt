@@ -12,7 +12,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageHistoryCursorModel
+import org.monogram.domain.models.MessageHistorySnapshotRequest
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.BoundaryState
+import org.monogram.domain.repository.HistoryPage
+import org.monogram.domain.repository.HistorySource
+import org.monogram.domain.repository.HistoryRequest
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.data.mtproto.MtProtoDeleteMessageRepository
 import org.monogram.data.mtproto.MtProtoDraftRepository
@@ -32,8 +42,9 @@ internal class TelegramBackendMessageRouter(
     private val pinnedFactory: () -> MtProtoPinnedMessageRepository = {
         MtProtoPinnedMessageRepository { _, _, _ -> }
     },
+    private val historyRepository: MessageHistorySnapshotRepository? = null,
     scope: CoroutineScope,
-    accountId: String = DEFAULT_ACCOUNT_ID,
+    private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
@@ -68,6 +79,9 @@ internal class TelegramBackendMessageRouter(
                 TelegramBackendKind.LEGACY -> invokeLegacy(method, args)
                 TelegramBackendKind.KOTLIN_MTPROTO -> when (method.name) {
                     "openChat", "closeChat" -> invokeDraft(method, args) { Unit }
+                    "getHistoryPage" -> invokeDraft(method, args) { values ->
+                        getHistoryPage(values[0] as HistoryRequest)
+                    }
                     "getChatDraft" -> invokeDraft(method, args) { values ->
                         drafts.getDraft(values[0] as Long, values[1] as Long?)
                     }
@@ -102,6 +116,43 @@ internal class TelegramBackendMessageRouter(
             ?: error("Missing continuation for ${method.name}")
         suspend { operation(values) }.startCoroutine(continuation)
         return COROUTINE_SUSPENDED
+    }
+
+    private suspend fun getHistoryPage(request: HistoryRequest): HistoryPage {
+        val repository = historyRepository ?: throw UnsupportedOperationException(
+            "MTProto does not support getHistoryPage through MessageRepository"
+        )
+        val peer = TelegramPeerChatId.decode(request.key.chatId)
+        val page = repository.getHistory(
+            MessageHistorySnapshotRequest(
+                accountId = accountId,
+                peerType = peer.type,
+                peerId = peer.id,
+                before = (request.anchor as? org.monogram.domain.repository.HistoryAnchor.Message)?.let {
+                    MessageHistoryCursorModel(0, it.id)
+                },
+                limit = request.limit,
+            ),
+        )
+        return HistoryPage(
+            messages = page.messages.map { message ->
+                MessageModel(
+                    id = message.messageId,
+                    date = message.date,
+                    isOutgoing = message.isOutgoing,
+                    senderName = "",
+                    chatId = request.key.chatId,
+                    content = if (message.isService) MessageContent.Service(message.text.orEmpty()) else MessageContent.Text(message.text.orEmpty()),
+                    senderId = message.senderId ?: 0L,
+                    editDate = message.editDate ?: 0,
+                    mediaAlbumId = message.groupedId ?: 0L,
+                    isPinned = message.isPinned,
+                )
+            },
+            olderBoundary = if (page.nextCursor == null) BoundaryState.Reached else BoundaryState.Open,
+            newerBoundary = BoundaryState.Reached,
+            source = HistorySource.RoomSnapshot,
+        )
     }
 
     private fun invokeLegacy(method: Method, args: Array<out Any?>?): Any? = try {

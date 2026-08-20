@@ -1257,6 +1257,7 @@ val dataModule = module {
             draftFactory = { get<MtProtoDraftRepository>() },
             deleteFactory = { get<MtProtoDeleteMessageRepository>() },
             pinnedFactory = { get<MtProtoPinnedMessageRepository>() },
+            historyRepository = get<MtProtoMessageHistorySnapshotRepository>(),
             scope = get(),
         ).repository
     }

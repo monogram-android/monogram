@@ -11,6 +11,15 @@ import org.junit.Assert.assertThrows
 import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.monogram.domain.models.DialogPeerType
+import org.monogram.domain.models.MessageHistorySnapshotModel
+import org.monogram.domain.models.MessageHistorySnapshotPage
+import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.HistoryAnchor
+import org.monogram.domain.repository.HistoryDirection
+import org.monogram.domain.repository.HistoryRequest
+import org.monogram.domain.repository.ConversationKey
+import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.data.mtproto.MtProtoDeleteMessageRepository
 import org.monogram.data.mtproto.MtProtoDraftRepository
@@ -48,6 +57,39 @@ class TelegramBackendMessageRouterTest {
         )
 
         assertEquals("legacy draft", router.repository.getChatDraft(1L))
+    }
+
+    @Test
+    fun `MTProto history uses the selected snapshot repository`() = runBlocking {
+        var accountId: String? = null
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            historyRepository = object : MessageHistorySnapshotRepository {
+                override suspend fun getHistory(request: org.monogram.domain.models.MessageHistorySnapshotRequest): MessageHistorySnapshotPage {
+                    accountId = request.accountId
+                    return MessageHistorySnapshotPage(
+                        messages = listOf(MessageHistorySnapshotModel(7, 9, 100, "hello", false, false, false, false, false, false, false, null, null, false)),
+                        nextCursor = null,
+                    )
+                }
+            },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        val page = router.repository.getHistoryPage(
+            HistoryRequest(
+                key = ConversationKey(TelegramPeerChatId.encode(DialogPeerType.PRIVATE, 42)),
+                anchor = HistoryAnchor.Latest,
+                direction = HistoryDirection.Initial,
+                limit = 20,
+            ),
+        )
+
+        assertEquals("default", accountId)
+        assertEquals("hello", (page.messages.single().content as org.monogram.domain.models.MessageContent.Text).text)
+        assertEquals(org.monogram.domain.repository.BoundaryState.Reached, page.olderBoundary)
     }
 
     @Test

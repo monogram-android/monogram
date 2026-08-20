@@ -230,6 +230,7 @@ import org.monogram.data.mtproto.MtProtoPrivacyRepository
 import org.monogram.data.mtproto.MtProtoProfileEditRepository
 import org.monogram.data.backend.TelegramBackendProfileEditRouter
 import org.monogram.data.backend.TelegramBackendProfilePhotoRouter
+import org.monogram.data.backend.TelegramBackendProxyRouter
 import org.monogram.data.backend.TelegramBackendUserRouter
 import org.monogram.data.repository.ProfilePhotoRepositoryImpl
 import org.monogram.data.repository.ProxyDiagnosticsRepositoryImpl
@@ -1522,9 +1523,15 @@ val dataModule = module {
     }
 
     single<ProxyRepository> {
-        ProxyRepositoryImpl(
-            remote = get(),
-            appPreferences = get()
+        TelegramBackendProxyRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                ProxyRepositoryImpl(
+                    remote = get(),
+                    appPreferences = get(),
+                )
+            },
+            scope = get(),
         )
     }
 

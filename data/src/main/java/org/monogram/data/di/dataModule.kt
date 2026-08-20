@@ -26,6 +26,7 @@ import org.monogram.data.backend.TelegramBackendMessageRouter
 import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
 import org.monogram.data.backend.TelegramBackendLimitsRouter
+import org.monogram.data.backend.TelegramBackendSessionRouter
 import org.monogram.data.backend.LegacyChatReadContracts
 import org.monogram.data.backend.TelegramBackendReadRouter
 import org.monogram.data.backend.TelegramBackendSelectionStore
@@ -134,6 +135,7 @@ import org.monogram.data.mtproto.MtProtoChatSearchRepository
 import org.monogram.data.mtproto.MtProtoChatInfoRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
 import org.monogram.data.mtproto.MtProtoNotificationSettingsRepository
+import org.monogram.data.mtproto.MtProtoSessionRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileReader
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
@@ -1175,9 +1177,13 @@ val dataModule = module {
         )
     }
 
+    single<MtProtoSessionRepository> { MtProtoSessionRepository(transportFactory = get()) }
     single<SessionRepository> {
-        SessionRepositoryImpl(
-            remote = get()
+        TelegramBackendSessionRouter(
+            selectionStore = get(),
+            legacyFactory = { SessionRepositoryImpl(remote = get()) },
+            mtProto = get(),
+            scope = get(),
         )
     }
 

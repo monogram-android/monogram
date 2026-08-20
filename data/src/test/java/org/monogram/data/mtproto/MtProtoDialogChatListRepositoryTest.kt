@@ -58,6 +58,19 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `returns public chat link from projected username`() = runTest {
+        val repository = MtProtoDialogChatListRepository(
+            FakeDialogRepository(listOf(dialog(DialogPeerType.CHANNEL, 42L, date = 1, title = "Channel", username = "@monogram"))),
+            RecordingReadHistoryRepository(),
+            backgroundScope,
+        )
+        runCurrent()
+
+        assertEquals("https://t.me/monogram", repository.getChatLink(-1000000000042L))
+        assertEquals(null, repository.getChatLink(42L))
+    }
+
+    @Test
     fun `marks projected chats read through owned receipt repository`() = runTest {
         val receipts = RecordingReadHistoryRepository()
         val repository = MtProtoDialogChatListRepository(
@@ -301,11 +314,12 @@ class MtProtoDialogChatListRepositoryTest {
             date: Int,
             title: String,
             deleted: Boolean = false,
+            username: String? = null,
         ) = DialogSnapshotModel(
             peerId = peerId,
             peerType = peerType,
             title = title,
-            username = null,
+            username = username,
             isPeerResolved = true,
             isPeerDeleted = deleted,
             isPeerForbidden = false,

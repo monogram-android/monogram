@@ -178,7 +178,12 @@ internal class MtProtoDialogChatListRepository(
         refresh()
     }
     override suspend fun clearChatHistory(chatId: Long, revoke: Boolean) = clearChatHistories(setOf(chatId), revoke)
-    override suspend fun getChatLink(chatId: Long): String? = unsupportedOperations()
+    override suspend fun getChatLink(chatId: Long): String? =
+        chatListFlow.value.firstOrNull { it.id == chatId }?.username
+            ?.trim()
+            ?.removePrefix("@")
+            ?.takeIf(String::isNotBlank)
+            ?.let { "https://t.me/$it" }
     override suspend fun reportChats(chatIds: Set<Long>, reason: String, messageIds: List<Long>) {
         reportPeerRepository.report(chatIds, reason, messageIds)
     }

@@ -1401,6 +1401,7 @@ val dataModule = module {
             pinnedFactory = { get<MtProtoPinnedMessageRepository>() },
             scheduledFactory = { get<MtProtoScheduledMessageRepository>() },
             pinnedReadFactory = { get<MtProtoPinnedMessageReader>() },
+            textFactory = { get<MtProtoTextMessageRepository>() },
             historyRepository = get<MtProtoMessageHistorySnapshotRepository>(),
             scope = get(),
         ).repository

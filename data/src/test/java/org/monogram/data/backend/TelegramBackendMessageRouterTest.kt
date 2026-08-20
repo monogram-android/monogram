@@ -25,6 +25,7 @@ import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 import org.monogram.data.mtproto.MtProtoMessagePeerType
 import org.monogram.data.mtproto.MtProtoMessageReadModel
+import org.monogram.domain.repository.MtProtoTextMessageRepository
 
 class TelegramBackendMessageRouterTest {
     @Test
@@ -183,6 +184,25 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto forwards messages through selected text repository`() = runBlocking {
+        val text = RecordingTextMessageRepository()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            textFactory = { text },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.forwardMessage(toChatId = 9L, fromChatId = 3L, messageId = 7L, sendCopy = true)
+
+        assertEquals(3L, text.request?.fromChatId)
+        assertEquals(listOf(7L), text.request?.messageIds)
+        assertEquals(listOf(9L), text.request?.targets?.map { it.chatId })
+        assertEquals(true, text.request?.options?.sendCopy)
+    }
+
+    @Test
     fun `MTProto chat lifecycle does not initialize TDLib repository`() = runBlocking {
         val router = TelegramBackendMessageRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
@@ -234,6 +254,21 @@ class TelegramBackendMessageRouterTest {
         override suspend fun setPinned(chatId: Long, messageId: Long, pinned: Boolean) {
             requests += Triple(chatId, messageId, pinned)
         }
+    }
+
+    private class RecordingTextMessageRepository : MtProtoTextMessageRepository {
+        var request: org.monogram.domain.repository.ForwardRequest? = null
+        override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String, silent: Boolean, scheduleDate: Int?, disableLinkPreview: Boolean) = Unit
+        override suspend fun sendTyping(chatId: Long, peerType: DialogPeerType, threadId: Long?) = Unit
+        override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) = Unit
+        override suspend fun setEmojiReaction(chatId: Long, peerType: DialogPeerType, messageId: Long, emoji: String?) = Unit
+        override suspend fun setPinned(chatId: Long, peerType: DialogPeerType, messageId: Long, pinned: Boolean) = Unit
+        override suspend fun forwardToSelf(chatId: Long, peerType: DialogPeerType, messageId: Long) = Unit
+        override suspend fun forwardMessages(request: org.monogram.domain.repository.ForwardRequest) { this.request = request }
+        override suspend fun sendScheduledNow(chatId: Long, peerType: DialogPeerType, messageId: Long) = Unit
+        override suspend fun clearHistory(chatId: Long, peerType: DialogPeerType, revoke: Boolean) = Unit
+        override suspend fun markMentionsRead(chatId: Long, peerType: DialogPeerType) = Unit
+        override suspend fun markReactionsRead(chatId: Long, peerType: DialogPeerType) = Unit
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

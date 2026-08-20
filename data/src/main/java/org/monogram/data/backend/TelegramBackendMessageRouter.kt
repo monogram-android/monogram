@@ -27,6 +27,7 @@ import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoMessageReadModel
 import org.monogram.data.mtproto.MtProtoScheduledMessageRepository
+import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 
 /**
@@ -49,6 +50,9 @@ internal class TelegramBackendMessageRouter(
     private val pinnedReadFactory: () -> MtProtoPinnedMessageReader = {
         error("MTProto pinned message read repository is not configured")
     },
+    private val textFactory: () -> MtProtoTextMessageRepository = {
+        error("MTProto text message repository is not configured")
+    },
     private val historyRepository: MessageHistorySnapshotRepository? = null,
     scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
@@ -60,6 +64,7 @@ internal class TelegramBackendMessageRouter(
     private val pinned by lazy(LazyThreadSafetyMode.NONE, pinnedFactory)
     private val scheduled by lazy(LazyThreadSafetyMode.NONE, scheduledFactory)
     private val pinnedRead by lazy(LazyThreadSafetyMode.NONE, pinnedReadFactory)
+    private val text by lazy(LazyThreadSafetyMode.NONE, textFactory)
 
     val repository: MessageRepository = Proxy.newProxyInstance(
         MessageRepository::class.java.classLoader,
@@ -121,6 +126,19 @@ internal class TelegramBackendMessageRouter(
                     }
                     "saveChatDraft" -> invokeDraft(method, args) { values ->
                         drafts.saveDraft(values[0] as Long, values[1] as String, values[2] as Long?, values[3] as Long?)
+                    }
+                    "forwardMessage" -> invokeDraft(method, args) { values ->
+                        text.forwardMessages(
+                            org.monogram.domain.repository.ForwardRequest(
+                                fromChatId = values[1] as Long,
+                                messageIds = listOf(values[2] as Long),
+                                targets = listOf(org.monogram.domain.repository.ForwardTarget(values[0] as Long)),
+                                options = org.monogram.domain.repository.ForwardOptions(sendCopy = values[3] as Boolean),
+                            ),
+                        )
+                    }
+                    "forwardMessages" -> invokeDraft(method, args) { values ->
+                        text.forwardMessages(values[0] as org.monogram.domain.repository.ForwardRequest)
                     }
                     "deleteMessage" -> invokeDraft(method, args) { values ->
                         deletion.delete(values[0] as Long, values[1] as List<Long>, values[2] as Boolean)

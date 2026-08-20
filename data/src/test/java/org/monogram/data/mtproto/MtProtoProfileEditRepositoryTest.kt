@@ -4,10 +4,13 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.domain.models.BirthdateModel
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.Birthday_aa6c995ca2
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
@@ -65,6 +68,34 @@ class MtProtoProfileEditRepositoryTest {
 
         repository.setEmojiStatus(null)
         assertEquals(UpdateEmojiStatus(EmojiStatusEmpty), transport.request)
+    }
+
+    @Test
+    fun `updates and clears birthday through authoritative bool`() = runBlocking {
+        val transport = Transport(true)
+        val repository = MtProtoProfileEditRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, Users())
+
+        repository.setBirthdate(BirthdateModel(day = 2, month = 3, year = 2000))
+        assertEquals(UpdateBirthday(Birthday_aa6c995ca2(2, 3, 2000)), transport.request)
+        assertTrue(transport.closed)
+
+        repository.setBirthdate(null)
+        assertEquals(UpdateBirthday(null), transport.request)
+    }
+
+    @Test
+    fun `rejects invalid birthday before opening transport`() = runBlocking {
+        var opened = false
+        val repository = MtProtoProfileEditRepository(
+            Config { config() },
+            MtProtoSessionTransportFactory { opened = true; Transport(true) },
+            Users(),
+        )
+
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.setBirthdate(BirthdateModel(day = 0, month = 3)) }
+        }
+        assertEquals(false, opened)
     }
 
     @Test

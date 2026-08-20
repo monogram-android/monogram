@@ -3,9 +3,11 @@ package org.monogram.data.mtproto
 import org.monogram.domain.models.BirthdateModel
 import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.domain.repository.UserProfileEditRepository
+import org.monogram.mtproto.tl.generated.cloud.layer223.Birthday_aa6c995ca2
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
@@ -73,7 +75,14 @@ internal class MtProtoProfileEditRepository(
             )
         }
     }
-    override suspend fun setBirthdate(birthdate: BirthdateModel?) = unsupported()
+    override suspend fun setBirthdate(birthdate: BirthdateModel?) {
+        require(birthdate == null || birthdate.day in 1..31) { "MTProto birthday day is invalid" }
+        require(birthdate == null || birthdate.month in 1..12) { "MTProto birthday month is invalid" }
+        val birthday = birthdate?.let { Birthday_aa6c995ca2(it.day, it.month, it.year) }
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(UpdateBirthday(birthday))) { "MTProto birthday update was rejected" }
+        }
+    }
     override suspend fun setPersonalChat(chatId: Long) {
         require(chatId <= -CHANNEL_OFFSET - 1L) { "MTProto personal chat must be a channel or supergroup" }
         val config = configSource.createForAccount(accountSlot)

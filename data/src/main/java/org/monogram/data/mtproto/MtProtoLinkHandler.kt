@@ -34,7 +34,9 @@ internal class MtProtoLinkHandlerImpl(
         is ParsedLink.OpenUser -> LinkAction.OpenUser(parsed.userId)
         is ParsedLink.OpenPublicChat -> resolveUsername(parsed.username)
         is ParsedLink.JoinChat -> checkInvite(parsed.inviteLink)
-        else -> throw UnsupportedOperationException("MTProto link type is not available")
+        is ParsedLink.OpenExternal -> LinkAction.OpenExternalLink(parsed.url)
+        ParsedLink.None -> LinkAction.None
+        is ParsedLink.ResolveByPhone -> throw UnsupportedOperationException("MTProto phone link resolution is not available")
     }
 
     private suspend fun checkInvite(inviteLink: String): LinkAction {

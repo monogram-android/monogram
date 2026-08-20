@@ -38,6 +38,20 @@ class MtProtoLinkHandlerTest {
     }
 
     @Test
+    fun `returns external and no-op links without opening a transport`() = runTest {
+        val handler = MtProtoLinkHandlerImpl(
+            parser = LinkParser(),
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            transportFactory = MtProtoSessionTransportFactory { error("transport must not open") },
+            users = NoOpMtProtoUserProjectionStore,
+            chats = NoOpMtProtoChatProjectionStore,
+        )
+
+        assertEquals(LinkAction.OpenExternalLink("https://example.com/path"), handler.handle("https://example.com/path"))
+        assertEquals(LinkAction.None, handler.handle("tg://unsupported"))
+    }
+
+    @Test
     fun `confirms an unjoined invite without fabricating an avatar path`() = runTest {
         val transport = RecordingTransport(
             ChatInvite_e5c19696c2(

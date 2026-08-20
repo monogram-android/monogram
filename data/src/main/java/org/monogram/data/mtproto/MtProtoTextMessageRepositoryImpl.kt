@@ -253,11 +253,25 @@ internal class MtProtoTextMessageRepositoryImpl(
         }
     }
 
-    override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) {
+    override suspend fun editText(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+        text: String,
+    ) = editText(chatId, peerType, messageId, text, emptyList())
+
+    override suspend fun editText(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+        text: String,
+        entities: List<org.monogram.domain.models.MessageEntity>,
+    ) {
         require(text.isNotBlank()) { "Message text must not be blank" }
         require(messageId in 1..Int.MAX_VALUE) { "MTProto message id must fit a positive int" }
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val protocolEntities = entities.map { it.toMtProtoEntity(scope, text) }
         val peer = resolvePeer(scope, chatId, peerType)
         val transport = transportFactory.open(accountSlot)
         try {
@@ -270,7 +284,7 @@ internal class MtProtoTextMessageRepositoryImpl(
                     message = text,
                     media = null,
                     replyMarkup = null,
-                    entities = null,
+                    entities = protocolEntities.takeIf { it.isNotEmpty() },
                     scheduleDate = null,
                     scheduleRepeatPeriod = null,
                     quickReplyShortcutId = null,

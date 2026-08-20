@@ -113,6 +113,7 @@ internal class TelegramBackendMessageRouter(
                             peerType = TelegramPeerChatId.decode(values[0] as Long).type,
                             messageId = values[1] as Long,
                             text = values[2] as String,
+                            entities = values[3] as List<org.monogram.domain.models.MessageEntity>,
                         )
                     }
                     "addMessageReaction" -> invokeDraft(method, args) { values ->

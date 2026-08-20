@@ -229,7 +229,18 @@ class TelegramBackendMessageRouterTest {
                 disableLinkPreview = true,
             ),
         )
-        router.repository.editMessage(42L, 7L, "edited")
+        router.repository.editMessage(
+            42L,
+            7L,
+            "edited",
+            listOf(
+                org.monogram.domain.models.MessageEntity(
+                    offset = 0,
+                    length = 6,
+                    type = org.monogram.domain.models.MessageEntityType.Italic,
+                ),
+            ),
+        )
         router.repository.addMessageReaction(42L, 7L, "👍")
         router.repository.removeMessageReaction(42L, 7L, "👍")
         router.repository.markAllMentionsAsRead(42L)
@@ -238,6 +249,7 @@ class TelegramBackendMessageRouterTest {
         assertEquals(2L to 4L, text.replyContext)
         assertEquals(listOf(org.monogram.domain.models.MessageEntityType.Bold), text.entityTypes)
         assertEquals(listOf(7L to "edited"), text.edited)
+        assertEquals(listOf(org.monogram.domain.models.MessageEntityType.Italic), text.editedEntityTypes)
         assertEquals(listOf("👍", null), text.reactions)
         assertEquals(1, text.mentionsRead)
         assertEquals(1, text.reactionsRead)
@@ -357,6 +369,7 @@ class TelegramBackendMessageRouterTest {
         var reactionsRead = 0
         var replyContext: Pair<Long?, Long?>? = null
         val entityTypes = mutableListOf<org.monogram.domain.models.MessageEntityType>()
+        val editedEntityTypes = mutableListOf<org.monogram.domain.models.MessageEntityType>()
         override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String, silent: Boolean, scheduleDate: Int?, disableLinkPreview: Boolean) {
             sent += text to silent
         }
@@ -391,6 +404,16 @@ class TelegramBackendMessageRouterTest {
         override suspend fun sendTyping(chatId: Long, peerType: DialogPeerType, threadId: Long?) = Unit
         override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) {
             edited += messageId to text
+        }
+        override suspend fun editText(
+            chatId: Long,
+            peerType: DialogPeerType,
+            messageId: Long,
+            text: String,
+            entities: List<org.monogram.domain.models.MessageEntity>,
+        ) {
+            edited += messageId to text
+            editedEntityTypes += entities.map { it.type }
         }
         override suspend fun setEmojiReaction(chatId: Long, peerType: DialogPeerType, messageId: Long, emoji: String?) {
             reactions += emoji

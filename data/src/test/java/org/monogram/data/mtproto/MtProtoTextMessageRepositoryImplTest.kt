@@ -398,11 +398,27 @@ class MtProtoTextMessageRepositoryImplTest {
             messages = messageStore,
         )
 
-        repository.editText(7L, DialogPeerType.PRIVATE, 8L, "edited")
+        repository.editText(
+            chatId = 7L,
+            peerType = DialogPeerType.PRIVATE,
+            messageId = 8L,
+            text = "edited",
+            entities = listOf(
+                org.monogram.domain.models.MessageEntity(
+                    offset = 0,
+                    length = 6,
+                    type = org.monogram.domain.models.MessageEntityType.Underline,
+                ),
+            ),
+        )
 
         val request = transport.method as EditMessage
         assertEquals(8, request.id)
         assertEquals("edited", request.message)
+        assertEquals(
+            listOf(org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityUnderline(0, 6)),
+            request.entities,
+        )
         assertEquals(1, messageStore.staged.size)
         assertTrue(transport.closed)
     }

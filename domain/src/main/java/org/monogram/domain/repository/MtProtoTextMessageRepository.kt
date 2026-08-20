@@ -59,6 +59,14 @@ interface MtProtoTextMessageRepository {
         text: String,
     )
 
+    suspend fun editText(
+        chatId: Long,
+        peerType: DialogPeerType,
+        messageId: Long,
+        text: String,
+        entities: List<MessageEntity>,
+    ) = editText(chatId, peerType, messageId, text)
+
     suspend fun setEmojiReaction(
         chatId: Long,
         peerType: DialogPeerType,

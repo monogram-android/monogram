@@ -9,6 +9,10 @@ import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.models.StickerType
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeCustomEmoji
+import org.monogram.mtproto.tl.generated.cloud.layer223.StickerSetCovered_1af4b31f79
+import org.monogram.mtproto.tl.generated.cloud.layer223.StickerSetCovered_34353f5c94
+import org.monogram.mtproto.tl.generated.cloud.layer223.StickerSetFullCovered
+import org.monogram.mtproto.tl.generated.cloud.layer223.StickerSetMultiCovered
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeImageSize
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeSticker
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeVideo
@@ -20,6 +24,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentSticke
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickers_7d9ce2d574
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchStickers
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickerSets_215fe0f754
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchStickerSets
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.RecentStickers_ee91009b24
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.StickerSet_ec0b3f33d3
 
@@ -103,7 +109,46 @@ internal class MtProtoStickerRepository(
         }
     }
     override suspend fun getStickerEmojiHints(query: String): List<String> = unsupported("sticker emoji hints")
-    override suspend fun searchStickerSets(query: String): List<StickerSetModel> = unsupported("sticker-set search")
+    override suspend fun searchStickerSets(query: String): List<StickerSetModel> {
+        val normalized = query.trim()
+        if (normalized.isEmpty()) return emptyList()
+        return transportFactory.open(accountSlot).use { transport ->
+            val result = transport.execute(SearchStickerSets(excludeFeatured = false, q = normalized, hash = 0))
+                as? FoundStickerSets_215fe0f754
+                ?: error("Unsupported MTProto sticker-set search response")
+            result.sets.mapNotNull { it.toDomain() }
+        }
+    }
+
+    private fun StickerSetCovered_1af4b31f79.toDomain(): StickerSetModel? = when (this) {
+        is StickerSetCovered_34353f5c94 -> summary(set_, listOf(cover), cover)
+        is StickerSetMultiCovered -> summary(set_, emptyList(), covers.firstOrNull())
+        is StickerSetFullCovered -> summary(set_, documents, documents.firstOrNull())
+        else -> null
+    }
+
+    private fun summary(
+        rawSet: org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_e88393a32f,
+        rawStickers: List<org.monogram.mtproto.tl.generated.cloud.layer223.Document_323aaa1d96>,
+        rawThumbnail: org.monogram.mtproto.tl.generated.cloud.layer223.Document_323aaa1d96?,
+    ): StickerSetModel? {
+        val set = rawSet as? org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701 ?: return null
+        return StickerSetModel(
+            id = set.id,
+            title = set.title,
+            name = set.shortName,
+            stickers = rawStickers.mapNotNull { (it as? Document_be725c3b31)?.toDomain() },
+            thumbnail = (rawThumbnail as? Document_be725c3b31)?.toDomain(),
+            isInstalled = set.installedDate != null,
+            isArchived = set.archived,
+            isOfficial = set.official,
+            stickerType = when {
+                set.emojis -> StickerType.CUSTOM_EMOJI
+                set.masks -> StickerType.MASK
+                else -> StickerType.REGULAR
+            },
+        )
+    }
 
     private fun StickerSet_ec0b3f33d3.toDomain(): StickerSetModel? {
         val set = set_ as? org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701 ?: return null

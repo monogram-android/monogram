@@ -44,6 +44,7 @@ internal class MtProtoDialogChatListRepository(
     private val deletePrivateDialogRepository: MtProtoDeletePrivateDialogRepository = MtProtoDeletePrivateDialogRepository { },
     private val reportPeerRepository: MtProtoReportPeerRepository = MtProtoReportPeerRepository { _, _, _ -> },
     private val dialogUnreadRepository: MtProtoDialogUnreadRepository = MtProtoDialogUnreadRepository { _, _ -> },
+    private val folderRepository: MtProtoFolderRepository? = null,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
@@ -57,11 +58,15 @@ internal class MtProtoDialogChatListRepository(
     private val _foldersFlow = MutableStateFlow(listOf(ALL_CHATS_FOLDER))
     override val foldersFlow: StateFlow<List<FolderModel>> = _foldersFlow.asStateFlow()
     private val _folderLoadingFlow = MutableSharedFlow<FolderLoadingUpdate>(replay = 1, extraBufferCapacity = 1)
+    private var selectedFolderId = ALL_CHATS_FOLDER_ID
     override val folderLoadingFlow: Flow<FolderLoadingUpdate> = _folderLoadingFlow.asSharedFlow()
     override val isArchivePinned = MutableStateFlow(false).asStateFlow()
     override val isArchiveAlwaysVisible = MutableStateFlow(false).asStateFlow()
 
     init {
+        folderRepository?.let { folders ->
+            scope.launch { folders.foldersFlow.collect { _foldersFlow.value = listOf(ALL_CHATS_FOLDER) + it } }
+        }
         dialogUpdates?.let { updates ->
             scope.launch {
                 updates.collect(::publishDialogs)
@@ -73,7 +78,8 @@ internal class MtProtoDialogChatListRepository(
     override fun loadNextChunk(limit: Int) = Unit
 
     override fun selectFolder(folderId: Int) {
-        require(folderId == ALL_CHATS_FOLDER_ID) { "MTProto custom folders are not available" }
+        require(folderId == ALL_CHATS_FOLDER_ID || _foldersFlow.value.any { it.id == folderId }) { "Unknown MTProto folder: $folderId" }
+        selectedFolderId = folderId
         scope.launch { publishCurrentChats() }
     }
 
@@ -102,13 +108,15 @@ internal class MtProtoDialogChatListRepository(
 
     override fun retryConnection() = refresh()
 
-    override suspend fun createFolder(title: String, iconName: String?, includedChatIds: List<Long>) = unsupportedFolders()
+    override suspend fun createFolder(title: String, iconName: String?, includedChatIds: List<Long>) =
+        requireFolderRepository().createFolder(title, iconName, includedChatIds)
 
-    override suspend fun deleteFolder(folderId: Int) = unsupportedFolders()
+    override suspend fun deleteFolder(folderId: Int) = requireFolderRepository().deleteFolder(folderId)
 
-    override suspend fun updateFolder(folderId: Int, title: String, iconName: String?, includedChatIds: List<Long>) = unsupportedFolders()
+    override suspend fun updateFolder(folderId: Int, title: String, iconName: String?, includedChatIds: List<Long>) =
+        requireFolderRepository().updateFolder(folderId, title, iconName, includedChatIds)
 
-    override suspend fun reorderFolders(folderIds: List<Int>) = unsupportedFolders()
+    override suspend fun reorderFolders(folderIds: List<Int>) = requireFolderRepository().reorderFolders(folderIds)
 
     private suspend fun publishDialogs(dialogs: List<DialogSnapshotModel>) {
         _chatListFlow.value = dialogs.mapNotNull(::toChatModel)
@@ -117,7 +125,13 @@ internal class MtProtoDialogChatListRepository(
     }
 
     private suspend fun publishCurrentChats() {
-        _folderChatsFlow.emit(FolderChatsUpdate(ALL_CHATS_FOLDER_ID, chatListFlow.value))
+        val chats = if (selectedFolderId == ALL_CHATS_FOLDER_ID) {
+            chatListFlow.value
+        } else {
+            val included = _foldersFlow.value.first { it.id == selectedFolderId }.includedChatIds.toSet()
+            chatListFlow.value.filter { it.id in included }
+        }
+        _folderChatsFlow.emit(FolderChatsUpdate(selectedFolderId, chats))
     }
 
     private fun toChatModel(dialog: DialogSnapshotModel): ChatModel? = with(dialog) {
@@ -200,6 +214,10 @@ internal class MtProtoDialogChatListRepository(
     }
     override suspend fun reportChat(chatId: Long, reason: String, messageIds: List<Long>) =
         reportChats(setOf(chatId), reason, messageIds)
+
+    private fun requireFolderRepository(): MtProtoFolderRepository = requireNotNull(folderRepository) {
+        "MTProto folder repository is not configured"
+    }
 
     private suspend fun markChatsRead(chatIds: Set<Long>) {
         chatListFlow.value

@@ -135,6 +135,7 @@ import org.monogram.data.mtproto.MtProtoReportPeerRepository
 import org.monogram.data.mtproto.MtProtoReportPeerRepositoryImpl
 import org.monogram.data.mtproto.MtProtoMessageDeletionRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogChatListRepository
+import org.monogram.data.mtproto.MtProtoFolderRepository
 import org.monogram.data.mtproto.MtProtoEmojiRepository
 import org.monogram.data.mtproto.MtProtoArchiveRepository
 import org.monogram.data.mtproto.MtProtoArchiveRepositoryImpl
@@ -1111,6 +1112,16 @@ val dataModule = module {
             dialogs = get<MtProtoDialogSnapshotRepository>(),
         )
     }
+    single<MtProtoFolderRepository> {
+        MtProtoFolderRepository(
+            configSource = get(),
+            transportFactory = get(),
+            userStore = get(),
+            chatStore = get(),
+            keyValueDao = get(),
+            scope = get(),
+        )
+    }
     single {
         MtProtoDialogChatListRepository(
             dialogRepository = get<MtProtoDialogSnapshotRepository>(),
@@ -1125,6 +1136,7 @@ val dataModule = module {
             deletePrivateDialogRepository = get(),
             reportPeerRepository = get(),
             dialogUnreadRepository = get(),
+            folderRepository = get(),
         )
     }
     single {

@@ -24,10 +24,13 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeImageSi
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeSticker
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeVideo
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetId
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetShortName
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AllStickers_638a4b63d6
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ArchivedStickers_8455cc1f39
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ClearRecentStickers
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetAllStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetArchivedStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
@@ -55,7 +58,21 @@ internal class MtProtoStickerRepository(
     override val archivedStickerSets: StateFlow<List<StickerSetModel>> = archivedSets
     override val archivedEmojiSets: StateFlow<List<StickerSetModel>> = archivedEmojis
 
-    override suspend fun loadInstalledStickerSets() = unsupported("sticker-set refresh")
+    override suspend fun loadInstalledStickerSets() {
+        val resolved = transportFactory.open(accountSlot).use { transport ->
+            val all = transport.execute(GetAllStickers(0)) as? AllStickers_638a4b63d6
+                ?: error("Unsupported MTProto installed stickers response")
+            all.sets.filterIsInstance<org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701>()
+                .filter { !it.masks && !it.emojis }
+                .map { set ->
+                    transport.execute(GetStickerSet(InputStickerSetId(set.id, set.accessHash), 0))
+                        as? StickerSet_ec0b3f33d3
+                        ?: error("Unsupported MTProto installed sticker-set response")
+                }
+        }
+        resolved.flatMap { it.documents.filterIsInstance<Document_be725c3b31>() }.also { stageDocuments(it) }
+        unsupportedSets.value = resolved.mapNotNull { it.toDomain() }
+    }
     override suspend fun loadCustomEmojiStickerSets() = unsupported("custom emoji refresh")
     override suspend fun loadArchivedStickerSets() {
         archivedSets.value = loadArchived(emojis = false)

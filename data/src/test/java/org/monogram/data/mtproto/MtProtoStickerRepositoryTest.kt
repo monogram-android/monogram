@@ -10,8 +10,10 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetShortName
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AllStickers_638a4b63d6
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ArchivedStickers_8455cc1f39
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ClearRecentStickers
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetAllStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetArchivedStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.RecentStickers_ee91009b24
@@ -47,6 +49,18 @@ class MtProtoStickerRepositoryTest {
             runBlocking { repository.getStickerSetByName("  ") }
         }
         assertEquals(false, opened)
+    }
+
+    @Test
+    fun `loads installed regular sticker state`() = runBlocking {
+        val transport = Transport(AllStickers_638a4b63d6(0, emptyList()))
+        val repository = repository { transport }
+
+        repository.loadInstalledStickerSets()
+
+        assertEquals(emptyList<Any>(), repository.installedStickerSets.value)
+        assertEquals(GetAllStickers(0), transport.request)
+        assertEquals(true, transport.closed)
     }
 
     @Test

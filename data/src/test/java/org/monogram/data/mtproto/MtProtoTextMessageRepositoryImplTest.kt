@@ -3,6 +3,7 @@ package org.monogram.data.mtproto
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.repository.ForwardOptions
@@ -78,6 +79,75 @@ class MtProtoTextMessageRepositoryImplTest {
         assertEquals(3, reply.replyToMsgId)
         assertEquals(5, reply.topMsgId)
         assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `sends supported rich text entities through owned transport`() = runBlocking {
+        val transport = RecordingTransport()
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = NoOpMtProtoMessageProjectionStore,
+        )
+
+        repository.sendText(
+            chatId = 7L,
+            peerType = DialogPeerType.PRIVATE,
+            text = "bold link",
+            silent = false,
+            scheduleDate = null,
+            disableLinkPreview = false,
+            replyToMessageId = null,
+            threadId = null,
+            entities = listOf(
+                org.monogram.domain.models.MessageEntity(0, 4, org.monogram.domain.models.MessageEntityType.Bold),
+                org.monogram.domain.models.MessageEntity(5, 4, org.monogram.domain.models.MessageEntityType.TextUrl("https://example.com")),
+            ),
+        )
+
+        val entities = (transport.method as SendMessage).entities!!
+        assertEquals(org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityBold(0, 4), entities[0])
+        assertEquals(
+            org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityTextUrl(5, 4, "https://example.com"),
+            entities[1],
+        )
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `rejects unsupported rich text before opening MTProto transport`() = runBlocking {
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { error("transport must not open") },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = NoOpMtProtoMessageProjectionStore,
+        )
+
+        assertThrows(UnsupportedOperationException::class.java) {
+            runBlocking {
+                repository.sendText(
+                    chatId = 7L,
+                    peerType = DialogPeerType.PRIVATE,
+                    text = "timestamp",
+                    silent = false,
+                    scheduleDate = null,
+                    disableLinkPreview = false,
+                    replyToMessageId = null,
+                    threadId = null,
+                    entities = listOf(
+                        org.monogram.domain.models.MessageEntity(
+                            0,
+                            9,
+                            org.monogram.domain.models.MessageEntityType.MediaTimestamp(1),
+                        ),
+                    ),
+                )
+            }
+        }
+        Unit
     }
 
     @Test

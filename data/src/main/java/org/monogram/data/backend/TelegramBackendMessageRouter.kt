@@ -94,9 +94,6 @@ internal class TelegramBackendMessageRouter(
                 TelegramBackendKind.KOTLIN_MTPROTO -> when (method.name) {
                     "openChat", "closeChat" -> invokeDraft(method, args) { Unit }
                     "sendMessage" -> invokeDraft(method, args) { values ->
-                        require((values[3] as List<*>).isEmpty()) {
-                            "MTProto rich text entities are not available"
-                        }
                         val options = values[5] as org.monogram.domain.models.MessageSendOptions
                         text.sendText(
                             chatId = values[0] as Long,
@@ -107,6 +104,7 @@ internal class TelegramBackendMessageRouter(
                             disableLinkPreview = options.disableLinkPreview,
                             replyToMessageId = values[2] as Long?,
                             threadId = values[4] as Long?,
+                            entities = values[3] as List<org.monogram.domain.models.MessageEntity>,
                         )
                     }
                     "editMessage" -> invokeDraft(method, args) { values ->

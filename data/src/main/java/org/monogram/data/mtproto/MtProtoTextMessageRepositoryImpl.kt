@@ -40,44 +40,16 @@ internal class MtProtoTextMessageRepositoryImpl(
         silent: Boolean,
         scheduleDate: Int?,
         disableLinkPreview: Boolean,
-    ) {
-        require(text.isNotBlank()) { "Message text must not be blank" }
-        require(scheduleDate == null || scheduleDate > 0) { "MTProto schedule date must be positive" }
-        val config = configSource.createForAccount(accountSlot)
-        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
-        val peer = resolvePeer(scope, chatId, peerType)
-        val transport = transportFactory.open(accountSlot)
-        try {
-            val updates = transport.execute(
-                SendMessage(
-                    noWebpage = disableLinkPreview,
-                    silent = silent,
-                    background = false,
-                    clearDraft = true,
-                    noforwards = false,
-                    updateStickersetsOrder = false,
-                    invertMedia = false,
-                    allowPaidFloodskip = false,
-                    peer = peer,
-                    replyTo = null,
-                    message = text,
-                    randomId = randomId(),
-                    replyMarkup = null,
-                    entities = null,
-                    scheduleDate = scheduleDate,
-                    scheduleRepeatPeriod = null,
-                    sendAs = null,
-                    quickReplyShortcut = null,
-                    effect = null,
-                    allowPaidStars = null,
-                    suggestedPost = null,
-                )
-            )
-            messages.stageLive(scope, updates)
-        } finally {
-            transport.close()
-        }
-    }
+    ) = sendText(
+        chatId = chatId,
+        peerType = peerType,
+        text = text,
+        silent = silent,
+        scheduleDate = scheduleDate,
+        disableLinkPreview = disableLinkPreview,
+        replyToMessageId = null,
+        threadId = null,
+    )
 
     override suspend fun sendText(
         chatId: Long,
@@ -88,6 +60,50 @@ internal class MtProtoTextMessageRepositoryImpl(
         disableLinkPreview: Boolean,
         replyToMessageId: Long?,
         threadId: Long?,
+    ) = sendTextInternal(
+        chatId = chatId,
+        peerType = peerType,
+        text = text,
+        silent = silent,
+        scheduleDate = scheduleDate,
+        disableLinkPreview = disableLinkPreview,
+        replyToMessageId = replyToMessageId,
+        threadId = threadId,
+        entities = emptyList(),
+    )
+
+    override suspend fun sendText(
+        chatId: Long,
+        peerType: DialogPeerType,
+        text: String,
+        silent: Boolean,
+        scheduleDate: Int?,
+        disableLinkPreview: Boolean,
+        replyToMessageId: Long?,
+        threadId: Long?,
+        entities: List<org.monogram.domain.models.MessageEntity>,
+    ) = sendTextInternal(
+        chatId = chatId,
+        peerType = peerType,
+        text = text,
+        silent = silent,
+        scheduleDate = scheduleDate,
+        disableLinkPreview = disableLinkPreview,
+        replyToMessageId = replyToMessageId,
+        threadId = threadId,
+        entities = entities,
+    )
+
+    private suspend fun sendTextInternal(
+        chatId: Long,
+        peerType: DialogPeerType,
+        text: String,
+        silent: Boolean,
+        scheduleDate: Int?,
+        disableLinkPreview: Boolean,
+        replyToMessageId: Long?,
+        threadId: Long?,
+        entities: List<org.monogram.domain.models.MessageEntity>,
     ) {
         require(replyToMessageId == null || replyToMessageId in 1..Int.MAX_VALUE) {
             "MTProto reply message id must fit a positive int"
@@ -99,6 +115,7 @@ internal class MtProtoTextMessageRepositoryImpl(
         require(scheduleDate == null || scheduleDate > 0) { "MTProto schedule date must be positive" }
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val protocolEntities = entities.map { it.toMtProtoEntity(scope, text) }
         val peer = resolvePeer(scope, chatId, peerType)
         val transport = transportFactory.open(accountSlot)
         try {
@@ -139,7 +156,7 @@ internal class MtProtoTextMessageRepositoryImpl(
                     message = text,
                     randomId = randomId(),
                     replyMarkup = null,
-                    entities = null,
+                    entities = protocolEntities.takeIf { it.isNotEmpty() },
                     scheduleDate = scheduleDate,
                     scheduleRepeatPeriod = null,
                     sendAs = null,
@@ -152,6 +169,74 @@ internal class MtProtoTextMessageRepositoryImpl(
             messages.stageLive(scope, updates)
         } finally {
             transport.close()
+        }
+    }
+
+    private suspend fun org.monogram.domain.models.MessageEntity.toMtProtoEntity(
+        scope: MtProtoAuthKeyScope,
+        text: String,
+    ): org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntity {
+        require(offset >= 0 && length > 0 && offset <= text.length - length) {
+            "MTProto message entity range is outside the message text"
+        }
+        val end = offset + length
+        require(offset == 0 || !Character.isLowSurrogate(text[offset])) {
+            "MTProto message entity offset splits a UTF-16 surrogate pair"
+        }
+        require(end == text.length || !Character.isHighSurrogate(text[end - 1])) {
+            "MTProto message entity length splits a UTF-16 surrogate pair"
+        }
+        return when (val entityType = type) {
+            org.monogram.domain.models.MessageEntityType.Bold -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityBold(offset, length)
+            org.monogram.domain.models.MessageEntityType.Italic -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityItalic(offset, length)
+            org.monogram.domain.models.MessageEntityType.Underline -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityUnderline(offset, length)
+            org.monogram.domain.models.MessageEntityType.Strikethrough -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityStrike(offset, length)
+            org.monogram.domain.models.MessageEntityType.Spoiler -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntitySpoiler(offset, length)
+            org.monogram.domain.models.MessageEntityType.BlockQuote -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityBlockquote(false, offset, length)
+            org.monogram.domain.models.MessageEntityType.BlockQuoteExpandable -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityBlockquote(true, offset, length)
+            org.monogram.domain.models.MessageEntityType.Code -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityCode(offset, length)
+            is org.monogram.domain.models.MessageEntityType.Pre -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityPre(offset, length, entityType.language)
+            is org.monogram.domain.models.MessageEntityType.TextUrl -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityTextUrl(offset, length, entityType.url)
+            org.monogram.domain.models.MessageEntityType.Mention -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityMention(offset, length)
+            is org.monogram.domain.models.MessageEntityType.TextMention -> {
+                val user = requireNotNull(users.get(scope, entityType.userId)) {
+                    "Missing MTProto user projection for text mention: ${entityType.userId}"
+                }
+                val accessHash = requireNotNull(user.accessHash) {
+                    "Missing MTProto user access hash for text mention: ${entityType.userId}"
+                }
+                org.monogram.mtproto.tl.generated.cloud.layer223.InputMessageEntityMentionName(
+                    offset,
+                    length,
+                    org.monogram.mtproto.tl.generated.cloud.layer223.InputUser_4020eae812(entityType.userId, accessHash),
+                )
+            }
+            org.monogram.domain.models.MessageEntityType.Hashtag -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityHashtag(offset, length)
+            org.monogram.domain.models.MessageEntityType.Cashtag -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityCashtag(offset, length)
+            org.monogram.domain.models.MessageEntityType.BotCommand -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityBotCommand(offset, length)
+            org.monogram.domain.models.MessageEntityType.Url -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityUrl(offset, length)
+            org.monogram.domain.models.MessageEntityType.Email -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityEmail(offset, length)
+            org.monogram.domain.models.MessageEntityType.PhoneNumber -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityPhone(offset, length)
+            org.monogram.domain.models.MessageEntityType.BankCardNumber -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityBankCard(offset, length)
+            is org.monogram.domain.models.MessageEntityType.DateTime -> org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityFormattedDate(
+                relative = false,
+                shortTime = false,
+                longTime = false,
+                shortDate = false,
+                longDate = false,
+                dayOfWeek = false,
+                offset = offset,
+                length = length,
+                date = entityType.unixTime,
+            )
+            is org.monogram.domain.models.MessageEntityType.CustomEmoji -> {
+                require(entityType.emojiId > 0) { "MTProto custom emoji id must be positive" }
+                org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityCustomEmoji(offset, length, entityType.emojiId)
+            }
+            is org.monogram.domain.models.MessageEntityType.MediaTimestamp,
+            is org.monogram.domain.models.MessageEntityType.Other -> throw UnsupportedOperationException(
+                "MTProto message entity type is not available"
+            )
         }
     }
 

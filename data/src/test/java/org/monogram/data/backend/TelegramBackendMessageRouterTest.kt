@@ -216,6 +216,13 @@ class TelegramBackendMessageRouterTest {
             text = "hello",
             replyToMsgId = 2L,
             threadId = 4L,
+            entities = listOf(
+                org.monogram.domain.models.MessageEntity(
+                    offset = 0,
+                    length = 5,
+                    type = org.monogram.domain.models.MessageEntityType.Bold,
+                ),
+            ),
             sendOptions = org.monogram.domain.models.MessageSendOptions(
                 silent = true,
                 scheduleDate = 123,
@@ -229,6 +236,7 @@ class TelegramBackendMessageRouterTest {
         router.repository.markAllReactionsAsRead(42L)
         assertEquals(listOf("hello" to true), text.sent)
         assertEquals(2L to 4L, text.replyContext)
+        assertEquals(listOf(org.monogram.domain.models.MessageEntityType.Bold), text.entityTypes)
         assertEquals(listOf(7L to "edited"), text.edited)
         assertEquals(listOf("👍", null), text.reactions)
         assertEquals(1, text.mentionsRead)
@@ -236,31 +244,29 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
-    fun `MTProto rich text sends fail closed without initializing text transport`() = runBlocking {
+    fun `MTProto forwards unsupported rich text to its selected repository`() = runBlocking {
+        val text = RecordingTextMessageRepository()
         val router = TelegramBackendMessageRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy message repository must not be created") },
             draftFactory = { error("draft repository must not be created") },
-            textFactory = { error("MTProto text repository must not be created") },
+            textFactory = { text },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
-        assertThrows(IllegalArgumentException::class.java) {
-            runBlocking {
-                router.repository.sendMessage(
-                    chatId = 42L,
-                    text = "bold",
-                    entities = listOf(
-                        org.monogram.domain.models.MessageEntity(
-                            offset = 0,
-                            length = 4,
-                            type = org.monogram.domain.models.MessageEntityType.Bold,
-                        ),
-                    ),
-                )
-            }
-        }
-        Unit
+        router.repository.sendMessage(
+            chatId = 42L,
+            text = "timestamp",
+            entities = listOf(
+                org.monogram.domain.models.MessageEntity(
+                    offset = 0,
+                    length = 9,
+                    type = org.monogram.domain.models.MessageEntityType.MediaTimestamp(1),
+                ),
+            ),
+        )
+
+        assertEquals(listOf(org.monogram.domain.models.MessageEntityType.MediaTimestamp(1)), text.entityTypes)
     }
 
     @Test
@@ -350,6 +356,7 @@ class TelegramBackendMessageRouterTest {
         var mentionsRead = 0
         var reactionsRead = 0
         var replyContext: Pair<Long?, Long?>? = null
+        val entityTypes = mutableListOf<org.monogram.domain.models.MessageEntityType>()
         override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String, silent: Boolean, scheduleDate: Int?, disableLinkPreview: Boolean) {
             sent += text to silent
         }
@@ -365,6 +372,21 @@ class TelegramBackendMessageRouterTest {
         ) {
             sent += text to silent
             replyContext = replyToMessageId to threadId
+        }
+        override suspend fun sendText(
+            chatId: Long,
+            peerType: DialogPeerType,
+            text: String,
+            silent: Boolean,
+            scheduleDate: Int?,
+            disableLinkPreview: Boolean,
+            replyToMessageId: Long?,
+            threadId: Long?,
+            entities: List<org.monogram.domain.models.MessageEntity>,
+        ) {
+            sent += text to silent
+            replyContext = replyToMessageId to threadId
+            entityTypes += entities.map { it.type }
         }
         override suspend fun sendTyping(chatId: Long, peerType: DialogPeerType, threadId: Long?) = Unit
         override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) {

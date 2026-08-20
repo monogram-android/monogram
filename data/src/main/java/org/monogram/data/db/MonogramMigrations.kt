@@ -594,6 +594,27 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_49_50 = object : Migration(49, 50) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_file_transfer` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `fileKey` TEXT NOT NULL,
+                    `path` TEXT NOT NULL,
+                    `expectedSize` INTEGER NOT NULL,
+                    `committedOffset` INTEGER NOT NULL,
+                    `isComplete` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `fileKey`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
     val MIGRATION_48_49 = object : Migration(48, 49) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.addColumn("mtproto_message_projection", "isScheduled", "INTEGER NOT NULL DEFAULT 0")

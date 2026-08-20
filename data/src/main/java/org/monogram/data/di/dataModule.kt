@@ -538,6 +538,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_46_47,
                 MonogramMigrations.MIGRATION_47_48,
                 MonogramMigrations.MIGRATION_48_49,
+                MonogramMigrations.MIGRATION_49_50,
             )
             .build()
     }
@@ -552,6 +553,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().mtProtoDialogProjectionDao() }
     single { get<MonogramDatabase>().mtProtoMessageProjectionDao() }
     single { get<MonogramDatabase>().mtProtoDraftProjectionDao() }
+    single { get<MonogramDatabase>().mtProtoFileTransferDao() }
     single { MtProtoRoomUserProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoUserProjectionStore> { get<MtProtoRoomUserProjectionStore>() }
     single { MtProtoRoomChatProjectionStore(get(), cloudObjectDao = get()) }

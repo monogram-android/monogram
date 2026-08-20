@@ -52,6 +52,11 @@ fun Throwable.toUserMessage(defaultMessage: String = "Unknown error"): String {
     return tdMessage.ifEmpty { message ?: defaultMessage }
 }
 
+fun Throwable.isRecoverableMtProtoTransportFailure(): Boolean =
+    generateSequence(this) { it.cause }
+        .filterIsInstance<MtProtoHandshakeException>()
+        .any { it.failure == MtProtoHandshakeFailure.TRANSPORT }
+
 fun Throwable.toAuthError(): AuthError {
     if (this is MtProtoSignUpRequiredException) return AuthError.SignUpRequired
     if (this is CancellationException) return AuthError.Unexpected

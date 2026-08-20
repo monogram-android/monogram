@@ -111,6 +111,19 @@ class TdLibExceptionAuthMappingTest {
     }
 
     @Test
+    fun `identifies only transport handshake failures as recoverable process errors`() {
+        assertTrue(
+            MtProtoHandshakeException(MtProtoHandshakeFailure.TRANSPORT)
+                .isRecoverableMtProtoTransportFailure()
+        )
+        assertEquals(
+            false,
+            MtProtoHandshakeException(MtProtoHandshakeFailure.PROTOCOL_VALIDATION)
+                .isRecoverableMtProtoTransportFailure()
+        )
+    }
+
+    @Test
     fun `maps concrete socket connectivity failures to network timeout`() {
         val failures = listOf(
             SocketTimeoutException("read timed out"),

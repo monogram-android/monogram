@@ -663,6 +663,30 @@ class TelegramBackendMessageRouterTest {
         assertEquals(listOf("photo:7:photo.jpg:caption:9:10:true:11", "document:7:file.pdf:doc:12:13:false:null"), media.calls)
     }
 
+    @Test
+    fun `MTProto rejects entity-bearing media captions without legacy`() = runBlocking {
+        val media = RecordingMedia()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy must not be created") },
+            draftFactory = { error("draft must not be created") },
+            mediaFactory = { media },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking {
+                router.repository.sendPhoto(
+                    chatId = 7,
+                    photoPath = "photo.jpg",
+                    caption = "caption",
+                    captionEntities = listOf(org.monogram.domain.models.MessageEntity(0, 7, org.monogram.domain.models.MessageEntityType.Bold)),
+                )
+            }
+        }
+        assertEquals(emptyList<String>(), media.calls)
+    }
+
     private class RecordingMedia : MtProtoMediaMessageRepository {
         val calls = mutableListOf<String>()
         override suspend fun sendPhoto(chatId: Long, path: String, caption: String, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {

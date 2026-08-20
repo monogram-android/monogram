@@ -3,16 +3,25 @@ package org.monogram.data.mtproto
 import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputUserSelf
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputUser_4020eae812
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.AddContact
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.DeleteContacts
 import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetUsers
 import org.monogram.mtproto.tl.generated.cloud.layer223.Contact_fd1b8c949c
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Contacts_9469c223cd
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.GetContacts
+import org.monogram.mtproto.transport.MtProtoRpcTransport
 import org.monogram.domain.repository.UserProfileSnapshotRepository
 
 internal interface MtProtoUserProfileReader {
     suspend fun getCurrentUser(accountId: String): UserProfileSnapshotModel?
     suspend fun getUser(accountId: String, userId: Long): UserProfileSnapshotModel?
     suspend fun getContacts(accountId: String): List<UserProfileSnapshotModel>
+    suspend fun addContact(accountId: String, user: UserProfileSnapshotModel) {
+        throw UnsupportedOperationException("MTProto contact mutation is not available")
+    }
+    suspend fun removeContact(accountId: String, userId: Long) {
+        throw UnsupportedOperationException("MTProto contact mutation is not available")
+    }
 }
 
 internal class MtProtoUserProfileSnapshotRepository(
@@ -34,14 +43,57 @@ internal class MtProtoUserProfileSnapshotRepository(
         val scope = scope(accountId)
         if (sessionFactory != null) {
             sessionFactory.open(accountId).use { transport ->
-                val response = transport.execute(GetContacts(0L)) as? Contacts_9469c223cd
-                    ?: return emptyList()
-                userStore.upsert(scope, response.users)
-                val contactIds = response.contacts.filterIsInstance<Contact_fd1b8c949c>().mapTo(hashSetOf()) { it.userId }
-                return userStore.getAll(scope).filter { it.userId in contactIds }.map { it.toDomain() }
+                return refreshContacts(scope, transport)
             }
         }
         return userStore.getAll(scope).filter { it.isContact }.map { it.toDomain() }
+    }
+
+    override suspend fun addContact(accountId: String, user: UserProfileSnapshotModel) {
+        val scope = scope(accountId)
+        val accessHash = requireNotNull(userStore.get(scope, user.userId)?.accessHash) {
+            "Missing MTProto user access hash: ${user.userId}"
+        }
+        val transport = requireNotNull(sessionFactory) { "MTProto session factory is unavailable" }.open(accountId)
+        try {
+            transport.execute(
+                AddContact(
+                    addPhonePrivacyException = true,
+                    id = InputUser_4020eae812(user.userId, accessHash),
+                    firstName = user.firstName.orEmpty(),
+                    lastName = user.lastName.orEmpty(),
+                    phone = user.phoneNumber.orEmpty(),
+                    note = null,
+                )
+            )
+            refreshContacts(scope, transport)
+        } finally {
+            transport.close()
+        }
+    }
+
+    override suspend fun removeContact(accountId: String, userId: Long) {
+        val scope = scope(accountId)
+        val accessHash = requireNotNull(userStore.get(scope, userId)?.accessHash) {
+            "Missing MTProto user access hash: $userId"
+        }
+        val transport = requireNotNull(sessionFactory) { "MTProto session factory is unavailable" }.open(accountId)
+        try {
+            transport.execute(DeleteContacts(listOf(InputUser_4020eae812(userId, accessHash))))
+            refreshContacts(scope, transport)
+        } finally {
+            transport.close()
+        }
+    }
+
+    private suspend fun refreshContacts(
+        scope: MtProtoAuthKeyScope,
+        transport: MtProtoRpcTransport,
+    ): List<UserProfileSnapshotModel> {
+        val response = transport.execute(GetContacts(0L)) as? Contacts_9469c223cd ?: return emptyList()
+        userStore.upsert(scope, response.users)
+        val contactIds = response.contacts.filterIsInstance<Contact_fd1b8c949c>().mapTo(hashSetOf()) { it.userId }
+        return userStore.getAll(scope).filter { it.userId in contactIds }.map { it.toDomain() }
     }
 
     override suspend fun getUser(accountId: String, userId: Long): UserProfileSnapshotModel? {

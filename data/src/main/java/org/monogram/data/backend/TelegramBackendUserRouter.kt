@@ -111,8 +111,14 @@ internal class TelegramBackendUserRouter(
             }
         }
     }
-    override suspend fun addContact(user: UserModel) = unsupported()
-    override suspend fun removeContact(userId: Long) = unsupported()
+    override suspend fun addContact(user: UserModel) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.addContact(user)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoProfiles.addContact(accountId, user.toProfileSnapshot())
+    }
+    override suspend fun removeContact(userId: Long) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.removeContact(userId)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoProfiles.removeContact(accountId, userId)
+    }
     override suspend fun setCachedSimCountryIso(iso: String?) {
         when (selected()) {
             TelegramBackendKind.LEGACY -> legacy.setCachedSimCountryIso(iso)
@@ -123,6 +129,25 @@ internal class TelegramBackendUserRouter(
     private fun selected(): TelegramBackendKind = checkNotNull(selectedBackend.value) {
         "Telegram backend selection is not loaded"
     }
+
+    private fun UserModel.toProfileSnapshot() = UserProfileSnapshotModel(
+        userId = id,
+        firstName = firstName,
+        lastName = lastName,
+        username = username,
+        phoneNumber = phoneNumber,
+        isCurrentUser = false,
+        isContact = isContact,
+        isMutualContact = isMutualContact,
+        isDeleted = type == org.monogram.domain.models.UserTypeEnum.DELETED,
+        isBot = type == org.monogram.domain.models.UserTypeEnum.BOT,
+        isVerified = isVerified,
+        isRestricted = false,
+        isScam = isScam,
+        isFake = isFake,
+        isPremium = isPremium,
+        isPartial = false,
+    )
 
     private fun UserProfileSnapshotModel.toUserModel() = UserModel(
         id = userId,

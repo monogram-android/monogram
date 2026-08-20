@@ -11,6 +11,7 @@ import org.monogram.data.mtproto.MtProtoAccountStateResetter
 import org.monogram.data.mtproto.MtProtoAuthSessionResetter
 import org.monogram.data.mtproto.MtProtoLiveSessionResetter
 import org.monogram.data.mtproto.MtProtoUserProfileReader
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.domain.repository.UserRepository
 
@@ -24,6 +25,8 @@ class TelegramBackendUserRouterTest {
                 override suspend fun getCurrentUser(accountId: String) = profile(42)
                 override suspend fun getUser(accountId: String, userId: Long) = profile(userId)
                 override suspend fun getContacts(accountId: String) = listOf(profile(43))
+                override suspend fun addContact(accountId: String, user: UserProfileSnapshotModel) { addedId = user.userId }
+                override suspend fun removeContact(accountId: String, userId: Long) { removedId = userId }
             },
             scope = CoroutineScope(Dispatchers.Unconfined),
             mtProtoAccountStateResetter = MtProtoAccountStateResetter { _, _ -> resetCalls++ },
@@ -39,11 +42,17 @@ class TelegramBackendUserRouterTest {
         assertEquals(listOf(43L), router.getContacts().map { it.id })
         assertEquals(listOf(43L), router.searchContacts("ADA").map { it.id })
         router.setCachedSimCountryIso("US")
+        router.addContact(UserModel(id = 43, firstName = "Ada"))
+        router.removeContact(43)
+        assertEquals(43L, addedId)
+        assertEquals(43L, removedId)
         router.logOut()
         assertEquals(3, resetCalls)
     }
 
     private var resetCalls = 0
+    private var addedId: Long? = null
+    private var removedId: Long? = null
 
     private fun profile(id: Long) = UserProfileSnapshotModel(
         userId = id,

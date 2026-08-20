@@ -236,6 +236,34 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto rich text sends fail closed without initializing text transport`() = runBlocking {
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            textFactory = { error("MTProto text repository must not be created") },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking {
+                router.repository.sendMessage(
+                    chatId = 42L,
+                    text = "bold",
+                    entities = listOf(
+                        org.monogram.domain.models.MessageEntity(
+                            offset = 0,
+                            length = 4,
+                            type = org.monogram.domain.models.MessageEntityType.Bold,
+                        ),
+                    ),
+                )
+            }
+        }
+        Unit
+    }
+
+    @Test
     fun `MTProto forwards messages through selected text repository`() = runBlocking {
         val text = RecordingTextMessageRepository()
         val router = TelegramBackendMessageRouter(

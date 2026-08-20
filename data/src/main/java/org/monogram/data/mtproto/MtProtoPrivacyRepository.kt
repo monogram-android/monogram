@@ -3,6 +3,8 @@ package org.monogram.data.mtproto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.monogram.domain.models.PrivacyRule
+import org.monogram.mtproto.auth.MtProtoPasswordSrpProof
+import org.monogram.mtproto.transport.MtProtoRpcException
 import org.monogram.domain.repository.PrivacyKey
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.*
@@ -28,6 +30,10 @@ internal class MtProtoPrivacyRepository(
     private val users: MtProtoUserProjectionStore,
     private val chats: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
     private val accountSlot: String = "default",
+    private val accountStateResetter: MtProtoAccountStateResetter = MtProtoAccountStateResetter { _, _ -> },
+    private val liveSessionResetter: MtProtoLiveSessionResetter = MtProtoLiveSessionResetter {},
+    private val passwordProof: suspend (String, Password_ac67a26d5c) -> InputCheckPasswordSrp_1e0a258433 =
+        MtProtoPasswordSrpProof::create,
 ) : PrivacyRepository {
     override suspend fun getBlockedUsers(): List<Long> {
         val scope = scope()
@@ -81,7 +87,31 @@ internal class MtProtoPrivacyRepository(
         val inputRules = rules.map { it.toInputPrivacyRule(scope) }
         executePrivacy(SetPrivacy(key.toInputPrivacyKey(), inputRules))
     }
-    override suspend fun deleteAccount(reason: String, password: String) = unsupported()
+    override suspend fun deleteAccount(reason: String, password: String) {
+        var retryFreshChallenge = true
+        while (true) {
+            try {
+                transportFactory.open(accountSlot).use { transport ->
+                    val configuration = transport.execute(GetPassword) as? Password_ac67a26d5c
+                        ?: error("Unsupported MTProto password configuration")
+                    val proof = if (configuration.hasPassword) {
+                        passwordProof(password, configuration)
+                    } else {
+                        null
+                    }
+                    check(transport.execute(DeleteAccount(reason, proof))) {
+                        "MTProto account deletion was rejected"
+                    }
+                }
+                liveSessionResetter.resetLiveSession()
+                accountStateResetter.deleteAccount(accountSlot, MtProtoEnvironment.PRODUCTION)
+                return
+            } catch (rpc: MtProtoRpcException) {
+                if (!retryFreshChallenge || rpc.errorCode != 400 || rpc.rpcMessage != SRP_ID_INVALID) throw rpc
+                retryFreshChallenge = false
+            }
+        }
+    }
     override suspend fun getAccountTtl(): Int = transportFactory.open(accountSlot).use { transport ->
         (transport.execute(GetAccountTtl) as? AccountDaysTtl_f6ad918c54)?.days
             ?: error("Unsupported MTProto account TTL response")
@@ -167,6 +197,8 @@ internal class MtProtoPrivacyRepository(
             transport.execute(GetContentSettings) as? ContentSettings_33d483dc78
                 ?: error("Unsupported MTProto content settings response")
         }
-    private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto privacy setting is not available")
-    private companion object { const val PAGE_SIZE = 100 }
+    private companion object {
+        const val PAGE_SIZE = 100
+        const val SRP_ID_INVALID = "SRP_ID_INVALID"
+    }
 }

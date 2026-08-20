@@ -1738,6 +1738,8 @@ val dataModule = module {
             transportFactory = get(),
             users = get(),
             chats = get(),
+            accountStateResetter = get(),
+            liveSessionResetter = get(),
         )
     }
     single<PrivacyRepository> {

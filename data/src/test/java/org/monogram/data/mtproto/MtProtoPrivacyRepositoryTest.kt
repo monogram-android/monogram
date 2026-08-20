@@ -15,6 +15,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.PrivacyValueAllowAll
 import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoUnknown
 import org.monogram.mtproto.tl.generated.cloud.layer223.SecurePasswordKdfAlgoUnknown
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ContentSettings_33d483dc78
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputCheckPasswordEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerBlocked_161238e123
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
@@ -28,6 +29,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.account.PrivacyRules_41f
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetPrivacy
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetAccountTtl
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetContentSettings
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.DeleteAccount
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Block
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.BlockedSlice
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.GetBlocked
@@ -125,6 +127,52 @@ class MtProtoPrivacyRepositoryTest {
 
         assertEquals(GetAccountTtl, transport.requests[0])
         assertEquals(SetAccountTtl(AccountDaysTtl_f6ad918c54(365)), transport.requests[1])
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `deletes accepted account before clearing local state`() = runBlocking {
+        val transport = Transport(listOf(password(hasPassword = false), true))
+        var liveSessionResets = 0
+        var stateResets = 0
+        val repository = MtProtoPrivacyRepository(
+            Config { config() },
+            MtProtoSessionTransportFactory { transport },
+            Users(),
+            accountStateResetter = MtProtoAccountStateResetter { accountSlot, environment ->
+                assertEquals("default", accountSlot)
+                assertEquals(MtProtoEnvironment.PRODUCTION, environment)
+                stateResets++
+            },
+            liveSessionResetter = MtProtoLiveSessionResetter { liveSessionResets++ },
+        )
+
+        repository.deleteAccount("unused", "")
+
+        assertEquals(DeleteAccount("unused", null), transport.requests.last())
+        assertEquals(1, liveSessionResets)
+        assertEquals(1, stateResets)
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `does not clear local state when account deletion is rejected`() = runBlocking {
+        val transport = Transport(listOf(password(hasPassword = true), false))
+        var stateResets = 0
+        val repository = MtProtoPrivacyRepository(
+            Config { config() },
+            MtProtoSessionTransportFactory { transport },
+            Users(),
+            accountStateResetter = MtProtoAccountStateResetter { _, _ -> stateResets++ },
+            passwordProof = { _, _ -> InputCheckPasswordEmpty },
+        )
+
+        org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+            runBlocking { repository.deleteAccount("unused", "password") }
+        }
+
+        assertEquals(0, stateResets)
+        assertEquals(DeleteAccount("unused", InputCheckPasswordEmpty), transport.requests.last())
         assertTrue(transport.closed)
     }
 

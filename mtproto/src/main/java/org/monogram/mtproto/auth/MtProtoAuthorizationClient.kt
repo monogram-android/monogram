@@ -194,50 +194,8 @@ class MtProtoAuthorizationClient internal constructor(
         }
     }
 
-    private suspend fun checkPasswordOnce(password: String): Authorization_fb75ff221f {
-        val configuration = getPasswordConfiguration()
-        val algorithm = configuration.currentAlgo as?
-            PasswordKdfAlgoSha256Sha256Pbkdf2Hmacsha512Iter100000Sha256ModPow
-            ?: error("Unsupported MTProto password KDF")
-        val serverB = configuration.srpB?.toByteArray() ?: error("MTProto password challenge is missing srpB")
-        val srpId = configuration.srpId ?: error("MTProto password challenge is missing srpId")
-        val salt1 = algorithm.salt1.toByteArray()
-        val salt2 = algorithm.salt2.toByteArray()
-        val prime = algorithm.p.toByteArray()
-        val proof = try {
-            withContext(Dispatchers.Default) {
-                TelegramPasswordSrp.createProof(
-                    password = password,
-                    salt1 = salt1,
-                    salt2 = salt2,
-                    generator = algorithm.g,
-                    primeBytes = prime,
-                    serverBBytes = serverB,
-                    srpId = srpId,
-                    entropy = entropy,
-                )
-            }
-        } finally {
-            salt1.fill(0)
-            salt2.fill(0)
-            prime.fill(0)
-            serverB.fill(0)
-        }
-        return try {
-            transport.execute(
-                CheckPassword(
-                    InputCheckPasswordSrp_5100d694df(
-                        srpId = proof.srpId,
-                        a = TlBytes.copyOf(proof.a),
-                        m1 = TlBytes.copyOf(proof.m1),
-                    ),
-                ),
-            )
-        } finally {
-            proof.a.fill(0)
-            proof.m1.fill(0)
-        }
-    }
+    private suspend fun checkPasswordOnce(password: String): Authorization_fb75ff221f =
+        transport.execute(CheckPassword(MtProtoPasswordSrpProof.create(password, getPasswordConfiguration(), entropy)))
 
     private suspend fun getPasswordConfiguration(): Password_ac67a26d5c {
         val configuration = transport.execute(GetPassword) as? Password_ac67a26d5c

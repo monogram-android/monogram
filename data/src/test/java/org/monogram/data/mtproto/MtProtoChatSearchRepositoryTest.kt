@@ -12,9 +12,14 @@ import org.monogram.domain.models.DialogMessagePreviewModel
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.DialogSnapshotModel
 import org.monogram.domain.repository.DialogSnapshotRepository
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputMessagesFilterEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Found_bc39b7fc74
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.MessagesSlice
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchGlobal
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 
@@ -52,6 +57,43 @@ class MtProtoChatSearchRepositoryTest {
         assertEquals(MessageContent.Text("first match"), first.messages.single().content)
         assertEquals(1, second.messages.size)
         assertEquals(11L, second.messages.single().id)
+    }
+
+    @Test
+    fun `searches messages through MTProto and returns a server cursor`() = runBlocking {
+        val messages = RecordingSearchMessageStore()
+        val transport = RecordingSearchTransport(
+            MessagesSlice(
+                inexact = false,
+                count = 2,
+                nextRate = 9,
+                offsetIdOffset = null,
+                searchFlood = null,
+                messages = listOf(MessageEmpty(8, PeerUser(42L))),
+                topics = emptyList(),
+                chats = emptyList(),
+                users = emptyList(),
+            ),
+        )
+        val users = RecordingUserStore()
+        val repository = MtProtoChatSearchRepository(
+            dialogRepository = FakeDialogRepository(),
+            messageStore = messages,
+            configSource = TelegramMtProtoBootstrapConfigSource { testConfig() },
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            userStore = users,
+            chatStore = NoOpMtProtoChatProjectionStore,
+            resultStager = MtProtoHistoryResultStager(users, NoOpMtProtoChatProjectionStore, messages),
+        )
+
+        val result = repository.searchMessages("match", limit = 10)
+
+        val request = transport.method as SearchGlobal
+        assertEquals("match", request.q)
+        assertEquals(InputMessagesFilterEmpty, request.filter)
+        assertEquals(InputPeerEmpty, request.offsetPeer)
+        assertEquals("9:42:8", result.nextOffset)
+        assertEquals(listOf(8L), result.messages.map { it.id })
     }
 
     @Test
@@ -151,8 +193,50 @@ class MtProtoChatSearchRepositoryTest {
         )
     }
 
-    private class FakeMessageStore(private val messages: List<MtProtoMessageReadModel>) : MtProtoMessageProjectionStore by NoOpMtProtoMessageProjectionStore {
-        override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int) =
+    private class RecordingSearchTransport(private val result: Any) : MtProtoRpcTransport {
+        lateinit var method: TlMethod<*>
+
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            this.method = method
+            @Suppress("UNCHECKED_CAST")
+            return result as R
+        }
+
+        override fun close() = Unit
+    }
+
+    private class RecordingSearchMessageStore : MtProtoMessageProjectionStore by NoOpMtProtoMessageProjectionStore {
+        private val staged = mutableListOf<MtProtoMessageReadModel>()
+
+        override suspend fun stageMessages(scope: MtProtoAuthKeyScope, messages: List<org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4>) {
+            staged += messages.filterIsInstance<MessageEmpty>().map {
+                MtProtoMessageReadModel(
+                    peerType = MtProtoMessagePeerType.USER,
+                    peerId = (it.peerId as PeerUser).userId,
+                    messageId = it.id,
+                    senderType = null,
+                    senderId = null,
+                    date = it.id,
+                    text = "",
+                    isService = false,
+                    isDeleted = true,
+                    isOutgoing = false,
+                    isMentioned = false,
+                    isMediaUnread = false,
+                    isSilent = false,
+                    isPinned = false,
+                    editDate = null,
+                    groupedId = null,
+                    hasMedia = false,
+                )
+            }
+        }
+
+        override suspend fun get(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int) =
+            staged.firstOrNull { it.peerType == peerType && it.peerId == peerId && it.messageId == messageId }
+    }
+
+    private class FakeMessageStore(private val messages: List<MtProtoMessageReadModel>) : MtProtoMessageProjectionStore by NoOpMtProtoMessageProjectionStore {        override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int) =
             messages.filter { it.text.orEmpty().contains(query, ignoreCase = true) }.drop(offset).take(limit)
     }
 

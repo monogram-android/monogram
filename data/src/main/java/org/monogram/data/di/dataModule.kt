@@ -998,6 +998,7 @@ val dataModule = module {
             transportFactory = get(),
             userStore = get(),
             chatStore = get(),
+            resultStager = get(),
         )
     }
     single<ChatSearchRepository> {

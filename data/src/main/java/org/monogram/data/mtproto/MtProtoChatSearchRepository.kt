@@ -12,12 +12,24 @@ import org.monogram.domain.models.DialogSnapshotModel
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.DialogSnapshotRepository
 import org.monogram.domain.repository.SearchMessagesResult
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputMessagesFilterEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.MessageService
+import org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3
+import org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4
 import org.monogram.mtproto.tl.generated.cloud.layer223.Peer
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Found_bc39b7fc74
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Search
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.MessagesSlice
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchGlobal
 
 internal class MtProtoChatSearchRepository(
     private val dialogRepository: DialogSnapshotRepository,
@@ -26,6 +38,7 @@ internal class MtProtoChatSearchRepository(
     private val transportFactory: MtProtoSessionTransportFactory? = null,
     private val userStore: MtProtoUserProjectionStore? = null,
     private val chatStore: MtProtoChatProjectionStore? = null,
+    private val resultStager: MtProtoHistoryResultStager? = null,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : ChatSearchRepository {
     override val searchHistory: Flow<List<ChatModel>> = emptyFlow()
@@ -67,8 +80,9 @@ internal class MtProtoChatSearchRepository(
         require(limit in 1..MAX_SEARCH_PAGE_SIZE) { "Search page size must be between 1 and $MAX_SEARCH_PAGE_SIZE" }
         val normalized = query.trim()
         if (normalized.isEmpty()) return SearchMessagesResult(emptyList(), "")
-        val start = when {
+        val localStart = when {
             offset.isEmpty() -> 0
+            offset.contains(':') -> null
             else -> offset.toIntOrNull()?.takeIf { it >= 0 }
                 ?: throw IllegalArgumentException("MTProto message search offset is invalid")
         }
@@ -76,6 +90,52 @@ internal class MtProtoChatSearchRepository(
         val config = configSource?.createForAccount(accountId)
             ?: unsupported("MTProto message search is not available")
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val factory = transportFactory
+        val users = userStore
+        val chats = chatStore
+        val stager = resultStager
+        if (factory != null && users != null && chats != null && stager != null) {
+            val cursor = SearchCursor.parse(offset)
+            val transport = factory.open(accountId)
+            val result = try {
+                transport.execute(
+                    SearchGlobal(
+                        broadcastsOnly = false,
+                        groupsOnly = false,
+                        usersOnly = false,
+                        folderId = null,
+                        q = normalized,
+                        filter = InputMessagesFilterEmpty,
+                        minDate = 0,
+                        maxDate = 0,
+                        offsetRate = cursor.rate,
+                        offsetPeer = cursor.peer?.toInputPeer(scope, users, chats) ?: InputPeerEmpty,
+                        offsetId = cursor.messageId,
+                        limit = limit,
+                    ),
+                )
+            } finally {
+                transport.close()
+            }
+            val staged = stager.stage(scope, result)
+            val slice = result as? MessagesSlice
+            val next = slice?.nextRate?.let { rate ->
+                staged.lastOrNull()?.peer()?.let { peer ->
+                    SearchCursor(
+                        rate = rate,
+                        peer = SearchCursor.PeerCursor(peer.toChatId(scope, users, chats)),
+                        messageId = staged.last().messageId(),
+                    ).encode()
+                }
+            }.orEmpty()
+            return SearchMessagesResult(
+                staged.mapNotNull { message -> message.peer()?.let { peer ->
+                    store.get(scope, peer.toMessagePeerType(), peer.peerId(), message.messageId())?.toDomain()
+                } },
+                next,
+            )
+        }
+        val start = requireNotNull(localStart) { "MTProto message search offset is invalid" }
         val rows = store.search(scope, normalized, limit + 1, start)
         val page = rows.take(limit)
         val nextOffset = if (rows.size > limit) (start + limit).toString() else ""
@@ -168,8 +228,84 @@ internal class MtProtoChatSearchRepository(
         }
     }
 
-    private fun MtProtoMessagePeerType.toDialogPeerType() = when (this) {
-        MtProtoMessagePeerType.USER -> DialogPeerType.PRIVATE
+    private fun Message_73e57f95e4.messageId(): Int = when (this) {
+        is MessageEmpty -> id
+        is MessageService -> id
+        is Message_7b7ecf54a3 -> id
+    }
+
+    private fun Message_73e57f95e4.peer(): Peer? = when (this) {        is MessageEmpty -> peerId
+        is MessageService -> peerId
+        is Message_7b7ecf54a3 -> peerId
+    }
+
+    private suspend fun Peer.toChatId(
+        scope: MtProtoAuthKeyScope,
+        users: MtProtoUserProjectionStore,
+        chats: MtProtoChatProjectionStore,
+    ) = when (this) {
+        is PeerUser -> TelegramPeerChatId.encode(DialogPeerType.PRIVATE, userId)
+        is PeerChat -> TelegramPeerChatId.encode(DialogPeerType.BASIC_GROUP, chatId)
+        is PeerChannel -> TelegramPeerChatId.encode(
+            if (chats.get(scope, channelId)?.type == MtProtoChatType.CHANNEL) DialogPeerType.CHANNEL else DialogPeerType.SUPERGROUP,
+            channelId,
+        )
+    }
+
+    private suspend fun SearchCursor.PeerCursor.toInputPeer(
+        scope: MtProtoAuthKeyScope,
+        users: MtProtoUserProjectionStore,
+        chats: MtProtoChatProjectionStore,
+    ): InputPeer {
+        val peer = TelegramPeerChatId.decode(chatId, isChannel = false)
+        return when (peer.type) {
+            DialogPeerType.PRIVATE -> {
+                val user = requireNotNull(users.get(scope, peer.id)) { "Missing MTProto user projection: ${peer.id}" }
+                InputPeerUser(peer.id, requireNotNull(user.accessHash) { "Missing MTProto user access hash: ${peer.id}" })
+            }
+            DialogPeerType.BASIC_GROUP -> InputPeerChat(peer.id)
+            DialogPeerType.SUPERGROUP, DialogPeerType.CHANNEL -> {
+                val chat = requireNotNull(chats.get(scope, peer.id)) { "Missing MTProto chat projection: ${peer.id}" }
+                InputPeerChannel(peer.id, requireNotNull(chat.accessHash) { "Missing MTProto chat access hash: ${peer.id}" })
+            }
+            DialogPeerType.UNKNOWN -> error("Cannot search an unknown peer")
+        }
+    }
+
+    private fun Peer.peerId() = when (this) {
+        is PeerUser -> userId
+        is PeerChat -> chatId
+        is PeerChannel -> channelId
+    }
+
+    private fun Peer.toMessagePeerType() = when (this) {        is PeerUser -> MtProtoMessagePeerType.USER
+        is PeerChat -> MtProtoMessagePeerType.GROUP
+        is PeerChannel -> MtProtoMessagePeerType.CHANNEL
+    }
+
+    private data class SearchCursor(
+        val rate: Int,
+        val peer: PeerCursor?,
+        val messageId: Int,
+    ) {
+        data class PeerCursor(val chatId: Long)
+
+        fun encode() = "${rate}:${requireNotNull(peer).chatId}:${messageId}"
+
+        companion object {
+            fun parse(value: String): SearchCursor {
+                if (value.isEmpty()) return SearchCursor(0, null, 0)
+                val parts = value.split(':')
+                require(parts.size == 3) { "MTProto message search offset is invalid" }
+                val rate = parts[0].toIntOrNull() ?: error("MTProto message search offset is invalid")
+                val chatId = parts[1].toLongOrNull()?.takeIf { it != 0L } ?: error("MTProto message search offset is invalid")
+                val messageId = parts[2].toIntOrNull()?.takeIf { it > 0 } ?: error("MTProto message search offset is invalid")
+                return SearchCursor(rate, PeerCursor(chatId), messageId)
+            }
+        }
+    }
+
+    private fun MtProtoMessagePeerType.toDialogPeerType() = when (this) {        MtProtoMessagePeerType.USER -> DialogPeerType.PRIVATE
         MtProtoMessagePeerType.GROUP -> DialogPeerType.BASIC_GROUP
         MtProtoMessagePeerType.CHANNEL -> DialogPeerType.CHANNEL
     }

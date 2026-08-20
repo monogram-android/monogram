@@ -1,11 +1,17 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.domain.models.PrivacyRule
+import org.monogram.domain.repository.PrivacyKey
 import org.monogram.mtproto.tl.generated.cloud.layer223.AccountDaysTtl_f6ad918c54
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPrivacyKeyPhoneNumber
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPrivacyValueDisallowAll
+import org.monogram.mtproto.tl.generated.cloud.layer223.PrivacyValueAllowAll
 import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoUnknown
 import org.monogram.mtproto.tl.generated.cloud.layer223.SecurePasswordKdfAlgoUnknown
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ContentSettings_33d483dc78
@@ -17,6 +23,9 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAccountTtl
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetContentSettings
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetPassword
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.Password_ac67a26d5c
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetPrivacy
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.PrivacyRules_41fcd5c348
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetPrivacy
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetAccountTtl
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetContentSettings
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Block
@@ -77,6 +86,32 @@ class MtProtoPrivacyRepositoryTest {
         }
 
         assertEquals(emptyList<List<Long>>(), users.upserts)
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `reads privacy rules and stages authoritative users`() = runBlocking {
+        val transport = Transport(listOf(PrivacyRules_41fcd5c348(listOf(PrivacyValueAllowAll), emptyList(), listOf(UserEmpty(7)))))
+        val users = Users()
+        val repository = MtProtoPrivacyRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, users)
+
+        assertEquals(listOf(PrivacyRule.AllowAll), repository.getPrivacyRules(PrivacyKey.PHONE_NUMBER).first())
+        assertEquals(GetPrivacy(InputPrivacyKeyPhoneNumber), transport.requests.single())
+        assertEquals(listOf(listOf(7L)), users.upserts)
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `writes privacy rules through owned transport`() = runBlocking {
+        val transport = Transport(listOf(PrivacyRules_41fcd5c348(emptyList(), emptyList(), emptyList())))
+        val repository = MtProtoPrivacyRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, Users())
+
+        repository.setPrivacyRule(PrivacyKey.PHONE_NUMBER, listOf(PrivacyRule.AllowNone))
+
+        assertEquals(
+            SetPrivacy(InputPrivacyKeyPhoneNumber, listOf(InputPrivacyValueDisallowAll)),
+            transport.requests.single(),
+        )
         assertTrue(transport.closed)
     }
 

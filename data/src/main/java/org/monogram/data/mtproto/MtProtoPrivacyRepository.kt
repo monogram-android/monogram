@@ -1,13 +1,15 @@
 package org.monogram.data.mtproto
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import org.monogram.domain.models.PrivacyRule
 import org.monogram.domain.repository.PrivacyKey
 import org.monogram.domain.repository.PrivacyRepository
-import org.monogram.mtproto.tl.generated.cloud.layer223.AccountDaysTtl_f6ad918c54
+import org.monogram.mtproto.tl.generated.cloud.layer223.*
+import org.monogram.mtproto.tl.generated.cloud.layer223.PrivacyRule as CloudPrivacyRule
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
-import org.monogram.mtproto.tl.generated.cloud.layer223.account.ContentSettings_33d483dc78
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.*
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAccountTtl
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetPassword
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.Password_ac67a26d5c
@@ -24,6 +26,7 @@ internal class MtProtoPrivacyRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory,
     private val users: MtProtoUserProjectionStore,
+    private val chats: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
     private val accountSlot: String = "default",
 ) : PrivacyRepository {
     override suspend fun getBlockedUsers(): List<Long> {
@@ -69,8 +72,15 @@ internal class MtProtoPrivacyRepository(
         return MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
     }
 
-    override fun getPrivacyRules(key: PrivacyKey): Flow<List<PrivacyRule>> = unsupported()
-    override suspend fun setPrivacyRule(key: PrivacyKey, rules: List<PrivacyRule>) = unsupported()
+    override fun getPrivacyRules(key: PrivacyKey): Flow<List<PrivacyRule>> = flow {
+        emit(executePrivacy(GetPrivacy(key.toInputPrivacyKey())).rules.map { it.toPrivacyRule() })
+    }
+
+    override suspend fun setPrivacyRule(key: PrivacyKey, rules: List<PrivacyRule>) {
+        val scope = scope()
+        val inputRules = rules.map { it.toInputPrivacyRule(scope) }
+        executePrivacy(SetPrivacy(key.toInputPrivacyKey(), inputRules))
+    }
     override suspend fun deleteAccount(reason: String, password: String) = unsupported()
     override suspend fun getAccountTtl(): Int = transportFactory.open(accountSlot).use { transport ->
         (transport.execute(GetAccountTtl) as? AccountDaysTtl_f6ad918c54)?.days
@@ -100,6 +110,56 @@ internal class MtProtoPrivacyRepository(
                 "MTProto sensitive content update was rejected"
             }
         }
+    }
+
+    private suspend fun executePrivacy(method: org.monogram.mtproto.tl.runtime.TlMethod<PrivacyRules_815e26275e>): PrivacyRules_41fcd5c348 {
+        val result = transportFactory.open(accountSlot).use { transport ->
+            transport.execute(method) as? PrivacyRules_41fcd5c348
+                ?: error("Unsupported MTProto privacy rules response")
+        }
+        val scope = scope()
+        users.upsert(scope, result.users)
+        chats.upsert(scope, result.chats)
+        return result
+    }
+
+    private fun PrivacyKey.toInputPrivacyKey(): InputPrivacyKey = when (this) {
+        PrivacyKey.PHONE_NUMBER -> InputPrivacyKeyPhoneNumber
+        PrivacyKey.PHONE_NUMBER_SEARCH -> InputPrivacyKeyAddedByPhone
+        PrivacyKey.LAST_SEEN -> InputPrivacyKeyStatusTimestamp
+        PrivacyKey.PROFILE_PHOTO -> InputPrivacyKeyProfilePhoto
+        PrivacyKey.BIO -> InputPrivacyKeyAbout
+        PrivacyKey.FORWARDED_MESSAGES -> InputPrivacyKeyForwards
+        PrivacyKey.CALLS -> InputPrivacyKeyPhoneCall
+        PrivacyKey.GROUPS_AND_CHANNELS -> InputPrivacyKeyChatInvite
+    }
+
+    private fun CloudPrivacyRule.toPrivacyRule(): PrivacyRule = when (this) {
+        PrivacyValueAllowAll -> PrivacyRule.AllowAll
+        PrivacyValueAllowContacts -> PrivacyRule.AllowContacts
+        PrivacyValueDisallowAll -> PrivacyRule.AllowNone
+        is PrivacyValueAllowUsers -> PrivacyRule.AllowUsers(users)
+        is PrivacyValueAllowChatParticipants -> PrivacyRule.AllowChatMembers(chats)
+        PrivacyValueDisallowContacts -> PrivacyRule.DisallowContacts
+        is PrivacyValueDisallowUsers -> PrivacyRule.DisallowUsers(users)
+        is PrivacyValueDisallowChatParticipants -> PrivacyRule.DisallowChatMembers(chats)
+        else -> throw UnsupportedOperationException("MTProto privacy rule is not available")
+    }
+
+    private suspend fun PrivacyRule.toInputPrivacyRule(scope: MtProtoAuthKeyScope): InputPrivacyRule = when (this) {
+        PrivacyRule.AllowAll -> InputPrivacyValueAllowAll
+        PrivacyRule.AllowContacts -> InputPrivacyValueAllowContacts
+        PrivacyRule.AllowNone -> InputPrivacyValueDisallowAll
+        is PrivacyRule.AllowUsers -> InputPrivacyValueAllowUsers(userIds.map { it.toInputUser(scope) })
+        is PrivacyRule.AllowChatMembers -> InputPrivacyValueAllowChatParticipants(chatIds)
+        PrivacyRule.DisallowContacts -> InputPrivacyValueDisallowContacts
+        is PrivacyRule.DisallowUsers -> InputPrivacyValueDisallowUsers(userIds.map { it.toInputUser(scope) })
+        is PrivacyRule.DisallowChatMembers -> InputPrivacyValueDisallowChatParticipants(chatIds)
+    }
+
+    private suspend fun Long.toInputUser(scope: MtProtoAuthKeyScope): InputUser_0bd9c3151c {
+        val user = requireNotNull(users.get(scope, this)) { "Missing MTProto user projection: $this" }
+        return InputUser_4020eae812(this, requireNotNull(user.accessHash) { "Missing MTProto user access hash: $this" })
     }
 
     private suspend fun contentSettings(): ContentSettings_33d483dc78 =

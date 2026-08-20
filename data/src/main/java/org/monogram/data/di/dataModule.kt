@@ -1702,7 +1702,14 @@ val dataModule = module {
     }
 
     single { PrivacyRepositoryImpl(remote = get(), updates = get()) }
-    single { MtProtoPrivacyRepository(configSource = get(), transportFactory = get(), users = get()) }
+    single {
+        MtProtoPrivacyRepository(
+            configSource = get(),
+            transportFactory = get(),
+            users = get(),
+            chats = get(),
+        )
+    }
     single<PrivacyRepository> {
         TelegramBackendPrivacyRouter(
             selectionStore = get(),

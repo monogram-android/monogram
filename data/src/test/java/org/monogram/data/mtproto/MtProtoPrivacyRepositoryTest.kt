@@ -36,6 +36,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.GetBlocked
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Unblock
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
+import org.monogram.mtproto.transport.MtProtoRpcException
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 
 class MtProtoPrivacyRepositoryTest {
@@ -151,6 +152,35 @@ class MtProtoPrivacyRepositoryTest {
 
         assertEquals(DeleteAccount("unused", null), transport.requests.last())
         assertEquals(1, liveSessionResets)
+        assertEquals(1, stateResets)
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `retries account deletion with a fresh SRP challenge`() = runBlocking {
+        val transport = Transport(
+            listOf(
+                password(hasPassword = true),
+                MtProtoRpcException(400, "SRP_ID_INVALID"),
+                password(hasPassword = true),
+                true,
+            ),
+        )
+        var proofCalls = 0
+        var stateResets = 0
+        val repository = MtProtoPrivacyRepository(
+            Config { config() },
+            MtProtoSessionTransportFactory { transport },
+            Users(),
+            accountStateResetter = MtProtoAccountStateResetter { _, _ -> stateResets++ },
+            passwordProof = { _, _ -> proofCalls++; InputCheckPasswordEmpty },
+        )
+
+        repository.deleteAccount("unused", "password")
+
+        assertEquals(2, proofCalls)
+        assertEquals(2, transport.requests.filterIsInstance<DeleteAccount>().size)
+        assertEquals(2, transport.requests.filterIsInstance<GetPassword>().size)
         assertEquals(1, stateResets)
         assertTrue(transport.closed)
     }

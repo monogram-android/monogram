@@ -593,6 +593,7 @@ val dataModule = module {
             configSource = get(),
             handles = get(),
             locations = get(),
+            photos = get(),
             transfers = get(),
             coordinator = get(),
             scope = get(),

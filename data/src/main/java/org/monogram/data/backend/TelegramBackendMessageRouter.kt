@@ -291,6 +291,7 @@ internal class TelegramBackendMessageRouter(
         groupedId = groupedId,
         isPinned = isPinned,
         documentId = documentId,
+        photoId = photoId,
     )
 
     private suspend fun MessageHistorySnapshotModel.toMessageModel(chatId: Long): MessageModel = toMessageModel(
@@ -305,6 +306,7 @@ internal class TelegramBackendMessageRouter(
         groupedId = groupedId,
         isPinned = isPinned,
         documentId = documentId,
+        photoId = photoId,
     )
 
     private suspend fun toMessageModel(
@@ -319,6 +321,7 @@ internal class TelegramBackendMessageRouter(
         groupedId: Long?,
         isPinned: Boolean,
         documentId: Long?,
+        photoId: Long?,
     ): MessageModel {
         val content = when {
             isService -> MessageContent.Service(text.orEmpty())
@@ -330,6 +333,16 @@ internal class TelegramBackendMessageRouter(
                     size = document.size,
                     caption = text.orEmpty(),
                     fileId = document.fileId,
+                )
+            } ?: MessageContent.Text(text.orEmpty())
+            photoId != null -> files.registerPhoto(photoId, chatId, messageId)?.let { photo ->
+                MessageContent.Photo(
+                    path = files.getPath(photo.fileId),
+                    width = photo.width,
+                    height = photo.height,
+                    caption = text.orEmpty(),
+                    fileId = photo.fileId,
+                    originalFileId = photo.fileId,
                 )
             } ?: MessageContent.Text(text.orEmpty())
             else -> MessageContent.Text(text.orEmpty())

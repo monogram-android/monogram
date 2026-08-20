@@ -142,6 +142,53 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto maps projected photos to opaque download handles`() = runBlocking {
+        val files = RecordingMtProtoFiles().apply {
+            photo = org.monogram.data.mtproto.MtProtoPhotoFile(fileId = 13, width = 640, height = 480, size = 80L)
+        }
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            pinnedReadFactory = {
+                MtProtoPinnedMessageReader { _, _ ->
+                    listOf(
+                        MtProtoMessageReadModel(
+                            peerType = MtProtoMessagePeerType.USER,
+                            peerId = 1L,
+                            messageId = 8,
+                            senderType = null,
+                            senderId = null,
+                            date = 100,
+                            text = "caption",
+                            isService = false,
+                            isDeleted = false,
+                            isOutgoing = false,
+                            isMentioned = false,
+                            isMediaUnread = false,
+                            isSilent = false,
+                            isPinned = false,
+                            editDate = null,
+                            groupedId = null,
+                            hasMedia = true,
+                            photoId = 19L,
+                        )
+                    )
+                }
+            },
+            fileFactory = { files },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        val content = router.repository.getPinnedMessage(1L)?.content as org.monogram.domain.models.MessageContent.Photo
+
+        assertEquals(13, content.fileId)
+        assertEquals(640, content.width)
+        assertEquals(480, content.height)
+        assertEquals(listOf(Triple(19L, 1L, 8L)), files.registeredPhotos)
+    }
+
+    @Test
     fun `MTProto maps projected documents to opaque download handles`() = runBlocking {
         val files = RecordingMtProtoFiles().apply {
             document = org.monogram.data.mtproto.MtProtoDocumentFile(
@@ -431,11 +478,18 @@ class TelegramBackendMessageRouterTest {
         val downloads = mutableListOf<Pair<Int, Pair<Long, Long>>>()
         val cancelled = mutableListOf<Int>()
         val registered = mutableListOf<Triple<Long, Long, Long>>()
+        val registeredPhotos = mutableListOf<Triple<Long, Long, Long>>()
         var document: org.monogram.data.mtproto.MtProtoDocumentFile? = null
+        var photo: org.monogram.data.mtproto.MtProtoPhotoFile? = null
 
         override suspend fun registerDocument(documentId: Long, chatId: Long, messageId: Long): org.monogram.data.mtproto.MtProtoDocumentFile? {
             registered += Triple(documentId, chatId, messageId)
             return document
+        }
+
+        override suspend fun registerPhoto(photoId: Long, chatId: Long, messageId: Long): org.monogram.data.mtproto.MtProtoPhotoFile? {
+            registeredPhotos += Triple(photoId, chatId, messageId)
+            return photo
         }
 
         override fun download(fileId: Int, offset: Long, limit: Long) {

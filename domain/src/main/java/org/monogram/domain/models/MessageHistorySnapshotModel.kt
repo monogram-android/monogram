@@ -34,4 +34,5 @@ data class MessageHistorySnapshotModel(
     val groupedId: Long?,
     val hasMedia: Boolean,
     val documentId: Long? = null,
+    val photoId: Long? = null,
 )

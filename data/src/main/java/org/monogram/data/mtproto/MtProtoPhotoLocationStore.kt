@@ -20,12 +20,14 @@ internal data class MtProtoPhotoLocation(
 internal interface MtProtoPhotoLocationStore {
     suspend fun upsert(scope: MtProtoAuthKeyScope, photo: Photo_97e0ed8316)
     suspend fun get(scope: MtProtoAuthKeyScope, photoId: Long, thumbSize: String): MtProtoPhotoLocation?
+    suspend fun getLargest(scope: MtProtoAuthKeyScope, photoId: Long): MtProtoPhotoLocation?
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
 
 internal object NoOpMtProtoPhotoLocationStore : MtProtoPhotoLocationStore {
     override suspend fun upsert(scope: MtProtoAuthKeyScope, photo: Photo_97e0ed8316) = Unit
     override suspend fun get(scope: MtProtoAuthKeyScope, photoId: Long, thumbSize: String): MtProtoPhotoLocation? = null
+    override suspend fun getLargest(scope: MtProtoAuthKeyScope, photoId: Long): MtProtoPhotoLocation? = null
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
 
@@ -63,21 +65,24 @@ internal class MtProtoRoomPhotoLocationStore(
     }
 
     override suspend fun get(scope: MtProtoAuthKeyScope, photoId: Long, thumbSize: String): MtProtoPhotoLocation? =
-        dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId, photoId, thumbSize)?.let {
-            MtProtoPhotoLocation(
-                photoId = it.photoId,
-                thumbSize = it.thumbSize,
-                accessHash = it.accessHash,
-                fileReference = it.fileReference,
-                photoDcId = it.photoDcId,
-                width = it.width,
-                height = it.height,
-                size = it.size,
-            )
-        }
+        dao.get(scope.accountSlot, scope.environment.storageName, scope.dcId, photoId, thumbSize)?.toLocation()
+
+    override suspend fun getLargest(scope: MtProtoAuthKeyScope, photoId: Long): MtProtoPhotoLocation? =
+        dao.getLargest(scope.accountSlot, scope.environment.storageName, scope.dcId, photoId)?.toLocation()
 
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
         dao.deleteAccount(accountSlot, environment.storageName)
+
+    private fun MtProtoPhotoLocationEntity.toLocation() = MtProtoPhotoLocation(
+        photoId = photoId,
+        thumbSize = thumbSize,
+        accessHash = accessHash,
+        fileReference = fileReference,
+        photoDcId = photoDcId,
+        width = width,
+        height = height,
+        size = size,
+    )
 
     private data class PhotoSizeLocation(
         val type: String,

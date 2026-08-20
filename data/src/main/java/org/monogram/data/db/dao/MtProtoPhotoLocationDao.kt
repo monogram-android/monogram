@@ -21,6 +21,18 @@ interface MtProtoPhotoLocationDao {
         thumbSize: String,
     ): MtProtoPhotoLocationEntity?
 
+    @Query(
+        "SELECT * FROM mtproto_photo_location WHERE accountSlot = :accountSlot " +
+            "AND environment = :environment AND sessionDcId = :sessionDcId AND photoId = :photoId " +
+            "ORDER BY (width * height) DESC, size DESC LIMIT 1"
+    )
+    suspend fun getLargest(
+        accountSlot: String,
+        environment: String,
+        sessionDcId: Int,
+        photoId: Long,
+    ): MtProtoPhotoLocationEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entities: List<MtProtoPhotoLocationEntity>)
 

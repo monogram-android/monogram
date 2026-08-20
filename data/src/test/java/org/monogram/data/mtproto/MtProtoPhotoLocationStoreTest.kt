@@ -57,6 +57,15 @@ class MtProtoPhotoLocationStoreTest {
             thumbSize: String,
         ) = locations[listOf(accountSlot, environment, sessionDcId, photoId, thumbSize)]
 
+        override suspend fun getLargest(
+            accountSlot: String,
+            environment: String,
+            sessionDcId: Int,
+            photoId: Long,
+        ) = locations.values
+            .filter { it.accountSlot == accountSlot && it.environment == environment && it.sessionDcId == sessionDcId && it.photoId == photoId }
+            .maxWithOrNull(compareBy<MtProtoPhotoLocationEntity> { it.width.toLong() * it.height }.thenBy { it.size })
+
         override suspend fun upsert(entities: List<MtProtoPhotoLocationEntity>) {
             entities.forEach { entity ->
                 locations[listOf(entity.accountSlot, entity.environment, entity.sessionDcId, entity.photoId, entity.thumbSize)] = entity

@@ -37,6 +37,7 @@ internal class MtProtoTextMessageRepositoryImpl(
         text: String,
         silent: Boolean,
         scheduleDate: Int?,
+        disableLinkPreview: Boolean,
     ) {
         require(text.isNotBlank()) { "Message text must not be blank" }
         require(scheduleDate == null || scheduleDate > 0) { "MTProto schedule date must be positive" }
@@ -47,7 +48,7 @@ internal class MtProtoTextMessageRepositoryImpl(
         try {
             val updates = transport.execute(
                 SendMessage(
-                    noWebpage = false,
+                    noWebpage = disableLinkPreview,
                     silent = silent,
                     background = false,
                     clearDraft = true,

@@ -46,6 +46,7 @@ class MtProtoTextMessageRepositoryImplTest {
         val request = transport.method as SendMessage
         assertEquals("hello", request.message)
         assertEquals(99L, request.randomId)
+        assertTrue(!request.noWebpage)
         assertEquals(InputPeerUser(7L, 70L), request.peer)
         assertEquals(1, messageStore.staged.size)
         assertTrue(transport.closed)
@@ -64,11 +65,19 @@ class MtProtoTextMessageRepositoryImplTest {
             randomId = { 99L },
         )
 
-        repository.sendText(7L, DialogPeerType.PRIVATE, "later", silent = true, scheduleDate = 1_700_000_000)
+        repository.sendText(
+            7L,
+            DialogPeerType.PRIVATE,
+            "later",
+            silent = true,
+            scheduleDate = 1_700_000_000,
+            disableLinkPreview = true,
+        )
 
         val request = transport.method as SendMessage
         assertEquals("later", request.message)
         assertTrue(request.silent)
+        assertTrue(request.noWebpage)
         assertEquals(1_700_000_000, request.scheduleDate)
         assertEquals(1, messageStore.staged.size)
         assertTrue(transport.closed)

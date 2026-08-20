@@ -216,6 +216,7 @@ internal fun DefaultChatComponent.handleSendMessage(
                 text = text,
                 silent = sendOptions.silent,
                 scheduleDate = sendOptions.scheduleDate,
+                disableLinkPreview = sendOptions.disableLinkPreview,
             )
         } else if (parseMode == null) {
             repositoryMessage.sendMessage(

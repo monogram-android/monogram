@@ -10,6 +10,7 @@ interface MtProtoTextMessageRepository {
         text: String,
         silent: Boolean = false,
         scheduleDate: Int? = null,
+        disableLinkPreview: Boolean = false,
     )
 
     suspend fun editText(

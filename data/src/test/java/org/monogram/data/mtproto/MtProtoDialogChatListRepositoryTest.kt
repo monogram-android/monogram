@@ -2,6 +2,8 @@ package org.monogram.data.mtproto
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -11,7 +13,11 @@ import org.junit.Test
 import org.monogram.domain.models.DialogMessagePreviewModel
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.DialogSnapshotModel
+import org.monogram.domain.models.FolderModel
+import org.monogram.domain.repository.ChatFolderRepository
 import org.monogram.domain.repository.DialogSnapshotRepository
+import org.monogram.domain.repository.FolderChatsUpdate
+import org.monogram.domain.repository.FolderLoadingUpdate
 import org.monogram.domain.repository.MtProtoReadHistoryRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -235,6 +241,32 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `configured custom folder filters chats and accepts read markers`() = runTest {
+        val folders = FakeFolderRepository(FolderModel(0, "Work", null, includedChatIds = listOf(42L)))
+        val receipts = RecordingReadHistoryRepository()
+        val repository = MtProtoDialogChatListRepository(
+            FakeDialogRepository(
+                listOf(
+                    dialog(DialogPeerType.PRIVATE, 42L, date = 7, title = "Included"),
+                    dialog(DialogPeerType.PRIVATE, 43L, date = 8, title = "Excluded"),
+                ),
+            ),
+            receipts,
+            backgroundScope,
+            folderRepository = folders,
+        )
+        runCurrent()
+
+        repository.selectFolder(0)
+        runCurrent()
+        assertEquals(listOf(42L), repository.folderChatsFlow.first().chats.map { it.id })
+
+        repository.markFolderAsRead(0, setOf(42L))
+        runCurrent()
+        assertEquals(listOf(Triple(42L, DialogPeerType.PRIVATE, 7L)), receipts.requests)
+    }
+
+    @Test
     fun `custom folders are rejected rather than delegated to TDLib`() = runTest {
         val repository = MtProtoDialogChatListRepository(
             FakeDialogRepository(emptyList()),
@@ -246,6 +278,16 @@ class MtProtoDialogChatListRepositoryTest {
         assertThrows(IllegalArgumentException::class.java) {
             repository.selectFolder(0)
         }
+    }
+
+    private class FakeFolderRepository(folder: FolderModel) : ChatFolderRepository {
+        override val foldersFlow = MutableStateFlow(listOf(folder))
+        override val folderChatsFlow = emptyFlow<FolderChatsUpdate>()
+        override val folderLoadingFlow = emptyFlow<FolderLoadingUpdate>()
+        override suspend fun createFolder(title: String, iconName: String?, includedChatIds: List<Long>) = Unit
+        override suspend fun deleteFolder(folderId: Int) = Unit
+        override suspend fun updateFolder(folderId: Int, title: String, iconName: String?, includedChatIds: List<Long>) = Unit
+        override suspend fun reorderFolders(folderIds: List<Int>) = Unit
     }
 
     private class RecordingDialogUnreadRepository : MtProtoDialogUnreadRepository {

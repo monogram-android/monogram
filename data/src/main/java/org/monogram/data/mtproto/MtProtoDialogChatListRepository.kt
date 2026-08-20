@@ -44,7 +44,7 @@ internal class MtProtoDialogChatListRepository(
     private val deletePrivateDialogRepository: MtProtoDeletePrivateDialogRepository = MtProtoDeletePrivateDialogRepository { },
     private val reportPeerRepository: MtProtoReportPeerRepository = MtProtoReportPeerRepository { _, _, _ -> },
     private val dialogUnreadRepository: MtProtoDialogUnreadRepository = MtProtoDialogUnreadRepository { _, _ -> },
-    private val folderRepository: MtProtoFolderRepository? = null,
+    private val folderRepository: ChatFolderRepository? = null,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
@@ -217,7 +217,7 @@ internal class MtProtoDialogChatListRepository(
     override suspend fun reportChat(chatId: Long, reason: String, messageIds: List<Long>) =
         reportChats(setOf(chatId), reason, messageIds)
 
-    private fun requireFolderRepository(): MtProtoFolderRepository = requireNotNull(folderRepository) {
+    private fun requireFolderRepository(): ChatFolderRepository = requireNotNull(folderRepository) {
         "MTProto folder repository is not configured"
     }
 

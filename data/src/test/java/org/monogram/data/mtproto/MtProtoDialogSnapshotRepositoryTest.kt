@@ -10,6 +10,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DialogsSlice
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
+import org.monogram.mtproto.transport.MtProtoRpcException
 
 class MtProtoDialogSnapshotRepositoryTest {
     @Test
@@ -30,6 +31,13 @@ class MtProtoDialogSnapshotRepositoryTest {
         assertEquals(2, dialogs.single().unreadCount)
         assertEquals(1, dialogs.single().unreadMentionsCount)
         assertEquals(true, dialogs.single().isPinned)
+    }
+
+    @Test
+    fun `parses bounded dialog flood waits only`() {
+        assertEquals(19L, MtProtoRpcException(420, "FLOOD_WAIT_19").floodWaitSeconds())
+        assertEquals(null, MtProtoRpcException(420, "FLOOD_WAIT_61").floodWaitSeconds())
+        assertEquals(null, MtProtoRpcException(400, "FLOOD_WAIT_19").floodWaitSeconds())
     }
 
     @Test

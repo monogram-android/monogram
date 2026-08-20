@@ -1,5 +1,6 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.delay
 import org.monogram.domain.models.DialogMessagePreviewModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
@@ -17,6 +18,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetDialogs
+import org.monogram.mtproto.transport.MtProtoRpcException
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.DialogSnapshotModel
 import org.monogram.domain.repository.DialogSnapshotRepository
@@ -38,8 +40,9 @@ internal class MtProtoDialogSnapshotRepository(
                 var previousCursor: DialogCursor? = null
                 var loadedDialogs = 0
                 for (pageIndex in 0 until MAX_DIALOG_PAGES) {
-                    val result = transport.execute(
-                        GetDialogs(
+                    val result = executeDialogsPage(
+                        transport = transport,
+                        request = GetDialogs(
                             excludePinned = false,
                             folderId = null,
                             offsetDate = offsetDate,
@@ -63,6 +66,21 @@ internal class MtProtoDialogSnapshotRepository(
             }
         }
         return dialogStore.getAll(scope).map { it.toDomain() }
+    }
+
+    private suspend fun executeDialogsPage(
+        transport: org.monogram.mtproto.transport.MtProtoRpcTransport,
+        request: GetDialogs,
+    ): Dialogs_ba027bdead {
+        repeat(MAX_FLOOD_WAIT_RETRIES) {
+            try {
+                return transport.execute(request)
+            } catch (rpc: MtProtoRpcException) {
+                val waitSeconds = rpc.floodWaitSeconds() ?: throw rpc
+                delay(waitSeconds * 1_000L)
+            }
+        }
+        return transport.execute(request)
     }
 
     private fun MtProtoDialogReadModel.toDomain() = DialogSnapshotModel(
@@ -156,5 +174,14 @@ internal class MtProtoDialogSnapshotRepository(
     private companion object {
         const val INITIAL_PAGE_SIZE = 100
         const val MAX_DIALOG_PAGES = 100
+        const val MAX_FLOOD_WAIT_RETRIES = 3
     }
 }
+
+internal fun MtProtoRpcException.floodWaitSeconds(): Long? =
+    DIALOG_FLOOD_WAIT_PATTERN.matchEntire(rpcMessage)?.groupValues?.get(1)?.toLongOrNull()
+        ?.takeIf { errorCode == DIALOG_FLOOD_WAIT_ERROR_CODE && it in 1..DIALOG_MAX_FLOOD_WAIT_SECONDS }
+
+private const val DIALOG_FLOOD_WAIT_ERROR_CODE = 420
+private const val DIALOG_MAX_FLOOD_WAIT_SECONDS = 60L
+private val DIALOG_FLOOD_WAIT_PATTERN = Regex("FLOOD_WAIT_(\\d+)")

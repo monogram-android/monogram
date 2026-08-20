@@ -244,6 +244,7 @@ import org.monogram.data.backend.TelegramBackendPremiumRouter
 import org.monogram.data.backend.TelegramBackendProfilePhotoRouter
 import org.monogram.data.backend.TelegramBackendProxyRouter
 import org.monogram.data.backend.TelegramBackendStorageRouter
+import org.monogram.data.backend.TelegramBackendStreamingRouter
 import org.monogram.data.backend.TelegramBackendStoryRouter
 import org.monogram.data.backend.TelegramBackendStickerRouter
 import org.monogram.data.backend.TelegramBackendWallpaperRouter
@@ -1601,9 +1602,10 @@ val dataModule = module {
     }
 
     single<StreamingRepository> {
-        StreamingRepositoryImpl(
-            fileDataSource = get(),
-            fileObserverHub = get()
+        TelegramBackendStreamingRouter(
+            selectionStore = get(),
+            legacyFactory = { StreamingRepositoryImpl(fileDataSource = get(), fileObserverHub = get()) },
+            scope = get(),
         )
     }
 

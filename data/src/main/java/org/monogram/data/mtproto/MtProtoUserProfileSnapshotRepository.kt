@@ -2,10 +2,14 @@ package org.monogram.data.mtproto
 
 import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputUserSelf
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerSettings_936a3e31f4
+import org.monogram.mtproto.tl.generated.cloud.layer223.UserFull_c1c6b6f92b
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputUser_4020eae812
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.AddContact
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.DeleteContacts
+import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetFullUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetUsers
+import org.monogram.mtproto.tl.generated.cloud.layer223.users.UserFull_a7968baaa4
 import org.monogram.mtproto.tl.generated.cloud.layer223.Contact_fd1b8c949c
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Contacts_9469c223cd
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.GetContacts
@@ -26,11 +30,15 @@ internal interface MtProtoUserProfileReader {
     suspend fun removeContact(accountId: String, userId: Long) {
         throw UnsupportedOperationException("MTProto contact mutation is not available")
     }
+    suspend fun getNeedPhoneNumberPrivacyException(accountId: String, userId: Long): Boolean {
+        throw UnsupportedOperationException("MTProto contact privacy read is not available")
+    }
 }
 
 internal class MtProtoUserProfileSnapshotRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val userStore: MtProtoUserProjectionStore,
+    private val chatStore: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
     private val sessionFactory: TelegramMtProtoSessionFactory? = null,
 ) : UserProfileSnapshotRepository, MtProtoUserProfileReader {
     override suspend fun getCurrentUser(accountId: String): UserProfileSnapshotModel? {
@@ -80,6 +88,25 @@ internal class MtProtoUserProfileSnapshotRepository(
         }
     }
 
+    override suspend fun getNeedPhoneNumberPrivacyException(accountId: String, userId: Long): Boolean {
+        require(userId > 0L) { "MTProto user ID must be positive" }
+        val scope = scope(accountId)
+        val input = requireNotNull(inputUser(scope, userId)) { "Missing MTProto user projection: $userId" }
+        val transport = requireNotNull(sessionFactory) { "MTProto session factory is unavailable" }.open(accountId)
+        val result = try {
+            transport.execute(GetFullUser(input)) as? UserFull_a7968baaa4
+                ?: error("Unsupported MTProto full user response")
+        } finally {
+            transport.close()
+        }
+        userStore.upsert(scope, result.users)
+        chatStore.upsert(scope, result.chats)
+        val full = result.fullUser as? UserFull_c1c6b6f92b
+            ?: error("Unsupported MTProto full user payload")
+        return (full.settings as? PeerSettings_936a3e31f4)?.needContactsException
+            ?: error("Unsupported MTProto peer settings payload")
+    }
+
     override suspend fun removeContact(accountId: String, userId: Long) {
         val scope = scope(accountId)
         val accessHash = requireNotNull(userStore.get(scope, userId)?.accessHash) {
@@ -118,6 +145,14 @@ internal class MtProtoUserProfileSnapshotRepository(
             }
         }
         return userStore.get(scope, userId)?.toDomain()
+    }
+
+    private suspend fun inputUser(
+        scope: MtProtoAuthKeyScope,
+        userId: Long,
+    ): org.monogram.mtproto.tl.generated.cloud.layer223.InputUser_0bd9c3151c? {
+        val user = userStore.get(scope, userId) ?: return null
+        return if (user.isSelf) InputUserSelf else user.accessHash?.let { InputUser_4020eae812(userId, it) }
     }
 
     private suspend fun scope(accountId: String): MtProtoAuthKeyScope {

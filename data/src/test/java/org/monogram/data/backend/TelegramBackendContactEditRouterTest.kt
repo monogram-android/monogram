@@ -54,19 +54,18 @@ class TelegramBackendContactEditRouterTest {
     }
 
     @Test
-    fun `selected MTProto privacy exception read fails closed`() = runBlocking {
+    fun `selected MTProto privacy exception read avoids legacy`() = runBlocking {
         val router = TelegramBackendContactEditRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy contact repository must not be created") },
             users = FakeUserRepository(),
-            mtProtoProfiles = NoOpMtProtoUserProfileReader,
+            mtProtoProfiles = object : MtProtoUserProfileReader by NoOpMtProtoUserProfileReader {
+                override suspend fun getNeedPhoneNumberPrivacyException(accountId: String, userId: Long) = true
+            },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
-        assertThrows(UnsupportedOperationException::class.java) {
-            runBlocking { router.getNeedPhoneNumberPrivacyException(7) }
-        }
-        Unit
+        assertEquals(true, router.getNeedPhoneNumberPrivacyException(7))
     }
 
     private object NoOpMtProtoUserProfileReader : MtProtoUserProfileReader {

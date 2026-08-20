@@ -742,7 +742,14 @@ val dataModule = module {
             resultStager = get(),
         )
     }
-    single { MtProtoUserProfileSnapshotRepository(get(), get(), get()) }
+    single {
+        MtProtoUserProfileSnapshotRepository(
+            configSource = get(),
+            userStore = get(),
+            chatStore = get(),
+            sessionFactory = get(),
+        )
+    }
     single<MtProtoUserProfileReader> { get<MtProtoUserProfileSnapshotRepository>() }
     single {
         MtProtoRoomCloudObjectStager(

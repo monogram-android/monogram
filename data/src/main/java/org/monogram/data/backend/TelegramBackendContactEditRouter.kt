@@ -34,7 +34,7 @@ internal class TelegramBackendContactEditRouter(
 
     override suspend fun getNeedPhoneNumberPrivacyException(userId: Long): Boolean = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getNeedPhoneNumberPrivacyException(userId)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported("phone-number privacy exception reads")
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoProfiles.getNeedPhoneNumberPrivacyException(accountId, userId)
     }
 
     override suspend fun upsertContact(user: UserModel, sharePhoneNumber: Boolean): UserModel? = when (selected()) {

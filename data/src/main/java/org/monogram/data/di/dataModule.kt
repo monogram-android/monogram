@@ -231,6 +231,8 @@ import org.monogram.data.mtproto.MtProtoProfileEditRepository
 import org.monogram.data.backend.TelegramBackendProfileEditRouter
 import org.monogram.data.backend.TelegramBackendProfilePhotoRouter
 import org.monogram.data.backend.TelegramBackendProxyRouter
+import org.monogram.data.backend.TelegramBackendStorageRouter
+import org.monogram.data.backend.TelegramBackendWallpaperRouter
 import org.monogram.data.backend.TelegramBackendUserRouter
 import org.monogram.data.repository.ProfilePhotoRepositoryImpl
 import org.monogram.data.repository.ProxyDiagnosticsRepositoryImpl
@@ -1193,26 +1195,38 @@ val dataModule = module {
     }
 
     single<WallpaperRepository> {
-        WallpaperRepositoryImpl(
-            remote = get(),
-            wallpaperDao = get(),
-            fileObserverHub = get(),
-            dispatchers = get(),
-            scope = get()
+        TelegramBackendWallpaperRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                WallpaperRepositoryImpl(
+                    remote = get(),
+                    wallpaperDao = get(),
+                    fileObserverHub = get(),
+                    dispatchers = get(),
+                    scope = get(),
+                )
+            },
+            scope = get(),
         )
     }
 
     single<StorageRepository> {
-        StorageRepositoryImpl(
-            remote = get(),
-            cache = get(),
-            chatsRemote = get(),
-            dispatchers = get(),
-            storageMapper = get(),
-            stringProvider = get(),
-            chatLocalDataSource = get(),
-            userLocalDataSource = get(),
-            stickerLocalDataSource = get()
+        TelegramBackendStorageRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                StorageRepositoryImpl(
+                    remote = get(),
+                    cache = get(),
+                    chatsRemote = get(),
+                    dispatchers = get(),
+                    storageMapper = get(),
+                    stringProvider = get(),
+                    chatLocalDataSource = get(),
+                    userLocalDataSource = get(),
+                    stickerLocalDataSource = get(),
+                )
+            },
+            scope = get(),
         )
     }
 

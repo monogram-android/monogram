@@ -22,6 +22,8 @@ import org.monogram.data.backend.TelegramBackendAttachMenuBotRouter
 import org.monogram.data.backend.TelegramBackendChatReadRouter
 import org.monogram.data.backend.TelegramBackendChatSearchRouter
 import org.monogram.data.backend.TelegramBackendChatInfoRouter
+import org.monogram.data.backend.TelegramBackendChatStatisticsRouter
+import org.monogram.data.backend.TelegramBackendBotRouter
 import org.monogram.data.backend.TelegramBackendEmojiRouter
 import org.monogram.data.backend.TelegramBackendGifRouter
 import org.monogram.data.backend.TelegramBackendContactEditRouter
@@ -233,6 +235,7 @@ import org.monogram.data.backend.TelegramBackendPrivacyRouter
 import org.monogram.data.mtproto.MtProtoPrivacyRepository
 import org.monogram.data.mtproto.MtProtoProfileEditRepository
 import org.monogram.data.backend.TelegramBackendProfileEditRouter
+import org.monogram.data.backend.TelegramBackendPremiumRouter
 import org.monogram.data.backend.TelegramBackendProfilePhotoRouter
 import org.monogram.data.backend.TelegramBackendProxyRouter
 import org.monogram.data.backend.TelegramBackendStorageRouter
@@ -840,20 +843,26 @@ val dataModule = module {
     }
 
     single<PremiumRepository> {
-        PremiumRepositoryImpl(
-            remote = get()
+        TelegramBackendPremiumRouter(
+            selectionStore = get(),
+            legacyFactory = { PremiumRepositoryImpl(remote = get()) },
+            scope = get(),
         )
     }
 
     single<BotRepository> {
-        BotRepositoryImpl(
-            remote = get()
+        TelegramBackendBotRouter(
+            selectionStore = get(),
+            legacyFactory = { BotRepositoryImpl(remote = get()) },
+            scope = get(),
         )
     }
 
     single<ChatStatisticsRepository> {
-        ChatStatisticsRepositoryImpl(
-            remote = get()
+        TelegramBackendChatStatisticsRouter(
+            selectionStore = get(),
+            legacyFactory = { ChatStatisticsRepositoryImpl(remote = get()) },
+            scope = get(),
         )
     }
 

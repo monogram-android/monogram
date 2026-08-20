@@ -657,10 +657,10 @@ class TelegramBackendMessageRouterTest {
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
-        router.repository.sendPhoto(7, "photo.jpg", "caption", replyToMsgId = 9, threadId = 10, sendOptions = MessageSendOptions(silent = true, scheduleDate = 11))
+        router.repository.sendPhoto(7, "photo.jpg", "caption", showCaptionAboveMedia = true, replyToMsgId = 9, threadId = 10, sendOptions = MessageSendOptions(silent = true, scheduleDate = 11))
         router.repository.sendDocument(7, "file.pdf", "doc", replyToMsgId = 12, threadId = 13)
 
-        assertEquals(listOf("photo:7:photo.jpg:caption:0:9:10:true:11", "document:7:file.pdf:doc:0:12:13:false:null"), media.calls)
+        assertEquals(listOf("photo:7:photo.jpg:caption:0:true:9:10:true:11", "document:7:file.pdf:doc:0:12:13:false:null"), media.calls)
     }
 
     @Test
@@ -680,13 +680,13 @@ class TelegramBackendMessageRouterTest {
             caption = "caption",
             captionEntities = listOf(org.monogram.domain.models.MessageEntity(0, 7, org.monogram.domain.models.MessageEntityType.Bold)),
         )
-        assertEquals(listOf("photo:7:photo.jpg:caption:1:null:null:false:null"), media.calls)
+        assertEquals(listOf("photo:7:photo.jpg:caption:1:false:null:null:false:null"), media.calls)
     }
 
     private class RecordingMedia : MtProtoMediaMessageRepository {
         val calls = mutableListOf<String>()
-        override suspend fun sendPhoto(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
-            calls += "photo:$chatId:$path:$caption:${entities.size}:$replyTo:$threadId:${options.silent}:${options.scheduleDate}"
+        override suspend fun sendPhoto(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, showCaptionAboveMedia: Boolean, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
+            calls += "photo:$chatId:$path:$caption:${entities.size}:$showCaptionAboveMedia:$replyTo:$threadId:${options.silent}:${options.scheduleDate}"
         }
         override suspend fun sendDocument(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
             calls += "document:$chatId:$path:$caption:${entities.size}:$replyTo:$threadId:${options.silent}:${options.scheduleDate}"

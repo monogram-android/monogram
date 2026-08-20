@@ -15,7 +15,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputReplyToMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SendMedia
 
 internal interface MtProtoMediaMessageRepository {
-    suspend fun sendPhoto(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, replyTo: Long?, threadId: Long?, options: MessageSendOptions)
+    suspend fun sendPhoto(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, showCaptionAboveMedia: Boolean, replyTo: Long?, threadId: Long?, options: MessageSendOptions)
     suspend fun sendDocument(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, replyTo: Long?, threadId: Long?, options: MessageSendOptions)
 }
 
@@ -28,16 +28,16 @@ internal class TelegramMtProtoMediaMessageRepository(
     private val messages: MtProtoMessageProjectionStore,
     private val accountSlot: String = "default",
 ) : MtProtoMediaMessageRepository {
-    override suspend fun sendPhoto(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, replyTo: Long?, threadId: Long?, options: MessageSendOptions) =
-        send(chatId, caption, entities, replyTo, threadId, options, InputMediaUploadedPhoto(false, uploader.upload(path), null, null))
+    override suspend fun sendPhoto(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, showCaptionAboveMedia: Boolean, replyTo: Long?, threadId: Long?, options: MessageSendOptions) =
+        send(chatId, caption, entities, showCaptionAboveMedia, replyTo, threadId, options, InputMediaUploadedPhoto(false, uploader.upload(path), null, null))
 
     override suspend fun sendDocument(chatId: Long, path: String, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
         val uploaded = uploader.upload(path)
         val name = java.io.File(path).name
-        send(chatId, caption, entities, replyTo, threadId, options, InputMediaUploadedDocument(false, true, false, uploaded, null, "application/octet-stream", listOf(DocumentAttributeFilename(name)), null, null, null, null))
+        send(chatId, caption, entities, false, replyTo, threadId, options, InputMediaUploadedDocument(false, true, false, uploaded, null, "application/octet-stream", listOf(DocumentAttributeFilename(name)), null, null, null, null))
     }
 
-    private suspend fun send(chatId: Long, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, replyTo: Long?, threadId: Long?, options: MessageSendOptions, media: org.monogram.mtproto.tl.generated.cloud.layer223.InputMedia) {
+    private suspend fun send(chatId: Long, caption: String, entities: List<org.monogram.domain.models.MessageEntity>, showCaptionAboveMedia: Boolean, replyTo: Long?, threadId: Long?, options: MessageSendOptions, media: org.monogram.mtproto.tl.generated.cloud.layer223.InputMedia) {
         require(replyTo == null || replyTo in 1..Int.MAX_VALUE)
         require(threadId == null || threadId in 1..Int.MAX_VALUE)
         val scheduleDate = options.scheduleDate
@@ -47,7 +47,7 @@ internal class TelegramMtProtoMediaMessageRepository(
         val protocolEntities = entities.map { it.toMtProtoEntity(scope, caption, users) }
         val peer = resolvePeer(scope, chatId)
         transportFactory.open(accountSlot).use { transport ->
-            messages.stageLive(scope, transport.execute(SendMedia(options.silent, false, true, false, false, false, false, peer, replyTo?.let { InputReplyToMessage(it.toInt(), threadId?.toInt(), null, null, null, null, null, null) }, media, caption, Random.nextLong(), null, protocolEntities.takeIf { it.isNotEmpty() }, scheduleDate, null, null, null, null, null, null)))
+            messages.stageLive(scope, transport.execute(SendMedia(options.silent, false, true, false, false, showCaptionAboveMedia, false, peer, replyTo?.let { InputReplyToMessage(it.toInt(), threadId?.toInt(), null, null, null, null, null, null) }, media, caption, Random.nextLong(), null, protocolEntities.takeIf { it.isNotEmpty() }, scheduleDate, null, null, null, null, null, null)))
         }
     }
 

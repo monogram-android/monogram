@@ -140,7 +140,7 @@ internal class TelegramBackendMessageRouter(
                     }
                     "sendPhoto" -> invokeDraft(method, args) { values ->
                         val options = values[7] as org.monogram.domain.models.MessageSendOptions
-                        media.sendPhoto(values[0] as Long, values[1] as String, values[2] as String, values[3] as List<org.monogram.domain.models.MessageEntity>, values[5] as Long?, values[6] as Long?, options)
+                        media.sendPhoto(values[0] as Long, values[1] as String, values[2] as String, values[3] as List<org.monogram.domain.models.MessageEntity>, values[4] as Boolean, values[5] as Long?, values[6] as Long?, options)
                     }
                     "sendDocument" -> invokeDraft(method, args) { values ->
                         val options = values[6] as org.monogram.domain.models.MessageSendOptions

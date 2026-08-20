@@ -1,0 +1,67 @@
+package org.monogram.data.backend
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import org.monogram.domain.repository.ClientOptionsRepository
+
+internal class TelegramBackendClientOptionsRouter(
+    selectionStore: TelegramBackendSelectionStore,
+    private val legacyFactory: () -> ClientOptionsRepository,
+    scope: CoroutineScope,
+    private val accountId: String = DEFAULT_ACCOUNT_ID,
+) : ClientOptionsRepository {
+    private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
+    private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+
+    init { scope.launch { selectionStore.observe(accountId).collect { selectedBackend.value = it } } }
+
+    override suspend fun getContactJoinedNotificationsEnabled() = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getContactJoinedNotificationsEnabled()
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+
+    override suspend fun setContactJoinedNotificationsEnabled(enabled: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setContactJoinedNotificationsEnabled(enabled)
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+
+    override suspend fun getSentScheduledMessageNotificationsEnabled() = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getSentScheduledMessageNotificationsEnabled()
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+
+    override suspend fun setSentScheduledMessageNotificationsEnabled(enabled: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setSentScheduledMessageNotificationsEnabled(enabled)
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+
+    override suspend fun getAnimatedEmojiEnabled() = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getAnimatedEmojiEnabled()
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+
+    override suspend fun setAnimatedEmojiEnabled(enabled: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setAnimatedEmojiEnabled(enabled)
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+
+    override suspend fun canArchiveAndMuteNewChatsFromUnknownUsers() = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.canArchiveAndMuteNewChatsFromUnknownUsers()
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+
+    override suspend fun getArchiveAndMuteNewChatsFromUnknownUsersEnabled() = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getArchiveAndMuteNewChatsFromUnknownUsersEnabled()
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+
+    override suspend fun setArchiveAndMuteNewChatsFromUnknownUsersEnabled(enabled: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setArchiveAndMuteNewChatsFromUnknownUsersEnabled(enabled)
+        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+    }
+
+    private fun selected() = checkNotNull(selectedBackend.value) { "Telegram backend selection is not loaded" }
+    private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto client options are not available")
+    private companion object { const val DEFAULT_ACCOUNT_ID = "default" }
+}

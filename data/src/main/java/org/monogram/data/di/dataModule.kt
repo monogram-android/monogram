@@ -23,6 +23,7 @@ import org.monogram.data.backend.TelegramBackendChatReadRouter
 import org.monogram.data.backend.TelegramBackendChatSearchRouter
 import org.monogram.data.backend.TelegramBackendChatInfoRouter
 import org.monogram.data.backend.TelegramBackendChatStatisticsRouter
+import org.monogram.data.backend.TelegramBackendClientOptionsRouter
 import org.monogram.data.backend.TelegramBackendBotRouter
 import org.monogram.data.backend.TelegramBackendEmojiRouter
 import org.monogram.data.backend.TelegramBackendGifRouter
@@ -1150,8 +1151,10 @@ val dataModule = module {
     }
 
     single<ClientOptionsRepository> {
-        ClientOptionsRepositoryImpl(
-            remote = get()
+        TelegramBackendClientOptionsRouter(
+            selectionStore = get(),
+            legacyFactory = { ClientOptionsRepositoryImpl(remote = get()) },
+            scope = get(),
         )
     }
 

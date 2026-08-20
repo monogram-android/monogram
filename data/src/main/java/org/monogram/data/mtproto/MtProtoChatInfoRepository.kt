@@ -5,6 +5,7 @@ import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.GroupMemberModel
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.repository.ChatInfoRepository
+import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.ChatMembersFilter
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatFull_af753dccbf
@@ -19,6 +20,7 @@ internal class MtProtoChatInfoRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory?,
     private val chats: MtProtoChatProjectionStore,
+    private val search: ChatSearchRepository? = null,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : ChatInfoRepository {
     override suspend fun getChatFullInfo(chatId: Long): ChatFullInfoModel? {
@@ -74,7 +76,9 @@ internal class MtProtoChatInfoRepository(
         }
     }
 
-    override suspend fun searchPublicChat(username: String): ChatModel? = unsupported()
+    override suspend fun searchPublicChat(username: String): ChatModel? =
+        search?.searchPublicChats(username.trim())?.firstOrNull()
+            ?: unsupported()
     override suspend fun getSimilarChatIds(chatId: Long): List<Long> = unsupported()
     override suspend fun getChatMembers(chatId: Long, offset: Int, limit: Int, filter: ChatMembersFilter): List<GroupMemberModel> = unsupported()
     override suspend fun getChatMember(chatId: Long, userId: Long): GroupMemberModel? = unsupported()

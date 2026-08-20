@@ -794,6 +794,7 @@ val dataModule = module {
             configSource = get(),
             transportFactory = get(),
             chats = get(),
+            search = get<MtProtoChatSearchRepository>(),
         )
     }
     single<ChatInfoRepository> {

@@ -5,11 +5,13 @@ import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.Birthday_aa6c995ca2
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputBusinessIntro_7df76090c9
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ReorderUsernames
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessIntro
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ToggleUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
@@ -102,7 +104,13 @@ internal class MtProtoProfileEditRepository(
             }
         }
     }
-    override suspend fun setBusinessBio(bio: String) = unsupported()
+    override suspend fun setBusinessBio(bio: String) {
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(UpdateBusinessIntro(InputBusinessIntro_7df76090c9("", bio, null)))) {
+                "MTProto business bio update was rejected"
+            }
+        }
+    }
     override suspend fun setBusinessLocation(address: String, latitude: Double, longitude: Double) = unsupported()
     override suspend fun setBusinessOpeningHours(openingHours: BusinessOpeningHoursModel?) = unsupported()
     override suspend fun toggleUsernameIsActive(username: String, isActive: Boolean) {

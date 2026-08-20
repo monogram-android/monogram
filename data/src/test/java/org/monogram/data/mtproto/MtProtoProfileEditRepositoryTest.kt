@@ -7,11 +7,13 @@ import org.junit.Test
 import org.monogram.domain.models.BirthdateModel
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.Birthday_aa6c995ca2
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputBusinessIntro_7df76090c9
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ReorderUsernames
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ToggleUsername
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessIntro
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
@@ -98,6 +100,17 @@ class MtProtoProfileEditRepositoryTest {
             runBlocking { repository.setBirthdate(BirthdateModel(day = 0, month = 3)) }
         }
         assertEquals(false, opened)
+    }
+
+    @Test
+    fun `updates business bio through authoritative bool`() = runBlocking {
+        val transport = Transport(true)
+        val repository = MtProtoProfileEditRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, Users())
+
+        repository.setBusinessBio("Welcome")
+
+        assertEquals(UpdateBusinessIntro(InputBusinessIntro_7df76090c9("", "Welcome", null)), transport.request)
+        assertTrue(transport.closed)
     }
 
     @Test

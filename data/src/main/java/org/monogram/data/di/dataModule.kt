@@ -25,6 +25,7 @@ import org.monogram.data.backend.TelegramBackendChatInfoRouter
 import org.monogram.data.backend.TelegramBackendContactEditRouter
 import org.monogram.data.backend.TelegramBackendMessageRouter
 import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
+import org.monogram.data.backend.TelegramBackendNetworkStatisticsRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
 import org.monogram.data.backend.TelegramBackendLimitsRouter
 import org.monogram.data.backend.TelegramBackendLinkRouter
@@ -1226,9 +1227,15 @@ val dataModule = module {
     }
 
     single<NetworkStatisticsRepository> {
-        NetworkStatisticsRepositoryImpl(
-            remote = get(),
-            networkMapper = get()
+        TelegramBackendNetworkStatisticsRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                NetworkStatisticsRepositoryImpl(
+                    remote = get(),
+                    networkMapper = get(),
+                )
+            },
+            scope = get(),
         )
     }
 

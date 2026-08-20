@@ -36,6 +36,7 @@ internal class MtProtoDialogChatListRepository(
     private val scope: CoroutineScope,
     private val archiveRepository: MtProtoArchiveRepository = MtProtoArchiveRepository { _, _ -> },
     private val dialogPinRepository: MtProtoDialogPinRepository = MtProtoDialogPinRepository { _, _ -> },
+    private val muteRepository: MtProtoMuteRepository = MtProtoMuteRepository { _, _ -> },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
@@ -127,10 +128,14 @@ internal class MtProtoDialogChatListRepository(
             isGroup = peerType != DialogPeerType.PRIVATE,
             isSupergroup = peerType == DialogPeerType.SUPERGROUP || peerType == DialogPeerType.CHANNEL,
             isChannel = peerType == DialogPeerType.CHANNEL,
+            isMuted = isMuted,
         )
     }
 
-    override suspend fun toggleMuteChats(chatIds: Set<Long>, mute: Boolean) = unsupportedOperations()
+    override suspend fun toggleMuteChats(chatIds: Set<Long>, mute: Boolean) {
+        muteRepository.setMuted(chatIds, mute)
+        refresh()
+    }
     override suspend fun toggleArchiveChats(chatIds: Set<Long>, archive: Boolean) {
         archiveRepository.setArchived(chatIds, archive)
         refresh()

@@ -13,6 +13,7 @@ data class DialogSnapshotModel(
     val unreadMentionsCount: Int = 0,
     val unreadReactionsCount: Int = 0,
     val isPinned: Boolean = false,
+    val isMuted: Boolean = false,
 )
 
 enum class DialogPeerType {

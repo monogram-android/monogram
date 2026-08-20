@@ -594,6 +594,12 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_47_48 = object : Migration(47, 48) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_dialog_projection", "muted", "INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     val MIGRATION_46_47 = object : Migration(46, 47) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
@@ -624,6 +630,7 @@ object MonogramMigrations {
                     `peerType` TEXT NOT NULL,
                     `peerId` INTEGER NOT NULL,
                     `pinned` INTEGER NOT NULL,
+                    `muted` INTEGER NOT NULL DEFAULT 0,
                     `unreadMark` INTEGER NOT NULL,
                     `topMessageId` INTEGER NOT NULL,
                     `unreadCount` INTEGER NOT NULL,

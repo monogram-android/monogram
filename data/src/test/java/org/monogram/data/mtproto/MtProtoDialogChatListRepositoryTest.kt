@@ -74,6 +74,25 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `mutes dialogs through the owned mute repository then refreshes`() = runTest {
+        val source = FakeDialogRepository(emptyList())
+        val mutes = RecordingMuteRepository()
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = source,
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+            muteRepository = mutes,
+        )
+        runCurrent()
+
+        repository.toggleMuteChats(setOf(42L), mute = true)
+        runCurrent()
+
+        assertEquals(listOf(setOf(42L) to true), mutes.requests)
+        assertEquals(2, source.calls)
+    }
+
+    @Test
     fun `pins dialogs through the owned pin repository then refreshes`() = runTest {
         val source = FakeDialogRepository(emptyList())
         val pins = RecordingDialogPinRepository()
@@ -136,6 +155,14 @@ class MtProtoDialogChatListRepositoryTest {
 
         assertThrows(IllegalArgumentException::class.java) {
             repository.selectFolder(0)
+        }
+    }
+
+    private class RecordingMuteRepository : MtProtoMuteRepository {
+        val requests = mutableListOf<Pair<Set<Long>, Boolean>>()
+
+        override suspend fun setMuted(chatIds: Set<Long>, muted: Boolean) {
+            requests += chatIds to muted
         }
     }
 

@@ -110,6 +110,8 @@ import org.monogram.data.mtproto.MtProtoArchiveRepository
 import org.monogram.data.mtproto.MtProtoArchiveRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogPinRepository
 import org.monogram.data.mtproto.MtProtoDialogPinRepositoryImpl
+import org.monogram.data.mtproto.MtProtoMuteRepository
+import org.monogram.data.mtproto.MtProtoMuteRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatSearchRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
@@ -470,6 +472,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_44_45,
                 MonogramMigrations.MIGRATION_45_46,
                 MonogramMigrations.MIGRATION_46_47,
+                MonogramMigrations.MIGRATION_47_48,
             )
             .build()
     }
@@ -895,6 +898,15 @@ val dataModule = module {
             stringProvider = get()
         )
     }
+    single<MtProtoMuteRepository> {
+        MtProtoMuteRepositoryImpl(
+            configSource = get(),
+            transportFactory = get(),
+            users = get(),
+            chats = get(),
+            dialogs = get<MtProtoDialogSnapshotRepository>(),
+        )
+    }
     single<MtProtoDialogPinRepository> {
         MtProtoDialogPinRepositoryImpl(
             configSource = get(),
@@ -920,6 +932,7 @@ val dataModule = module {
             scope = get(),
             archiveRepository = get(),
             dialogPinRepository = get(),
+            muteRepository = get(),
         )
     }
     single {

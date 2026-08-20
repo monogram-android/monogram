@@ -58,6 +58,21 @@ interface MtProtoDialogProjectionDao {
     )
 
     @Query(
+        "UPDATE mtproto_dialog_projection SET muted = :muted, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updateMuted(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        muted: Boolean,
+        updatedAt: Long,
+    )
+
+    @Query(
         "UPDATE mtproto_dialog_projection SET unreadMark = :unread, updatedAt = :updatedAt " +
             "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
             "AND peerType = :peerType AND peerId = :peerId"

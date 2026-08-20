@@ -82,6 +82,7 @@ class MtProtoRoomDialogStoreTest {
                         peerType = MtProtoMessagePeerType.USER.name,
                         peerId = 42,
                         pinned = false,
+                        muted = false,
                         unreadMark = false,
                         topMessageId = 0,
                         unreadCount = 0,
@@ -213,6 +214,7 @@ class MtProtoRoomDialogStoreTest {
         var pinned = false
         var folderId: Int? = null
         var unread = false
+        var muted = false
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) = dialogs
         override suspend fun upsert(entity: org.monogram.data.db.model.MtProtoDialogProjectionEntity) = Unit
         override suspend fun upsertAll(entities: List<org.monogram.data.db.model.MtProtoDialogProjectionEntity>) = Unit
@@ -222,6 +224,9 @@ class MtProtoRoomDialogStoreTest {
             pinnedPeerId = peerId
             this.pinned = pinned
             this.folderId = folderId
+        }
+        override suspend fun updateMuted(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, muted: Boolean, updatedAt: Long) {
+            this.muted = muted
         }
         override suspend fun updateUnreadMark(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, unread: Boolean, updatedAt: Long) {
             this.unread = unread

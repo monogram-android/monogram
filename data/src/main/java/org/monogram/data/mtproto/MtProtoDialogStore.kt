@@ -11,6 +11,9 @@ import org.monogram.data.db.model.MtProtoUserProjectionEntity
 import org.monogram.mtproto.tl.generated.cloud.layer223.Dialog_cf9860a8bd
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogPinned
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogUnreadMark
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateNotifySettings
+import org.monogram.mtproto.tl.generated.cloud.layer223.NotifyPeer_4fa2c93506
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerNotifySettings_474d6bbc59
 
 internal data class MtProtoDialogMessagePreview(
     val messageId: Int,
@@ -37,6 +40,7 @@ internal data class MtProtoDialogReadModel(
     val unreadMentionsCount: Int,
     val unreadReactionsCount: Int,
     val isPinned: Boolean,
+    val isMuted: Boolean,
     val latestMessage: MtProtoDialogMessagePreview,
 )
 
@@ -58,6 +62,8 @@ internal interface MtProtoDialogStore {
     suspend fun updatePinned(scope: MtProtoAuthKeyScope, update: UpdateDialogPinned) = Unit
 
     suspend fun updateUnreadMark(scope: MtProtoAuthKeyScope, update: UpdateDialogUnreadMark) = Unit
+
+    suspend fun updateNotifySettings(scope: MtProtoAuthKeyScope, update: UpdateNotifySettings) = Unit
 
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
@@ -94,6 +100,21 @@ internal class MtProtoRoomDialogStore(
         dialogDao.updatePinned(scope.accountSlot, scope.environment.storageName, scope.dcId, key.first.name, key.second, update.pinned, update.folderId, System.currentTimeMillis())
     }
 
+    override suspend fun updateNotifySettings(scope: MtProtoAuthKeyScope, update: UpdateNotifySettings) {
+        val peer = (update.peer as? NotifyPeer_4fa2c93506)?.peer ?: return
+        val settings = update.notifySettings as? PeerNotifySettings_474d6bbc59 ?: return
+        val key = peer.toProjectionKey()
+        dialogDao.updateMuted(
+            scope.accountSlot,
+            scope.environment.storageName,
+            scope.dcId,
+            key.first.name,
+            key.second,
+            settings.muteUntil?.let { it > System.currentTimeMillis() / 1000L } == true,
+            System.currentTimeMillis(),
+        )
+    }
+
     override suspend fun updateUnreadMark(scope: MtProtoAuthKeyScope, update: UpdateDialogUnreadMark) {
         val peer = (update.peer as? org.monogram.mtproto.tl.generated.cloud.layer223.DialogPeer_2011bde660)?.peer
             ?: return
@@ -115,6 +136,8 @@ internal class MtProtoRoomDialogStore(
                 peerType = peerType.name,
                 peerId = peerId,
                 pinned = dialog.pinned,
+                muted = (dialog.notifySettings as? PeerNotifySettings_474d6bbc59)?.muteUntil
+                    ?.let { it > System.currentTimeMillis() / 1000L } == true,
                 unreadMark = dialog.unreadMark,
                 topMessageId = dialog.topMessage,
                 unreadCount = dialog.unreadCount,
@@ -174,6 +197,7 @@ internal class MtProtoRoomDialogStore(
         unreadMentionsCount = 0,
         unreadReactionsCount = 0,
         isPinned = false,
+        isMuted = false,
         latestMessage = MtProtoDialogMessagePreview(
             messageId = messageId,
             senderType = senderType?.let(MtProtoMessagePeerType::valueOf),
@@ -205,6 +229,7 @@ internal class MtProtoRoomDialogStore(
         unreadMentionsCount = this.unreadMentionsCount,
         unreadReactionsCount = this.unreadReactionsCount,
         isPinned = pinned,
+        isMuted = muted,
         latestMessage = MtProtoDialogMessagePreview(
             messageId = message?.messageId ?: topMessageId,
             senderType = message?.senderType?.let(MtProtoMessagePeerType::valueOf),

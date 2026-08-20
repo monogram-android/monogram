@@ -107,6 +107,7 @@ class MtProtoDialogSnapshotRepositoryTest {
                     unreadMentionsCount = 1,
                     unreadReactionsCount = 0,
                     isPinned = true,
+                    isMuted = false,
                     latestMessage = MtProtoDialogMessagePreview(
                         messageId = 20,
                         senderType = MtProtoMessagePeerType.USER,

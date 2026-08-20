@@ -19,6 +19,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteChannelMessa
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogPinned
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogUnreadMark
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateNotifySettings
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateEditChannelMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateEditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateNewChannelMessage
@@ -216,6 +217,10 @@ internal class MtProtoRoomMessageProjectionStore(
         }
         is UpdateDialogUnreadMark -> {
             dialogStore?.updateUnreadMark(scope, update)
+            dialogStore != null
+        }
+        is UpdateNotifySettings -> {
+            dialogStore?.updateNotifySettings(scope, update)
             dialogStore != null
         }
         else -> false

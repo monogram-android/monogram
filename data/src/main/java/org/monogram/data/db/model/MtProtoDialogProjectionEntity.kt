@@ -13,6 +13,7 @@ data class MtProtoDialogProjectionEntity(
     val peerType: String,
     val peerId: Long,
     val pinned: Boolean,
+    val muted: Boolean,
     val unreadMark: Boolean,
     val topMessageId: Int,
     val unreadCount: Int,

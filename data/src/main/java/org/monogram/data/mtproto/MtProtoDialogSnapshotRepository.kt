@@ -101,6 +101,7 @@ internal class MtProtoDialogSnapshotRepository(
         unreadMentionsCount = unreadMentionsCount,
         unreadReactionsCount = unreadReactionsCount,
         isPinned = isPinned,
+        isMuted = isMuted,
         latestMessage = DialogMessagePreviewModel(
             messageId = latestMessage.messageId.toLong(),
             senderId = latestMessage.senderId,

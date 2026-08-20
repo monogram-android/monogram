@@ -53,7 +53,10 @@ internal class TelegramBackendChatSettingsRouter(
         TelegramBackendKind.LEGACY -> legacy.setChatJoinByRequest(chatId, joinByRequest)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setJoinByRequest(chatId, joinByRequest)
     }
-    override suspend fun setChatAvailableReactions(chatId: Long, availableReactions: List<String>) = call { legacy.setChatAvailableReactions(chatId, availableReactions) }
+    override suspend fun setChatAvailableReactions(chatId: Long, availableReactions: List<String>) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatAvailableReactions(chatId, availableReactions)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setAvailableReactions(chatId, availableReactions)
+    }
     override suspend fun setChatSlowModeDelay(chatId: Long, slowModeDelay: Int) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setChatSlowModeDelay(chatId, slowModeDelay)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setSlowModeDelay(chatId, slowModeDelay)

@@ -10,6 +10,9 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleForum
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSignatures
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsAll
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsSome
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetChatAvailableReactions
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -68,6 +71,20 @@ class MtProtoChatSettingsRepositoryTest {
         val request = transport.requests.single() as ToggleForum
         assertTrue(request.enabled)
         assertTrue(request.tabs)
+    }
+
+    @Test
+    fun `maps configured emoji reactions and empty list to protocol semantics`() = runTest {
+        val transport = RecordingTransport()
+        val repository = repository(transport, RecordingStager())
+
+        repository.setAvailableReactions(-42, listOf("👍"))
+        repository.setAvailableReactions(-42, emptyList())
+
+        val some = transport.requests[0] as SetChatAvailableReactions
+        val all = transport.requests[1] as SetChatAvailableReactions
+        assertEquals(listOf("👍"), (some.availableReactions as ChatReactionsSome).reactions.map { (it as org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji).emoticon })
+        assertEquals(false, (all.availableReactions as ChatReactionsAll).allowCustom)
     }
 
     private fun repository(transport: RecordingTransport, stager: RecordingStager, chats: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore) = MtProtoChatSettingsRepositoryImpl(

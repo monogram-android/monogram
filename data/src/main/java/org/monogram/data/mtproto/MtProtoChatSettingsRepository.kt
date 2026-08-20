@@ -5,6 +5,9 @@ import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsAll
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsSome
+import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.EditTitle
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.UpdateUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleAntiSpam
@@ -16,6 +19,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleForum
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSignatures
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetChatAvailableReactions
 
 internal interface MtProtoChatSettingsRepository {
     suspend fun setTitle(chatId: Long, title: String)
@@ -28,6 +32,7 @@ internal interface MtProtoChatSettingsRepository {
     suspend fun setJoinByRequest(chatId: Long, enabled: Boolean)
     suspend fun setSignMessages(chatId: Long, enabled: Boolean)
     suspend fun setForumEnabled(chatId: Long, enabled: Boolean)
+    suspend fun setAvailableReactions(chatId: Long, reactions: List<String>)
 }
 
 internal class MtProtoChatSettingsRepositoryImpl(
@@ -97,6 +102,25 @@ internal class MtProtoChatSettingsRepositoryImpl(
         val (scope, peer, chat) = projectedChannel(chatId)
         require(peer.type == DialogPeerType.SUPERGROUP) { "MTProto forums require a supergroup" }
         mutate(scope, peer.id, chat.accessHash, ToggleForum(InputChannel_d22292516d(peer.id, requireNotNull(chat.accessHash)), enabled, chat.forumTabs))
+    }
+
+    override suspend fun setAvailableReactions(chatId: Long, reactions: List<String>) {
+        val (scope, peer) = resolve(chatId)
+        val inputPeer = when (peer.type) {
+            DialogPeerType.BASIC_GROUP -> InputPeerChat(peer.id)
+            DialogPeerType.SUPERGROUP, DialogPeerType.CHANNEL -> {
+                val accessHash = requireNotNull(chats.get(scope, peer.id)?.accessHash) {
+                    "Missing MTProto channel access hash: ${peer.id}"
+                }
+                InputPeerChannel(peer.id, accessHash)
+            }
+            DialogPeerType.PRIVATE, DialogPeerType.UNKNOWN -> error("MTProto cannot set reactions for this peer")
+        }
+        val availableReactions: org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactions =
+            if (reactions.isEmpty()) ChatReactionsAll(allowCustom = false) else ChatReactionsSome(reactions.map(::ReactionEmoji))
+        transportFactory.open(accountSlot).use { transport ->
+            cloudObjectStager.stageLive(scope, transport.execute(SetChatAvailableReactions(inputPeer, availableReactions, null, null)))
+        }
     }
 
     override suspend fun setDescription(chatId: Long, description: String) {

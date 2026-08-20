@@ -6,12 +6,14 @@ import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.Birthday_aa6c995ca2
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputBusinessIntro_7df76090c9
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputGeoPoint_ca056caf04
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatus_c46bf14186
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ReorderUsernames
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessIntro
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessLocation
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ToggleUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
@@ -111,7 +113,15 @@ internal class MtProtoProfileEditRepository(
             }
         }
     }
-    override suspend fun setBusinessLocation(address: String, latitude: Double, longitude: Double) = unsupported()
+    override suspend fun setBusinessLocation(address: String, latitude: Double, longitude: Double) {
+        require(latitude in -90.0..90.0) { "MTProto business latitude is invalid" }
+        require(longitude in -180.0..180.0) { "MTProto business longitude is invalid" }
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(UpdateBusinessLocation(InputGeoPoint_ca056caf04(latitude, longitude, null), address))) {
+                "MTProto business location update was rejected"
+            }
+        }
+    }
     override suspend fun setBusinessOpeningHours(openingHours: BusinessOpeningHoursModel?) = unsupported()
     override suspend fun toggleUsernameIsActive(username: String, isActive: Boolean) {
         require(username.isNotBlank()) { "MTProto username must not be blank" }

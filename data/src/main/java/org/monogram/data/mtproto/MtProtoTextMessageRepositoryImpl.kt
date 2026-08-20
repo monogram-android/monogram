@@ -9,6 +9,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionCustomEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DeleteHistory
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditMessage
@@ -115,7 +116,12 @@ internal class MtProtoTextMessageRepositoryImpl(
                     addToRecent = emoji != null,
                     peer = peer,
                     msgId = messageId.toInt(),
-                    reaction = emoji?.let { listOf(ReactionEmoji(it)) },
+                    reaction = emoji?.let { value ->
+                        listOf(
+                            value.toLongOrNull()?.let(::ReactionCustomEmoji)
+                                ?: ReactionEmoji(value),
+                        )
+                    },
                 )
             )
             messages.stageLive(scope, updates)

@@ -489,10 +489,6 @@ internal fun DefaultChatComponent.handleDraftChange(text: String) {
 }
 
 internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: String) {
-    if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO && reaction.all(Char::isDigit)) {
-        toastMessageDisplayer.show("MTProto custom emoji reactions are not available")
-        return
-    }
     val suppressUntil = System.currentTimeMillis() + REACTION_UPDATE_SUPPRESSION_MS
     reactionUpdateSuppressedUntil[messageId] = suppressUntil
     scope.launch {

@@ -219,6 +219,24 @@ class MtProtoTextMessageRepositoryImplTest {
     }
 
     @Test
+    fun `sets custom emoji reaction and stages returned updates`() = runBlocking {
+        val transport = RecordingTransport()
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = RecordingMessageStore(),
+        )
+
+        repository.setEmojiReaction(7L, DialogPeerType.PRIVATE, 8L, "123")
+
+        val request = transport.method as SendReaction
+        assertEquals(123L, (request.reaction!!.single() as org.monogram.mtproto.tl.generated.cloud.layer223.ReactionCustomEmoji).documentId)
+        assertTrue(transport.closed)
+    }
+
+    @Test
     fun `edits plain text and stages returned updates`() = runBlocking {
         val transport = RecordingTransport()
         val messageStore = RecordingMessageStore()

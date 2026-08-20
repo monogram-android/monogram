@@ -74,6 +74,25 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `leaves dialogs through the owned repository then refreshes`() = runTest {
+        val source = FakeDialogRepository(emptyList())
+        val leaves = RecordingLeaveChatRepository()
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = source,
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+            leaveChatRepository = leaves,
+        )
+        runCurrent()
+
+        repository.leaveChat(42L)
+        runCurrent()
+
+        assertEquals(listOf(setOf(42L)), leaves.requests)
+        assertEquals(2, source.calls)
+    }
+
+    @Test
     fun `mutes dialogs through the owned mute repository then refreshes`() = runTest {
         val source = FakeDialogRepository(emptyList())
         val mutes = RecordingMuteRepository()
@@ -155,6 +174,14 @@ class MtProtoDialogChatListRepositoryTest {
 
         assertThrows(IllegalArgumentException::class.java) {
             repository.selectFolder(0)
+        }
+    }
+
+    private class RecordingLeaveChatRepository : MtProtoLeaveChatRepository {
+        val requests = mutableListOf<Set<Long>>()
+
+        override suspend fun leave(chatIds: Set<Long>) {
+            requests += chatIds
         }
     }
 

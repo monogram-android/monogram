@@ -112,6 +112,8 @@ import org.monogram.data.mtproto.MtProtoDialogPinRepository
 import org.monogram.data.mtproto.MtProtoDialogPinRepositoryImpl
 import org.monogram.data.mtproto.MtProtoMuteRepository
 import org.monogram.data.mtproto.MtProtoMuteRepositoryImpl
+import org.monogram.data.mtproto.MtProtoLeaveChatRepository
+import org.monogram.data.mtproto.MtProtoLeaveChatRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatSearchRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
@@ -898,6 +900,15 @@ val dataModule = module {
             stringProvider = get()
         )
     }
+    single<MtProtoLeaveChatRepository> {
+        MtProtoLeaveChatRepositoryImpl(
+            configSource = get(),
+            transportFactory = get(),
+            chats = get(),
+            cloudObjectStager = get(),
+            dialogs = get<MtProtoDialogSnapshotRepository>(),
+        )
+    }
     single<MtProtoMuteRepository> {
         MtProtoMuteRepositoryImpl(
             configSource = get(),
@@ -933,6 +944,7 @@ val dataModule = module {
             archiveRepository = get(),
             dialogPinRepository = get(),
             muteRepository = get(),
+            leaveChatRepository = get(),
         )
     }
     single {

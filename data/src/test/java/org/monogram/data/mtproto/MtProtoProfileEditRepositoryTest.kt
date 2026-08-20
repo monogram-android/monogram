@@ -118,6 +118,9 @@ class MtProtoProfileEditRepositoryTest {
 
         assertEquals(UpdateBusinessLocation(InputGeoPoint_ca056caf04(12.5, -45.25, null), "HQ"), transport.request)
         assertTrue(transport.closed)
+
+        repository.setBusinessLocation("", 0.0, 0.0)
+        assertEquals(UpdateBusinessLocation(null, null), transport.request)
     }
 
     @Test

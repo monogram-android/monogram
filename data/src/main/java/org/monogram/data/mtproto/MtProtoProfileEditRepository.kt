@@ -117,10 +117,15 @@ internal class MtProtoProfileEditRepository(
         }
     }
     override suspend fun setBusinessLocation(address: String, latitude: Double, longitude: Double) {
-        require(latitude in -90.0..90.0) { "MTProto business latitude is invalid" }
-        require(longitude in -180.0..180.0) { "MTProto business longitude is invalid" }
+        val location = if (address.isBlank()) {
+            null
+        } else {
+            require(latitude in -90.0..90.0) { "MTProto business latitude is invalid" }
+            require(longitude in -180.0..180.0) { "MTProto business longitude is invalid" }
+            InputGeoPoint_ca056caf04(latitude, longitude, null)
+        }
         transportFactory.open(accountSlot).use { transport ->
-            check(transport.execute(UpdateBusinessLocation(InputGeoPoint_ca056caf04(latitude, longitude, null), address))) {
+            check(transport.execute(UpdateBusinessLocation(location, address.takeIf { it.isNotBlank() }))) {
                 "MTProto business location update was rejected"
             }
         }

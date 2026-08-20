@@ -4,6 +4,8 @@ import org.monogram.domain.models.BirthdateModel
 import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.Birthday_aa6c995ca2
+import org.monogram.mtproto.tl.generated.cloud.layer223.BusinessWeeklyOpen_dc4067a144
+import org.monogram.mtproto.tl.generated.cloud.layer223.BusinessWorkHours_bd00fc5ee4
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputBusinessIntro_7df76090c9
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputGeoPoint_ca056caf04
@@ -14,6 +16,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatu
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ReorderUsernames
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessIntro
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessLocation
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessWorkHours
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ToggleUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateProfile
@@ -122,7 +125,30 @@ internal class MtProtoProfileEditRepository(
             }
         }
     }
-    override suspend fun setBusinessOpeningHours(openingHours: BusinessOpeningHoursModel?) = unsupported()
+    override suspend fun setBusinessOpeningHours(openingHours: BusinessOpeningHoursModel?) {
+        openingHours?.let { hours ->
+            require(hours.timeZoneId.isNotBlank()) { "MTProto business timezone must not be blank" }
+            require(hours.intervals.all { interval ->
+                interval.startMinute in 0 until WEEK_MINUTES &&
+                    interval.endMinute in 1..WEEK_MINUTES &&
+                    interval.startMinute < interval.endMinute
+            }) { "MTProto business opening-hour interval is invalid" }
+        }
+        val workHours = openingHours?.let { hours ->
+            BusinessWorkHours_bd00fc5ee4(
+                openNow = false,
+                timezoneId = hours.timeZoneId,
+                weeklyOpen = hours.intervals.map { interval ->
+                    BusinessWeeklyOpen_dc4067a144(interval.startMinute, interval.endMinute)
+                },
+            )
+        }
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(UpdateBusinessWorkHours(workHours))) {
+                "MTProto business opening-hours update was rejected"
+            }
+        }
+    }
     override suspend fun toggleUsernameIsActive(username: String, isActive: Boolean) {
         require(username.isNotBlank()) { "MTProto username must not be blank" }
         transportFactory.open(accountSlot).use { transport ->
@@ -146,5 +172,6 @@ internal class MtProtoProfileEditRepository(
 
     private companion object {
         const val CHANNEL_OFFSET = 1_000_000_000_000L
+        const val WEEK_MINUTES = 7 * 24 * 60
     }
 }

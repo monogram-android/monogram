@@ -5,8 +5,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.models.BirthdateModel
+import org.monogram.domain.models.BusinessOpeningHoursIntervalModel
+import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.Birthday_aa6c995ca2
+import org.monogram.mtproto.tl.generated.cloud.layer223.BusinessWeeklyOpen_dc4067a144
+import org.monogram.mtproto.tl.generated.cloud.layer223.BusinessWorkHours_bd00fc5ee4
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputBusinessIntro_7df76090c9
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputGeoPoint_ca056caf04
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiStatusEmpty
@@ -16,6 +20,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.account.ReorderUsernames
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ToggleUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessIntro
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessLocation
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBusinessWorkHours
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateBirthday
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdateEmojiStatus
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.UpdatePersonalChannel
@@ -124,6 +129,48 @@ class MtProtoProfileEditRepositoryTest {
 
         assertEquals(UpdateBusinessIntro(InputBusinessIntro_7df76090c9("", "Welcome", null)), transport.request)
         assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `updates and clears business opening hours through authoritative bool`() = runBlocking {
+        val transport = Transport(true)
+        val repository = MtProtoProfileEditRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, Users())
+        val hours = BusinessOpeningHoursModel(
+            timeZoneId = "Europe/London",
+            intervals = listOf(BusinessOpeningHoursIntervalModel(60, 120)),
+        )
+
+        repository.setBusinessOpeningHours(hours)
+
+        assertEquals(
+            UpdateBusinessWorkHours(
+                BusinessWorkHours_bd00fc5ee4(false, "Europe/London", listOf(BusinessWeeklyOpen_dc4067a144(60, 120))),
+            ),
+            transport.request,
+        )
+        assertTrue(transport.closed)
+
+        repository.setBusinessOpeningHours(null)
+        assertEquals(UpdateBusinessWorkHours(null), transport.request)
+    }
+
+    @Test
+    fun `rejects invalid business opening hours before opening transport`() = runBlocking {
+        var opened = false
+        val repository = MtProtoProfileEditRepository(
+            Config { config() },
+            MtProtoSessionTransportFactory { opened = true; Transport(true) },
+            Users(),
+        )
+
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            runBlocking {
+                repository.setBusinessOpeningHours(
+                    BusinessOpeningHoursModel("", listOf(BusinessOpeningHoursIntervalModel(60, 60))),
+                )
+            }
+        }
+        assertEquals(false, opened)
     }
 
     @Test

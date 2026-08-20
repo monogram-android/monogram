@@ -2,16 +2,43 @@ package org.monogram.data.mtproto
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.tl.generated.cloud.layer223.Authorization_dbb1508a1d
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.Authorizations_38b29faeb6
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAuthorizations
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ResetAuthorization
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.AcceptLoginToken
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 
 class MtProtoSessionRepositoryTest {
+    @Test
+    fun `accepts a valid QR login token through MTProto`() = runBlocking {
+        val transport = RecordingTransport()
+        val repository = MtProtoSessionRepository(MtProtoSessionTransportFactory { transport })
+        val token = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(byteArrayOf(1, 2, 3))
+
+        assertTrue(repository.confirmQrCode("tg://login?token=$token"))
+        val method = transport.methods.single() as AcceptLoginToken
+        assertEquals(byteArrayOf(1, 2, 3).toList(), method.token.toByteArray().toList())
+    }
+
+    @Test
+    fun `rejects malformed QR login links before opening transport`() = runBlocking {
+        var opened = false
+        val repository = MtProtoSessionRepository(MtProtoSessionTransportFactory {
+            opened = true
+            RecordingTransport()
+        })
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.confirmQrCode("https://example.com/login") }
+        }
+        assertEquals(false, opened)
+    }
+
     @Test
     fun `maps authorizations and resets selected session`() = runBlocking {
         val transport = RecordingTransport()
@@ -61,6 +88,7 @@ class MtProtoSessionRepositoryTest {
                     ),
                 ) as R
                 is ResetAuthorization -> true as R
+                is AcceptLoginToken -> null as R
                 else -> error("Unexpected method: ${method::class.simpleName}")
             }
         }

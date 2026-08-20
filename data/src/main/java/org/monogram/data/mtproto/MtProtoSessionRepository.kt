@@ -1,5 +1,9 @@
 package org.monogram.data.mtproto
 
+import java.net.URI
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import java.util.Base64
 import java.util.Date
 import org.monogram.domain.models.SessionModel
 import org.monogram.domain.models.SessionType
@@ -7,6 +11,8 @@ import org.monogram.domain.repository.SessionRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.Authorization_dbb1508a1d
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.Authorizations_38b29faeb6
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAuthorizations
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.AcceptLoginToken
+import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ResetAuthorization
 
 internal class MtProtoSessionRepository(
@@ -35,9 +41,33 @@ internal class MtProtoSessionRepository(
         }
     }
 
-    override suspend fun confirmQrCode(link: String): Boolean = throw UnsupportedOperationException(
-        "MTProto QR authorization confirmation is not available"
-    )
+    override suspend fun confirmQrCode(link: String): Boolean {
+        val token = parseQrToken(link)
+        val transport = transportFactory.open(accountSlot)
+        return try {
+            transport.execute(AcceptLoginToken(TlBytes.copyOf(token)))
+            true
+        } finally {
+            transport.close()
+        }
+    }
+
+    private fun parseQrToken(link: String): ByteArray {
+        val uri = runCatching { URI(link) }.getOrElse {
+            throw IllegalArgumentException("Invalid MTProto QR login link", it)
+        }
+        require(uri.scheme == "tg" && uri.host == "login") { "Unsupported MTProto QR login link" }
+        val encoded = uri.query
+            ?.split('&')
+            ?.firstOrNull { it.substringBefore('=') == "token" }
+            ?.substringAfter('=', "")
+            ?.takeIf(String::isNotBlank)
+            ?: throw IllegalArgumentException("MTProto QR login link has no token")
+        val decoded = URLDecoder.decode(encoded, StandardCharsets.UTF_8.name())
+        return runCatching { Base64.getUrlDecoder().decode(decoded) }.getOrElse {
+            throw IllegalArgumentException("MTProto QR login token is not valid base64", it)
+        }.also { require(it.isNotEmpty()) { "MTProto QR login token is empty" } }
+    }
 
     private fun Authorization_dbb1508a1d.toDomain() = SessionModel(
         id = hash,

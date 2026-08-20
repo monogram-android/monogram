@@ -3,19 +3,37 @@ package org.monogram.data.mtproto
 import org.monogram.data.db.dao.MtProtoFileHandleDao
 import org.monogram.data.db.model.MtProtoFileHandleEntity
 
+internal enum class MtProtoFileResourceType {
+    DOCUMENT,
+    PHOTO,
+}
+
+internal data class MtProtoFileResourceKey(
+    val type: MtProtoFileResourceType,
+    val id: Long,
+    val variant: String = "",
+) {
+    init {
+        require(id > 0L) { "MTProto file resource ID must be positive" }
+        require(variant.isNotBlank() || type == MtProtoFileResourceType.DOCUMENT) {
+            "MTProto photo handles require a thumb-size variant"
+        }
+    }
+}
+
 internal data class MtProtoFileHandle(
     val fileId: Int,
-    val documentId: Long,
+    val resource: MtProtoFileResourceKey,
 )
 
 internal interface MtProtoFileHandleStore {
-    suspend fun getOrCreate(scope: MtProtoAuthKeyScope, documentId: Long): MtProtoFileHandle
+    suspend fun getOrCreate(scope: MtProtoAuthKeyScope, resource: MtProtoFileResourceKey): MtProtoFileHandle
     suspend fun get(scope: MtProtoAuthKeyScope, fileId: Int): MtProtoFileHandle?
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
 
 internal object NoOpMtProtoFileHandleStore : MtProtoFileHandleStore {
-    override suspend fun getOrCreate(scope: MtProtoAuthKeyScope, documentId: Long): MtProtoFileHandle =
+    override suspend fun getOrCreate(scope: MtProtoAuthKeyScope, resource: MtProtoFileResourceKey): MtProtoFileHandle =
         error("MTProto file handles are unavailable")
 
     override suspend fun get(scope: MtProtoAuthKeyScope, fileId: Int): MtProtoFileHandle? = null
@@ -25,12 +43,14 @@ internal object NoOpMtProtoFileHandleStore : MtProtoFileHandleStore {
 internal class MtProtoRoomFileHandleStore(
     private val dao: MtProtoFileHandleDao,
 ) : MtProtoFileHandleStore {
-    override suspend fun getOrCreate(scope: MtProtoAuthKeyScope, documentId: Long): MtProtoFileHandle {
-        dao.getByDocument(
+    override suspend fun getOrCreate(scope: MtProtoAuthKeyScope, resource: MtProtoFileResourceKey): MtProtoFileHandle {
+        dao.getByResource(
             accountSlot = scope.accountSlot,
             environment = scope.environment.storageName,
             sessionDcId = scope.dcId,
-            documentId = documentId,
+            resourceType = resource.type.name,
+            resourceId = resource.id,
+            resourceVariant = resource.variant,
         )?.let { return it.toHandle() }
 
         dao.insert(
@@ -38,15 +58,19 @@ internal class MtProtoRoomFileHandleStore(
                 accountSlot = scope.accountSlot,
                 environment = scope.environment.storageName,
                 sessionDcId = scope.dcId,
-                documentId = documentId,
+                resourceType = resource.type.name,
+                resourceId = resource.id,
+                resourceVariant = resource.variant,
             )
         )
         return requireNotNull(
-            dao.getByDocument(
+            dao.getByResource(
                 accountSlot = scope.accountSlot,
                 environment = scope.environment.storageName,
                 sessionDcId = scope.dcId,
-                documentId = documentId,
+                resourceType = resource.type.name,
+                resourceId = resource.id,
+                resourceVariant = resource.variant,
             )
         ) { "Failed to persist MTProto file handle" }.toHandle()
     }
@@ -64,6 +88,10 @@ internal class MtProtoRoomFileHandleStore(
 
     private fun MtProtoFileHandleEntity.toHandle() = MtProtoFileHandle(
         fileId = fileId,
-        documentId = documentId,
+        resource = MtProtoFileResourceKey(
+            type = MtProtoFileResourceType.valueOf(resourceType),
+            id = resourceId,
+            variant = resourceVariant,
+        ),
     )
 }

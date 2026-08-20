@@ -63,7 +63,10 @@ internal class MtProtoDocumentFileRepository(
         val config = configSource.createForAccount(accountId)
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val location = locations.get(scope, documentId) ?: return null
-        val handle = handles.getOrCreate(scope, documentId).fileId
+        val handle = handles.getOrCreate(
+            scope,
+            MtProtoFileResourceKey(MtProtoFileResourceType.DOCUMENT, documentId),
+        ).fileId
         messageReferences.computeIfAbsent(handle) { ConcurrentHashMap.newKeySet() }.add(chatId to messageId)
         return MtProtoDocumentFile(
             fileId = handle,
@@ -182,7 +185,8 @@ internal class MtProtoDocumentFileRepository(
         val config = configSource.createForAccount(accountId)
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val handle = handles.get(scope, fileId) ?: return null
-        val location = locations.get(scope, handle.documentId) ?: return null
+        if (handle.resource.type != MtProtoFileResourceType.DOCUMENT) return null
+        val location = locations.get(scope, handle.resource.id) ?: return null
         return ResolvedDocument(scope, location)
     }
 

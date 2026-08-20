@@ -11,13 +11,16 @@ interface MtProtoFileHandleDao {
     @Query(
         "SELECT * FROM mtproto_file_handle WHERE accountSlot = :accountSlot " +
             "AND environment = :environment AND sessionDcId = :sessionDcId " +
-            "AND documentId = :documentId LIMIT 1"
+            "AND resourceType = :resourceType AND resourceId = :resourceId " +
+            "AND resourceVariant = :resourceVariant LIMIT 1"
     )
-    suspend fun getByDocument(
+    suspend fun getByResource(
         accountSlot: String,
         environment: String,
         sessionDcId: Int,
-        documentId: Long,
+        resourceType: String,
+        resourceId: Long,
+        resourceVariant: String,
     ): MtProtoFileHandleEntity?
 
     @Query(

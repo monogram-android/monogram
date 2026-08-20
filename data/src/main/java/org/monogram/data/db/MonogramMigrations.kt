@@ -594,6 +594,33 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_55_56 = object : Migration(55, 56) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE `mtproto_file_handle_new` (" +
+                    "`fileId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`accountSlot` TEXT NOT NULL, " +
+                    "`environment` TEXT NOT NULL, " +
+                    "`sessionDcId` INTEGER NOT NULL, " +
+                    "`resourceType` TEXT NOT NULL, " +
+                    "`resourceId` INTEGER NOT NULL, " +
+                    "`resourceVariant` TEXT NOT NULL)"
+            )
+            db.execSQL(
+                "INSERT INTO `mtproto_file_handle_new` " +
+                    "(`fileId`, `accountSlot`, `environment`, `sessionDcId`, `resourceType`, `resourceId`, `resourceVariant`) " +
+                    "SELECT `fileId`, `accountSlot`, `environment`, `sessionDcId`, 'DOCUMENT', `documentId`, '' " +
+                    "FROM `mtproto_file_handle`"
+            )
+            db.execSQL("DROP TABLE `mtproto_file_handle`")
+            db.execSQL("ALTER TABLE `mtproto_file_handle_new` RENAME TO `mtproto_file_handle`")
+            db.execSQL(
+                "CREATE UNIQUE INDEX `index_mtproto_file_handle_accountSlot_environment_sessionDcId_resourceType_resourceId_resourceVariant` " +
+                    "ON `mtproto_file_handle` (`accountSlot`, `environment`, `sessionDcId`, `resourceType`, `resourceId`, `resourceVariant`)"
+            )
+        }
+    }
+
     val MIGRATION_54_55 = object : Migration(54, 55) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.addColumn("mtproto_message_projection", "photoId", "INTEGER")

@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
     tableName = "mtproto_file_handle",
     indices = [
         Index(
-            value = ["accountSlot", "environment", "sessionDcId", "documentId"],
+            value = ["accountSlot", "environment", "sessionDcId", "resourceType", "resourceId", "resourceVariant"],
             unique = true,
         ),
     ],
@@ -19,5 +19,7 @@ data class MtProtoFileHandleEntity(
     val accountSlot: String,
     val environment: String,
     val sessionDcId: Int,
-    val documentId: Long,
+    val resourceType: String,
+    val resourceId: Long,
+    val resourceVariant: String,
 )

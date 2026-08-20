@@ -106,6 +106,7 @@ internal class MtProtoRoomMessageProjectionStore(
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val cloudObjectDao: MtProtoCloudObjectDao? = null,
     private val dialogStore: MtProtoDialogStore? = null,
+    private val documentLocations: MtProtoDocumentLocationStore = NoOpMtProtoDocumentLocationStore,
     private val database: MonogramDatabase? = null,
 ) : MtProtoMessageProjectionStore {
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
@@ -216,8 +217,10 @@ internal class MtProtoRoomMessageProjectionStore(
         null
     }
 
-    override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
+    override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
         dao.deleteAccount(accountSlot, environment.storageName)
+        documentLocations.deleteAccount(accountSlot, environment)
+    }
 
     private suspend fun applyUpdates(scope: MtProtoAuthKeyScope, updates: List<Update>): Boolean =
         updates.fold(false) { applied, update -> applyUpdate(scope, update) || applied }
@@ -252,12 +255,23 @@ internal class MtProtoRoomMessageProjectionStore(
 
     private suspend fun upsert(scope: MtProtoAuthKeyScope, message: Message_73e57f95e4, isScheduled: Boolean = false, updateDialog: Boolean = true): Boolean {
         val entity = message.toEntity(scope, nowMillis(), isScheduled) ?: return false
-        persist(scope, entity, updateDialog)
+        persist(
+            scope,
+            entity,
+            (message as? org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3)?.document(),
+            updateDialog,
+        )
         return true
     }
 
-    private suspend fun persist(scope: MtProtoAuthKeyScope, entity: MtProtoMessageProjectionEntity, updateDialog: Boolean = true) {
+    private suspend fun persist(
+        scope: MtProtoAuthKeyScope,
+        entity: MtProtoMessageProjectionEntity,
+        document: org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31? = null,
+        updateDialog: Boolean = true,
+    ) {
         suspend fun persistProjection() {
+            document?.let { documentLocations.upsert(scope, it) }
             dao.upsert(entity)
             if (updateDialog) dialogStore?.updateTopMessage(
                 scope = scope,
@@ -274,6 +288,10 @@ internal class MtProtoRoomMessageProjectionStore(
         is MessageService -> peerId.toPeerKey().let { (type, id) -> entity(scope, type, id, this.id, updatedAt, sender = fromId, date = date, isService = true, isOutgoing = out_, isMentioned = mentioned, isMediaUnread = mediaUnread, isSilent = silent) }
         is Message_7b7ecf54a3 -> peerId.toPeerKey().let { (type, id) -> entity(scope, type, id, this.id, updatedAt, sender = fromId, date = date, text = message, isOutgoing = out_, isMentioned = mentioned, isMediaUnread = mediaUnread, isSilent = silent, isPinned = pinned, editDate = editDate, groupedId = groupedId, hasMedia = media != null, isScheduled = scheduled || fromScheduled) }
     }
+
+    private fun org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3.document() =
+        (media as? org.monogram.mtproto.tl.generated.cloud.layer223.MessageMediaDocument)
+            ?.document as? org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
 
     private fun UpdateShortMessage.toEntity(scope: MtProtoAuthKeyScope) = entity(
         scope,

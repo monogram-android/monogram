@@ -594,6 +594,28 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_50_51 = object : Migration(50, 51) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_document_location` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `sessionDcId` INTEGER NOT NULL,
+                    `documentId` INTEGER NOT NULL,
+                    `accessHash` INTEGER NOT NULL,
+                    `fileReference` BLOB NOT NULL,
+                    `documentDcId` INTEGER NOT NULL,
+                    `mimeType` TEXT NOT NULL,
+                    `size` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `sessionDcId`, `documentId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
     val MIGRATION_49_50 = object : Migration(49, 50) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(

@@ -110,6 +110,8 @@ import org.monogram.data.mtproto.MtProtoRoomChatProjectionStore
 import org.monogram.data.mtproto.MtProtoChatProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
+import org.monogram.data.mtproto.MtProtoRoomDocumentLocationStore
+import org.monogram.data.mtproto.MtProtoDocumentLocationStore
 import org.monogram.data.mtproto.MtProtoRoomDialogStore
 import org.monogram.data.mtproto.MtProtoDialogStore
 import org.monogram.data.mtproto.MtProtoDraftStore
@@ -541,6 +543,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_47_48,
                 MonogramMigrations.MIGRATION_48_49,
                 MonogramMigrations.MIGRATION_49_50,
+                MonogramMigrations.MIGRATION_50_51,
             )
             .build()
     }
@@ -555,12 +558,23 @@ val dataModule = module {
     single { get<MonogramDatabase>().mtProtoDialogProjectionDao() }
     single { get<MonogramDatabase>().mtProtoMessageProjectionDao() }
     single { get<MonogramDatabase>().mtProtoDraftProjectionDao() }
+    single { get<MonogramDatabase>().mtProtoDocumentLocationDao() }
     single { get<MonogramDatabase>().mtProtoFileTransferDao() }
     single { MtProtoRoomUserProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoUserProjectionStore> { get<MtProtoRoomUserProjectionStore>() }
     single { MtProtoRoomChatProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoChatProjectionStore> { get<MtProtoRoomChatProjectionStore>() }
-    single { MtProtoRoomMessageProjectionStore(get(), cloudObjectDao = get(), dialogStore = get(), database = get()) }
+    single { MtProtoRoomDocumentLocationStore(get()) }
+    single<MtProtoDocumentLocationStore> { get<MtProtoRoomDocumentLocationStore>() }
+    single {
+        MtProtoRoomMessageProjectionStore(
+            get(),
+            cloudObjectDao = get(),
+            dialogStore = get(),
+            documentLocations = get(),
+            database = get(),
+        )
+    }
     single<MtProtoMessageProjectionStore> { get<MtProtoRoomMessageProjectionStore>() }
     single { MtProtoRoomDialogStore(get(), get(), get(), get()) }
     single<MtProtoDialogStore> { get<MtProtoRoomDialogStore>() }

@@ -15,6 +15,7 @@ import org.monogram.data.db.dao.MtProtoCloudObjectDao
 import org.monogram.data.db.dao.MtProtoChatProjectionDao
 import org.monogram.data.db.dao.MtProtoDialogProjectionDao
 import org.monogram.data.db.dao.MtProtoDraftProjectionDao
+import org.monogram.data.db.dao.MtProtoDocumentLocationDao
 import org.monogram.data.db.dao.MtProtoFileTransferDao
 import org.monogram.data.db.dao.MtProtoMessageProjectionDao
 import org.monogram.data.db.dao.MtProtoUserProjectionDao
@@ -56,6 +57,7 @@ import org.monogram.data.db.model.TopicEntity
 import org.monogram.data.db.model.UserEntity
 import org.monogram.data.db.model.UserFullInfoEntity
 import org.monogram.data.db.model.MtProtoDraftProjectionEntity
+import org.monogram.data.db.model.MtProtoDocumentLocationEntity
 import org.monogram.data.db.model.MtProtoFileTransferEntity
 import org.monogram.data.db.model.WallpaperEntity
 
@@ -72,6 +74,7 @@ import org.monogram.data.db.model.WallpaperEntity
         MtProtoDialogProjectionEntity::class,
         MtProtoMessageProjectionEntity::class,
         MtProtoDraftProjectionEntity::class,
+        MtProtoDocumentLocationEntity::class,
         MtProtoFileTransferEntity::class,
         UserEntity::class,
         ChatFullInfoEntity::class,
@@ -90,7 +93,7 @@ import org.monogram.data.db.model.WallpaperEntity
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 50,
+    version = 51,
     exportSchema = true
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -105,6 +108,7 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun mtProtoDialogProjectionDao(): MtProtoDialogProjectionDao
     abstract fun mtProtoMessageProjectionDao(): MtProtoMessageProjectionDao
     abstract fun mtProtoDraftProjectionDao(): MtProtoDraftProjectionDao
+    abstract fun mtProtoDocumentLocationDao(): MtProtoDocumentLocationDao
     abstract fun mtProtoFileTransferDao(): MtProtoFileTransferDao
     abstract fun userDao(): UserDao
     abstract fun chatFullInfoDao(): ChatFullInfoDao

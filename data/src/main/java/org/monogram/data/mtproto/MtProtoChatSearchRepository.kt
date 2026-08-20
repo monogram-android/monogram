@@ -12,11 +12,20 @@ import org.monogram.domain.models.DialogSnapshotModel
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.DialogSnapshotRepository
 import org.monogram.domain.repository.SearchMessagesResult
+import org.monogram.mtproto.tl.generated.cloud.layer223.Peer
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Found_bc39b7fc74
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Search
 
 internal class MtProtoChatSearchRepository(
     private val dialogRepository: DialogSnapshotRepository,
     private val messageStore: MtProtoMessageProjectionStore? = null,
     private val configSource: TelegramMtProtoBootstrapConfigSource? = null,
+    private val transportFactory: MtProtoSessionTransportFactory? = null,
+    private val userStore: MtProtoUserProjectionStore? = null,
+    private val chatStore: MtProtoChatProjectionStore? = null,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : ChatSearchRepository {
     override val searchHistory: Flow<List<ChatModel>> = emptyFlow()
@@ -31,8 +40,28 @@ internal class MtProtoChatSearchRepository(
             .toList()
     }
 
-    override suspend fun searchPublicChats(query: String): List<ChatModel> =
-        unsupported("MTProto public chat search is not available")
+    override suspend fun searchPublicChats(query: String): List<ChatModel> {
+        val normalized = query.trim()
+        if (normalized.isEmpty()) return emptyList()
+        val config = configSource?.createForAccount(accountId)
+            ?: unsupported("MTProto public chat search is not available")
+        val factory = transportFactory
+            ?: unsupported("MTProto public chat search is not available")
+        val users = userStore
+            ?: unsupported("MTProto public chat search is not available")
+        val chats = chatStore
+            ?: unsupported("MTProto public chat search is not available")
+        val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val transport = factory.open(accountId)
+        val result = try {
+            transport.execute(Search(normalized, MAX_PUBLIC_SEARCH_RESULTS))
+        } finally {
+            transport.close()
+        } as? Found_bc39b7fc74 ?: error("Unsupported contacts.search result")
+        users.upsert(scope, result.users)
+        chats.upsert(scope, result.chats)
+        return result.results.mapNotNull { it.toChatModel(scope, users, chats) }
+    }
 
     override suspend fun searchMessages(query: String, offset: String, limit: Int): SearchMessagesResult {
         require(limit in 1..MAX_SEARCH_PAGE_SIZE) { "Search page size must be between 1 and $MAX_SEARCH_PAGE_SIZE" }
@@ -100,6 +129,45 @@ internal class MtProtoChatSearchRepository(
         isPinned = isPinned,
     )
 
+    private suspend fun Peer.toChatModel(
+        scope: MtProtoAuthKeyScope,
+        users: MtProtoUserProjectionStore,
+        chats: MtProtoChatProjectionStore,
+    ): ChatModel? = when (this) {
+        is PeerUser -> users.get(scope, userId)?.takeIf { !it.isDeleted }?.let { user ->
+            ChatModel(
+                id = TelegramPeerChatId.encode(DialogPeerType.PRIVATE, userId),
+                title = listOfNotNull(user.firstName, user.lastName).joinToString(" ").ifBlank { user.username.orEmpty().ifBlank { userId.toString() } },
+                unreadCount = 0,
+                username = user.username,
+                type = ChatType.PRIVATE,
+            )
+        }
+        is PeerChat -> chats.get(scope, chatId)?.takeIf { !it.isDeleted && !it.isForbidden }?.let { chat ->
+            ChatModel(
+                id = TelegramPeerChatId.encode(DialogPeerType.BASIC_GROUP, chatId),
+                title = chat.title.orEmpty().ifBlank { chatId.toString() },
+                unreadCount = 0,
+                username = chat.username,
+                type = ChatType.BASIC_GROUP,
+                isGroup = true,
+            )
+        }
+        is PeerChannel -> chats.get(scope, channelId)?.takeIf { !it.isDeleted && !it.isForbidden }?.let { chat ->
+            val peerType = if (chat.type == MtProtoChatType.CHANNEL) DialogPeerType.CHANNEL else DialogPeerType.SUPERGROUP
+            ChatModel(
+                id = TelegramPeerChatId.encode(peerType, channelId),
+                title = chat.title.orEmpty().ifBlank { channelId.toString() },
+                unreadCount = 0,
+                username = chat.username,
+                type = ChatType.SUPERGROUP,
+                isGroup = true,
+                isSupergroup = true,
+                isChannel = peerType == DialogPeerType.CHANNEL,
+            )
+        }
+    }
+
     private fun MtProtoMessagePeerType.toDialogPeerType() = when (this) {
         MtProtoMessagePeerType.USER -> DialogPeerType.PRIVATE
         MtProtoMessagePeerType.GROUP -> DialogPeerType.BASIC_GROUP
@@ -110,6 +178,7 @@ internal class MtProtoChatSearchRepository(
 
     private companion object {
         const val MAX_SEARCH_PAGE_SIZE = 100
+        const val MAX_PUBLIC_SEARCH_RESULTS = 50
 
         const val DEFAULT_ACCOUNT_ID = "default"
     }

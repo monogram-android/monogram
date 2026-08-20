@@ -920,6 +920,9 @@ val dataModule = module {
             dialogRepository = get<MtProtoDialogSnapshotRepository>(),
             messageStore = get(),
             configSource = get(),
+            transportFactory = get(),
+            userStore = get(),
+            chatStore = get(),
         )
     }
     single<ChatSearchRepository> {

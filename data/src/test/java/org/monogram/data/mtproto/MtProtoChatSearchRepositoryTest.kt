@@ -12,6 +12,11 @@ import org.monogram.domain.models.DialogMessagePreviewModel
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.DialogSnapshotModel
 import org.monogram.domain.repository.DialogSnapshotRepository
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Found_bc39b7fc74
+import org.monogram.mtproto.tl.runtime.TlMethod
+import org.monogram.mtproto.transport.MtProtoRpcTransport
 
 class MtProtoChatSearchRepositoryTest {
     @Test
@@ -47,6 +52,25 @@ class MtProtoChatSearchRepositoryTest {
         assertEquals(MessageContent.Text("first match"), first.messages.single().content)
         assertEquals(1, second.messages.size)
         assertEquals(11L, second.messages.single().id)
+    }
+
+    @Test
+    fun `searches public peers through MTProto and stages returned users`() = runBlocking {
+        val users = RecordingUserStore()
+        val repository = MtProtoChatSearchRepository(
+            dialogRepository = FakeDialogRepository(),
+            configSource = TelegramMtProtoBootstrapConfigSource { testConfig() },
+            transportFactory = MtProtoSessionTransportFactory { FakeTransport(
+                Found_bc39b7fc74(emptyList(), listOf(PeerUser(42L)), emptyList(), emptyList())
+            ) },
+            userStore = users,
+            chatStore = NoOpMtProtoChatProjectionStore,
+        )
+
+        val result = repository.searchPublicChats("alice")
+
+        assertEquals(listOf(42L), result.map { it.id })
+        assertEquals(1, users.upsertCalls)
     }
 
     @Test
@@ -89,6 +113,43 @@ class MtProtoChatSearchRepositoryTest {
         handshake = MtProtoHandshakeConfig(4, listOf("test-key")),
         cloud = CloudLayer223ConnectionConfig(12345, "device", "system", "app", "en"),
     )
+
+    private class FakeTransport(private val result: Any) : MtProtoRpcTransport {
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            @Suppress("UNCHECKED_CAST")
+            return result as R
+        }
+
+        override fun close() = Unit
+    }
+
+    private class RecordingUserStore : MtProtoUserProjectionStore by NoOpMtProtoUserProjectionStore {
+        var upsertCalls = 0
+
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, users: List<User_655b5dfc57>) {
+            upsertCalls++
+        }
+
+        override suspend fun get(scope: MtProtoAuthKeyScope, userId: Long) = MtProtoUserReadModel(
+            userId = userId,
+            accessHash = 1L,
+            firstName = "Alice",
+            lastName = null,
+            username = "alice",
+            phone = null,
+            isSelf = false,
+            isContact = false,
+            isMutualContact = false,
+            isDeleted = false,
+            isBot = false,
+            isVerified = false,
+            isRestricted = false,
+            isScam = false,
+            isFake = false,
+            isPremium = false,
+            isMin = false,
+        )
+    }
 
     private class FakeMessageStore(private val messages: List<MtProtoMessageReadModel>) : MtProtoMessageProjectionStore by NoOpMtProtoMessageProjectionStore {
         override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int) =

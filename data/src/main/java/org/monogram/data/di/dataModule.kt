@@ -108,6 +108,8 @@ import org.monogram.data.mtproto.MtProtoRoomUserProjectionStore
 import org.monogram.data.mtproto.MtProtoUserProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomChatProjectionStore
 import org.monogram.data.mtproto.MtProtoChatProjectionStore
+import org.monogram.data.mtproto.MtProtoChatSettingsRepository
+import org.monogram.data.mtproto.MtProtoChatSettingsRepositoryImpl
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
@@ -589,6 +591,7 @@ val dataModule = module {
     single<MtProtoUserProjectionStore> { get<MtProtoRoomUserProjectionStore>() }
     single { MtProtoRoomChatProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoChatProjectionStore> { get<MtProtoRoomChatProjectionStore>() }
+    single<MtProtoChatSettingsRepository> { MtProtoChatSettingsRepositoryImpl(get(), get(), get(), get()) }
     single { MtProtoRoomDocumentLocationStore(get()) }
     single<MtProtoDocumentLocationStore> { get<MtProtoRoomDocumentLocationStore>() }
     single<MtProtoPhotoLocationStore> { MtProtoRoomPhotoLocationStore(get()) }
@@ -1287,6 +1290,7 @@ val dataModule = module {
         TelegramBackendChatSettingsRouter(
             selectionStore = get(),
             legacyFactory = { get<ChatsListRepositoryImpl>() },
+            mtProtoFactory = { get<MtProtoChatSettingsRepository>() },
             scope = get(),
         )
     }

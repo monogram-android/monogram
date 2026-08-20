@@ -3,6 +3,7 @@ package org.monogram.data.backend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import org.monogram.data.mtproto.MtProtoChatSettingsRepository
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.repository.ChatSettingsRepository
 
@@ -10,14 +11,22 @@ internal class TelegramBackendChatSettingsRouter(
     selectionStore: TelegramBackendSelectionStore,
     private val legacyFactory: () -> ChatSettingsRepository,
     scope: CoroutineScope,
+    private val mtProtoFactory: () -> MtProtoChatSettingsRepository = { throw UnsupportedOperationException("MTProto chat settings are not configured") },
     private val accountId: String = "default",
 ) : ChatSettingsRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
     init { scope.launch { selectionStore.observe(accountId).collect { selectedBackend.value = it } } }
     override suspend fun setChatPhoto(chatId: Long, photoPath: String) = call { legacy.setChatPhoto(chatId, photoPath) }
-    override suspend fun setChatTitle(chatId: Long, title: String) = call { legacy.setChatTitle(chatId, title) }
-    override suspend fun setChatDescription(chatId: Long, description: String) = call { legacy.setChatDescription(chatId, description) }
+    override suspend fun setChatTitle(chatId: Long, title: String) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatTitle(chatId, title)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setTitle(chatId, title)
+    }
+    override suspend fun setChatDescription(chatId: Long, description: String) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatDescription(chatId, description)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setDescription(chatId, description)
+    }
     override suspend fun setChatUsername(chatId: Long, username: String) = call { legacy.setChatUsername(chatId, username) }
     override suspend fun setChatPermissions(chatId: Long, permissions: ChatPermissionsModel) = call { legacy.setChatPermissions(chatId, permissions) }
     override suspend fun setChatHasProtectedContent(chatId: Long, hasProtectedContent: Boolean) = call { legacy.setChatHasProtectedContent(chatId, hasProtectedContent) }

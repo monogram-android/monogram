@@ -17,5 +17,13 @@ data class MtProtoDocumentLocationEntity(
     val mimeType: String,
     val size: Long,
     val fileName: String,
+    val mediaKind: String,
+    val width: Int?,
+    val height: Int?,
+    val duration: Int?,
+    val supportsStreaming: Boolean,
+    val title: String?,
+    val performer: String?,
+    val waveform: ByteArray?,
     val updatedAt: Long,
 )

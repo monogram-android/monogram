@@ -31,6 +31,8 @@ import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
 import org.monogram.data.mtproto.MtProtoMessageViewerReader
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageReader
+import org.monogram.data.mtproto.MtProtoDocumentFile
+import org.monogram.data.mtproto.MtProtoDocumentMediaKind
 import org.monogram.data.mtproto.MtProtoFileRepository
 
 /**
@@ -326,14 +328,7 @@ internal class TelegramBackendMessageRouter(
         val content = when {
             isService -> MessageContent.Service(text.orEmpty())
             documentId != null -> files.registerDocument(documentId, chatId, messageId)?.let { document ->
-                MessageContent.Document(
-                    path = files.getPath(document.fileId),
-                    fileName = document.fileName,
-                    mimeType = document.mimeType,
-                    size = document.size,
-                    caption = text.orEmpty(),
-                    fileId = document.fileId,
-                )
+                document.toMessageContent(files.getPath(document.fileId), text.orEmpty())
             } ?: MessageContent.Text(text.orEmpty())
             photoId != null -> files.registerPhoto(photoId, chatId, messageId)?.let { photo ->
                 MessageContent.Photo(
@@ -360,6 +355,49 @@ internal class TelegramBackendMessageRouter(
             isPinned = isPinned,
         )
     }
+
+    private fun MtProtoDocumentFile.toMessageContent(path: String?, caption: String): MessageContent = when (mediaKind) {
+        MtProtoDocumentMediaKind.VIDEO -> if (width != null && height != null && duration != null) {
+            MessageContent.Video(
+                path = path,
+                width = width,
+                height = height,
+                duration = duration,
+                caption = caption,
+                fileId = fileId,
+                supportsStreaming = supportsStreaming,
+            )
+        } else genericDocument(path, caption)
+        MtProtoDocumentMediaKind.GIF -> if (width != null && height != null) {
+            MessageContent.Gif(path = path, width = width, height = height, caption = caption, fileId = fileId)
+        } else genericDocument(path, caption)
+        MtProtoDocumentMediaKind.AUDIO -> if (duration != null) {
+            MessageContent.Audio(
+                path = path,
+                duration = duration,
+                title = title.orEmpty(),
+                performer = performer.orEmpty(),
+                fileName = fileName,
+                mimeType = mimeType,
+                size = size,
+                caption = caption,
+                fileId = fileId,
+            )
+        } else genericDocument(path, caption)
+        MtProtoDocumentMediaKind.VOICE -> if (duration != null) {
+            MessageContent.Voice(path = path, duration = duration, waveform = waveform, fileId = fileId)
+        } else genericDocument(path, caption)
+        MtProtoDocumentMediaKind.DOCUMENT -> genericDocument(path, caption)
+    }
+
+    private fun MtProtoDocumentFile.genericDocument(path: String?, caption: String) = MessageContent.Document(
+        path = path,
+        fileName = fileName,
+        mimeType = mimeType,
+        size = size,
+        caption = caption,
+        fileId = fileId,
+    )
 
     private fun invokeLegacy(method: Method, args: Array<out Any?>?): Any? = try {
         method.invoke(legacy, *(args ?: emptyArray()))

@@ -594,6 +594,19 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_56_57 = object : Migration(56, 57) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_document_location", "mediaKind", "TEXT NOT NULL DEFAULT 'DOCUMENT'")
+            db.addColumn("mtproto_document_location", "width", "INTEGER")
+            db.addColumn("mtproto_document_location", "height", "INTEGER")
+            db.addColumn("mtproto_document_location", "duration", "INTEGER")
+            db.addColumn("mtproto_document_location", "supportsStreaming", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("mtproto_document_location", "title", "TEXT")
+            db.addColumn("mtproto_document_location", "performer", "TEXT")
+            db.addColumn("mtproto_document_location", "waveform", "BLOB")
+        }
+    }
+
     val MIGRATION_55_56 = object : Migration(55, 56) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(

@@ -33,6 +33,14 @@ internal data class MtProtoDocumentFile(
     val fileName: String,
     val mimeType: String,
     val size: Long,
+    val mediaKind: MtProtoDocumentMediaKind = MtProtoDocumentMediaKind.DOCUMENT,
+    val width: Int? = null,
+    val height: Int? = null,
+    val duration: Int? = null,
+    val supportsStreaming: Boolean = false,
+    val title: String? = null,
+    val performer: String? = null,
+    val waveform: ByteArray? = null,
 )
 
 /**
@@ -84,6 +92,14 @@ internal class MtProtoDocumentFileRepository(
             fileName = location.fileName,
             mimeType = location.mimeType,
             size = location.size,
+            mediaKind = location.mediaKind,
+            width = location.width,
+            height = location.height,
+            duration = location.duration,
+            supportsStreaming = location.supportsStreaming,
+            title = location.title,
+            performer = location.performer,
+            waveform = location.waveform,
         )
     }
 

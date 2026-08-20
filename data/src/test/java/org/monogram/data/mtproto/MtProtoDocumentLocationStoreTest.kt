@@ -39,6 +39,7 @@ class MtProtoDocumentLocationStoreTest {
         assertEquals(4, location.documentDcId)
         assertEquals("application/pdf", location.mimeType)
         assertEquals(42L, location.size)
+        assertEquals(MtProtoDocumentMediaKind.DOCUMENT, location.mediaKind)
         assertNull(store.get(scope.copy(dcId = 3), 9L))
         store.deleteAccount("account", MtProtoEnvironment.TEST)
         assertNull(store.get(scope, 9L))

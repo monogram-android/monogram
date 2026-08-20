@@ -118,6 +118,7 @@ import org.monogram.data.mtproto.MtProtoChatCreationRepository
 import org.monogram.data.mtproto.MtProtoChatCreationRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepository
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepositoryImpl
+import org.monogram.data.mtproto.MtProtoStreamingRepository
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
@@ -1815,6 +1816,7 @@ val dataModule = module {
         TelegramBackendStreamingRouter(
             selectionStore = get(),
             legacyFactory = { StreamingRepositoryImpl(fileDataSource = get(), fileObserverHub = get()) },
+            mtProtoFactory = { MtProtoStreamingRepository(get()) },
             scope = get(),
         )
     }

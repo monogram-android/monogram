@@ -23,6 +23,7 @@ import org.monogram.data.backend.TelegramBackendChatSearchRouter
 import org.monogram.data.backend.TelegramBackendChatInfoRouter
 import org.monogram.data.backend.TelegramBackendContactEditRouter
 import org.monogram.data.backend.TelegramBackendMessageRouter
+import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
 import org.monogram.data.backend.LegacyChatReadContracts
 import org.monogram.data.backend.TelegramBackendReadRouter
@@ -131,6 +132,7 @@ import org.monogram.data.mtproto.MtProtoClearHistoryRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatSearchRepository
 import org.monogram.data.mtproto.MtProtoChatInfoRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
+import org.monogram.data.mtproto.MtProtoNotificationSettingsRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileReader
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
@@ -1130,15 +1132,32 @@ val dataModule = module {
         )
     }
 
+    single<MtProtoNotificationSettingsRepository> {
+        MtProtoNotificationSettingsRepository(
+            configSource = get(),
+            transportFactory = get(),
+            users = get(),
+            chats = get(),
+            dialogs = get(),
+            chatList = get(),
+        )
+    }
     single<NotificationSettingsRepository> {
-        NotificationSettingsRepositoryImpl(
-            remote = get(),
-            cache = get(),
-            chatsRemote = get(),
-            notificationExceptionDao = get(),
-            updates = get(),
+        TelegramBackendNotificationSettingsRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                NotificationSettingsRepositoryImpl(
+                    remote = get(),
+                    cache = get(),
+                    chatsRemote = get(),
+                    notificationExceptionDao = get(),
+                    updates = get(),
+                    scope = get(),
+                    dispatchers = get(),
+                )
+            },
+            mtProto = get(),
             scope = get(),
-            dispatchers = get()
         )
     }
 

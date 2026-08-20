@@ -22,6 +22,7 @@ class TelegramBackendChatSettingsRouterTest {
 
         router.setChatTitle(-7, "Team")
         router.setChatDescription(-7, "Owned MTProto")
+        router.setChatHasProtectedContent(-7, true)
         router.setChatUsername(-7, "team")
         router.setChatSlowModeDelay(-7, 10)
         router.setChatHasHiddenMembers(-7, true)
@@ -32,7 +33,7 @@ class TelegramBackendChatSettingsRouterTest {
         router.toggleChatIsForum(-7, true)
         router.setChatAvailableReactions(-7, listOf("👍"))
 
-        assertEquals(listOf("title:-7:Team", "description:-7:Owned MTProto", "username:-7:team", "slow:10", "hidden:true", "spam:true", "join:true", "request:true", "sign:true", "forum:true", "reactions:👍"), settings.calls)
+        assertEquals(listOf("title:-7:Team", "description:-7:Owned MTProto", "protected:true", "username:-7:team", "slow:10", "hidden:true", "spam:true", "join:true", "request:true", "sign:true", "forum:true", "reactions:👍"), settings.calls)
     }
 
     private class RecordingSettings : MtProtoChatSettingsRepository {
@@ -43,6 +44,7 @@ class TelegramBackendChatSettingsRouterTest {
         override suspend fun setDescription(chatId: Long, description: String) {
             calls += "description:$chatId:$description"
         }
+        override suspend fun setProtectedContent(chatId: Long, enabled: Boolean) { calls += "protected:$enabled" }
         override suspend fun setUsername(chatId: Long, username: String) {
             calls += "username:$chatId:$username"
         }

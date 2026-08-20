@@ -13,6 +13,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSignature
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsAll
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsSome
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetChatAvailableReactions
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ToggleNoForwards
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -71,6 +72,22 @@ class MtProtoChatSettingsRepositoryTest {
         val request = transport.requests.single() as ToggleForum
         assertTrue(request.enabled)
         assertTrue(request.tabs)
+    }
+
+    @Test
+    fun `sets protected content and stages authoritative updates`() = runTest {
+        val transport = RecordingTransport()
+        val stager = RecordingStager()
+        val repository = repository(transport, stager)
+
+        repository.setProtectedContent(-42, true)
+
+        val request = transport.requests.single() as ToggleNoForwards
+        assertEquals(42L, (request.peer as org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat).chatId)
+        assertTrue(request.enabled)
+        assertEquals(null, request.requestMsgId)
+        assertEquals(1, stager.calls)
+        assertTrue(transport.closed)
     }
 
     @Test

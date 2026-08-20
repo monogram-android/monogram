@@ -32,7 +32,10 @@ internal class TelegramBackendChatSettingsRouter(
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setUsername(chatId, username)
     }
     override suspend fun setChatPermissions(chatId: Long, permissions: ChatPermissionsModel) = call { legacy.setChatPermissions(chatId, permissions) }
-    override suspend fun setChatHasProtectedContent(chatId: Long, hasProtectedContent: Boolean) = call { legacy.setChatHasProtectedContent(chatId, hasProtectedContent) }
+    override suspend fun setChatHasProtectedContent(chatId: Long, hasProtectedContent: Boolean) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatHasProtectedContent(chatId, hasProtectedContent)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setProtectedContent(chatId, hasProtectedContent)
+    }
     override suspend fun setChatSignMessages(chatId: Long, signMessages: Boolean) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setChatSignMessages(chatId, signMessages)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setSignMessages(chatId, signMessages)

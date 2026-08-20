@@ -222,6 +222,7 @@ import org.monogram.data.backend.TelegramBackendPrivacyRouter
 import org.monogram.data.mtproto.MtProtoPrivacyRepository
 import org.monogram.data.mtproto.MtProtoProfileEditRepository
 import org.monogram.data.backend.TelegramBackendProfileEditRouter
+import org.monogram.data.backend.TelegramBackendProfilePhotoRouter
 import org.monogram.data.backend.TelegramBackendUserRouter
 import org.monogram.data.repository.ProfilePhotoRepositoryImpl
 import org.monogram.data.repository.ProxyDiagnosticsRepositoryImpl
@@ -782,12 +783,18 @@ val dataModule = module {
     }
 
     single<ProfilePhotoRepository> {
-        ProfilePhotoRepositoryImpl(
-            remote = get(),
-            chatLocal = get(),
-            gateway = get(),
-            fileQueue = get(),
-            fileObserverHub = get()
+        TelegramBackendProfilePhotoRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                ProfilePhotoRepositoryImpl(
+                    remote = get(),
+                    chatLocal = get(),
+                    gateway = get(),
+                    fileQueue = get(),
+                    fileObserverHub = get(),
+                )
+            },
+            scope = get(),
         )
     }
 

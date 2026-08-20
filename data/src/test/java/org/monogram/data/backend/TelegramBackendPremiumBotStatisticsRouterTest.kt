@@ -8,7 +8,11 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepository
+import org.monogram.domain.models.ChatStatisticsModel
+import org.monogram.domain.models.DateRangeModel
 import org.monogram.domain.models.StatisticsGraphModel
+import org.monogram.domain.models.StatisticsType
+import org.monogram.domain.models.StatisticsValueModel
 import org.junit.Test
 
 class TelegramBackendPremiumBotStatisticsRouterTest {
@@ -18,11 +22,8 @@ class TelegramBackendPremiumBotStatisticsRouterTest {
         val scope = CoroutineScope(Dispatchers.Unconfined)
         val premium = TelegramBackendPremiumRouter(selection, { error("legacy premium created") }, scope)
         val bot = TelegramBackendBotRouter(selection, { error("legacy bot created") }, scope)
-        val statistics = TelegramBackendChatStatisticsRouter(selection, { error("legacy statistics created") }, scope)
-
         assertTrue(runCatching { premium.getPremiumState() }.exceptionOrNull() is UnsupportedOperationException)
         assertTrue(runCatching { bot.getBotCommands(1L) }.exceptionOrNull() is UnsupportedOperationException)
-        assertTrue(runCatching { statistics.getChatStatistics(1L, false) }.exceptionOrNull() is UnsupportedOperationException)
     }
 
     @Test
@@ -30,13 +31,22 @@ class TelegramBackendPremiumBotStatisticsRouterTest {
         val statistics = TelegramBackendChatStatisticsRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy statistics created") },
-            mtProtoFactory = { MtProtoChatStatisticsRepository { token, x -> StatisticsGraphModel.Async("$token:$x") } },
+            mtProtoFactory = { object : MtProtoChatStatisticsRepository {
+                override suspend fun getChatStatistics(chatId: Long, isDark: Boolean) = statistics()
+                override suspend fun loadGraph(token: String, x: Long) = StatisticsGraphModel.Async("$token:$x")
+            } },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
         assertEquals(StatisticsGraphModel.Async("token:7"), statistics.loadStatisticsGraph(-1, "token", 7))
-        assertTrue(runCatching { statistics.getChatStatistics(-1, false) }.exceptionOrNull() is UnsupportedOperationException)
+        assertEquals(StatisticsType.CHANNEL, statistics.getChatStatistics(-1, false)?.type)
     }
+
+    private fun statistics() = ChatStatisticsModel(
+        type = StatisticsType.CHANNEL,
+        period = DateRangeModel(1, 2),
+        memberCount = StatisticsValueModel(1.0, 0.0, 0.0),
+    )
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {
         private val state = MutableStateFlow(initial)

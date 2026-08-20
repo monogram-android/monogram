@@ -604,7 +604,7 @@ val dataModule = module {
     single<MtProtoChatProjectionStore> { get<MtProtoRoomChatProjectionStore>() }
     single<MtProtoChatSettingsRepository> { MtProtoChatSettingsRepositoryImpl(get(), get(), get(), get(), get(), get()) }
     single<MtProtoChatCreationRepository> { MtProtoChatCreationRepositoryImpl(get(), get(), get(), get()) }
-    single<MtProtoChatStatisticsRepository> { MtProtoChatStatisticsRepositoryImpl(get()) }
+    single<MtProtoChatStatisticsRepository> { MtProtoChatStatisticsRepositoryImpl(get(), get(), get(), get()) }
     single { MtProtoRoomDocumentLocationStore(get()) }
     single<MtProtoDocumentLocationStore> { get<MtProtoRoomDocumentLocationStore>() }
     single<MtProtoPhotoLocationStore> { MtProtoRoomPhotoLocationStore(get()) }

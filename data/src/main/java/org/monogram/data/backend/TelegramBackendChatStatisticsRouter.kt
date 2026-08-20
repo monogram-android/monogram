@@ -24,7 +24,7 @@ internal class TelegramBackendChatStatisticsRouter(
 
     override suspend fun getChatStatistics(chatId: Long, isDark: Boolean): ChatStatisticsModel? = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getChatStatistics(chatId, isDark)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getChatStatistics(chatId, isDark)
     }
 
     override suspend fun getChatRevenueStatistics(chatId: Long, isDark: Boolean): ChatRevenueStatisticsModel? = when (selected()) {

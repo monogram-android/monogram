@@ -27,6 +27,7 @@ import org.monogram.data.backend.TelegramBackendMessageRouter
 import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
 import org.monogram.data.backend.TelegramBackendLimitsRouter
+import org.monogram.data.backend.TelegramBackendLinkRouter
 import org.monogram.data.backend.TelegramBackendSessionRouter
 import org.monogram.data.backend.LegacyChatReadContracts
 import org.monogram.data.backend.TelegramBackendReadRouter
@@ -1463,12 +1464,18 @@ val dataModule = module {
     }
 
     single<TelegramLinkRepository> {
-        TelegramLinkRepositoryImpl(
-            gateway = get(),
-            updates = get(),
-            keyValueDao = get(),
+        TelegramBackendLinkRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                TelegramLinkRepositoryImpl(
+                    gateway = get(),
+                    updates = get(),
+                    keyValueDao = get(),
+                    scope = get(),
+                    dispatchers = get(),
+                )
+            },
             scope = get(),
-            dispatchers = get()
         )
     }
 

@@ -234,6 +234,7 @@ import org.monogram.data.backend.TelegramBackendProfileEditRouter
 import org.monogram.data.backend.TelegramBackendProfilePhotoRouter
 import org.monogram.data.backend.TelegramBackendProxyRouter
 import org.monogram.data.backend.TelegramBackendStorageRouter
+import org.monogram.data.backend.TelegramBackendStoryRouter
 import org.monogram.data.backend.TelegramBackendWallpaperRouter
 import org.monogram.data.backend.TelegramBackendUserRouter
 import org.monogram.data.repository.ProfilePhotoRepositoryImpl
@@ -1529,12 +1530,18 @@ val dataModule = module {
     }
 
     single<StoryRepository> {
-        StoryRepositoryImpl(
-            gateway = get(),
-            updates = get(),
+        TelegramBackendStoryRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                StoryRepositoryImpl(
+                    gateway = get(),
+                    updates = get(),
+                    scope = get(),
+                    fileDataSource = get(),
+                    tdLibLimitsRepository = get(),
+                )
+            },
             scope = get(),
-            fileDataSource = get(),
-            tdLibLimitsRepository = get()
         )
     }
 

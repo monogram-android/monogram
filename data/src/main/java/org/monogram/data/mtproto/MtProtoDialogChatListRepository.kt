@@ -35,6 +35,7 @@ internal class MtProtoDialogChatListRepository(
     private val readHistoryRepository: MtProtoReadHistoryRepository,
     private val scope: CoroutineScope,
     private val archiveRepository: MtProtoArchiveRepository = MtProtoArchiveRepository { _, _ -> },
+    private val dialogPinRepository: MtProtoDialogPinRepository = MtProtoDialogPinRepository { _, _ -> },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
@@ -134,7 +135,11 @@ internal class MtProtoDialogChatListRepository(
         archiveRepository.setArchived(chatIds, archive)
         refresh()
     }
-    override suspend fun togglePinChats(chatIds: Set<Long>, pin: Boolean, folderId: Int) = unsupportedOperations()
+    override suspend fun togglePinChats(chatIds: Set<Long>, pin: Boolean, folderId: Int) {
+        require(folderId == ALL_CHATS_FOLDER_ID) { "MTProto folder-specific pinning is not available" }
+        dialogPinRepository.setPinned(chatIds, pin)
+        refresh()
+    }
 
     override suspend fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) {
         require(!markAsUnread) { "MTProto mark-unread is not available" }

@@ -74,6 +74,25 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `pins dialogs through the owned pin repository then refreshes`() = runTest {
+        val source = FakeDialogRepository(emptyList())
+        val pins = RecordingDialogPinRepository()
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = source,
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+            dialogPinRepository = pins,
+        )
+        runCurrent()
+
+        repository.togglePinChats(setOf(42L), pin = true, folderId = -1)
+        runCurrent()
+
+        assertEquals(listOf(setOf(42L) to true), pins.requests)
+        assertEquals(2, source.calls)
+    }
+
+    @Test
     fun `archives chats through the owned archive repository then refreshes`() = runTest {
         val source = FakeDialogRepository(emptyList())
         val archive = RecordingArchiveRepository()
@@ -117,6 +136,14 @@ class MtProtoDialogChatListRepositoryTest {
 
         assertThrows(IllegalArgumentException::class.java) {
             repository.selectFolder(0)
+        }
+    }
+
+    private class RecordingDialogPinRepository : MtProtoDialogPinRepository {
+        val requests = mutableListOf<Pair<Set<Long>, Boolean>>()
+
+        override suspend fun setPinned(chatIds: Set<Long>, pinned: Boolean) {
+            requests += chatIds to pinned
         }
     }
 

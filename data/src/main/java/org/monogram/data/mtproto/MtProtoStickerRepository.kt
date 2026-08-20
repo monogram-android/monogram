@@ -3,12 +3,27 @@ package org.monogram.data.mtproto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import org.monogram.domain.models.StickerFormat
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
+import org.monogram.domain.models.StickerType
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeCustomEmoji
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeImageSize
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeSticker
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeVideo
+import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetShortName
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.StickerSet_ec0b3f33d3
 
-/** Explicit boundary until sticker projections and file state are account-scoped. */
-internal class MtProtoStickerRepository : StickerRepository {
+/** Metadata-only MTProto sticker reads; file paths and mutations require media projections. */
+internal class MtProtoStickerRepository(
+    private val configSource: TelegramMtProtoBootstrapConfigSource,
+    private val transportFactory: MtProtoSessionTransportFactory,
+    private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
+) : StickerRepository {
     private val unsupportedSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
 
     override val installedStickerSets: StateFlow<List<StickerSetModel>> = unsupportedSets
@@ -26,8 +41,26 @@ internal class MtProtoStickerRepository : StickerRepository {
     override fun getCustomEmojiFile(customEmojiId: Long): Flow<String?> = unsupported("custom emoji files")
     override suspend fun getTgsJson(path: String): String? = unsupported("animated sticker files")
     override fun clearCache() = unsupported("sticker cache clearing")
-    override suspend fun getStickerSet(setId: Long): StickerSetModel? = unsupported("sticker-set reads")
-    override suspend fun getStickerSetByName(name: String): StickerSetModel? = unsupported("sticker-set reads")
+
+    override suspend fun getStickerSet(setId: Long): StickerSetModel? = unsupported("sticker-set ID reads without access hash")
+
+    override suspend fun getStickerSetByName(name: String): StickerSetModel? =
+        getStickerSet(InputStickerSetShortName(name.trim()))
+
+    private suspend fun getStickerSet(input: InputStickerSet): StickerSetModel? {
+        require(input !is InputStickerSetShortName || input.shortName.isNotBlank()) {
+            "Sticker-set short name must not be blank"
+        }
+        configSource.createForAccount(accountSlot)
+        val transport = transportFactory.open(accountSlot)
+        try {
+            val result = transport.execute(GetStickerSet(input, 0)) as? StickerSet_ec0b3f33d3 ?: return null
+            return result.toDomain()
+        } finally {
+            transport.close()
+        }
+    }
+
     override suspend fun verifyStickerSet(setId: Long) = unsupported("sticker verification")
     override suspend fun toggleStickerSetInstalled(setId: Long, isInstalled: Boolean) = unsupported("sticker installation")
     override suspend fun toggleStickerSetArchived(setId: Long, isArchived: Boolean) = unsupported("sticker archive mutation")
@@ -36,7 +69,49 @@ internal class MtProtoStickerRepository : StickerRepository {
     override suspend fun getStickerEmojiHints(query: String): List<String> = unsupported("sticker emoji hints")
     override suspend fun searchStickerSets(query: String): List<StickerSetModel> = unsupported("sticker-set search")
 
+    private fun StickerSet_ec0b3f33d3.toDomain(): StickerSetModel? {
+        val set = set_ as? org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701 ?: return null
+        return StickerSetModel(
+            id = set.id,
+            title = set.title,
+            name = set.shortName,
+            stickers = documents.mapNotNull { (it as? Document_be725c3b31)?.toDomain() },
+            isInstalled = set.installedDate != null,
+            isArchived = set.archived,
+            isOfficial = set.official,
+            stickerType = when {
+                set.emojis -> StickerType.CUSTOM_EMOJI
+                set.masks -> StickerType.MASK
+                else -> StickerType.REGULAR
+            },
+        )
+    }
+
+    private fun Document_be725c3b31.toDomain(): StickerModel? {
+        val sticker = attributes.filterIsInstance<DocumentAttributeSticker>().firstOrNull()
+        val customEmoji = attributes.filterIsInstance<DocumentAttributeCustomEmoji>().firstOrNull()
+        if (sticker == null && customEmoji == null) return null
+        val dimensions = attributes.filterIsInstance<DocumentAttributeImageSize>().firstOrNull()
+        val video = attributes.filterIsInstance<DocumentAttributeVideo>().firstOrNull()
+        return StickerModel(
+            id = id,
+            customEmojiId = customEmoji?.let { id },
+            width = dimensions?.w ?: video?.w ?: 0,
+            height = dimensions?.h ?: video?.h ?: 0,
+            emoji = sticker?.alt ?: customEmoji?.alt.orEmpty(),
+            path = null,
+            format = when {
+                video != null -> StickerFormat.VIDEO
+                mimeType == "application/x-tgsticker" -> StickerFormat.ANIMATED
+                mimeType == "video/webm" -> StickerFormat.VIDEO
+                else -> StickerFormat.STATIC
+            },
+        )
+    }
+
     private fun unsupported(operation: String): Nothing = throw UnsupportedOperationException(
         "MTProto $operation is not available"
     )
+
+    private companion object { const val DEFAULT_ACCOUNT_SLOT = "default" }
 }

@@ -54,12 +54,18 @@ internal class MtProtoAuthRepository(
     init {
         authorizedSessionRestorer?.let { restorer ->
             scope.launch {
-                if (restorer.restore(accountSlot)) {
-                    synchronized(lock) {
-                        if (activeJob == null && _authState.value is AuthStep.InputPhone) {
-                            _authState.value = AuthStep.Ready
+                try {
+                    if (restorer.restore(accountSlot)) {
+                        synchronized(lock) {
+                            if (activeJob == null && _authState.value is AuthStep.InputPhone) {
+                                _authState.value = AuthStep.Ready
+                            }
                         }
                     }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Throwable) {
+                    // Restoring a persisted session is best effort; transport failures leave auth interactive.
                 }
             }
         }

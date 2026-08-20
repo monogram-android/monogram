@@ -1,5 +1,6 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.CancellationException
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputUserSelf
 import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetUsers
 import org.monogram.mtproto.transport.MtProtoRpcException
@@ -27,6 +28,10 @@ internal class TelegramMtProtoAuthorizedSessionRestorer(
             true
         } catch (failure: MtProtoRpcException) {
             if (failure.errorCode == 401) authorizationStore.clear(accountSlot)
+            false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Throwable) {
             false
         }
     }

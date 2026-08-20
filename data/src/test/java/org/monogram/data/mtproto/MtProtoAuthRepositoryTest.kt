@@ -123,6 +123,21 @@ class MtProtoAuthRepositoryTest {
     }
 
     @Test
+    fun `keeps authentication interactive when session restoration throws`() = runTest {
+        val repository = MtProtoAuthRepository(
+            sessionFactory = MtProtoAuthSessionHandleFactory { error("unexpected auth session") },
+            scope = backgroundScope,
+            authorizedSessionRestorer = MtProtoAuthorizedSessionRestorer {
+                throw IllegalStateException("transport unavailable")
+            },
+        )
+
+        testScheduler.runCurrent()
+
+        assertEquals(AuthStep.InputPhone, repository.authState.value)
+    }
+
+    @Test
     fun `submits registration only after signup state and closes ready session`() = runTest {
         val handle = FakeHandle(
             requestCode = { AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5) },

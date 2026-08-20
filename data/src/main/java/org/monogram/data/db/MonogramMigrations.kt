@@ -594,6 +594,12 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_53_54 = object : Migration(53, 54) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_document_location", "fileName", "TEXT NOT NULL DEFAULT ''")
+        }
+    }
+
     val MIGRATION_52_53 = object : Migration(52, 53) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
@@ -631,6 +637,7 @@ object MonogramMigrations {
                     `documentDcId` INTEGER NOT NULL,
                     `mimeType` TEXT NOT NULL,
                     `size` INTEGER NOT NULL,
+                    `fileName` TEXT NOT NULL DEFAULT '',
                     `updatedAt` INTEGER NOT NULL,
                     PRIMARY KEY(`accountSlot`, `environment`, `sessionDcId`, `documentId`)
                 )

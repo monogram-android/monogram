@@ -33,4 +33,5 @@ data class MessageHistorySnapshotModel(
     val editDate: Int?,
     val groupedId: Long?,
     val hasMedia: Boolean,
+    val documentId: Long? = null,
 )

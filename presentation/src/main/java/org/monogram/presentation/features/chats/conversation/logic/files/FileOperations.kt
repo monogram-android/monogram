@@ -8,7 +8,6 @@ import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 internal fun DefaultChatComponent.handleDownloadFile(fileId: Int, userInitiated: Boolean = true) {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     // Only an explicit gesture gets priority 32 and the user-initiated fast path. Viewport
     // prefetch used to pass 32 as well, which marked every scrolled-past thumbnail as "manual"
     // and left it un-evictable, silting up the download slots.
@@ -20,7 +19,6 @@ internal fun DefaultChatComponent.handleDownloadFile(fileId: Int, userInitiated:
 }
 
 internal fun DefaultChatComponent.handleCancelDownloadFile(fileId: Int) {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     scope.launch {
         try {
             repositoryMessage.cancelDownloadFile(fileId)

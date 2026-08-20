@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageHistoryCursorModel
+import org.monogram.domain.models.MessageHistorySnapshotModel
 import org.monogram.domain.models.MessageHistorySnapshotRequest
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.TelegramPeerChatId
@@ -30,6 +31,7 @@ import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
 import org.monogram.data.mtproto.MtProtoMessageViewerReader
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageReader
+import org.monogram.data.mtproto.MtProtoFileRepository
 
 /**
  * Keeps TDLib-owned message commands unavailable when the account uses the Kotlin MTProto
@@ -57,6 +59,9 @@ internal class TelegramBackendMessageRouter(
     private val viewerFactory: () -> MtProtoMessageViewerReader = {
         error("MTProto message viewer reader is not configured")
     },
+    private val fileFactory: () -> MtProtoFileRepository = {
+        error("MTProto file repository is not configured")
+    },
     private val historyRepository: MessageHistorySnapshotRepository? = null,
     scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
@@ -70,6 +75,7 @@ internal class TelegramBackendMessageRouter(
     private val pinnedRead by lazy(LazyThreadSafetyMode.NONE, pinnedReadFactory)
     private val text by lazy(LazyThreadSafetyMode.NONE, textFactory)
     private val viewers by lazy(LazyThreadSafetyMode.NONE, viewerFactory)
+    private val files by lazy(LazyThreadSafetyMode.NONE, fileFactory)
 
     val repository: MessageRepository = Proxy.newProxyInstance(
         MessageRepository::class.java.classLoader,
@@ -97,6 +103,20 @@ internal class TelegramBackendMessageRouter(
             return when (selectedBackend.value) {
                 TelegramBackendKind.LEGACY -> invokeLegacy(method, args)
                 TelegramBackendKind.KOTLIN_MTPROTO -> when (method.name) {
+                    "getFileDownloadFlow" -> files.fileDownloadFlow
+                    "getMessageDownloadFlow" -> files.messageDownloadFlow
+                    "downloadFile" -> {
+                        val values = requireNotNull(args) { "Missing arguments for ${method.name}" }
+                        files.download(
+                            fileId = values[0] as Int,
+                            offset = values[2] as Long,
+                            limit = values[3] as Long,
+                        )
+                        Unit
+                    }
+                    "cancelDownloadFile" -> invokeDraft(method, args) { values -> files.cancel(values[0] as Int) }
+                    "getFilePath" -> invokeDraft(method, args) { values -> files.getPath(values[0] as Int) }
+                    "getFileInfo" -> invokeDraft(method, args) { values -> files.getInfo(values[0] as Int) }
                     "openChat", "closeChat" -> invokeDraft(method, args) { Unit }
                     "sendMessage" -> invokeDraft(method, args) { values ->
                         val options = values[5] as org.monogram.domain.models.MessageSendOptions
@@ -163,7 +183,11 @@ internal class TelegramBackendMessageRouter(
                         pinnedRead.get(values[0] as Long, values[1] as Long?).firstOrNull()?.toMessageModel(values[0] as Long)
                     }
                     "getAllPinnedMessages" -> invokeDraft(method, args) { values ->
-                        pinnedRead.get(values[0] as Long, values[1] as Long?).map { it.toMessageModel(values[0] as Long) }
+                        buildList {
+                            pinnedRead.get(values[0] as Long, values[1] as Long?).forEach {
+                                add(it.toMessageModel(values[0] as Long))
+                            }
+                        }
                     }
                     "getPinnedMessageCount" -> invokeDraft(method, args) { values ->
                         pinnedRead.get(values[0] as Long, values[1] as Long?).size
@@ -172,19 +196,10 @@ internal class TelegramBackendMessageRouter(
                         scheduled.sendNow(values[0] as Long, values[1] as Long)
                     }
                     "getScheduledMessages" -> invokeDraft(method, args) { values ->
-                        scheduled.get(values[0] as Long).map { message ->
-                            MessageModel(
-                                id = message.messageId.toLong(),
-                                date = message.date,
-                                isOutgoing = message.isOutgoing,
-                                senderName = "",
-                                chatId = values[0] as Long,
-                                content = if (message.isService) MessageContent.Service(message.text.orEmpty()) else MessageContent.Text(message.text.orEmpty()),
-                                senderId = message.senderId ?: 0L,
-                                editDate = message.editDate ?: 0,
-                                mediaAlbumId = message.groupedId ?: 0L,
-                                isPinned = message.isPinned,
-                            )
+                        buildList {
+                            scheduled.get(values[0] as Long).forEach { message ->
+                                add(message.toMessageModel(values[0] as Long))
+                            }
                         }
                     }
                     "getChatDraft" -> invokeDraft(method, args) { values ->
@@ -253,19 +268,10 @@ internal class TelegramBackendMessageRouter(
             ),
         )
         return HistoryPage(
-            messages = page.messages.map { message ->
-                MessageModel(
-                    id = message.messageId,
-                    date = message.date,
-                    isOutgoing = message.isOutgoing,
-                    senderName = "",
-                    chatId = request.key.chatId,
-                    content = if (message.isService) MessageContent.Service(message.text.orEmpty()) else MessageContent.Text(message.text.orEmpty()),
-                    senderId = message.senderId ?: 0L,
-                    editDate = message.editDate ?: 0,
-                    mediaAlbumId = message.groupedId ?: 0L,
-                    isPinned = message.isPinned,
-                )
+            messages = buildList {
+                page.messages.forEach { message ->
+                    add(message.toMessageModel(request.key.chatId))
+                }
             },
             olderBoundary = if (page.nextCursor == null) BoundaryState.Reached else BoundaryState.Open,
             newerBoundary = BoundaryState.Reached,
@@ -273,18 +279,74 @@ internal class TelegramBackendMessageRouter(
         )
     }
 
-    private fun MtProtoMessageReadModel.toMessageModel(chatId: Long) = MessageModel(
-        id = messageId.toLong(),
-        date = date,
-        isOutgoing = isOutgoing,
-        senderName = "",
+    private suspend fun MtProtoMessageReadModel.toMessageModel(chatId: Long): MessageModel = toMessageModel(
         chatId = chatId,
-        content = if (isService) MessageContent.Service(text.orEmpty()) else MessageContent.Text(text.orEmpty()),
-        senderId = senderId ?: 0L,
-        editDate = editDate ?: 0,
-        mediaAlbumId = groupedId ?: 0L,
+        messageId = messageId.toLong(),
+        date = date,
+        text = text,
+        isService = isService,
+        isOutgoing = isOutgoing,
+        senderId = senderId,
+        editDate = editDate,
+        groupedId = groupedId,
         isPinned = isPinned,
+        documentId = documentId,
     )
+
+    private suspend fun MessageHistorySnapshotModel.toMessageModel(chatId: Long): MessageModel = toMessageModel(
+        chatId = chatId,
+        messageId = messageId,
+        date = date,
+        text = text,
+        isService = isService,
+        isOutgoing = isOutgoing,
+        senderId = senderId,
+        editDate = editDate,
+        groupedId = groupedId,
+        isPinned = isPinned,
+        documentId = documentId,
+    )
+
+    private suspend fun toMessageModel(
+        chatId: Long,
+        messageId: Long,
+        date: Int,
+        text: String?,
+        isService: Boolean,
+        isOutgoing: Boolean,
+        senderId: Long?,
+        editDate: Int?,
+        groupedId: Long?,
+        isPinned: Boolean,
+        documentId: Long?,
+    ): MessageModel {
+        val content = when {
+            isService -> MessageContent.Service(text.orEmpty())
+            documentId != null -> files.registerDocument(documentId, chatId, messageId)?.let { document ->
+                MessageContent.Document(
+                    path = files.getPath(document.fileId),
+                    fileName = document.fileName,
+                    mimeType = document.mimeType,
+                    size = document.size,
+                    caption = text.orEmpty(),
+                    fileId = document.fileId,
+                )
+            } ?: MessageContent.Text(text.orEmpty())
+            else -> MessageContent.Text(text.orEmpty())
+        }
+        return MessageModel(
+            id = messageId,
+            date = date,
+            isOutgoing = isOutgoing,
+            senderName = "",
+            chatId = chatId,
+            content = content,
+            senderId = senderId ?: 0L,
+            editDate = editDate ?: 0,
+            mediaAlbumId = groupedId ?: 0L,
+            isPinned = isPinned,
+        )
+    }
 
     private fun invokeLegacy(method: Method, args: Array<out Any?>?): Any? = try {
         method.invoke(legacy, *(args ?: emptyArray()))

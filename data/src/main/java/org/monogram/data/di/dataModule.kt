@@ -113,6 +113,9 @@ import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomDocumentLocationStore
 import org.monogram.data.mtproto.MtProtoDocumentLocationStore
 import org.monogram.data.mtproto.MtProtoFileHandleStore
+import org.monogram.data.mtproto.MtProtoFileRepository
+import org.monogram.data.mtproto.MtProtoDocumentFileRepository
+import org.monogram.data.mtproto.MtProtoFileTransferCoordinator
 import org.monogram.data.mtproto.MtProtoRoomFileHandleStore
 import org.monogram.data.mtproto.MtProtoRoomDialogStore
 import org.monogram.data.mtproto.MtProtoDialogStore
@@ -552,6 +555,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_50_51,
                 MonogramMigrations.MIGRATION_51_52,
                 MonogramMigrations.MIGRATION_52_53,
+                MonogramMigrations.MIGRATION_53_54,
             )
             .build()
     }
@@ -576,6 +580,18 @@ val dataModule = module {
     single { MtProtoRoomDocumentLocationStore(get()) }
     single<MtProtoDocumentLocationStore> { get<MtProtoRoomDocumentLocationStore>() }
     single<MtProtoFileHandleStore> { MtProtoRoomFileHandleStore(get()) }
+    single { MtProtoFileTransferCoordinator(transportFactory = get()) }
+    single<MtProtoFileRepository> {
+        MtProtoDocumentFileRepository(
+            context = androidContext(),
+            configSource = get(),
+            handles = get(),
+            locations = get(),
+            transfers = get(),
+            coordinator = get(),
+            scope = get(),
+        )
+    }
     single {
         MtProtoRoomMessageProjectionStore(
             get(),
@@ -1455,6 +1471,7 @@ val dataModule = module {
             pinnedReadFactory = { get<MtProtoPinnedMessageReader>() },
             textFactory = { get<MtProtoTextMessageRepository>() },
             viewerFactory = { get<MtProtoMessageViewerReader>() },
+            fileFactory = { get<MtProtoFileRepository>() },
             historyRepository = get<MtProtoMessageHistorySnapshotRepository>(),
             scope = get(),
         ).repository

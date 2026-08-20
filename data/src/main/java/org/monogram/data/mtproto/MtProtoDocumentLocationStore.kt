@@ -2,6 +2,7 @@ package org.monogram.data.mtproto
 
 import org.monogram.data.db.dao.MtProtoDocumentLocationDao
 import org.monogram.data.db.model.MtProtoDocumentLocationEntity
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeFilename
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
 
 internal data class MtProtoDocumentLocation(
@@ -11,6 +12,7 @@ internal data class MtProtoDocumentLocation(
     val documentDcId: Int,
     val mimeType: String,
     val size: Long,
+    val fileName: String,
 )
 
 internal interface MtProtoDocumentLocationStore {
@@ -41,6 +43,7 @@ internal class MtProtoRoomDocumentLocationStore(
                 documentDcId = document.dcId,
                 mimeType = document.mimeType,
                 size = document.size,
+                fileName = document.attributes.filterIsInstance<DocumentAttributeFilename>().firstOrNull()?.fileName.orEmpty(),
                 updatedAt = nowMillis(),
             )
         )
@@ -55,6 +58,7 @@ internal class MtProtoRoomDocumentLocationStore(
                 documentDcId = it.documentDcId,
                 mimeType = it.mimeType,
                 size = it.size,
+                fileName = it.fileName,
             )
         }
 

@@ -3,6 +3,7 @@ package org.monogram.data.backend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertThrows
@@ -26,6 +27,7 @@ import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 import org.monogram.data.mtproto.MtProtoMessagePeerType
 import org.monogram.data.mtproto.MtProtoMessageReadModel
 import org.monogram.data.mtproto.MtProtoMessageViewerReader
+import org.monogram.data.mtproto.MtProtoFileRepository
 import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 
@@ -61,6 +63,26 @@ class TelegramBackendMessageRouterTest {
         )
 
         assertEquals("legacy draft", router.repository.getChatDraft(1L))
+    }
+
+    @Test
+    fun `MTProto file operations use the selected adapter without creating legacy`() = runBlocking {
+        val files = RecordingMtProtoFiles()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            fileFactory = { files },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.downloadFile(fileId = 7, offset = 0, limit = 0)
+        router.repository.cancelDownloadFile(7)
+
+        assertEquals(listOf(7 to (0L to 0L)), files.downloads)
+        assertEquals(listOf(7), files.cancelled)
+        assertEquals(files.fileDownloadFlow, router.repository.fileDownloadFlow)
+        assertEquals(files.messageDownloadFlow, router.repository.messageDownloadFlow)
     }
 
     @Test
@@ -117,6 +139,57 @@ class TelegramBackendMessageRouterTest {
         )
 
         assertEquals(listOf(9L to 100), router.repository.getMessageViewers(42L, 7L).map { it.user.id to it.viewedDate })
+    }
+
+    @Test
+    fun `MTProto maps projected documents to opaque download handles`() = runBlocking {
+        val files = RecordingMtProtoFiles().apply {
+            document = org.monogram.data.mtproto.MtProtoDocumentFile(
+                fileId = 12,
+                fileName = "report.pdf",
+                mimeType = "application/pdf",
+                size = 42L,
+            )
+        }
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            pinnedReadFactory = {
+                MtProtoPinnedMessageReader { _, _ ->
+                    listOf(
+                        MtProtoMessageReadModel(
+                            peerType = MtProtoMessagePeerType.USER,
+                            peerId = 1L,
+                            messageId = 7,
+                            senderType = null,
+                            senderId = null,
+                            date = 100,
+                            text = "caption",
+                            isService = false,
+                            isDeleted = false,
+                            isOutgoing = false,
+                            isMentioned = false,
+                            isMediaUnread = false,
+                            isSilent = false,
+                            isPinned = false,
+                            editDate = null,
+                            groupedId = null,
+                            hasMedia = true,
+                            documentId = 99L,
+                        )
+                    )
+                }
+            },
+            fileFactory = { files },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        val content = router.repository.getPinnedMessage(1L)?.content as org.monogram.domain.models.MessageContent.Document
+
+        assertEquals(12, content.fileId)
+        assertEquals("report.pdf", content.fileName)
+        assertEquals(listOf(Triple(99L, 1L, 7L)), files.registered)
     }
 
     @Test
@@ -350,6 +423,32 @@ class TelegramBackendMessageRouterTest {
             router.repository.newMessageFlow
         }
         Unit
+    }
+
+    private class RecordingMtProtoFiles : MtProtoFileRepository {
+        override val fileDownloadFlow = MutableSharedFlow<org.monogram.domain.models.FileDownloadEvent>()
+        override val messageDownloadFlow = MutableSharedFlow<org.monogram.domain.models.MessageDownloadEvent>()
+        val downloads = mutableListOf<Pair<Int, Pair<Long, Long>>>()
+        val cancelled = mutableListOf<Int>()
+        val registered = mutableListOf<Triple<Long, Long, Long>>()
+        var document: org.monogram.data.mtproto.MtProtoDocumentFile? = null
+
+        override suspend fun registerDocument(documentId: Long, chatId: Long, messageId: Long): org.monogram.data.mtproto.MtProtoDocumentFile? {
+            registered += Triple(documentId, chatId, messageId)
+            return document
+        }
+
+        override fun download(fileId: Int, offset: Long, limit: Long) {
+            downloads += fileId to (offset to limit)
+        }
+
+        override suspend fun cancel(fileId: Int) {
+            cancelled += fileId
+        }
+
+        override suspend fun getPath(fileId: Int): String? = null
+
+        override suspend fun getInfo(fileId: Int): org.monogram.domain.models.FileModel? = null
     }
 
     private class FakeMtProtoDraftRepository : MtProtoDraftRepository {

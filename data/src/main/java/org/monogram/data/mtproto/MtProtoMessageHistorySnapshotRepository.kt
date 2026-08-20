@@ -100,6 +100,7 @@ internal class MtProtoMessageHistorySnapshotRepository(
         editDate = editDate,
         groupedId = groupedId,
         hasMedia = hasMedia,
+        documentId = documentId,
     )
 
     private companion object {

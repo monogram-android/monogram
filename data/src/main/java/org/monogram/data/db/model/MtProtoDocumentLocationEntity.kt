@@ -16,5 +16,6 @@ data class MtProtoDocumentLocationEntity(
     val documentDcId: Int,
     val mimeType: String,
     val size: Long,
+    val fileName: String,
     val updatedAt: Long,
 )

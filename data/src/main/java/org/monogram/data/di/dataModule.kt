@@ -1643,6 +1643,8 @@ val dataModule = module {
         MtProtoStickerRepository(
             configSource = get(),
             transportFactory = get(),
+            locations = get(),
+            files = get(),
         )
     }
     single<StickerRepository> {

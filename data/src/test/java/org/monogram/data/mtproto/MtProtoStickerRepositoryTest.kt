@@ -1,5 +1,9 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -14,6 +18,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickerSets_215fe0f754
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchStickerSets
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
+import org.monogram.domain.models.FileDownloadEvent
+import org.monogram.domain.models.FileModel
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
 import org.monogram.mtproto.transport.MtProtoRpcTransport
@@ -105,14 +111,72 @@ class MtProtoStickerRepositoryTest {
 
     private fun repository(factory: () -> MtProtoRpcTransport) = MtProtoStickerRepository(
         configSource = object : TelegramMtProtoBootstrapConfigSource {
-            override suspend fun create() = TelegramMtProtoBootstrapConfig(
-                TelegramMtProtoEndpoint(2, "dc", 443),
-                MtProtoHandshakeConfig(2, listOf("key")),
-                CloudLayer223ConnectionConfig(1, "d", "s", "a", "en"),
-            )
+            override suspend fun create() = config()
         },
         transportFactory = MtProtoSessionTransportFactory { factory() },
+        locations = NoOpMtProtoDocumentLocationStore,
+        files = Files(),
     )
+
+    @Test
+    fun `emits null without downloading an unknown sticker document`() = runBlocking {
+        val files = Files()
+        val repository = MtProtoStickerRepository(
+            configSource = object : TelegramMtProtoBootstrapConfigSource {
+                override suspend fun create() = config()
+            },
+            transportFactory = MtProtoSessionTransportFactory { Transport(null) },
+            locations = NoOpMtProtoDocumentLocationStore,
+            files = files,
+        )
+
+        assertEquals(null, repository.getStickerFile(77L).first())
+        assertEquals(emptyList<Int>(), files.downloads)
+    }
+
+    private fun config() = TelegramMtProtoBootstrapConfig(
+        TelegramMtProtoEndpoint(2, "dc", 443),
+        MtProtoHandshakeConfig(2, listOf("key")),
+        CloudLayer223ConnectionConfig(1, "d", "s", "a", "en"),
+    )
+
+    @Test
+    fun `downloads a known sticker through an opaque handle`() = runBlocking {
+        val files = Files(document = MtProtoDocumentFile(501, 77L, "sticker.webp", "image/webp", 100))
+        val repository = MtProtoStickerRepository(
+            configSource = object : TelegramMtProtoBootstrapConfigSource { override suspend fun create() = config() },
+            transportFactory = MtProtoSessionTransportFactory { Transport(null) },
+            locations = NoOpMtProtoDocumentLocationStore,
+            files = files,
+        )
+
+        assertEquals("/tmp/sticker.webp", repository.getStickerFile(77L).first())
+        assertEquals(listOf(77L), files.registered)
+        assertEquals(listOf(501), files.downloads)
+    }
+
+    private class Files(
+        private val document: MtProtoDocumentFile? = null,
+    ) : MtProtoFileRepository {
+        val registered = mutableListOf<Long>()
+        val downloads = mutableListOf<Int>()
+        private val events = MutableSharedFlow<FileDownloadEvent>(extraBufferCapacity = 1)
+        override val fileDownloadFlow: Flow<FileDownloadEvent> = events
+        override val messageDownloadFlow = emptyFlow<org.monogram.domain.models.MessageDownloadEvent>()
+        override suspend fun registerDocument(documentId: Long, chatId: Long, messageId: Long) = registerDocument(documentId)
+        override suspend fun registerDocument(documentId: Long): MtProtoDocumentFile? {
+            registered += documentId
+            return document
+        }
+        override suspend fun registerPhoto(photoId: Long, chatId: Long, messageId: Long) = null
+        override fun download(fileId: Int, offset: Long, limit: Long) {
+            downloads += fileId
+            events.tryEmit(FileDownloadEvent.Completed(fileId, "/tmp/sticker.webp"))
+        }
+        override suspend fun cancel(fileId: Int) = Unit
+        override suspend fun getPath(fileId: Int): String? = null
+        override suspend fun getInfo(fileId: Int): FileModel? = null
+    }
 
     private class Transport(vararg responses: Any?) : MtProtoRpcTransport {
         private val responses = responses.toList()

@@ -1,8 +1,15 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.StickerFormat
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
@@ -33,6 +40,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.StickerSet_ec0b
 internal class MtProtoStickerRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory,
+    private val locations: MtProtoDocumentLocationStore,
+    private val files: MtProtoFileRepository,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : StickerRepository {
     private val unsupportedSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
@@ -51,7 +60,7 @@ internal class MtProtoStickerRepository(
             val result = transport.execute(GetRecentStickers(attached = false, hash = 0))
                 as? RecentStickers_ee91009b24
                 ?: error("Unsupported MTProto recent stickers response")
-            result.stickers.mapNotNull { (it as? Document_be725c3b31)?.toDomain() }
+            result.stickers.filterIsInstance<Document_be725c3b31>().also { stageDocuments(it) }.mapNotNull { it.toDomain() }
         }
 
     override suspend fun clearRecentStickers() {
@@ -61,8 +70,8 @@ internal class MtProtoStickerRepository(
             }
         }
     }
-    override fun getStickerFile(fileId: Long): Flow<String?> = unsupported("sticker files")
-    override fun getCustomEmojiFile(customEmojiId: Long): Flow<String?> = unsupported("custom emoji files")
+    override fun getStickerFile(fileId: Long): Flow<String?> = file(fileId)
+    override fun getCustomEmojiFile(customEmojiId: Long): Flow<String?> = file(customEmojiId)
     override suspend fun getTgsJson(path: String): String? = unsupported("animated sticker files")
     override fun clearCache() = unsupported("sticker cache clearing")
 
@@ -79,6 +88,7 @@ internal class MtProtoStickerRepository(
         val transport = transportFactory.open(accountSlot)
         try {
             val result = transport.execute(GetStickerSet(input, 0)) as? StickerSet_ec0b3f33d3 ?: return null
+            result.documents.filterIsInstance<Document_be725c3b31>().also { stageDocuments(it) }
             return result.toDomain()
         } finally {
             transport.close()
@@ -105,7 +115,7 @@ internal class MtProtoStickerRepository(
                     hash = 0,
                 ),
             ) as? FoundStickers_7d9ce2d574 ?: error("Unsupported MTProto sticker search response")
-            result.stickers.mapNotNull { (it as? Document_be725c3b31)?.toDomain() }
+            result.stickers.filterIsInstance<Document_be725c3b31>().also { stageDocuments(it) }.mapNotNull { it.toDomain() }
         }
     }
     override suspend fun getStickerEmojiHints(query: String): List<String> = unsupported("sticker emoji hints")
@@ -116,8 +126,45 @@ internal class MtProtoStickerRepository(
             val result = transport.execute(SearchStickerSets(excludeFeatured = false, q = normalized, hash = 0))
                 as? FoundStickerSets_215fe0f754
                 ?: error("Unsupported MTProto sticker-set search response")
+            result.sets.flatMap { it.documents() }.also { stageDocuments(it) }
             result.sets.mapNotNull { it.toDomain() }
         }
+    }
+
+    private fun file(documentId: Long): Flow<String?> = flow {
+        val file = files.registerDocument(documentId)
+        if (file == null) {
+            emit(null)
+            return@flow
+        }
+        files.getPath(file.fileId)?.let {
+            emit(it)
+            return@flow
+        }
+        val result = coroutineScope {
+            val completed = async(start = CoroutineStart.UNDISPATCHED) {
+                files.fileDownloadFlow
+                    .filter { it.fileId == file.fileId }
+                    .first { it is FileDownloadEvent.Completed || it is FileDownloadEvent.Cancelled }
+            }
+            files.download(file.fileId, offset = 0L, limit = 0L)
+            completed.await()
+        }
+        emit((result as? FileDownloadEvent.Completed)?.path)
+    }
+
+    private suspend fun stageDocuments(documents: List<Document_be725c3b31>) {
+        if (documents.isEmpty()) return
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        documents.forEach { locations.upsert(scope, it) }
+    }
+
+    private fun StickerSetCovered_1af4b31f79.documents(): List<Document_be725c3b31> = when (this) {
+        is StickerSetCovered_34353f5c94 -> listOfNotNull(cover as? Document_be725c3b31)
+        is StickerSetMultiCovered -> covers.filterIsInstance<Document_be725c3b31>()
+        is StickerSetFullCovered -> documents.filterIsInstance<Document_be725c3b31>()
+        else -> emptyList()
     }
 
     private fun StickerSetCovered_1af4b31f79.toDomain(): StickerSetModel? = when (this) {

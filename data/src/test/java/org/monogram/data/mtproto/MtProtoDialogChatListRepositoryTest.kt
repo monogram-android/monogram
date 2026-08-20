@@ -74,6 +74,25 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `clears histories through the owned repository then refreshes`() = runTest {
+        val source = FakeDialogRepository(emptyList())
+        val clears = RecordingClearHistoryRepository()
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = source,
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+            clearHistoryRepository = clears,
+        )
+        runCurrent()
+
+        repository.clearChatHistory(42L, revoke = true)
+        runCurrent()
+
+        assertEquals(listOf(setOf(42L) to true), clears.requests)
+        assertEquals(2, source.calls)
+    }
+
+    @Test
     fun `leaves dialogs through the owned repository then refreshes`() = runTest {
         val source = FakeDialogRepository(emptyList())
         val leaves = RecordingLeaveChatRepository()
@@ -174,6 +193,14 @@ class MtProtoDialogChatListRepositoryTest {
 
         assertThrows(IllegalArgumentException::class.java) {
             repository.selectFolder(0)
+        }
+    }
+
+    private class RecordingClearHistoryRepository : MtProtoClearHistoryRepository {
+        val requests = mutableListOf<Pair<Set<Long>, Boolean>>()
+
+        override suspend fun clear(chatIds: Set<Long>, revoke: Boolean) {
+            requests += chatIds to revoke
         }
     }
 

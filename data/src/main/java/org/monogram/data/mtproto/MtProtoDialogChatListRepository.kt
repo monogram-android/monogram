@@ -38,6 +38,7 @@ internal class MtProtoDialogChatListRepository(
     private val dialogPinRepository: MtProtoDialogPinRepository = MtProtoDialogPinRepository { _, _ -> },
     private val muteRepository: MtProtoMuteRepository = MtProtoMuteRepository { _, _ -> },
     private val leaveChatRepository: MtProtoLeaveChatRepository = MtProtoLeaveChatRepository { },
+    private val clearHistoryRepository: MtProtoClearHistoryRepository = MtProtoClearHistoryRepository { _, _ -> },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
@@ -167,8 +168,11 @@ internal class MtProtoDialogChatListRepository(
     }
     override suspend fun leaveChat(chatId: Long) = leaveChats(setOf(chatId))
     override fun setArchivePinned(pinned: Boolean) = unsupportedOperations()
-    override suspend fun clearChatHistories(chatIds: Set<Long>, revoke: Boolean) = unsupportedOperations()
-    override suspend fun clearChatHistory(chatId: Long, revoke: Boolean) = unsupportedOperations()
+    override suspend fun clearChatHistories(chatIds: Set<Long>, revoke: Boolean) {
+        clearHistoryRepository.clear(chatIds, revoke)
+        refresh()
+    }
+    override suspend fun clearChatHistory(chatId: Long, revoke: Boolean) = clearChatHistories(setOf(chatId), revoke)
     override suspend fun getChatLink(chatId: Long): String? = unsupportedOperations()
     override suspend fun reportChats(chatIds: Set<Long>, reason: String, messageIds: List<Long>) = unsupportedOperations()
     override suspend fun reportChat(chatId: Long, reason: String, messageIds: List<Long>) = unsupportedOperations()

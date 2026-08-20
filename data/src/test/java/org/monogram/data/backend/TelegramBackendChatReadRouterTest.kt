@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.data.mtproto.MtProtoClearHistoryRepository
 import org.monogram.data.mtproto.MtProtoDialogChatListRepository
 import org.monogram.domain.models.DialogMessagePreviewModel
 import org.monogram.domain.models.DialogPeerType
@@ -18,8 +19,9 @@ import org.monogram.domain.repository.DialogSnapshotRepository
 @OptIn(ExperimentalCoroutinesApi::class)
 class TelegramBackendChatReadRouterTest {
     @Test
-    fun `MTProto selection rejects unsupported chat mutations without constructing legacy chat contracts`() = runTest {
+    fun `MTProto clear history uses the selected backend without constructing legacy contracts`() = runTest {
         var legacyFactoryCalls = 0
+        val clears = RecordingClearHistoryRepository()
         val router = TelegramBackendChatReadRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = {
@@ -27,15 +29,21 @@ class TelegramBackendChatReadRouterTest {
                 error("Legacy TDLib chat contracts must not be constructed")
             },
             mtProtoFactory = {
-                MtProtoDialogChatListRepository(FakeDialogRepository(), NoOpReadHistoryRepository, backgroundScope)
+                MtProtoDialogChatListRepository(
+                    dialogRepository = FakeDialogRepository(),
+                    readHistoryRepository = NoOpReadHistoryRepository,
+                    scope = backgroundScope,
+                    clearHistoryRepository = clears,
+                )
             },
             scope = backgroundScope,
         )
 
         runCurrent()
-        val result = runCatching { router.clearChatHistory(42L, revoke = false) }
+        router.clearChatHistory(42L, revoke = false)
+        runCurrent()
 
-        assertTrue(result.exceptionOrNull() is UnsupportedOperationException)
+        assertEquals(listOf(setOf(42L) to false), clears.requests)
         assertEquals(0, legacyFactoryCalls)
     }
 
@@ -65,6 +73,14 @@ class TelegramBackendChatReadRouterTest {
         assertEquals(listOf(-1), router.foldersFlow.value.map { it.id })
         assertTrue(router.isArchivePinned.value.not())
         assertTrue(router.isArchiveAlwaysVisible.value.not())
+    }
+
+    private class RecordingClearHistoryRepository : MtProtoClearHistoryRepository {
+        val requests = mutableListOf<Pair<Set<Long>, Boolean>>()
+
+        override suspend fun clear(chatIds: Set<Long>, revoke: Boolean) {
+            requests += chatIds to revoke
+        }
     }
 
     private object NoOpReadHistoryRepository : org.monogram.domain.repository.MtProtoReadHistoryRepository {

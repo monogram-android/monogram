@@ -956,6 +956,8 @@ val dataModule = module {
                     configSource = get(),
                     transportFactory = get(),
                     users = get(),
+                    chats = get(),
+                    resultStager = get(),
                     locations = get(),
                     files = get(),
                 )

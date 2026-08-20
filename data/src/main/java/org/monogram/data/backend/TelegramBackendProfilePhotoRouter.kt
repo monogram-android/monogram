@@ -36,7 +36,7 @@ internal class TelegramBackendProfilePhotoRouter(
     override suspend fun getChatProfilePhotos(chatId: Long, offset: Int, limit: Int): List<ProfilePhotoMedia> =
         when (selected()) {
             TelegramBackendKind.LEGACY -> legacy.getChatProfilePhotos(chatId, offset, limit)
-            TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+            TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getChatProfilePhotos(chatId, offset, limit)
         }
 
     override fun getUserProfilePhotosFlow(userId: Long): Flow<List<ProfilePhotoMedia>> = when (selected()) {
@@ -46,7 +46,7 @@ internal class TelegramBackendProfilePhotoRouter(
 
     override fun getChatProfilePhotosFlow(chatId: Long): Flow<List<ProfilePhotoMedia>> = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getChatProfilePhotosFlow(chatId)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getChatProfilePhotosFlow(chatId)
     }
 
     private fun selected(): TelegramBackendKind = checkNotNull(selectedBackend.value) {

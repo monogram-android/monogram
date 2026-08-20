@@ -73,7 +73,10 @@ internal class TelegramBackendUserRouter(
         TelegramBackendKind.KOTLIN_MTPROTO -> flow { emit(getUser(userId)) }
     }
     override fun logOut() = unsupported()
-    override suspend fun getContacts(): List<UserModel> = unsupported()
+    override suspend fun getContacts(): List<UserModel> = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getContacts()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoProfiles.getContacts(accountId).map { it.toUserModel() }
+    }
     override suspend fun searchContacts(query: String): List<UserModel> = unsupported()
     override suspend fun addContact(user: UserModel) = unsupported()
     override suspend fun removeContact(userId: Long) = unsupported()

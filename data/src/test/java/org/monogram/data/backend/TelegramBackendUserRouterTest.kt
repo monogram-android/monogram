@@ -20,6 +20,7 @@ class TelegramBackendUserRouterTest {
             mtProtoProfiles = object : MtProtoUserProfileReader {
                 override suspend fun getCurrentUser(accountId: String) = profile(42)
                 override suspend fun getUser(accountId: String, userId: Long) = profile(userId)
+                override suspend fun getContacts(accountId: String) = listOf(profile(43))
             },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
@@ -29,6 +30,7 @@ class TelegramBackendUserRouterTest {
         assertEquals(42L, user.id)
         assertEquals("Ada", user.firstName)
         assertEquals(user, router.currentUserFlow.value)
+        assertEquals(listOf(43L), router.getContacts().map { it.id })
     }
 
     private fun profile(id: Long) = UserProfileSnapshotModel(

@@ -231,6 +231,7 @@ class MtProtoRoomDialogStoreTest {
         override suspend fun updateUnreadMark(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, unread: Boolean, updatedAt: Long) {
             this.unread = unread
         }
+        override suspend fun delete(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long) = Unit
         override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
     }
 

@@ -87,6 +87,18 @@ interface MtProtoDialogProjectionDao {
         updatedAt: Long,
     )
 
+    @Query(
+        "DELETE FROM mtproto_dialog_projection WHERE accountSlot = :accountSlot AND environment = :environment " +
+            "AND dcId = :dcId AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun delete(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+    )
+
     @Query("DELETE FROM mtproto_dialog_projection WHERE accountSlot = :accountSlot AND environment = :environment")
     suspend fun deleteAccount(accountSlot: String, environment: String)
 }

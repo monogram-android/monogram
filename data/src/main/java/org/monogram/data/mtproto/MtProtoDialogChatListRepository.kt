@@ -39,6 +39,7 @@ internal class MtProtoDialogChatListRepository(
     private val muteRepository: MtProtoMuteRepository = MtProtoMuteRepository { _, _ -> },
     private val leaveChatRepository: MtProtoLeaveChatRepository = MtProtoLeaveChatRepository { },
     private val clearHistoryRepository: MtProtoClearHistoryRepository = MtProtoClearHistoryRepository { _, _ -> },
+    private val deletePrivateDialogRepository: MtProtoDeletePrivateDialogRepository = MtProtoDeletePrivateDialogRepository { },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
@@ -161,7 +162,10 @@ internal class MtProtoDialogChatListRepository(
         require(folderId == ALL_CHATS_FOLDER_ID) { "MTProto custom folders are not available" }
         scope.launch { markChatsRead(chatIds) }
     }
-    override suspend fun deleteChats(chatIds: Set<Long>) = unsupportedOperations()
+    override suspend fun deleteChats(chatIds: Set<Long>) {
+        deletePrivateDialogRepository.delete(chatIds)
+        refresh()
+    }
     override suspend fun leaveChats(chatIds: Set<Long>) {
         leaveChatRepository.leave(chatIds)
         refresh()

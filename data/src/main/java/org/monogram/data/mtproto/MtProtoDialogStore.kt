@@ -65,6 +65,8 @@ internal interface MtProtoDialogStore {
 
     suspend fun updateNotifySettings(scope: MtProtoAuthKeyScope, update: UpdateNotifySettings) = Unit
 
+    suspend fun delete(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long) = Unit
+
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
 
@@ -121,6 +123,9 @@ internal class MtProtoRoomDialogStore(
         val key = peer.toProjectionKey()
         dialogDao.updateUnreadMark(scope.accountSlot, scope.environment.storageName, scope.dcId, key.first.name, key.second, update.unread, System.currentTimeMillis())
     }
+
+    override suspend fun delete(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long) =
+        dialogDao.delete(scope.accountSlot, scope.environment.storageName, scope.dcId, peerType.name, peerId)
 
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
         dialogDao.deleteAccount(accountSlot, environment.storageName)

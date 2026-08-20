@@ -25,6 +25,7 @@ import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 import org.monogram.data.mtproto.MtProtoMessagePeerType
 import org.monogram.data.mtproto.MtProtoMessageReadModel
+import org.monogram.data.mtproto.MtProtoMessageViewerReader
 import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 
@@ -93,6 +94,29 @@ class TelegramBackendMessageRouterTest {
         assertEquals("default", accountId)
         assertEquals("hello", (page.messages.single().content as org.monogram.domain.models.MessageContent.Text).text)
         assertEquals(org.monogram.domain.repository.BoundaryState.Reached, page.olderBoundary)
+    }
+
+    @Test
+    fun `MTProto gets message viewers from the selected reader`() = runBlocking {
+        val viewer = MtProtoMessageViewerReader { chatId, messageId ->
+            assertEquals(42L, chatId)
+            assertEquals(7L, messageId)
+            listOf(
+                org.monogram.domain.models.MessageViewerModel(
+                    user = org.monogram.domain.models.UserModel(id = 9L, firstName = "Viewer"),
+                    viewedDate = 100,
+                ),
+            )
+        }
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            viewerFactory = { viewer },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(listOf(9L to 100), router.repository.getMessageViewers(42L, 7L).map { it.user.id to it.viewedDate })
     }
 
     @Test

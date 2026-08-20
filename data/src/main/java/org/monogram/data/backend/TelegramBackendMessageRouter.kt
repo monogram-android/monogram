@@ -27,6 +27,7 @@ import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoMessageReadModel
 import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
+import org.monogram.data.mtproto.MtProtoMessageViewerReader
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 
@@ -53,6 +54,9 @@ internal class TelegramBackendMessageRouter(
     private val textFactory: () -> MtProtoTextMessageRepository = {
         error("MTProto text message repository is not configured")
     },
+    private val viewerFactory: () -> MtProtoMessageViewerReader = {
+        error("MTProto message viewer reader is not configured")
+    },
     private val historyRepository: MessageHistorySnapshotRepository? = null,
     scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
@@ -65,6 +69,7 @@ internal class TelegramBackendMessageRouter(
     private val scheduled by lazy(LazyThreadSafetyMode.NONE, scheduledFactory)
     private val pinnedRead by lazy(LazyThreadSafetyMode.NONE, pinnedReadFactory)
     private val text by lazy(LazyThreadSafetyMode.NONE, textFactory)
+    private val viewers by lazy(LazyThreadSafetyMode.NONE, viewerFactory)
 
     val repository: MessageRepository = Proxy.newProxyInstance(
         MessageRepository::class.java.classLoader,
@@ -141,6 +146,9 @@ internal class TelegramBackendMessageRouter(
                             )
                             else -> unsupported(method)
                         }
+                    }
+                    "getMessageViewers" -> invokeDraft(method, args) { values ->
+                        viewers.get(values[0] as Long, values[1] as Long)
                     }
                     "markAllMentionsAsRead" -> invokeDraft(method, args) { values ->
                         text.markMentionsRead(values[0] as Long, TelegramPeerChatId.decode(values[0] as Long).type)

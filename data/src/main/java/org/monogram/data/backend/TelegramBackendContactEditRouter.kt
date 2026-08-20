@@ -29,7 +29,7 @@ internal class TelegramBackendContactEditRouter(
 
     override suspend fun getContact(userId: Long): UserModel? = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getContact(userId)
-        TelegramBackendKind.KOTLIN_MTPROTO -> users.getUser(userId)
+        TelegramBackendKind.KOTLIN_MTPROTO -> users.getUser(userId)?.takeIf(UserModel::isContact)
     }
 
     override suspend fun getNeedPhoneNumberPrivacyException(userId: Long): Boolean = when (selected()) {

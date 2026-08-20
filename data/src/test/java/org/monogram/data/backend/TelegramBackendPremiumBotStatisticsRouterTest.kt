@@ -5,7 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.monogram.data.mtproto.MtProtoChatStatisticsRepository
+import org.monogram.domain.models.StatisticsGraphModel
 import org.junit.Test
 
 class TelegramBackendPremiumBotStatisticsRouterTest {
@@ -20,6 +23,19 @@ class TelegramBackendPremiumBotStatisticsRouterTest {
         assertTrue(runCatching { premium.getPremiumState() }.exceptionOrNull() is UnsupportedOperationException)
         assertTrue(runCatching { bot.getBotCommands(1L) }.exceptionOrNull() is UnsupportedOperationException)
         assertTrue(runCatching { statistics.getChatStatistics(1L, false) }.exceptionOrNull() is UnsupportedOperationException)
+    }
+
+    @Test
+    fun `selected MTProto statistics graph avoids legacy repository`() = runBlocking {
+        val statistics = TelegramBackendChatStatisticsRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy statistics created") },
+            mtProtoFactory = { MtProtoChatStatisticsRepository { token, x -> StatisticsGraphModel.Async("$token:$x") } },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(StatisticsGraphModel.Async("token:7"), statistics.loadStatisticsGraph(-1, "token", 7))
+        assertTrue(runCatching { statistics.getChatStatistics(-1, false) }.exceptionOrNull() is UnsupportedOperationException)
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

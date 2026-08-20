@@ -708,6 +708,8 @@ class TelegramBackendMessageRouterTest {
             return document
         }
 
+        override suspend fun registerDocument(documentId: Long): org.monogram.data.mtproto.MtProtoDocumentFile? = document
+
         override suspend fun registerPhoto(photoId: Long, chatId: Long, messageId: Long): org.monogram.data.mtproto.MtProtoPhotoFile? {
             registeredPhotos += Triple(photoId, chatId, messageId)
             return photo

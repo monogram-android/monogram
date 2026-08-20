@@ -5,21 +5,32 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.monogram.domain.models.GifModel
+import org.monogram.domain.repository.GifRepository
+import kotlinx.coroutines.flow.emptyFlow
 
 class TelegramBackendGifRouterTest {
     @Test
-    fun `selected MTProto GIF operations fail closed without creating legacy repository`() = runBlocking {
+    fun `selected MTProto GIF reads avoid creating legacy repository`() = runBlocking {
+        val expected = GifModel("gif", null, 1L, null, 0, 0)
         val router = TelegramBackendGifRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy GIF repository must not be created") },
+            mtProtoFactory = {
+                object : GifRepository {
+                    override fun getGifFile(gif: GifModel) = emptyFlow<String?>()
+                    override fun getGifThumbnailFile(fileId: Long) = emptyFlow<String?>()
+                    override suspend fun getSavedGifs() = listOf(expected)
+                    override suspend fun addSavedGif(path: String) = throw UnsupportedOperationException()
+                    override suspend fun searchGifs(query: String) = throw UnsupportedOperationException()
+                }
+            },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
-        val failure = runCatching { router.getSavedGifs() }.exceptionOrNull()
-
-        assertTrue(failure is UnsupportedOperationException)
+        assertEquals(listOf(expected), router.getSavedGifs())
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

@@ -123,6 +123,7 @@ import org.monogram.data.mtproto.MtProtoRoomDocumentLocationStore
 import org.monogram.data.mtproto.MtProtoDocumentLocationStore
 import org.monogram.data.mtproto.MtProtoFileHandleStore
 import org.monogram.data.mtproto.MtProtoFileRepository
+import org.monogram.data.mtproto.MtProtoGifRepository
 import org.monogram.data.mtproto.MtProtoDocumentFileRepository
 import org.monogram.data.mtproto.MtProtoFileTransferCoordinator
 import org.monogram.data.mtproto.MtProtoRoomFileHandleStore
@@ -1663,6 +1664,14 @@ val dataModule = module {
         )
     }
 
+    single<MtProtoGifRepository> {
+        MtProtoGifRepository(
+            configSource = get(),
+            transportFactory = get(),
+            locations = get(),
+            files = get(),
+        )
+    }
     single<GifRepository> {
         TelegramBackendGifRouter(
             selectionStore = get(),
@@ -1673,6 +1682,7 @@ val dataModule = module {
                     stickerFileManager = get(),
                 )
             },
+            mtProtoFactory = { get<MtProtoGifRepository>() },
             scope = get(),
         )
     }

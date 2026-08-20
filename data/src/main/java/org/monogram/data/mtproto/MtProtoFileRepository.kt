@@ -56,6 +56,7 @@ internal interface MtProtoFileRepository {
     val messageDownloadFlow: Flow<MessageDownloadEvent>
 
     suspend fun registerDocument(documentId: Long, chatId: Long, messageId: Long): MtProtoDocumentFile?
+    suspend fun registerDocument(documentId: Long): MtProtoDocumentFile?
     suspend fun registerPhoto(photoId: Long, chatId: Long, messageId: Long): MtProtoPhotoFile?
     fun download(fileId: Int, offset: Long, limit: Long)
     suspend fun cancel(fileId: Int)
@@ -82,7 +83,12 @@ internal class MtProtoDocumentFileRepository(
     override val fileDownloadFlow: Flow<FileDownloadEvent> = events.asSharedFlow()
     override val messageDownloadFlow: Flow<MessageDownloadEvent> = messageEvents.asSharedFlow()
 
-    override suspend fun registerDocument(documentId: Long, chatId: Long, messageId: Long): MtProtoDocumentFile? {
+    override suspend fun registerDocument(documentId: Long, chatId: Long, messageId: Long): MtProtoDocumentFile? =
+        registerDocument(documentId)?.also { document ->
+            messageReferences.computeIfAbsent(document.fileId) { ConcurrentHashMap.newKeySet() }.add(chatId to messageId)
+        }
+
+    override suspend fun registerDocument(documentId: Long): MtProtoDocumentFile? {
         val config = configSource.createForAccount(accountId)
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val location = locations.get(scope, documentId) ?: return null
@@ -90,7 +96,6 @@ internal class MtProtoDocumentFileRepository(
             scope,
             MtProtoFileResourceKey(MtProtoFileResourceType.DOCUMENT, documentId),
         ).fileId
-        messageReferences.computeIfAbsent(handle) { ConcurrentHashMap.newKeySet() }.add(chatId to messageId)
         return MtProtoDocumentFile(
             fileId = handle,
             documentId = location.documentId,

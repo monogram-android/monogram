@@ -10,7 +10,9 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetShortName
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ArchivedStickers_8455cc1f39
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ClearRecentStickers
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetArchivedStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.RecentStickers_ee91009b24
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickers_7d9ce2d574
@@ -45,6 +47,24 @@ class MtProtoStickerRepositoryTest {
             runBlocking { repository.getStickerSetByName("  ") }
         }
         assertEquals(false, opened)
+    }
+
+    @Test
+    fun `loads regular and emoji archived sticker state`() = runBlocking {
+        val transport = Transport(
+            ArchivedStickers_8455cc1f39(0, emptyList()),
+            ArchivedStickers_8455cc1f39(0, emptyList()),
+        )
+        val repository = repository { transport }
+
+        repository.loadArchivedStickerSets()
+        repository.loadArchivedEmojiSets()
+
+        assertEquals(emptyList<Any>(), repository.archivedStickerSets.value)
+        assertEquals(emptyList<Any>(), repository.archivedEmojiSets.value)
+        assertEquals(GetArchivedStickers(masks = false, emojis = false, offsetId = 0, limit = 100), transport.requests[0])
+        assertEquals(GetArchivedStickers(masks = false, emojis = true, offsetId = 0, limit = 100), transport.requests[1])
+        assertEquals(true, transport.closed)
     }
 
     @Test

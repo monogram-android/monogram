@@ -26,7 +26,9 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeVideo
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetShortName
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ArchivedStickers_8455cc1f39
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ClearRecentStickers
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetArchivedStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickers_7d9ce2d574
@@ -45,16 +47,22 @@ internal class MtProtoStickerRepository(
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : StickerRepository {
     private val unsupportedSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
+    private val archivedSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
+    private val archivedEmojis = MutableStateFlow<List<StickerSetModel>>(emptyList())
 
     override val installedStickerSets: StateFlow<List<StickerSetModel>> = unsupportedSets
     override val customEmojiStickerSets: StateFlow<List<StickerSetModel>> = unsupportedSets
-    override val archivedStickerSets: StateFlow<List<StickerSetModel>> = unsupportedSets
-    override val archivedEmojiSets: StateFlow<List<StickerSetModel>> = unsupportedSets
+    override val archivedStickerSets: StateFlow<List<StickerSetModel>> = archivedSets
+    override val archivedEmojiSets: StateFlow<List<StickerSetModel>> = archivedEmojis
 
     override suspend fun loadInstalledStickerSets() = unsupported("sticker-set refresh")
     override suspend fun loadCustomEmojiStickerSets() = unsupported("custom emoji refresh")
-    override suspend fun loadArchivedStickerSets() = unsupported("archived sticker refresh")
-    override suspend fun loadArchivedEmojiSets() = unsupported("archived emoji refresh")
+    override suspend fun loadArchivedStickerSets() {
+        archivedSets.value = loadArchived(emojis = false)
+    }
+    override suspend fun loadArchivedEmojiSets() {
+        archivedEmojis.value = loadArchived(emojis = true)
+    }
     override suspend fun getRecentStickers(): List<StickerModel> =
         transportFactory.open(accountSlot).use { transport ->
             val result = transport.execute(GetRecentStickers(attached = false, hash = 0))
@@ -130,6 +138,15 @@ internal class MtProtoStickerRepository(
             result.sets.mapNotNull { it.toDomain() }
         }
     }
+
+    private suspend fun loadArchived(emojis: Boolean): List<StickerSetModel> =
+        transportFactory.open(accountSlot).use { transport ->
+            val result = transport.execute(GetArchivedStickers(masks = false, emojis = emojis, offsetId = 0, limit = ARCHIVED_LIMIT))
+                as? ArchivedStickers_8455cc1f39
+                ?: error("Unsupported MTProto archived stickers response")
+            result.sets.flatMap { it.documents() }.also { stageDocuments(it) }
+            result.sets.mapNotNull { it.toDomain() }
+        }
 
     private fun file(documentId: Long): Flow<String?> = flow {
         val file = files.registerDocument(documentId)
@@ -244,5 +261,6 @@ internal class MtProtoStickerRepository(
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"
         const val SEARCH_LIMIT = 100
+        const val ARCHIVED_LIMIT = 100
     }
 }

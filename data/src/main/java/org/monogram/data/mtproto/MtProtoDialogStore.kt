@@ -63,6 +63,8 @@ internal interface MtProtoDialogStore {
 
     suspend fun updateUnreadMark(scope: MtProtoAuthKeyScope, update: UpdateDialogUnreadMark) = Unit
 
+    suspend fun setUnreadMark(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, unread: Boolean) = Unit
+
     suspend fun updateNotifySettings(scope: MtProtoAuthKeyScope, update: UpdateNotifySettings) = Unit
 
     suspend fun delete(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long) = Unit
@@ -100,6 +102,10 @@ internal class MtProtoRoomDialogStore(
             ?: return
         val key = peer.toProjectionKey()
         dialogDao.updatePinned(scope.accountSlot, scope.environment.storageName, scope.dcId, key.first.name, key.second, update.pinned, update.folderId, System.currentTimeMillis())
+    }
+
+    override suspend fun setUnreadMark(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, unread: Boolean) {
+        dialogDao.updateUnreadMark(scope.accountSlot, scope.environment.storageName, scope.dcId, peerType.name, peerId, unread, System.currentTimeMillis())
     }
 
     override suspend fun updateNotifySettings(scope: MtProtoAuthKeyScope, update: UpdateNotifySettings) {

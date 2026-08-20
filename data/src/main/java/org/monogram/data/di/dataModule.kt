@@ -118,6 +118,8 @@ import org.monogram.data.mtproto.MtProtoArchiveRepository
 import org.monogram.data.mtproto.MtProtoArchiveRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDialogPinRepository
 import org.monogram.data.mtproto.MtProtoDialogPinRepositoryImpl
+import org.monogram.data.mtproto.MtProtoDialogUnreadRepository
+import org.monogram.data.mtproto.MtProtoDialogUnreadRepositoryImpl
 import org.monogram.data.mtproto.MtProtoMuteRepository
 import org.monogram.data.mtproto.MtProtoMuteRepositoryImpl
 import org.monogram.data.mtproto.MtProtoLeaveChatRepository
@@ -531,6 +533,9 @@ val dataModule = module {
             chats = get(),
             drafts = get(),
         )
+    }
+    single<MtProtoDialogUnreadRepository> {
+        MtProtoDialogUnreadRepositoryImpl(get(), get(), get(), get(), get())
     }
     single<MtProtoReportPeerRepository> {
         MtProtoReportPeerRepositoryImpl(
@@ -993,6 +998,7 @@ val dataModule = module {
             clearHistoryRepository = get(),
             deletePrivateDialogRepository = get(),
             reportPeerRepository = get(),
+            dialogUnreadRepository = get(),
         )
     }
     single {

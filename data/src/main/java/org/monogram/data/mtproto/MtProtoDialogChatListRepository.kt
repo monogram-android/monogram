@@ -41,6 +41,7 @@ internal class MtProtoDialogChatListRepository(
     private val clearHistoryRepository: MtProtoClearHistoryRepository = MtProtoClearHistoryRepository { _, _ -> },
     private val deletePrivateDialogRepository: MtProtoDeletePrivateDialogRepository = MtProtoDeletePrivateDialogRepository { },
     private val reportPeerRepository: MtProtoReportPeerRepository = MtProtoReportPeerRepository { _, _, _ -> },
+    private val dialogUnreadRepository: MtProtoDialogUnreadRepository = MtProtoDialogUnreadRepository { _, _ -> },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : TelegramBackendChatReadRouter.ChatReadContracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
@@ -151,8 +152,7 @@ internal class MtProtoDialogChatListRepository(
     }
 
     override suspend fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) {
-        require(!markAsUnread) { "MTProto mark-unread is not available" }
-        markChatsRead(chatIds)
+        if (markAsUnread) dialogUnreadRepository.setUnread(chatIds, unread = true) else markChatsRead(chatIds)
     }
 
     override fun markChatsAsRead(chatIds: Set<Long>) {

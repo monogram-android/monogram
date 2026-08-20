@@ -188,17 +188,19 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
-    fun `mark unread is rejected rather than delegated to TDLib`() = runTest {
+    fun `mark unread routes through the owned repository`() = runTest {
+        val unread = RecordingDialogUnreadRepository()
         val repository = MtProtoDialogChatListRepository(
-            FakeDialogRepository(emptyList()),
-            RecordingReadHistoryRepository(),
-            backgroundScope,
+            dialogRepository = FakeDialogRepository(emptyList()),
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+            dialogUnreadRepository = unread,
         )
         runCurrent()
 
-        assertThrows(IllegalArgumentException::class.java) {
-            kotlinx.coroutines.runBlocking { repository.toggleReadChats(emptySet(), markAsUnread = true) }
-        }
+        repository.toggleReadChats(setOf(42L), markAsUnread = true)
+
+        assertEquals(listOf(setOf(42L) to true), unread.requests)
     }
 
     @Test
@@ -212,6 +214,14 @@ class MtProtoDialogChatListRepositoryTest {
 
         assertThrows(IllegalArgumentException::class.java) {
             repository.selectFolder(0)
+        }
+    }
+
+    private class RecordingDialogUnreadRepository : MtProtoDialogUnreadRepository {
+        val requests = mutableListOf<Pair<Set<Long>, Boolean>>()
+
+        override suspend fun setUnread(chatIds: Set<Long>, unread: Boolean) {
+            requests += chatIds to unread
         }
     }
 

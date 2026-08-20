@@ -20,6 +20,7 @@ import org.monogram.data.backend.LegacyDialogSnapshotRepository
 import org.monogram.data.backend.TelegramBackendAuthRouter
 import org.monogram.data.backend.TelegramBackendChatReadRouter
 import org.monogram.data.backend.TelegramBackendChatSearchRouter
+import org.monogram.data.backend.TelegramBackendChatInfoRouter
 import org.monogram.data.backend.TelegramBackendContactEditRouter
 import org.monogram.data.backend.TelegramBackendMessageRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
@@ -128,6 +129,7 @@ import org.monogram.data.mtproto.MtProtoLeaveChatRepositoryImpl
 import org.monogram.data.mtproto.MtProtoClearHistoryRepository
 import org.monogram.data.mtproto.MtProtoClearHistoryRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatSearchRepository
+import org.monogram.data.mtproto.MtProtoChatInfoRepository
 import org.monogram.data.mtproto.MtProtoMessageHistorySnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileSnapshotRepository
 import org.monogram.data.mtproto.MtProtoUserProfileReader
@@ -787,12 +789,26 @@ val dataModule = module {
         )
     }
 
+    single<MtProtoChatInfoRepository> {
+        MtProtoChatInfoRepository(
+            configSource = get(),
+            transportFactory = get(),
+            chats = get(),
+        )
+    }
     single<ChatInfoRepository> {
-        ChatInfoRepositoryImpl(
-            remote = get(),
-            chatLocal = get(),
-            userRepository = get(),
-            scope = get()
+        TelegramBackendChatInfoRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                ChatInfoRepositoryImpl(
+                    remote = get(),
+                    chatLocal = get(),
+                    userRepository = get(),
+                    scope = get(),
+                )
+            },
+            mtProto = get(),
+            scope = get(),
         )
     }
 

@@ -25,7 +25,9 @@ import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.data.mtproto.MtProtoDeleteMessageRepository
 import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
+import org.monogram.data.mtproto.MtProtoMessageReadModel
 import org.monogram.data.mtproto.MtProtoScheduledMessageRepository
+import org.monogram.data.mtproto.MtProtoPinnedMessageReadRepository
 
 /**
  * Keeps TDLib-owned message commands unavailable when the account uses the Kotlin MTProto
@@ -44,6 +46,9 @@ internal class TelegramBackendMessageRouter(
     private val scheduledFactory: () -> MtProtoScheduledMessageRepository = {
         error("MTProto scheduled message repository is not configured")
     },
+    private val pinnedReadFactory: () -> MtProtoPinnedMessageReadRepository = {
+        error("MTProto pinned message read repository is not configured")
+    },
     private val historyRepository: MessageHistorySnapshotRepository? = null,
     scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
@@ -54,6 +59,7 @@ internal class TelegramBackendMessageRouter(
     private val deletion by lazy(LazyThreadSafetyMode.NONE, deleteFactory)
     private val pinned by lazy(LazyThreadSafetyMode.NONE, pinnedFactory)
     private val scheduled by lazy(LazyThreadSafetyMode.NONE, scheduledFactory)
+    private val pinnedRead by lazy(LazyThreadSafetyMode.NONE, pinnedReadFactory)
 
     val repository: MessageRepository = Proxy.newProxyInstance(
         MessageRepository::class.java.classLoader,
@@ -84,6 +90,12 @@ internal class TelegramBackendMessageRouter(
                     "openChat", "closeChat" -> invokeDraft(method, args) { Unit }
                     "getHistoryPage" -> invokeDraft(method, args) { values ->
                         getHistoryPage(values[0] as HistoryRequest)
+                    }
+                    "getPinnedMessage" -> invokeDraft(method, args) { values ->
+                        pinnedRead.get(values[0] as Long, values[1] as Long?).firstOrNull()?.toMessageModel(values[0] as Long)
+                    }
+                    "getPinnedMessageCount" -> invokeDraft(method, args) { values ->
+                        pinnedRead.get(values[0] as Long, values[1] as Long?).size
                     }
                     "getScheduledMessages" -> invokeDraft(method, args) { values ->
                         scheduled.get(values[0] as Long).map { message ->
@@ -173,6 +185,19 @@ internal class TelegramBackendMessageRouter(
             source = HistorySource.RoomSnapshot,
         )
     }
+
+    private fun MtProtoMessageReadModel.toMessageModel(chatId: Long) = MessageModel(
+        id = messageId.toLong(),
+        date = date,
+        isOutgoing = isOutgoing,
+        senderName = "",
+        chatId = chatId,
+        content = if (isService) MessageContent.Service(text.orEmpty()) else MessageContent.Text(text.orEmpty()),
+        senderId = senderId ?: 0L,
+        editDate = editDate ?: 0,
+        mediaAlbumId = groupedId ?: 0L,
+        isPinned = isPinned,
+    )
 
     private fun invokeLegacy(method: Method, args: Array<out Any?>?): Any? = try {
         method.invoke(legacy, *(args ?: emptyArray()))

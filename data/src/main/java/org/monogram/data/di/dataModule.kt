@@ -127,6 +127,7 @@ import org.monogram.data.mtproto.MtProtoDraftRepositoryImpl
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepositoryImpl
 import org.monogram.data.mtproto.MtProtoScheduledMessageRepository
+import org.monogram.data.mtproto.MtProtoPinnedMessageReadRepository
 import org.monogram.data.mtproto.MtProtoReadHistoryRepositoryImpl
 import org.monogram.data.mtproto.MtProtoReportPeerRepository
 import org.monogram.data.mtproto.MtProtoReportPeerRepositoryImpl
@@ -604,6 +605,16 @@ val dataModule = module {
         MtProtoDeleteMessageRepositoryImpl(
             dialogs = get(),
             deletion = get(),
+        )
+    }
+    single<MtProtoPinnedMessageReadRepository> {
+        MtProtoPinnedMessageReadRepository(
+            configSource = get(),
+            transportFactory = get(),
+            userStore = get(),
+            chatStore = get(),
+            messageStore = get(),
+            resultStager = get(),
         )
     }
     single<MtProtoScheduledMessageRepository> {
@@ -1388,6 +1399,7 @@ val dataModule = module {
             deleteFactory = { get<MtProtoDeleteMessageRepository>() },
             pinnedFactory = { get<MtProtoPinnedMessageRepository>() },
             scheduledFactory = { get<MtProtoScheduledMessageRepository>() },
+            pinnedReadFactory = { get<MtProtoPinnedMessageReadRepository>() },
             historyRepository = get<MtProtoMessageHistorySnapshotRepository>(),
             scope = get(),
         ).repository

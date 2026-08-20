@@ -21,12 +21,34 @@ class TelegramBackendBotRouterTest {
             mtProtoFactory = {
                 object : MtProtoBotCommandRepository {
                     override suspend fun getCommands(botId: Long) = listOf(BotCommandModel("start", "Begin"))
+                    override suspend fun getInfo(botId: Long) = null
                 }
             },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
         assertEquals(listOf("start"), router.getBotCommands(7).map { it.command })
+    }
+
+    @Test
+    fun `selected MTProto bot info avoids legacy repository`() = runBlocking {
+        val router = TelegramBackendBotRouter(
+            selectionStore = SelectionStore,
+            legacyFactory = { error("legacy bot repository must not be created") },
+            mtProtoFactory = {
+                object : MtProtoBotCommandRepository {
+                    override suspend fun getCommands(botId: Long) = emptyList<BotCommandModel>()
+                    override suspend fun getInfo(botId: Long) = BotInfoModel(
+                        commands = emptyList(),
+                        menuButton = org.monogram.domain.models.BotMenuButtonModel.Default,
+                        shortDescription = "About",
+                    )
+                }
+            },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals("About", router.getBotInfo(7)?.shortDescription)
     }
 
     private object SelectionStore : TelegramBackendSelectionStore {

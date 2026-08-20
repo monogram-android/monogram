@@ -28,7 +28,7 @@ internal class TelegramBackendBotRouter(
 
     override suspend fun getBotInfo(botId: Long): BotInfoModel? = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getBotInfo(botId)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getInfo(botId)
     }
 
     private fun selected() = checkNotNull(selectedBackend.value) { "Telegram backend selection is not loaded" }

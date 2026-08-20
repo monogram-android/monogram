@@ -150,6 +150,7 @@ import org.monogram.data.mtproto.MtProtoAccountStateCleaner
 import org.monogram.data.mtproto.MtProtoAccountStateResetter
 import org.monogram.data.mtproto.MtProtoAuthRepository
 import org.monogram.data.mtproto.MtProtoAttachMenuBotRepository
+import org.monogram.data.mtproto.MtProtoStickerRepository
 import org.monogram.data.mtproto.MtProtoAuthSessionResetter
 import org.monogram.data.mtproto.MtProtoAuthSessionHandleFactory
 import org.monogram.data.mtproto.MtProtoPhoneAuthSessionFactory
@@ -235,6 +236,7 @@ import org.monogram.data.backend.TelegramBackendProfilePhotoRouter
 import org.monogram.data.backend.TelegramBackendProxyRouter
 import org.monogram.data.backend.TelegramBackendStorageRouter
 import org.monogram.data.backend.TelegramBackendStoryRouter
+import org.monogram.data.backend.TelegramBackendStickerRouter
 import org.monogram.data.backend.TelegramBackendWallpaperRouter
 import org.monogram.data.backend.TelegramBackendUserRouter
 import org.monogram.data.repository.ProfilePhotoRepositoryImpl
@@ -1440,15 +1442,28 @@ val dataModule = module {
         )
     }
 
-    single<StickerRepository> {
-        StickerRepositoryImpl(
-            remote = get(),
-            fileManager = get(),
-            updates = get(),
-            cacheProvider = get(),
-            dispatchers = get(),
+    single<MtProtoStickerRepository> {
+        MtProtoStickerRepository(
             localDataSource = get(),
-            scope = get()
+            scope = get(),
+        )
+    }
+    single<StickerRepository> {
+        TelegramBackendStickerRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                StickerRepositoryImpl(
+                    remote = get(),
+                    fileManager = get(),
+                    updates = get(),
+                    cacheProvider = get(),
+                    dispatchers = get(),
+                    localDataSource = get(),
+                    scope = get(),
+                )
+            },
+            mtProtoFactory = { get<MtProtoStickerRepository>() },
+            scope = get(),
         )
     }
 

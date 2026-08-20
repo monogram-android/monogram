@@ -7,6 +7,7 @@ import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatPhoto
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleForum
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSignatures
@@ -14,6 +15,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsAll
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsSome
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetChatAvailableReactions
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ToggleNoForwards
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputFile_ef0db4e0fa
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -21,6 +23,21 @@ import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 
 class MtProtoChatSettingsRepositoryTest {
+    @Test
+    fun `uploads and sets basic group photo through authoritative updates`() = runTest {
+        val transport = RecordingTransport()
+        val stager = RecordingStager()
+        val repository = repository(transport, stager, uploader = RecordingUploader)
+
+        repository.setPhoto(-42, "avatar.jpg")
+
+        val request = transport.requests.single() as EditChatPhoto
+        assertEquals(42L, request.chatId)
+        assertEquals(RecordingUploader.file, (request.photo as org.monogram.mtproto.tl.generated.cloud.layer223.InputChatUploadedPhoto).file_)
+        assertEquals(1, stager.calls)
+        assertTrue(transport.closed)
+    }
+
     @Test
     fun `edits basic group title and stages authoritative updates`() = runTest {
         val transport = RecordingTransport()
@@ -123,11 +140,13 @@ class MtProtoChatSettingsRepositoryTest {
     private fun repository(
         transport: RecordingTransport,
         stager: RecordingStager,
+        uploader: MtProtoFileUploader = MtProtoFileUploader { error("unexpected upload") },
         users: MtProtoUserProjectionStore = NoOpMtProtoUserProjectionStore,
         chats: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
     ) = MtProtoChatSettingsRepositoryImpl(
         configSource = TelegramMtProtoBootstrapConfigSource { config() },
         transportFactory = MtProtoSessionTransportFactory { transport },
+        uploader = uploader,
         users = users,
         chats = chats,
         cloudObjectStager = stager,
@@ -184,6 +203,11 @@ class MtProtoChatSettingsRepositoryTest {
         handshake = MtProtoHandshakeConfig(2, listOf("key")),
         cloud = CloudLayer223ConnectionConfig(1, "device", "system", "app", "en"),
     )
+
+    private object RecordingUploader : MtProtoFileUploader {
+        val file = InputFile_ef0db4e0fa(1L, 1, "avatar.jpg", "checksum")
+        override suspend fun upload(path: String) = file
+    }
 
     private class RecordingTransport : MtProtoRpcTransport {
         val requests = mutableListOf<TlMethod<*>>()

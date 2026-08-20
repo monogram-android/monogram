@@ -6,9 +6,11 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputChatUploadedPhoto
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsAll
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsSome
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
+import org.monogram.mtproto.tl.generated.cloud.layer223.channels.EditPhoto
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.EditTitle
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.UpdateUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleAntiSpam
@@ -20,10 +22,12 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleForum
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSignatures
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatPhoto
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetChatAvailableReactions
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ToggleNoForwards
 
 internal interface MtProtoChatSettingsRepository {
+    suspend fun setPhoto(chatId: Long, photoPath: String)
     suspend fun setTitle(chatId: Long, title: String)
     suspend fun setDescription(chatId: Long, description: String)
     suspend fun setUsername(chatId: Long, username: String)
@@ -41,11 +45,30 @@ internal interface MtProtoChatSettingsRepository {
 internal class MtProtoChatSettingsRepositoryImpl(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory,
+    private val uploader: MtProtoFileUploader,
     private val users: MtProtoUserProjectionStore,
     private val chats: MtProtoChatProjectionStore,
     private val cloudObjectStager: MtProtoCloudObjectStager,
     private val accountSlot: String = "default",
 ) : MtProtoChatSettingsRepository {
+    override suspend fun setPhoto(chatId: Long, photoPath: String) {
+        val (scope, peer) = resolve(chatId)
+        val photo = InputChatUploadedPhoto(uploader.upload(photoPath), null, null, null)
+        transportFactory.open(accountSlot).use { transport ->
+            val updates = when (peer.type) {
+                DialogPeerType.BASIC_GROUP -> transport.execute(EditChatPhoto(peer.id, photo))
+                DialogPeerType.SUPERGROUP, DialogPeerType.CHANNEL -> {
+                    val accessHash = requireNotNull(chats.get(scope, peer.id)?.accessHash) {
+                        "Missing MTProto channel access hash: ${peer.id}"
+                    }
+                    transport.execute(EditPhoto(InputChannel_d22292516d(peer.id, accessHash), photo))
+                }
+                DialogPeerType.PRIVATE, DialogPeerType.UNKNOWN -> error("MTProto cannot edit this chat photo")
+            }
+            cloudObjectStager.stageLive(scope, updates)
+        }
+    }
+
     override suspend fun setTitle(chatId: Long, title: String) {
         require(title.isNotBlank()) { "MTProto chat title must not be blank" }
         val (scope, peer) = resolve(chatId)

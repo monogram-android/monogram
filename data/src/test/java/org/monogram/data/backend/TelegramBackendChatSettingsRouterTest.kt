@@ -20,6 +20,7 @@ class TelegramBackendChatSettingsRouterTest {
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
+        router.setChatPhoto(-7, "avatar.jpg")
         router.setChatTitle(-7, "Team")
         router.setChatDescription(-7, "Owned MTProto")
         router.setChatHasProtectedContent(-7, true)
@@ -33,11 +34,12 @@ class TelegramBackendChatSettingsRouterTest {
         router.toggleChatIsForum(-7, true)
         router.setChatAvailableReactions(-7, listOf("👍"))
 
-        assertEquals(listOf("title:-7:Team", "description:-7:Owned MTProto", "protected:true", "username:-7:team", "slow:10", "hidden:true", "spam:true", "join:true", "request:true", "sign:true", "forum:true", "reactions:👍"), settings.calls)
+        assertEquals(listOf("photo:-7:avatar.jpg", "title:-7:Team", "description:-7:Owned MTProto", "protected:true", "username:-7:team", "slow:10", "hidden:true", "spam:true", "join:true", "request:true", "sign:true", "forum:true", "reactions:👍"), settings.calls)
     }
 
     private class RecordingSettings : MtProtoChatSettingsRepository {
         val calls = mutableListOf<String>()
+        override suspend fun setPhoto(chatId: Long, photoPath: String) { calls += "photo:$chatId:$photoPath" }
         override suspend fun setTitle(chatId: Long, title: String) {
             calls += "title:$chatId:$title"
         }

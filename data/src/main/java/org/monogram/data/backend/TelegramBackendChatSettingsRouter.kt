@@ -18,7 +18,10 @@ internal class TelegramBackendChatSettingsRouter(
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
     private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
     init { scope.launch { selectionStore.observe(accountId).collect { selectedBackend.value = it } } }
-    override suspend fun setChatPhoto(chatId: Long, photoPath: String) = call { legacy.setChatPhoto(chatId, photoPath) }
+    override suspend fun setChatPhoto(chatId: Long, photoPath: String) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatPhoto(chatId, photoPath)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setPhoto(chatId, photoPath)
+    }
     override suspend fun setChatTitle(chatId: Long, title: String) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setChatTitle(chatId, title)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setTitle(chatId, title)

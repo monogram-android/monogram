@@ -23,6 +23,7 @@ import org.monogram.data.backend.TelegramBackendChatReadRouter
 import org.monogram.data.backend.TelegramBackendChatSearchRouter
 import org.monogram.data.backend.TelegramBackendChatInfoRouter
 import org.monogram.data.backend.TelegramBackendEmojiRouter
+import org.monogram.data.backend.TelegramBackendGifRouter
 import org.monogram.data.backend.TelegramBackendContactEditRouter
 import org.monogram.data.backend.TelegramBackendMessageRouter
 import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
@@ -1468,10 +1469,16 @@ val dataModule = module {
     }
 
     single<GifRepository> {
-        GifRepositoryImpl(
-            remote = get(),
-            cacheProvider = get(),
-            stickerFileManager = get()
+        TelegramBackendGifRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                GifRepositoryImpl(
+                    remote = get(),
+                    cacheProvider = get(),
+                    stickerFileManager = get(),
+                )
+            },
+            scope = get(),
         )
     }
 

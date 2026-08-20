@@ -4,8 +4,11 @@ import kotlinx.coroutines.flow.Flow
 import org.monogram.domain.models.PrivacyRule
 import org.monogram.domain.repository.PrivacyKey
 import org.monogram.domain.repository.PrivacyRepository
+import org.monogram.mtproto.tl.generated.cloud.layer223.AccountDaysTtl_f6ad918c54
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAccountTtl
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetAccountTtl
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Block
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Blocked_31657af965
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.BlockedSlice
@@ -64,8 +67,19 @@ internal class MtProtoPrivacyRepository(
     override fun getPrivacyRules(key: PrivacyKey): Flow<List<PrivacyRule>> = unsupported()
     override suspend fun setPrivacyRule(key: PrivacyKey, rules: List<PrivacyRule>) = unsupported()
     override suspend fun deleteAccount(reason: String, password: String) = unsupported()
-    override suspend fun getAccountTtl(): Int = unsupported()
-    override suspend fun setAccountTtl(days: Int) = unsupported()
+    override suspend fun getAccountTtl(): Int = transportFactory.open(accountSlot).use { transport ->
+        (transport.execute(GetAccountTtl) as? AccountDaysTtl_f6ad918c54)?.days
+            ?: error("Unsupported MTProto account TTL response")
+    }
+
+    override suspend fun setAccountTtl(days: Int) {
+        require(days > 0) { "MTProto account TTL must be positive" }
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(SetAccountTtl(AccountDaysTtl_f6ad918c54(days)))) {
+                "MTProto account TTL update was rejected"
+            }
+        }
+    }
     override suspend fun getPasswordState(): Boolean = unsupported()
     override suspend fun canShowSensitiveContent(): Boolean = unsupported()
     override suspend fun isShowSensitiveContentEnabled(): Boolean = unsupported()

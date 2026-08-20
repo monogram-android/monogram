@@ -5,10 +5,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.AccountDaysTtl_f6ad918c54
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerBlocked_161238e123
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetAccountTtl
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.SetAccountTtl
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Block
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.BlockedSlice
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.GetBlocked
@@ -68,6 +71,34 @@ class MtProtoPrivacyRepositoryTest {
 
         assertEquals(emptyList<List<Long>>(), users.upserts)
         assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `reads and updates account ttl through owned transport`() = runBlocking {
+        val transport = Transport(listOf(AccountDaysTtl_f6ad918c54(180), true))
+        val repository = MtProtoPrivacyRepository(Config { config() }, MtProtoSessionTransportFactory { transport }, Users())
+
+        assertEquals(180, repository.getAccountTtl())
+        repository.setAccountTtl(365)
+
+        assertEquals(GetAccountTtl, transport.requests[0])
+        assertEquals(SetAccountTtl(AccountDaysTtl_f6ad918c54(365)), transport.requests[1])
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `rejects invalid account ttl before opening transport`() = runBlocking {
+        var opened = false
+        val repository = MtProtoPrivacyRepository(
+            Config { config() },
+            MtProtoSessionTransportFactory { opened = true; Transport(emptyList()) },
+            Users(),
+        )
+
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.setAccountTtl(0) }
+        }
+        assertEquals(false, opened)
     }
 
     private fun blocked(userId: Long) = PeerBlocked_161238e123(PeerUser(userId), 0)

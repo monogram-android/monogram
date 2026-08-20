@@ -16,6 +16,7 @@ class MtProtoMessageDeletionRepositoryImplTest {
     @Test
     fun `deletes basic-group messages through owned transport`() = runBlocking {
         val transport = RecordingTransport()
+        val messages = RecordingMessages()
         val repository = MtProtoMessageDeletionRepositoryImpl(
             configSource = TelegramMtProtoBootstrapConfigSource {
                 TelegramMtProtoBootstrapConfig(
@@ -26,6 +27,7 @@ class MtProtoMessageDeletionRepositoryImplTest {
             },
             transportFactory = MtProtoSessionTransportFactory { transport },
             chats = NoOpMtProtoChatProjectionStore,
+            messages = messages,
         )
 
         repository.delete(-7L, DialogPeerType.BASIC_GROUP, listOf(3L, 4L), revoke = true)
@@ -33,7 +35,21 @@ class MtProtoMessageDeletionRepositoryImplTest {
         val request = transport.method as DeleteMessages
         assertEquals(listOf(3, 4), request.id)
         assertTrue(request.revoke)
+        assertEquals(listOf(Triple(MtProtoMessagePeerType.GROUP, 7L, listOf(3, 4))), messages.deleted)
         assertTrue(transport.closed)
+    }
+
+    private class RecordingMessages : MtProtoMessageProjectionStore by NoOpMtProtoMessageProjectionStore {
+        val deleted = mutableListOf<Triple<MtProtoMessagePeerType, Long, List<Int>>>()
+
+        override suspend fun markDeleted(
+            scope: MtProtoAuthKeyScope,
+            peerType: MtProtoMessagePeerType,
+            peerId: Long,
+            messageIds: List<Int>,
+        ) {
+            deleted += Triple(peerType, peerId, messageIds)
+        }
     }
 
     private class RecordingTransport : MtProtoRpcTransport {

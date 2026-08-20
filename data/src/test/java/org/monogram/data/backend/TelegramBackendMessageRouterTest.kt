@@ -12,6 +12,7 @@ import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.data.mtproto.MtProtoDeleteMessageRepository
 import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 
@@ -66,6 +67,22 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto delete mutations use the selected repository without creating legacy`() = runBlocking {
+        val deletion = RecordingDeleteMessageRepository()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            deleteFactory = { deletion },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.deleteMessage(1L, listOf(2L, 3L), revoke = true)
+
+        assertEquals(listOf(Triple(1L, listOf(2L, 3L), true)), deletion.requests)
+    }
+
+    @Test
     fun `MTProto pin mutations use the selected repository without creating legacy`() = runBlocking {
         val pinned = RecordingPinnedMessageRepository()
         val router = TelegramBackendMessageRouter(
@@ -101,6 +118,14 @@ class TelegramBackendMessageRouterTest {
 
         override suspend fun saveDraft(chatId: Long, text: String, replyToMsgId: Long?, threadId: Long?) {
             this.text = text
+        }
+    }
+
+    private class RecordingDeleteMessageRepository : MtProtoDeleteMessageRepository {
+        val requests = mutableListOf<Triple<Long, List<Long>, Boolean>>()
+
+        override suspend fun delete(chatId: Long, messageIds: List<Long>, revoke: Boolean) {
+            requests += Triple(chatId, messageIds, revoke)
         }
     }
 

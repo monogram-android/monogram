@@ -11,6 +11,7 @@ internal class MtProtoMessageDeletionRepositoryImpl(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val transportFactory: MtProtoSessionTransportFactory,
     private val chats: MtProtoChatProjectionStore,
+    private val messages: MtProtoMessageProjectionStore = NoOpMtProtoMessageProjectionStore,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : MtProtoMessageDeletionRepository {
     override suspend fun delete(chatId: Long, peerType: DialogPeerType, messageIds: List<Long>, revoke: Boolean) {
@@ -32,9 +33,17 @@ internal class MtProtoMessageDeletionRepositoryImpl(
                 }
                 DialogPeerType.UNKNOWN -> error("Cannot delete from an unknown peer")
             }
+            messages.markDeleted(scope, peer.type.toMessagePeerType(), peer.id, ids)
         } finally {
             transport.close()
         }
+    }
+
+    private fun DialogPeerType.toMessagePeerType() = when (this) {
+        DialogPeerType.PRIVATE -> MtProtoMessagePeerType.USER
+        DialogPeerType.BASIC_GROUP -> MtProtoMessagePeerType.GROUP
+        DialogPeerType.SUPERGROUP, DialogPeerType.CHANNEL -> MtProtoMessagePeerType.CHANNEL
+        DialogPeerType.UNKNOWN -> error("Cannot delete from an unknown peer")
     }
 
     private companion object { const val DEFAULT_ACCOUNT_SLOT = "default" }

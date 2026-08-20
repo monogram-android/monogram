@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.RichTextParsingRepository
+import org.monogram.data.mtproto.MtProtoDeleteMessageRepository
 import org.monogram.data.mtproto.MtProtoDraftRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 
@@ -25,6 +26,9 @@ internal class TelegramBackendMessageRouter(
     selectionStore: TelegramBackendSelectionStore,
     legacyFactory: () -> MessageRepository,
     private val draftFactory: () -> MtProtoDraftRepository,
+    private val deleteFactory: () -> MtProtoDeleteMessageRepository = {
+        MtProtoDeleteMessageRepository { _, _, _ -> }
+    },
     private val pinnedFactory: () -> MtProtoPinnedMessageRepository = {
         MtProtoPinnedMessageRepository { _, _, _ -> }
     },
@@ -34,6 +38,7 @@ internal class TelegramBackendMessageRouter(
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
     private val drafts by lazy(LazyThreadSafetyMode.NONE, draftFactory)
+    private val deletion by lazy(LazyThreadSafetyMode.NONE, deleteFactory)
     private val pinned by lazy(LazyThreadSafetyMode.NONE, pinnedFactory)
 
     val repository: MessageRepository = Proxy.newProxyInstance(
@@ -67,6 +72,9 @@ internal class TelegramBackendMessageRouter(
                     }
                     "saveChatDraft" -> invokeDraft(method, args) { values ->
                         drafts.saveDraft(values[0] as Long, values[1] as String, values[2] as Long?, values[3] as Long?)
+                    }
+                    "deleteMessage" -> invokeDraft(method, args) { values ->
+                        deletion.delete(values[0] as Long, values[1] as List<Long>, values[2] as Boolean)
                     }
                     "pinMessage" -> invokeDraft(method, args) { values ->
                         pinned.setPinned(values[0] as Long, values[1] as Long, pinned = true)

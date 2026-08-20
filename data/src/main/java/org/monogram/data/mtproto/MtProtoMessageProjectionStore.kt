@@ -73,6 +73,7 @@ internal interface MtProtoMessageProjectionStore {
     suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel>
     suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel>
     suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel>
+    suspend fun markDeleted(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageIds: List<Int>) = Unit
     suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoMessageProjectionBackfillResult
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
@@ -91,6 +92,7 @@ internal object NoOpMtProtoMessageProjectionStore : MtProtoMessageProjectionStor
     override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel> = emptyList()
+    override suspend fun markDeleted(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageIds: List<Int>) = Unit
     override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoMessageProjectionBackfillResult(0, 0)
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
@@ -159,6 +161,20 @@ internal class MtProtoRoomMessageProjectionStore(
             before?.messageId,
             limit,
         ).map { it.toReadModel() }
+    }
+
+    override suspend fun markDeleted(
+        scope: MtProtoAuthKeyScope,
+        peerType: MtProtoMessagePeerType,
+        peerId: Long,
+        messageIds: List<Int>,
+    ) {
+        if (messageIds.isEmpty()) return
+        if (peerType == MtProtoMessagePeerType.CHANNEL) {
+            dao.markDeletedChannel(scope.accountSlot, scope.environment.storageName, scope.dcId, peerId, messageIds, nowMillis())
+        } else {
+            dao.markDeletedNonChannel(scope.accountSlot, scope.environment.storageName, scope.dcId, messageIds, nowMillis())
+        }
     }
 
     override suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoMessageProjectionBackfillResult {

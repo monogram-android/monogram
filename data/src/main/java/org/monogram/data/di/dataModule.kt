@@ -102,6 +102,8 @@ import org.monogram.data.mtproto.MtProtoHistoryResultStager
 import org.monogram.data.mtproto.MtProtoDialogSnapshotRepository
 import org.monogram.data.mtproto.MtProtoTextMessageRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDraftRepository
+import org.monogram.data.mtproto.MtProtoDeleteMessageRepository
+import org.monogram.data.mtproto.MtProtoDeleteMessageRepositoryImpl
 import org.monogram.data.mtproto.MtProtoDraftRepositoryImpl
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageRepositoryImpl
@@ -507,7 +509,7 @@ val dataModule = module {
     single { MtProtoHistoryResultStager(get(), get(), get(), get()) }
     single { MtProtoDialogSnapshotRepository(get(), get(), get(), get()) }
     single<MtProtoMessageDeletionRepository> {
-        MtProtoMessageDeletionRepositoryImpl(get(), get(), get())
+        MtProtoMessageDeletionRepositoryImpl(get(), get(), get(), get())
     }
     single<MtProtoReadHistoryRepository> {
         MtProtoReadHistoryRepositoryImpl(
@@ -524,6 +526,12 @@ val dataModule = module {
             users = get(),
             chats = get(),
             drafts = get(),
+        )
+    }
+    single<MtProtoDeleteMessageRepository> {
+        MtProtoDeleteMessageRepositoryImpl(
+            dialogs = get(),
+            deletion = get(),
         )
     }
     single<MtProtoPinnedMessageRepository> {
@@ -1155,6 +1163,7 @@ val dataModule = module {
             selectionStore = get(),
             legacyFactory = { get<MessageRepositoryImpl>() },
             draftFactory = { get<MtProtoDraftRepository>() },
+            deleteFactory = { get<MtProtoDeleteMessageRepository>() },
             pinnedFactory = { get<MtProtoPinnedMessageRepository>() },
             scope = get(),
         ).repository

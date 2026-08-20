@@ -28,6 +28,8 @@ import org.monogram.data.mtproto.MtProtoMessagePeerType
 import org.monogram.data.mtproto.MtProtoMessageReadModel
 import org.monogram.data.mtproto.MtProtoMessageViewerReader
 import org.monogram.data.mtproto.MtProtoFileRepository
+import org.monogram.data.mtproto.MtProtoMediaMessageRepository
+import org.monogram.domain.models.MessageSendOptions
 import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 
@@ -642,6 +644,33 @@ class TelegramBackendMessageRouterTest {
             router.repository.newMessageFlow
         }
         Unit
+    }
+
+    @Test
+    fun `MTProto routes uploaded photo and document without legacy`() = runBlocking {
+        val media = RecordingMedia()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy must not be created") },
+            draftFactory = { error("draft must not be created") },
+            mediaFactory = { media },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.sendPhoto(7, "photo.jpg", "caption", replyToMsgId = 9, threadId = 10, sendOptions = MessageSendOptions(silent = true, scheduleDate = 11))
+        router.repository.sendDocument(7, "file.pdf", "doc", replyToMsgId = 12, threadId = 13)
+
+        assertEquals(listOf("photo:7:photo.jpg:caption:9:10:true:11", "document:7:file.pdf:doc:12:13:false:null"), media.calls)
+    }
+
+    private class RecordingMedia : MtProtoMediaMessageRepository {
+        val calls = mutableListOf<String>()
+        override suspend fun sendPhoto(chatId: Long, path: String, caption: String, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
+            calls += "photo:$chatId:$path:$caption:$replyTo:$threadId:${options.silent}:${options.scheduleDate}"
+        }
+        override suspend fun sendDocument(chatId: Long, path: String, caption: String, replyTo: Long?, threadId: Long?, options: MessageSendOptions) {
+            calls += "document:$chatId:$path:$caption:$replyTo:$threadId:${options.silent}:${options.scheduleDate}"
+        }
     }
 
     private class RecordingMtProtoFiles : MtProtoFileRepository {

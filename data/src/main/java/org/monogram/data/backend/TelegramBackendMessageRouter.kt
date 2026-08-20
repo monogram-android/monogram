@@ -35,6 +35,7 @@ import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 import org.monogram.data.mtproto.MtProtoDocumentFile
 import org.monogram.data.mtproto.MtProtoDocumentMediaKind
 import org.monogram.data.mtproto.MtProtoFileRepository
+import org.monogram.data.mtproto.MtProtoMediaMessageRepository
 
 /**
  * Keeps TDLib-owned message commands unavailable when the account uses the Kotlin MTProto
@@ -44,6 +45,7 @@ internal class TelegramBackendMessageRouter(
     selectionStore: TelegramBackendSelectionStore,
     legacyFactory: () -> MessageRepository,
     private val draftFactory: () -> MtProtoDraftRepository,
+    private val mediaFactory: () -> MtProtoMediaMessageRepository = { throw UnsupportedOperationException("MTProto media sending is not configured") },
     private val deleteFactory: () -> MtProtoDeleteMessageRepository = {
         MtProtoDeleteMessageRepository { _, _, _ -> }
     },
@@ -71,6 +73,7 @@ internal class TelegramBackendMessageRouter(
 ) {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val media by lazy(LazyThreadSafetyMode.NONE, mediaFactory)
     private val drafts by lazy(LazyThreadSafetyMode.NONE, draftFactory)
     private val deletion by lazy(LazyThreadSafetyMode.NONE, deleteFactory)
     private val pinned by lazy(LazyThreadSafetyMode.NONE, pinnedFactory)
@@ -134,6 +137,16 @@ internal class TelegramBackendMessageRouter(
                             threadId = values[4] as Long?,
                             entities = values[3] as List<org.monogram.domain.models.MessageEntity>,
                         )
+                    }
+                    "sendPhoto" -> invokeDraft(method, args) { values ->
+                        val options = values[7] as org.monogram.domain.models.MessageSendOptions
+                        require((values[3] as List<*>).isEmpty()) { "MTProto photo caption entities are not available" }
+                        media.sendPhoto(values[0] as Long, values[1] as String, values[2] as String, values[5] as Long?, values[6] as Long?, options)
+                    }
+                    "sendDocument" -> invokeDraft(method, args) { values ->
+                        val options = values[6] as org.monogram.domain.models.MessageSendOptions
+                        require((values[3] as List<*>).isEmpty()) { "MTProto document caption entities are not available" }
+                        media.sendDocument(values[0] as Long, values[1] as String, values[2] as String, values[4] as Long?, values[5] as Long?, options)
                     }
                     "editMessage" -> invokeDraft(method, args) { values ->
                         text.editText(

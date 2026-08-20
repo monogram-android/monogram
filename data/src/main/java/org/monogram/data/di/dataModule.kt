@@ -257,6 +257,8 @@ import org.monogram.data.backend.TelegramBackendPrivacyRouter
 import org.monogram.data.mtproto.MtProtoPrivacyRepository
 import org.monogram.data.mtproto.MtProtoProfileEditRepository
 import org.monogram.data.mtproto.MtProtoFileUploader
+import org.monogram.data.mtproto.MtProtoMediaMessageRepository
+import org.monogram.data.mtproto.TelegramMtProtoMediaMessageRepository
 import org.monogram.data.mtproto.TelegramMtProtoFileUploader
 import org.monogram.data.backend.TelegramBackendProfileEditRouter
 import org.monogram.data.backend.TelegramBackendPremiumRouter
@@ -699,6 +701,16 @@ val dataModule = module {
     single<MtProtoPinnedMessageRepository> {
         MtProtoPinnedMessageRepositoryImpl(
             dialogs = get(),
+            messages = get(),
+        )
+    }
+    single<MtProtoMediaMessageRepository> {
+        TelegramMtProtoMediaMessageRepository(
+            configSource = get(),
+            transportFactory = get(),
+            uploader = get(),
+            users = get(),
+            chats = get(),
             messages = get(),
         )
     }
@@ -1503,6 +1515,7 @@ val dataModule = module {
             textFactory = { get<MtProtoTextMessageRepository>() },
             viewerFactory = { get<MtProtoMessageViewerReader>() },
             fileFactory = { get<MtProtoFileRepository>() },
+            mediaFactory = { get<MtProtoMediaMessageRepository>() },
             historyRepository = get<MtProtoMessageHistorySnapshotRepository>(),
             scope = get(),
         ).repository

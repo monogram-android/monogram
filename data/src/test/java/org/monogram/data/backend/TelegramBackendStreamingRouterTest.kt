@@ -19,18 +19,31 @@ class TelegramBackendStreamingRouterTest {
     @Test
     fun `selected MTProto streaming avoids legacy repository`() = runBlocking {
         val events = MutableSharedFlow<FileDownloadEvent>(replay = 1)
-        val router = TelegramBackendStreamingRouter(
-            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
-            legacyFactory = { error("legacy streaming repository must not be created") },
-            mtProtoFactory = { MtProtoStreamingRepository(Files(events)) },
-            scope = CoroutineScope(Dispatchers.Unconfined),
-        )
+        val router = selectedRouter(events)
 
-        val progress = router.getDownloadProgress(1)
         events.tryEmit(FileDownloadEvent.Progress(1, 0.5f))
 
-        assertEquals(0.5f, progress.first())
+        assertEquals(0.5f, router.getDownloadProgress(1).first())
     }
+
+    @Test
+    fun `selected MTProto streaming maps terminal events`() = runBlocking {
+        val events = MutableSharedFlow<FileDownloadEvent>(replay = 1)
+        val router = selectedRouter(events)
+
+        events.tryEmit(FileDownloadEvent.Completed(1, "/tmp/file"))
+        assertEquals(1f, router.getDownloadProgress(1).first())
+
+        events.tryEmit(FileDownloadEvent.Cancelled(1))
+        assertEquals(0f, router.getDownloadProgress(1).first())
+    }
+
+    private fun selectedRouter(events: Flow<FileDownloadEvent>) = TelegramBackendStreamingRouter(
+        selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+        legacyFactory = { error("legacy streaming repository must not be created") },
+        mtProtoFactory = { MtProtoStreamingRepository(Files(events)) },
+        scope = CoroutineScope(Dispatchers.Unconfined),
+    )
 
     private class Files(
         override val fileDownloadFlow: Flow<FileDownloadEvent>,

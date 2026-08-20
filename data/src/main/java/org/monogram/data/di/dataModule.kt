@@ -18,6 +18,7 @@ import org.monogram.data.backend.LegacyMessageHistorySnapshotRepository
 import org.monogram.data.backend.LegacyUserProfileSnapshotRepository
 import org.monogram.data.backend.LegacyDialogSnapshotRepository
 import org.monogram.data.backend.TelegramBackendAuthRouter
+import org.monogram.data.backend.TelegramBackendAttachMenuBotRouter
 import org.monogram.data.backend.TelegramBackendChatReadRouter
 import org.monogram.data.backend.TelegramBackendChatSearchRouter
 import org.monogram.data.backend.TelegramBackendChatInfoRouter
@@ -144,6 +145,7 @@ import org.monogram.data.mtproto.MtProtoUpdateCursorStore
 import org.monogram.data.mtproto.MtProtoAccountStateCleaner
 import org.monogram.data.mtproto.MtProtoAccountStateResetter
 import org.monogram.data.mtproto.MtProtoAuthRepository
+import org.monogram.data.mtproto.MtProtoAttachMenuBotRepository
 import org.monogram.data.mtproto.MtProtoAuthSessionResetter
 import org.monogram.data.mtproto.MtProtoAuthSessionHandleFactory
 import org.monogram.data.mtproto.MtProtoPhoneAuthSessionFactory
@@ -1229,16 +1231,29 @@ val dataModule = module {
         )
     }
 
+    single<MtProtoAttachMenuBotRepository> {
+        MtProtoAttachMenuBotRepository(
+            transportFactory = get(),
+            scope = get(),
+        )
+    }
     single<AttachMenuBotRepository> {
-        AttachMenuBotRepositoryImpl(
-            remote = get(),
-            cache = get(),
-            cacheProvider = get(),
-            updates = get(),
-            fileObserverHub = get(),
-            dispatchers = get(),
-            attachBotDao = get(),
-            scope = get()
+        TelegramBackendAttachMenuBotRouter(
+            selectionStore = get(),
+            legacyFactory = {
+                AttachMenuBotRepositoryImpl(
+                    remote = get(),
+                    cache = get(),
+                    cacheProvider = get(),
+                    updates = get(),
+                    fileObserverHub = get(),
+                    dispatchers = get(),
+                    attachBotDao = get(),
+                    scope = get(),
+                )
+            },
+            mtProto = get(),
+            scope = get(),
         )
     }
 

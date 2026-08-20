@@ -111,6 +111,7 @@ import org.monogram.data.mtproto.MtProtoChatProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
+import org.monogram.data.mtproto.MtProtoProfilePhotoRepository
 import org.monogram.data.mtproto.MtProtoRoomPhotoLocationStore
 import org.monogram.data.mtproto.MtProtoRoomDocumentLocationStore
 import org.monogram.data.mtproto.MtProtoDocumentLocationStore
@@ -908,6 +909,15 @@ val dataModule = module {
                     gateway = get(),
                     fileQueue = get(),
                     fileObserverHub = get(),
+                )
+            },
+            mtProtoFactory = {
+                MtProtoProfilePhotoRepository(
+                    configSource = get(),
+                    transportFactory = get(),
+                    users = get(),
+                    locations = get(),
+                    files = get(),
                 )
             },
             scope = get(),

@@ -11,11 +11,15 @@ import org.monogram.domain.repository.ProfilePhotoRepository
 internal class TelegramBackendProfilePhotoRouter(
     selectionStore: TelegramBackendSelectionStore,
     private val legacyFactory: () -> ProfilePhotoRepository,
+    private val mtProtoFactory: () -> ProfilePhotoRepository = {
+        throw UnsupportedOperationException("MTProto profile photo media is not configured")
+    },
     scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : ProfilePhotoRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
 
     init {
         scope.launch {
@@ -26,7 +30,7 @@ internal class TelegramBackendProfilePhotoRouter(
     override suspend fun getUserProfilePhotos(userId: Long, offset: Int, limit: Int): List<ProfilePhotoMedia> =
         when (selected()) {
             TelegramBackendKind.LEGACY -> legacy.getUserProfilePhotos(userId, offset, limit)
-            TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+            TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getUserProfilePhotos(userId, offset, limit)
         }
 
     override suspend fun getChatProfilePhotos(chatId: Long, offset: Int, limit: Int): List<ProfilePhotoMedia> =
@@ -37,7 +41,7 @@ internal class TelegramBackendProfilePhotoRouter(
 
     override fun getUserProfilePhotosFlow(userId: Long): Flow<List<ProfilePhotoMedia>> = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getUserProfilePhotosFlow(userId)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getUserProfilePhotosFlow(userId)
     }
 
     override fun getChatProfilePhotosFlow(chatId: Long): Flow<List<ProfilePhotoMedia>> = when (selected()) {

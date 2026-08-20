@@ -6,6 +6,9 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetShortName
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ClearRecentStickers
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentStickers
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.RecentStickers_ee91009b24
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
@@ -35,8 +38,21 @@ class MtProtoStickerRepositoryTest {
     }
 
     @Test
+    fun `reads and clears standard recent stickers through selected transport`() = runBlocking {
+        val transport = Transport(RecentStickers_ee91009b24(0, emptyList(), emptyList(), emptyList()), true)
+        val repository = repository { transport }
+
+        assertEquals(emptyList<Any>(), repository.getRecentStickers())
+        repository.clearRecentStickers()
+
+        assertEquals(GetRecentStickers(attached = false, hash = 0), transport.requests[0])
+        assertEquals(ClearRecentStickers(attached = false), transport.requests[1])
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
     fun `uses short name input and closes selected transport`() = runBlocking {
-        val transport = Transport()
+        val transport = Transport(null)
         val repository = repository { transport }
 
         assertEquals(null, repository.getStickerSetByName("monogram"))
@@ -56,13 +72,15 @@ class MtProtoStickerRepositoryTest {
         transportFactory = MtProtoSessionTransportFactory { factory() },
     )
 
-    private class Transport : MtProtoRpcTransport {
-        lateinit var request: TlMethod<*>
+    private class Transport(vararg responses: Any?) : MtProtoRpcTransport {
+        private val responses = responses.toList()
+        val requests = mutableListOf<TlMethod<*>>()
+        val request: TlMethod<*> get() = requests.single()
         var closed = false
         override suspend fun <R> execute(method: TlMethod<R>): R {
-            request = method
+            requests += method
             @Suppress("UNCHECKED_CAST")
-            return null as R
+            return responses[requests.lastIndex] as R
         }
         override fun close() { closed = true }
     }

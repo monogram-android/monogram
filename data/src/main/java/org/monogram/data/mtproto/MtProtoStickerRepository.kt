@@ -15,7 +15,10 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeVideo
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetShortName
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ClearRecentStickers
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.RecentStickers_ee91009b24
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.StickerSet_ec0b3f33d3
 
 /** Metadata-only MTProto sticker reads; file paths and mutations require media projections. */
@@ -35,8 +38,21 @@ internal class MtProtoStickerRepository(
     override suspend fun loadCustomEmojiStickerSets() = unsupported("custom emoji refresh")
     override suspend fun loadArchivedStickerSets() = unsupported("archived sticker refresh")
     override suspend fun loadArchivedEmojiSets() = unsupported("archived emoji refresh")
-    override suspend fun getRecentStickers(): List<StickerModel> = unsupported("recent stickers")
-    override suspend fun clearRecentStickers() = unsupported("recent sticker mutation")
+    override suspend fun getRecentStickers(): List<StickerModel> =
+        transportFactory.open(accountSlot).use { transport ->
+            val result = transport.execute(GetRecentStickers(attached = false, hash = 0))
+                as? RecentStickers_ee91009b24
+                ?: error("Unsupported MTProto recent stickers response")
+            result.stickers.mapNotNull { (it as? Document_be725c3b31)?.toDomain() }
+        }
+
+    override suspend fun clearRecentStickers() {
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(ClearRecentStickers(attached = false))) {
+                "MTProto recent sticker clearing was rejected"
+            }
+        }
+    }
     override fun getStickerFile(fileId: Long): Flow<String?> = unsupported("sticker files")
     override fun getCustomEmojiFile(customEmojiId: Long): Flow<String?> = unsupported("custom emoji files")
     override suspend fun getTgsJson(path: String): String? = unsupported("animated sticker files")

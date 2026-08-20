@@ -79,20 +79,19 @@ internal class MtProtoFolderRepository(
 
     override suspend fun deleteFolder(folderId: Int) {
         updateRemote(folderId, null)
-        persist(_foldersFlow.value.filterNot { it.id == folderId })
+        refresh()
     }
 
     override suspend fun updateFolder(folderId: Int, title: String, iconName: String?, includedChatIds: List<Long>) {
         val model = FolderModel(folderId, title, iconName, includedChatIds = includedChatIds.distinct())
         updateRemote(folderId, model)
-        persist((_foldersFlow.value.filterNot { it.id == folderId } + model).sortedBy { it.id })
+        refresh()
     }
 
     override suspend fun reorderFolders(folderIds: List<Int>) {
         val config = configSource.createForAccount(accountId)
         transportFactory.open(accountId).use { transport -> transport.execute(UpdateDialogFiltersOrder(folderIds)) }
-        val byId = _foldersFlow.value.associateBy { it.id }
-        persist(folderIds.mapNotNull(byId::get) + _foldersFlow.value.filter { it.id !in folderIds })
+        refresh()
     }
 
     private suspend fun updateRemote(id: Int, model: FolderModel?) {

@@ -36,6 +36,7 @@ internal class MtProtoDialogSnapshotRepository(
                 var offsetId = 0
                 var offsetPeer: InputPeer = InputPeerEmpty
                 var previousCursor: DialogCursor? = null
+                var loadedDialogs = 0
                 for (pageIndex in 0 until MAX_DIALOG_PAGES) {
                     val result = transport.execute(
                         GetDialogs(
@@ -50,7 +51,8 @@ internal class MtProtoDialogSnapshotRepository(
                     )
                     check(resultStager.stage(scope, result)) { "Unsupported messages.getDialogs result" }
                     val page = result.dialogPage()
-                    if (!page.hasMore) break
+                    loadedDialogs += page.dialogs.size
+                    if (!page.hasMore(loadedDialogs)) break
                     val cursor = page.cursor { peer, users, chats -> peer.toInputPeer(users, chats) }
                     check(cursor != previousCursor) { "messages.getDialogs returned a duplicate cursor" }
                     previousCursor = cursor
@@ -98,8 +100,10 @@ internal class MtProtoDialogSnapshotRepository(
         val messages: List<org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4>,
         val users: List<org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57>,
         val chats: List<org.monogram.mtproto.tl.generated.cloud.layer223.Chat_7fdd7beb6e>,
-        val hasMore: Boolean,
+        val totalCount: Int?,
     ) {
+        fun hasMore(loadedDialogs: Int): Boolean = totalCount?.let { loadedDialogs < it } ?: false
+
         fun cursor(toInputPeer: (org.monogram.mtproto.tl.generated.cloud.layer223.Peer, List<org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57>, List<org.monogram.mtproto.tl.generated.cloud.layer223.Chat_7fdd7beb6e>) -> InputPeer): DialogCursor {
             val dialog = dialogs.lastOrNull() ?: error("messages.getDialogs returned an empty slice")
             val message = messages.firstOrNull { it.messageId() == dialog.topMessage }
@@ -128,10 +132,10 @@ internal class MtProtoDialogSnapshotRepository(
 
     private fun Dialogs_ba027bdead.dialogPage() = when (this) {
         is Dialogs_d319adbade -> DialogPage(
-            dialogs.filterIsInstance<Dialog_cf9860a8bd>(), messages, users, chats, hasMore = false,
+            dialogs.filterIsInstance<Dialog_cf9860a8bd>(), messages, users, chats, totalCount = null,
         )
         is DialogsSlice -> DialogPage(
-            dialogs.filterIsInstance<Dialog_cf9860a8bd>(), messages, users, chats, hasMore = count > dialogs.size,
+            dialogs.filterIsInstance<Dialog_cf9860a8bd>(), messages, users, chats, totalCount = count,
         )
         else -> error("Unsupported messages.getDialogs result")
     }

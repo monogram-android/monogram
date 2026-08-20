@@ -3,6 +3,10 @@ package org.monogram.data.mtproto
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.monogram.mtproto.tl.generated.cloud.layer223.Dialog_cf9860a8bd
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerNotifySettings_474d6bbc59
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.DialogsSlice
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
@@ -27,6 +31,42 @@ class MtProtoDialogSnapshotRepositoryTest {
         assertEquals(1, dialogs.single().unreadMentionsCount)
         assertEquals(true, dialogs.single().isPinned)
     }
+
+    @Test
+    fun `stops dialog pagination when cumulative slice count reaches total`() {
+        val first = DialogsSlice(2, listOf(dialog(10), dialog(11)), emptyList(), emptyList(), emptyList())
+        val second = DialogsSlice(2, listOf(dialog(12)), emptyList(), emptyList(), emptyList())
+
+        assertEquals(false, first.dialogPageForTest().hasMore(2))
+        assertEquals(true, second.dialogPageForTest().hasMore(1))
+    }
+
+    private fun DialogsSlice.dialogPageForTest() = DialogPageForTest(
+        dialogs = dialogs.filterIsInstance<Dialog_cf9860a8bd>(),
+        totalCount = count,
+    )
+
+    private data class DialogPageForTest(val dialogs: List<Dialog_cf9860a8bd>, val totalCount: Int) {
+        fun hasMore(loadedDialogs: Int) = loadedDialogs < totalCount
+    }
+
+    private fun dialog(topMessage: Int) = Dialog_cf9860a8bd(
+        pinned = false,
+        unreadMark = false,
+        viewForumAsMessages = false,
+        peer = PeerChat(topMessage.toLong()),
+        topMessage = topMessage,
+        readInboxMaxId = 0,
+        readOutboxMaxId = 0,
+        unreadCount = 0,
+        unreadMentionsCount = 0,
+        unreadReactionsCount = 0,
+        notifySettings = PeerNotifySettings_474d6bbc59(null, null, null, null, null, null, null, null, null, null, null),
+        pts = null,
+        draft = null,
+        folderId = null,
+        ttlPeriod = null,
+    )
 
     private fun config(dcId: Int) = TelegramMtProtoBootstrapConfig(
         endpoint = TelegramMtProtoEndpoint(dcId, "dc", 443),

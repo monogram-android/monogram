@@ -214,6 +214,8 @@ class TelegramBackendMessageRouterTest {
         router.repository.sendMessage(
             chatId = 42L,
             text = "hello",
+            replyToMsgId = 2L,
+            threadId = 4L,
             sendOptions = org.monogram.domain.models.MessageSendOptions(
                 silent = true,
                 scheduleDate = 123,
@@ -226,6 +228,7 @@ class TelegramBackendMessageRouterTest {
         router.repository.markAllMentionsAsRead(42L)
         router.repository.markAllReactionsAsRead(42L)
         assertEquals(listOf("hello" to true), text.sent)
+        assertEquals(2L to 4L, text.replyContext)
         assertEquals(listOf(7L to "edited"), text.edited)
         assertEquals(listOf("👍", null), text.reactions)
         assertEquals(1, text.mentionsRead)
@@ -318,8 +321,22 @@ class TelegramBackendMessageRouterTest {
         val reactions = mutableListOf<String?>()
         var mentionsRead = 0
         var reactionsRead = 0
+        var replyContext: Pair<Long?, Long?>? = null
         override suspend fun sendText(chatId: Long, peerType: DialogPeerType, text: String, silent: Boolean, scheduleDate: Int?, disableLinkPreview: Boolean) {
             sent += text to silent
+        }
+        override suspend fun sendText(
+            chatId: Long,
+            peerType: DialogPeerType,
+            text: String,
+            silent: Boolean,
+            scheduleDate: Int?,
+            disableLinkPreview: Boolean,
+            replyToMessageId: Long?,
+            threadId: Long?,
+        ) {
+            sent += text to silent
+            replyContext = replyToMessageId to threadId
         }
         override suspend fun sendTyping(chatId: Long, peerType: DialogPeerType, threadId: Long?) = Unit
         override suspend fun editText(chatId: Long, peerType: DialogPeerType, messageId: Long, text: String) {

@@ -79,6 +79,82 @@ internal class MtProtoTextMessageRepositoryImpl(
         }
     }
 
+    override suspend fun sendText(
+        chatId: Long,
+        peerType: DialogPeerType,
+        text: String,
+        silent: Boolean,
+        scheduleDate: Int?,
+        disableLinkPreview: Boolean,
+        replyToMessageId: Long?,
+        threadId: Long?,
+    ) {
+        require(replyToMessageId == null || replyToMessageId in 1..Int.MAX_VALUE) {
+            "MTProto reply message id must fit a positive int"
+        }
+        require(threadId == null || threadId in 1..Int.MAX_VALUE) {
+            "MTProto thread id must fit a positive int"
+        }
+        require(text.isNotBlank()) { "Message text must not be blank" }
+        require(scheduleDate == null || scheduleDate > 0) { "MTProto schedule date must be positive" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = resolvePeer(scope, chatId, peerType)
+        val transport = transportFactory.open(accountSlot)
+        try {
+            val updates = transport.execute(
+                SendMessage(
+                    noWebpage = disableLinkPreview,
+                    silent = silent,
+                    background = false,
+                    clearDraft = true,
+                    noforwards = false,
+                    updateStickersetsOrder = false,
+                    invertMedia = false,
+                    allowPaidFloodskip = false,
+                    peer = peer,
+                    replyTo = replyToMessageId?.let {
+                        org.monogram.mtproto.tl.generated.cloud.layer223.InputReplyToMessage(
+                            replyToMsgId = it.toInt(),
+                            topMsgId = threadId?.toInt(),
+                            replyToPeerId = null,
+                            quoteText = null,
+                            quoteEntities = null,
+                            quoteOffset = null,
+                            monoforumPeerId = null,
+                            todoItemId = null,
+                        )
+                    } ?: threadId?.let {
+                        org.monogram.mtproto.tl.generated.cloud.layer223.InputReplyToMessage(
+                            replyToMsgId = it.toInt(),
+                            topMsgId = it.toInt(),
+                            replyToPeerId = null,
+                            quoteText = null,
+                            quoteEntities = null,
+                            quoteOffset = null,
+                            monoforumPeerId = null,
+                            todoItemId = null,
+                        )
+                    },
+                    message = text,
+                    randomId = randomId(),
+                    replyMarkup = null,
+                    entities = null,
+                    scheduleDate = scheduleDate,
+                    scheduleRepeatPeriod = null,
+                    sendAs = null,
+                    quickReplyShortcut = null,
+                    effect = null,
+                    allowPaidStars = null,
+                    suggestedPost = null,
+                )
+            )
+            messages.stageLive(scope, updates)
+        } finally {
+            transport.close()
+        }
+    }
+
     override suspend fun sendTyping(chatId: Long, peerType: DialogPeerType, threadId: Long?) {
         require(threadId == null || threadId in 1..Int.MAX_VALUE) { "MTProto thread id must fit a positive int" }
         val config = configSource.createForAccount(accountSlot)

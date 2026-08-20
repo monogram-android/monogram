@@ -102,6 +102,8 @@ internal class TelegramBackendMessageRouter(
                             silent = options.silent,
                             scheduleDate = options.scheduleDate,
                             disableLinkPreview = options.disableLinkPreview,
+                            replyToMessageId = values[2] as Long?,
+                            threadId = values[4] as Long?,
                         )
                     }
                     "editMessage" -> invokeDraft(method, args) { values ->

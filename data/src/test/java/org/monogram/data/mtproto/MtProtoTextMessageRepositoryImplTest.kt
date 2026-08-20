@@ -53,6 +53,34 @@ class MtProtoTextMessageRepositoryImplTest {
     }
 
     @Test
+    fun `sends text with reply and topic context`() = runBlocking {
+        val transport = RecordingTransport()
+        val repository = MtProtoTextMessageRepositoryImpl(
+            configSource = configSource(),
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
+            chats = NoOpMtProtoChatProjectionStore,
+            messages = NoOpMtProtoMessageProjectionStore,
+        )
+
+        repository.sendText(
+            chatId = 7L,
+            peerType = DialogPeerType.PRIVATE,
+            text = "reply",
+            silent = false,
+            scheduleDate = null,
+            disableLinkPreview = false,
+            replyToMessageId = 3L,
+            threadId = 5L,
+        )
+
+        val reply = (transport.method as SendMessage).replyTo as org.monogram.mtproto.tl.generated.cloud.layer223.InputReplyToMessage
+        assertEquals(3, reply.replyToMsgId)
+        assertEquals(5, reply.topMsgId)
+        assertTrue(transport.closed)
+    }
+
+    @Test
     fun `sends typing action with topic id`() = runBlocking {
         val transport = RecordingTransport()
         val repository = MtProtoTextMessageRepositoryImpl(

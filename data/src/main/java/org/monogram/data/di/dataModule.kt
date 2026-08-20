@@ -1443,12 +1443,7 @@ val dataModule = module {
         )
     }
 
-    single<MtProtoStickerRepository> {
-        MtProtoStickerRepository(
-            localDataSource = get(),
-            scope = get(),
-        )
-    }
+    single<MtProtoStickerRepository> { MtProtoStickerRepository() }
     single<StickerRepository> {
         TelegramBackendStickerRouter(
             selectionStore = get(),

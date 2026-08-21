@@ -48,9 +48,11 @@ Do not include phone numbers, SMS codes, 2FA passwords, auth keys, session files
 
 ## Stories And Invites
 
-1. Mark a story read, react with an emoji/custom emoji where allowed, close a story, delete a story owned by the test account, and activate stealth mode.
+1. After authorization reaches ready, keep the Stories host open through its initial refresh.
+   - Pass: the selected backend retains an empty Story host while complete Story read/media rendering is unavailable; it must not throw `MTProto stories are not available` or initialize TDLib.
+2. Mark a story read, react with an emoji/custom emoji where allowed, close a story, delete a story owned by the test account, and activate stealth mode.
    - Pass: each mutation is server-confirmed before durable state changes. A failed or rejected mutation must not create a local success state.
-2. Join a disposable invited chat.
+3. Join a disposable invited chat.
    - Pass: the result reflects joined versus request-sent status from the server envelope.
 
 ## Rollback

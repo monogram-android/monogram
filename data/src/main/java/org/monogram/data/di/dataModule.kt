@@ -114,6 +114,8 @@ import org.monogram.data.mtproto.MtProtoLinkHandler
 import org.monogram.data.mtproto.MtProtoLinkHandlerImpl
 import org.monogram.data.mtproto.MtProtoChatSettingsRepository
 import org.monogram.data.mtproto.MtProtoChatSettingsRepositoryImpl
+import org.monogram.data.mtproto.MtProtoClientOptionsRepository
+import org.monogram.data.mtproto.MtProtoClientOptionsRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatCreationRepository
 import org.monogram.data.mtproto.MtProtoChatCreationRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepository
@@ -603,6 +605,7 @@ val dataModule = module {
     single { MtProtoRoomChatProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoChatProjectionStore> { get<MtProtoRoomChatProjectionStore>() }
     single<MtProtoChatSettingsRepository> { MtProtoChatSettingsRepositoryImpl(get(), get(), get(), get(), get(), get()) }
+    single<MtProtoClientOptionsRepository> { MtProtoClientOptionsRepositoryImpl(get()) }
     single<MtProtoChatCreationRepository> { MtProtoChatCreationRepositoryImpl(get(), get(), get(), get()) }
     single<MtProtoChatStatisticsRepository> { MtProtoChatStatisticsRepositoryImpl(get(), get(), get(), get()) }
     single { MtProtoRoomDocumentLocationStore(get()) }
@@ -1350,6 +1353,7 @@ val dataModule = module {
         TelegramBackendClientOptionsRouter(
             selectionStore = get(),
             legacyFactory = { ClientOptionsRepositoryImpl(remote = get()) },
+            mtProtoFactory = { get<MtProtoClientOptionsRepository>() },
             scope = get(),
         )
     }

@@ -5,12 +5,34 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.data.mtproto.MtProtoClientOptionsRepository
 
 class TelegramBackendClientOptionsRouterTest {
     @Test
-    fun `selected MTProto client options fail closed without creating legacy repository`() = runBlocking {
+    fun `selected MTProto contact notification setting avoids legacy repository`() = runBlocking {
+        var observedEnabled: Boolean? = null
+        val router = TelegramBackendClientOptionsRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy options repository must not be created") },
+            mtProtoFactory = {
+                object : MtProtoClientOptionsRepository {
+                    override suspend fun getContactJoinedNotificationsEnabled() = true
+                    override suspend fun setContactJoinedNotificationsEnabled(enabled: Boolean) { observedEnabled = enabled }
+                }
+            },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertTrue(router.getContactJoinedNotificationsEnabled())
+        router.setContactJoinedNotificationsEnabled(false)
+        assertEquals(false, observedEnabled)
+    }
+
+    @Test
+    fun `selected MTProto unsupported client options fail closed without creating legacy repository`() = runBlocking {
         val router = TelegramBackendClientOptionsRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy options repository must not be created") },

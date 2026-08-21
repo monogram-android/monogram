@@ -58,6 +58,78 @@ class TelegramBackendStoryRouterTest {
     }
 
     @Test
+    fun `selected MTProto reads its active story projection without legacy repository`() = runBlocking {
+        val active = ActiveStoryListModel(
+            chatId = 7L,
+            listType = StoryListType.MAIN,
+            order = 3L,
+            maxReadStoryId = 2,
+            stories = emptyList(),
+        )
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoActiveListFactory = { MtProtoStoryActiveListReader { mapOf(StoryListType.MAIN to listOf(active)) } },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.loadActiveStories(StoryListType.MAIN)
+
+        assertEquals(active, router.getChatActiveStories(7L))
+    }
+
+    @Test
+    fun `selected MTProto serves archived story pages from its projection`() = runBlocking {
+        val archived = StoryModel(
+            id = 4,
+            posterChatId = 7L,
+            date = 3,
+            caption = "archived",
+            media = StoryMediaModel(StoryMediaType.PHOTO, null, null),
+        )
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoActiveListFactory = {
+                MtProtoStoryActiveListReader {
+                    mapOf(
+                        StoryListType.MAIN to emptyList(),
+                        StoryListType.ARCHIVE to listOf(
+                            ActiveStoryListModel(7L, StoryListType.ARCHIVE, 1L, maxReadStoryId = 0, stories = listOf(
+                                org.monogram.domain.models.stories.StorySummaryModel(4, 3, false, false, false),
+                            )),
+                        ),
+                    )
+                }
+            },
+            mtProtoReadFactory = {
+                MtProtoStoryReadRepository { chatId, storyId, _ ->
+                    archived.takeIf { chatId == 7L && storyId == 4 }
+                }
+            },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.loadActiveStories(StoryListType.ARCHIVE)
+
+        assertEquals(listOf(archived), router.getChatArchivedStories(7L)?.stories)
+    }
+
+    @Test
+    fun `selected MTProto returns null for an unloaded story page`() = runBlocking {
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(null, router.getChatArchivedStories(7L))
+    }
+
+    @Test
     fun `selected MTProto story list mutation avoids legacy repository`() = runBlocking {
         val router = TelegramBackendStoryRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
@@ -203,6 +275,29 @@ class TelegramBackendStoryRouterTest {
     }
 
     @Test
+    fun `selected MTProto story chat-page pinning avoids legacy repository`() = runBlocking {
+        var captured: Triple<Long, Int, Boolean>? = null
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoFactory = {
+                object : MtProtoStoryListRepository {
+                    override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?) = true
+                    override suspend fun setPostedToChatPage(chatId: Long, storyId: Int, isPostedToChatPage: Boolean): Boolean {
+                        captured = Triple(chatId, storyId, isPostedToChatPage)
+                        return true
+                    }
+                }
+            },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertTrue(router.toggleStoryPostedToChatPage(7L, 2, true))
+        assertEquals(Triple(7L, 2, true), captured)
+    }
+
+    @Test
     fun `selected MTProto story deletion avoids legacy repository`() = runBlocking {
         val router = TelegramBackendStoryRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
@@ -241,6 +336,41 @@ class TelegramBackendStoryRouterTest {
 
         assertTrue(router.setStoryReaction(7L, 2, StoryReactionModel(emoji = "👍")))
         assertEquals(Triple(7L, 2, StoryReactionModel(emoji = "👍")), capturedReaction)
+    }
+
+    @Test
+    fun `selected MTProto story interactions avoid legacy repository`() = runBlocking {
+        var captured: Pair<Long, Int>? = null
+        val expected = org.monogram.domain.models.stories.StoryInteractionPageModel(
+            totalCount = 1,
+            totalForwardCount = 0,
+            totalReactionCount = 0,
+            interactions = emptyList(),
+        )
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoFactory = {
+                object : MtProtoStoryListRepository {
+                    override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?) = true
+                    override suspend fun getInteractions(
+                        chatId: Long,
+                        storyId: Int,
+                        offset: String,
+                        limit: Int,
+                        query: String,
+                        onlyContacts: Boolean,
+                        preferForwards: Boolean,
+                        preferWithReaction: Boolean,
+                    ) = expected.also { captured = chatId to storyId }
+                }
+            },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(expected, router.getStoryInteractions(chatId = 7L, storyId = 2, offset = "", limit = 20))
+        assertEquals(7L to 2, captured)
     }
 
     @Test

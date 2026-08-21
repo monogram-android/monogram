@@ -948,6 +948,7 @@ class DefaultStoriesHostComponent(
         )
         scope.launch {
             val rawPage = storyRepository.getStoryInteractions(
+                chatId = story.posterChatId,
                 storyId = story.id,
                 offset = "",
                 limit = STORY_INTERACTIONS_PAGE_SIZE
@@ -992,6 +993,7 @@ class DefaultStoriesHostComponent(
         _state.value = current.copy(isStoryInteractionsLoading = true, inlineError = null)
         scope.launch {
             val rawNextPage = storyRepository.getStoryInteractions(
+                chatId = story.posterChatId,
                 storyId = story.id,
                 offset = page.nextOffset,
                 limit = STORY_INTERACTIONS_PAGE_SIZE

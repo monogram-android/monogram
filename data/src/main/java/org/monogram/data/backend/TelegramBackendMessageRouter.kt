@@ -30,6 +30,7 @@ import org.monogram.data.mtproto.MtProtoPinnedMessageRepository
 import org.monogram.data.mtproto.MtProtoMessageReadModel
 import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
 import org.monogram.data.mtproto.MtProtoMessageViewerReader
+import org.monogram.domain.repository.MtProtoReadHistoryRepository
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 import org.monogram.data.mtproto.MtProtoPinnedMessageReader
 import org.monogram.data.mtproto.MtProtoDocumentFile
@@ -61,6 +62,9 @@ internal class TelegramBackendMessageRouter(
     private val textFactory: () -> MtProtoTextMessageRepository = {
         error("MTProto text message repository is not configured")
     },
+    private val readHistoryFactory: () -> MtProtoReadHistoryRepository = {
+        error("MTProto read history repository is not configured")
+    },
     private val viewerFactory: () -> MtProtoMessageViewerReader = {
         error("MTProto message viewer reader is not configured")
     },
@@ -80,6 +84,7 @@ internal class TelegramBackendMessageRouter(
     private val scheduled by lazy(LazyThreadSafetyMode.NONE, scheduledFactory)
     private val pinnedRead by lazy(LazyThreadSafetyMode.NONE, pinnedReadFactory)
     private val text by lazy(LazyThreadSafetyMode.NONE, textFactory)
+    private val readHistory by lazy(LazyThreadSafetyMode.NONE, readHistoryFactory)
     private val viewers by lazy(LazyThreadSafetyMode.NONE, viewerFactory)
     private val files by lazy(LazyThreadSafetyMode.NONE, fileFactory)
 
@@ -183,6 +188,16 @@ internal class TelegramBackendMessageRouter(
                     }
                     "getMessageViewers" -> invokeDraft(method, args) { values ->
                         viewers.get(values[0] as Long, values[1] as Long)
+                    }
+                    "markMessagesAsRead" -> invokeDraft(method, args) { values ->
+                        val chatId = values[0] as Long
+                        val messageIds = values[1] as List<Long>
+                        val maxMessageId = messageIds.maxOrNull() ?: return@invokeDraft Unit
+                        readHistory.markRead(
+                            chatId = chatId,
+                            peerType = TelegramPeerChatId.decode(chatId).type,
+                            maxMessageId = maxMessageId,
+                        )
                     }
                     "markAllMentionsAsRead" -> invokeDraft(method, args) { values ->
                         text.markMentionsRead(values[0] as Long, TelegramPeerChatId.decode(values[0] as Long).type)

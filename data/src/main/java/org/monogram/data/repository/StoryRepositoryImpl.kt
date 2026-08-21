@@ -296,6 +296,7 @@ class StoryRepositoryImpl(
     }
 
     override suspend fun getStoryInteractions(
+        chatId: Long,
         storyId: Int,
         offset: String,
         limit: Int,

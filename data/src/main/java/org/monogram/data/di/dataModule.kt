@@ -32,6 +32,7 @@ import org.monogram.data.backend.TelegramBackendEmojiRouter
 import org.monogram.data.backend.TelegramBackendGifRouter
 import org.monogram.data.backend.TelegramBackendContactEditRouter
 import org.monogram.data.backend.TelegramBackendMessageRouter
+import org.monogram.data.backend.TelegramBackendNotificationActionRouter
 import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
 import org.monogram.data.backend.TelegramBackendNetworkStatisticsRouter
 import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
@@ -135,6 +136,7 @@ import org.monogram.data.mtproto.MtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.KeyValueMtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.MtProtoStoryActiveListReaderImpl
 import org.monogram.data.mtproto.MtProtoStoryListRepositoryImpl
+import org.monogram.data.mtproto.MtProtoStoryComposerRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStoryReadRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReaderImpl
@@ -1620,6 +1622,7 @@ val dataModule = module {
             scheduledFactory = { get<MtProtoScheduledMessageOperations>() },
             pinnedReadFactory = { get<MtProtoPinnedMessageReader>() },
             textFactory = { get<MtProtoTextMessageRepository>() },
+            readHistoryFactory = { get<MtProtoReadHistoryRepository>() },
             viewerFactory = { get<MtProtoMessageViewerReader>() },
             fileFactory = { get<MtProtoFileRepository>() },
             mediaFactory = { get<MtProtoMediaMessageRepository>() },
@@ -1910,6 +1913,22 @@ val dataModule = module {
                     files = get(),
                 )
             },
+            mtProtoComposerFactory = {
+                MtProtoStoryComposerRepositoryImpl(
+                    configSource = get(),
+                    transportFactory = get(),
+                    uploader = get(),
+                    users = get(),
+                    chats = get(),
+                    storyResultStager = get(),
+                    storyReader = MtProtoStoryReadRepositoryImpl(
+                        configSource = get(),
+                        stories = get(),
+                        chats = get(),
+                        files = get(),
+                    ),
+                )
+            },
             mtProtoStealthModeFactory = { get() },
             scope = get(),
         )
@@ -1977,7 +1996,7 @@ val dataModule = module {
         )
     }
 
-    single {
+    single<TdNotificationManager> {
         TdNotificationManager(
             androidContext(),
             get(),
@@ -1990,6 +2009,14 @@ val dataModule = module {
             get(),
             get(),
             get()
+        )
+    }
+
+    single<org.monogram.data.service.NotificationActionManager> {
+        TelegramBackendNotificationActionRouter(
+            selectionStore = get(),
+            legacyFactory = { get<TdNotificationManager>() },
+            scope = get(),
         )
     }
 }

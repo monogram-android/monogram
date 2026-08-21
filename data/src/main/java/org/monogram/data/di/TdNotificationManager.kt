@@ -52,6 +52,7 @@ import org.monogram.data.push.FcmRuntime
 import org.monogram.data.push.UnifiedPushManager
 import org.monogram.data.service.NotificationDismissReceiver
 import org.monogram.data.service.NotificationReadReceiver
+import org.monogram.data.service.NotificationActionManager
 import org.monogram.data.service.NotificationReplyReceiver
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.NotificationSettingsRepository
@@ -76,7 +77,7 @@ class TdNotificationManager(
     private val fcmRuntime: FcmRuntime,
     private val unifiedPushManager: UnifiedPushManager,
     private val muteResolver: NotificationMuteResolver
-) {
+) : NotificationActionManager {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager = NotificationManagerCompat.from(context)
     private val notificationStatePreferences = context.getSharedPreferences(
@@ -400,7 +401,7 @@ class TdNotificationManager(
         )
     }
 
-    fun clearHistory(chatId: Long) {
+    override fun clearHistory(chatId: Long) {
         nativeNotificationStateStore.clearChat(chatId)
         clearRenderedHistory(chatId)
     }
@@ -422,14 +423,14 @@ class TdNotificationManager(
         notificationManager.cancel(SUMMARY_ID)
     }
 
-    fun removeNotification(chatId: Long, notificationId: Int) {
+    override fun removeNotification(chatId: Long, notificationId: Int) {
         nativeNotificationStateStore.removeNotification(chatId, notificationId)
         removeRenderedNotification(chatId, notificationId)
     }
 
     /** Returns false when Android redelivers the same notification action. */
     @Synchronized
-    fun consumeNotificationAction(action: String, chatId: Long, notificationId: Int): Boolean {
+    override fun consumeNotificationAction(action: String, chatId: Long, notificationId: Int): Boolean {
         val now = System.currentTimeMillis()
         val key = "action:$action:$chatId:$notificationId"
         if (notificationStatePreferences.getLong(key, 0L) > now) return false

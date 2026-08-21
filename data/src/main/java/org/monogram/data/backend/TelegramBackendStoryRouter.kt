@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.monogram.data.mtproto.MtProtoStoryActiveListReader
+import org.monogram.data.mtproto.MtProtoStoryComposerRepository
 import org.monogram.data.mtproto.MtProtoStoryListRepository
 import org.monogram.data.mtproto.MtProtoStoryReadRepository
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
@@ -21,6 +22,7 @@ internal class TelegramBackendStoryRouter(
     private val mtProtoFactory: () -> MtProtoStoryListRepository = { throw UnsupportedOperationException("MTProto story mutations are not configured") },
     private val mtProtoActiveListFactory: () -> MtProtoStoryActiveListReader = { throw UnsupportedOperationException("MTProto active story lists are not configured") },
     private val mtProtoReadFactory: () -> MtProtoStoryReadRepository = { throw UnsupportedOperationException("MTProto story reads are not configured") },
+    private val mtProtoComposerFactory: () -> MtProtoStoryComposerRepository = { throw UnsupportedOperationException("MTProto story composition is not configured") },
     private val mtProtoStealthModeFactory: () -> MtProtoStoryStealthModeReader = { throw UnsupportedOperationException("MTProto story stealth mode is not configured") },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : StoryRepository {
@@ -29,6 +31,7 @@ internal class TelegramBackendStoryRouter(
     private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
     private val mtProtoActiveLists by lazy(LazyThreadSafetyMode.NONE, mtProtoActiveListFactory)
     private val mtProtoReads by lazy(LazyThreadSafetyMode.NONE, mtProtoReadFactory)
+    private val mtProtoComposer by lazy(LazyThreadSafetyMode.NONE, mtProtoComposerFactory)
     private val mtProtoStealthMode by lazy(LazyThreadSafetyMode.NONE, mtProtoStealthModeFactory)
     private val emptyActiveStories = MutableStateFlow<Map<StoryListType, List<ActiveStoryListModel>>>(emptyMap())
     private val emptyStoryCounts = MutableStateFlow<Map<StoryListType, Int>>(emptyMap())
@@ -93,14 +96,36 @@ internal class TelegramBackendStoryRouter(
         // No complete owned options model exists; the router exposes its empty default state.
         TelegramBackendKind.KOTLIN_MTPROTO -> Unit
     }
-    override suspend fun getChatActiveStories(chatId: Long): ActiveStoryListModel? = dispatch { legacy.getChatActiveStories(chatId) }
+    override suspend fun getChatActiveStories(chatId: Long): ActiveStoryListModel? = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getChatActiveStories(chatId)
+        TelegramBackendKind.KOTLIN_MTPROTO -> emptyActiveStories.value.values
+            .asSequence()
+            .flatten()
+            .firstOrNull { it.chatId == chatId }
+    }
     override suspend fun getStory(chatId: Long, storyId: Int, onlyLocal: Boolean): StoryModel? = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getStory(chatId, storyId, onlyLocal)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoReads.getStory(chatId, storyId, onlyLocal)
     }
-    override suspend fun getStoryAlbum(chatId: Long, albumId: Int, offset: Int, limit: Int): List<StoryModel> = dispatch { legacy.getStoryAlbum(chatId, albumId, offset, limit) }
-    override suspend fun getChatPostedToChatPageStories(chatId: Long, fromStoryId: Int, limit: Int): StoryPageModel? = dispatch { legacy.getChatPostedToChatPageStories(chatId, fromStoryId, limit) }
-    override suspend fun getChatArchivedStories(chatId: Long, fromStoryId: Int, limit: Int): StoryPageModel? = dispatch { legacy.getChatArchivedStories(chatId, fromStoryId, limit) }
+    override suspend fun getStoryAlbum(chatId: Long, albumId: Int, offset: Int, limit: Int): List<StoryModel> = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getStoryAlbum(chatId, albumId, offset, limit)
+        TelegramBackendKind.KOTLIN_MTPROTO -> projectedStories(chatId)
+            .filter { albumId in it.albumIds }
+            .drop(offset)
+            .take(limit)
+    }
+    override suspend fun getChatPostedToChatPageStories(chatId: Long, fromStoryId: Int, limit: Int): StoryPageModel? = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getChatPostedToChatPageStories(chatId, fromStoryId, limit)
+        TelegramBackendKind.KOTLIN_MTPROTO -> projectedStoryPage(chatId, StoryListType.MAIN, fromStoryId, limit) {
+            it.isPostedToChatPage
+        }
+    }
+    override suspend fun getChatArchivedStories(chatId: Long, fromStoryId: Int, limit: Int): StoryPageModel? = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getChatArchivedStories(chatId, fromStoryId, limit)
+        TelegramBackendKind.KOTLIN_MTPROTO -> projectedStoryPage(chatId, StoryListType.ARCHIVE, fromStoryId, limit) {
+            true
+        }
+    }
     override suspend fun openStory(chatId: Long, storyId: Int) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.openStory(chatId, storyId)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.markRead(chatId, storyId)
@@ -123,14 +148,57 @@ internal class TelegramBackendStoryRouter(
         TelegramBackendKind.LEGACY -> legacy.setStoryReaction(chatId, storyId, reaction)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setReaction(chatId, storyId, reaction)
     }
-    override suspend fun getStoryInteractions(storyId: Int, offset: String, limit: Int, query: String, onlyContacts: Boolean, preferForwards: Boolean, preferWithReaction: Boolean): StoryInteractionPageModel? = dispatch { legacy.getStoryInteractions(storyId, offset, limit, query, onlyContacts, preferForwards, preferWithReaction) }
-    override suspend fun postStory(chatId: Long, draft: StoryComposerDraftModel): StoryPostResultModel = dispatch { legacy.postStory(chatId, draft) }
-    override suspend fun editStory(chatId: Long, storyId: Int, draft: StoryComposerDraftModel): Boolean = dispatch { legacy.editStory(chatId, storyId, draft) }
+    override suspend fun getStoryInteractions(
+        chatId: Long,
+        storyId: Int,
+        offset: String,
+        limit: Int,
+        query: String,
+        onlyContacts: Boolean,
+        preferForwards: Boolean,
+        preferWithReaction: Boolean,
+    ): StoryInteractionPageModel? = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getStoryInteractions(
+            chatId,
+            storyId,
+            offset,
+            limit,
+            query,
+            onlyContacts,
+            preferForwards,
+            preferWithReaction,
+        )
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getInteractions(
+            chatId,
+            storyId,
+            offset,
+            limit,
+            query,
+            onlyContacts,
+            preferForwards,
+            preferWithReaction,
+        )
+    }
+    override suspend fun postStory(chatId: Long, draft: StoryComposerDraftModel): StoryPostResultModel = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.postStory(chatId, draft)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoComposer.post(chatId, draft)
+    }
+    override suspend fun editStory(chatId: Long, storyId: Int, draft: StoryComposerDraftModel): Boolean = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.editStory(chatId, storyId, draft)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoComposer.edit(chatId, storyId, draft)
+    }
     override suspend fun deleteStory(chatId: Long, storyId: Int): Boolean = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.deleteStory(chatId, storyId)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.delete(chatId, storyId)
     }
-    override suspend fun toggleStoryPostedToChatPage(chatId: Long, storyId: Int, isPostedToChatPage: Boolean): Boolean = dispatch { legacy.toggleStoryPostedToChatPage(chatId, storyId, isPostedToChatPage) }
+    override suspend fun toggleStoryPostedToChatPage(
+        chatId: Long,
+        storyId: Int,
+        isPostedToChatPage: Boolean,
+    ): Boolean = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.toggleStoryPostedToChatPage(chatId, storyId, isPostedToChatPage)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setPostedToChatPage(chatId, storyId, isPostedToChatPage)
+    }
     override suspend fun setChatActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setChatActiveStoriesList(chatId, listType)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setActiveStoriesList(chatId, listType)
@@ -138,6 +206,41 @@ internal class TelegramBackendStoryRouter(
     override fun clearLastPostResult() = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.clearLastPostResult()
         TelegramBackendKind.KOTLIN_MTPROTO -> Unit
+    }
+
+    private suspend fun projectedStories(chatId: Long): List<StoryModel> {
+        val summaries = emptyActiveStories.value.values
+            .asSequence()
+            .flatten()
+            .firstOrNull { it.chatId == chatId }
+            ?.stories
+            .orEmpty()
+        return summaries.mapNotNull { mtProtoReads.getStory(chatId, it.storyId, false) }
+    }
+
+    private suspend fun projectedStoryPage(
+        chatId: Long,
+        listType: StoryListType,
+        fromStoryId: Int,
+        limit: Int,
+        predicate: (StoryModel) -> Boolean,
+    ): StoryPageModel? {
+        val active = emptyActiveStories.value[listType] ?: return null
+        val summaries = active.firstOrNull { it.chatId == chatId }?.stories ?: return null
+        val candidates = buildList {
+            summaries
+                .filter { fromStoryId == 0 || it.storyId < fromStoryId }
+                .forEach { summary ->
+                    mtProtoReads.getStory(chatId, summary.storyId, false)
+                        ?.takeIf(predicate)
+                        ?.let(::add)
+                }
+        }
+        return StoryPageModel(
+            totalCount = candidates.size,
+            pinnedStoryIds = candidates.filter { it.isPostedToChatPage }.map { it.id },
+            stories = candidates.take(limit),
+        )
     }
 
     private suspend fun <T> dispatch(legacyOperation: suspend () -> T): T = when (selected()) {

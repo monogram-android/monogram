@@ -31,6 +31,7 @@ import org.monogram.data.mtproto.MtProtoFileRepository
 import org.monogram.data.mtproto.MtProtoMediaMessageRepository
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.data.mtproto.MtProtoScheduledMessageOperations
+import org.monogram.domain.repository.MtProtoReadHistoryRepository
 import org.monogram.domain.repository.MtProtoTextMessageRepository
 
 class TelegramBackendMessageRouterTest {
@@ -574,6 +575,25 @@ class TelegramBackendMessageRouterTest {
     }
 
     @Test
+    fun `MTProto marks the latest selected message as read through its history repository`() = runBlocking {
+        val reads = RecordingReadHistoryRepository()
+        val router = TelegramBackendMessageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy message repository must not be created") },
+            draftFactory = { error("draft repository must not be created") },
+            readHistoryFactory = { reads },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.repository.markMessagesAsRead(
+            TelegramPeerChatId.encode(DialogPeerType.PRIVATE, 42L),
+            listOf(3L, 8L, 5L),
+        )
+
+        assertEquals(Triple(TelegramPeerChatId.encode(DialogPeerType.PRIVATE, 42L), DialogPeerType.PRIVATE, 8L), reads.request)
+    }
+
+    @Test
     fun `MTProto forwards unsupported rich text to its selected repository`() = runBlocking {
         val text = RecordingTextMessageRepository()
         val router = TelegramBackendMessageRouter(
@@ -758,6 +778,14 @@ class TelegramBackendMessageRouterTest {
         var sent: Pair<Long, Long>? = null
         override suspend fun get(chatId: Long) = emptyList<MtProtoMessageReadModel>()
         override suspend fun sendNow(chatId: Long, messageId: Long) { sent = chatId to messageId }
+    }
+
+    private class RecordingReadHistoryRepository : MtProtoReadHistoryRepository {
+        var request: Triple<Long, DialogPeerType, Long>? = null
+
+        override suspend fun markRead(chatId: Long, peerType: DialogPeerType, maxMessageId: Long) {
+            request = Triple(chatId, peerType, maxMessageId)
+        }
     }
 
     private class RecordingTextMessageRepository : MtProtoTextMessageRepository {

@@ -160,7 +160,7 @@ class MonogramMigrationTest {
                     "(accountSlot, environment, dcId, userId, accessHash, firstName, lastName, username, phone, " +
                     "isSelf, isContact, isMutualContact, isDeleted, isBot, isVerified, isRestricted, isScam, " +
                     "isFake, isPremium, isMin, updatedAt) " +
-                    "VALUES ('account-1', 'prod', 2, 7, NULL, 'A', NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)"
+                    "VALUES ('account-1', 'prod', 2, 7, NULL, 'A', NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1234)"
             )
         }
 

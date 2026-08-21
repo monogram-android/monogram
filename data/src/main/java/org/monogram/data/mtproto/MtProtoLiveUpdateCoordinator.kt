@@ -40,6 +40,7 @@ internal class MtProtoLiveUpdateCoordinator(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val recovery: MtProtoRoomUpdateRecovery,
     private val liveUpdateApplier: MtProtoRoomLiveUpdateApplier,
+    private val storyRefresh: MtProtoStoryRefreshRepository = NoOpMtProtoStoryRefreshRepository,
     private val dialogs: DialogSnapshotRepository = object : DialogSnapshotRepository {
         override suspend fun getDialogs(accountId: String) = emptyList<org.monogram.domain.models.DialogSnapshotModel>()
     },
@@ -115,6 +116,8 @@ internal class MtProtoLiveUpdateCoordinator(
                     return false
                 }
             }
+            runCatching { storyRefresh.refreshInitialLists() }
+                .onFailure { Log.w(TAG, "MTProto story refresh failed; retaining previous projections", it) }
             dialogs.getDialogs(accountSlot)
             val inbox = transport.updates ?: return true
             while (true) {

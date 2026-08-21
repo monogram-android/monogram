@@ -126,6 +126,8 @@ import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoStoryResultStager
+import org.monogram.data.mtproto.MtProtoStoryRefreshRepository
+import org.monogram.data.mtproto.MtProtoStoryRefreshRepositoryImpl
 import org.monogram.data.mtproto.MtProtoPremiumRepository
 import org.monogram.data.mtproto.MtProtoPremiumRepositoryImpl
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
@@ -621,6 +623,14 @@ val dataModule = module {
     single { MtProtoRoomStoryProjectionStore(get(), database = get()) }
     single<MtProtoStoryProjectionStore> { get<MtProtoRoomStoryProjectionStore>() }
     single { MtProtoStoryResultStager(get(), get(), get(), get(), get()) }
+    single<MtProtoStoryRefreshRepository> {
+        MtProtoStoryRefreshRepositoryImpl(
+            configSource = get(),
+            transportFactory = get(),
+            stories = get(),
+            resultStager = get(),
+        )
+    }
     single<MtProtoFileHandleStore> { MtProtoRoomFileHandleStore(get()) }
     single { MtProtoFileTransferCoordinator(transportFactory = get()) }
     single<MtProtoFileRepository> {
@@ -830,6 +840,7 @@ val dataModule = module {
             configSource = get(),
             recovery = get(),
             liveUpdateApplier = get(),
+            storyRefresh = get(),
             dialogs = get<MtProtoDialogSnapshotRepository>(),
             scope = get(),
         )

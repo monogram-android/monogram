@@ -25,6 +25,15 @@ class MtProtoStoryListRepositoryTest {
     }
 
     @Test
+    fun `returns server rejection and still closes transport`() = runBlocking {
+        val transport = RecordingTransport(result = false)
+        val repository = repository(transport)
+
+        assertEquals(false, repository.setActiveStoriesList(-42, StoryListType.ARCHIVE))
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
     fun `rejects list removal before opening transport`() = runBlocking {
         var opened = false
         val repository = MtProtoStoryListRepositoryImpl(
@@ -53,15 +62,18 @@ class MtProtoStoryListRepositoryTest {
         cloud = CloudLayer223ConnectionConfig(1, "device", "system", "app", "en"),
     )
 
-    private class RecordingTransport : MtProtoRpcTransport {
+    private class RecordingTransport(
+        private val result: Boolean = true,
+    ) : MtProtoRpcTransport {
         val requests = mutableListOf<TogglePeerStoriesHidden>()
+        var closed = false
 
         @Suppress("UNCHECKED_CAST")
         override suspend fun <R> execute(method: TlMethod<R>): R {
             requests += method as TogglePeerStoriesHidden
-            return true as R
+            return result as R
         }
 
-        override fun close() = Unit
+        override fun close() { closed = true }
     }
 }

@@ -130,6 +130,7 @@ import org.monogram.data.mtproto.MtProtoStoryRefreshRepository
 import org.monogram.data.mtproto.MtProtoStoryRefreshRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.KeyValueMtProtoStoryStealthModeStore
+import org.monogram.data.mtproto.MtProtoStoryListRepositoryImpl
 import org.monogram.data.mtproto.MtProtoPremiumRepository
 import org.monogram.data.mtproto.MtProtoPremiumRepositoryImpl
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
@@ -1851,6 +1852,14 @@ val dataModule = module {
                     scope = get(),
                     fileDataSource = get(),
                     tdLibLimitsRepository = get(),
+                )
+            },
+            mtProtoFactory = {
+                MtProtoStoryListRepositoryImpl(
+                    configSource = get(),
+                    transportFactory = get(),
+                    users = get(),
+                    chats = get(),
                 )
             },
             scope = get(),

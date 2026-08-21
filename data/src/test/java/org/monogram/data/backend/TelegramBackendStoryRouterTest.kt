@@ -9,6 +9,8 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.data.mtproto.MtProtoStoryListRepository
+import org.monogram.domain.models.stories.StoryListType
 
 class TelegramBackendStoryRouterTest {
     @Test
@@ -21,6 +23,24 @@ class TelegramBackendStoryRouterTest {
 
         assertEquals(false, router.stealthMode.value.isActive)
         assertTrue(router.activeStories.value.isEmpty())
+    }
+
+    @Test
+    fun `selected MTProto story list mutation avoids legacy repository`() = runBlocking {
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoFactory = {
+                MtProtoStoryListRepository { chatId, listType ->
+                    assertEquals(7L, chatId)
+                    assertEquals(StoryListType.ARCHIVE, listType)
+                    true
+                }
+            },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertTrue(router.setChatActiveStoriesList(7L, StoryListType.ARCHIVE))
     }
 
     @Test

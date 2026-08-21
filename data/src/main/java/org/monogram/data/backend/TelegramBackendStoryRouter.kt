@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.monogram.data.mtproto.MtProtoStoryListRepository
 import org.monogram.domain.models.stories.*
 import org.monogram.domain.repository.StoryRepository
 
@@ -13,10 +14,12 @@ internal class TelegramBackendStoryRouter(
     selectionStore: TelegramBackendSelectionStore,
     private val legacyFactory: () -> StoryRepository,
     scope: CoroutineScope,
+    private val mtProtoFactory: () -> MtProtoStoryListRepository = { throw UnsupportedOperationException("MTProto story mutations are not configured") },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : StoryRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
     private val emptyActiveStories = MutableStateFlow<Map<StoryListType, List<ActiveStoryListModel>>>(emptyMap())
     private val emptyStoryCounts = MutableStateFlow<Map<StoryListType, Int>>(emptyMap())
     private val emptyStealthMode = MutableStateFlow(StoryStealthModeModel())
@@ -74,7 +77,10 @@ internal class TelegramBackendStoryRouter(
     override suspend fun editStory(chatId: Long, storyId: Int, draft: StoryComposerDraftModel): Boolean = dispatch { legacy.editStory(chatId, storyId, draft) }
     override suspend fun deleteStory(chatId: Long, storyId: Int): Boolean = dispatch { legacy.deleteStory(chatId, storyId) }
     override suspend fun toggleStoryPostedToChatPage(chatId: Long, storyId: Int, isPostedToChatPage: Boolean): Boolean = dispatch { legacy.toggleStoryPostedToChatPage(chatId, storyId, isPostedToChatPage) }
-    override suspend fun setChatActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean = dispatch { legacy.setChatActiveStoriesList(chatId, listType) }
+    override suspend fun setChatActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatActiveStoriesList(chatId, listType)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setActiveStoriesList(chatId, listType)
+    }
     override fun clearLastPostResult() = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.clearLastPostResult()
         TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()

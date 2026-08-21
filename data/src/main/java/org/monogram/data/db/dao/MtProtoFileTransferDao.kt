@@ -24,6 +24,12 @@ interface MtProtoFileTransferDao {
 
     @Query(
         "SELECT * FROM mtproto_file_transfer WHERE accountSlot = :accountSlot " +
+            "AND environment = :environment"
+    )
+    suspend fun getAll(accountSlot: String, environment: String): List<MtProtoFileTransferEntity>
+
+    @Query(
+        "SELECT * FROM mtproto_file_transfer WHERE accountSlot = :accountSlot " +
             "AND environment = :environment AND isComplete = 1"
     )
     suspend fun getCompleted(accountSlot: String, environment: String): List<MtProtoFileTransferEntity>

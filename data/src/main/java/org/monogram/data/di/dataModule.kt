@@ -1490,6 +1490,12 @@ val dataModule = module {
                     filesDirectory = java.io.File(androidContext().filesDir, "mtproto/files"),
                 )
             },
+            mtProtoUsageFactory = {
+                MtProtoStorageCleanupRepositoryImpl(
+                    transfers = get(),
+                    filesDirectory = java.io.File(androidContext().filesDir, "mtproto/files"),
+                )
+            },
             scope = get(),
         )
     }

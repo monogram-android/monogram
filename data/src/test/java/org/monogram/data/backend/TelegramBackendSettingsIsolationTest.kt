@@ -8,6 +8,8 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.monogram.data.mtproto.MtProtoStorageCleanupRepository
+import org.monogram.data.mtproto.MtProtoStorageUsageRepository
+import org.monogram.domain.models.StorageUsageModel
 import org.monogram.domain.models.StorageCleanupResultModel
 import org.junit.Test
 
@@ -23,6 +25,20 @@ class TelegramBackendSettingsIsolationTest {
         val failure = runCatching { router.getStorageUsage() }.exceptionOrNull()
 
         assertTrue(failure is UnsupportedOperationException)
+    }
+
+    @Test
+    fun `selected MTProto storage usage avoids legacy repository`() = runBlocking {
+        val router = TelegramBackendStorageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy storage repository must not be created") },
+            mtProtoUsageFactory = {
+                MtProtoStorageUsageRepository { StorageUsageModel(4, 1, emptyList()) }
+            },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(StorageUsageModel(4, 1, emptyList()), router.getStorageUsage())
     }
 
     @Test

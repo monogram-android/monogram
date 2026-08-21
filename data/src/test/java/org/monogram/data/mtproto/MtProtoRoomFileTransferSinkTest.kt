@@ -29,6 +29,7 @@ class MtProtoRoomFileTransferSinkTest {
         override suspend fun get(accountSlot: String, environment: String, dcId: Int, fileKey: String) =
             entity
         override suspend fun upsert(entity: MtProtoFileTransferEntity) { this.entity = entity }
+        override suspend fun getAll(accountSlot: String, environment: String): List<MtProtoFileTransferEntity> = emptyList()
         override suspend fun getCompleted(accountSlot: String, environment: String): List<MtProtoFileTransferEntity> = emptyList()
         override suspend fun delete(accountSlot: String, environment: String, dcId: Int, fileKey: String) = Unit
         override suspend fun deleteAccount(accountSlot: String, environment: String) { entity = null }

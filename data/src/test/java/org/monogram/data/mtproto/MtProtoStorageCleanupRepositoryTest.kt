@@ -13,6 +13,34 @@ import org.monogram.data.db.model.MtProtoFileTransferEntity
 
 class MtProtoStorageCleanupRepositoryTest {
     @Test
+    fun `reports actual app-private download usage without a chat breakdown`() = runBlocking {
+        val root = Files.createTempDirectory("mtproto-files").toFile()
+        val complete = File(root, "prod/default/2/complete.bin").apply {
+            requireNotNull(parentFile).mkdirs()
+            writeBytes(ByteArray(4))
+        }
+        val incomplete = File(root, "prod/default/2/incomplete.bin").apply { writeBytes(ByteArray(2)) }
+        val outside = requireNotNull(File.createTempFile("outside", ".bin")).apply { writeBytes(ByteArray(3)) }
+        val dao = RecordingDao(listOf(
+            transfer(root, "prod/default/2/complete.bin"),
+            transfer(root, "prod/default/2/incomplete.bin", complete = false),
+            transferAtPath(outside.absolutePath),
+            transfer(root, "prod/default/2/missing.bin"),
+        ))
+        val repository = MtProtoStorageCleanupRepositoryImpl(dao, root)
+
+        assertEquals(6L, repository.getDownloadUsage().totalSize)
+        assertEquals(2, repository.getDownloadUsage().fileCount)
+        assertTrue(repository.getDownloadUsage().chatStats.isEmpty())
+
+        outside.delete()
+        complete.delete()
+        incomplete.delete()
+        root.deleteRecursively()
+        Unit
+    }
+
+    @Test
     fun `deletes only completed selected-account files and counts actual bytes`() = runBlocking {
         val root = Files.createTempDirectory("mtproto-files").toFile()
         val complete = File(root, "prod/default/2/complete.bin").apply {
@@ -96,6 +124,9 @@ class MtProtoStorageCleanupRepositoryTest {
             entries.firstOrNull { it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.fileKey == fileKey }
 
         override suspend fun upsert(entity: MtProtoFileTransferEntity) = Unit
+
+        override suspend fun getAll(accountSlot: String, environment: String): List<MtProtoFileTransferEntity> =
+            entries.filter { it.accountSlot == accountSlot && it.environment == environment }
 
         override suspend fun getCompleted(accountSlot: String, environment: String): List<MtProtoFileTransferEntity> {
             completedReads++

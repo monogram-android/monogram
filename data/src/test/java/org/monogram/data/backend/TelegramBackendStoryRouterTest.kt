@@ -33,6 +33,24 @@ class TelegramBackendStoryRouterTest {
     }
 
     @Test
+    fun `selected MTProto story host refreshes are inert without legacy repository`() = runBlocking {
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.refreshStoryOptions()
+        router.loadActiveStories(StoryListType.MAIN)
+        router.loadActiveStories(StoryListType.ARCHIVE)
+        router.clearLastPostResult()
+
+        assertTrue(router.activeStories.value.isEmpty())
+        assertEquals(0, router.storyOptions.value.captionLengthMax)
+    }
+
+    @Test
     fun `selected MTProto story list mutation avoids legacy repository`() = runBlocking {
         val router = TelegramBackendStoryRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),

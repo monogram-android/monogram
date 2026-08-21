@@ -2,17 +2,20 @@ package org.monogram.data.mtproto
 
 import org.monogram.domain.models.ChatInteractionInfoModel
 import org.monogram.domain.models.ChatInteractionType
+import org.monogram.domain.models.ChatRevenueStatisticsModel
 import org.monogram.domain.models.ChatStatisticsModel
 import org.monogram.domain.models.DateRangeModel
 import org.monogram.domain.models.StatisticsGraphModel
 import org.monogram.domain.models.StatisticsType
 import org.monogram.domain.models.StatisticsValueModel
+import org.monogram.domain.models.RevenueAmountModel
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.TopAdministratorModel
 import org.monogram.domain.models.TopInviterModel
 import org.monogram.domain.models.TopSenderModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.DataJson_340cf194d4
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputChannel_d22292516d
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PostInteractionCountersMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.PostInteractionCountersStory
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsAbsValueAndPrev_33e6024c6f
@@ -21,6 +24,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.StatsGraphAsync
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsGraphError
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsGraph_df47e5db04
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsPercentValue_e2865ffc72
+import org.monogram.mtproto.tl.generated.cloud.layer223.StarsRevenueStatus_9c5d49c845
+import org.monogram.mtproto.tl.generated.cloud.layer223.StarsTonAmount
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsGroupTopAdmin_e251e2be8c
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsGroupTopInviter_deb90aa57a
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsGroupTopPoster_4a1989eb4e
@@ -29,9 +34,14 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.stats.GetBroadcastStats
 import org.monogram.mtproto.tl.generated.cloud.layer223.stats.GetMegagroupStats
 import org.monogram.mtproto.tl.generated.cloud.layer223.stats.LoadAsyncGraph
 import org.monogram.mtproto.tl.generated.cloud.layer223.stats.MegagroupStats_1adebce85d
+import org.monogram.mtproto.tl.generated.cloud.layer223.payments.GetStarsRevenueStats
+import org.monogram.mtproto.tl.generated.cloud.layer223.payments.StarsRevenueStats_c001a03e15
 
 internal interface MtProtoChatStatisticsRepository {
     suspend fun getChatStatistics(chatId: Long, isDark: Boolean): ChatStatisticsModel
+    suspend fun getRevenueStatistics(chatId: Long, isDark: Boolean): ChatRevenueStatisticsModel {
+        throw UnsupportedOperationException("MTProto revenue statistics are not configured")
+    }
     suspend fun loadGraph(token: String, x: Long): StatisticsGraphModel
 }
 
@@ -58,6 +68,20 @@ internal class MtProtoChatStatisticsRepositoryImpl(
                     ?.toDomain() ?: error("Unsupported MTProto megagroup statistics response")
                 MtProtoChatType.BASIC_GROUP -> error("MTProto statistics require a channel or supergroup")
             }
+        }
+    }
+
+    override suspend fun getRevenueStatistics(chatId: Long, isDark: Boolean): ChatRevenueStatisticsModel {
+        val config = requireNotNull(configSource) { "MTProto chat statistics are not configured" }.createForAccount(accountSlot)
+        val chatStore = requireNotNull(chats) { "MTProto chat statistics are not configured" }
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = TelegramPeerChatId.decode(chatId, isChannel = false)
+        val chat = requireNotNull(chatStore.get(scope, peer.id)) { "Missing MTProto chat projection: ${peer.id}" }
+        require(chat.type == MtProtoChatType.CHANNEL) { "MTProto revenue statistics require a channel" }
+        val accessHash = requireNotNull(chat.accessHash) { "Missing MTProto channel access hash: ${peer.id}" }
+        return transportFactory.open(accountSlot).use { transport ->
+            (transport.execute(GetStarsRevenueStats(isDark, ton = true, InputPeerChannel(peer.id, accessHash))) as? StarsRevenueStats_c001a03e15)
+                ?.toDomainRevenue() ?: error("Unsupported MTProto revenue statistics response")
         }
     }
 
@@ -99,6 +123,26 @@ private fun BroadcastStats_6504ee4edb.toDomain() = ChatStatisticsModel(
     storyReactionGraph = storyReactionsByEmotionGraph.toDomainGraph(),
 )
 
+private fun StarsRevenueStats_c001a03e15.toDomainRevenue(): ChatRevenueStatisticsModel {
+    val balances = status as? StarsRevenueStatus_9c5d49c845
+        ?: error("Unsupported MTProto revenue balance status")
+    fun ton(amount: org.monogram.mtproto.tl.generated.cloud.layer223.StarsAmount_abaa454bcc): Long =
+        (amount as? StarsTonAmount)?.amount ?: error("MTProto revenue balance is not denominated in TON")
+    ton(balances.overallRevenue)
+    val currentBalance = ton(balances.currentBalance)
+    val availableBalance = ton(balances.availableBalance)
+    return ChatRevenueStatisticsModel(
+        revenueByHourGraph = requireNotNull(topHoursGraph) { "MTProto revenue response omitted the hourly graph" }.toDomainGraph(),
+        revenueGraph = revenueGraph.toDomainGraph(),
+        revenueAmount = RevenueAmountModel(
+            currency = "TON",
+            balance = currentBalance,
+            availableBalance = availableBalance,
+        ),
+        usdRate = if (usdRate > 0.0) (usdRate * TON_USD_RATE_SCALE).coerceIn(MIN_USD_RATE, MAX_USD_RATE) else DEFAULT_USD_RATE,
+    )
+}
+
 private fun MegagroupStats_1adebce85d.toDomain() = ChatStatisticsModel(
     type = StatisticsType.SUPERGROUP,
     period = (period as? StatsDateRangeDays_704b9f97f7)?.toDateRange()
@@ -137,6 +181,11 @@ private fun Any.toDomainGraph(): StatisticsGraphModel = when (this) {
     is StatsGraphError -> StatisticsGraphModel.Error(error)
     else -> error("Unsupported MTProto statistics graph response")
 }
+
+private const val TON_USD_RATE_SCALE = 1e-7
+private const val MIN_USD_RATE = 1e-18
+private const val MAX_USD_RATE = 1e18
+private const val DEFAULT_USD_RATE = 1.0
 
 private fun Any.toInteraction(): ChatInteractionInfoModel? = when (this) {
     is PostInteractionCountersMessage -> ChatInteractionInfoModel(msgId.toLong(), ChatInteractionType.MESSAGE, views, forwards, reactions)

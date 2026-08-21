@@ -9,7 +9,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepository
 import org.monogram.data.mtproto.MtProtoPremiumRepository
+import org.monogram.domain.models.ChatRevenueStatisticsModel
 import org.monogram.domain.models.ChatStatisticsModel
+import org.monogram.domain.models.RevenueAmountModel
 import org.monogram.domain.models.DateRangeModel
 import org.monogram.domain.models.StatisticsGraphModel
 import org.monogram.domain.models.StatisticsType
@@ -54,6 +56,7 @@ class TelegramBackendPremiumBotStatisticsRouterTest {
             legacyFactory = { error("legacy statistics created") },
             mtProtoFactory = { object : MtProtoChatStatisticsRepository {
                 override suspend fun getChatStatistics(chatId: Long, isDark: Boolean) = statistics()
+                override suspend fun getRevenueStatistics(chatId: Long, isDark: Boolean) = revenue()
                 override suspend fun loadGraph(token: String, x: Long) = StatisticsGraphModel.Async("$token:$x")
             } },
             scope = CoroutineScope(Dispatchers.Unconfined),
@@ -61,7 +64,15 @@ class TelegramBackendPremiumBotStatisticsRouterTest {
 
         assertEquals(StatisticsGraphModel.Async("token:7"), statistics.loadStatisticsGraph(-1, "token", 7))
         assertEquals(StatisticsType.CHANNEL, statistics.getChatStatistics(-1, false)?.type)
+        assertEquals(revenue(), statistics.getChatRevenueStatistics(-1, true))
     }
+
+    private fun revenue() = ChatRevenueStatisticsModel(
+        revenueByHourGraph = StatisticsGraphModel.Error("unavailable"),
+        revenueGraph = StatisticsGraphModel.Error("unavailable"),
+        revenueAmount = RevenueAmountModel("TON", 2, 1),
+        usdRate = 1.0,
+    )
 
     private fun statistics() = ChatStatisticsModel(
         type = StatisticsType.CHANNEL,

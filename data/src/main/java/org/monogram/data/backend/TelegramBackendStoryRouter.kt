@@ -69,8 +69,17 @@ internal class TelegramBackendStoryRouter(
     override val lastPostResult: StateFlow<StoryPostResultModel?>
         get() = emptyPostResult
 
-    override suspend fun loadActiveStories(listType: StoryListType) = dispatch { legacy.loadActiveStories(listType) }
-    override suspend fun refreshStoryOptions() = dispatch { legacy.refreshStoryOptions() }
+    override suspend fun loadActiveStories(listType: StoryListType) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.loadActiveStories(listType)
+        // The host invokes this lifecycle refresh unconditionally after auth. Active-list projection
+        // cannot yet satisfy StorySummaryModel's required isLive semantics, so retain an empty list.
+        TelegramBackendKind.KOTLIN_MTPROTO -> Unit
+    }
+    override suspend fun refreshStoryOptions() = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.refreshStoryOptions()
+        // No complete owned options model exists; the router exposes its empty default state.
+        TelegramBackendKind.KOTLIN_MTPROTO -> Unit
+    }
     override suspend fun getChatActiveStories(chatId: Long): ActiveStoryListModel? = dispatch { legacy.getChatActiveStories(chatId) }
     override suspend fun getStory(chatId: Long, storyId: Int, onlyLocal: Boolean): StoryModel? = dispatch { legacy.getStory(chatId, storyId, onlyLocal) }
     override suspend fun getStoryAlbum(chatId: Long, albumId: Int, offset: Int, limit: Int): List<StoryModel> = dispatch { legacy.getStoryAlbum(chatId, albumId, offset, limit) }
@@ -112,7 +121,7 @@ internal class TelegramBackendStoryRouter(
     }
     override fun clearLastPostResult() = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.clearLastPostResult()
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> Unit
     }
 
     private suspend fun <T> dispatch(legacyOperation: suspend () -> T): T = when (selected()) {

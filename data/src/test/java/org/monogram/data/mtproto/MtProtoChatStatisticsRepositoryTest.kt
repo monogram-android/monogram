@@ -2,21 +2,28 @@ package org.monogram.data.mtproto
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.models.ChatInteractionType
 import org.monogram.domain.models.DialogPeerType
+import org.monogram.domain.models.RevenueAmountModel
 import org.monogram.domain.models.StatisticsGraphModel
 import org.monogram.domain.models.StatisticsType
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PostInteractionCountersMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.PostInteractionCountersStory
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsAbsValueAndPrev_33e6024c6f
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsDateRangeDays_704b9f97f7
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsPercentValue_e2865ffc72
+import org.monogram.mtproto.tl.generated.cloud.layer223.StarsRevenueStatus_9c5d49c845
+import org.monogram.mtproto.tl.generated.cloud.layer223.StarsTonAmount
 import org.monogram.mtproto.tl.generated.cloud.layer223.stats.BroadcastStats_6504ee4edb
 import org.monogram.mtproto.tl.generated.cloud.layer223.stats.GetBroadcastStats
+import org.monogram.mtproto.tl.generated.cloud.layer223.payments.GetStarsRevenueStats
+import org.monogram.mtproto.tl.generated.cloud.layer223.payments.StarsRevenueStats_c001a03e15
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.DataJson_340cf194d4
 import org.monogram.mtproto.tl.generated.cloud.layer223.StatsGraphAsync
@@ -44,6 +51,67 @@ class MtProtoChatStatisticsRepositoryTest {
 
         assertEquals(StatisticsGraphModel.Async("next"), async.loadGraph("token", 7))
         assertEquals(StatisticsGraphModel.Error("denied"), error.loadGraph("token", 7))
+    }
+
+    @Test
+    fun `loads TON revenue statistics through owned transport`() = runBlocking {
+        val transport = Transport(
+            StarsRevenueStats_c001a03e15(
+                topHoursGraph = graph(),
+                revenueGraph = graph(),
+                status = StarsRevenueStatus_9c5d49c845(
+                    withdrawalEnabled = true,
+                    currentBalance = StarsTonAmount(20),
+                    availableBalance = StarsTonAmount(10),
+                    overallRevenue = StarsTonAmount(30),
+                    nextWithdrawalAt = null,
+                ),
+                usdRate = 20_000_000.0,
+            ),
+        )
+        val repository = MtProtoChatStatisticsRepositoryImpl(
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            chats = channel(),
+        )
+
+        val result = repository.getRevenueStatistics(TelegramPeerChatId.encode(DialogPeerType.CHANNEL, 5), isDark = true)
+
+        assertEquals(RevenueAmountModel("TON", 20, 10), result.revenueAmount)
+        assertEquals(2.0, result.usdRate, 0.0)
+        assertEquals(
+            GetStarsRevenueStats(true, ton = true, InputPeerChannel(5, 99)),
+            transport.requests.single(),
+        )
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `rejects revenue responses without the required hourly graph`() = runBlocking {
+        val transport = Transport(
+            StarsRevenueStats_c001a03e15(
+                topHoursGraph = null,
+                revenueGraph = graph(),
+                status = StarsRevenueStatus_9c5d49c845(
+                    withdrawalEnabled = true,
+                    currentBalance = StarsTonAmount(20),
+                    availableBalance = StarsTonAmount(10),
+                    overallRevenue = StarsTonAmount(30),
+                    nextWithdrawalAt = null,
+                ),
+                usdRate = 20_000_000.0,
+            ),
+        )
+        val repository = MtProtoChatStatisticsRepositoryImpl(
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            chats = channel(),
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.getRevenueStatistics(TelegramPeerChatId.encode(DialogPeerType.CHANNEL, 5), false) }
+        }
+        assertTrue(transport.closed)
     }
 
     @Test

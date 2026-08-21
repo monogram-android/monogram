@@ -33,27 +33,27 @@ internal class TelegramBackendClientOptionsRouter(
 
     override suspend fun getSentScheduledMessageNotificationsEnabled() = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getSentScheduledMessageNotificationsEnabled()
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getSentScheduledMessageNotificationsEnabled()
     }
 
     override suspend fun setSentScheduledMessageNotificationsEnabled(enabled: Boolean) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setSentScheduledMessageNotificationsEnabled(enabled)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setSentScheduledMessageNotificationsEnabled(enabled)
     }
 
     override suspend fun getAnimatedEmojiEnabled() = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getAnimatedEmojiEnabled()
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getAnimatedEmojiEnabled()
     }
 
     override suspend fun setAnimatedEmojiEnabled(enabled: Boolean) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setAnimatedEmojiEnabled(enabled)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setAnimatedEmojiEnabled(enabled)
     }
 
     override suspend fun canArchiveAndMuteNewChatsFromUnknownUsers() = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.canArchiveAndMuteNewChatsFromUnknownUsers()
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.canArchiveAndMuteNewChatsFromUnknownUsers()
     }
 
     override suspend fun getArchiveAndMuteNewChatsFromUnknownUsersEnabled() = when (selected()) {

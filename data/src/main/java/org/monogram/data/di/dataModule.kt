@@ -626,7 +626,7 @@ val dataModule = module {
     single { MtProtoRoomChatProjectionStore(get(), cloudObjectDao = get()) }
     single<MtProtoChatProjectionStore> { get<MtProtoRoomChatProjectionStore>() }
     single<MtProtoChatSettingsRepository> { MtProtoChatSettingsRepositoryImpl(get(), get(), get(), get(), get(), get()) }
-    single<MtProtoClientOptionsRepository> { MtProtoClientOptionsRepositoryImpl(get()) }
+    single<MtProtoClientOptionsRepository> { MtProtoClientOptionsRepositoryImpl(get(), get()) }
     single<MtProtoChatCreationRepository> { MtProtoChatCreationRepositoryImpl(get(), get(), get(), get()) }
     single<MtProtoChatStatisticsRepository> { MtProtoChatStatisticsRepositoryImpl(get(), get(), get(), get()) }
     single { MtProtoRoomDocumentLocationStore(get()) }

@@ -23,6 +23,11 @@ class TelegramBackendClientOptionsRouterTest {
                     override suspend fun setContactJoinedNotificationsEnabled(enabled: Boolean) { observedEnabled = enabled }
                     override suspend fun getArchiveAndMuteNewChatsFromUnknownUsersEnabled() = true
                     override suspend fun setArchiveAndMuteNewChatsFromUnknownUsersEnabled(enabled: Boolean) = Unit
+                    override suspend fun getSentScheduledMessageNotificationsEnabled() = true
+                    override suspend fun setSentScheduledMessageNotificationsEnabled(enabled: Boolean) = Unit
+                    override suspend fun getAnimatedEmojiEnabled() = true
+                    override suspend fun setAnimatedEmojiEnabled(enabled: Boolean) = Unit
+                    override suspend fun canArchiveAndMuteNewChatsFromUnknownUsers() = true
                 }
             },
             scope = CoroutineScope(Dispatchers.Unconfined),
@@ -34,14 +39,14 @@ class TelegramBackendClientOptionsRouterTest {
     }
 
     @Test
-    fun `selected MTProto unsupported client options fail closed without creating legacy repository`() = runBlocking {
+    fun `selected MTProto unconfigured options still fail closed without creating legacy repository`() = runBlocking {
         val router = TelegramBackendClientOptionsRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy options repository must not be created") },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
-        val failure = runCatching { router.getAnimatedEmojiEnabled() }.exceptionOrNull()
+        val failure = runCatching { router.getContactJoinedNotificationsEnabled() }.exceptionOrNull()
 
         assertTrue(failure is UnsupportedOperationException)
     }

@@ -51,6 +51,31 @@ class MtProtoClientOptionsRepositoryTest {
         assertTrue(transport.closed)
     }
 
+    @Test
+    fun `persists local client options in key value store`() = runBlocking {
+        val store = FakeKeyValueStore()
+        val repository = MtProtoClientOptionsRepositoryImpl(MtProtoSessionTransportFactory { error("no rpc expected") }, store)
+
+        assertEquals(true, repository.getSentScheduledMessageNotificationsEnabled())
+        assertEquals(true, repository.getAnimatedEmojiEnabled())
+
+        repository.setSentScheduledMessageNotificationsEnabled(false)
+        repository.setAnimatedEmojiEnabled(false)
+
+        assertEquals(false, repository.getSentScheduledMessageNotificationsEnabled())
+        assertEquals(false, repository.getAnimatedEmojiEnabled())
+        assertEquals(true, repository.canArchiveAndMuteNewChatsFromUnknownUsers())
+    }
+
+    private class FakeKeyValueStore : org.monogram.data.db.dao.KeyValueDao {
+        private val values = mutableMapOf<String, org.monogram.data.db.model.KeyValueEntity>()
+        override suspend fun getValue(key: String) = values[key]
+        override fun observeValue(key: String) = kotlinx.coroutines.flow.flow { emit(values[key]) }
+        override suspend fun insertValue(entity: org.monogram.data.db.model.KeyValueEntity) { values[entity.key] = entity }
+        override suspend fun deleteValue(key: String) { values.remove(key) }
+        override suspend fun deleteValuesWithPrefix(prefix: String) { values.keys.removeAll { it.startsWith(prefix) } }
+    }
+
     private fun privacy(archiveAndMute: Boolean) = GlobalPrivacySettings_bf108a109d(
         archiveAndMuteNewNoncontactPeers = archiveAndMute,
         keepArchivedUnmuted = true,

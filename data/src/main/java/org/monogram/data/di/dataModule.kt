@@ -1005,6 +1005,7 @@ val dataModule = module {
                     resultStager = get(),
                     locations = get(),
                     files = get(),
+                    scope = get(),
                 )
             },
             scope = get(),

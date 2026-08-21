@@ -1,8 +1,12 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.ProfilePhotoMedia
 import org.monogram.domain.repository.ProfilePhotoRepository
 import org.monogram.domain.models.DialogPeerType
@@ -31,10 +35,22 @@ internal class MtProtoProfilePhotoRepository(
     private val resultStager: MtProtoHistoryResultStager,
     private val locations: MtProtoPhotoLocationStore,
     private val files: MtProtoFileRepository,
+    private val scope: CoroutineScope,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : ProfilePhotoRepository {
     private val photosByUser = MutableStateFlow<Map<Long, List<ProfilePhotoMedia>>>(emptyMap())
     private val photosByChat = MutableStateFlow<Map<Long, List<ProfilePhotoMedia>>>(emptyMap())
+
+    init {
+        scope.launch {
+            files.fileDownloadFlow.collect { event ->
+                if (event is FileDownloadEvent.Completed) {
+                    photosByUser.value = photosByUser.value.updateCompletedFile(event.fileId, event.path)
+                    photosByChat.value = photosByChat.value.updateCompletedFile(event.fileId, event.path)
+                }
+            }
+        }
+    }
 
     override suspend fun getUserProfilePhotos(userId: Long, offset: Int, limit: Int): List<ProfilePhotoMedia> {
         require(userId > 0L) { "MTProto user ID must be positive" }
@@ -101,6 +117,15 @@ internal class MtProtoProfilePhotoRepository(
 
     override fun getChatProfilePhotosFlow(chatId: Long): Flow<List<ProfilePhotoMedia>> =
         photosByChat.map { it[chatId].orEmpty() }
+
+    private fun Map<Long, List<ProfilePhotoMedia>>.updateCompletedFile(
+        fileId: Int,
+        path: String,
+    ): Map<Long, List<ProfilePhotoMedia>> = mapValues { (_, photos) ->
+        photos.map { photo ->
+            if (photo.originalFileId == fileId) photo.copy(previewPath = path, originalPath = path) else photo
+        }
+    }
 
     private suspend fun inputUser(scope: MtProtoAuthKeyScope, userId: Long): InputUser_0bd9c3151c? {
         val user = users.get(scope, userId) ?: return null

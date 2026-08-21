@@ -42,27 +42,34 @@ class TelegramBackendLinkHandlerRouterTest {
                 legacyCreated++
                 object : LinkHandlerRepository {
                     override suspend fun handleLink(link: String) = LinkAction.OpenUser(2)
-                    override suspend fun joinChat(inviteLink: String) = null
-                    override suspend fun joinChatAction(inviteLink: String) = LinkAction.None
+                    override suspend fun joinChat(inviteLink: String) = 22L
+                    override suspend fun joinChatAction(inviteLink: String) = LinkAction.OpenChat(22L)
                 }
             },
             mtProtoFactory = {
                 object : MtProtoLinkHandler {
                     override suspend fun handle(link: String) = LinkAction.OpenUser(1)
+                    override suspend fun joinChat(inviteLink: String) = 11L
+                    override suspend fun joinChatAction(inviteLink: String) = LinkAction.OpenChat(11L)
                 }
             },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
         assertEquals(LinkAction.OpenUser(1), router.handleLink("https://t.me/example"))
+        assertEquals(11L, router.joinChat("https://t.me/+invite"))
+        assertEquals(LinkAction.OpenChat(11L), router.joinChatAction("https://t.me/+invite"))
         assertEquals(0, legacyCreated)
 
         selection.select("default", TelegramBackendKind.LEGACY)
         assertEquals(LinkAction.OpenUser(2), router.handleLink("https://t.me/example"))
+        assertEquals(22L, router.joinChat("https://t.me/+invite"))
+        assertEquals(LinkAction.OpenChat(22L), router.joinChatAction("https://t.me/+invite"))
         assertEquals(1, legacyCreated)
 
         selection.select("default", TelegramBackendKind.KOTLIN_MTPROTO)
         assertEquals(LinkAction.OpenUser(1), router.handleLink("https://t.me/example"))
+        assertEquals(11L, router.joinChat("https://t.me/+invite"))
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

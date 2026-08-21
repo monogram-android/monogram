@@ -20,4 +20,7 @@ interface KeyValueDao {
 
     @Query("DELETE FROM key_value WHERE `key` = :key")
     suspend fun deleteValue(key: String)
+
+    @Query("DELETE FROM key_value WHERE substr(`key`, 1, length(:prefix)) = :prefix")
+    suspend fun deleteValuesWithPrefix(prefix: String)
 }

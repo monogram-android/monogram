@@ -116,6 +116,13 @@ private class InMemoryKeyValueDao : KeyValueDao {
         values.remove(key)
         flows.getOrPut(key) { MutableStateFlow(null) }.value = null
     }
+
+    override suspend fun deleteValuesWithPrefix(prefix: String) {
+        values.keys.filter { it.startsWith(prefix) }.forEach { key ->
+            values.remove(key)
+            flows.getOrPut(key) { MutableStateFlow(null) }.value = null
+        }
+    }
 }
 
 private class FakeTelegramGateway(

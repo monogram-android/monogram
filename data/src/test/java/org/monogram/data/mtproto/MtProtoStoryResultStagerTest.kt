@@ -9,6 +9,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemDeleted
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerStories_9de86f4fe6
 import org.monogram.mtproto.tl.generated.cloud.layer223.StoriesStealthMode_9a2f11feb7
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadStories
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateStoriesStealthMode
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateStory
 import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_02c952992b
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.AllStories_75ae93d8cd
@@ -36,6 +37,25 @@ class MtProtoStoryResultStagerTest {
         assertEquals(MtProtoStoryKey("USER", 9, 7), stored.key)
         assertTrue(stored.isDeleted)
         assertTrue(stored.payload.isNotEmpty())
+    }
+
+    @Test
+    fun `stages live stealth mode without inventing dates`() = runBlocking {
+        val stealthModes = RecordingStealthModes()
+        val stager = MtProtoStoryResultStager(RecordingStories(), stealthModes = stealthModes)
+
+        stager.stageLive(
+            scope,
+            Updates_02c952992b(
+                updates = listOf(UpdateStoriesStealthMode(StoriesStealthMode_9a2f11feb7(100, 200))),
+                users = emptyList(),
+                chats = emptyList(),
+                date = 1,
+                seq = 1,
+            ),
+        )
+
+        assertEquals(MtProtoStoryStealthMode(100, 200), stealthModes.saved.single())
     }
 
     @Test
@@ -91,6 +111,15 @@ class MtProtoStoryResultStagerTest {
         users = emptyList(),
         stealthMode = StoriesStealthMode_9a2f11feb7(null, null),
     )
+
+    private class RecordingStealthModes : MtProtoStoryStealthModeStore by NoOpMtProtoStoryStealthModeStore {
+        val saved = mutableListOf<MtProtoStoryStealthMode>()
+
+        override suspend fun save(scope: MtProtoAuthKeyScope, mode: org.monogram.mtproto.tl.generated.cloud.layer223.StoriesStealthMode_074c681db4) {
+            val supported = mode as StoriesStealthMode_9a2f11feb7
+            saved += MtProtoStoryStealthMode(supported.activeUntilDate ?: 0, supported.cooldownUntilDate ?: 0)
+        }
+    }
 
     private class RecordingStories : MtProtoStoryProjectionStore by NoOpMtProtoStoryProjectionStore {
         val staged = mutableListOf<MtProtoStoryPayload>()

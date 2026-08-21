@@ -20,7 +20,8 @@ class MtProtoAccountStateCleanerTest {
         val messageStore = FakeMessageProjectionStore()
         val dialogStore = FakeDialogStore()
         val storyStore = FakeStoryProjectionStore()
-        val dcStore = FakeAccountDcStore()
+        val stealthStore = FakeStoryStealthModeStore()
+        val dcStore = FakeAccountDcStore(dcId = 2)
         val cleaner = MtProtoAccountStateCleaner(
             MtProtoAuthKeyPersistence(authStore),
             cursorStore,
@@ -32,6 +33,7 @@ class MtProtoAccountStateCleanerTest {
             dcStore,
             dialogStore = dialogStore,
             storyProjectionStore = storyStore,
+            storyStealthModeStore = stealthStore,
         )
 
         cleaner.deleteAccount("slot_a", MtProtoEnvironment.TEST)
@@ -45,6 +47,7 @@ class MtProtoAccountStateCleanerTest {
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), messageStore.deletedAccounts)
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), dialogStore.deletedAccounts)
         assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), storyStore.deletedAccounts)
+        assertEquals(listOf("slot_a" to MtProtoEnvironment.TEST), stealthStore.deletedAccounts)
         assertEquals(listOf("slot_a"), dcStore.deletedAccounts)
     }
 
@@ -161,10 +164,12 @@ class MtProtoAccountStateCleanerTest {
         Unit
     }
 
-    private class FakeAccountDcStore : MtProtoAccountDcStore {
+    private class FakeAccountDcStore(
+        private val dcId: Int? = null,
+    ) : MtProtoAccountDcStore {
         val deletedAccounts = mutableListOf<String>()
 
-        override suspend fun get(accountSlot: String): Int? = null
+        override suspend fun get(accountSlot: String): Int? = dcId
         override suspend fun save(accountSlot: String, dcId: Int) = Unit
         override suspend fun delete(accountSlot: String) { deletedAccounts += accountSlot }
     }
@@ -257,6 +262,14 @@ class MtProtoAccountStateCleanerTest {
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
             deletedAccounts += accountSlot to environment
             deleteFailure?.let { throw it }
+        }
+    }
+
+    private class FakeStoryStealthModeStore : MtProtoStoryStealthModeStore by NoOpMtProtoStoryStealthModeStore {
+        val deletedAccounts = mutableListOf<Pair<String, MtProtoEnvironment>>()
+
+        override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
+            deletedAccounts += accountSlot to environment
         }
     }
 

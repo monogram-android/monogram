@@ -59,5 +59,10 @@ class MtProtoAccountDcStoreTest {
             deletedKeys += key
             values.removeAll { it.key == key }
         }
+
+        override suspend fun deleteValuesWithPrefix(prefix: String) {
+            deletedKeys += prefix
+            values.removeAll { it.key.startsWith(prefix) }
+        }
     }
 }

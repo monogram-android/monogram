@@ -32,6 +32,7 @@ internal class MtProtoStoryResultStager(
     private val chats: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
     private val documents: MtProtoDocumentLocationStore = NoOpMtProtoDocumentLocationStore,
     private val photos: MtProtoPhotoLocationStore = NoOpMtProtoPhotoLocationStore,
+    private val stealthModes: MtProtoStoryStealthModeStore = NoOpMtProtoStoryStealthModeStore,
 ) {
     suspend fun stageAllStories(
         scope: MtProtoAuthKeyScope,
@@ -41,6 +42,7 @@ internal class MtProtoStoryResultStager(
     ) {
         users.upsert(scope, result.users)
         chats.upsert(scope, result.chats)
+        stealthModes.save(scope, result.stealthMode)
         val existing = if (append) stories.activeList(scope, listType) else emptyList()
         val pageOrderStart = if (append) existing.minOfOrNull { it.orderKey } ?: 0L else result.peerStories.size.toLong() + 1L
         val page = buildList {
@@ -97,6 +99,7 @@ internal class MtProtoStoryResultStager(
         when (update) {
             is UpdateStory -> stage(scope, update.peer.toKey(), update.story)
             is UpdateReadStories -> stories.updateMaxReadStoryId(scope, update.peer.toKey().type, update.peer.toKey().id, update.maxId)
+            is org.monogram.mtproto.tl.generated.cloud.layer223.UpdateStoriesStealthMode -> stealthModes.save(scope, update.stealthMode)
             else -> Unit
         }
     }

@@ -128,6 +128,8 @@ import org.monogram.data.mtproto.MtProtoStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoStoryResultStager
 import org.monogram.data.mtproto.MtProtoStoryRefreshRepository
 import org.monogram.data.mtproto.MtProtoStoryRefreshRepositoryImpl
+import org.monogram.data.mtproto.MtProtoStoryStealthModeStore
+import org.monogram.data.mtproto.KeyValueMtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.MtProtoPremiumRepository
 import org.monogram.data.mtproto.MtProtoPremiumRepositoryImpl
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
@@ -622,7 +624,8 @@ val dataModule = module {
     single<MtProtoPhotoLocationStore> { MtProtoRoomPhotoLocationStore(get()) }
     single { MtProtoRoomStoryProjectionStore(get(), database = get()) }
     single<MtProtoStoryProjectionStore> { get<MtProtoRoomStoryProjectionStore>() }
-    single { MtProtoStoryResultStager(get(), get(), get(), get(), get()) }
+    single<MtProtoStoryStealthModeStore> { KeyValueMtProtoStoryStealthModeStore(get()) }
+    single { MtProtoStoryResultStager(get(), get(), get(), get(), get(), get()) }
     single<MtProtoStoryRefreshRepository> {
         MtProtoStoryRefreshRepositoryImpl(
             configSource = get(),
@@ -817,6 +820,7 @@ val dataModule = module {
             fileHandleStore = get(),
             photoLocationStore = get(),
             storyProjectionStore = get(),
+            storyStealthModeStore = get(),
             authorizationStore = get(),
         )
     }

@@ -9,6 +9,15 @@ This protocol is the release gate for removing TDLib. It must be run manually on
 - APK: `app/build/outputs/apk/officialLibre/debug/monogram-libre-universal-0.3.1-debug.apk`.
 - Account: a dedicated test account selected for `KOTLIN_MTPROTO` before authentication.
 
+## Selecting The Backend
+
+1. Install a debug build, open Settings, then open Debug.
+2. Under **Telegram backend**, enable **Use Kotlin MTProto**.
+3. Wait for the confirmation message, `Telegram backend switched to KOTLIN_MTPROTO`, before beginning authentication.
+4. For rollback validation, return to the same control and disable **Use Kotlin MTProto**. Wait for the `LEGACY` confirmation before inspecting the account.
+
+The switch is debug-only and clears the previous backend before persisting the new selection. Do not use **Drop Databases**, **Drop Cache Database**, **Drop Cache**, or **Drop Prefs** for ordinary restart validation: those controls destroy the state that restart and rollback scenarios must inspect.
+
 ## Evidence Rules
 
 For every scenario, record the app version/commit, account backend, device model/API level, timestamp, result, and a redacted log or screen recording. A scenario is not passed merely because it does not crash. Failed transport setup is environmental evidence only and does not validate the feature.

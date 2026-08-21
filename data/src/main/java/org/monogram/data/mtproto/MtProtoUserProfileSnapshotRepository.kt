@@ -7,6 +7,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.UserFull_c1c6b6f92b
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputUser_4020eae812
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.AddContact
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.DeleteContacts
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.EditCloseFriends
 import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetFullUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetUsers
 import org.monogram.mtproto.tl.generated.cloud.layer223.users.UserFull_a7968baaa4
@@ -16,6 +17,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.GetContacts
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Found_bc39b7fc74
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Search
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.User_1990f29d1e
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 import org.monogram.domain.repository.UserProfileSnapshotRepository
 
@@ -35,6 +37,9 @@ internal interface MtProtoUserProfileReader {
     }
     suspend fun removeContact(accountId: String, userId: Long) {
         throw UnsupportedOperationException("MTProto contact mutation is not available")
+    }
+    suspend fun setCloseFriend(accountId: String, userId: Long, isCloseFriend: Boolean) {
+        throw UnsupportedOperationException("MTProto close-friend editing is not available")
     }
     suspend fun getNeedPhoneNumberPrivacyException(accountId: String, userId: Long): Boolean {
         throw UnsupportedOperationException("MTProto contact privacy read is not available")
@@ -142,6 +147,28 @@ internal class MtProtoUserProfileSnapshotRepository(
         try {
             transport.execute(DeleteContacts(listOf(InputUser_4020eae812(userId, accessHash))))
             refreshContacts(scope, transport)
+        } finally {
+            transport.close()
+        }
+    }
+
+    override suspend fun setCloseFriend(accountId: String, userId: Long, isCloseFriend: Boolean) {
+        require(userId > 0L) { "MTProto user ID must be positive" }
+        val scope = scope(accountId)
+        val transport = requireNotNull(sessionFactory) { "MTProto session factory is unavailable" }.open(accountId)
+        try {
+            val contacts = transport.execute(GetContacts(0L)) as? Contacts_9469c223cd
+                ?: error("Unsupported MTProto contacts response")
+            val contactIds = contacts.contacts.filterIsInstance<Contact_fd1b8c949c>().mapTo(hashSetOf()) { it.userId }
+            require(userId in contactIds) { "MTProto close friend must be a contact: $userId" }
+            val closeFriends = contacts.users.filterIsInstance<User_1990f29d1e>()
+                .filter(User_1990f29d1e::closeFriend)
+                .mapTo(linkedSetOf()) { it.id }
+                .apply { if (isCloseFriend) add(userId) else remove(userId) }
+            check(transport.execute(EditCloseFriends(closeFriends.toList()))) {
+                "MTProto close-friend update was rejected"
+            }
+            userStore.upsert(scope, contacts.users)
         } finally {
             transport.close()
         }

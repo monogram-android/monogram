@@ -10,7 +10,11 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.ChatEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.Contact_fd1b8c949c
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Contacts_9469c223cd
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.EditCloseFriends
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Found_bc39b7fc74
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.GetContacts
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Search
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
@@ -74,6 +78,30 @@ class MtProtoUserProfileSnapshotRepositoryTest {
         assertEquals(Search("ada", 100), transport.request)
         assertEquals(listOf(7L, 8L), users.upsertedIds)
         assertEquals(listOf(9L), chats.upsertedIds)
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
+    fun `updates close friends from an authoritative contact list`() = runBlocking {
+        val users = SearchingUserStore()
+        val transport = Transport(
+            Contacts_9469c223cd(
+                contacts = listOf(Contact_fd1b8c949c(userId = 7, mutual = false)),
+                savedCount = 0,
+                users = listOf(UserEmpty(7)),
+            ),
+            true,
+        )
+        val repository = MtProtoUserProfileSnapshotRepository(
+            configSource = TelegramMtProtoBootstrapConfigSource { config(dcId = 2) },
+            userStore = users,
+            sessionFactory = MtProtoSessionTransportFactory { transport },
+        )
+
+        repository.setCloseFriend("account-2", userId = 7, isCloseFriend = true)
+
+        assertEquals(listOf(GetContacts(0L), EditCloseFriends(listOf(7L))), transport.requests)
+        assertEquals(listOf(7L), users.upsertedIds)
         assertEquals(true, transport.closed)
     }
 
@@ -160,14 +188,16 @@ class MtProtoUserProfileSnapshotRepositoryTest {
         }
     }
 
-    private class Transport(private val response: Any) : MtProtoRpcTransport {
-        lateinit var request: TlMethod<*>
+    private class Transport(private vararg val responses: Any) : MtProtoRpcTransport {
+        val requests = mutableListOf<TlMethod<*>>()
+        val request: TlMethod<*> get() = requests.last()
         var closed = false
+        private var responseIndex = 0
 
         override suspend fun <R> execute(method: TlMethod<R>): R {
-            request = method
+            requests += method
             @Suppress("UNCHECKED_CAST")
-            return response as R
+            return responses[responseIndex++] as R
         }
 
         override fun close() {

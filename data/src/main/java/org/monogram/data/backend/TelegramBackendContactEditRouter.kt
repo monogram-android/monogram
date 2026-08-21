@@ -52,7 +52,10 @@ internal class TelegramBackendContactEditRouter(
 
     override suspend fun setCloseFriend(userId: Long, isCloseFriend: Boolean): UserModel? = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setCloseFriend(userId, isCloseFriend)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> {
+            mtProtoProfiles.setCloseFriend(accountId, userId, isCloseFriend)
+            users.getUser(userId)
+        }
     }
 
     private fun selected(): TelegramBackendKind = checkNotNull(selectedBackend.value) {

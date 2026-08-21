@@ -41,6 +41,25 @@ class TelegramBackendContactEditRouterTest {
     }
 
     @Test
+    fun `selected MTProto close friend edit avoids legacy`() = runBlocking {
+        var updated: Pair<Long, Boolean>? = null
+        val router = TelegramBackendContactEditRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy contact repository must not be created") },
+            users = FakeUserRepository(),
+            mtProtoProfiles = object : MtProtoUserProfileReader by NoOpMtProtoUserProfileReader {
+                override suspend fun setCloseFriend(accountId: String, userId: Long, isCloseFriend: Boolean) {
+                    updated = userId to isCloseFriend
+                }
+            },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(7L, router.setCloseFriend(7, true)?.id)
+        assertEquals(7L to true, updated)
+    }
+
+    @Test
     fun `selected MTProto contact read excludes projected non contacts`() = runBlocking {
         val router = TelegramBackendContactEditRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),

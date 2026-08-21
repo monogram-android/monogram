@@ -18,6 +18,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemDeleted
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStory
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.DeleteStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.IncrementStoryViews
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ActivateStealthMode
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStoryCount_11d73fe4aa
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.SendReaction
@@ -40,6 +41,9 @@ internal interface MtProtoStoryListRepository {
     suspend fun close(chatId: Long, storyId: Int) {
         throw UnsupportedOperationException("MTProto story close acknowledgment is not configured")
     }
+    suspend fun activateStealthMode(): Boolean {
+        throw UnsupportedOperationException("MTProto story stealth mode is not configured")
+    }
 }
 
 internal class MtProtoStoryListRepositoryImpl(
@@ -49,6 +53,7 @@ internal class MtProtoStoryListRepositoryImpl(
     private val chats: MtProtoChatProjectionStore,
     private val stories: MtProtoStoryProjectionStore = NoOpMtProtoStoryProjectionStore,
     private val cloudObjectStager: MtProtoCloudObjectStager = NoOpMtProtoCloudObjectStager,
+    private val storyResultStager: MtProtoStoryResultStager = MtProtoStoryResultStager(NoOpMtProtoStoryProjectionStore),
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : MtProtoStoryListRepository {
     override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean {
@@ -86,6 +91,15 @@ internal class MtProtoStoryListRepositoryImpl(
         } else {
             StoryPostCapabilityModel.ActiveStoryLimitExceeded
         }
+    }
+
+    override suspend fun activateStealthMode(): Boolean {
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        transportFactory.open(accountSlot).use { transport ->
+            storyResultStager.stageLive(scope, transport.execute(ActivateStealthMode(past = true, future = true)))
+        }
+        return true
     }
 
     override suspend fun close(chatId: Long, storyId: Int) {

@@ -11,10 +11,14 @@ import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.codec.CloudTlObjectCodec
 import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemDeleted
+import org.monogram.mtproto.tl.generated.cloud.layer223.StoriesStealthMode_9a2f11feb7
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateStoriesStealthMode
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
+import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_02c952992b
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStory
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.DeleteStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.IncrementStoryViews
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ActivateStealthMode
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStoryCount_11d73fe4aa
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.SendReaction
@@ -66,6 +70,25 @@ class MtProtoStoryListRepositoryTest {
         val exhaustedTransport = CapabilityRecordingTransport(0)
         assertEquals(StoryPostCapabilityModel.ActiveStoryLimitExceeded, capabilityRepository(exhaustedTransport).canSend(-42))
         assertEquals(true, exhaustedTransport.closed)
+    }
+
+    @Test
+    fun `activates both stealth windows and stages the server envelope`() = runBlocking {
+        val transport = StealthRecordingTransport()
+        val stealthModes = RecordingStealthModes()
+        val stager = MtProtoStoryResultStager(NoOpMtProtoStoryProjectionStore, stealthModes = stealthModes)
+        val repository = MtProtoStoryListRepositoryImpl(
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = NoOpMtProtoUserProjectionStore,
+            chats = NoOpMtProtoChatProjectionStore,
+            storyResultStager = stager,
+        )
+
+        assertEquals(true, repository.activateStealthMode())
+        assertEquals(ActivateStealthMode(past = true, future = true), transport.request)
+        assertEquals(MtProtoStoryStealthMode(100, 200), stealthModes.saved.single())
+        assertEquals(true, transport.closed)
     }
 
     @Test
@@ -226,6 +249,31 @@ class MtProtoStoryListRepositoryTest {
         override suspend fun <R> execute(method: TlMethod<R>): R {
             request = method as ReadStories
             return emptyList<Int>() as R
+        }
+        override fun close() { closed = true }
+    }
+
+    private class RecordingStealthModes : MtProtoStoryStealthModeStore by NoOpMtProtoStoryStealthModeStore {
+        val saved = mutableListOf<MtProtoStoryStealthMode>()
+        override suspend fun save(scope: MtProtoAuthKeyScope, mode: org.monogram.mtproto.tl.generated.cloud.layer223.StoriesStealthMode_074c681db4) {
+            val supported = mode as StoriesStealthMode_9a2f11feb7
+            saved += MtProtoStoryStealthMode(supported.activeUntilDate ?: 0, supported.cooldownUntilDate ?: 0)
+        }
+    }
+
+    private class StealthRecordingTransport : MtProtoRpcTransport {
+        lateinit var request: ActivateStealthMode
+        var closed = false
+        @Suppress("UNCHECKED_CAST")
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            request = method as ActivateStealthMode
+            return Updates_02c952992b(
+                updates = listOf(UpdateStoriesStealthMode(StoriesStealthMode_9a2f11feb7(100, 200))),
+                users = emptyList(),
+                chats = emptyList(),
+                date = 1,
+                seq = 1,
+            ) as R
         }
         override fun close() { closed = true }
     }

@@ -2,6 +2,7 @@ package org.monogram.data.di
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.telephony.TelephonyManager
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import io.ktor.client.HttpClient
@@ -95,6 +96,10 @@ import org.monogram.data.datasource.remote.UserRemoteDataSource
 import org.monogram.data.datasource.remote.createMonogramHttpClient
 import org.monogram.data.db.MonogramDatabase
 import org.monogram.data.db.MonogramMigrations
+import org.monogram.data.mtproto.MtProtoNetworkStatisticsRepository
+import org.monogram.data.mtproto.MtProtoNetworkStatisticsRepositoryImpl
+import org.monogram.data.mtproto.NetworkType
+import org.monogram.data.mtproto.currentNetworkType
 import org.monogram.data.mtproto.MtProtoRoomUpdateStateStore
 import org.monogram.data.mtproto.MtProtoRoomUpdateRecovery
 import org.monogram.data.mtproto.MtProtoRoomLiveUpdateApplier
@@ -410,6 +415,19 @@ val dataModule = module {
             accountDcStore = get(),
         )
     }
+    single<MtProtoNetworkStatisticsRepository> {
+        MtProtoNetworkStatisticsRepositoryImpl(
+            keyValueDao = get(),
+            networkType = {
+                val manager = get<ConnectivityManager>()
+                val roaming = get<TelephonyManager>().isNetworkRoaming
+                when (manager.currentNetworkType()) {
+                    NetworkType.MOBILE -> if (roaming) NetworkType.ROAMING else NetworkType.MOBILE
+                    else -> manager.currentNetworkType()
+                }
+            },
+        )
+    }
     single {
         TelegramMtProtoSessionFactory(
             configSource = get(),
@@ -418,6 +436,7 @@ val dataModule = module {
             userProjectionStore = get(),
             chatProjectionStore = get(),
             messageProjectionStore = get(),
+            trafficListener = get<MtProtoNetworkStatisticsRepository>().trafficListener,
         )
     }
     single {
@@ -1535,6 +1554,7 @@ val dataModule = module {
                     networkMapper = get(),
                 )
             },
+            mtProtoFactory = { get<MtProtoNetworkStatisticsRepository>() },
             scope = get(),
         )
     }

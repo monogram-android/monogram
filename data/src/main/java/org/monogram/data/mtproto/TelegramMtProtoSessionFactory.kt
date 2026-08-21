@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 import org.monogram.mtproto.transport.MtProtoEncryptedSession
+import org.monogram.mtproto.transport.MtProtoTrafficListener
 
 internal data class TelegramMtProtoEndpoint(
     val dcId: Int,
@@ -117,6 +118,7 @@ internal class TelegramMtProtoSessionFactory(
     private val userProjectionStore: MtProtoUserProjectionStore = NoOpMtProtoUserProjectionStore,
     private val chatProjectionStore: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
     private val messageProjectionStore: MtProtoMessageProjectionStore = NoOpMtProtoMessageProjectionStore,
+    private val trafficListener: MtProtoTrafficListener? = null,
     private val handshakeConnectionFactory: (TelegramMtProtoEndpoint) -> MtProtoHandshakeConnection = {
         IntermediateTcpHandshakeTransport(it.host, it.port)
     },
@@ -132,6 +134,7 @@ internal class TelegramMtProtoSessionFactory(
             authKey,
             cloudConfig,
             requireNotNull(authKeyPersistence) { "MTProto auth-key persistence is required" },
+            trafficListener,
         )
     },
 ) {
@@ -174,6 +177,7 @@ internal class TelegramMtProtoSessionFactory(
             authKey: MtProtoAuthKey,
             cloudConfig: CloudLayer223ConnectionConfig,
             authKeyPersistence: MtProtoAuthKeyPersistence,
+            trafficListener: MtProtoTrafficListener?,
         ): MtProtoRpcTransport {
             val session = try {
                 MtProtoEncryptedSession(authKey)
@@ -201,6 +205,7 @@ internal class TelegramMtProtoSessionFactory(
                             authKeyPersistence.updateServerState(scope, authKey, serverSalt, serverTimeSeconds)
                         }
                     },
+                    trafficListener = trafficListener,
                 )
             } catch (failure: Throwable) {
                 session.close()

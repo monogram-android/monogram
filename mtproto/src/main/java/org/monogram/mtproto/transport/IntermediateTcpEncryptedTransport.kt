@@ -71,6 +71,7 @@ class IntermediateTcpEncryptedTransport(
     private val readTimeoutMillis: Int = 15_000,
     private val onServerSaltChanged: (suspend (Long) -> Unit)? = null,
     private val onServerTimeChanged: (suspend (Long) -> Unit)? = null,
+    private val trafficListener: MtProtoTrafficListener? = null,
 ) : MtProtoRpcTransport {
     private val requestMutex = Mutex()
     private val stateLock = Any()
@@ -426,6 +427,7 @@ class IntermediateTcpEncryptedTransport(
                 flush()
             }
             synchronized(stateLock) { preambleSent = true }
+            trafficListener?.onTraffic(frame.size, 0)
         } finally {
             frame.fill(0)
         }
@@ -435,13 +437,16 @@ class IntermediateTcpEncryptedTransport(
         val input = activeSocket.getInputStream()
         repeat(MAX_QUICK_ACKS + 1) { index ->
             val header = readFully(input, 4)
+            trafficListener?.onTraffic(0, 4)
             try {
                 val expectedBytes = IntermediateTransportFraming.expectedFrameBytes(header)
                 if (expectedBytes == 4) {
                     if (index == MAX_QUICK_ACKS) throw protocolFailure("Too many intermediate quick acknowledgements")
                     return@repeat
                 }
-                return readFully(input, expectedBytes - 4)
+                return readFully(input, expectedBytes - 4).also {
+                    trafficListener?.onTraffic(0, it.size)
+                }
             } finally {
                 header.fill(0)
             }

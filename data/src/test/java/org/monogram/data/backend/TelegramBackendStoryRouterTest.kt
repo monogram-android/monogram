@@ -11,9 +11,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.data.mtproto.MtProtoStoryListRepository
+import org.monogram.data.mtproto.MtProtoStoryReadRepository
 import org.monogram.data.mtproto.MtProtoStoryStealthMode
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
 import org.monogram.domain.models.stories.StoryListType
+import org.monogram.domain.models.stories.StoryMediaModel
+import org.monogram.domain.models.stories.StoryMediaType
+import org.monogram.domain.models.stories.StoryModel
 import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.repository.StoryRepository
@@ -234,6 +238,31 @@ class TelegramBackendStoryRouterTest {
 
         assertTrue(router.setStoryReaction(7L, 2, StoryReactionModel(emoji = "👍")))
         assertEquals(Triple(7L, 2, StoryReactionModel(emoji = "👍")), capturedReaction)
+    }
+
+    @Test
+    fun `selected MTProto reads projected story without creating legacy repository`() = runBlocking {
+        val projected = StoryModel(
+            id = 2,
+            posterChatId = 7L,
+            date = 3,
+            caption = "caption",
+            media = StoryMediaModel(StoryMediaType.PHOTO, path = null, previewPath = null),
+            privacy = null,
+        )
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoReadFactory = {
+                MtProtoStoryReadRepository { chatId, storyId, _ ->
+                    if (chatId == 7L && storyId == 2) projected else null
+                }
+            },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(projected, router.getStory(chatId = 7L, storyId = 2))
     }
 
     @Test

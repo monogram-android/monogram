@@ -26,7 +26,7 @@ data class StoryModel(
     val caption: String,
     val media: StoryMediaModel,
     val chosenReaction: StoryReactionModel? = null,
-    val privacy: StoryPrivacySettingsModel,
+    val privacy: StoryPrivacySettingsModel? = null,
     val albumIds: List<Int> = emptyList(),
     val areas: List<StoryAreaModel> = emptyList(),
     val linkUrls: List<String> = emptyList(),

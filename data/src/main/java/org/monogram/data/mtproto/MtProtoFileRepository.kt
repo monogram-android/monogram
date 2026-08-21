@@ -57,6 +57,9 @@ internal interface MtProtoFileRepository {
 
     suspend fun registerDocument(documentId: Long, chatId: Long, messageId: Long): MtProtoDocumentFile?
     suspend fun registerDocument(documentId: Long): MtProtoDocumentFile?
+    suspend fun registerPhoto(photoId: Long): MtProtoPhotoFile? {
+        throw UnsupportedOperationException("MTProto photo registration is not configured")
+    }
     suspend fun registerPhoto(photoId: Long, chatId: Long, messageId: Long): MtProtoPhotoFile?
     fun download(fileId: Int, offset: Long, limit: Long)
     suspend fun cancel(fileId: Int)
@@ -116,7 +119,7 @@ internal class MtProtoDocumentFileRepository(
         )
     }
 
-    override suspend fun registerPhoto(photoId: Long, chatId: Long, messageId: Long): MtProtoPhotoFile? {
+    override suspend fun registerPhoto(photoId: Long): MtProtoPhotoFile? {
         val config = configSource.createForAccount(accountId)
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val location = photos.getLargest(scope, photoId) ?: return null
@@ -124,9 +127,13 @@ internal class MtProtoDocumentFileRepository(
             scope,
             MtProtoFileResourceKey(MtProtoFileResourceType.PHOTO, photoId, location.thumbSize),
         ).fileId
-        messageReferences.computeIfAbsent(handle) { ConcurrentHashMap.newKeySet() }.add(chatId to messageId)
         return MtProtoPhotoFile(handle, location.width, location.height, location.size)
     }
+
+    override suspend fun registerPhoto(photoId: Long, chatId: Long, messageId: Long): MtProtoPhotoFile? =
+        registerPhoto(photoId)?.also { photo ->
+            messageReferences.computeIfAbsent(photo.fileId) { ConcurrentHashMap.newKeySet() }.add(chatId to messageId)
+        }
 
     override fun download(fileId: Int, offset: Long, limit: Long) {
         require(offset >= 0L) { "MTProto file offset must not be negative" }

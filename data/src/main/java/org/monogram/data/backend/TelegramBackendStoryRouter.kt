@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.monogram.data.mtproto.MtProtoStoryListRepository
+import org.monogram.data.mtproto.MtProtoStoryReadRepository
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
 import org.monogram.domain.models.stories.*
 import org.monogram.domain.repository.StoryRepository
@@ -17,12 +18,14 @@ internal class TelegramBackendStoryRouter(
     private val legacyFactory: () -> StoryRepository,
     scope: CoroutineScope,
     private val mtProtoFactory: () -> MtProtoStoryListRepository = { throw UnsupportedOperationException("MTProto story mutations are not configured") },
+    private val mtProtoReadFactory: () -> MtProtoStoryReadRepository = { throw UnsupportedOperationException("MTProto story reads are not configured") },
     private val mtProtoStealthModeFactory: () -> MtProtoStoryStealthModeReader = { throw UnsupportedOperationException("MTProto story stealth mode is not configured") },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : StoryRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
     private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
+    private val mtProtoReads by lazy(LazyThreadSafetyMode.NONE, mtProtoReadFactory)
     private val mtProtoStealthMode by lazy(LazyThreadSafetyMode.NONE, mtProtoStealthModeFactory)
     private val emptyActiveStories = MutableStateFlow<Map<StoryListType, List<ActiveStoryListModel>>>(emptyMap())
     private val emptyStoryCounts = MutableStateFlow<Map<StoryListType, Int>>(emptyMap())
@@ -81,7 +84,10 @@ internal class TelegramBackendStoryRouter(
         TelegramBackendKind.KOTLIN_MTPROTO -> Unit
     }
     override suspend fun getChatActiveStories(chatId: Long): ActiveStoryListModel? = dispatch { legacy.getChatActiveStories(chatId) }
-    override suspend fun getStory(chatId: Long, storyId: Int, onlyLocal: Boolean): StoryModel? = dispatch { legacy.getStory(chatId, storyId, onlyLocal) }
+    override suspend fun getStory(chatId: Long, storyId: Int, onlyLocal: Boolean): StoryModel? = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.getStory(chatId, storyId, onlyLocal)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoReads.getStory(chatId, storyId, onlyLocal)
+    }
     override suspend fun getStoryAlbum(chatId: Long, albumId: Int, offset: Int, limit: Int): List<StoryModel> = dispatch { legacy.getStoryAlbum(chatId, albumId, offset, limit) }
     override suspend fun getChatPostedToChatPageStories(chatId: Long, fromStoryId: Int, limit: Int): StoryPageModel? = dispatch { legacy.getChatPostedToChatPageStories(chatId, fromStoryId, limit) }
     override suspend fun getChatArchivedStories(chatId: Long, fromStoryId: Int, limit: Int): StoryPageModel? = dispatch { legacy.getChatArchivedStories(chatId, fromStoryId, limit) }

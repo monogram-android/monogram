@@ -17,6 +17,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionPaid
 import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemDeleted
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStory
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.DeleteStories
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.IncrementStoryViews
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStoryCount_11d73fe4aa
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.SendReaction
@@ -35,6 +36,9 @@ internal interface MtProtoStoryListRepository {
     }
     suspend fun delete(chatId: Long, storyId: Int): Boolean {
         throw UnsupportedOperationException("MTProto story deletion is not configured")
+    }
+    suspend fun close(chatId: Long, storyId: Int) {
+        throw UnsupportedOperationException("MTProto story close acknowledgment is not configured")
     }
 }
 
@@ -81,6 +85,17 @@ internal class MtProtoStoryListRepositoryImpl(
             StoryPostCapabilityModel.Allowed(result.countRemains)
         } else {
             StoryPostCapabilityModel.ActiveStoryLimitExceeded
+        }
+    }
+
+    override suspend fun close(chatId: Long, storyId: Int) {
+        require(storyId > 0) { "MTProto story ID must be positive" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(IncrementStoryViews(resolvePeer(scope, chatId), listOf(storyId)))) {
+                "MTProto rejected story view acknowledgment"
+            }
         }
     }
 

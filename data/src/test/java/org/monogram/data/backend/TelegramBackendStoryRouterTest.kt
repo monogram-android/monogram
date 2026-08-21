@@ -121,6 +121,27 @@ class TelegramBackendStoryRouterTest {
     }
 
     @Test
+    fun `selected MTProto story close acknowledgment avoids legacy repository`() = runBlocking {
+        var closed: Pair<Long, Int>? = null
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoFactory = {
+                object : MtProtoStoryListRepository {
+                    override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?) = true
+                    override suspend fun close(chatId: Long, storyId: Int) { closed = chatId to storyId }
+                }
+            },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.closeStory(7L, 2)
+
+        assertEquals(7L to 2, closed)
+    }
+
+    @Test
     fun `selected MTProto story send capability avoids legacy repository`() = runBlocking {
         val router = TelegramBackendStoryRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),

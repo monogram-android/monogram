@@ -14,6 +14,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemDeleted
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStory
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.DeleteStories
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.IncrementStoryViews
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStoryCount_11d73fe4aa
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.SendReaction
@@ -65,6 +66,21 @@ class MtProtoStoryListRepositoryTest {
         val exhaustedTransport = CapabilityRecordingTransport(0)
         assertEquals(StoryPostCapabilityModel.ActiveStoryLimitExceeded, capabilityRepository(exhaustedTransport).canSend(-42))
         assertEquals(true, exhaustedTransport.closed)
+    }
+
+    @Test
+    fun `acknowledges closed stories only when the server confirms the view`() = runBlocking {
+        val transport = CloseRecordingTransport(accepted = true)
+        repository(transport).close(-42, 7)
+
+        assertEquals(IncrementStoryViews(org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat(42), listOf(7)), transport.request)
+        assertEquals(true, transport.closed)
+
+        val rejected = CloseRecordingTransport(accepted = false)
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { repository(rejected).close(-42, 7) }
+        }
+        assertEquals(true, rejected.closed)
     }
 
     @Test
@@ -162,6 +178,13 @@ class MtProtoStoryListRepositoryTest {
         assertEquals(false, opened)
     }
 
+    private fun repository(transport: CloseRecordingTransport) = MtProtoStoryListRepositoryImpl(
+        configSource = TelegramMtProtoBootstrapConfigSource { config() },
+        transportFactory = MtProtoSessionTransportFactory { transport },
+        users = NoOpMtProtoUserProjectionStore,
+        chats = NoOpMtProtoChatProjectionStore,
+    )
+
     private fun repository(transport: DeleteRecordingTransport) = MtProtoStoryListRepositoryImpl(
         configSource = TelegramMtProtoBootstrapConfigSource { config() },
         transportFactory = MtProtoSessionTransportFactory { transport },
@@ -203,6 +226,17 @@ class MtProtoStoryListRepositoryTest {
         override suspend fun <R> execute(method: TlMethod<R>): R {
             request = method as ReadStories
             return emptyList<Int>() as R
+        }
+        override fun close() { closed = true }
+    }
+
+    private class CloseRecordingTransport(private val accepted: Boolean) : MtProtoRpcTransport {
+        lateinit var request: IncrementStoryViews
+        var closed = false
+        @Suppress("UNCHECKED_CAST")
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            request = method as IncrementStoryViews
+            return accepted as R
         }
         override fun close() { closed = true }
     }

@@ -3,8 +3,10 @@ package org.monogram.data.mtproto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.WallpaperModel
 import org.monogram.domain.models.WallpaperSettings
 import org.monogram.domain.models.WallpaperType
@@ -31,6 +33,22 @@ internal class MtProtoWallpaperRepositoryImpl(
 ) : MtProtoWallpaperRepository {
     private val installedWallpapers = MutableStateFlow<List<WallpaperModel>>(emptyList())
     private var refreshStarted = false
+
+    init {
+        scope.launch {
+            files.fileDownloadFlow.collect { event ->
+                if (event is FileDownloadEvent.Completed) {
+                    installedWallpapers.value = installedWallpapers.value.map { wallpaper ->
+                        if (wallpaper.documentId == event.fileId.toLong()) {
+                            wallpaper.copy(isDownloaded = true, localPath = event.path)
+                        } else {
+                            wallpaper
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     override fun wallpapers(): Flow<List<WallpaperModel>> = installedWallpapers.onStart {
         if (!refreshStarted) {

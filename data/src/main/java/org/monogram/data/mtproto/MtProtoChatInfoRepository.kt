@@ -254,32 +254,6 @@ internal class MtProtoChatInfoRepository(
         }
     }
 
-    private fun org.monogram.domain.models.ChatPermissionsModel.toMtProtoBannedRights(untilDate: Int) =
-        ChatBannedRights_2339df02a7(
-            viewMessages = false,
-            sendMessages = !canSendBasicMessages,
-            sendMedia = !(canSendAudios && canSendDocuments && canSendPhotos && canSendVideos && canSendVideoNotes && canSendVoiceNotes),
-            sendStickers = false,
-            sendGifs = false,
-            sendGames = false,
-            sendInline = false,
-            embedLinks = !canAddLinkPreviews,
-            sendPolls = !canSendPolls,
-            changeInfo = !canChangeInfo,
-            inviteUsers = !canInviteUsers,
-            pinMessages = !canPinMessages,
-            manageTopics = !canCreateTopics,
-            sendPhotos = !canSendPhotos,
-            sendVideos = !canSendVideos,
-            sendRoundvideos = !canSendVideoNotes,
-            sendAudios = !canSendAudios,
-            sendVoices = !canSendVoiceNotes,
-            sendDocs = !canSendDocuments,
-            sendPlain = !canSendOtherMessages,
-            editRank = !canEditTag,
-            untilDate = untilDate,
-        )
-
     private data class MemberRecord(val userId: Long, val rank: String?, val status: org.monogram.domain.repository.ChatMemberStatus)
 
     private suspend fun basicGroupMembers(

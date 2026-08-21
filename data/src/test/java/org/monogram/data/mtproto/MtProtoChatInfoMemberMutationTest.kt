@@ -33,6 +33,21 @@ class MtProtoChatInfoMemberMutationTest {
     }
 
     @Test
+    fun `rejects non-representable reaction permissions`() = runTest {
+        val repository = repository(RecordingTransport(UpdatesTooLong), MtProtoChatType.SUPERGROUP)
+
+        val failure = runCatching {
+            repository.setChatMemberStatus(
+                -1_000_000_000_042L,
+                7,
+                Restricted(restrictedUntilDate = 123, permissions = ChatPermissionsModel(canReactToMessages = true)),
+            )
+        }.exceptionOrNull()
+
+        assertEquals("MTProto cannot represent reaction permissions", failure?.message)
+    }
+
+    @Test
     fun `stages channel administrator updates`() = runTest {
         val transport = RecordingTransport(UpdatesTooLong)
         val stager = RecordingStager()
@@ -65,6 +80,7 @@ class MtProtoChatInfoMemberMutationTest {
         )
         val restricted = (transport.request as EditBanned).bannedRights as org.monogram.mtproto.tl.generated.cloud.layer223.ChatBannedRights_2339df02a7
         assertTrue(restricted.sendMessages)
+        assertEquals(false, restricted.sendMedia)
         assertTrue(restricted.sendPhotos)
         assertEquals(false, restricted.sendVideos)
         assertTrue(restricted.embedLinks)

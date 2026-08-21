@@ -126,9 +126,7 @@ internal class MtProtoChatInfoRepository(
     private suspend fun userFullInfo(userId: Long): ChatFullInfoModel? {
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
-        val accessHash = requireNotNull(users.get(scope, userId)?.accessHash) {
-            "Missing MTProto user access hash: $userId"
-        }
+        val accessHash = users.get(scope, userId)?.accessHash ?: return null
         val transport = requireNotNull(transportFactory) { "MTProto chat info transport is unavailable" }.open(accountSlot)
         val result = try {
             transport.execute(GetFullUser(InputUser_4020eae812(userId, accessHash)))

@@ -249,7 +249,14 @@ class MtProtoAuthRepositoryTest {
     @Test
     fun `reopens on migrated DC and retries phone request once`() = runTest {
         val initial = FakeHandle(
-            requestCode = { throw MtProtoRpcException(303, "PHONE_MIGRATE_5") },
+            requestCode = {
+                throw org.monogram.mtproto.transport.MtProtoDcMigrationException(
+                    303,
+                    "PHONE_MIGRATE_5",
+                    org.monogram.mtproto.transport.MtProtoDcMigrationKind.PHONE,
+                    5,
+                )
+            },
         )
         val migrated = FakeHandle(
             requestCode = { AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5) },

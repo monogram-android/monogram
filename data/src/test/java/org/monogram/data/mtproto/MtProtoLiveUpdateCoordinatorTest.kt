@@ -127,6 +127,30 @@ class MtProtoLiveUpdateCoordinatorTest {
     }
 
     @Test
+    fun `stops reconnecting after bounded consecutive open failures`() = runTest {
+        var opens = 0
+        coordinator(
+            auth = FakeAuthRepository(AuthStep.Ready),
+            transportFactory = MtProtoSessionTransportFactory {
+                opens++
+                error("offline")
+            },
+            scope = backgroundScope,
+        )
+
+        testScheduler.runCurrent()
+        repeat(5) {
+            testScheduler.advanceTimeBy(1_000)
+            testScheduler.runCurrent()
+        }
+
+        assertEquals(6, opens)
+        testScheduler.advanceTimeBy(10_000)
+        testScheduler.runCurrent()
+        assertEquals(6, opens)
+    }
+
+    @Test
     fun `auth reset cancels in-flight startup and closes transport`() = runTest {
         val auth = FakeAuthRepository(AuthStep.Ready)
         val entered = CompletableDeferred<Unit>()

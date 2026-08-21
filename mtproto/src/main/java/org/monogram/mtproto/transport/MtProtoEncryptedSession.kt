@@ -14,6 +14,16 @@ internal data class DecodedEncryptedMessage(
     val duplicate: Boolean,
 )
 
+internal data class MtProtoFutureSalt(
+    val validSince: Int,
+    val validUntil: Int,
+    val value: Long,
+) {
+    init {
+        require(validSince < validUntil) { "MTProto future salt validity interval is invalid" }
+    }
+}
+
 /** Owns [authKey] after successful construction; closing the session destroys its key material. */
 class MtProtoEncryptedSession internal constructor(
     private val authKey: MtProtoAuthKey,
@@ -24,12 +34,13 @@ class MtProtoEncryptedSession internal constructor(
 
     private val lock = Any()
     private val currentTimeMillis = currentTimeMillis
-    private var serverTimeOffsetMillis = authKey.createdAt * 1_000L - currentTimeMillis()
+    private var serverTimeOffsetMillis = authKey.serverTimeAnchorSeconds * 1_000L - currentTimeMillis()
     private var serverTimeCalibrated = false
     private val messageIds = ClientMessageIdGenerator { currentTimeMillis() + serverTimeOffsetMillis }
-    private val inboundMessageIds = LinkedHashSet<Long>()
+    private val inboundMessageIds = LinkedHashMap<Long, Boolean>()
     val sessionId: Long = generateSessionId(entropy)
     private var salt = authKey.serverSalt
+    private var futureSalts = emptyList<MtProtoFutureSalt>()
     private var contentRelatedMessages = 0
     private var closed = false
 
@@ -50,7 +61,7 @@ class MtProtoEncryptedSession internal constructor(
         } else {
             contentRelatedMessages * 2
         }
-        val metadata = MtProtoEncryptedMessageMetadata(salt, sessionId, messageIds.next(), sequenceNumber)
+        val metadata = MtProtoEncryptedMessageMetadata(activeServerSalt(), sessionId, messageIds.next(), sequenceNumber)
         val packet = EncryptedMessageCodec.encode(
             authKey,
             metadata,
@@ -89,9 +100,35 @@ class MtProtoEncryptedSession internal constructor(
         admitInbound(metadata)
     }
 
+    /** MTProto [msgs_state_info] status for a server-originated message ID. */
+    internal fun inboundMessageStatus(messageId: Long): Int = synchronized(lock) {
+        inboundMessageIds[messageId]?.let { contentRelated ->
+            return@synchronized STATUS_RECEIVED or (if (contentRelated) STATUS_ACKNOWLEDGED else STATUS_NO_ACK_REQUIRED)
+        }
+        val oldest = inboundMessageIds.keys.minOrNull()
+        val newest = inboundMessageIds.keys.maxOrNull()
+        when {
+            oldest == null || messageId < oldest -> STATUS_UNKNOWN_TOO_LOW
+            newest != null && messageId > newest -> STATUS_UNKNOWN_TOO_HIGH
+            else -> STATUS_NOT_RECEIVED
+        }
+    }
+
     fun updateServerSalt(serverSalt: Long) = synchronized(lock) {
         check(!closed) { "MTProto encrypted session is closed" }
         salt = serverSalt
+    }
+
+    internal fun updateFutureSalts(salts: List<MtProtoFutureSalt>) = synchronized(lock) {
+        check(!closed) { "MTProto encrypted session is closed" }
+        futureSalts = salts
+            .distinctBy { listOf(it.validSince, it.validUntil, it.value) }
+            .sortedBy { it.validSince }
+    }
+
+    private fun activeServerSalt(): Long {
+        val now = serverTimeSeconds().toInt()
+        return futureSalts.firstOrNull { now in it.validSince until it.validUntil }?.value ?: salt
     }
 
     private fun isFresh(messageId: Long): Boolean {
@@ -109,17 +146,22 @@ class MtProtoEncryptedSession internal constructor(
         if (metadata.messageId in inboundMessageIds) return false
         calibrateServerTime(metadata.messageId)
         require(isFresh(metadata.messageId)) { "Encrypted MTProto message ID is outside the accepted time window" }
-        require(inboundMessageIds.size < MAX_TRACKED_INBOUND_IDS) {
-            "Encrypted MTProto replay window capacity exceeded"
+        if (inboundMessageIds.size == MAX_TRACKED_INBOUND_IDS) {
+            inboundMessageIds.remove(inboundMessageIds.entries.first().key)
         }
-        inboundMessageIds += metadata.messageId
+        inboundMessageIds[metadata.messageId] = metadata.sequenceNumber and 1 == 1
         return true
     }
 
     /** Telegram calibrates from the first authenticated server message before enforcing its replay window. */
-    private fun calibrateServerTime(messageId: Long) {
+    internal fun synchronizeServerTime(messageId: Long, allowDecrease: Boolean = false) = synchronized(lock) {
+        check(!closed) { "MTProto encrypted session is closed" }
+        calibrateServerTime(messageId, allowDecrease)
+    }
+
+    private fun calibrateServerTime(messageId: Long, allowDecrease: Boolean = false) {
         val observedOffsetMillis = (messageId ushr 32) * 1_000L - currentTimeMillis()
-        if (!serverTimeCalibrated || observedOffsetMillis > serverTimeOffsetMillis) {
+        if (!serverTimeCalibrated || allowDecrease || observedOffsetMillis > serverTimeOffsetMillis) {
             serverTimeOffsetMillis = observedOffsetMillis
             serverTimeCalibrated = true
         }
@@ -128,11 +170,18 @@ class MtProtoEncryptedSession internal constructor(
     override fun close() = synchronized(lock) {
         if (!closed) authKey.close()
         inboundMessageIds.clear()
+        futureSalts = emptyList()
         closed = true
     }
 
     private companion object {
         const val MAX_TRACKED_INBOUND_IDS = 65_536
+        const val STATUS_UNKNOWN_TOO_LOW = 1
+        const val STATUS_NOT_RECEIVED = 2
+        const val STATUS_UNKNOWN_TOO_HIGH = 3
+        const val STATUS_RECEIVED = 4
+        const val STATUS_ACKNOWLEDGED = 8
+        const val STATUS_NO_ACK_REQUIRED = 16
         const val MAX_INBOUND_AGE_SECONDS = 300L
         const val MAX_INBOUND_FUTURE_SECONDS = 30L
 

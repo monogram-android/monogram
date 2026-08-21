@@ -4,6 +4,9 @@ import android.util.Log
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -69,7 +72,13 @@ internal class MtProtoLiveUpdateCoordinator(
                         return@collectLatest
                     }
                     Log.i(TAG, "MTProto authorization ready; starting live updates")
+                    var reconnectAttempts = 0
                     while (runSelectedSession()) {
+                        reconnectAttempts++
+                        if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+                            Log.e(TAG, "MTProto live session reconnect limit reached")
+                            return@collectLatest
+                        }
                         Log.i(TAG, "MTProto live session reconnect scheduled")
                         delay(RECONNECT_DELAY_MILLIS)
                     }
@@ -95,6 +104,7 @@ internal class MtProtoLiveUpdateCoordinator(
         }
         activeTransport = transport
         Log.i(TAG, "MTProto live transport opened")
+        var newSessionWatcher: Job? = null
         try {
             val session = when (val opened = recovery.open(scope, transport) { }) {
                 is MtProtoRoomRecoveryOpenResult.Opened -> opened.session
@@ -115,6 +125,14 @@ internal class MtProtoLiveUpdateCoordinator(
             runCatching { storyRefresh.refreshInitialLists() }
                 .onFailure { Log.w(TAG, "MTProto story refresh failed; retaining previous projections", it) }
             dialogs.getDialogs(accountSlot)
+            newSessionWatcher = transport.newSessions?.let { events ->
+                CoroutineScope(currentCoroutineContext()).launch {
+                    events.collect { event ->
+                        Log.w(TAG, "MTProto server created a new session after msg ${event.firstMessageId}; reconnecting for recovery")
+                        transport.close()
+                    }
+                }
+            }
             val inbox = transport.updates ?: run {
                 Log.w(TAG, "MTProto live transport has no update inbox")
                 return true
@@ -148,6 +166,7 @@ internal class MtProtoLiveUpdateCoordinator(
             Log.w(TAG, "MTProto live session failed; scheduling reconnect", failure)
             return true
         } finally {
+            newSessionWatcher?.cancel()
             if (activeTransport === transport) activeTransport = null
             Log.i(TAG, "MTProto live transport closed")
             transport.close()
@@ -157,6 +176,7 @@ internal class MtProtoLiveUpdateCoordinator(
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"
         const val RECONNECT_DELAY_MILLIS = 1_000L
+        const val MAX_RECONNECT_ATTEMPTS = 5
         const val TAG = "MtProtoLiveUpdates"
     }
 }

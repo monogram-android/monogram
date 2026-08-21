@@ -23,10 +23,35 @@ class MtProtoAuthKeyRecordCodecTest {
                 assertArrayEquals(material(), restored)
                 assertEquals(id, decoded.id)
                 assertEquals(42L, decoded.serverSalt)
-                assertEquals(1_783_001_185, decoded.createdAt)
+                assertEquals(1_783_001_185, decoded.authKeyCreatedAt)
+                assertEquals(1_783_001_185, decoded.serverTimeAnchorSeconds)
             } finally {
                 restored.fill(0)
             }
+        } finally {
+            decoded.close()
+        }
+    }
+
+    @Test
+    fun decodesLegacyVersionOneRecordWithItsTimeAsBothAnchors() {
+        val material = material()
+        val id = StoredMtProtoAuthKey.calculateId(material)
+        val legacy = java.nio.ByteBuffer.allocate(288).order(java.nio.ByteOrder.BIG_ENDIAN).apply {
+            putInt(0x4d54414b)
+            putInt(1)
+            putLong(id)
+            putLong(42L)
+            putInt(1_783_001_185)
+            putInt(material.size)
+            put(material)
+        }.array()
+        material.fill(0)
+        val decoded = MtProtoAuthKeyRecordCodec.decode(legacy)
+        legacy.fill(0)
+        try {
+            assertEquals(1_783_001_185, decoded.authKeyCreatedAt)
+            assertEquals(1_783_001_185, decoded.serverTimeAnchorSeconds)
         } finally {
             decoded.close()
         }

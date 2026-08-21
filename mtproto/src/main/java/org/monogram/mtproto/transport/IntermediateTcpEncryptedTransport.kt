@@ -10,11 +10,16 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -30,16 +35,24 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5BoxedC
 import org.monogram.mtproto.tl.generated.cloud.layer223.registry.CloudLayer223ConstructorRegistry
 import org.monogram.mtproto.tl.generated.transport.BadMsgNotification_96e011accc
 import org.monogram.mtproto.tl.generated.transport.BadServerSalt
+import org.monogram.mtproto.tl.generated.transport.FutureSalts_9e3c917caa
+import org.monogram.mtproto.tl.generated.transport.GetFutureSalts
 import org.monogram.mtproto.tl.generated.transport.GzipPacked
 import org.monogram.mtproto.tl.generated.transport.MsgContainer
+import org.monogram.mtproto.tl.generated.transport.MsgResendReq_d71e4a05c1
 import org.monogram.mtproto.tl.generated.transport.MsgsAck_3546e430bb
+import org.monogram.mtproto.tl.generated.transport.MsgsStateInfo_0ad1af2039
+import org.monogram.mtproto.tl.generated.transport.MsgsStateReq_a87fe6bb71
 import org.monogram.mtproto.tl.generated.transport.Message_48a7e89a1b
+import org.monogram.mtproto.tl.generated.transport.PingDelayDisconnect
+import org.monogram.mtproto.tl.generated.transport.Pong_fbc65fe5b1
 import org.monogram.mtproto.tl.generated.transport.NewSessionCreated
 import org.monogram.mtproto.tl.generated.transport.RpcError_134c3d92c4
 import org.monogram.mtproto.tl.generated.transport.RpcError_134c3d92c4Codec
 import org.monogram.mtproto.tl.generated.transport.RpcResult_f5247d1af6
 import org.monogram.mtproto.tl.generated.transport.registry.TransportConstructorRegistry
 import org.monogram.mtproto.tl.runtime.TlDecodeContext
+import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.tl.runtime.TlDeferredObject
 import org.monogram.mtproto.tl.runtime.TlLimits
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -49,17 +62,57 @@ import org.monogram.mtproto.tl.runtime.TlSchemaIdentity
 import org.monogram.mtproto.tl.runtime.TlSchemaKind
 import org.monogram.mtproto.tl.runtime.TlUnknownConstructorException
 
+data class MtProtoNewSessionEvent(
+    val firstMessageId: Long,
+    val uniqueId: Long,
+)
+
 interface MtProtoRpcTransport : AutoCloseable {
     val updates: MtProtoApiUpdateInbox?
+        get() = null
+    val newSessions: Flow<MtProtoNewSessionEvent>?
         get() = null
 
     suspend fun <R> execute(method: TlMethod<R>): R
 }
 
-class MtProtoRpcException(
+interface MtProtoSessionMaintenance {
+    suspend fun refreshFutureSalts()
+}
+
+open class MtProtoRpcException(
     val errorCode: Int,
     val rpcMessage: String,
-) : IllegalStateException("MTProto RPC failed with code $errorCode: $rpcMessage")
+) : IllegalStateException("MTProto RPC failed with code $errorCode: $rpcMessage") {
+    companion object {
+        fun from(errorCode: Int, rpcMessage: String): MtProtoRpcException {
+            if (errorCode != MIGRATION_ERROR_CODE) return MtProtoRpcException(errorCode, rpcMessage)
+            val match = MIGRATION_ERROR.matchEntire(rpcMessage) ?: return MtProtoRpcException(errorCode, rpcMessage)
+            val dcId = match.groupValues[2].toIntOrNull()?.takeIf { it in 1..MAX_DC_ID }
+                ?: return MtProtoRpcException(errorCode, rpcMessage)
+            return MtProtoDcMigrationException(errorCode, rpcMessage, MtProtoDcMigrationKind.valueOf(match.groupValues[1]), dcId)
+        }
+
+        private val MIGRATION_ERROR = Regex("(PHONE|NETWORK|USER|FILE)_MIGRATE_([0-9]+)")
+        private const val MIGRATION_ERROR_CODE = 303
+        private const val MAX_DC_ID = 1_000
+    }
+}
+
+enum class MtProtoDcMigrationKind { PHONE, NETWORK, USER, FILE }
+
+class MtProtoDcMigrationException(
+    errorCode: Int,
+    rpcMessage: String,
+    val kind: MtProtoDcMigrationKind,
+    val targetDcId: Int,
+) : MtProtoRpcException(errorCode, rpcMessage)
+
+/** The request bytes reached the active socket, but no terminal server outcome was received. */
+class MtProtoUncertainDeliveryException(cause: Throwable) : IOException(
+    "MTProto request delivery is uncertain after transmission",
+    cause,
+)
 
 /** Owns [session]; closing the transport closes the session and destroys its auth key. */
 class IntermediateTcpEncryptedTransport(
@@ -69,10 +122,11 @@ class IntermediateTcpEncryptedTransport(
     private val methodRegistry: TlMethodRegistry = CloudLayer223ConstructorRegistry,
     private val connectTimeoutMillis: Int = 10_000,
     private val readTimeoutMillis: Int = 15_000,
+    private val idlePingIntervalMillis: Long = DEFAULT_IDLE_PING_INTERVAL_MILLIS,
     private val onServerSaltChanged: (suspend (Long) -> Unit)? = null,
     private val onServerTimeChanged: (suspend (Long) -> Unit)? = null,
     private val trafficListener: MtProtoTrafficListener? = null,
-) : MtProtoRpcTransport {
+) : MtProtoRpcTransport, MtProtoSessionMaintenance {
     private val requestMutex = Mutex()
     private val stateLock = Any()
     private val writeLock = Any()
@@ -82,14 +136,21 @@ class IntermediateTcpEncryptedTransport(
     private var preambleSent = false
     private var closed = false
     private var pendingRequest: PendingRequest? = null
+    private var idleWatchdog: Job? = null
+    @Volatile
+    private var lastTrafficAtMillis = System.currentTimeMillis()
+    private val sentMessages = SentMessageRegistry()
     private val methodContext = TlDecodeContext(methodRegistry.schema, 0, TlLimits.DEFAULT)
     override val updates = MtProtoApiUpdateInbox()
+    private val _newSessions = MutableSharedFlow<MtProtoNewSessionEvent>(replay = 1, extraBufferCapacity = 1)
+    override val newSessions: Flow<MtProtoNewSessionEvent> = _newSessions.asSharedFlow()
 
     init {
         require(host.isNotBlank()) { "host must not be blank" }
         require(port in 1..65535) { "port must be within 1..65535" }
         require(connectTimeoutMillis in 1..120_000) { "connectTimeoutMillis must be within 1..120000" }
         require(readTimeoutMillis in 1..120_000) { "readTimeoutMillis must be within 1..120000" }
+        require(idlePingIntervalMillis in 1_000L..3_600_000L) { "idlePingIntervalMillis must be within 1000..3600000" }
     }
 
     override suspend fun <R> execute(method: TlMethod<R>): R = requestMutex.withLock {
@@ -112,11 +173,14 @@ class IntermediateTcpEncryptedTransport(
                 check(pendingRequest == null) { "Another MTProto RPC request is already pending" }
                 pendingRequest = pending
             }
+            var requestSent = false
             try {
                 MtProtoTransportLog.debug {
                     "send rpc endpoint=$host:$port msgId=${request.metadata.messageId} seqNo=${request.metadata.sequenceNumber} method=${method.debugName()} bytes=${request.packet.size}"
                 }
+                sentMessages.track(request.metadata.messageId, request.packet)
                 sendRequest(request.packet)
+                requestSent = true
                 when (val outcome = withTimeout(readTimeoutMillis.toLong()) { completion.await() }) {
                     is RpcOutcome.Success -> {
                         MtProtoTransportLog.debug {
@@ -152,11 +216,15 @@ class IntermediateTcpEncryptedTransport(
                     }
                     disconnect()
                 }
+                if (requestSent && failure !is CancellationException) {
+                    throw MtProtoUncertainDeliveryException(failure)
+                }
                 throw failure
             } finally {
                 synchronized(stateLock) {
                     if (pendingRequest === pending) pendingRequest = null
                 }
+                sentMessages.remove(request.metadata.messageId)
                 request.packet.fill(0)
             }
         }
@@ -189,7 +257,34 @@ class IntermediateTcpEncryptedTransport(
                 true
             }
         }
-        if (shouldStart) readerScope.launch { readLoop(activeSocket) }
+        if (shouldStart) {
+            idleWatchdog?.cancel()
+            idleWatchdog = readerScope.launch { idlePingLoop() }
+            readerScope.launch { readLoop(activeSocket) }
+        }
+    }
+
+    private suspend fun idlePingLoop() {
+        while (currentCoroutineContext().isActive) {
+            delay(idlePingIntervalMillis)
+            if (System.currentTimeMillis() - lastTrafficAtMillis >= idlePingIntervalMillis) {
+                runCatching { sendIdlePing() }.onFailure { disconnect() }
+            }
+        }
+    }
+
+    private fun sendIdlePing() {
+        val pingBody = encodeMethod(PingDelayDisconnect(PING_ID_PREFIX xor System.nanoTime(), IDLE_DISCONNECT_DELAY_SECONDS))
+        val ping = try {
+            session.encodeTracked(pingBody, contentRelated = false)
+        } finally {
+            pingBody.fill(0)
+        }
+        try {
+            writePacket(ping.packet)
+        } finally {
+            ping.packet.fill(0)
+        }
     }
 
     private suspend fun readLoop(activeSocket: Socket) {
@@ -286,6 +381,9 @@ class IntermediateTcpEncryptedTransport(
             is NewSessionCreated -> {
                 session.updateServerSalt(value.serverSalt)
                 onServerSaltChanged?.invoke(value.serverSalt)
+                check(_newSessions.tryEmit(MtProtoNewSessionEvent(value.firstMsgId, value.uniqueId))) {
+                    "Unable to publish MTProto new-session event"
+                }
                 null
             }
             is BadServerSalt -> {
@@ -297,6 +395,8 @@ class IntermediateTcpEncryptedTransport(
             is BadMsgNotification_96e011accc -> {
                 val pending = pendingFor(value.badMsgId, value.badMsgSeqno) ?: return null
                 if (value.errorCode in MESSAGE_ID_TIME_ERROR_CODES) {
+                    session.synchronizeServerTime(metadata.messageId, allowDecrease = value.errorCode == MESSAGE_ID_TOO_HIGH_ERROR_CODE)
+                    onServerTimeChanged?.invoke(session.serverTimeSeconds())
                     TerminalAction.Result(pending, RpcOutcome.RetryMessageId)
                 } else {
                     TerminalAction.Failure(
@@ -305,7 +405,30 @@ class IntermediateTcpEncryptedTransport(
                     )
                 }
             }
-            is MsgsAck_3546e430bb -> null
+            is MsgResendReq_d71e4a05c1 -> {
+                require(value.msgIds.size <= MAX_SERVICE_MESSAGE_IDS) { "Too many MTProto resend IDs" }
+                sentMessages.copiesFor(value.msgIds).forEach { packet ->
+                    try {
+                        writePacket(packet)
+                    } finally {
+                        packet.fill(0)
+                    }
+                }
+                if (value.msgIds.any { !sentMessages.contains(it) }) {
+                    sendMessageStateInfo(metadata.messageId, value.msgIds)
+                }
+                null
+            }
+            is MsgsStateReq_a87fe6bb71 -> {
+                require(value.msgIds.size <= MAX_SERVICE_MESSAGE_IDS) { "Too many MTProto state IDs" }
+                sendMessageStateInfo(metadata.messageId, value.msgIds)
+                null
+            }
+            is Pong_fbc65fe5b1 -> null
+            is MsgsAck_3546e430bb -> {
+                sentMessages.removeAll(value.msgIds)
+                null
+            }
             is Updates_faf6aaa3d5 -> {
                 updates.admit(value)
                 null
@@ -367,7 +490,7 @@ class IntermediateTcpEncryptedTransport(
             return when (constructorId(bytes)) {
                 RpcError_134c3d92c4.CONSTRUCTOR_ID -> {
                     val error = TlBinaryCodec.decode(RpcError_134c3d92c4Codec, bytes, TRANSPORT_CONTEXT)
-                    throw MtProtoRpcException(error.errorCode, error.errorMessage)
+                    throw MtProtoRpcException.from(error.errorCode, error.errorMessage)
                 }
                 GzipPacked.CONSTRUCTOR_ID -> {
                     val gzip = TlBinaryCodec.decode(
@@ -395,8 +518,50 @@ class IntermediateTcpEncryptedTransport(
         TlBinaryCodec.decode(Updates_faf6aaa3d5BoxedCodec, body, CLOUD_CONTEXT)
     }
 
-    private fun encodeMethod(method: TlMethod<*>): ByteArray =
-        TlBinaryWriter().also { methodRegistry.encodeMethod(it, method) }.toByteArray()
+    override suspend fun refreshFutureSalts() = refreshFutureSalts(FUTURE_SALT_REQUEST_COUNT)
+
+    private suspend fun refreshFutureSalts(count: Int) {
+        require(count in 1..MAX_FUTURE_SALT_REQUEST_COUNT) { "Invalid MTProto future-salt request count" }
+        val result = execute(GetFutureSalts(count)) as? FutureSalts_9e3c917caa
+            ?: throw protocolFailure("Unexpected get_future_salts response")
+        session.updateFutureSalts(
+            result.salts.map { MtProtoFutureSalt(it.validSince, it.validUntil, it.salt) },
+        )
+    }
+
+    private fun encodeMethod(method: TlMethod<*>): ByteArray {
+        val cloudWriter = TlBinaryWriter()
+        return runCatching {
+            methodRegistry.encodeMethod(cloudWriter, method)
+            cloudWriter.toByteArray()
+        }.getOrElse {
+            TlBinaryWriter().also { TransportConstructorRegistry.encodeMethod(it, method) }.toByteArray()
+        }
+    }
+
+    private fun sendMessageStateInfo(requestMessageId: Long, messageIds: List<Long>) {
+        val states = ByteArray(messageIds.size) { index -> session.inboundMessageStatus(messageIds[index]).toByte() }
+        val writer = TlBinaryWriter()
+        val body = try {
+            TransportConstructorRegistry.encode(
+                writer,
+                MsgsStateInfo_0ad1af2039(requestMessageId, TlBytes.copyOf(states)),
+            )
+            writer.toByteArray()
+        } finally {
+            states.fill(0)
+        }
+        val response = try {
+            session.encodeTracked(body, contentRelated = false)
+        } finally {
+            body.fill(0)
+        }
+        try {
+            writePacket(response.packet)
+        } finally {
+            response.packet.fill(0)
+        }
+    }
 
     private fun sendAcknowledgements(messageIds: List<Long>) {
         if (messageIds.isEmpty()) return
@@ -427,6 +592,7 @@ class IntermediateTcpEncryptedTransport(
                 flush()
             }
             synchronized(stateLock) { preambleSent = true }
+            lastTrafficAtMillis = System.currentTimeMillis()
             trafficListener?.onTraffic(frame.size, 0)
         } finally {
             frame.fill(0)
@@ -502,6 +668,8 @@ class IntermediateTcpEncryptedTransport(
         val current = socket?.takeIf { expectedSocket == null || it === expectedSocket }
         if (current == null) return@synchronized
         socket = null
+        idleWatchdog?.cancel()
+        idleWatchdog = null
         if (readerSocket === current) readerSocket = null
         preambleSent = false
         runCatching { current.close() }
@@ -515,6 +683,8 @@ class IntermediateTcpEncryptedTransport(
             val current = socket
             socket = null
             readerSocket = null
+            idleWatchdog?.cancel()
+            idleWatchdog = null
             preambleSent = false
             runCatching { current?.close() }
             pending = pendingRequest
@@ -522,6 +692,7 @@ class IntermediateTcpEncryptedTransport(
         }
         pending?.completion?.cancel()
         readerScope.cancel()
+        sentMessages.clear()
         updates.close()
         session.close()
     }
@@ -577,9 +748,16 @@ class IntermediateTcpEncryptedTransport(
     private companion object {
         const val MAX_QUICK_ACKS = 16
         const val MAX_CONTAINER_DEPTH = 8
+        const val DEFAULT_IDLE_PING_INTERVAL_MILLIS = 60_000L
+        const val IDLE_DISCONNECT_DELAY_SECONDS = 75
+        const val PING_ID_PREFIX = 0x4d5450524f544f4cL
+        const val MAX_SERVICE_MESSAGE_IDS = 8_192
+        const val FUTURE_SALT_REQUEST_COUNT = 32
+        const val MAX_FUTURE_SALT_REQUEST_COUNT = 64
         const val MAX_SALT_RETRIES = 1
         const val MAX_MESSAGE_ID_RETRIES = 1
-        val MESSAGE_ID_TIME_ERROR_CODES = setOf(16, 20)
+        const val MESSAGE_ID_TOO_HIGH_ERROR_CODE = 17
+        val MESSAGE_ID_TIME_ERROR_CODES = setOf(16, MESSAGE_ID_TOO_HIGH_ERROR_CODE, 20)
         val TRANSPORT_CONTEXT = TlDecodeContext(
             TlSchemaIdentity(TlSchemaKind.TRANSPORT, null),
             0,

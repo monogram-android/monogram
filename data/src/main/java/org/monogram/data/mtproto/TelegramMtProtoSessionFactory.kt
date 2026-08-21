@@ -1,6 +1,11 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.CancellationException
 import org.monogram.data.BuildConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.ExportAuthorization
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.ExportedAuthorization_cdf68dd957
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.ImportAuthorization
+import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.data.infra.TelegramClientMetadataProvider
 import org.monogram.mtproto.handshake.MtProtoAuthKey
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
@@ -12,6 +17,7 @@ import org.monogram.mtproto.transport.MtProtoHandshakeConnection
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.monogram.mtproto.transport.MtProtoRpcTransport
+import org.monogram.mtproto.transport.MtProtoSessionMaintenance
 import org.monogram.mtproto.transport.MtProtoEncryptedSession
 import org.monogram.mtproto.transport.MtProtoTrafficListener
 
@@ -138,6 +144,8 @@ internal class TelegramMtProtoSessionFactory(
         )
     },
 ) {
+    private val secondaryAuthorizationMutex = Mutex()
+
     suspend fun open(accountSlot: String = DEFAULT_ACCOUNT_SLOT): MtProtoRpcTransport = open(accountSlot, null)
 
     suspend fun open(accountSlot: String, dcId: Int?): MtProtoRpcTransport {
@@ -158,6 +166,12 @@ internal class TelegramMtProtoSessionFactory(
             throw failure
         }
         return try {
+            try {
+                (transport as? MtProtoSessionMaintenance)?.refreshFutureSalts()
+            } catch (failure: Throwable) {
+                if (failure is CancellationException) throw failure
+            }
+            authorizeSecondaryDcIfNeeded(accountSlot, config.endpoint.dcId, transport)
             userProjectionStore.backfill(scope)
             chatProjectionStore.backfill(scope)
             messageProjectionStore.backfill(scope)
@@ -168,8 +182,36 @@ internal class TelegramMtProtoSessionFactory(
         }
     }
 
+    private suspend fun authorizeSecondaryDcIfNeeded(
+        accountSlot: String,
+        targetDcId: Int,
+        targetTransport: MtProtoRpcTransport,
+    ) {
+        val homeDcId = configSource.createForAccount(accountSlot).endpoint.dcId
+        if (targetDcId == homeDcId) return
+
+        require(targetDcId in SUPPORTED_DC_IDS) { "Unsupported secondary Telegram DC: $targetDcId" }
+        val homeTransport = open(accountSlot, homeDcId)
+        try {
+            secondaryAuthorizationMutex.withLock {
+                val exported = homeTransport.execute(ExportAuthorization(targetDcId))
+                val authorization = exported as? ExportedAuthorization_cdf68dd957
+                    ?: error("auth.exportAuthorization returned an unsupported authorization object")
+                val bytes = authorization.bytes.toByteArray()
+                try {
+                    targetTransport.execute(ImportAuthorization(authorization.id, TlBytes.copyOf(bytes)))
+                } finally {
+                    bytes.fill(0)
+                }
+            }
+        } finally {
+            homeTransport.close()
+        }
+    }
+
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"
+        val SUPPORTED_DC_IDS = 1..5
 
         fun createEncryptedTransport(
             scope: MtProtoAuthKeyScope,
@@ -187,7 +229,7 @@ internal class TelegramMtProtoSessionFactory(
             }
             val stateLock = Mutex()
             var serverSalt = authKey.serverSalt
-            var serverTimeSeconds = authKey.createdAt.toLong()
+            var serverTimeSeconds = authKey.serverTimeAnchorSeconds.toLong()
             val raw = try {
                 IntermediateTcpEncryptedTransport(
                     host = endpoint.host,

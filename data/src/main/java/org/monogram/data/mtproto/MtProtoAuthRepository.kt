@@ -245,7 +245,9 @@ internal class MtProtoAuthRepository(
     ): AuthStep = try {
         handle.requestCode(phone)
     } catch (rpc: org.monogram.mtproto.transport.MtProtoRpcException) {
-        val dcId = rpc.phoneMigrationDcId()
+        val dcId = (rpc as? org.monogram.mtproto.transport.MtProtoDcMigrationException)
+            ?.takeIf { it.kind == org.monogram.mtproto.transport.MtProtoDcMigrationKind.PHONE }
+            ?.targetDcId
         when {
             dcId != null -> replaceSessionAndRequestCode(phone, handle, actionGeneration, dcId)
             rpc.isAuthRestart() -> replaceSessionAndRequestCode(phone, handle, actionGeneration, null)
@@ -283,14 +285,6 @@ internal class MtProtoAuthRepository(
         return nextState
     }
 
-    private fun org.monogram.mtproto.transport.MtProtoRpcException.phoneMigrationDcId(): Int? {
-        if (errorCode != PHONE_MIGRATE_ERROR_CODE) return null
-        return rpcMessage.removePrefix(PHONE_MIGRATE_PREFIX)
-            .takeIf { rpcMessage.startsWith(PHONE_MIGRATE_PREFIX) }
-            ?.toIntOrNull()
-            ?.takeIf { it > 0 }
-    }
-
     private fun org.monogram.mtproto.transport.MtProtoRpcException.isAuthRestart(): Boolean =
         rpcMessage.trim().uppercase() == AUTH_RESTART
 
@@ -305,8 +299,6 @@ internal class MtProtoAuthRepository(
 
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"
-        const val PHONE_MIGRATE_ERROR_CODE = 303
-        const val PHONE_MIGRATE_PREFIX = "PHONE_MIGRATE_"
         const val AUTH_RESTART = "AUTH_RESTART"
         const val TAG = "MtProtoAuth"
     }

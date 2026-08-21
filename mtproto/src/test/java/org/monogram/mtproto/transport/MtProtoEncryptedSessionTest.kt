@@ -127,6 +127,90 @@ class MtProtoEncryptedSessionTest {
     }
 
     @Test
+    fun rollsInboundReplayWindowWithoutRejectingLongLivedSession() {
+        val authKey = authKey()
+        val session = MtProtoEncryptedSession(authKey, CounterEntropy(), { 1_700_000_000_000L })
+        try {
+            repeat(REPLAY_WINDOW_CAPACITY + 1) { index ->
+                assertEquals(true, session.admitNested(serverMetadata(index)))
+            }
+
+            assertEquals(false, session.admitNested(serverMetadata(REPLAY_WINDOW_CAPACITY)))
+            assertEquals(true, session.admitNested(serverMetadata(0)))
+        } finally {
+            session.close()
+        }
+    }
+
+    @Test
+    fun selectsOnlyCurrentlyValidFutureServerSalt() {
+        val authKey = authKey()
+        val session = MtProtoEncryptedSession(authKey, CounterEntropy(), { 1_700_000_000_000L })
+        var packet: ByteArray? = null
+        try {
+            session.updateFutureSalts(
+                listOf(
+                    MtProtoFutureSalt(1_699_999_000, 1_699_999_999, 11L),
+                    MtProtoFutureSalt(1_699_999_999, 1_700_000_001, 22L),
+                    MtProtoFutureSalt(1_700_000_001, 1_700_001_000, 33L),
+                ),
+            )
+            packet = session.encode(BODY, contentRelated = false)
+            EncryptedMessageCodec.decode(authKey, session.sessionId, packet, EncryptedMessageCodec.CLIENT_X).use {
+                assertEquals(22L, it.metadata.serverSalt)
+            }
+            packet.fill(0)
+            packet = null
+
+            session.updateFutureSalts(listOf(MtProtoFutureSalt(1_699_999_000, 1_699_999_999, 11L)))
+            packet = session.encode(BODY, contentRelated = false)
+            EncryptedMessageCodec.decode(authKey, session.sessionId, packet, EncryptedMessageCodec.CLIENT_X).use {
+                assertEquals(73L, it.metadata.serverSalt)
+            }
+        } finally {
+            packet?.fill(0)
+            session.close()
+        }
+    }
+
+    @Test
+    fun authoritativeServerTimeCanCorrectAnOverestimatedClock() {
+        val authKey = authKey(createdAt = 1_700_000_600)
+        val session = MtProtoEncryptedSession(authKey, CounterEntropy(), { 1_700_000_000_000L })
+        var packet: ByteArray? = null
+        try {
+            session.synchronizeServerTime(serverMetadata(0).messageId, allowDecrease = true)
+            packet = session.encode(BODY, contentRelated = true)
+            EncryptedMessageCodec.decode(authKey, session.sessionId, packet, EncryptedMessageCodec.CLIENT_X).use {
+                assertEquals(1_700_000_000L, it.metadata.messageId ushr 32)
+            }
+        } finally {
+            packet?.fill(0)
+            session.close()
+        }
+    }
+
+    @Test
+    fun classifiesInboundMessageStateForProtocolStatusQueries() {
+        val authKey = authKey()
+        val session = MtProtoEncryptedSession(authKey, CounterEntropy(), { 1_700_000_000_000L })
+        try {
+            val contentRelated = serverMetadata(5).copy(sequenceNumber = 1)
+            val irrelevant = serverMetadata(7).copy(sequenceNumber = 0)
+            assertEquals(true, session.admitNested(contentRelated))
+            assertEquals(true, session.admitNested(irrelevant))
+
+            assertEquals(12, session.inboundMessageStatus(contentRelated.messageId))
+            assertEquals(20, session.inboundMessageStatus(irrelevant.messageId))
+            assertEquals(1, session.inboundMessageStatus(serverMetadata(0).messageId))
+            assertEquals(2, session.inboundMessageStatus(serverMetadata(6).messageId))
+            assertEquals(3, session.inboundMessageStatus(serverMetadata(8).messageId))
+        } finally {
+            session.close()
+        }
+    }
+
+    @Test
     fun appliesUpdatedSaltAndRejectsUseAfterClose() {
         val authKey = authKey()
         val session = MtProtoEncryptedSession(authKey, CounterEntropy(), { 1_700_000_000_000L })
@@ -184,6 +268,13 @@ class MtProtoEncryptedSessionTest {
         }
     }
 
+    private fun serverMetadata(index: Int) = MtProtoEncryptedMessageMetadata(
+        serverSalt = 0L,
+        sessionId = 1L,
+        messageId = (1_700_000_000L shl 32) or (index.toLong() shl 1) or 1L,
+        sequenceNumber = 0,
+    )
+
     private class CounterEntropy : EntropySource {
         private var call = 0
         override fun nextBytes(destination: ByteArray) {
@@ -192,12 +283,12 @@ class MtProtoEncryptedSessionTest {
         }
     }
 
-    private fun authKey(): MtProtoAuthKey {
+    private fun authKey(createdAt: Int = 1_700_000_000): MtProtoAuthKey {
         val material = ByteArray(MtProtoAuthKey.MATERIAL_BYTES) { it.toByte() }
         val idBytes = MtProtoKeyDerivation.authKeyIdBytes(material)
         return try {
             val id = ByteBuffer.wrap(idBytes).order(ByteOrder.LITTLE_ENDIAN).long
-            MtProtoAuthKey.restore(material, id, 73L, 1_700_000_000)
+            MtProtoAuthKey.restore(material, id, 73L, createdAt)
         } finally {
             idBytes.fill(0)
             material.fill(0)
@@ -205,6 +296,7 @@ class MtProtoEncryptedSessionTest {
     }
 
     private companion object {
+        const val REPLAY_WINDOW_CAPACITY = 65_536
         val BODY = byteArrayOf(0x78, 0x56, 0x34, 0x12)
     }
 }

@@ -51,9 +51,11 @@ class MtProtoHandshakeException(
 
 class MtProtoAuthKey internal constructor(
     private val established: org.monogram.mtproto.crypto.EstablishedAuthKey,
+    val serverTimeAnchorSeconds: Int = established.createdAt,
 ) : AutoCloseable {
     val id: Long get() = established.id
     val serverSalt: Long get() = established.serverSalt
+    /** Server time received while establishing this immutable authorization key. */
     val createdAt: Int get() = established.createdAt
     fun toByteArray(): ByteArray = established.material.toByteArray()
     override fun close() = established.close()
@@ -61,7 +63,13 @@ class MtProtoAuthKey internal constructor(
     companion object {
         const val MATERIAL_BYTES = 256
 
-        fun restore(material: ByteArray, id: Long, serverSalt: Long, createdAt: Int): MtProtoAuthKey {
+        fun restore(
+            material: ByteArray,
+            id: Long,
+            serverSalt: Long,
+            createdAt: Int,
+            serverTimeAnchorSeconds: Int = createdAt,
+        ): MtProtoAuthKey {
             require(material.size == MATERIAL_BYTES) { "MTProto auth key must contain 256 bytes" }
             val idBytes = MtProtoKeyDerivation.authKeyIdBytes(material)
             val calculatedId = try {
@@ -77,6 +85,7 @@ class MtProtoAuthKey internal constructor(
                     serverSalt = serverSalt,
                     createdAt = createdAt,
                 ),
+                serverTimeAnchorSeconds,
             )
         }
     }

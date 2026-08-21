@@ -11,6 +11,7 @@ import kotlin.concurrent.thread
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -41,6 +42,60 @@ import org.monogram.mtproto.tl.runtime.TlLimits
 
 class IntermediateTcpEncryptedTransportTest {
     @Test
+    fun parsesKnownDcMigrationErrorsIntoTypedFailures() {
+        listOf(
+            "PHONE_MIGRATE_2" to MtProtoDcMigrationKind.PHONE,
+            "NETWORK_MIGRATE_3" to MtProtoDcMigrationKind.NETWORK,
+            "USER_MIGRATE_4" to MtProtoDcMigrationKind.USER,
+            "FILE_MIGRATE_5" to MtProtoDcMigrationKind.FILE,
+        ).forEach { (message, kind) ->
+            val error = MtProtoRpcException.from(303, message) as MtProtoDcMigrationException
+            assertEquals(kind, error.kind)
+            assertEquals(message.substringAfterLast('_').toInt(), error.targetDcId)
+        }
+        assertTrue(MtProtoRpcException.from(303, "PHONE_MIGRATE_0") !is MtProtoDcMigrationException)
+        assertTrue(MtProtoRpcException.from(400, "PHONE_MIGRATE_2") !is MtProtoDcMigrationException)
+        assertTrue(MtProtoRpcException.from(303, "MIGRATE_2") !is MtProtoDcMigrationException)
+    }
+
+    @Test
+    fun retainsIndependentEnvelopeCopiesUntilAcknowledged() {
+        val registry = SentMessageRegistry(capacity = 2)
+        val original = byteArrayOf(1, 2, 3, 4)
+        try {
+            registry.track(7L, original)
+            original.fill(0)
+
+            val replay = registry.copiesFor(listOf(7L))
+            try {
+                assertEquals(1, replay.size)
+                assertTrue(replay.single().contentEquals(byteArrayOf(1, 2, 3, 4)))
+            } finally {
+                replay.forEach { it.fill(0) }
+            }
+
+            registry.removeAll(listOf(7L))
+            assertTrue(registry.copiesFor(listOf(7L)).isEmpty())
+        } finally {
+            original.fill(0)
+            registry.clear()
+        }
+    }
+
+    @Test
+    fun rejectsUnboundedUnacknowledgedEnvelopeGrowth() {
+        val registry = SentMessageRegistry(capacity = 1)
+        try {
+            registry.track(7L, byteArrayOf(1))
+            assertThrows(IllegalStateException::class.java) {
+                registry.track(9L, byteArrayOf(2))
+            }
+        } finally {
+            registry.clear()
+        }
+    }
+
+    @Test
     fun disconnectsWithoutAcknowledgingUnsupportedAuthenticatedObject() {
         ServerSocket(0).use { server ->
             val clientAuth = authKey()
@@ -51,7 +106,7 @@ class IntermediateTcpEncryptedTransportTest {
                 try {
                     server.accept().use { peer ->
                         readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, true).close()
-                        val unsupported = encodeObject(Pong_fbc65fe5b1(1L, PING_ID))
+                        val unsupported = encodeObject(RpcError_134c3d92c4(400, "UNSUPPORTED_SERVICE"))
                         try {
                             writeServerMessage(peer, serverAuth, session.sessionId, serverMessageId(1), 1, unsupported)
                         } finally {
@@ -73,9 +128,10 @@ class IntermediateTcpEncryptedTransportTest {
                 TransportConstructorRegistry,
             )
             try {
-                assertThrows(IllegalArgumentException::class.java) {
+                val failure = assertThrows(MtProtoUncertainDeliveryException::class.java) {
                     runBlocking { transport.execute(Ping(PING_ID)) }
                 }
+                assertTrue(failure.cause != null)
             } finally {
                 transport.close()
             }
@@ -315,12 +371,14 @@ class IntermediateTcpEncryptedTransportTest {
             val serverAuth = authKey()
             val session = MtProtoEncryptedSession(clientAuth, CounterEntropy(), NOW_MILLIS)
             val observedSalts = mutableListOf<Long>()
+            val firstRequestMessageId = AtomicReference<Long>()
             val failure = AtomicReference<Throwable?>()
             val worker = thread(name = "mtproto-encrypted-loopback") {
                 try {
                     server.accept().use { peer ->
                         val request = readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, expectPreamble = true)
                         request.use {
+                            firstRequestMessageId.set(request.metadata.messageId)
                             assertEquals(Ping.CONSTRUCTOR_ID, constructorId(request.copyBodyAndWipe()))
                             val pong = encodeObject(Pong_fbc65fe5b1(request.metadata.messageId, PING_ID))
                             val rpc = encodeObject(
@@ -389,6 +447,9 @@ class IntermediateTcpEncryptedTransportTest {
                 assertEquals(PING_ID, pong.pingId)
                 assertEquals(UPDATED_SALT, session.serverSalt)
                 assertEquals(listOf(UPDATED_SALT), observedSalts)
+                val newSession = runBlocking { transport.newSessions!!.first() }
+                assertEquals(firstRequestMessageId.get(), newSession.firstMessageId)
+                assertEquals(77L, newSession.uniqueId)
                 assertEquals(UpdatesTooLong, runBlocking { withTimeout(5_000) { transport.updates.receive() } })
             } finally {
                 transport.close()

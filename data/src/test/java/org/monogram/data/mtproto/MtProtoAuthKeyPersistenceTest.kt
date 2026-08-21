@@ -166,7 +166,8 @@ class MtProtoAuthKeyPersistenceTest {
             val loaded = persistence.load(scope) as PersistedMtProtoAuthKeyResult.Found
             loaded.authKey.use { restored ->
                 assertEquals(99L, restored.serverSalt)
-                assertEquals(1_783_002_000, restored.createdAt)
+                assertEquals(1_783_001_185, restored.createdAt)
+                assertEquals(1_783_002_000, restored.serverTimeAnchorSeconds)
             }
         } finally {
             key.close()
@@ -185,7 +186,8 @@ class MtProtoAuthKeyPersistenceTest {
             persistence.updateServerTime(scope, key, 1_783_001_999L)
             val loaded = persistence.load(scope) as PersistedMtProtoAuthKeyResult.Found
             loaded.authKey.use { restored ->
-                assertEquals(1_783_001_999, restored.createdAt)
+                assertEquals(1_783_001_185, restored.createdAt)
+                assertEquals(1_783_001_999, restored.serverTimeAnchorSeconds)
                 assertEquals(73L, restored.serverSalt)
                 val material = restored.toByteArray()
                 val expected = key.toByteArray()
@@ -234,7 +236,13 @@ class MtProtoAuthKeyPersistenceTest {
             val material = current.copyMaterial()
             return try {
                 MtProtoAuthKeyLoadResult.Found(
-                    StoredMtProtoAuthKey.create(material, current.id, current.serverSalt, current.createdAt),
+                    StoredMtProtoAuthKey.create(
+                        material,
+                        current.id,
+                        current.serverSalt,
+                        current.authKeyCreatedAt,
+                        current.serverTimeAnchorSeconds,
+                    ),
                 )
             } finally {
                 material.fill(0)
@@ -246,7 +254,13 @@ class MtProtoAuthKeyPersistenceTest {
             stored?.close()
             val material = authKey.copyMaterial()
             stored = try {
-                StoredMtProtoAuthKey.create(material, authKey.id, authKey.serverSalt, authKey.createdAt)
+                StoredMtProtoAuthKey.create(
+                    material,
+                    authKey.id,
+                    authKey.serverSalt,
+                    authKey.authKeyCreatedAt,
+                    authKey.serverTimeAnchorSeconds,
+                )
             } finally {
                 material.fill(0)
             }

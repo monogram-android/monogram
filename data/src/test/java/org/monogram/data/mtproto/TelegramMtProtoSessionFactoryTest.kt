@@ -8,9 +8,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoAuthKey
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.ExportAuthorization
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.ExportedAuthorization_cdf68dd957
+import org.monogram.mtproto.tl.generated.cloud.layer223.auth.ImportAuthorization
+import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
 import org.monogram.mtproto.transport.MtProtoHandshakeConnection
 import org.monogram.mtproto.transport.MtProtoRpcTransport
+import org.monogram.mtproto.transport.MtProtoSessionMaintenance
 import org.monogram.mtproto.tl.runtime.TlMethod
 
 class TelegramMtProtoSessionFactoryTest {
@@ -76,6 +81,79 @@ class TelegramMtProtoSessionFactoryTest {
             assertTrue(copy.isNotEmpty())
         } finally {
             copy.fill(0)
+            authKey.close()
+        }
+    }
+
+    @Test
+    fun importsHomeAuthorizationBeforeUsingSecondaryDc() = runBlocking {
+        val homeTransport = RecordingAuthTransport()
+        val secondaryTransport = RecordingAuthTransport()
+        val exportedBytes = byteArrayOf(4, 8, 15, 16)
+        val configs = mapOf(
+            2 to config(TelegramMtProtoEndpoint(2, "home", 443)),
+            3 to config(TelegramMtProtoEndpoint(3, "secondary", 443)),
+        )
+        val factory = TelegramMtProtoSessionFactory(
+            configSource = object : TelegramMtProtoBootstrapConfigSource {
+                override suspend fun create() = configs.getValue(2)
+                override suspend fun createForDc(dcId: Int) = configs.getValue(dcId)
+                override suspend fun createForAccount(accountSlot: String) = configs.getValue(2)
+            },
+            keyLoader = MtProtoAuthKeyLoader { _, _, _ ->
+                BootstrappedMtProtoAuthKey(authKey(), MtProtoAuthKeySource.STORED)
+            },
+            handshakeConnectionFactory = { FakeHandshakeConnection() },
+            encryptedTransportFactory = { _, endpoint, _, _ ->
+                if (endpoint.dcId == 2) homeTransport else secondaryTransport
+            },
+        )
+        homeTransport.exported = ExportedAuthorization_cdf68dd957(42L, TlBytes.copyOf(exportedBytes))
+
+        val result = factory.open("default", 3)
+
+        assertSame(secondaryTransport, result)
+        assertEquals(listOf(3), homeTransport.exportedForDcIds)
+        assertEquals(listOf(ImportAuthorization(42L, TlBytes.copyOf(exportedBytes))), secondaryTransport.imported)
+        assertEquals(1, homeTransport.closeCalls)
+        exportedBytes.fill(0)
+        secondaryTransport.close()
+    }
+
+    @Test
+    fun refreshesFutureSaltsWhenTransportSupportsMaintenance() = runBlocking {
+        val authKey = authKey()
+        val transport = MaintenanceRpcTransport()
+        val factory = TelegramMtProtoSessionFactory(
+            configSource = TelegramMtProtoBootstrapConfigSource { config(TelegramMtProtoEndpoint(2, "dc", 443)) },
+            keyLoader = MtProtoAuthKeyLoader { _, _, _ -> BootstrappedMtProtoAuthKey(authKey, MtProtoAuthKeySource.STORED) },
+            handshakeConnectionFactory = { FakeHandshakeConnection() },
+            encryptedTransportFactory = { _, _, _, _ -> transport },
+        )
+        try {
+            factory.open()
+            assertEquals(1, transport.futureSaltRefreshes)
+        } finally {
+            transport.close()
+            authKey.close()
+        }
+    }
+
+    @Test
+    fun ignoresFutureSaltRefreshFailureDuringOpen() = runBlocking {
+        val authKey = authKey()
+        val transport = MaintenanceRpcTransport(failRefresh = true)
+        val factory = TelegramMtProtoSessionFactory(
+            configSource = TelegramMtProtoBootstrapConfigSource { config(TelegramMtProtoEndpoint(2, "dc", 443)) },
+            keyLoader = MtProtoAuthKeyLoader { _, _, _ -> BootstrappedMtProtoAuthKey(authKey, MtProtoAuthKeySource.STORED) },
+            handshakeConnectionFactory = { FakeHandshakeConnection() },
+            encryptedTransportFactory = { _, _, _, _ -> transport },
+        )
+        try {
+            assertSame(transport, factory.open())
+            assertEquals(1, transport.futureSaltRefreshes)
+        } finally {
+            transport.close()
             authKey.close()
         }
     }
@@ -181,6 +259,44 @@ class TelegramMtProtoSessionFactoryTest {
         override fun close() {
             closeCalls += 1
         }
+    }
+
+    private class RecordingAuthTransport : MtProtoRpcTransport {
+        var closeCalls = 0
+        var exported: ExportedAuthorization_cdf68dd957? = null
+        val exportedForDcIds = mutableListOf<Int>()
+        val imported = mutableListOf<ImportAuthorization>()
+
+        @Suppress("UNCHECKED_CAST")
+        override suspend fun <R> execute(method: TlMethod<R>): R = when (method) {
+            is ExportAuthorization -> {
+                exportedForDcIds += method.dcId
+                requireNotNull(exported) as R
+            }
+            is ImportAuthorization -> {
+                imported += method
+                null as R
+            }
+            else -> error("Unexpected method ${method::class.java.simpleName}")
+        }
+
+        override fun close() {
+            closeCalls++
+        }
+    }
+
+    private class MaintenanceRpcTransport(
+        private val failRefresh: Boolean = false,
+    ) : MtProtoRpcTransport, MtProtoSessionMaintenance {
+        var futureSaltRefreshes = 0
+
+        override suspend fun refreshFutureSalts() {
+            futureSaltRefreshes++
+            check(!failRefresh) { "refresh failed" }
+        }
+
+        override suspend fun <R> execute(method: TlMethod<R>): R = error("Not used")
+        override fun close() = Unit
     }
 
     private class RecordingUserProjectionStore : MtProtoUserProjectionStore by NoOpMtProtoUserProjectionStore {

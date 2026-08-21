@@ -20,7 +20,8 @@ internal class MtProtoAuthKeyPersistence(
                 material = material,
                 id = authKey.id,
                 serverSalt = authKey.serverSalt,
-                createdAt = authKey.createdAt,
+                authKeyCreatedAt = authKey.createdAt,
+                serverTimeAnchorSeconds = authKey.serverTimeAnchorSeconds,
             )
         } finally {
             material.fill(0)
@@ -44,7 +45,8 @@ internal class MtProtoAuthKeyPersistence(
                         material = material,
                         id = stored.id,
                         serverSalt = stored.serverSalt,
-                        createdAt = stored.createdAt,
+                        createdAt = stored.authKeyCreatedAt,
+                        serverTimeAnchorSeconds = stored.serverTimeAnchorSeconds,
                     ),
                 )
             } finally {
@@ -69,7 +71,8 @@ internal class MtProtoAuthKeyPersistence(
                 material = material,
                 id = authKey.id,
                 serverSalt = serverSalt,
-                createdAt = serverTimeSeconds.toInt(),
+                authKeyCreatedAt = authKey.createdAt,
+                serverTimeAnchorSeconds = serverTimeSeconds.toInt(),
             )
         } finally {
             material.fill(0)
@@ -85,7 +88,7 @@ internal class MtProtoAuthKeyPersistence(
         updateServerState(scope, authKey, authKey.serverSalt, serverTimeSeconds)
 
     suspend fun updateServerSalt(scope: MtProtoAuthKeyScope, authKey: MtProtoAuthKey, serverSalt: Long) =
-        updateServerState(scope, authKey, serverSalt, authKey.createdAt.toLong())
+        updateServerState(scope, authKey, serverSalt, authKey.serverTimeAnchorSeconds.toLong())
 
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
         store.deleteAccount(accountSlot, environment)

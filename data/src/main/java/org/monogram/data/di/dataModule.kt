@@ -953,6 +953,7 @@ val dataModule = module {
             mtProtoAuthSessionResetter = get(),
             mtProtoLiveSessionResetter = get(),
             mtProtoUserUpdates = get<MtProtoUserProjectionStore>().updates,
+            mtProtoUserFullInfo = { userId -> get<MtProtoChatInfoRepository>().getChatFullInfo(userId) },
         )
     }
     single { LegacyUserProfileSnapshotRepository(get(), get<UserRepository>()) }

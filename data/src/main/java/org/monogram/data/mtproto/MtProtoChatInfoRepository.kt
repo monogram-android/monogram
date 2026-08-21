@@ -22,6 +22,12 @@ import org.monogram.domain.repository.ChatMembersFilter.Bots
 import org.monogram.domain.repository.ChatMembersFilter.Recent
 import org.monogram.domain.repository.ChatMembersFilter.Restricted
 import org.monogram.domain.repository.ChatMembersFilter.Search
+import org.monogram.mtproto.tl.generated.cloud.layer223.Birthday_aa6c995ca2
+import org.monogram.mtproto.tl.generated.cloud.layer223.TextWithEntities_d094604bd3
+import org.monogram.mtproto.tl.generated.cloud.layer223.UserFull_c1c6b6f92b
+import org.monogram.mtproto.tl.generated.cloud.layer223.users.GetFullUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.users.UserFull_a7968baaa4
+import org.monogram.domain.models.BirthdateModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantAdmin
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantBanned
 import org.monogram.mtproto.tl.generated.cloud.layer223.ChannelParticipantCreator
@@ -66,7 +72,7 @@ internal class MtProtoChatInfoRepository(
 ) : ChatInfoRepository {
     override suspend fun getChatFullInfo(chatId: Long): ChatFullInfoModel? {
         val peer = TelegramPeerChatId.decode(chatId)
-        if (peer.type == org.monogram.domain.models.DialogPeerType.PRIVATE) return null
+        if (peer.type == org.monogram.domain.models.DialogPeerType.PRIVATE) return userFullInfo(peer.id)
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val chat = requireNotNull(chats.get(scope, peer.id)) { "Missing MTProto chat projection: ${peer.id}" }
@@ -115,6 +121,29 @@ internal class MtProtoChatInfoRepository(
                 directMessagesChatId = full.linkedChatId ?: 0L,
             )
         }
+    }
+
+    private suspend fun userFullInfo(userId: Long): ChatFullInfoModel? {
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val accessHash = requireNotNull(users.get(scope, userId)?.accessHash) {
+            "Missing MTProto user access hash: $userId"
+        }
+        val transport = requireNotNull(transportFactory) { "MTProto chat info transport is unavailable" }.open(accountSlot)
+        val result = try {
+            transport.execute(GetFullUser(InputUser_4020eae812(userId, accessHash)))
+        } finally {
+            transport.close()
+        }
+        val full = (result as UserFull_a7968baaa4).fullUser as UserFull_c1c6b6f92b
+        return ChatFullInfoModel(
+            description = full.about,
+            isBlocked = full.blocked,
+            commonGroupsCount = full.commonChatsCount,
+            giftCount = full.stargiftsCount ?: 0,
+            birthdate = (full.birthday as? Birthday_aa6c995ca2)?.let { BirthdateModel(day = it.day, month = it.month, year = it.year) },
+            note = (full.note as? TextWithEntities_d094604bd3)?.text,
+        )
     }
 
     override suspend fun searchPublicChat(username: String): ChatModel? {

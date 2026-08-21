@@ -28,6 +28,9 @@ internal class TelegramBackendUserRouter(
     private val mtProtoAuthSessionResetter: MtProtoAuthSessionResetter = MtProtoAuthSessionResetter {},
     private val mtProtoLiveSessionResetter: MtProtoLiveSessionResetter = MtProtoLiveSessionResetter {},
     private val mtProtoUserUpdates: Flow<Long> = emptyFlow(),
+    private val mtProtoUserFullInfo: suspend (Long) -> ChatFullInfoModel? = {
+        throw UnsupportedOperationException("MTProto user full info is not configured")
+    },
 ) : UserRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
@@ -79,7 +82,10 @@ internal class TelegramBackendUserRouter(
 
     override suspend fun getUserFullInfo(userId: Long): UserModel? = getUser(userId)
     override suspend fun refreshUserFullInfo(userId: Long) { getUser(userId) }
-    override suspend fun resolveUserChatFullInfo(userId: Long): ChatFullInfoModel? = unsupported()
+    override suspend fun resolveUserChatFullInfo(userId: Long): ChatFullInfoModel? = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.resolveUserChatFullInfo(userId)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoUserFullInfo(userId)
+    }
     override fun getUserFlow(userId: Long): Flow<UserModel?> = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getUserFlow(userId)
         TelegramBackendKind.KOTLIN_MTPROTO -> flow { emit(getUser(userId)) }

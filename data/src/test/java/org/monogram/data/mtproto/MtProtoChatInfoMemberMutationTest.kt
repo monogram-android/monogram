@@ -21,6 +21,90 @@ import org.monogram.mtproto.transport.MtProtoRpcTransport
 
 class MtProtoChatInfoMemberMutationTest {
     @Test
+    fun `resolves private chat full info via users getFullUser`() = runTest {
+        val userFull = org.monogram.mtproto.tl.generated.cloud.layer223.UserFull_c1c6b6f92b(
+            blocked = true,
+            phoneCallsAvailable = false,
+            phoneCallsPrivate = false,
+            canPinMessage = false,
+            hasScheduled = false,
+            videoCallsAvailable = false,
+            voiceMessagesForbidden = false,
+            translationsDisabled = false,
+            storiesPinnedAvailable = false,
+            blockedMyStoriesFrom = false,
+            wallpaperOverridden = false,
+            contactRequirePremium = false,
+            readDatesPrivate = false,
+            sponsoredEnabled = false,
+            canViewRevenue = false,
+            botCanManageEmojiStatus = false,
+            displayGiftsButton = false,
+            noforwardsMyEnabled = false,
+            noforwardsPeerEnabled = false,
+            id = 42L,
+            about = "bio",
+            settings = org.monogram.mtproto.tl.generated.cloud.layer223.PeerSettings_936a3e31f4(
+                reportSpam = false, addContact = false, blockContact = false, shareContact = false,
+                needContactsException = false, reportGeo = false, autoarchived = false, inviteMembers = false,
+                requestChatBroadcast = false, businessBotPaused = false, businessBotCanReply = false,
+                geoDistance = null, requestChatTitle = null, requestChatDate = null, businessBotId = null,
+                businessBotManageUrl = null, chargePaidMessageStars = null, registrationMonth = null,
+                phoneCountry = null, nameChangeDate = null, photoChangeDate = null,
+            ),
+            personalPhoto = null,
+            profilePhoto = null,
+            fallbackPhoto = null,
+            notifySettings = org.monogram.mtproto.tl.generated.cloud.layer223.PeerNotifySettings_474d6bbc59(
+                showPreviews = null, silent = null, muteUntil = null, iosSound = null,
+                androidSound = null, otherSound = null, storiesMuted = null, storiesHideSender = null,
+                storiesIosSound = null, storiesAndroidSound = null, storiesOtherSound = null,
+            ),
+            botInfo = null,
+            pinnedMsgId = null,
+            commonChatsCount = 3,
+            folderId = null,
+            ttlPeriod = null,
+            theme = null,
+            privateForwardName = null,
+            botGroupAdminRights = null,
+            botBroadcastAdminRights = null,
+            wallpaper = null,
+            stories = null,
+            businessWorkHours = null,
+            businessLocation = null,
+            businessGreetingMessage = null,
+            businessAwayMessage = null,
+            businessIntro = null,
+            birthday = null,
+            personalChannelId = null,
+            personalChannelMessage = null,
+            stargiftsCount = 7,
+            starrefProgram = null,
+            botVerification = null,
+            sendPaidMessagesStars = null,
+            disallowedGifts = null,
+            starsRating = null,
+            starsMyPendingRating = null,
+            starsMyPendingRatingDate = null,
+            mainTab = null,
+            savedMusic = null,
+            note = null,
+        )
+        val transport = RecordingTransport(
+            org.monogram.mtproto.tl.generated.cloud.layer223.users.UserFull_a7968baaa4(userFull, emptyList(), emptyList()),
+        )
+        val repository = repository(transport, MtProtoChatType.BASIC_GROUP)
+
+        val info = repository.getChatFullInfo(42L)
+
+        assertEquals("bio", info?.description)
+        assertTrue(info!!.isBlocked)
+        assertEquals(3, info.commonGroupsCount)
+        assertEquals(7, info.giftCount)
+    }
+
+    @Test
     fun `maps basic group member and admin changes`() = runTest {
         val transport = RecordingTransport(true)
         val repository = repository(transport, MtProtoChatType.BASIC_GROUP)

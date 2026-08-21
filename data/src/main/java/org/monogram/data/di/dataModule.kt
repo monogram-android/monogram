@@ -125,6 +125,7 @@ import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoStoryProjectionStore
+import org.monogram.data.mtproto.MtProtoStoryResultStager
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
 import org.monogram.data.mtproto.MtProtoProfilePhotoRepository
 import org.monogram.data.mtproto.MtProtoRoomPhotoLocationStore
@@ -617,6 +618,7 @@ val dataModule = module {
     single<MtProtoPhotoLocationStore> { MtProtoRoomPhotoLocationStore(get()) }
     single { MtProtoRoomStoryProjectionStore(get(), database = get()) }
     single<MtProtoStoryProjectionStore> { get<MtProtoRoomStoryProjectionStore>() }
+    single { MtProtoStoryResultStager(get(), get(), get(), get(), get()) }
     single<MtProtoFileHandleStore> { MtProtoRoomFileHandleStore(get()) }
     single { MtProtoFileTransferCoordinator(transportFactory = get()) }
     single<MtProtoFileRepository> {
@@ -774,6 +776,7 @@ val dataModule = module {
             chatProjectionStore = get(),
             messageProjectionStore = get(),
             draftStore = get(),
+            storyResultStager = get(),
         )
     }
     single<MtProtoCloudObjectStager> { get<MtProtoRoomCloudObjectStager>() }

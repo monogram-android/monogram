@@ -48,6 +48,21 @@ interface MtProtoStoryProjectionDao {
         listType: String,
     ): List<MtProtoStoryActiveListEntity>
 
+    @Query(
+        "UPDATE mtproto_story_active_list SET maxReadStoryId = :maxReadStoryId, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updateMaxReadStoryId(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        maxReadStoryId: Int,
+        updatedAt: Long,
+    )
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCursor(entity: MtProtoStoryListCursorEntity)
 

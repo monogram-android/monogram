@@ -89,6 +89,16 @@ class MtProtoStoryProjectionStoreTest {
             lists[listKey(accountSlot, environment, dcId, listType)].orEmpty()
                 .sortedWith(compareByDescending<MtProtoStoryActiveListEntity> { it.orderKey }.thenBy { it.peerType }.thenBy { it.peerId }.thenBy { it.storyId })
 
+        override suspend fun updateMaxReadStoryId(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, maxReadStoryId: Int, updatedAt: Long) {
+            lists.values.flatten().filter {
+                it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId &&
+                    it.peerType == peerType && it.peerId == peerId
+            }.forEach { entry ->
+                lists.getValue(listKey(entry.accountSlot, entry.environment, entry.dcId, entry.listType)).remove(entry)
+                lists.getValue(listKey(entry.accountSlot, entry.environment, entry.dcId, entry.listType)) += entry.copy(maxReadStoryId = maxReadStoryId, updatedAt = updatedAt)
+            }
+        }
+
         override suspend fun upsertCursor(entity: MtProtoStoryListCursorEntity) {
             cursors[listKey(entity.accountSlot, entity.environment, entity.dcId, entity.listType)] = entity
         }

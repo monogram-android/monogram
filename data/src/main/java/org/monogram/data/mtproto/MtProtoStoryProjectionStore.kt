@@ -42,6 +42,7 @@ internal interface MtProtoStoryProjectionStore {
         cursor: MtProtoStoryListCursor,
     )
     suspend fun activeList(scope: MtProtoAuthKeyScope, listType: String): List<MtProtoStoryActiveListItem>
+    suspend fun updateMaxReadStoryId(scope: MtProtoAuthKeyScope, peerType: String, peerId: Long, maxReadStoryId: Int)
     suspend fun cursor(scope: MtProtoAuthKeyScope, listType: String): MtProtoStoryListCursor?
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
@@ -51,6 +52,7 @@ internal object NoOpMtProtoStoryProjectionStore : MtProtoStoryProjectionStore {
     override suspend fun get(scope: MtProtoAuthKeyScope, key: MtProtoStoryKey): MtProtoStoryPayload? = null
     override suspend fun replaceActiveList(scope: MtProtoAuthKeyScope, listType: String, stories: List<MtProtoStoryActiveListItem>, cursor: MtProtoStoryListCursor) = Unit
     override suspend fun activeList(scope: MtProtoAuthKeyScope, listType: String): List<MtProtoStoryActiveListItem> = emptyList()
+    override suspend fun updateMaxReadStoryId(scope: MtProtoAuthKeyScope, peerType: String, peerId: Long, maxReadStoryId: Int) = Unit
     override suspend fun cursor(scope: MtProtoAuthKeyScope, listType: String): MtProtoStoryListCursor? = null
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
@@ -87,6 +89,18 @@ internal class MtProtoRoomStoryProjectionStore(
 
     override suspend fun activeList(scope: MtProtoAuthKeyScope, listType: String): List<MtProtoStoryActiveListItem> =
         dao.getActiveList(scope.accountSlot, scope.environment.storageName, scope.dcId, listType).map { it.toItem() }
+
+    override suspend fun updateMaxReadStoryId(scope: MtProtoAuthKeyScope, peerType: String, peerId: Long, maxReadStoryId: Int) {
+        dao.updateMaxReadStoryId(
+            scope.accountSlot,
+            scope.environment.storageName,
+            scope.dcId,
+            peerType,
+            peerId,
+            maxReadStoryId,
+            nowMillis(),
+        )
+    }
 
     override suspend fun cursor(scope: MtProtoAuthKeyScope, listType: String): MtProtoStoryListCursor? =
         dao.getCursor(scope.accountSlot, scope.environment.storageName, scope.dcId, listType)?.toCursor()

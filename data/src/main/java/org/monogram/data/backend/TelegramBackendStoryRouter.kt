@@ -95,7 +95,10 @@ internal class TelegramBackendStoryRouter(
     override suspend fun getStoryInteractions(storyId: Int, offset: String, limit: Int, query: String, onlyContacts: Boolean, preferForwards: Boolean, preferWithReaction: Boolean): StoryInteractionPageModel? = dispatch { legacy.getStoryInteractions(storyId, offset, limit, query, onlyContacts, preferForwards, preferWithReaction) }
     override suspend fun postStory(chatId: Long, draft: StoryComposerDraftModel): StoryPostResultModel = dispatch { legacy.postStory(chatId, draft) }
     override suspend fun editStory(chatId: Long, storyId: Int, draft: StoryComposerDraftModel): Boolean = dispatch { legacy.editStory(chatId, storyId, draft) }
-    override suspend fun deleteStory(chatId: Long, storyId: Int): Boolean = dispatch { legacy.deleteStory(chatId, storyId) }
+    override suspend fun deleteStory(chatId: Long, storyId: Int): Boolean = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.deleteStory(chatId, storyId)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.delete(chatId, storyId)
+    }
     override suspend fun toggleStoryPostedToChatPage(chatId: Long, storyId: Int, isPostedToChatPage: Boolean): Boolean = dispatch { legacy.toggleStoryPostedToChatPage(chatId, storyId, isPostedToChatPage) }
     override suspend fun setChatActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setChatActiveStoriesList(chatId, listType)

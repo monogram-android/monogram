@@ -3,6 +3,7 @@ package org.monogram.data.mtproto
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.stories.StoryListType
+import org.monogram.mtproto.codec.CloudTlObjectCodec
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
@@ -13,7 +14,9 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionCustomEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionPaid
+import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemDeleted
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStory
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.DeleteStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStoryCount_11d73fe4aa
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.SendReaction
@@ -29,6 +32,9 @@ internal interface MtProtoStoryListRepository {
     }
     suspend fun canSend(chatId: Long): StoryPostCapabilityModel {
         throw UnsupportedOperationException("MTProto story send capability is not configured")
+    }
+    suspend fun delete(chatId: Long, storyId: Int): Boolean {
+        throw UnsupportedOperationException("MTProto story deletion is not configured")
     }
 }
 
@@ -76,6 +82,26 @@ internal class MtProtoStoryListRepositoryImpl(
         } else {
             StoryPostCapabilityModel.ActiveStoryLimitExceeded
         }
+    }
+
+    override suspend fun delete(chatId: Long, storyId: Int): Boolean {
+        require(storyId > 0) { "MTProto story ID must be positive" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = TelegramPeerChatId.decode(chatId)
+        val deleted = transportFactory.open(accountSlot).use { transport ->
+            transport.execute(DeleteStories(resolvePeer(scope, chatId), listOf(storyId)))
+        }
+        if (storyId !in deleted) return false
+        stories.upsert(
+            scope,
+            MtProtoStoryPayload(
+                key = MtProtoStoryKey(peerType(peer.type), peer.id, storyId),
+                payload = CloudTlObjectCodec.encode(StoryItemDeleted(storyId)),
+                isDeleted = true,
+            ),
+        )
+        return true
     }
 
     override suspend fun setReaction(chatId: Long, storyId: Int, reaction: StoryReactionModel): Boolean {

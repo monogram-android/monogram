@@ -3,13 +3,17 @@ package org.monogram.data.mtproto
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.codec.CloudTlObjectCodec
+import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemDeleted
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStory
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.DeleteStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStoryCount_11d73fe4aa
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.SendReaction
@@ -61,6 +65,29 @@ class MtProtoStoryListRepositoryTest {
         val exhaustedTransport = CapabilityRecordingTransport(0)
         assertEquals(StoryPostCapabilityModel.ActiveStoryLimitExceeded, capabilityRepository(exhaustedTransport).canSend(-42))
         assertEquals(true, exhaustedTransport.closed)
+    }
+
+    @Test
+    fun `persists a tombstone only after the server confirms story deletion`() = runBlocking {
+        val transport = DeleteRecordingTransport(listOf(7))
+        val stories = DeletionRecordingStories()
+        val repository = MtProtoStoryListRepositoryImpl(
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = NoOpMtProtoUserProjectionStore,
+            chats = NoOpMtProtoChatProjectionStore,
+            stories = stories,
+        )
+
+        assertEquals(true, repository.delete(-42, 7))
+        assertEquals(DeleteStories(org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat(42), listOf(7)), transport.request)
+        assertEquals(MtProtoStoryKey("GROUP", 42, 7), stories.tombstone?.key)
+        assertEquals(true, stories.tombstone?.isDeleted)
+        assertTrue(CloudTlObjectCodec.decode(stories.tombstone!!.payload) is StoryItemDeleted)
+        assertEquals(true, transport.closed)
+
+        val rejected = DeleteRecordingTransport(emptyList())
+        assertEquals(false, repository(rejected).delete(-42, 7))
     }
 
     @Test
@@ -135,6 +162,13 @@ class MtProtoStoryListRepositoryTest {
         assertEquals(false, opened)
     }
 
+    private fun repository(transport: DeleteRecordingTransport) = MtProtoStoryListRepositoryImpl(
+        configSource = TelegramMtProtoBootstrapConfigSource { config() },
+        transportFactory = MtProtoSessionTransportFactory { transport },
+        users = NoOpMtProtoUserProjectionStore,
+        chats = NoOpMtProtoChatProjectionStore,
+    )
+
     private fun capabilityRepository(transport: CapabilityRecordingTransport) = MtProtoStoryListRepositoryImpl(
         configSource = TelegramMtProtoBootstrapConfigSource { config() },
         transportFactory = MtProtoSessionTransportFactory { transport },
@@ -169,6 +203,24 @@ class MtProtoStoryListRepositoryTest {
         override suspend fun <R> execute(method: TlMethod<R>): R {
             request = method as ReadStories
             return emptyList<Int>() as R
+        }
+        override fun close() { closed = true }
+    }
+
+    private class DeletionRecordingStories : MtProtoStoryProjectionStore by NoOpMtProtoStoryProjectionStore {
+        var tombstone: MtProtoStoryPayload? = null
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, story: MtProtoStoryPayload) {
+            tombstone = story
+        }
+    }
+
+    private class DeleteRecordingTransport(private val deleted: List<Int>) : MtProtoRpcTransport {
+        lateinit var request: DeleteStories
+        var closed = false
+        @Suppress("UNCHECKED_CAST")
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            request = method as DeleteStories
+            return deleted as R
         }
         override fun close() { closed = true }
     }

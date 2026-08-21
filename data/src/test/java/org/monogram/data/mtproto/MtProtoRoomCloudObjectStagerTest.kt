@@ -15,6 +15,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDraftMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShort
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateStory
+import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemDeleted
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesCombined
 import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
 import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
@@ -54,6 +56,29 @@ class MtProtoRoomCloudObjectStagerTest {
         assertEquals(listOf(UserEmpty(10), UserEmpty(10)), userStore.upsertedUsers)
         assertEquals(listOf(ChatEmpty(20), ChatEmpty(20)), chatStore.upsertedChats)
         assertEquals(2, messageStore.differenceCalls)
+    }
+
+    @Test
+    fun `forwards difference story updates to the story projection`() = runBlocking {
+        val stories = RecordingStoryProjectionStore()
+        val stager = MtProtoRoomCloudObjectStager(
+            dao = FakeCloudObjectDao(),
+            storyResultStager = MtProtoStoryResultStager(stories),
+        )
+        stager.stageDifference(
+            scope,
+            MtProtoUpdateDifferenceBatch(
+                newMessages = emptyList(),
+                newEncryptedMessages = emptyList(),
+                otherUpdates = listOf(UpdateStory(PeerUser(42L), StoryItemDeleted(7))),
+                chats = emptyList(),
+                users = emptyList(),
+                cursor = MtProtoUpdateCursor(11, 20, 30, 40),
+            ),
+        )
+
+        assertEquals(MtProtoStoryKey("USER", 42L, 7), stories.staged.single().key)
+        assertTrue(stories.staged.single().isDeleted)
     }
 
     @Test
@@ -97,6 +122,14 @@ class MtProtoRoomCloudObjectStagerTest {
             listOf("update"),
             dao.getAll("account-1", "prod", 4).map { it.objectType },
         )
+    }
+
+    private class RecordingStoryProjectionStore : MtProtoStoryProjectionStore by NoOpMtProtoStoryProjectionStore {
+        val staged = mutableListOf<MtProtoStoryPayload>()
+
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, story: MtProtoStoryPayload) {
+            staged += story
+        }
     }
 
     private class RecordingDraftStore : MtProtoDraftStore {

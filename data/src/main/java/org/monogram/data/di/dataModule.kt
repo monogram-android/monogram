@@ -118,6 +118,7 @@ import org.monogram.data.mtproto.MtProtoClientOptionsRepository
 import org.monogram.data.mtproto.MtProtoClientOptionsRepositoryImpl
 import org.monogram.data.mtproto.MtProtoChatCreationRepository
 import org.monogram.data.mtproto.MtProtoChatCreationRepositoryImpl
+import org.monogram.data.mtproto.FileMtProtoDatabaseSizeReader
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepository
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStreamingRepository
@@ -1369,6 +1370,9 @@ val dataModule = module {
             selectionStore = get(),
             legacyFactory = { get<ChatsListRepositoryImpl>() },
             mtProtoFactory = { get<MtProtoChatCreationRepository>() },
+            mtProtoDatabaseSizeReaderFactory = {
+                FileMtProtoDatabaseSizeReader(androidContext().getDatabasePath("monogram_db"))
+            },
             scope = get(),
         )
     }

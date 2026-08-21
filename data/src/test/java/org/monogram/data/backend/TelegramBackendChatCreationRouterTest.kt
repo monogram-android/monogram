@@ -8,8 +8,21 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.monogram.data.mtproto.MtProtoChatCreationRepository
+import org.monogram.data.mtproto.MtProtoDatabaseSizeReader
 
 class TelegramBackendChatCreationRouterTest {
+    @Test
+    fun `selected MTProto reports owned database size without legacy repository`() {
+        val router = TelegramBackendChatCreationRouter(
+            selectionStore = SelectionStore,
+            legacyFactory = { error("legacy chat creation repository must not be created") },
+            mtProtoDatabaseSizeReaderFactory = { MtProtoDatabaseSizeReader { 42L } },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(42L, router.getDatabaseSize())
+    }
+
     @Test
     fun `selected MTProto creation avoids legacy repository`() = runBlocking {
         val router = TelegramBackendChatCreationRouter(

@@ -48,6 +48,35 @@ class TelegramBackendStoryRouterTest {
     }
 
     @Test
+    fun `story list mutation follows rollback selection without eager legacy creation`() = runBlocking {
+        val selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO)
+        var mtProtoCalls = 0
+        val router = TelegramBackendStoryRouter(
+            selectionStore = selection,
+            legacyFactory = { error("legacy story repository was created after rollback") },
+            mtProtoFactory = {
+                MtProtoStoryListRepository { _, _ ->
+                    mtProtoCalls += 1
+                    true
+                }
+            },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertTrue(router.setChatActiveStoriesList(7L, StoryListType.MAIN))
+        assertEquals(1, mtProtoCalls)
+
+        selection.select("default", TelegramBackendKind.LEGACY)
+        val failure = runCatching {
+            router.setChatActiveStoriesList(7L, StoryListType.ARCHIVE)
+        }.exceptionOrNull()
+
+        assertEquals("legacy story repository was created after rollback", failure?.message)
+        assertEquals(1, mtProtoCalls)
+    }
+
+    @Test
     fun `selected MTProto exposes persisted stealth mode without legacy repository`() {
         val router = TelegramBackendStoryRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),

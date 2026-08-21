@@ -629,6 +629,8 @@ val dataModule = module {
             transportFactory = get(),
             stories = get(),
             resultStager = get(),
+            users = get(),
+            chats = get(),
         )
     }
     single<MtProtoFileHandleStore> { MtProtoRoomFileHandleStore(get()) }

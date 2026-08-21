@@ -5,10 +5,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerStories_9de86f4fe6
 import org.monogram.mtproto.tl.generated.cloud.layer223.StoriesStealthMode_9a2f11feb7
+import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemDeleted
+import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItemSkipped
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.AllStoriesNotModified
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.AllStories_75ae93d8cd
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.GetAllStories
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.GetStoriesById
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.Stories_e08ba69811
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
 import org.monogram.mtproto.transport.MtProtoRpcTransport
@@ -26,9 +32,34 @@ class MtProtoStoryRefreshRepositoryTest {
 
         repository.refreshInitialLists()
 
-        assertEquals(listOf(false, true), transport.requests.map { it.hidden })
-        assertEquals(listOf(null, null), transport.requests.map { it.state })
+        assertEquals(listOf(false, true), transport.storyRequests.map { it.hidden })
+        assertEquals(listOf(null, null), transport.storyRequests.map { it.state })
         assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `hydrates a skipped basic group story through its authoritative peer`() = runBlocking {
+        val transport = RecordingTransport(
+            listOf(
+                AllStories_75ae93d8cd(
+                    false,
+                    1,
+                    "main-1",
+                    listOf(PeerStories_9de86f4fe6(PeerChat(42), 0, listOf(StoryItemSkipped(false, false, 7, 1, 2)))),
+                    emptyList(),
+                    emptyList(),
+                    stealth(),
+                ),
+                Stories_e08ba69811(1, listOf(StoryItemDeleted(7)), null, emptyList(), emptyList()),
+                AllStories_75ae93d8cd(false, 0, "archive-1", emptyList(), emptyList(), emptyList(), stealth()),
+            )
+        )
+
+        repository(transport).refreshInitialLists()
+
+        val request = transport.requests.filterIsInstance<GetStoriesById>().single()
+        assertEquals(org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat(42), request.peer)
+        assertEquals(listOf(7), request.id)
     }
 
     @Test
@@ -46,9 +77,9 @@ class MtProtoStoryRefreshRepositoryTest {
 
         repository.refreshInitialLists()
 
-        assertEquals(listOf(false, false, true, true), transport.requests.map { it.hidden })
-        assertEquals(listOf(false, true, false, true), transport.requests.map { it.next })
-        assertEquals(listOf(null, "main-1", null, "archive-1"), transport.requests.map { it.state })
+        assertEquals(listOf(false, false, true, true), transport.storyRequests.map { it.hidden })
+        assertEquals(listOf(false, true, false, true), transport.storyRequests.map { it.next })
+        assertEquals(listOf(null, "main-1", null, "archive-1"), transport.storyRequests.map { it.state })
         assertEquals("main-2", stories.cursors["MAIN"]?.state)
         assertEquals("archive-2", stories.cursors["ARCHIVE"]?.state)
     }
@@ -73,7 +104,7 @@ class MtProtoStoryRefreshRepositoryTest {
             stories.cursors["MAIN"]?.state,
             stories.cursors["ARCHIVE"]?.state,
         ))
-        assertEquals(listOf("main-1", "archive-1"), transport.requests.drop(2).map { it.state })
+        assertEquals(listOf("main-1", "archive-1"), transport.storyRequests.drop(2).map { it.state })
     }
 
     private fun repository(
@@ -97,14 +128,16 @@ class MtProtoStoryRefreshRepositoryTest {
     private class RecordingTransport(
         private val results: List<Any>,
     ) : MtProtoRpcTransport {
-        val requests = mutableListOf<GetAllStories>()
+        val requests = mutableListOf<TlMethod<*>>()
+        val storyRequests: List<GetAllStories>
+            get() = requests.filterIsInstance<GetAllStories>()
         val stories = RecordingStories()
         var closed = false
         private var index = 0
 
         @Suppress("UNCHECKED_CAST")
         override suspend fun <R> execute(method: TlMethod<R>): R {
-            requests += method as GetAllStories
+            requests += method
             return results[index++] as R
         }
 

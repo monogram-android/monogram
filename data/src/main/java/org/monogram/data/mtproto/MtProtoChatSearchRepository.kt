@@ -89,7 +89,9 @@ internal class MtProtoChatSearchRepository(
         } as? Found_bc39b7fc74 ?: error("Unsupported contacts.search result")
         users.upsert(scope, result.users)
         chats.upsert(scope, result.chats)
-        return result.results.mapNotNull { it.toChatModel(scope, users, chats) }
+        return (result.myResults + result.results)
+            .distinct()
+            .mapNotNull { it.toChatModel(scope, users, chats) }
     }
 
     override suspend fun searchMessages(query: String, offset: String, limit: Int): SearchMessagesResult {

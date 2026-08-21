@@ -119,7 +119,12 @@ class MtProtoChatSearchRepositoryTest {
             dialogRepository = FakeDialogRepository(),
             configSource = TelegramMtProtoBootstrapConfigSource { testConfig() },
             transportFactory = MtProtoSessionTransportFactory { FakeTransport(
-                Found_bc39b7fc74(emptyList(), listOf(PeerUser(42L)), emptyList(), emptyList())
+                Found_bc39b7fc74(
+                    myResults = listOf(PeerUser(43L)),
+                    results = listOf(PeerUser(42L), PeerUser(43L)),
+                    chats = emptyList(),
+                    users = emptyList(),
+                ),
             ) },
             userStore = users,
             chatStore = NoOpMtProtoChatProjectionStore,
@@ -127,7 +132,7 @@ class MtProtoChatSearchRepositoryTest {
 
         val result = repository.searchPublicChats("alice")
 
-        assertEquals(listOf(42L), result.map { it.id })
+        assertEquals(listOf(43L, 42L), result.map { it.id })
         assertEquals(1, users.upsertCalls)
     }
 

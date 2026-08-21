@@ -49,31 +49,23 @@ internal class MtProtoStickerRepository(
     private val files: MtProtoFileRepository,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : StickerRepository {
-    private val unsupportedSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
+    private val installedSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
+    private val customEmojiSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
     private val archivedSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
     private val archivedEmojis = MutableStateFlow<List<StickerSetModel>>(emptyList())
 
-    override val installedStickerSets: StateFlow<List<StickerSetModel>> = unsupportedSets
-    override val customEmojiStickerSets: StateFlow<List<StickerSetModel>> = unsupportedSets
+    override val installedStickerSets: StateFlow<List<StickerSetModel>> = installedSets
+    override val customEmojiStickerSets: StateFlow<List<StickerSetModel>> = customEmojiSets
     override val archivedStickerSets: StateFlow<List<StickerSetModel>> = archivedSets
     override val archivedEmojiSets: StateFlow<List<StickerSetModel>> = archivedEmojis
 
     override suspend fun loadInstalledStickerSets() {
-        val resolved = transportFactory.open(accountSlot).use { transport ->
-            val all = transport.execute(GetAllStickers(0)) as? AllStickers_638a4b63d6
-                ?: error("Unsupported MTProto installed stickers response")
-            all.sets.filterIsInstance<org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701>()
-                .filter { !it.masks && !it.emojis }
-                .map { set ->
-                    transport.execute(GetStickerSet(InputStickerSetId(set.id, set.accessHash), 0))
-                        as? StickerSet_ec0b3f33d3
-                        ?: error("Unsupported MTProto installed sticker-set response")
-                }
-        }
-        resolved.flatMap { it.documents.filterIsInstance<Document_be725c3b31>() }.also { stageDocuments(it) }
-        unsupportedSets.value = resolved.mapNotNull { it.toDomain() }
+        installedSets.value = loadInstalled { !it.masks && !it.emojis }
     }
-    override suspend fun loadCustomEmojiStickerSets() = unsupported("custom emoji refresh")
+
+    override suspend fun loadCustomEmojiStickerSets() {
+        customEmojiSets.value = loadInstalled { it.emojis }
+    }
     override suspend fun loadArchivedStickerSets() {
         archivedSets.value = loadArchived(emojis = false)
     }
@@ -154,6 +146,24 @@ internal class MtProtoStickerRepository(
             result.sets.flatMap { it.documents() }.also { stageDocuments(it) }
             result.sets.mapNotNull { it.toDomain() }
         }
+    }
+
+    private suspend fun loadInstalled(
+        include: (org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701) -> Boolean,
+    ): List<StickerSetModel> {
+        val resolved = transportFactory.open(accountSlot).use { transport ->
+            val all = transport.execute(GetAllStickers(0)) as? AllStickers_638a4b63d6
+                ?: error("Unsupported MTProto installed stickers response")
+            all.sets.filterIsInstance<org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701>()
+                .filter(include)
+                .map { set ->
+                    transport.execute(GetStickerSet(InputStickerSetId(set.id, set.accessHash), 0))
+                        as? StickerSet_ec0b3f33d3
+                        ?: error("Unsupported MTProto installed sticker-set response")
+                }
+        }
+        resolved.flatMap { it.documents.filterIsInstance<Document_be725c3b31>() }.also { stageDocuments(it) }
+        return resolved.mapNotNull { it.toDomain() }
     }
 
     private suspend fun loadArchived(emojis: Boolean): List<StickerSetModel> =

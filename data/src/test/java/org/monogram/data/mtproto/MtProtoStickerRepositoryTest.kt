@@ -64,6 +64,23 @@ class MtProtoStickerRepositoryTest {
     }
 
     @Test
+    fun `loads custom emoji sticker state separately from installed stickers`() = runBlocking {
+        val transport = Transport(
+            AllStickers_638a4b63d6(0, emptyList()),
+            AllStickers_638a4b63d6(0, emptyList()),
+        )
+        val repository = repository { transport }
+
+        repository.loadInstalledStickerSets()
+        repository.loadCustomEmojiStickerSets()
+
+        assertEquals(emptyList<Any>(), repository.installedStickerSets.value)
+        assertEquals(emptyList<Any>(), repository.customEmojiStickerSets.value)
+        assertEquals(listOf(GetAllStickers(0), GetAllStickers(0)), transport.requests)
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
     fun `loads regular and emoji archived sticker state`() = runBlocking {
         val transport = Transport(
             ArchivedStickers_8455cc1f39(0, emptyList()),

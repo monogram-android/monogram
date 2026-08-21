@@ -123,6 +123,8 @@ import org.monogram.data.mtproto.MtProtoChatStatisticsRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStreamingRepository
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
+import org.monogram.data.mtproto.MtProtoRoomStoryProjectionStore
+import org.monogram.data.mtproto.MtProtoStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
 import org.monogram.data.mtproto.MtProtoProfilePhotoRepository
 import org.monogram.data.mtproto.MtProtoRoomPhotoLocationStore
@@ -582,6 +584,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_56_57,
                 MonogramMigrations.MIGRATION_57_58,
                 MonogramMigrations.MIGRATION_58_59,
+                MonogramMigrations.MIGRATION_59_60,
             )
             .build()
     }
@@ -596,6 +599,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().mtProtoDialogProjectionDao() }
     single { get<MonogramDatabase>().mtProtoMessageProjectionDao() }
     single { get<MonogramDatabase>().mtProtoPhotoLocationDao() }
+    single { get<MonogramDatabase>().mtProtoStoryProjectionDao() }
     single { get<MonogramDatabase>().mtProtoDraftProjectionDao() }
     single { get<MonogramDatabase>().mtProtoDocumentLocationDao() }
     single { get<MonogramDatabase>().mtProtoFileHandleDao() }
@@ -611,6 +615,8 @@ val dataModule = module {
     single { MtProtoRoomDocumentLocationStore(get()) }
     single<MtProtoDocumentLocationStore> { get<MtProtoRoomDocumentLocationStore>() }
     single<MtProtoPhotoLocationStore> { MtProtoRoomPhotoLocationStore(get()) }
+    single { MtProtoRoomStoryProjectionStore(get(), database = get()) }
+    single<MtProtoStoryProjectionStore> { get<MtProtoRoomStoryProjectionStore>() }
     single<MtProtoFileHandleStore> { MtProtoRoomFileHandleStore(get()) }
     single { MtProtoFileTransferCoordinator(transportFactory = get()) }
     single<MtProtoFileRepository> {
@@ -793,6 +799,7 @@ val dataModule = module {
             draftStore = get(),
             fileHandleStore = get(),
             photoLocationStore = get(),
+            storyProjectionStore = get(),
             authorizationStore = get(),
         )
     }

@@ -20,6 +20,7 @@ import org.monogram.data.db.dao.MtProtoFileHandleDao
 import org.monogram.data.db.dao.MtProtoFileTransferDao
 import org.monogram.data.db.dao.MtProtoMessageProjectionDao
 import org.monogram.data.db.dao.MtProtoPhotoLocationDao
+import org.monogram.data.db.dao.MtProtoStoryProjectionDao
 import org.monogram.data.db.dao.MtProtoUserProjectionDao
 import org.monogram.data.db.dao.NotificationExceptionDao
 import org.monogram.data.db.dao.NotificationSettingDao
@@ -47,6 +48,9 @@ import org.monogram.data.db.model.MtProtoChatProjectionEntity
 import org.monogram.data.db.model.MtProtoDialogProjectionEntity
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.data.db.model.MtProtoPhotoLocationEntity
+import org.monogram.data.db.model.MtProtoStoryActiveListEntity
+import org.monogram.data.db.model.MtProtoStoryListCursorEntity
+import org.monogram.data.db.model.MtProtoStoryProjectionEntity
 import org.monogram.data.db.model.MtProtoUserProjectionEntity
 import org.monogram.data.db.model.NotificationExceptionEntity
 import org.monogram.data.db.model.NotificationSettingEntity
@@ -82,6 +86,9 @@ import org.monogram.data.db.model.WallpaperEntity
         MtProtoDocumentLocationEntity::class,
         MtProtoFileHandleEntity::class,
         MtProtoFileTransferEntity::class,
+        MtProtoStoryProjectionEntity::class,
+        MtProtoStoryActiveListEntity::class,
+        MtProtoStoryListCursorEntity::class,
         UserEntity::class,
         ChatFullInfoEntity::class,
         TopicEntity::class,
@@ -99,7 +106,7 @@ import org.monogram.data.db.model.WallpaperEntity
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 59,
+    version = 60,
     exportSchema = true
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -114,6 +121,7 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun mtProtoDialogProjectionDao(): MtProtoDialogProjectionDao
     abstract fun mtProtoMessageProjectionDao(): MtProtoMessageProjectionDao
     abstract fun mtProtoPhotoLocationDao(): MtProtoPhotoLocationDao
+    abstract fun mtProtoStoryProjectionDao(): MtProtoStoryProjectionDao
     abstract fun mtProtoDraftProjectionDao(): MtProtoDraftProjectionDao
     abstract fun mtProtoDocumentLocationDao(): MtProtoDocumentLocationDao
     abstract fun mtProtoFileHandleDao(): MtProtoFileHandleDao

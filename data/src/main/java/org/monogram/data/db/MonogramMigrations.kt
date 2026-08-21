@@ -594,6 +594,41 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_59_60 = object : Migration(59, 60) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_story_projection` (" +
+                    "`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, " +
+                    "`peerType` TEXT NOT NULL, `peerId` INTEGER NOT NULL, `storyId` INTEGER NOT NULL, " +
+                    "`payload` BLOB NOT NULL, `isDeleted` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`, `storyId`))"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_mtproto_story_projection_accountSlot_environment_dcId_peerType_peerId_storyId` " +
+                    "ON `mtproto_story_projection` (`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`, `storyId`)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_story_active_list` (" +
+                    "`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, " +
+                    "`listType` TEXT NOT NULL, `peerType` TEXT NOT NULL, `peerId` INTEGER NOT NULL, " +
+                    "`storyId` INTEGER NOT NULL, `orderKey` INTEGER NOT NULL, `canBeArchived` INTEGER NOT NULL, " +
+                    "`maxReadStoryId` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `listType`, `peerType`, `peerId`, `storyId`))"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_mtproto_story_active_list_accountSlot_environment_dcId_listType_orderKey` " +
+                    "ON `mtproto_story_active_list` (`accountSlot`, `environment`, `dcId`, `listType`, `orderKey`)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_story_list_cursor` (" +
+                    "`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, " +
+                    "`listType` TEXT NOT NULL, `state` TEXT NOT NULL, `hasMore` INTEGER NOT NULL, " +
+                    "`totalCount` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `listType`))"
+            )
+        }
+    }
+
     val MIGRATION_58_59 = object : Migration(58, 59) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.addColumn("mtproto_chat_projection", "signaturesEnabled", "INTEGER NOT NULL DEFAULT 0")

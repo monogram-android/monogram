@@ -3,6 +3,7 @@ package org.monogram.data.backend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import org.monogram.data.mtproto.MtProtoPremiumRepository
 import org.monogram.domain.models.PremiumFeaturesModel
 import org.monogram.domain.models.PremiumSource
 import org.monogram.domain.models.PremiumStateModel
@@ -11,11 +12,15 @@ import org.monogram.domain.repository.PremiumRepository
 internal class TelegramBackendPremiumRouter(
     selectionStore: TelegramBackendSelectionStore,
     private val legacyFactory: () -> PremiumRepository,
+    private val mtProtoFactory: () -> MtProtoPremiumRepository = {
+        throw UnsupportedOperationException("MTProto premium operations are not configured")
+    },
     scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : PremiumRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
 
     init { scope.launch { selectionStore.observe(accountId).collect { selectedBackend.value = it } } }
 
@@ -31,7 +36,7 @@ internal class TelegramBackendPremiumRouter(
 
     override suspend fun setSponsoredMessagesEnabled(enabled: Boolean) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setSponsoredMessagesEnabled(enabled)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setSponsoredMessagesEnabled(enabled)
     }
 
     private fun selected() = checkNotNull(selectedBackend.value) { "Telegram backend selection is not loaded" }

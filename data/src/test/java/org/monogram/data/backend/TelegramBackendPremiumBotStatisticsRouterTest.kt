@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepository
+import org.monogram.data.mtproto.MtProtoPremiumRepository
 import org.monogram.domain.models.ChatStatisticsModel
 import org.monogram.domain.models.DateRangeModel
 import org.monogram.domain.models.StatisticsGraphModel
@@ -20,10 +21,30 @@ class TelegramBackendPremiumBotStatisticsRouterTest {
     fun `selected MTProto premium bot and statistics contracts fail closed`() = runBlocking {
         val selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO)
         val scope = CoroutineScope(Dispatchers.Unconfined)
-        val premium = TelegramBackendPremiumRouter(selection, { error("legacy premium created") }, scope)
+        val premium = TelegramBackendPremiumRouter(
+            selectionStore = selection,
+            legacyFactory = { error("legacy premium created") },
+            scope = scope,
+        )
         val bot = TelegramBackendBotRouter(selection, { error("legacy bot created") }, scope)
         assertTrue(runCatching { premium.getPremiumState() }.exceptionOrNull() is UnsupportedOperationException)
         assertTrue(runCatching { bot.getBotCommands(1L) }.exceptionOrNull() is UnsupportedOperationException)
+    }
+
+    @Test
+    fun `selected MTProto premium mutation avoids legacy repository`() = runBlocking {
+        var enabled: Boolean? = null
+        val premium = TelegramBackendPremiumRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy premium created") },
+            mtProtoFactory = { MtProtoPremiumRepository { enabled = it } },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        premium.setSponsoredMessagesEnabled(false)
+
+        assertEquals(false, enabled)
+        assertTrue(runCatching { premium.getPremiumFeatures(org.monogram.domain.models.PremiumSource.SETTINGS) }.exceptionOrNull() is UnsupportedOperationException)
     }
 
     @Test

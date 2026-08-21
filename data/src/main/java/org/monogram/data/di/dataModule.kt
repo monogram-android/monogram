@@ -126,6 +126,8 @@ import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoStoryResultStager
+import org.monogram.data.mtproto.MtProtoPremiumRepository
+import org.monogram.data.mtproto.MtProtoPremiumRepositoryImpl
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
 import org.monogram.data.mtproto.MtProtoProfilePhotoRepository
 import org.monogram.data.mtproto.MtProtoRoomPhotoLocationStore
@@ -1012,10 +1014,12 @@ val dataModule = module {
         )
     }
 
+    single<MtProtoPremiumRepository> { MtProtoPremiumRepositoryImpl(get()) }
     single<PremiumRepository> {
         TelegramBackendPremiumRouter(
             selectionStore = get(),
             legacyFactory = { PremiumRepositoryImpl(remote = get()) },
+            mtProtoFactory = { get() },
             scope = get(),
         )
     }

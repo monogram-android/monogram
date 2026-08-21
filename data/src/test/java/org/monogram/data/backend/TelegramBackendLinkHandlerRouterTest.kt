@@ -20,12 +20,16 @@ class TelegramBackendLinkHandlerRouterTest {
             mtProtoFactory = {
                 object : MtProtoLinkHandler {
                     override suspend fun handle(link: String) = LinkAction.OpenUser(7)
+                    override suspend fun joinChat(inviteLink: String) = 9L
+                    override suspend fun joinChatAction(inviteLink: String) = LinkAction.OpenChat(9L)
                 }
             },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
         assertEquals(LinkAction.OpenUser(7), router.handleLink("https://t.me/example"))
+        assertEquals(9L, router.joinChat("https://t.me/+invite"))
+        assertEquals(LinkAction.OpenChat(9L), router.joinChatAction("https://t.me/+invite"))
     }
 
     @Test

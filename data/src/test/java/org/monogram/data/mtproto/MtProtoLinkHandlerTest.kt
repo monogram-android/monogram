@@ -15,6 +15,10 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.Chat_65eab3b078
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.ResolveUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.CheckChatInvite
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ImportChatInvite
+import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_02c952992b
+import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
+import org.monogram.mtproto.transport.MtProtoRpcException
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.ResolvedPeer_28e60b6802
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
@@ -79,6 +83,43 @@ class MtProtoLinkHandlerTest {
     }
 
     @Test
+    fun `joins an invite through owned transport and stages returned updates`() = runTest {
+        val updates = Updates_02c952992b(emptyList(), emptyList(), listOf(chat()), 0, 0)
+        val transport = RecordingTransport(updates)
+        val staged = RecordingStager()
+        val handler = MtProtoLinkHandlerImpl(
+            parser = LinkParser(),
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = NoOpMtProtoUserProjectionStore,
+            chats = NoOpMtProtoChatProjectionStore,
+            cloudObjectStager = staged,
+        )
+
+        assertEquals(LinkAction.OpenChat(-9), handler.joinChatAction("https://t.me/+invite"))
+        assertEquals(-9L, handler.joinChat("https://t.me/+invite"))
+        assertEquals(ImportChatInvite("invite"), transport.request)
+        assertEquals(2, staged.envelopes.size)
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `maps the server request-sent result without fabricating a chat`() = runTest {
+        val transport = RecordingTransport(MtProtoRpcException(400, "INVITE_REQUEST_SENT"))
+        val handler = MtProtoLinkHandlerImpl(
+            parser = LinkParser(),
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = NoOpMtProtoUserProjectionStore,
+            chats = NoOpMtProtoChatProjectionStore,
+        )
+
+        assertEquals(LinkAction.JoinChatRequestSent(), handler.joinChatAction("https://t.me/+invite"))
+        assertEquals(null, handler.joinChat("https://t.me/+invite"))
+        assertTrue(transport.closed)
+    }
+
+    @Test
     fun `opens an already joined invite using the returned chat`() = runTest {
         val transport = RecordingTransport(ChatInviteAlready(chat()))
         val chats = RecordingChats()
@@ -108,9 +149,17 @@ class MtProtoLinkHandlerTest {
         @Suppress("UNCHECKED_CAST")
         override suspend fun <R> execute(method: TlMethod<R>): R {
             request = method
+            if (response is Throwable) throw response
             return response as R
         }
         override fun close() { closed = true }
+    }
+
+    private class RecordingStager : MtProtoCloudObjectStager by NoOpMtProtoCloudObjectStager {
+        val envelopes = mutableListOf<Updates_faf6aaa3d5>()
+        override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
+            envelopes += envelope
+        }
     }
 
     private class RecordingChats : MtProtoChatProjectionStore by NoOpMtProtoChatProjectionStore {

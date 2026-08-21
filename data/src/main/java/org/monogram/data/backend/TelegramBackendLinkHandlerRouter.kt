@@ -24,12 +24,11 @@ internal class TelegramBackendLinkHandlerRouter(
     }
     override suspend fun joinChat(inviteLink: String): Long? = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.joinChat(inviteLink)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.joinChat(inviteLink)
     }
     override suspend fun joinChatAction(inviteLink: String): LinkAction = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.joinChatAction(inviteLink)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.joinChatAction(inviteLink)
     }
     private fun selected() = checkNotNull(selectedBackend.value) { "Telegram backend selection is not loaded" }
-    private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto link handling is not available")
 }

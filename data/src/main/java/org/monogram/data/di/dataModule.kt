@@ -1839,6 +1839,7 @@ val dataModule = module {
                     transportFactory = get(),
                     users = get(),
                     chats = get(),
+                    cloudObjectStager = get(),
                 )
             },
             scope = get(),

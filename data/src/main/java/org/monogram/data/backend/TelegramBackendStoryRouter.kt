@@ -79,9 +79,11 @@ internal class TelegramBackendStoryRouter(
         TelegramBackendKind.LEGACY -> legacy.loadActiveStories(listType)
         TelegramBackendKind.KOTLIN_MTPROTO -> {
             if (!emptyActiveStories.value.containsKey(listType)) {
-                val active = mtProtoActiveLists.refreshAndRead()
-                emptyActiveStories.value = active
-                emptyStoryCounts.value = active.mapValues { it.value.size }
+                runCatching { mtProtoActiveLists.refreshAndRead() }
+                    .onSuccess { active ->
+                        emptyActiveStories.value = active
+                        emptyStoryCounts.value = active.mapValues { it.value.size }
+                    }
             }
             Unit
         }

@@ -32,6 +32,28 @@ class MtProtoStoryRefreshRepositoryTest {
     }
 
     @Test
+    fun `continues each paged list with its latest server cursor`() = runBlocking {
+        val transport = RecordingTransport(
+            listOf(
+                AllStories_75ae93d8cd(true, 2, "main-1", emptyList(), emptyList(), emptyList(), stealth()),
+                AllStories_75ae93d8cd(false, 2, "main-2", emptyList(), emptyList(), emptyList(), stealth()),
+                AllStories_75ae93d8cd(true, 2, "archive-1", emptyList(), emptyList(), emptyList(), stealth()),
+                AllStories_75ae93d8cd(false, 2, "archive-2", emptyList(), emptyList(), emptyList(), stealth()),
+            )
+        )
+        val stories = RecordingStories()
+        val repository = repository(transport, stories)
+
+        repository.refreshInitialLists()
+
+        assertEquals(listOf(false, false, true, true), transport.requests.map { it.hidden })
+        assertEquals(listOf(false, true, false, true), transport.requests.map { it.next })
+        assertEquals(listOf(null, "main-1", null, "archive-1"), transport.requests.map { it.state })
+        assertEquals("main-2", stories.cursors["MAIN"]?.state)
+        assertEquals("archive-2", stories.cursors["ARCHIVE"]?.state)
+    }
+
+    @Test
     fun `not modified response preserves projections and advances its cursor`() = runBlocking {
         val transport = RecordingTransport(
             listOf(

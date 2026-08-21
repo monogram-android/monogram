@@ -36,13 +36,22 @@ internal class MtProtoStoryRefreshRepositoryImpl(
         hidden: Boolean,
     ) {
         val previous = stories.cursor(scope, listType)
-        when (val result = transport.execute(GetAllStories(next = false, hidden = hidden, state = previous?.state))) {
+        var result = transport.execute(GetAllStories(next = false, hidden = hidden, state = previous?.state))
+        when (result) {
             is AllStories_75ae93d8cd -> resultStager.stageAllStories(scope, listType, result)
             is AllStoriesNotModified -> {
                 val cursor = requireNotNull(previous) {
                     "MTProto story list was not modified before it was initialized: $listType"
                 }
                 stories.replaceActiveList(scope, listType, stories.activeList(scope, listType), cursor.copy(state = result.state))
+                return
+            }
+        }
+        while (result is AllStories_75ae93d8cd && result.hasMore) {
+            result = transport.execute(GetAllStories(next = true, hidden = hidden, state = result.state))
+            when (result) {
+                is AllStories_75ae93d8cd -> resultStager.stageAllStories(scope, listType, result, append = true)
+                is AllStoriesNotModified -> return
             }
         }
     }

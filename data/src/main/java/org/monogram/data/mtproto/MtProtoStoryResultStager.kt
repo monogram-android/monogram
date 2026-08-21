@@ -33,10 +33,17 @@ internal class MtProtoStoryResultStager(
     private val documents: MtProtoDocumentLocationStore = NoOpMtProtoDocumentLocationStore,
     private val photos: MtProtoPhotoLocationStore = NoOpMtProtoPhotoLocationStore,
 ) {
-    suspend fun stageAllStories(scope: MtProtoAuthKeyScope, listType: String, result: AllStories_75ae93d8cd) {
+    suspend fun stageAllStories(
+        scope: MtProtoAuthKeyScope,
+        listType: String,
+        result: AllStories_75ae93d8cd,
+        append: Boolean = false,
+    ) {
         users.upsert(scope, result.users)
         chats.upsert(scope, result.chats)
-        val active = buildList {
+        val existing = if (append) stories.activeList(scope, listType) else emptyList()
+        val pageOrderStart = if (append) existing.minOfOrNull { it.orderKey } ?: 0L else result.peerStories.size.toLong() + 1L
+        val page = buildList {
             result.peerStories.forEachIndexed { peerIndex, peerStories ->
                 val list = peerStories as? PeerStories_9de86f4fe6 ?: return@forEachIndexed
                 val peer = list.peer.toKey()
@@ -45,7 +52,7 @@ internal class MtProtoStoryResultStager(
                     add(
                         MtProtoStoryActiveListItem(
                             key = MtProtoStoryKey(peer.type, peer.id, story.id()),
-                            orderKey = result.peerStories.size.toLong() - peerIndex,
+                            orderKey = pageOrderStart - peerIndex - 1L,
                             canBeArchived = false,
                             maxReadStoryId = list.maxReadId ?: 0,
                         )
@@ -53,10 +60,11 @@ internal class MtProtoStoryResultStager(
                 }
             }
         }
+        val pageKeys = page.mapTo(mutableSetOf()) { it.key }
         stories.replaceActiveList(
             scope = scope,
             listType = listType,
-            stories = active,
+            stories = if (append) existing.filterNot { it.key in pageKeys } + page else page,
             cursor = MtProtoStoryListCursor(result.state, result.hasMore, result.count),
         )
     }

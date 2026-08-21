@@ -5,8 +5,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.domain.models.stories.StoryListType
+import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.SendReaction
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.TogglePeerStoriesHidden
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
@@ -42,6 +45,53 @@ class MtProtoStoryListRepositoryTest {
         assertEquals(ReadStories(org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat(42), 7), transport.request)
         assertEquals(Triple("GROUP", 42L, 7), stories.readMarker)
         assertEquals(true, transport.closed)
+    }
+
+    @Test
+    fun `maps complete story reaction variants and stages updates`() = runBlocking {
+        val transport = ReactionRecordingTransport()
+        val stager = RecordingStager()
+        val repository = MtProtoStoryListRepositoryImpl(
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = NoOpMtProtoUserProjectionStore,
+            chats = NoOpMtProtoChatProjectionStore,
+            cloudObjectStager = stager,
+        )
+
+        repository.setReaction(-42, 7, StoryReactionModel())
+        repository.setReaction(-42, 7, StoryReactionModel(emoji = "👍"))
+        repository.setReaction(-42, 7, StoryReactionModel(customEmojiId = 99))
+        repository.setReaction(-42, 7, StoryReactionModel(isPaid = true))
+
+        assertEquals(
+            listOf(
+                org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmpty,
+                org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji("👍"),
+                org.monogram.mtproto.tl.generated.cloud.layer223.ReactionCustomEmoji(99),
+                org.monogram.mtproto.tl.generated.cloud.layer223.ReactionPaid,
+            ),
+            transport.requests.map(SendReaction::reaction),
+        )
+        assertEquals(listOf(false, true, true, false), transport.requests.map(SendReaction::addToRecent))
+        assertEquals(4, stager.calls)
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
+    fun `rejects conflicting paid reaction selectors before opening transport`() = runBlocking {
+        var opened = false
+        val repository = MtProtoStoryListRepositoryImpl(
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            transportFactory = MtProtoSessionTransportFactory { opened = true; error("transport must not open") },
+            users = NoOpMtProtoUserProjectionStore,
+            chats = NoOpMtProtoChatProjectionStore,
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.setReaction(-42, 7, StoryReactionModel(emoji = "👍", isPaid = true)) }
+        }
+        assertEquals(false, opened)
     }
 
     @Test
@@ -96,6 +146,24 @@ class MtProtoStoryListRepositoryTest {
         override suspend fun <R> execute(method: TlMethod<R>): R {
             request = method as ReadStories
             return emptyList<Int>() as R
+        }
+        override fun close() { closed = true }
+    }
+
+    private class RecordingStager : MtProtoCloudObjectStager by NoOpMtProtoCloudObjectStager {
+        var calls = 0
+        override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5) {
+            calls++
+        }
+    }
+
+    private class ReactionRecordingTransport : MtProtoRpcTransport {
+        val requests = mutableListOf<SendReaction>()
+        var closed = false
+        @Suppress("UNCHECKED_CAST")
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            requests += method as SendReaction
+            return UpdatesTooLong as R
         }
         override fun close() { closed = true }
     }

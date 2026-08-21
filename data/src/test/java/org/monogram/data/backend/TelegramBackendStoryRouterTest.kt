@@ -14,6 +14,7 @@ import org.monogram.data.mtproto.MtProtoStoryListRepository
 import org.monogram.data.mtproto.MtProtoStoryStealthMode
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
 import org.monogram.domain.models.stories.StoryListType
+import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.domain.repository.StoryRepository
 import java.lang.reflect.Proxy
 
@@ -116,6 +117,29 @@ class TelegramBackendStoryRouterTest {
         router.openStory(7L, 2)
 
         assertEquals(7L to 2, read)
+    }
+
+    @Test
+    fun `selected MTProto story reactions avoid legacy repository`() = runBlocking {
+        var capturedReaction: Triple<Long, Int, StoryReactionModel>? = null
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoFactory = {
+                object : MtProtoStoryListRepository {
+                    override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?) = true
+                    override suspend fun setReaction(chatId: Long, storyId: Int, reaction: StoryReactionModel): Boolean {
+                        capturedReaction = Triple(chatId, storyId, reaction)
+                        return true
+                    }
+                }
+            },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertTrue(router.setStoryReaction(7L, 2, StoryReactionModel(emoji = "👍")))
+        assertEquals(Triple(7L, 2, StoryReactionModel(emoji = "👍")), capturedReaction)
     }
 
     @Test

@@ -1865,6 +1865,7 @@ val dataModule = module {
                     users = get(),
                     chats = get(),
                     stories = get(),
+                    cloudObjectStager = get(),
                 )
             },
             mtProtoStealthModeFactory = { get() },

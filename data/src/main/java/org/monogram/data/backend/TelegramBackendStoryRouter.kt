@@ -85,7 +85,10 @@ internal class TelegramBackendStoryRouter(
     override suspend fun canPostStory(chatId: Long): StoryPostCapabilityModel = dispatch { legacy.canPostStory(chatId) }
     override suspend fun getStoryStatistics(chatId: Long, storyId: Int, isDark: Boolean): StoryStatisticsModel? = dispatch { legacy.getStoryStatistics(chatId, storyId, isDark) }
     override suspend fun getStoryAvailableReactions(rowSize: Int): StoryAvailableReactionsModel? = dispatch { legacy.getStoryAvailableReactions(rowSize) }
-    override suspend fun setStoryReaction(chatId: Long, storyId: Int, reaction: StoryReactionModel): Boolean = dispatch { legacy.setStoryReaction(chatId, storyId, reaction) }
+    override suspend fun setStoryReaction(chatId: Long, storyId: Int, reaction: StoryReactionModel): Boolean = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setStoryReaction(chatId, storyId, reaction)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setReaction(chatId, storyId, reaction)
+    }
     override suspend fun getStoryInteractions(storyId: Int, offset: String, limit: Int, query: String, onlyContacts: Boolean, preferForwards: Boolean, preferWithReaction: Boolean): StoryInteractionPageModel? = dispatch { legacy.getStoryInteractions(storyId, offset, limit, query, onlyContacts, preferForwards, preferWithReaction) }
     override suspend fun postStory(chatId: Long, draft: StoryComposerDraftModel): StoryPostResultModel = dispatch { legacy.postStory(chatId, draft) }
     override suspend fun editStory(chatId: Long, storyId: Int, draft: StoryComposerDraftModel): Boolean = dispatch { legacy.editStory(chatId, storyId, draft) }

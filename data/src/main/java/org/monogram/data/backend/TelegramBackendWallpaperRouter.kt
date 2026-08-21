@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import org.monogram.data.mtproto.MtProtoWallpaperRepository
 import org.monogram.domain.models.WallpaperModel
 import org.monogram.domain.repository.WallpaperRepository
 
@@ -11,11 +12,13 @@ import org.monogram.domain.repository.WallpaperRepository
 internal class TelegramBackendWallpaperRouter(
     selectionStore: TelegramBackendSelectionStore,
     private val legacyFactory: () -> WallpaperRepository,
+    private val mtProtoFactory: () -> MtProtoWallpaperRepository = { throw UnsupportedOperationException("MTProto wallpapers are not configured") },
     scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : WallpaperRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
 
     init {
         scope.launch {
@@ -25,12 +28,12 @@ internal class TelegramBackendWallpaperRouter(
 
     override fun getWallpapers(): Flow<List<WallpaperModel>> = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getWallpapers()
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.wallpapers()
     }
 
     override suspend fun downloadWallpaper(fileId: Int) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.downloadWallpaper(fileId)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.download(fileId)
     }
 
     override suspend fun setDefaultWallpaper(wallpaper: WallpaperModel, isBlurred: Boolean, isMoving: Boolean) = when (selected()) {

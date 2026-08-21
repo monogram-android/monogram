@@ -122,6 +122,7 @@ import org.monogram.data.mtproto.FileMtProtoDatabaseSizeReader
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepository
 import org.monogram.data.mtproto.MtProtoChatStatisticsRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStreamingRepository
+import org.monogram.data.mtproto.MtProtoWallpaperRepositoryImpl
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomStoryProjectionStore
@@ -1462,6 +1463,15 @@ val dataModule = module {
                     wallpaperDao = get(),
                     fileObserverHub = get(),
                     dispatchers = get(),
+                    scope = get(),
+                )
+            },
+            mtProtoFactory = {
+                MtProtoWallpaperRepositoryImpl(
+                    configSource = get(),
+                    transportFactory = get(),
+                    documents = get(),
+                    files = get(),
                     scope = get(),
                 )
             },

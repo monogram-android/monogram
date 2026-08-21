@@ -11,16 +11,19 @@ import org.monogram.domain.models.WallpaperModel
 import org.monogram.domain.models.WallpaperSettings
 import org.monogram.domain.models.WallpaperType
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputWallPaper_3820bbf74d
 import org.monogram.mtproto.tl.generated.cloud.layer223.WallPaperNoFile
 import org.monogram.mtproto.tl.generated.cloud.layer223.WallPaperSettings_2cd7142740
 import org.monogram.mtproto.tl.generated.cloud.layer223.WallPaper_7e3ce0b613
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.GetWallPapers
+import org.monogram.mtproto.tl.generated.cloud.layer223.account.InstallWallPaper
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.WallPapers_1d62475ab5
 
 /** Reads installed wallpapers and delegates their opaque file handles to the owned downloader. */
 internal interface MtProtoWallpaperRepository {
     fun wallpapers(): Flow<List<WallpaperModel>>
     fun download(fileId: Int)
+    suspend fun setDefault(wallpaperId: Long, isBlurred: Boolean, isMoving: Boolean): WallpaperModel?
 }
 
 internal class MtProtoWallpaperRepositoryImpl(
@@ -33,6 +36,7 @@ internal class MtProtoWallpaperRepositoryImpl(
 ) : MtProtoWallpaperRepository {
     private val installedWallpapers = MutableStateFlow<List<WallpaperModel>>(emptyList())
     private var refreshStarted = false
+    private var installedFileWallpapers = emptyMap<Long, WallPaper_7e3ce0b613>()
 
     init {
         scope.launch {
@@ -61,6 +65,39 @@ internal class MtProtoWallpaperRepositoryImpl(
         files.download(fileId, offset = 0L, limit = 0L)
     }
 
+    override suspend fun setDefault(
+        wallpaperId: Long,
+        isBlurred: Boolean,
+        isMoving: Boolean,
+    ): WallpaperModel? {
+        val wallpaper = installedFileWallpapers[wallpaperId] ?: return null
+        val settings = (wallpaper.settings as? WallPaperSettings_2cd7142740)?.copy(
+            blur = isBlurred,
+            motion = isMoving,
+        ) ?: WallPaperSettings_2cd7142740(
+            blur = isBlurred,
+            motion = isMoving,
+            backgroundColor = null,
+            secondBackgroundColor = null,
+            thirdBackgroundColor = null,
+            fourthBackgroundColor = null,
+            intensity = null,
+            rotation = null,
+            emoticon = null,
+        )
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val accepted = transportFactory.open(accountSlot).use { transport ->
+            transport.execute(InstallWallPaper(InputWallPaper_3820bbf74d(wallpaper.id, wallpaper.accessHash), settings))
+        }
+        if (!accepted) return null
+        val installed = wallpaper.copy(settings = settings).toModel(scope) ?: return null
+        installedWallpapers.value = installedWallpapers.value.map { current ->
+            if (current.id == installed.id) installed else current
+        }
+        return installed
+    }
+
     private suspend fun refresh() {
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
@@ -68,6 +105,7 @@ internal class MtProtoWallpaperRepositoryImpl(
             transport.execute(GetWallPapers(hash = 0L))
         }
         val wallpapers = (result as? WallPapers_1d62475ab5)?.wallpapers.orEmpty()
+        installedFileWallpapers = wallpapers.filterIsInstance<WallPaper_7e3ce0b613>().associateBy { it.id }
         installedWallpapers.value = wallpapers.mapNotNull { wallpaper -> wallpaper.toModel(scope) }
     }
 

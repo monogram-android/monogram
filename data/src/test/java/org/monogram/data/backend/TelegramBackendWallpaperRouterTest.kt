@@ -17,6 +17,7 @@ class TelegramBackendWallpaperRouterTest {
     @Test
     fun `selected MTProto wallpaper reads and downloads avoid legacy repository`() = runBlocking {
         var downloaded: Int? = null
+        var defaultRequest: Triple<Long, Boolean, Boolean>? = null
         val router = TelegramBackendWallpaperRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy wallpaper repository must not be created") },
@@ -24,6 +25,8 @@ class TelegramBackendWallpaperRouterTest {
                 object : MtProtoWallpaperRepository {
                     override fun wallpapers() = flowOf(listOf(wallpaper))
                     override fun download(fileId: Int) { downloaded = fileId }
+                    override suspend fun setDefault(wallpaperId: Long, isBlurred: Boolean, isMoving: Boolean) =
+                        wallpaper.also { defaultRequest = Triple(wallpaperId, isBlurred, isMoving) }
                 }
             },
             scope = CoroutineScope(Dispatchers.Unconfined),
@@ -31,8 +34,10 @@ class TelegramBackendWallpaperRouterTest {
 
         assertEquals(listOf(wallpaper), router.getWallpapers().value())
         router.downloadWallpaper(42)
+        assertEquals(wallpaper, router.setDefaultWallpaper(wallpaper, isBlurred = true, isMoving = false))
 
         assertEquals(42, downloaded)
+        assertEquals(Triple(7L, true, false), defaultRequest)
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

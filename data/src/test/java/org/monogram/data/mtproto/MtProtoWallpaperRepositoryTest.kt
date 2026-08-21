@@ -93,6 +93,34 @@ class MtProtoWallpaperRepositoryTest {
     }
 
     @Test
+    fun `installs known file wallpaper with its authoritative access hash and settings`() = runBlocking {
+        val transport = ResultTransport(WallPapers_1d62475ab5(0, listOf(fileWallpaper())), true)
+        val repository = MtProtoWallpaperRepositoryImpl(
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            documents = RecordingDocuments,
+            files = EventFiles(),
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        repository.wallpapers().first { it.isNotEmpty() }
+        val installed = repository.setDefault(wallpaperId = 7L, isBlurred = true, isMoving = false)
+
+        val request = transport.requests.last() as org.monogram.mtproto.tl.generated.cloud.layer223.account.InstallWallPaper
+        assertEquals(
+            org.monogram.mtproto.tl.generated.cloud.layer223.InputWallPaper_3820bbf74d(7L, 8L),
+            request.wallpaper,
+        )
+        val settings = request.settings as WallPaperSettings_2cd7142740
+        assertEquals(1, settings.backgroundColor)
+        assertEquals(2, settings.secondBackgroundColor)
+        assertTrue(settings.blur)
+        assertEquals(false, settings.motion)
+        assertEquals(true, installed?.settings?.isBlurred)
+        assertEquals(true, repository.wallpapers().first { it.single().settings?.isBlurred == true }.single().settings?.isBlurred)
+    }
+
+    @Test
     fun `delegates wallpaper downloads to the owned opaque file handle`() {
         MtProtoWallpaperRepositoryImpl(
             configSource = TelegramMtProtoBootstrapConfigSource { config() },
@@ -125,7 +153,17 @@ class MtProtoWallpaperRepositoryTest {
             dcId = 2,
             attributes = emptyList(),
         ),
-        settings = null,
+        settings = WallPaperSettings_2cd7142740(
+            blur = false,
+            motion = true,
+            backgroundColor = 1,
+            secondBackgroundColor = 2,
+            thirdBackgroundColor = null,
+            fourthBackgroundColor = null,
+            intensity = 40,
+            rotation = 45,
+            emoticon = null,
+        ),
     )
 
     private fun config() = TelegramMtProtoBootstrapConfig(
@@ -134,9 +172,16 @@ class MtProtoWallpaperRepositoryTest {
         cloud = CloudLayer223ConnectionConfig(1, "device", "system", "app", "en"),
     )
 
-    private class ResultTransport(private val result: Any) : MtProtoRpcTransport {
+    private class ResultTransport(private vararg val results: Any) : MtProtoRpcTransport {
+        val requests = mutableListOf<TlMethod<*>>()
+        private var resultIndex = 0
+
         @Suppress("UNCHECKED_CAST")
-        override suspend fun <R> execute(method: TlMethod<R>): R = result as R
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            requests += method
+            return results[resultIndex++] as R
+        }
+
         override fun close() = Unit
     }
 

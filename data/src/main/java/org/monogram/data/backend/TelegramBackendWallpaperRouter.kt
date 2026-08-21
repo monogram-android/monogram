@@ -38,7 +38,7 @@ internal class TelegramBackendWallpaperRouter(
 
     override suspend fun setDefaultWallpaper(wallpaper: WallpaperModel, isBlurred: Boolean, isMoving: Boolean) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setDefaultWallpaper(wallpaper, isBlurred, isMoving)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setDefault(wallpaper.id, isBlurred, isMoving)
     }
 
     override suspend fun uploadWallpaper(filePath: String, isBlurred: Boolean, isMoving: Boolean) = when (selected()) {

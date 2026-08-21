@@ -5,11 +5,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.data.mtproto.MtProtoStoryListRepository
+import org.monogram.data.mtproto.MtProtoStoryStealthMode
+import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
 import org.monogram.domain.models.stories.StoryListType
 
 class TelegramBackendStoryRouterTest {
@@ -37,6 +40,7 @@ class TelegramBackendStoryRouterTest {
                     true
                 }
             },
+            mtProtoStealthModeFactory = { stealthReader(100, 200) },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
@@ -44,10 +48,24 @@ class TelegramBackendStoryRouterTest {
     }
 
     @Test
+    fun `selected MTProto exposes persisted stealth mode without legacy repository`() {
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoStealthModeFactory = { stealthReader(100, 200) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(100, router.stealthMode.value.activeUntilDate)
+        assertEquals(200, router.stealthMode.value.cooldownUntilDate)
+    }
+
+    @Test
     fun `selected MTProto stories fail closed without creating legacy repository`() = runBlocking {
         val router = TelegramBackendStoryRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
 
@@ -55,6 +73,9 @@ class TelegramBackendStoryRouterTest {
 
         assertTrue(failure is UnsupportedOperationException)
     }
+
+    private fun stealthReader(activeUntilDate: Int, cooldownUntilDate: Int) =
+        MtProtoStoryStealthModeReader { flowOf(MtProtoStoryStealthMode(activeUntilDate, cooldownUntilDate)) }
 
     private class UnloadedSelectionStore : TelegramBackendSelectionStore {
         private val events = MutableSharedFlow<TelegramBackendKind>()

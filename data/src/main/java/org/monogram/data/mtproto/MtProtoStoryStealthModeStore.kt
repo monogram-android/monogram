@@ -1,5 +1,8 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.monogram.data.db.dao.KeyValueDao
@@ -16,12 +19,14 @@ internal data class MtProtoStoryStealthMode(
 internal interface MtProtoStoryStealthModeStore {
     suspend fun save(scope: MtProtoAuthKeyScope, mode: StoriesStealthMode_074c681db4)
     suspend fun get(scope: MtProtoAuthKeyScope): MtProtoStoryStealthMode?
+    fun observe(scope: MtProtoAuthKeyScope): Flow<MtProtoStoryStealthMode?>
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
 
 internal object NoOpMtProtoStoryStealthModeStore : MtProtoStoryStealthModeStore {
     override suspend fun save(scope: MtProtoAuthKeyScope, mode: StoriesStealthMode_074c681db4) = Unit
     override suspend fun get(scope: MtProtoAuthKeyScope): MtProtoStoryStealthMode? = null
+    override fun observe(scope: MtProtoAuthKeyScope): Flow<MtProtoStoryStealthMode?> = emptyFlow()
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
 
@@ -40,6 +45,13 @@ internal class KeyValueMtProtoStoryStealthModeStore(
     override suspend fun get(scope: MtProtoAuthKeyScope): MtProtoStoryStealthMode? =
         keyValueDao.getValue(key(scope))?.value?.let { value ->
             runCatching { Json.decodeFromString(MtProtoStoryStealthMode.serializer(), value) }.getOrNull()
+        }
+
+    override fun observe(scope: MtProtoAuthKeyScope): Flow<MtProtoStoryStealthMode?> =
+        keyValueDao.observeValue(key(scope)).map { entity ->
+            entity?.value?.let { value ->
+                runCatching { Json.decodeFromString(MtProtoStoryStealthMode.serializer(), value) }.getOrNull()
+            }
         }
 
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {

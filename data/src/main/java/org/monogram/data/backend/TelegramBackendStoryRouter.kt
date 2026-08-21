@@ -3,9 +3,11 @@ package org.monogram.data.backend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.monogram.data.mtproto.MtProtoStoryListRepository
+import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
 import org.monogram.domain.models.stories.*
 import org.monogram.domain.repository.StoryRepository
 
@@ -15,11 +17,13 @@ internal class TelegramBackendStoryRouter(
     private val legacyFactory: () -> StoryRepository,
     scope: CoroutineScope,
     private val mtProtoFactory: () -> MtProtoStoryListRepository = { throw UnsupportedOperationException("MTProto story mutations are not configured") },
+    private val mtProtoStealthModeFactory: () -> MtProtoStoryStealthModeReader = { throw UnsupportedOperationException("MTProto story stealth mode is not configured") },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : StoryRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
     private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
+    private val mtProtoStealthMode by lazy(LazyThreadSafetyMode.NONE, mtProtoStealthModeFactory)
     private val emptyActiveStories = MutableStateFlow<Map<StoryListType, List<ActiveStoryListModel>>>(emptyMap())
     private val emptyStoryCounts = MutableStateFlow<Map<StoryListType, Int>>(emptyMap())
     private val emptyStealthMode = MutableStateFlow(StoryStealthModeModel())
@@ -40,6 +44,13 @@ internal class TelegramBackendStoryRouter(
                     emptyActiveStories.value = emptyMap()
                     emptyStoryCounts.value = emptyMap()
                     emptyStealthMode.value = StoryStealthModeModel()
+                    launch {
+                        mtProtoStealthMode.observe().collect { mode ->
+                            emptyStealthMode.value = mode?.let {
+                                StoryStealthModeModel(it.activeUntilDate, it.cooldownUntilDate)
+                            } ?: StoryStealthModeModel()
+                        }
+                    }
                     emptyOptions.value = StoryOptionsModel()
                     emptyPostResult.value = null
                 }

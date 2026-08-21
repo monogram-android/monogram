@@ -131,6 +131,8 @@ import org.monogram.data.mtproto.MtProtoStoryRefreshRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.KeyValueMtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.MtProtoStoryListRepositoryImpl
+import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
+import org.monogram.data.mtproto.MtProtoStoryStealthModeReaderImpl
 import org.monogram.data.mtproto.MtProtoPremiumRepository
 import org.monogram.data.mtproto.MtProtoPremiumRepositoryImpl
 import org.monogram.data.mtproto.MtProtoPhotoLocationStore
@@ -626,6 +628,7 @@ val dataModule = module {
     single { MtProtoRoomStoryProjectionStore(get(), database = get()) }
     single<MtProtoStoryProjectionStore> { get<MtProtoRoomStoryProjectionStore>() }
     single<MtProtoStoryStealthModeStore> { KeyValueMtProtoStoryStealthModeStore(get()) }
+    single<MtProtoStoryStealthModeReader> { MtProtoStoryStealthModeReaderImpl(get(), get()) }
     single { MtProtoStoryResultStager(get(), get(), get(), get(), get(), get()) }
     single<MtProtoStoryRefreshRepository> {
         MtProtoStoryRefreshRepositoryImpl(
@@ -1862,6 +1865,7 @@ val dataModule = module {
                     chats = get(),
                 )
             },
+            mtProtoStealthModeFactory = { get() },
             scope = get(),
         )
     }

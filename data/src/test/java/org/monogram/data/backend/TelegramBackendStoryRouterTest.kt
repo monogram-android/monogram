@@ -14,6 +14,8 @@ import org.monogram.data.mtproto.MtProtoStoryListRepository
 import org.monogram.data.mtproto.MtProtoStoryStealthMode
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
 import org.monogram.domain.models.stories.StoryListType
+import org.monogram.domain.repository.StoryRepository
+import java.lang.reflect.Proxy
 
 class TelegramBackendStoryRouterTest {
     @Test
@@ -51,9 +53,13 @@ class TelegramBackendStoryRouterTest {
     fun `story list mutation follows rollback selection without eager legacy creation`() = runBlocking {
         val selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO)
         var mtProtoCalls = 0
+        var legacyCreated = 0
         val router = TelegramBackendStoryRouter(
             selectionStore = selection,
-            legacyFactory = { error("legacy story repository was created after rollback") },
+            legacyFactory = {
+                legacyCreated += 1
+                legacyStoryRepository()
+            },
             mtProtoFactory = {
                 MtProtoStoryListRepository { _, _ ->
                     mtProtoCalls += 1
@@ -68,11 +74,9 @@ class TelegramBackendStoryRouterTest {
         assertEquals(1, mtProtoCalls)
 
         selection.select("default", TelegramBackendKind.LEGACY)
-        val failure = runCatching {
-            router.setChatActiveStoriesList(7L, StoryListType.ARCHIVE)
-        }.exceptionOrNull()
+        assertEquals(false, router.setChatActiveStoriesList(7L, StoryListType.ARCHIVE))
 
-        assertEquals("legacy story repository was created after rollback", failure?.message)
+        assertEquals(1, legacyCreated)
         assertEquals(1, mtProtoCalls)
     }
 
@@ -102,6 +106,19 @@ class TelegramBackendStoryRouterTest {
 
         assertTrue(failure is UnsupportedOperationException)
     }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun legacyStoryRepository(): StoryRepository = Proxy.newProxyInstance(
+        StoryRepository::class.java.classLoader,
+        arrayOf(StoryRepository::class.java),
+    ) { _, method, _ ->
+        when (method.name) {
+            "getActiveStories", "getStoryListChatCounts" -> MutableStateFlow(emptyMap<StoryListType, List<Any>>())
+            "getStealthMode", "getStoryOptions", "getLastPostResult" -> MutableStateFlow(null)
+            "setChatActiveStoriesList" -> false
+            else -> throw UnsupportedOperationException("Unexpected legacy story method: ${method.name}")
+        }
+    } as StoryRepository
 
     private fun stealthReader(activeUntilDate: Int, cooldownUntilDate: Int) =
         MtProtoStoryStealthModeReader { flowOf(MtProtoStoryStealthMode(activeUntilDate, cooldownUntilDate)) }

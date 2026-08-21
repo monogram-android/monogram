@@ -1720,7 +1720,15 @@ val dataModule = module {
                     scope = get(),
                 )
             },
-            mtProtoFactory = { MtProtoEmojiRepository(androidContext(), get(), get()) },
+            mtProtoFactory = {
+                MtProtoEmojiRepository(
+                    context = androidContext(),
+                    localDataSource = get(),
+                    transportFactory = get(),
+                    configSource = get(),
+                    locations = get(),
+                )
+            },
             scope = get(),
         )
     }

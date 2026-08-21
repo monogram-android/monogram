@@ -7,14 +7,25 @@ import org.monogram.data.infra.EmojiLoader
 import org.monogram.domain.models.RecentEmojiModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.repository.EmojiRepository
+import org.monogram.domain.models.StickerFormat
 import org.monogram.mtproto.tl.generated.cloud.layer223.AvailableReaction_bcdc20ef08
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeCustomEmoji
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeImageSize
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeSticker
+import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeVideo
+import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiList_50973b9ed3
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AvailableReactions_a572c1b4d2
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetAvailableReactions
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetCustomEmojiDocuments
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchCustomEmoji
 
 internal class MtProtoEmojiRepository(
     context: Context?,
     private val localDataSource: StickerLocalDataSource,
     private val transportFactory: MtProtoSessionTransportFactory? = null,
+    private val configSource: TelegramMtProtoBootstrapConfigSource? = null,
+    private val locations: MtProtoDocumentLocationStore? = null,
     private val accountSlot: String = "default",
     private val fallbackEmojis: () -> List<String> = { EmojiLoader.getSupportedEmojis(requireNotNull(context)) },
 ) : EmojiRepository {
@@ -33,7 +44,25 @@ internal class MtProtoEmojiRepository(
         return emojis.filter { it.contains(normalized, ignoreCase = true) }
     }
 
-    override suspend fun searchCustomEmojis(query: String): List<StickerModel> = unsupported()
+    override suspend fun searchCustomEmojis(query: String): List<StickerModel> {
+        val emoticon = query.trim()
+        if (emoticon.isEmpty()) return emptyList()
+        val factory = requireNotNull(transportFactory) { "MTProto custom emoji search is not configured" }
+        val ids = factory.open(accountSlot).use { transport ->
+            (transport.execute(SearchCustomEmoji(emoticon, 0L)) as? EmojiList_50973b9ed3)?.documentId.orEmpty()
+        }
+        if (ids.isEmpty()) return emptyList()
+        val config = requireNotNull(configSource) { "MTProto custom emoji locations are not configured" }
+            .createForAccount(accountSlot)
+        val store = requireNotNull(locations) { "MTProto custom emoji locations are not configured" }
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val documents = factory.open(accountSlot).use { transport ->
+            transport.execute(GetCustomEmojiDocuments(ids)).filterIsInstance<Document_be725c3b31>()
+        }
+        documents.forEach { store.upsert(scope, it) }
+        val byId = documents.associateBy(Document_be725c3b31::id)
+        return ids.mapNotNull { byId[it]?.toStickerModel() }
+    }
 
     override suspend fun addRecentEmoji(recentEmoji: RecentEmojiModel) {
         localDataSource.addRecentEmoji(recentEmoji)
@@ -58,6 +87,26 @@ internal class MtProtoEmojiRepository(
             }
         }.orEmpty()
         return fetched.takeIf { it.isNotEmpty() }?.also { remoteEmojis = it } ?: supportedEmojis.value
+    }
+
+    private fun Document_be725c3b31.toStickerModel(): StickerModel? {
+        val customEmoji = attributes.filterIsInstance<DocumentAttributeCustomEmoji>().firstOrNull() ?: return null
+        val sticker = attributes.filterIsInstance<DocumentAttributeSticker>().firstOrNull()
+        val dimensions = attributes.filterIsInstance<DocumentAttributeImageSize>().firstOrNull()
+        val video = attributes.filterIsInstance<DocumentAttributeVideo>().firstOrNull()
+        return StickerModel(
+            id = id,
+            customEmojiId = id,
+            width = dimensions?.w ?: video?.w ?: 0,
+            height = dimensions?.h ?: video?.h ?: 0,
+            emoji = customEmoji.alt.ifBlank { sticker?.alt.orEmpty() },
+            path = null,
+            format = when {
+                video != null || mimeType == "video/webm" -> StickerFormat.VIDEO
+                mimeType == "application/x-tgsticker" -> StickerFormat.ANIMATED
+                else -> StickerFormat.STATIC
+            },
+        )
     }
 
     private fun unsupported(): Nothing = throw UnsupportedOperationException(

@@ -9,12 +9,29 @@ import org.junit.Test
 import org.monogram.data.datasource.cache.StickerLocalDataSource
 import org.monogram.domain.models.RecentEmojiModel
 import org.monogram.domain.models.StickerSetModel
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiList_50973b9ed3
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AvailableReactionsNotModified
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetAvailableReactions
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchCustomEmoji
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 
 class MtProtoEmojiRepositoryTest {
+    @Test
+    fun `returns no custom emojis when server returns no document IDs`() = runTest {
+        val transport = CustomEmojiSearchTransport()
+        val repository = MtProtoEmojiRepository(
+            context = null,
+            localDataSource = NoOpStickerLocalDataSource,
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            fallbackEmojis = { emptyList() },
+        )
+
+        assertEquals(emptyList<Any>(), repository.searchCustomEmojis("  👍  "))
+        assertEquals(SearchCustomEmoji("👍", 0L), transport.requests.single())
+        assertTrue(transport.closed)
+    }
+
     @Test
     fun `uses owned available reactions request and falls back when unchanged`() = runTest {
         val transport = RecordingTransport()
@@ -28,6 +45,19 @@ class MtProtoEmojiRepositoryTest {
         assertEquals(listOf("😀"), repository.getDefaultEmojis())
         assertEquals(0, (transport.requests.single() as GetAvailableReactions).hash)
         assertTrue(transport.closed)
+    }
+
+    private class CustomEmojiSearchTransport : MtProtoRpcTransport {
+        val requests = mutableListOf<TlMethod<*>>()
+        var closed = false
+
+        @Suppress("UNCHECKED_CAST")
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            requests += method
+            return EmojiList_50973b9ed3(0L, emptyList()) as R
+        }
+
+        override fun close() { closed = true }
     }
 
     private class RecordingTransport : MtProtoRpcTransport {

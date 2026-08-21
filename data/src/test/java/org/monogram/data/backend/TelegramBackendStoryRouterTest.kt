@@ -36,10 +36,12 @@ class TelegramBackendStoryRouterTest {
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy story repository must not be created") },
             mtProtoFactory = {
-                MtProtoStoryListRepository { chatId, listType ->
-                    assertEquals(7L, chatId)
-                    assertEquals(StoryListType.ARCHIVE, listType)
-                    true
+                object : MtProtoStoryListRepository {
+                    override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean {
+                        assertEquals(7L, chatId)
+                        assertEquals(StoryListType.ARCHIVE, listType)
+                        return true
+                    }
                 }
             },
             mtProtoStealthModeFactory = { stealthReader(100, 200) },
@@ -61,9 +63,11 @@ class TelegramBackendStoryRouterTest {
                 legacyStoryRepository()
             },
             mtProtoFactory = {
-                MtProtoStoryListRepository { _, _ ->
-                    mtProtoCalls += 1
-                    true
+                object : MtProtoStoryListRepository {
+                    override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean {
+                        mtProtoCalls += 1
+                        return true
+                    }
                 }
             },
             mtProtoStealthModeFactory = { stealthReader(0, 0) },
@@ -91,6 +95,27 @@ class TelegramBackendStoryRouterTest {
 
         assertEquals(100, router.stealthMode.value.activeUntilDate)
         assertEquals(200, router.stealthMode.value.cooldownUntilDate)
+    }
+
+    @Test
+    fun `selected MTProto opening a story marks it read without legacy repository`() = runBlocking {
+        var read: Pair<Long, Int>? = null
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoFactory = {
+                object : MtProtoStoryListRepository {
+                    override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?) = true
+                    override suspend fun markRead(chatId: Long, storyId: Int) { read = chatId to storyId }
+                }
+            },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        router.openStory(7L, 2)
+
+        assertEquals(7L to 2, read)
     }
 
     @Test

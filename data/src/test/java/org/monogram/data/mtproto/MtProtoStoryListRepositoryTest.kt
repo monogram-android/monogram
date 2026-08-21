@@ -6,6 +6,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.TogglePeerStoriesHidden
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
@@ -22,6 +23,25 @@ class MtProtoStoryListRepositoryTest {
 
         assertEquals(listOf(false, true), transport.requests.map { it.hidden })
         assertEquals(listOf(42L, 42L), transport.requests.map { (it.peer as org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat).chatId })
+    }
+
+    @Test
+    fun `marks stories read and persists the acknowledged peer cursor`() = runBlocking {
+        val transport = ReadRecordingTransport()
+        val stories = RecordingStories()
+        val repository = MtProtoStoryListRepositoryImpl(
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            users = NoOpMtProtoUserProjectionStore,
+            chats = NoOpMtProtoChatProjectionStore,
+            stories = stories,
+        )
+
+        repository.markRead(-42, 7)
+
+        assertEquals(ReadStories(org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat(42), 7), transport.request)
+        assertEquals(Triple("GROUP", 42L, 7), stories.readMarker)
+        assertEquals(true, transport.closed)
     }
 
     @Test
@@ -61,6 +81,24 @@ class MtProtoStoryListRepositoryTest {
         handshake = MtProtoHandshakeConfig(2, listOf("key")),
         cloud = CloudLayer223ConnectionConfig(1, "device", "system", "app", "en"),
     )
+
+    private class RecordingStories : MtProtoStoryProjectionStore by NoOpMtProtoStoryProjectionStore {
+        var readMarker: Triple<String, Long, Int>? = null
+        override suspend fun updateMaxReadStoryId(scope: MtProtoAuthKeyScope, peerType: String, peerId: Long, maxReadStoryId: Int) {
+            readMarker = Triple(peerType, peerId, maxReadStoryId)
+        }
+    }
+
+    private class ReadRecordingTransport : MtProtoRpcTransport {
+        lateinit var request: ReadStories
+        var closed = false
+        @Suppress("UNCHECKED_CAST")
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            request = method as ReadStories
+            return emptyList<Int>() as R
+        }
+        override fun close() { closed = true }
+    }
 
     private class RecordingTransport(
         private val result: Boolean = true,

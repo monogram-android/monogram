@@ -7,10 +7,14 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.TogglePeerStoriesHidden
 
-internal fun interface MtProtoStoryListRepository {
+internal interface MtProtoStoryListRepository {
     suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean
+    suspend fun markRead(chatId: Long, storyId: Int) {
+        throw UnsupportedOperationException("MTProto story read marking is not configured")
+    }
 }
 
 internal class MtProtoStoryListRepositoryImpl(
@@ -18,6 +22,7 @@ internal class MtProtoStoryListRepositoryImpl(
     private val transportFactory: MtProtoSessionTransportFactory,
     private val users: MtProtoUserProjectionStore,
     private val chats: MtProtoChatProjectionStore,
+    private val stories: MtProtoStoryProjectionStore = NoOpMtProtoStoryProjectionStore,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : MtProtoStoryListRepository {
     override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean {
@@ -31,6 +36,17 @@ internal class MtProtoStoryListRepositoryImpl(
         transportFactory.open(accountSlot).use { transport ->
             return transport.execute(TogglePeerStoriesHidden(resolvePeer(scope, chatId), hidden))
         }
+    }
+
+    override suspend fun markRead(chatId: Long, storyId: Int) {
+        require(storyId > 0) { "MTProto story ID must be positive" }
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val peer = TelegramPeerChatId.decode(chatId)
+        transportFactory.open(accountSlot).use { transport ->
+            transport.execute(ReadStories(resolvePeer(scope, chatId), storyId))
+        }
+        stories.updateMaxReadStoryId(scope, peerType(peer.type), peer.id, storyId)
     }
 
     private suspend fun resolvePeer(scope: MtProtoAuthKeyScope, chatId: Long): InputPeer {
@@ -47,6 +63,13 @@ internal class MtProtoStoryListRepositoryImpl(
             }
             DialogPeerType.UNKNOWN -> error("MTProto cannot change active stories for an unknown peer")
         }
+    }
+
+    private fun peerType(type: DialogPeerType) = when (type) {
+        DialogPeerType.PRIVATE -> "USER"
+        DialogPeerType.BASIC_GROUP -> "GROUP"
+        DialogPeerType.SUPERGROUP, DialogPeerType.CHANNEL -> "CHANNEL"
+        DialogPeerType.UNKNOWN -> error("MTProto cannot mark stories read for an unknown peer")
     }
 
     private companion object {

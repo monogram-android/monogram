@@ -76,7 +76,10 @@ internal class TelegramBackendStoryRouter(
     override suspend fun getStoryAlbum(chatId: Long, albumId: Int, offset: Int, limit: Int): List<StoryModel> = dispatch { legacy.getStoryAlbum(chatId, albumId, offset, limit) }
     override suspend fun getChatPostedToChatPageStories(chatId: Long, fromStoryId: Int, limit: Int): StoryPageModel? = dispatch { legacy.getChatPostedToChatPageStories(chatId, fromStoryId, limit) }
     override suspend fun getChatArchivedStories(chatId: Long, fromStoryId: Int, limit: Int): StoryPageModel? = dispatch { legacy.getChatArchivedStories(chatId, fromStoryId, limit) }
-    override suspend fun openStory(chatId: Long, storyId: Int) = dispatch { legacy.openStory(chatId, storyId) }
+    override suspend fun openStory(chatId: Long, storyId: Int) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.openStory(chatId, storyId)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.markRead(chatId, storyId)
+    }
     override suspend fun closeStory(chatId: Long, storyId: Int) = dispatch { legacy.closeStory(chatId, storyId) }
     override suspend fun activateStealthMode(): Boolean = dispatch { legacy.activateStealthMode() }
     override suspend fun canPostStory(chatId: Long): StoryPostCapabilityModel = dispatch { legacy.canPostStory(chatId) }

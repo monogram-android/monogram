@@ -15,6 +15,7 @@ import org.monogram.data.mtproto.MtProtoStoryStealthMode
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryReactionModel
+import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.repository.StoryRepository
 import java.lang.reflect.Proxy
 
@@ -117,6 +118,24 @@ class TelegramBackendStoryRouterTest {
         router.openStory(7L, 2)
 
         assertEquals(7L to 2, read)
+    }
+
+    @Test
+    fun `selected MTProto story send capability avoids legacy repository`() = runBlocking {
+        val router = TelegramBackendStoryRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoFactory = {
+                object : MtProtoStoryListRepository {
+                    override suspend fun setActiveStoriesList(chatId: Long, listType: StoryListType?) = true
+                    override suspend fun canSend(chatId: Long) = StoryPostCapabilityModel.Allowed(3)
+                }
+            },
+            mtProtoStealthModeFactory = { stealthReader(0, 0) },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(StoryPostCapabilityModel.Allowed(3), router.canPostStory(7L))
     }
 
     @Test

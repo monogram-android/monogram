@@ -82,7 +82,10 @@ internal class TelegramBackendStoryRouter(
     }
     override suspend fun closeStory(chatId: Long, storyId: Int) = dispatch { legacy.closeStory(chatId, storyId) }
     override suspend fun activateStealthMode(): Boolean = dispatch { legacy.activateStealthMode() }
-    override suspend fun canPostStory(chatId: Long): StoryPostCapabilityModel = dispatch { legacy.canPostStory(chatId) }
+    override suspend fun canPostStory(chatId: Long): StoryPostCapabilityModel = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.canPostStory(chatId)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.canSend(chatId)
+    }
     override suspend fun getStoryStatistics(chatId: Long, storyId: Int, isDark: Boolean): StoryStatisticsModel? = dispatch { legacy.getStoryStatistics(chatId, storyId, isDark) }
     override suspend fun getStoryAvailableReactions(rowSize: Int): StoryAvailableReactionsModel? = dispatch { legacy.getStoryAvailableReactions(rowSize) }
     override suspend fun setStoryReaction(chatId: Long, storyId: Int, reaction: StoryReactionModel): Boolean = when (selected()) {

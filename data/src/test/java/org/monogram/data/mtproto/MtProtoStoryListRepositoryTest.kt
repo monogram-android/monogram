@@ -6,8 +6,11 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryReactionModel
+import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStory
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStoryCount_11d73fe4aa
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.SendReaction
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.TogglePeerStoriesHidden
@@ -45,6 +48,19 @@ class MtProtoStoryListRepositoryTest {
         assertEquals(ReadStories(org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat(42), 7), transport.request)
         assertEquals(Triple("GROUP", 42L, 7), stories.readMarker)
         assertEquals(true, transport.closed)
+    }
+
+    @Test
+    fun `maps positive and exhausted active story slots`() = runBlocking {
+        val allowedTransport = CapabilityRecordingTransport(3)
+        val allowedRepository = capabilityRepository(allowedTransport)
+        assertEquals(StoryPostCapabilityModel.Allowed(3), allowedRepository.canSend(-42))
+        assertEquals(CanSendStory(org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat(42)), allowedTransport.request)
+        assertEquals(true, allowedTransport.closed)
+
+        val exhaustedTransport = CapabilityRecordingTransport(0)
+        assertEquals(StoryPostCapabilityModel.ActiveStoryLimitExceeded, capabilityRepository(exhaustedTransport).canSend(-42))
+        assertEquals(true, exhaustedTransport.closed)
     }
 
     @Test
@@ -119,6 +135,13 @@ class MtProtoStoryListRepositoryTest {
         assertEquals(false, opened)
     }
 
+    private fun capabilityRepository(transport: CapabilityRecordingTransport) = MtProtoStoryListRepositoryImpl(
+        configSource = TelegramMtProtoBootstrapConfigSource { config() },
+        transportFactory = MtProtoSessionTransportFactory { transport },
+        users = NoOpMtProtoUserProjectionStore,
+        chats = NoOpMtProtoChatProjectionStore,
+    )
+
     private fun repository(transport: RecordingTransport) = MtProtoStoryListRepositoryImpl(
         configSource = TelegramMtProtoBootstrapConfigSource { config() },
         transportFactory = MtProtoSessionTransportFactory { transport },
@@ -146,6 +169,17 @@ class MtProtoStoryListRepositoryTest {
         override suspend fun <R> execute(method: TlMethod<R>): R {
             request = method as ReadStories
             return emptyList<Int>() as R
+        }
+        override fun close() { closed = true }
+    }
+
+    private class CapabilityRecordingTransport(private val remaining: Int) : MtProtoRpcTransport {
+        lateinit var request: CanSendStory
+        var closed = false
+        @Suppress("UNCHECKED_CAST")
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            request = method as CanSendStory
+            return CanSendStoryCount_11d73fe4aa(remaining) as R
         }
         override fun close() { closed = true }
     }

@@ -3,6 +3,7 @@ package org.monogram.data.mtproto
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.stories.StoryListType
+import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
@@ -12,6 +13,8 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionCustomEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.ReactionPaid
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStory
+import org.monogram.mtproto.tl.generated.cloud.layer223.stories.CanSendStoryCount_11d73fe4aa
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.ReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.SendReaction
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.TogglePeerStoriesHidden
@@ -23,6 +26,9 @@ internal interface MtProtoStoryListRepository {
     }
     suspend fun setReaction(chatId: Long, storyId: Int, reaction: StoryReactionModel): Boolean {
         throw UnsupportedOperationException("MTProto story reactions are not configured")
+    }
+    suspend fun canSend(chatId: Long): StoryPostCapabilityModel {
+        throw UnsupportedOperationException("MTProto story send capability is not configured")
     }
 }
 
@@ -57,6 +63,19 @@ internal class MtProtoStoryListRepositoryImpl(
             transport.execute(ReadStories(resolvePeer(scope, chatId), storyId))
         }
         stories.updateMaxReadStoryId(scope, peerType(peer.type), peer.id, storyId)
+    }
+
+    override suspend fun canSend(chatId: Long): StoryPostCapabilityModel {
+        val config = configSource.createForAccount(accountSlot)
+        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val result = transportFactory.open(accountSlot).use { transport ->
+            transport.execute(CanSendStory(resolvePeer(scope, chatId)))
+        } as? CanSendStoryCount_11d73fe4aa ?: error("Unsupported MTProto story send capability response")
+        return if (result.countRemains > 0) {
+            StoryPostCapabilityModel.Allowed(result.countRemains)
+        } else {
+            StoryPostCapabilityModel.ActiveStoryLimitExceeded
+        }
     }
 
     override suspend fun setReaction(chatId: Long, storyId: Int, reaction: StoryReactionModel): Boolean {

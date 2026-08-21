@@ -3,6 +3,7 @@ package org.monogram.data.backend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import org.monogram.data.mtproto.MtProtoStorageCleanupRepository
 import org.monogram.domain.models.StorageCleanupResultModel
 import org.monogram.domain.models.StorageUsageBreakdownModel
 import org.monogram.domain.models.StorageUsageModel
@@ -13,10 +14,12 @@ internal class TelegramBackendStorageRouter(
     selectionStore: TelegramBackendSelectionStore,
     private val legacyFactory: () -> StorageRepository,
     scope: CoroutineScope,
+    private val mtProtoCleanupFactory: () -> MtProtoStorageCleanupRepository = { throw UnsupportedOperationException("MTProto storage cleanup is not configured") },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : StorageRepository {
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
+    private val mtProtoCleanup by lazy(LazyThreadSafetyMode.NONE, mtProtoCleanupFactory)
 
     init {
         scope.launch {
@@ -36,7 +39,7 @@ internal class TelegramBackendStorageRouter(
 
     override suspend fun clearStorage(chatId: Long?): StorageCleanupResultModel = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.clearStorage(chatId)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoCleanup.clearCompletedDownloads(chatId)
     }
 
     override suspend fun setDatabaseMaintenanceSettings(maxDatabaseSize: Long, maxTimeFromLastAccess: Int) = when (selected()) {

@@ -5,7 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.monogram.data.mtproto.MtProtoStorageCleanupRepository
+import org.monogram.domain.models.StorageCleanupResultModel
 import org.junit.Test
 
 class TelegramBackendSettingsIsolationTest {
@@ -20,6 +23,23 @@ class TelegramBackendSettingsIsolationTest {
         val failure = runCatching { router.getStorageUsage() }.exceptionOrNull()
 
         assertTrue(failure is UnsupportedOperationException)
+    }
+
+    @Test
+    fun `selected MTProto storage cleanup avoids legacy repository`() = runBlocking {
+        val router = TelegramBackendStorageRouter(
+            selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
+            legacyFactory = { error("legacy storage repository must not be created") },
+            mtProtoCleanupFactory = {
+                MtProtoStorageCleanupRepository { chatId ->
+                    assertEquals(null, chatId)
+                    StorageCleanupResultModel(4, 1, true)
+                }
+            },
+            scope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        assertEquals(StorageCleanupResultModel(4, 1, true), router.clearStorage())
     }
 
     @Test

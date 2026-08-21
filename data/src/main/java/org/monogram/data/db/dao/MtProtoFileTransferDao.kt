@@ -22,6 +22,18 @@ interface MtProtoFileTransferDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: MtProtoFileTransferEntity)
 
+    @Query(
+        "SELECT * FROM mtproto_file_transfer WHERE accountSlot = :accountSlot " +
+            "AND environment = :environment AND isComplete = 1"
+    )
+    suspend fun getCompleted(accountSlot: String, environment: String): List<MtProtoFileTransferEntity>
+
+    @Query(
+        "DELETE FROM mtproto_file_transfer WHERE accountSlot = :accountSlot " +
+            "AND environment = :environment AND dcId = :dcId AND fileKey = :fileKey"
+    )
+    suspend fun delete(accountSlot: String, environment: String, dcId: Int, fileKey: String)
+
     @Query("DELETE FROM mtproto_file_transfer WHERE accountSlot = :accountSlot AND environment = :environment")
     suspend fun deleteAccount(accountSlot: String, environment: String)
 }

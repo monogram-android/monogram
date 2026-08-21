@@ -129,6 +129,7 @@ import org.monogram.data.mtproto.MtProtoStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoStoryResultStager
 import org.monogram.data.mtproto.MtProtoStoryRefreshRepository
 import org.monogram.data.mtproto.MtProtoStoryRefreshRepositoryImpl
+import org.monogram.data.mtproto.MtProtoStorageCleanupRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.KeyValueMtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.MtProtoStoryListRepositoryImpl
@@ -1481,6 +1482,12 @@ val dataModule = module {
                     chatLocalDataSource = get(),
                     userLocalDataSource = get(),
                     stickerLocalDataSource = get(),
+                )
+            },
+            mtProtoCleanupFactory = {
+                MtProtoStorageCleanupRepositoryImpl(
+                    transfers = get(),
+                    filesDirectory = java.io.File(androidContext().filesDir, "mtproto/files"),
                 )
             },
             scope = get(),

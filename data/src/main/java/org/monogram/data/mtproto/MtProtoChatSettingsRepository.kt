@@ -20,7 +20,9 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleParticipa
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSlowMode
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleForum
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleSignatures
+import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatDefaultBannedRights
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatPhoto
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetChatAvailableReactions
@@ -40,6 +42,7 @@ internal interface MtProtoChatSettingsRepository {
     suspend fun setForumEnabled(chatId: Long, enabled: Boolean)
     suspend fun setAvailableReactions(chatId: Long, reactions: List<String>)
     suspend fun setProtectedContent(chatId: Long, enabled: Boolean)
+    suspend fun setPermissions(chatId: Long, permissions: ChatPermissionsModel)
 }
 
 internal class MtProtoChatSettingsRepositoryImpl(
@@ -170,6 +173,26 @@ internal class MtProtoChatSettingsRepositoryImpl(
         }
         transportFactory.open(accountSlot).use { transport ->
             cloudObjectStager.stageLive(scope, transport.execute(ToggleNoForwards(inputPeer, enabled, null)))
+        }
+    }
+
+    override suspend fun setPermissions(chatId: Long, permissions: ChatPermissionsModel) {
+        val (scope, peer) = resolve(chatId)
+        val inputPeer = when (peer.type) {
+            DialogPeerType.BASIC_GROUP -> InputPeerChat(peer.id)
+            DialogPeerType.SUPERGROUP, DialogPeerType.CHANNEL -> {
+                val accessHash = requireNotNull(chats.get(scope, peer.id)?.accessHash) {
+                    "Missing MTProto channel access hash: ${peer.id}"
+                }
+                InputPeerChannel(peer.id, accessHash)
+            }
+            DialogPeerType.PRIVATE, DialogPeerType.UNKNOWN -> error("MTProto cannot edit default permissions for this peer")
+        }
+        transportFactory.open(accountSlot).use { transport ->
+            cloudObjectStager.stageLive(
+                scope,
+                transport.execute(EditChatDefaultBannedRights(inputPeer, permissions.toMtProtoBannedRights(untilDate = 0))),
+            )
         }
     }
 

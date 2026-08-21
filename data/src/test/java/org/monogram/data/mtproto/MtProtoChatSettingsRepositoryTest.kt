@@ -7,6 +7,7 @@ import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesTooLong
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatAbout
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatDefaultBannedRights
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatPhoto
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.EditChatTitle
 import org.monogram.mtproto.tl.generated.cloud.layer223.channels.ToggleForum
@@ -16,6 +17,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.ChatReactionsSome
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SetChatAvailableReactions
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ToggleNoForwards
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputFile_ef0db4e0fa
+import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -119,6 +121,26 @@ class MtProtoChatSettingsRepositoryTest {
         assertEquals(42L, (request.peer as org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat).chatId)
         assertTrue(request.enabled)
         assertEquals(null, request.requestMsgId)
+        assertEquals(1, stager.calls)
+        assertTrue(transport.closed)
+    }
+
+    @Test
+    fun `edits default banned rights for basic group permissions`() = runTest {
+        val transport = RecordingTransport()
+        val stager = RecordingStager()
+        val repository = repository(transport, stager)
+
+        repository.setPermissions(-42, ChatPermissionsModel(canSendBasicMessages = false, canSendPolls = false))
+
+        val request = transport.requests.single() as EditChatDefaultBannedRights
+        val peer = request.peer as org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChat
+        assertEquals(42L, peer.chatId)
+        val rights = request.bannedRights as org.monogram.mtproto.tl.generated.cloud.layer223.ChatBannedRights_2339df02a7
+        assertTrue(rights.sendMessages)
+        assertTrue(rights.sendPolls)
+        assertEquals(false, rights.viewMessages)
+        assertEquals(0, rights.untilDate)
         assertEquals(1, stager.calls)
         assertTrue(transport.closed)
     }

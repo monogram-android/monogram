@@ -34,7 +34,10 @@ internal class TelegramBackendChatSettingsRouter(
         TelegramBackendKind.LEGACY -> legacy.setChatUsername(chatId, username)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setUsername(chatId, username)
     }
-    override suspend fun setChatPermissions(chatId: Long, permissions: ChatPermissionsModel) = call { legacy.setChatPermissions(chatId, permissions) }
+    override suspend fun setChatPermissions(chatId: Long, permissions: ChatPermissionsModel) = when (selected()) {
+        TelegramBackendKind.LEGACY -> legacy.setChatPermissions(chatId, permissions)
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setPermissions(chatId, permissions)
+    }
     override suspend fun setChatHasProtectedContent(chatId: Long, hasProtectedContent: Boolean) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setChatHasProtectedContent(chatId, hasProtectedContent)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setProtectedContent(chatId, hasProtectedContent)
@@ -71,7 +74,6 @@ internal class TelegramBackendChatSettingsRouter(
         TelegramBackendKind.LEGACY -> legacy.toggleChatIsForum(chatId, isForum)
         TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setForumEnabled(chatId, isForum)
     }
-    private suspend fun call(action: suspend () -> Unit) { when (selected()) { TelegramBackendKind.LEGACY -> action(); TelegramBackendKind.KOTLIN_MTPROTO -> unsupported() } }
     private fun selected() = checkNotNull(selectedBackend.value) { "Telegram backend selection is not loaded" }
     private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto chat settings are not available")
 }

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.data.mtproto.MtProtoChatSettingsRepository
 
 class TelegramBackendChatSettingsRouterTest {
@@ -58,6 +59,7 @@ class TelegramBackendChatSettingsRouterTest {
         override suspend fun setSignMessages(chatId: Long, enabled: Boolean) { calls += "sign:$enabled" }
         override suspend fun setForumEnabled(chatId: Long, enabled: Boolean) { calls += "forum:$enabled" }
         override suspend fun setAvailableReactions(chatId: Long, reactions: List<String>) { calls += "reactions:${reactions.joinToString()}" }
+        override suspend fun setPermissions(chatId: Long, permissions: ChatPermissionsModel) { calls += "permissions:$chatId" }
     }
 
     private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {

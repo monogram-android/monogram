@@ -51,7 +51,6 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
 import org.monogram.domain.repository.StoryRepository
-import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.UserRepository
@@ -90,7 +89,6 @@ class DefaultProfileComponent(
     private val userRepository: UserRepository by lazy { container.repositories.userRepository }
     private val userProfileSnapshotRepository: UserProfileSnapshotRepository =
         container.repositories.userProfileSnapshotRepository
-    private val telegramBackendModeRepository = container.repositories.telegramBackendModeRepository
     private val profilePhotoRepository: ProfilePhotoRepository = container.repositories.profilePhotoRepository
     private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
     private val botRepository: BotRepository = container.repositories.botRepository
@@ -244,17 +242,13 @@ class DefaultProfileComponent(
     }
 
     private suspend fun loadProfileUser(userId: Long): UserModel? =
-        if (telegramBackendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
-            runCatching { TelegramPeerChatId.decode(userId) }
-                .getOrNull()
-                ?.takeIf { it.type == DialogPeerType.PRIVATE }
-                ?.let { peer ->
-                    userProfileSnapshotRepository.getUser(DEFAULT_ACCOUNT_ID, peer.id)
-                }
-                ?.toUserModel()
-        } else {
-            userRepository.getUser(userId)
-        }
+        runCatching { TelegramPeerChatId.decode(userId) }
+            .getOrNull()
+            ?.takeIf { it.type == DialogPeerType.PRIVATE }
+            ?.let { peer ->
+                userProfileSnapshotRepository.getUser(DEFAULT_ACCOUNT_ID, peer.id)
+            }
+            ?.toUserModel()
 
     private fun UserProfileSnapshotModel.toUserModel() = UserModel(
         id = userId,
@@ -276,22 +270,13 @@ class DefaultProfileComponent(
     )
 
     private fun observeCurrentUser() {
-        if (telegramBackendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
-            scope.launch {
-                userProfileSnapshotRepository.getCurrentUser(DEFAULT_ACCOUNT_ID)
-                    ?.toUserModel()
-                    ?.let { user ->
-                        _state.update { it.copy(currentUser = user) }
-                        refreshProfileStories()
-                    }
-            }
-        } else {
-            userRepository.currentUserFlow
-                .onEach { user ->
+        scope.launch {
+            userProfileSnapshotRepository.getCurrentUser(DEFAULT_ACCOUNT_ID)
+                ?.toUserModel()
+                ?.let { user ->
                     _state.update { it.copy(currentUser = user) }
                     refreshProfileStories()
                 }
-                .launchIn(scope)
         }
 
         storyRepository.activeStories
@@ -905,23 +890,12 @@ class DefaultProfileComponent(
         }
 
     private fun observeUserUpdates() {
-        if (telegramBackendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
-            if (isGroupOrChannelProfile()) return
-            scope.launch {
-                loadProfileUser(chatId)?.let { user ->
-                    _state.update { it.copy(user = user, personalAvatarPath = user.personalAvatarPath) }
-                }
+        if (isGroupOrChannelProfile()) return
+        scope.launch {
+            loadProfileUser(chatId)?.let { user ->
+                _state.update { it.copy(user = user, personalAvatarPath = user.personalAvatarPath) }
             }
-            return
         }
-
-        userRepository.getUserFlow(chatId)
-            .onEach { user ->
-                if (user != null) {
-                    _state.update { it.copy(user = user, personalAvatarPath = user.personalAvatarPath) }
-                }
-            }
-            .launchIn(scope)
     }
 
     private fun observeProfilePhotos() {
@@ -1776,7 +1750,7 @@ class DefaultProfileComponent(
                             anchor = HistoryAnchor.Message(interaction.objectId),
                             direction = HistoryDirection.Around,
                             limit = 1,
-                            source = HistorySource.TdlibNetwork
+                            source = HistorySource.NetworkSnapshot
                         )
                     )
                         .messages

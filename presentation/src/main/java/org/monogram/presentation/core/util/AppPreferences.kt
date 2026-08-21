@@ -34,13 +34,11 @@ enum class EmojiStyle {
 }
 
 internal fun defaultConversationPipelineMode(
-    isOfficialTdlib: Boolean,
-    isLibreRuntime: Boolean,
-    isDebug: Boolean
-): ConversationPipelineMode = when {
-    isOfficialTdlib && isLibreRuntime -> ConversationPipelineMode.New
-    isDebug -> ConversationPipelineMode.Shadow
-    else -> ConversationPipelineMode.Legacy
+    isDebug: Boolean,
+): ConversationPipelineMode = if (isDebug) {
+    ConversationPipelineMode.Shadow
+} else {
+    ConversationPipelineMode.Legacy
 }
 
 internal fun storedConversationPipelineMode(
@@ -61,10 +59,7 @@ internal fun conversationPipelineModeWithLegacyKillSwitch(
     defaultMode
 }
 
-internal fun isConversationPipelineKillSwitchAvailable(
-    isOfficialTdlib: Boolean,
-    isLibreRuntime: Boolean
-): Boolean = isOfficialTdlib && isLibreRuntime
+internal fun isConversationPipelineKillSwitchAvailable(): Boolean = false
 
 class AppPreferences(
     private val context: Context,
@@ -73,9 +68,7 @@ class AppPreferences(
     private val prefs: SharedPreferences = context.getSharedPreferences("monogram_prefs", Context.MODE_PRIVATE)
 
     private val defaultConversationPipelineMode = defaultConversationPipelineMode(
-        isOfficialTdlib = BuildConfig.IS_OFFICIAL_TDLIB,
-        isLibreRuntime = BuildConfig.IS_LIBRE_RUNTIME,
-        isDebug = BuildConfig.DEBUG
+        isDebug = BuildConfig.DEBUG,
     )
     private val _conversationPipelineMode = MutableStateFlow(
         storedConversationPipelineMode(

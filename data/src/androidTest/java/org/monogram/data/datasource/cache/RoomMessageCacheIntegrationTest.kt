@@ -200,7 +200,7 @@ class RoomMessageCacheIntegrationTest {
         newestMessageId = 501L,
         olderBoundaryReached = true,
         newerBoundaryReached = true,
-        lastTdlibSyncAt = 1L,
+        lastNetworkSyncAt = 1L,
         generation = 1L,
         protectedMessageId = protectedMessageId
     )

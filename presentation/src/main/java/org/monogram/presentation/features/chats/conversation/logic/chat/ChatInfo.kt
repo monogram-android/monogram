@@ -15,23 +15,18 @@ import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.ChatMemberStatus
-import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.conversation.ChatConversationLog
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 internal fun DefaultChatComponent.loadChatInfo() {
-    val isMtProto = backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO
     scope.launch {
         val baseChat = chatListRepository.getChatById(chatId)
         if (baseChat != null) {
             updateBaseChatState(baseChat)
-            if (!isMtProto && baseChat.viewAsTopics && _state.value.topics.isEmpty()) {
-                loadTopics()
-            }
 
-            val isBot = backendModeRepository.backendMode.value != org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO &&
+            val isBot = false &&
                     baseChat.type == ChatType.PRIVATE && baseChat.isBot
             if (isBot) {
                 val botInfo = botRepository.getBotInfo(chatId)
@@ -77,11 +72,7 @@ internal fun DefaultChatComponent.loadChatInfo() {
         .onEach { chat ->
             val wasTopics = _state.value.viewAsTopics
             updateBaseChatState(chat)
-            if (!isMtProto && chat.viewAsTopics) {
-                if (_state.value.topics.isEmpty()) {
-                    loadTopics()
-                }
-            } else if (wasTopics) {
+            if (wasTopics) {
                 ChatConversationLog.logState(
                     stream = ChatConversationLog.STREAM_VIEWPORT,
                     event = "chat_info_topics_disabled_reload_messages",
@@ -127,33 +118,10 @@ internal fun DefaultChatComponent.loadChatInfo() {
         }
         .onEach(::updateEffectiveChatState)
         .launchIn(scope)
-
-    if (!isMtProto) {
-        forumTopicsRepository.forumTopicsFlow
-            .filter { it.first == chatId }
-            .onEach { (_, topics) ->
-                _state.update { it.copy(topics = topics) }
-            }
-            .launchIn(scope)
-    }
-}
-
-internal fun DefaultChatComponent.loadTopics() {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
-    if (_state.value.isLoadingTopics) return
-    scope.launch {
-        _state.update { it.copy(isLoadingTopics = true) }
-        try {
-            val topics = forumTopicsRepository.getForumTopics(chatId)
-            _state.update { it.copy(topics = topics) }
-        } finally {
-            _state.update { it.copy(isLoadingTopics = false) }
-        }
-    }
 }
 
 internal fun DefaultChatComponent.observeUserUpdates() {
-    if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
+    return
     if (_state.value.isGroup || _state.value.isChannel) return
     scope.launch {
         userRepository.getUserFlow(chatId).collectLatest { user ->
@@ -249,7 +217,7 @@ internal fun DefaultChatComponent.handleRemoveFromAdBlockWhitelist() {
 
 internal fun DefaultChatComponent.handleClearHistory() {
     runChatAction(ChatActionType.ClearHistory) {
-        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+        if (true) {
             val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
                 "MTProto target chat is not projected"
             }
@@ -339,7 +307,7 @@ internal fun DefaultChatComponent.handleConfirmRestrict(
 }
 
 private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
-    if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
+    return
     val me = runCatching { userRepository.getMe() }.getOrNull() ?: return
     val effectiveChatId = _state.value.effectiveThreadChatId(chatId)
     val effectiveChat = runCatching { chatListRepository.getChatById(effectiveChatId) }.getOrNull()
@@ -367,7 +335,7 @@ private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
 }
 
 private suspend fun DefaultChatComponent.refreshEffectiveChatDetails(effectiveChatId: Long) {
-    if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
+    return
     runCatching { chatInfoRepository.getChatFullInfo(effectiveChatId) }
         .getOrNull()
         ?.let { fullInfo ->

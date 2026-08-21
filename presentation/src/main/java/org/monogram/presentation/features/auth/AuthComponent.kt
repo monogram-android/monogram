@@ -5,7 +5,6 @@ import org.monogram.domain.repository.AuthCodeDelivery
 import org.monogram.domain.repository.AuthCodeInputKind
 import org.monogram.domain.repository.AuthError
 import org.monogram.domain.repository.AuthUiStatus
-import org.monogram.domain.repository.TelegramBackendMode
 
 interface AuthComponent {
     val model: Value<Model>
@@ -19,7 +18,6 @@ interface AuthComponent {
     fun onBackToPhone()
     fun onRetry()
     fun onProxyClicked()
-    fun onTelegramBackendToggleRequested()
     fun dismissError()
     fun onReset()
 
@@ -29,8 +27,6 @@ interface AuthComponent {
         val isSubmitting: Boolean = false,
         val error: AuthError? = null,
         val phoneNumber: String? = null,
-        val telegramBackendMode: TelegramBackendMode = TelegramBackendMode.UNKNOWN,
-        val isTelegramBackendSwitching: Boolean = false
     )
 
     sealed class AuthState {

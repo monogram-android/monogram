@@ -32,7 +32,6 @@ import org.monogram.domain.repository.HistoryRequest
 import org.monogram.domain.repository.HistorySource
 import org.monogram.domain.repository.HistoryPage
 import org.monogram.domain.repository.ReadUpdate
-import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ChatConversationLog
@@ -106,7 +105,6 @@ internal fun DefaultChatComponent.requestSenderRefreshIfNeeded(message: MessageM
 }
 
 internal fun DefaultChatComponent.requestSenderRefresh(senderId: Long) {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
     if (senderId <= 0L) return
     val now = System.currentTimeMillis()
     val lastRequestedAt = senderRefreshRequestedAtMs[senderId]
@@ -500,7 +498,7 @@ private fun MessageContent.projectMediaRuntime(incoming: MessageContent): Messag
 }
 
 private suspend fun DefaultChatComponent.loadHistoryPage(request: HistoryRequest) = try {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+    if (true) {
         loadMtProtoHistorySnapshot(request)
     } else if (conversationPipelineMode == ConversationPipelineMode.Legacy) {
         repositoryMessage.getHistoryPage(request)
@@ -698,7 +696,7 @@ internal fun DefaultChatComponent.loadMessages(
                             anchor = HistoryAnchor.Message(lastRead),
                             direction = HistoryDirection.Newer,
                             limit = 1,
-                            source = HistorySource.TdlibNetwork
+                            source = HistorySource.NetworkSnapshot
                         )
                     )
                         .messages
@@ -823,7 +821,7 @@ internal suspend fun DefaultChatComponent.loadComments(
             anchor = HistoryAnchor.Latest,
             direction = HistoryDirection.Initial,
             limit = PAGE_SIZE,
-            source = HistorySource.TdlibNetwork
+            source = HistorySource.NetworkSnapshot
         )
     )
     val messages = olderPage.messages
@@ -925,7 +923,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
             anchor = HistoryAnchor.Latest,
             direction = HistoryDirection.Initial,
             limit = PAGE_SIZE,
-            source = HistorySource.TdlibLocal
+            source = HistorySource.LocalSnapshot
         )
     )
     if (localPage.messages.isNotEmpty()) {
@@ -934,7 +932,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
         updateMessages(localPage.messages, replace = true)
         refreshCachedSenderProfiles(localPage.messages)
         ChatConversationLog.logViewportState(
-            event = "load_bottom_tdlib_local_preview",
+            event = "load_bottom_local_preview",
             state = _state.value,
             componentInstanceId = componentInstanceId,
             extra = "targetChatId=$targetChatId localMessages=${localPage.messages.size}"
@@ -948,7 +946,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
                 anchor = HistoryAnchor.Latest,
                 direction = HistoryDirection.Initial,
                 limit = PAGE_SIZE,
-                source = HistorySource.TdlibNetwork
+                source = HistorySource.NetworkSnapshot
             )
         )
     } else {
@@ -1092,7 +1090,7 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
             anchor = HistoryAnchor.Message(messageId),
             direction = HistoryDirection.Around,
             limit = PAGE_SIZE,
-            source = HistorySource.TdlibNetwork
+            source = HistorySource.NetworkSnapshot
         )
     ).messages
     if (messages.isNotEmpty()) {
@@ -1342,7 +1340,7 @@ internal fun DefaultChatComponent.loadMoreMessages() {
                         anchor = HistoryAnchor.Message(currentAnchorId),
                         direction = HistoryDirection.Older,
                         limit = PAGE_SIZE,
-                        source = HistorySource.TdlibNetwork
+                        source = HistorySource.NetworkSnapshot
                     )
                 )
                 val olderMessages = olderPage.messages
@@ -1363,7 +1361,7 @@ internal fun DefaultChatComponent.loadMoreMessages() {
                 val afterSize = _state.value.messages.size
                 val listGrew = afterSize > beforeSize
 
-                val isRemote = olderPage.source == HistorySource.TdlibNetwork
+                val isRemote = olderPage.source == HistorySource.NetworkSnapshot
                 isOldestLoaded = olderPage.olderBoundary is BoundaryState.Reached ||
                         (isRemote && !hasOlderProgress)
 
@@ -1467,12 +1465,12 @@ private suspend fun DefaultChatComponent.loadNewerMessagesPage(): Boolean {
             anchor = HistoryAnchor.Message(anchorId),
             direction = HistoryDirection.Newer,
             limit = PAGE_SIZE,
-            source = HistorySource.TdlibNetwork
+            source = HistorySource.NetworkSnapshot
         )
     )
     val newerMessages = newerPage.messages
     val isLatestLoaded =
-        newerPage.source == HistorySource.TdlibNetwork &&
+        newerPage.source == HistorySource.NetworkSnapshot &&
                 (newerMessages.size < PAGE_SIZE ||
                         (newerMessages.isNotEmpty() && newerMessages.all { msg -> currentMessages.any { it.id == msg.id } }))
 
@@ -1817,7 +1815,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
             }
             .launchIn(scope)
     }
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
+    return
 
     if (conversationPipelineMode != ConversationPipelineMode.Legacy) {
         repositoryMessage.conversationUpdates
@@ -2371,7 +2369,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
 }
 
 private fun DefaultChatComponent.observeSenderUpdates() {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
+    return
     repositoryMessage.senderUpdateFlow
         .onEach { senderId ->
             if (senderId <= 0L) return@onEach
@@ -2482,7 +2480,7 @@ internal fun DefaultChatComponent.handleEditedRichMessage(message: MessageModel)
 
 internal fun DefaultChatComponent.loadDraft() {
     if (
-        backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO &&
+        true &&
         activeThreadId() != null
     ) return
     scope.launch {
@@ -2532,7 +2530,7 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
         componentInstanceId = componentInstanceId,
         extra = "topicId=$topicId"
     )
-    if (topicId != 0 && backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
+    if (topicId != 0 && false) {
         scope.launch {
             forumTopicsRepository.markForumTopicAsRead(chatId, topicId)
         }

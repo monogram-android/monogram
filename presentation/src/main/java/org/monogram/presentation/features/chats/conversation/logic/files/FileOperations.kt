@@ -4,7 +4,6 @@ import android.util.Log
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageContent
-import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 internal fun DefaultChatComponent.handleDownloadFile(fileId: Int, userInitiated: Boolean = true) {
@@ -29,7 +28,7 @@ internal fun DefaultChatComponent.handleCancelDownloadFile(fileId: Int) {
 }
 
 internal fun DefaultChatComponent.handleDownloadHighRes(messageId: Long) {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
+    return
     scope.launch {
         val fileId = repositoryMessage.getHighResFileId(chatId, messageId)
         if (fileId != null) {

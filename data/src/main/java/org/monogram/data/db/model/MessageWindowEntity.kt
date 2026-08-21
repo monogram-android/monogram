@@ -15,7 +15,7 @@ data class MessageWindowEntity(
     val newestMessageId: Long?,
     val olderBoundaryReached: Boolean,
     val newerBoundaryReached: Boolean,
-    val lastTdlibSyncAt: Long,
+    val lastNetworkSyncAt: Long,
     val generation: Long,
     val protectedMessageId: Long? = null
 )

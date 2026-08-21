@@ -181,7 +181,7 @@ class VoiceRecorderState(private val context: Context) {
                 (20 * log10(maxAmp.toDouble() / 32767.0)).toFloat().coerceIn(-60f, 0f)
             } else -60f
 
-            // Map -60..0 to 0..31 for TDLib waveform
+            // Map -60..0 to 0..31 for Telegram waveform
             val normalized = ((amplitude + 60) / 60 * 31).toInt().coerceIn(0, 31)
             waveform.add(normalized.toByte())
 

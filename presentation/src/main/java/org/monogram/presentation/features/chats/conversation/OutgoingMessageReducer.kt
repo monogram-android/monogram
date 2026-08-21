@@ -4,7 +4,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 
 /**
- * Presentation projection of TDLib's outgoing-message lifecycle. The temporary id is
+ * Presentation projection of Telegram's outgoing-message lifecycle. The temporary id is
  * intentionally retained as the key after a success so duplicate terminal updates are no-ops.
  */
 object OutgoingMessageReducer {

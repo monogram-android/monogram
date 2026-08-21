@@ -3,7 +3,6 @@ package org.monogram.presentation.features.chats.conversation.logic
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.TelegramPeerChatId
-import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 
@@ -31,7 +30,7 @@ internal fun DefaultChatComponent.handleDeleteSelectedMessages(revoke: Boolean =
     if (ids.isNotEmpty()) {
         scope.launch {
             val targetChatId = activeThreadChatId()
-            if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+            if (true) {
                 val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
                     "MTProto target chat is not projected"
                 }

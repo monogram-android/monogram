@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageModel
-import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
@@ -98,7 +97,7 @@ private suspend fun DefaultChatComponent.canLoadScheduledMessages(): Boolean {
 }
 
 internal fun DefaultChatComponent.setupPinnedMessageCollector() {
-    if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
+    return
     repositoryMessage.pinnedMessageFlow
         .onEach { cId ->
             if (cId == chatId) {

@@ -1,5 +1,6 @@
 package org.monogram.data.mtproto
 
+import android.util.Log
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.monogram.data.gateway.toAuthError
+import org.monogram.data.mtproto.toAuthError
 import org.monogram.domain.repository.AuthError
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
@@ -39,7 +40,9 @@ internal class MtProtoAuthRepository(
     )
 
     private val lock = Any()
-    private val _authState = MutableStateFlow<AuthStep>(AuthStep.InputPhone)
+    private val _authState = MutableStateFlow<AuthStep>(
+        if (authorizedSessionRestorer == null) AuthStep.InputPhone else AuthStep.Loading,
+    )
     override val authState = _authState.asStateFlow()
     private val _authUiStatus = MutableStateFlow<AuthUiStatus>(AuthUiStatus.Idle)
     override val authUiStatus = _authUiStatus.asStateFlow()
@@ -54,18 +57,33 @@ internal class MtProtoAuthRepository(
     init {
         authorizedSessionRestorer?.let { restorer ->
             scope.launch {
-                try {
-                    if (restorer.restore(accountSlot)) {
-                        synchronized(lock) {
-                            if (activeJob == null && _authState.value is AuthStep.InputPhone) {
-                                _authState.value = AuthStep.Ready
-                            }
+                val markedAuthorized = authorizationStore?.isAuthorized(accountSlot) == true
+                if (markedAuthorized) {
+                    synchronized(lock) {
+                        if (activeJob == null && _authState.value is AuthStep.Loading) {
+                            _authState.value = AuthStep.Ready
+                            Log.i(TAG, "Persisted MTProto authorization marker found; opening chats while validating")
                         }
+                    }
+                }
+                val restored = try {
+                    Log.i(TAG, "Restoring persisted MTProto authorization")
+                    restorer.restore(accountSlot).also { success ->
+                        if (success) Log.i(TAG, "Persisted MTProto authorization restored")
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
-                } catch (_: Throwable) {
+                } catch (failure: Throwable) {
                     // Restoring a persisted session is best effort; transport failures leave auth interactive.
+                    Log.w(TAG, "Persisted MTProto authorization restore failed", failure)
+                    false
+                }
+                val remainsAuthorized = authorizationStore?.isAuthorized(accountSlot) == true
+                synchronized(lock) {
+                    if (activeJob == null && (_authState.value is AuthStep.Loading || !restored)) {
+                        _authState.value = if (restored || remainsAuthorized) AuthStep.Ready else AuthStep.InputPhone
+                        Log.i(TAG, "MTProto startup authorization state=${_authState.value::class.java.simpleName}")
+                    }
                 }
             }
         }
@@ -124,6 +142,7 @@ internal class MtProtoAuthRepository(
             if (activeJob?.isActive == true || !canSubmit(action.stage)) return
 
             pendingAction = action
+            Log.i(TAG, "Submitting MTProto auth stage=${action.stage}")
             _authUiStatus.value = AuthUiStatus.Submitting(action.stage)
             val actionGeneration = generation
             val job = scope.launch(start = CoroutineStart.LAZY) {
@@ -135,6 +154,7 @@ internal class MtProtoAuthRepository(
                     synchronized(lock) {
                         if (generation != actionGeneration) return@synchronized
                         _authState.value = nextState
+                        Log.i(TAG, "MTProto auth stage=${action.stage} completed state=${nextState::class.java.simpleName}")
                         pendingAction = null
                         if (nextState is AuthStep.Ready) {
                             completedSession = session
@@ -151,6 +171,7 @@ internal class MtProtoAuthRepository(
                 } catch (failure: Throwable) {
                     synchronized(lock) {
                         if (generation == actionGeneration) {
+                            Log.w(TAG, "MTProto auth stage=${action.stage} failed (${failure::class.java.simpleName})", failure)
                             _errors.tryEmit(failure.toAuthError())
                         }
                     }
@@ -175,7 +196,9 @@ internal class MtProtoAuthRepository(
     ): AuthStep {
         val currentSession = synchronized(lock) { session }
         val handle = if (action.stage == AuthSubmissionStage.PHONE && (replaceSession || currentSession == null)) {
+            Log.i(TAG, "Opening MTProto auth session")
             val opened = sessionFactory.open(accountSlot)
+            Log.i(TAG, "MTProto auth session opened")
             var accepted = false
             val previous = synchronized(lock) {
                 if (generation != actionGeneration) {
@@ -236,6 +259,7 @@ internal class MtProtoAuthRepository(
         actionGeneration: Long,
         dcId: Int?,
     ): AuthStep {
+        Log.i(TAG, if (dcId == null) "Restarting MTProto auth session" else "Migrating MTProto auth session to another DC")
         val replacement = if (dcId == null) {
             sessionFactory.open(accountSlot)
         } else {
@@ -284,5 +308,6 @@ internal class MtProtoAuthRepository(
         const val PHONE_MIGRATE_ERROR_CODE = 303
         const val PHONE_MIGRATE_PREFIX = "PHONE_MIGRATE_"
         const val AUTH_RESTART = "AUTH_RESTART"
+        const val TAG = "MtProtoAuth"
     }
 }

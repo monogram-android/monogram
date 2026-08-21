@@ -50,8 +50,6 @@ import org.monogram.domain.repository.HistoryRequest
 import org.monogram.domain.repository.HistorySource
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.StoryRepository
-import org.monogram.domain.repository.TelegramBackendMode
-import org.monogram.domain.repository.TelegramBackendModeRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
@@ -88,11 +86,7 @@ class DefaultChatListComponent(
     private val onEditFoldersClick: () -> Unit = {},
     activeChatId: Value<Long>
 ) : ChatListComponent, AppComponentContext by context {
-    private val isTelemtBuild = BuildConfig.ENABLE_TELEMT_DNS
-
     private val authRepository: AuthRepository = container.repositories.authRepository
-    private val backendModeRepository: TelegramBackendModeRepository =
-        container.repositories.telegramBackendModeRepository
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val chatFolderRepository: ChatFolderRepository = container.repositories.chatFolderRepository
     private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
@@ -365,7 +359,7 @@ class DefaultChatListComponent(
             }
             .launchIn(this)
 
-        if (!isTelemtBuild) updateRepository.checkForUpdates()
+        updateRepository.checkForUpdates()
         refreshStoriesState("init")
         awaitCancellation()
     }
@@ -398,19 +392,8 @@ class DefaultChatListComponent(
             _state.update { it.copy(activeChatId = id) }
         }
 
-        backendModeRepository.backendMode
-            .onEach { backendMode ->
-                legacySubscriptionsJob?.cancel()
-                legacySubscriptionsJob = when (backendMode) {
-                    TelegramBackendMode.LEGACY -> scope.launch { startLegacySubscriptions() }
-                    TelegramBackendMode.KOTLIN_MTPROTO,
-                    TelegramBackendMode.UNKNOWN -> {
-                        resetLegacyOnlyState()
-                        null
-                    }
-                }
-            }
-            .launchIn(scope)
+        // The Kotlin MTProto stack is the only backend; clear any legacy-only state once.
+        resetLegacyOnlyState()
 
         chatFolderRepository.folderChatsFlow
             .onEach { update ->
@@ -1274,7 +1257,7 @@ class DefaultChatListComponent(
                     anchor = HistoryAnchor.Latest,
                     direction = HistoryDirection.Initial,
                     limit = PREFETCH_PAGE_SIZE,
-                    source = HistorySource.TdlibNetwork
+                    source = HistorySource.NetworkSnapshot
                 )
             )
             if (chat.unreadCount > 0 && chat.lastReadInboxMessageId > 0L) {
@@ -1284,7 +1267,7 @@ class DefaultChatListComponent(
                         anchor = HistoryAnchor.Message(chat.lastReadInboxMessageId),
                         direction = HistoryDirection.Newer,
                         limit = PREFETCH_PAGE_SIZE,
-                        source = HistorySource.TdlibNetwork
+                        source = HistorySource.NetworkSnapshot
                     )
                 )
             }

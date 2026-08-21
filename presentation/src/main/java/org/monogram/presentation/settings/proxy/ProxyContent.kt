@@ -839,140 +839,6 @@ fun ProxyContent(component: ProxyComponent) {
                     )
                 }
 
-                if (BuildConfig.ENABLE_TELEMT_DNS) {
-                    item {
-                        SectionHeader(
-                            text = stringResource(R.string.telemt_dns_section_header),
-                            subtitle = stringResource(R.string.telemt_dns_section_subtitle)
-                        )
-                    }
-
-                    item {
-                        var dnsProviderMenuExpanded by remember { mutableStateOf(false) }
-                        val dnsProviders = listOf("google", "cloudflare", "custom")
-                        val isCustomSelected = state.dnsProvider == "custom"
-
-                        Column {
-                            Box {
-                                SettingsTile(
-                                    icon = Icons.Rounded.Public,
-                                    title = stringResource(R.string.telemt_dns_provider_title),
-                                    subtitle = stringResource(R.string.telemt_dns_provider_subtitle),
-                                    iconColor = Color(0xFF4285F4),
-                                    position = if (isCustomSelected) ItemPosition.TOP else ItemPosition.STANDALONE,
-                                    onClick = { dnsProviderMenuExpanded = true },
-                                    trailingContent = {
-                                        DropdownSelectionTrailing(
-                                            text = when (state.dnsProvider) {
-                                                "google" -> stringResource(R.string.telemt_dns_provider_google)
-                                                "cloudflare" -> stringResource(R.string.telemt_dns_provider_cloudflare)
-                                                "custom" -> stringResource(R.string.telemt_dns_provider_custom)
-                                                else -> stringResource(R.string.telemt_dns_provider_google)
-                                            }
-                                        )
-                                    }
-                                )
-
-                                StyledDropdownMenu(
-                                    expanded = dnsProviderMenuExpanded,
-                                    onDismissRequest = { dnsProviderMenuExpanded = false }
-                                ) {
-                                    dnsProviders.forEach { provider ->
-                                        DropdownMenuItem(
-                                            leadingIcon = {
-                                                Icon(
-                                                    imageVector = Icons.Rounded.Public,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                            },
-                                            text = {
-                                                Text(
-                                                    when (provider) {
-                                                        "google" -> stringResource(R.string.telemt_dns_provider_google)
-                                                        "cloudflare" -> stringResource(R.string.telemt_dns_provider_cloudflare)
-                                                        "custom" -> stringResource(R.string.telemt_dns_provider_custom)
-                                                        else -> provider
-                                                    }
-                                                )
-                                            },
-                                            trailingIcon = {
-                                                if (state.dnsProvider == provider) {
-                                                    Icon(
-                                                        imageVector = Icons.Rounded.Check,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary
-                                                    )
-                                                }
-                                            },
-                                            onClick = {
-                                                component.onDnsProviderChanged(provider)
-                                                dnsProviderMenuExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            AnimatedVisibility(
-                                visible = isCustomSelected,
-                                enter = fadeIn() + expandVertically(),
-                                exit = fadeOut() + shrinkVertically()
-                            ) {
-                                Column {
-                                    SettingsTile(
-                                        icon = Icons.Rounded.Language,
-                                        title = stringResource(R.string.telemt_dns_custom_url_title),
-                                        subtitle = state.customDnsUrl.ifEmpty {
-                                            stringResource(R.string.telemt_dns_custom_url_subtitle)
-                                        },
-                                        iconColor = Color(0xFFFF9800),
-                                        position = ItemPosition.MIDDLE,
-                                        onClick = {
-                                            showDnsUrlDialog = true
-                                        }
-                                    )
-
-                                    SettingsTile(
-                                        icon = Icons.Rounded.Tune,
-                                        title = stringResource(R.string.telemt_dns_custom_headers_title),
-                                        subtitle = state.customDnsHeaders.ifEmpty {
-                                            stringResource(R.string.telemt_dns_custom_headers_subtitle)
-                                        },
-                                        iconColor = Color(0xFF9C27B0),
-                                        position = ItemPosition.BOTTOM,
-                                        onClick = {
-                                            showDnsHeadersDialog = true
-                                        }
-                                    )
-                                }
-                            }
-
-                            Spacer(Modifier.height(8.dp))
-
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainer
-                            ) {
-                                Text(
-                                    text = when (state.dnsProvider) {
-                                        "google" -> stringResource(R.string.telemt_dns_fallback_google)
-                                        "cloudflare" -> stringResource(R.string.telemt_dns_fallback_cloudflare)
-                                        "custom" -> stringResource(R.string.telemt_dns_fallback_custom)
-                                        else -> stringResource(R.string.telemt_dns_fallback_google)
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(
-                                        horizontal = 16.dp,
-                                        vertical = 12.dp
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
             }
 
             if (selectedTab == ProxyTab.DcPing) {
@@ -1402,7 +1268,7 @@ fun ProxyContent(component: ProxyComponent) {
 
     if (showDnsUrlDialog) {
         DnsTextInputBottomSheet(
-            title = stringResource(R.string.telemt_dns_custom_url_title),
+            title = stringResource(R.string.telegram_dns_custom_url_title),
             initialValue = state.customDnsUrl,
             placeholder = "https://dns.example.com/dns-query",
             onDismiss = { showDnsUrlDialog = false },
@@ -1415,7 +1281,7 @@ fun ProxyContent(component: ProxyComponent) {
 
     if (showDnsHeadersDialog) {
         DnsTextInputBottomSheet(
-            title = stringResource(R.string.telemt_dns_custom_headers_title),
+            title = stringResource(R.string.telegram_dns_custom_headers_title),
             initialValue = state.customDnsHeaders,
             placeholder = "Authorization: Bearer token",
             onDismiss = { showDnsHeadersDialog = false },

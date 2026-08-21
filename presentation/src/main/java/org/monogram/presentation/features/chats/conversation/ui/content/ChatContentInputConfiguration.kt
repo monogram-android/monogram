@@ -63,7 +63,7 @@ internal fun rememberChatInputBarState(
         state.scheduledMessages,
         state.currentUser?.isPremium,
         state.isSecretChat,
-        state.tdLibLimits
+        state.telegramLimits
     ) {
         ChatInputBarState(
             replyMessage = state.replyMessage,
@@ -102,7 +102,7 @@ internal fun rememberChatInputBarState(
             scheduledMessages = state.scheduledMessages,
             isPremiumUser = state.currentUser?.isPremium == true,
             isSecretChat = state.isSecretChat,
-            tdLibLimits = state.tdLibLimits
+            telegramLimits = state.telegramLimits
         )
     }
 }

@@ -14,8 +14,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.monogram.data.backend.TelegramBackendKind
-import org.monogram.data.backend.TelegramBackendSelectionStore
 import org.monogram.domain.repository.AuthError
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
@@ -35,21 +33,6 @@ import org.monogram.mtproto.updates.MtProtoUpdateState
 @OptIn(ExperimentalCoroutinesApi::class)
 class MtProtoLiveUpdateCoordinatorTest {
     @Test
-    fun `legacy selection never opens MTProto live transport`() = runTest {
-        var opens = 0
-        coordinator(
-            selection = FakeSelectionStore(TelegramBackendKind.LEGACY),
-            auth = FakeAuthRepository(AuthStep.Ready),
-            transportFactory = MtProtoSessionTransportFactory { error("must not open") },
-            scope = backgroundScope,
-        )
-
-        testScheduler.runCurrent()
-
-        assertEquals(0, opens)
-    }
-
-    @Test
     fun `selected ready session initializes recovers then closes transport`() = runTest {
         val transport = RecordingTransport(
             responses = ArrayDeque<TlObject>().apply {
@@ -61,7 +44,6 @@ class MtProtoLiveUpdateCoordinatorTest {
         var dialogRequests = 0
         val stateStore = FakeStateStore()
         coordinator(
-            selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             auth = FakeAuthRepository(AuthStep.Ready),
             transportFactory = MtProtoSessionTransportFactory {
                 opens++
@@ -95,7 +77,6 @@ class MtProtoLiveUpdateCoordinatorTest {
         )
         var opens = 0
         coordinator(
-            selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             auth = FakeAuthRepository(AuthStep.Ready),
             transportFactory = MtProtoSessionTransportFactory {
                 opens++
@@ -127,7 +108,6 @@ class MtProtoLiveUpdateCoordinatorTest {
         })
         var opens = 0
         coordinator(
-            selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             auth = FakeAuthRepository(AuthStep.Ready),
             transportFactory = MtProtoSessionTransportFactory {
                 opens++
@@ -155,7 +135,6 @@ class MtProtoLiveUpdateCoordinatorTest {
             CompletableDeferred<TlObject>().await()
         })
         coordinator(
-            selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             auth = auth,
             transportFactory = MtProtoSessionTransportFactory { transport },
             scope = backgroundScope,
@@ -169,31 +148,7 @@ class MtProtoLiveUpdateCoordinatorTest {
         assertTrue(transport.closed)
     }
 
-    @Test
-    fun `deselection cancels in-flight startup and closes transport`() = runTest {
-        val selection = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO)
-        val entered = CompletableDeferred<Unit>()
-        val transport = RecordingTransport(onExecute = {
-            entered.complete(Unit)
-            CompletableDeferred<TlObject>().await()
-        })
-        coordinator(
-            selection = selection,
-            auth = FakeAuthRepository(AuthStep.Ready),
-            transportFactory = MtProtoSessionTransportFactory { transport },
-            scope = backgroundScope,
-        )
-
-        testScheduler.runCurrent()
-        entered.await()
-        selection.backend.value = TelegramBackendKind.LEGACY
-        testScheduler.runCurrent()
-
-        assertTrue(transport.closed)
-    }
-
     private fun coordinator(
-        selection: FakeSelectionStore,
         auth: FakeAuthRepository,
         transportFactory: MtProtoSessionTransportFactory,
         stateStore: FakeStateStore = FakeStateStore(),
@@ -202,7 +157,6 @@ class MtProtoLiveUpdateCoordinatorTest {
         },
         scope: CoroutineScope,
     ) = MtProtoLiveUpdateCoordinator(
-        selectionStore = selection,
         authRepository = auth,
         transportFactory = transportFactory,
         configSource = configSource(),
@@ -223,15 +177,6 @@ class MtProtoLiveUpdateCoordinatorTest {
         )
     }
 
-    private class FakeSelectionStore(initial: TelegramBackendKind) : TelegramBackendSelectionStore {
-        val backend = MutableStateFlow(initial)
-        override suspend fun get(accountId: String) = backend.value
-        override fun observe(accountId: String): Flow<TelegramBackendKind> = backend
-        override suspend fun select(accountId: String, backend: TelegramBackendKind) {
-            this.backend.value = backend
-        }
-        override suspend fun reset(accountId: String) = Unit
-    }
 
     private class FakeAuthRepository(initial: AuthStep) : AuthRepository {
         val step = MutableStateFlow(initial)

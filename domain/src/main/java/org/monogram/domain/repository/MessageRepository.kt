@@ -60,7 +60,7 @@ data class ConversationKey(
     val chatId: Long,
     val scope: ConversationScope = ConversationScope.Main
 ) {
-    /** TDLib still addresses topic/thread history through a shared numeric argument. */
+    /** Telegram addresses topic/thread history through a shared numeric argument. */
     val threadId: Long?
         get() = when (val value = scope) {
             ConversationScope.Main -> null
@@ -89,7 +89,7 @@ sealed interface HistoryAnchor {
 }
 
 enum class HistoryDirection { Initial, Older, Newer, Around }
-enum class HistorySource { RoomSnapshot, TdlibLocal, TdlibNetwork, CacheFallback }
+enum class HistorySource { RoomSnapshot, LocalSnapshot, NetworkSnapshot, CacheFallback }
 
 sealed interface BoundaryState {
     data object Reached : BoundaryState
@@ -102,7 +102,7 @@ data class HistoryRequest(
     val anchor: HistoryAnchor,
     val direction: HistoryDirection,
     val limit: Int,
-    val source: HistorySource = HistorySource.TdlibNetwork
+    val source: HistorySource = HistorySource.NetworkSnapshot
 )
 
 data class HistoryPage(
@@ -214,7 +214,7 @@ interface MessageRepository :
         sendOptions: MessageSendOptions = MessageSendOptions()
     )
 
-    /** Retries a TDLib-owned failed outgoing operation without creating another local bubble. */
+    /** Retries a failed outgoing operation without creating another local bubble. */
     suspend fun retryFailedMessage(chatId: Long, temporaryMessageId: Long) = Unit
 
     suspend fun sendRichMessage(

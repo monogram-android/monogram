@@ -10,7 +10,6 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
 import org.monogram.domain.models.TelegramPeerChatId
-import org.monogram.domain.repository.TelegramBackendMode
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.RichTextParseMode
@@ -46,7 +45,7 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
                 visibleMessageIds = visibleMessageIds
             )
         }
-        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+        if (true) {
             val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
                 "MTProto target chat is not projected"
             }
@@ -125,7 +124,7 @@ private fun DefaultChatComponent.clearUnreadShortcut(type: UnreadShortcutType) {
         )
     }
     scope.launch {
-        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+        if (true) {
             val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
                 "MTProto target chat is not projected"
             }
@@ -158,7 +157,7 @@ internal fun DefaultChatComponent.handleDeleteMessage(message: MessageModel, rev
     }
 
     scope.launch {
-        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) {
+        if (true) {
             val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
                 "MTProto target chat is not projected"
             }
@@ -187,8 +186,8 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
         else -> false
     }
     val isAllowed = when {
-        isCaption -> ensureTdLibCaptionLimit(text)
-        else -> ensureTdLibMessageLimit(text, rich = isRichMessage)
+        isCaption -> ensureTelegramCaptionLimit(text)
+        else -> ensureTelegramMessageLimit(text, rich = isRichMessage)
     }
     if (!isAllowed) return
     val targetChatId = editingMsg.chatId
@@ -199,7 +198,7 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
 
     scope.launch {
         runCatching {
-            if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+            if (true) {
                 require(editingMsg.content is MessageContent.Text) { "MTProto media caption editing is not available" }
                 require(parseMode == null) { "MTProto Markdown and HTML parsing is not available" }
                 val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
@@ -237,7 +236,7 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
 }
 
 internal fun DefaultChatComponent.handleSaveChecklistDraft(draft: ChecklistDraft) {
-    val limits = tdLibLimitsRepository.limits.value
+    val limits = telegramLimitsRepository.limits.value
     val checklistTitleLengthMax = limits.checklistTitleLengthMax
     if (checklistTitleLengthMax != null && draft.title.length > checklistTitleLengthMax) {
         toastMessageDisplayer.show("Checklist title is too long. Maximum is $checklistTitleLengthMax")
@@ -465,7 +464,7 @@ private fun ChecklistTask.withCompletion(
 
 internal fun DefaultChatComponent.handleDraftChange(text: String) {
     if (
-        backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO &&
+        true &&
         _state.value.effectiveThreadId() != null
     ) return
     val isEditing = _state.value.editingMessage != null
@@ -527,7 +526,7 @@ internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: 
                 newReactions.remove(reactionToUpdate)
             }
             scope.launch {
-                if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+                if (true) {
                     val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
                         "MTProto target chat is not projected"
                     }
@@ -557,7 +556,7 @@ internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: 
                 )
             }
             scope.launch {
-                if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+                if (true) {
                     val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
                         "MTProto target chat is not projected"
                     }
@@ -584,7 +583,7 @@ internal fun DefaultChatComponent.handleUnpinMessage(message: MessageModel) {
 
 private fun DefaultChatComponent.updatePinnedMessage(message: MessageModel, pinned: Boolean) {
     scope.launch {
-        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+        if (true) {
             val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
                 "MTProto target chat is not projected"
             }
@@ -600,7 +599,7 @@ private fun DefaultChatComponent.updatePinnedMessage(message: MessageModel, pinn
 
 internal fun DefaultChatComponent.handleClearMessages() {
     scope.launch {
-        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+        if (true) {
             val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
                 "MTProto target chat is not projected"
             }
@@ -614,7 +613,7 @@ internal fun DefaultChatComponent.handleClearMessages() {
 
 internal fun DefaultChatComponent.handleSendScheduledNow(message: MessageModel) {
     scope.launch {
-        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+        if (true) {
             val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
                 "MTProto target chat is not projected"
             }

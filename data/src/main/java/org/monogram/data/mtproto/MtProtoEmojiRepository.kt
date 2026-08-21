@@ -16,6 +16,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeVideo
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
 import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiList_50973b9ed3
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AvailableReactions_a572c1b4d2
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AvailableReactionsNotModified
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetAvailableReactions
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetCustomEmojiDocuments
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchCustomEmoji
@@ -72,7 +73,20 @@ internal class MtProtoEmojiRepository(
         localDataSource.clearRecentEmojis()
     }
 
-    override suspend fun getMessageAvailableReactions(chatId: Long, messageId: Long): List<String> = unsupported()
+    override suspend fun getMessageAvailableReactions(chatId: Long, messageId: Long): List<String> {
+        val factory = transportFactory ?: return supportedEmojis.value
+        val reactions = factory.open(accountSlot).use { transport ->
+            when (val response = transport.execute(GetAvailableReactions(0))) {
+                is AvailableReactions_a572c1b4d2 -> response.reactions
+                    .filterIsInstance<AvailableReaction_bcdc20ef08>()
+                    .filterNot(AvailableReaction_bcdc20ef08::inactive)
+                    .map(AvailableReaction_bcdc20ef08::reaction)
+                    .distinct()
+                is AvailableReactionsNotModified -> emptyList()
+            }
+        }
+        return reactions.ifEmpty { supportedEmojis.value }
+    }
 
     private suspend fun emojis(): List<String> {
         remoteEmojis?.let { return it }
@@ -108,8 +122,4 @@ internal class MtProtoEmojiRepository(
             },
         )
     }
-
-    private fun unsupported(): Nothing = throw UnsupportedOperationException(
-        "MTProto custom emoji and message reaction lookup are not available"
-    )
 }

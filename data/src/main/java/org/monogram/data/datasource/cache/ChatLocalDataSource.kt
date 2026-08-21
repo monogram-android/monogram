@@ -77,7 +77,7 @@ interface ChatLocalDataSource {
                 newestMessageId = null,
                 olderBoundaryReached = false,
                 newerBoundaryReached = false,
-                lastTdlibSyncAt = 0L,
+                lastNetworkSyncAt = 0L,
                 generation = 0L,
                 protectedMessageId = messageId
             )

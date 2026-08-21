@@ -126,7 +126,7 @@ internal fun rememberChatContentPreviewState(
                     is OutgoingMessageReducer.State.Failed -> message.copy(
                         sendingState = MessageSendingState.Failed(
                             outgoingState.errorCode,
-                            "TDLib send failed"
+                            "Telegram send failed"
                         )
                     )
 

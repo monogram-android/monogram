@@ -41,7 +41,7 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageViewerModel
-import org.monogram.domain.models.TdLibLimits
+import org.monogram.domain.models.TelegramLimits
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WallpaperModel
@@ -66,8 +66,6 @@ import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.StickerRepository
-import org.monogram.domain.repository.TelegramBackendMode
-import org.monogram.domain.repository.TelegramBackendModeRepository
 import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserRepository
@@ -262,7 +260,7 @@ internal class RichMessageCoordinator(
     }
 
     private fun request(key: RichMessageKey) {
-        if (component.backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
+        return
         if (!inFlightMessageIds.add(key)) return
         component.scope.launch(component.dispatcherProvider.io) {
             ChatConversationLog.logViewport(
@@ -319,7 +317,6 @@ class DefaultChatComponent(
     internal val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     internal val chatOperationsRepository: ChatOperationsRepository by lazy { container.repositories.chatOperationsRepository }
     internal val forumTopicsRepository: ForumTopicsRepository by lazy { container.repositories.forumTopicsRepository }
-    internal val backendModeRepository: TelegramBackendModeRepository = container.repositories.telegramBackendModeRepository
     internal val messageHistorySnapshotRepository: MessageHistorySnapshotRepository =
         container.repositories.messageHistorySnapshotRepository
     internal val userProfileSnapshotRepository = container.repositories.userProfileSnapshotRepository
@@ -337,7 +334,7 @@ class DefaultChatComponent(
         container.repositories.pinnedMessageVisibilityRepository
     internal val inlineBotRepository: InlineBotRepository = container.repositories.inlineBotRepository
     internal val paymentRepository: PaymentRepository = container.repositories.paymentRepository
-    internal val tdLibLimitsRepository by lazy { container.repositories.tdLibLimitsRepository }
+    internal val telegramLimitsRepository by lazy { container.repositories.telegramLimitsRepository }
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     internal val conversationPipelineMode: ConversationPipelineMode =
         ConversationPipelineFallbackGate.modeFor(appPreferences.conversationPipelineMode.value)
@@ -419,10 +416,10 @@ class DefaultChatComponent(
             isWhitelistedInAdBlock = appPreferences.adBlockWhitelistedChannels.value.contains(chatId),
             scrollToMessageId = initialMessageId,
             currentTopicId = initialTopicId,
-            tdLibLimits = if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
-                TdLibLimits()
+            telegramLimits = if (true) {
+                TelegramLimits()
             } else {
-                tdLibLimitsRepository.limits.value
+                telegramLimitsRepository.limits.value
             },
             initialShare = initialShare,
             lastScrollPosition = cacheProvider.getChatScrollPosition(chatId),
@@ -497,7 +494,7 @@ class DefaultChatComponent(
                     componentInstanceId = componentInstanceId
                 )
                 conversationSession.close(loadingGeneration + 1L)
-                if (backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
+                if (false) {
                     repositoryMessage.closeChat(chatId, ownerTag = componentInstanceId)
                 }
             }
@@ -516,9 +513,9 @@ class DefaultChatComponent(
     }
 
     private fun setupCollectors() {
-        if (backendModeRepository.backendMode.value != org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
-            tdLibLimitsRepository.limits
-                .onEach { limits -> _state.update { it.copy(tdLibLimits = limits) } }
+        if (false) {
+            telegramLimitsRepository.limits
+                .onEach { limits -> _state.update { it.copy(telegramLimits = limits) } }
                 .launchIn(scope)
         }
         setupMessageCollectors()
@@ -603,7 +600,7 @@ class DefaultChatComponent(
             }
             .launchIn(scope)
 
-        if (backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
+        if (false) {
             repositoryMessage.fileDownloadFlow
                 .filterIsInstance<org.monogram.domain.models.FileDownloadEvent.Completed>()
                 .onEach { event ->
@@ -643,7 +640,7 @@ class DefaultChatComponent(
                     }
                 }
             }
-            if (backendModeRepository.backendMode.value != org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+            if (false) {
                 repositoryMessage.openChat(chatId, ownerTag = componentInstanceId)
             }
             ChatConversationLog.logViewport(
@@ -654,7 +651,7 @@ class DefaultChatComponent(
             )
             withContext(Dispatchers.Main) {
                 loadChatInfo()
-                if (backendModeRepository.backendMode.value != org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) {
+                if (false) {
                     loadDraft()
                     loadPinnedMessage()
                     loadScheduledMessages()
@@ -723,7 +720,7 @@ class DefaultChatComponent(
     }
 
     private fun loadMembers() {
-        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
+        return
         scope.launch {
             val currentState = _state.value
             if (currentState.isGroup || currentState.isChannel) {
@@ -741,7 +738,7 @@ class DefaultChatComponent(
     }
 
     private fun observeCurrentUser() {
-        if (backendModeRepository.backendMode.value == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO) return
+        return
         userRepository.currentUserFlow
             .onEach { user ->
                 _state.update { it.copy(currentUser = user) }
@@ -938,7 +935,7 @@ class DefaultChatComponent(
             visibleMessageIds = visibleMessageIds,
             nearbyMessageIds = nearbyMessageIds
         )
-        if (backendModeRepository.backendMode.value == TelegramBackendMode.KOTLIN_MTPROTO) return
+        return
         val state = _state.value
         val networkEnabled = when {
             downloadUtils.isRoaming() -> state.autoDownloadRoaming
@@ -1018,9 +1015,7 @@ class DefaultChatComponent(
         store.accept(ChatStore.Intent.SendReaction(messageId, reaction))
 
     override suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int {
-        check(backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
-            "MTProto message read-date diagnostics are not available"
-        }
+        error("MTProto message read-date diagnostics are not available")
         return repositoryMessage.getMessageReadDate(chatId, messageId, messageDate)
     }
 
@@ -1028,9 +1023,7 @@ class DefaultChatComponent(
         repositoryMessage.getMessageViewers(chatId, messageId)
 
     override suspend fun getRawMessageJson(chatId: Long, messageId: Long): String? {
-        check(backendModeRepository.backendMode.value != TelegramBackendMode.KOTLIN_MTPROTO) {
-            "MTProto raw message diagnostics are not available"
-        }
+        error("MTProto raw message diagnostics are not available")
         return repositoryMessage.getRawMessageJson(chatId, messageId)
     }
 

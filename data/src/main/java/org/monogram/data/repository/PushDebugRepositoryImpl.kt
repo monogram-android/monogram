@@ -15,9 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import org.monogram.data.push.PushSyncTrigger
 import org.monogram.data.push.UnifiedPushManager
-import org.monogram.data.service.TdNotificationService
+import org.monogram.data.service.MtProtoNotificationService
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushDebugRepository
 import org.monogram.domain.repository.PushDiagnostics
@@ -27,7 +26,6 @@ class PushDebugRepositoryImpl(
     private val context: Context,
     private val appPreferences: AppPreferencesProvider,
     private val unifiedPushManager: UnifiedPushManager,
-    private val pushSyncTrigger: PushSyncTrigger,
     private val scope: CoroutineScope
 ) : PushDebugRepository {
 
@@ -49,7 +47,7 @@ class PushDebugRepositoryImpl(
             combine(
                 prefsFlow,
                 appPreferences.batteryOptimizationEnabled,
-                TdNotificationService.isRunningFlow,
+                MtProtoNotificationService.isRunningFlow,
                 unifiedPushManager.status,
                 unifiedPushManager.endpoint
             ) { prefs, batteryOpt, serviceRunning, unifiedStatus, endpoint ->
@@ -60,7 +58,7 @@ class PushDebugRepositoryImpl(
                     isPowerSavingMode = prefs.isPowerSavingMode,
                     isWakeLockEnabled = prefs.isWakeLockEnabled,
                     batteryOptimizationEnabled = batteryOpt,
-                    isTdNotificationServiceRunning = serviceRunning,
+                    isMtProtoNotificationServiceRunning = serviceRunning,
                     unifiedPushStatus = when (unifiedStatus) {
                         UnifiedPushManager.Status.IDLE -> UnifiedPushDebugStatus.IDLE
                         UnifiedPushManager.Status.REGISTERING -> UnifiedPushDebugStatus.REGISTERING
@@ -109,7 +107,6 @@ class PushDebugRepositoryImpl(
             NotificationManagerCompat.from(context).notify(DEBUG_NOTIFICATION_ID, builder.build())
         }
 
-        pushSyncTrigger.requestSync("debug_test_push")
     }
 
     private fun ensureDebugChannel() {

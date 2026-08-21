@@ -149,6 +149,6 @@ class ChatInitialLoadPolicyTest {
         },
         olderBoundary = BoundaryState.Open,
         newerBoundary = BoundaryState.Open,
-        source = HistorySource.TdlibLocal
+        source = HistorySource.LocalSnapshot
     )
 }

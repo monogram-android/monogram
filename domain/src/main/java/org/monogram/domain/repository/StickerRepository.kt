@@ -29,13 +29,13 @@ interface StickerRepository {
     suspend fun verifyStickerSet(setId: Long)
     suspend fun toggleStickerSetInstalled(setId: Long, isInstalled: Boolean)
     suspend fun toggleStickerSetArchived(setId: Long, isArchived: Boolean)
-    suspend fun reorderStickerSets(stickerType: TdLibStickerType, stickerSetIds: List<Long>)
+    suspend fun reorderStickerSets(stickerType: StickerSetType, stickerSetIds: List<Long>)
 
     suspend fun searchStickers(query: String): List<StickerModel>
     suspend fun getStickerEmojiHints(query: String): List<String>
     suspend fun searchStickerSets(query: String): List<StickerSetModel>
 
-    enum class TdLibStickerType {
+    enum class StickerSetType {
         REGULAR, CUSTOM_EMOJI, MASK
     }
 }

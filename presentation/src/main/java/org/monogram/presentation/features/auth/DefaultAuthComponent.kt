@@ -1,20 +1,13 @@
 package org.monogram.presentation.features.auth
 
-import android.util.Log
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
-import org.monogram.domain.repository.AuthError
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.AuthUiStatus
-import org.monogram.domain.repository.TelegramBackendMode
-import org.monogram.domain.repository.TelegramBackendModeRepository
-import org.monogram.domain.repository.TelegramBackendSwitchRepository
-import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -24,10 +17,6 @@ class DefaultAuthComponent(
 ) : AuthComponent, AppComponentContext by context {
 
     private val repository: AuthRepository = container.repositories.authRepository
-    private val backendModeRepository: TelegramBackendModeRepository =
-        container.repositories.telegramBackendModeRepository
-    private val backendSwitchRepository: TelegramBackendSwitchRepository =
-        container.repositories.telegramBackendSwitchRepository
     private val scope = componentScope
 
     private val _model = MutableValue(
@@ -36,14 +25,6 @@ class DefaultAuthComponent(
     override val model: Value<AuthComponent.Model> = _model
 
     init {
-        backendModeRepository.backendMode
-            .onEach { backendMode ->
-                _model.update {
-                    it.copy(telegramBackendMode = backendMode, isTelegramBackendSwitching = false)
-                }
-            }
-            .launchIn(scope)
-
         repository.authState
             .onEach { step ->
                 val newAuthState = when (step) {
@@ -145,28 +126,6 @@ class DefaultAuthComponent(
 
     override fun onProxyClicked() {
         onOpenProxy()
-    }
-
-    override fun onTelegramBackendToggleRequested() {
-        if (!BuildConfig.DEBUG || _model.value.isTelegramBackendSwitching) return
-        val target = when (_model.value.telegramBackendMode) {
-            TelegramBackendMode.LEGACY -> TelegramBackendMode.KOTLIN_MTPROTO
-            TelegramBackendMode.KOTLIN_MTPROTO -> TelegramBackendMode.LEGACY
-            TelegramBackendMode.UNKNOWN -> return
-        }
-        scope.launch {
-            _model.update { it.copy(isTelegramBackendSwitching = true) }
-            runCatching { backendSwitchRepository.switchTo(target) }
-                .onFailure { error ->
-                    Log.e(TAG, "Unable to switch Telegram backend", error)
-                    _model.update {
-                        it.copy(
-                            error = AuthError.Unexpected,
-                            isTelegramBackendSwitching = false,
-                        )
-                    }
-                }
-        }
     }
 
     override fun dismissError() {

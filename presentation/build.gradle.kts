@@ -67,19 +67,9 @@ android {
         }
     }
 
-    flavorDimensions += listOf("tdlib", "runtime")
+    flavorDimensions += listOf("runtime")
 
     productFlavors {
-        create("official") {
-            dimension = "tdlib"
-            buildConfigField("boolean", "ENABLE_TELEMT_DNS", "false")
-            buildConfigField("boolean", "IS_OFFICIAL_TDLIB", "true")
-        }
-        create("telemt") {
-            dimension = "tdlib"
-            buildConfigField("boolean", "ENABLE_TELEMT_DNS", "true")
-            buildConfigField("boolean", "IS_OFFICIAL_TDLIB", "false")
-        }
         create("firebase") {
             dimension = "runtime"
             buildConfigField("boolean", "HAS_OSS_LICENSES", "true")

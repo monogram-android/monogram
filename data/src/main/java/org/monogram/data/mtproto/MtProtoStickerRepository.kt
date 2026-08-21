@@ -15,6 +15,9 @@ import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.models.StickerType
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiKeyword_0d35930ff3
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiKeywordsDifference_ce8b93b74e
+import org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeCustomEmoji
 import org.monogram.mtproto.tl.generated.cloud.layer223.StickerSetCovered_1af4b31f79
 import org.monogram.mtproto.tl.generated.cloud.layer223.StickerSetCovered_34353f5c94
@@ -34,6 +37,12 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetAllStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetArchivedStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetEmojiKeywords
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.InstallStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ReorderStickerSets
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.StickerSetInstallResultArchive
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.StickerSetInstallResultSuccess
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.UninstallStickerSet
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickers_7d9ce2d574
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickerSets_215fe0f754
@@ -53,6 +62,8 @@ internal class MtProtoStickerRepository(
     private val customEmojiSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
     private val archivedSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
     private val archivedEmojis = MutableStateFlow<List<StickerSetModel>>(emptyList())
+    private val accessHashes = mutableMapOf<Long, Long>()
+    private var emojiKeywords: List<EmojiKeyword_0d35930ff3>? = null
 
     override val installedStickerSets: StateFlow<List<StickerSetModel>> = installedSets
     override val customEmojiStickerSets: StateFlow<List<StickerSetModel>> = customEmojiSets
@@ -92,7 +103,13 @@ internal class MtProtoStickerRepository(
     override suspend fun getTgsJson(path: String): String? = unsupported("animated sticker files")
     override fun clearCache() = unsupported("sticker cache clearing")
 
-    override suspend fun getStickerSet(setId: Long): StickerSetModel? = unsupported("sticker-set ID reads without access hash")
+    override suspend fun getStickerSet(setId: Long): StickerSetModel? {
+        val accessHash = accessHashes[setId]
+            ?: throw IllegalStateException(
+                "MTProto sticker-set lookup requires the access hash of a previously seen set (id=$setId)",
+            )
+        return getStickerSet(InputStickerSetId(setId, accessHash))
+    }
 
     override suspend fun getStickerSetByName(name: String): StickerSetModel? =
         getStickerSet(InputStickerSetShortName(name.trim()))
@@ -105,6 +122,7 @@ internal class MtProtoStickerRepository(
         val transport = transportFactory.open(accountSlot)
         try {
             val result = transport.execute(GetStickerSet(input, 0)) as? StickerSet_ec0b3f33d3 ?: return null
+            (result.set_ as? StickerSet_97ab856701)?.let { accessHashes[it.id] = it.accessHash }
             result.documents.filterIsInstance<Document_be725c3b31>().also { stageDocuments(it) }
             return result.toDomain()
         } finally {
@@ -112,10 +130,57 @@ internal class MtProtoStickerRepository(
         }
     }
 
-    override suspend fun verifyStickerSet(setId: Long) = unsupported("sticker verification")
-    override suspend fun toggleStickerSetInstalled(setId: Long, isInstalled: Boolean) = unsupported("sticker installation")
-    override suspend fun toggleStickerSetArchived(setId: Long, isArchived: Boolean) = unsupported("sticker archive mutation")
-    override suspend fun reorderStickerSets(stickerType: StickerRepository.TdLibStickerType, stickerSetIds: List<Long>) = unsupported("sticker ordering")
+    override suspend fun verifyStickerSet(setId: Long) = throw UnsupportedOperationException(
+        "MTProto sticker-set verification is unavailable: no cloud-layer equivalent of Telegram viewStickerSet",
+    )
+
+    override suspend fun toggleStickerSetInstalled(setId: Long, isInstalled: Boolean) {
+        val input = resolveInputSet(setId)
+        transportFactory.open(accountSlot).use { transport ->
+            if (isInstalled) {
+                when (val result = transport.execute(InstallStickerSet(input, archived = false))) {
+                    StickerSetInstallResultSuccess, is StickerSetInstallResultArchive -> Unit
+                }
+            } else {
+                check(transport.execute(UninstallStickerSet(input))) {
+                    "MTProto sticker-set uninstall was rejected"
+                }
+            }
+        }
+        refreshSetFlows()
+    }
+
+    override suspend fun toggleStickerSetArchived(setId: Long, isArchived: Boolean) {
+        val input = resolveInputSet(setId)
+        transportFactory.open(accountSlot).use { transport ->
+            // Archiving moves a set out of the installed list, so uninstall first.
+            check(transport.execute(UninstallStickerSet(input))) {
+                "MTProto sticker-set uninstall before archive change was rejected"
+            }
+            when (val result = transport.execute(InstallStickerSet(input, archived = isArchived))) {
+                StickerSetInstallResultSuccess, is StickerSetInstallResultArchive -> Unit
+            }
+        }
+        refreshSetFlows()
+    }
+
+    override suspend fun reorderStickerSets(stickerType: StickerRepository.StickerSetType, stickerSetIds: List<Long>) {
+        if (stickerSetIds.isEmpty()) return
+        transportFactory.open(accountSlot).use { transport ->
+            check(
+                transport.execute(
+                    ReorderStickerSets(
+                        masks = stickerType == StickerRepository.StickerSetType.MASK,
+                        emojis = stickerType == StickerRepository.StickerSetType.CUSTOM_EMOJI,
+                        order = stickerSetIds,
+                    ),
+                ),
+            ) {
+                "MTProto sticker-set reordering was rejected"
+            }
+        }
+        refreshSetFlows()
+    }
     override suspend fun searchStickers(query: String): List<StickerModel> {
         val normalized = query.trim()
         if (normalized.isEmpty()) return emptyList()
@@ -135,7 +200,18 @@ internal class MtProtoStickerRepository(
             result.stickers.filterIsInstance<Document_be725c3b31>().also { stageDocuments(it) }.mapNotNull { it.toDomain() }
         }
     }
-    override suspend fun getStickerEmojiHints(query: String): List<String> = unsupported("sticker emoji hints")
+    override suspend fun getStickerEmojiHints(query: String): List<String> {
+        val normalized = query.trim().lowercase()
+        if (normalized.isEmpty()) return emptyList()
+        val keywords = emojiKeywords ?: fetchEmojiKeywords().also { emojiKeywords = it }
+        return keywords
+            .filter { keyword ->
+                normalized in keyword.keyword.lowercase() || keyword.keyword.lowercase() in normalized
+            }
+            .flatMap(EmojiKeyword_0d35930ff3::emoticons)
+            .distinct()
+            .take(EMOJI_HINT_LIMIT)
+    }
     override suspend fun searchStickerSets(query: String): List<StickerSetModel> {
         val normalized = query.trim()
         if (normalized.isEmpty()) return emptyList()
@@ -144,6 +220,7 @@ internal class MtProtoStickerRepository(
                 as? FoundStickerSets_215fe0f754
                 ?: error("Unsupported MTProto sticker-set search response")
             result.sets.flatMap { it.documents() }.also { stageDocuments(it) }
+            result.sets.forEach { covered -> covered.rawSet()?.let { accessHashes[it.id] = it.accessHash } }
             result.sets.mapNotNull { it.toDomain() }
         }
     }
@@ -157,6 +234,7 @@ internal class MtProtoStickerRepository(
             all.sets.filterIsInstance<org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701>()
                 .filter(include)
                 .map { set ->
+                    accessHashes[set.id] = set.accessHash
                     transport.execute(GetStickerSet(InputStickerSetId(set.id, set.accessHash), 0))
                         as? StickerSet_ec0b3f33d3
                         ?: error("Unsupported MTProto installed sticker-set response")
@@ -172,6 +250,7 @@ internal class MtProtoStickerRepository(
                 as? ArchivedStickers_8455cc1f39
                 ?: error("Unsupported MTProto archived stickers response")
             result.sets.flatMap { it.documents() }.also { stageDocuments(it) }
+            result.sets.forEach { covered -> covered.rawSet()?.let { accessHashes[it.id] = it.accessHash } }
             result.sets.mapNotNull { it.toDomain() }
         }
 
@@ -197,11 +276,41 @@ internal class MtProtoStickerRepository(
         emit((result as? FileDownloadEvent.Completed)?.path)
     }
 
+    private suspend fun fetchEmojiKeywords(): List<EmojiKeyword_0d35930ff3> {
+        val config = configSource.createForAccount(accountSlot)
+        return transportFactory.open(accountSlot).use { transport ->
+            (transport.execute(GetEmojiKeywords(config.cloud.systemLanguageCode))
+                as? EmojiKeywordsDifference_ce8b93b74e)?.keywords.orEmpty()
+                .filterIsInstance<EmojiKeyword_0d35930ff3>()
+        }
+    }
+
+    private fun resolveInputSet(setId: Long): InputStickerSet {
+        val accessHash = accessHashes[setId]
+            ?: throw IllegalStateException(
+                "MTProto sticker-set mutation requires the access hash of a previously seen set (id=$setId)",
+            )
+        return InputStickerSetId(setId, accessHash)
+    }
+
+    private suspend fun refreshSetFlows() {
+        loadInstalledStickerSets()
+        loadCustomEmojiStickerSets()
+        runCatching { loadArchivedStickerSets() }
+    }
+
     private suspend fun stageDocuments(documents: List<Document_be725c3b31>) {
         if (documents.isEmpty()) return
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         documents.forEach { locations.upsert(scope, it) }
+    }
+
+    private fun StickerSetCovered_1af4b31f79.rawSet(): StickerSet_97ab856701? = when (this) {
+        is StickerSetCovered_34353f5c94 -> set_ as? StickerSet_97ab856701
+        is StickerSetMultiCovered -> set_ as? StickerSet_97ab856701
+        is StickerSetFullCovered -> set_ as? StickerSet_97ab856701
+        else -> null
     }
 
     private fun StickerSetCovered_1af4b31f79.documents(): List<Document_be725c3b31> = when (this) {
@@ -289,5 +398,6 @@ internal class MtProtoStickerRepository(
         const val DEFAULT_ACCOUNT_SLOT = "default"
         const val SEARCH_LIMIT = 100
         const val ARCHIVED_LIMIT = 100
+        const val EMOJI_HINT_LIMIT = 20
     }
 }

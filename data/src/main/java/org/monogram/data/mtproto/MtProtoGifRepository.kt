@@ -12,7 +12,10 @@ import org.monogram.domain.models.GifModel
 import org.monogram.domain.repository.GifRepository
 import org.monogram.mtproto.tl.generated.cloud.layer223.DocumentAttributeVideo
 import org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31
+import org.monogram.mtproto.tl.generated.cloud.layer223.InputDocument_e4942b2cdd
+import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetSavedGifs
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SaveGif
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SavedGifs_ed772ead35
 
 /** Selected-backend saved GIF reads backed by persisted document locations and opaque file handles. */
@@ -23,6 +26,9 @@ internal class MtProtoGifRepository(
     private val files: MtProtoFileRepository,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : GifRepository {
+    /** Downloaded-path -> input-document handles for GIF documents this repository has staged. */
+    private val handlesByPath = mutableMapOf<String, InputDocument_e4942b2cdd>()
+
     override fun getGifFile(gif: GifModel): Flow<String?> = flow {
         val fileId = gif.fileId.toIntExact()
         files.getPath(fileId)?.let {
@@ -45,14 +51,17 @@ internal class MtProtoGifRepository(
 
     override suspend fun getSavedGifs(): List<GifModel> {
         val config = configSource.createForAccount(accountSlot)
-        val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val result = transportFactory.open(accountSlot).use { transport ->
             transport.execute(GetSavedGifs(0)) as? SavedGifs_ed772ead35
                 ?: error("Unsupported MTProto saved GIF response")
         }
         return result.gifs.mapNotNull { it as? Document_be725c3b31 }.mapNotNull { document ->
-            locations.upsert(scope, document)
+            locations.upsert(scope(config), document)
             val file = files.registerDocument(document.id) ?: return@mapNotNull null
+            rememberHandle(document.id.toString(), document)
+            files.getPath(file.fileId)?.let { path ->
+                rememberHandle(path, document)
+            }
             val video = document.attributes.filterIsInstance<DocumentAttributeVideo>().firstOrNull()
             GifModel(
                 id = document.id.toString(),
@@ -64,9 +73,57 @@ internal class MtProtoGifRepository(
         }
     }
 
-    override suspend fun addSavedGif(path: String): Nothing = unsupported("GIF upload")
+    override suspend fun addSavedGif(path: String) {
+        val handle = resolveHandle(path)
+            ?: throw IllegalStateException(
+                "MTProto GIF saving requires the document handle of a previously staged GIF; " +
+                    "'$path' cannot be resolved to an InputDocument",
+            )
+        val config = configSource.createForAccount(accountSlot)
+        // Re-fetch the reference so a stale handle does not fail the toggle.
+        val location = locations.get(scope(config), handle.id)
+        val refreshed = if (location != null && !location.fileReference.contentEquals(handle.fileReference.toByteArray())) {
+            handle.copy(fileReference = TlBytes.copyOf(location.fileReference))
+        } else {
+            handle
+        }
+        transportFactory.open(accountSlot).use { transport ->
+            check(transport.execute(SaveGif(id = refreshed, unsave = false))) {
+                "MTProto saved-GIF update was rejected"
+            }
+        }
+    }
 
-    override suspend fun searchGifs(query: String): Nothing = unsupported("GIF search")
+    override suspend fun searchGifs(query: String): Nothing = throw UnsupportedOperationException(
+        "MTProto GIF search is unavailable: messages.searchGifs is not part of the bundled cloud layer 223 schema",
+    )
+
+    private fun rememberHandle(path: String?, document: Document_be725c3b31) {
+        if (path.isNullOrBlank()) return
+        handlesByPath[path] = document.toInputDocument()
+    }
+
+    private fun Document_be725c3b31.toInputDocument(): InputDocument_e4942b2cdd =
+        InputDocument_e4942b2cdd(
+            id = id,
+            accessHash = accessHash,
+            fileReference = fileReference,
+        )
+
+    private suspend fun resolveHandle(path: String): InputDocument_e4942b2cdd? {
+        handlesByPath[path]?.let { return it }
+        val config = configSource.createForAccount(accountSlot)
+        val location = locations.get(scope(config), path.toLongOrNull() ?: return null)
+            ?: return null
+        return InputDocument_e4942b2cdd(
+            id = location.documentId,
+            accessHash = location.accessHash,
+            fileReference = TlBytes.copyOf(location.fileReference),
+        )
+    }
+
+    private fun scope(config: TelegramMtProtoBootstrapConfig): MtProtoAuthKeyScope =
+        MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
 
     private fun Long.toIntExact(): Int {
         val value = toInt()
@@ -74,9 +131,6 @@ internal class MtProtoGifRepository(
         return value
     }
 
-    private fun unsupported(operation: String): Nothing = throw UnsupportedOperationException(
-        "MTProto $operation is not available"
-    )
 
     private companion object { const val DEFAULT_ACCOUNT_SLOT = "default" }
 }

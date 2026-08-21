@@ -24,7 +24,7 @@ internal interface MtProtoNetworkStatisticsRepository : NetworkStatisticsReposit
 /**
  * Tracks MTProto transport bytes per Android network type, persisted locally.
  *
- * Mirrors the TDLib-local network statistics contract without any server interaction.
+ * Mirrors the Telegram-local network statistics contract without any server interaction.
  */
 internal class MtProtoNetworkStatisticsRepositoryImpl(
     private val keyValueDao: KeyValueDao,

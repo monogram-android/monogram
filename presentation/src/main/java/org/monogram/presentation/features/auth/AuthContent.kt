@@ -108,20 +108,6 @@ fun AuthContent(component: AuthComponent) {
                             }
                         },
                         actions = {
-                            if (BuildConfig.DEBUG && model.authState is AuthComponent.AuthState.InputPhone) {
-                                IconButton(
-                                    enabled = !model.isTelegramBackendSwitching &&
-                                        model.telegramBackendMode != org.monogram.domain.repository.TelegramBackendMode.UNKNOWN,
-                                    onClick = component::onTelegramBackendToggleRequested
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.SwapVert,
-                                        contentDescription = if (
-                                            model.telegramBackendMode == org.monogram.domain.repository.TelegramBackendMode.KOTLIN_MTPROTO
-                                        ) "Switch to legacy backend" else "Switch to Kotlin MTProto"
-                                    )
-                                }
-                            }
                             IconButton(onClick = component::onProxyClicked) {
                                 Icon(
                                     imageVector = Icons.Rounded.SettingsEthernet,

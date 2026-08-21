@@ -53,9 +53,9 @@ class MtProtoStorageCleanupRepositoryTest {
 
         val result = repository.clearCompletedDownloads(null)
 
-        assertEquals(4L, result.tdlibFreedSize)
-        assertEquals(1, result.tdlibFreedFileCount)
-        assertTrue(result.tdlibCleanupSucceeded)
+        assertEquals(4L, result.freedSize)
+        assertEquals(1, result.freedFileCount)
+        assertTrue(result.cleanupSucceeded)
         assertFalse(complete.exists())
         assertEquals(setOf("complete", "missing"), dao.deleted.map(MtProtoFileTransferEntity::fileKey).toSet())
         assertTrue(dao.entries.contains(incomplete))
@@ -83,7 +83,7 @@ class MtProtoStorageCleanupRepositoryTest {
 
         val result = repository.clearCompletedDownloads(null)
 
-        assertFalse(result.tdlibCleanupSucceeded)
+        assertFalse(result.cleanupSucceeded)
         assertTrue(outside.exists())
         assertTrue(dao.deleted.isEmpty())
         outside.delete()

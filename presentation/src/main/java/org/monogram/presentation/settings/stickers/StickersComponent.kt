@@ -168,9 +168,9 @@ class DefaultStickersComponent(
 
         scope.launch {
             val type = if (currentTabIndex == 0) {
-                StickerRepository.TdLibStickerType.REGULAR
+                StickerRepository.StickerSetType.REGULAR
             } else {
-                StickerRepository.TdLibStickerType.CUSTOM_EMOJI
+                StickerRepository.StickerSetType.CUSTOM_EMOJI
             }
             stickerRepository.reorderStickerSets(type, newList.map { it.id })
         }

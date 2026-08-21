@@ -407,7 +407,7 @@ object MonogramMigrations {
                     `newestMessageId` INTEGER,
                     `olderBoundaryReached` INTEGER NOT NULL,
                     `newerBoundaryReached` INTEGER NOT NULL,
-                    `lastTdlibSyncAt` INTEGER NOT NULL,
+                    `lastNetworkSyncAt` INTEGER NOT NULL,
                     `generation` INTEGER NOT NULL,
                     `protectedMessageId` INTEGER,
                     PRIMARY KEY(`chatId`, `scopeType`, `scopeId`)
@@ -626,6 +626,49 @@ object MonogramMigrations {
                     "`totalCount` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
                     "PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `listType`))"
             )
+        }
+    }
+
+    val MIGRATION_60_61 = object : Migration(60, 61) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val sourceColumn = db.query("PRAGMA table_info(`message_windows`)").use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                generateSequence { if (cursor.moveToNext()) cursor.getString(nameIndex) else null }
+                    .firstOrNull { it == "lastNetworkSyncAt" || it == "lastTdlibSyncAt" }
+                    ?: error("message_windows is missing its sync timestamp column")
+            }
+            db.execSQL(
+                """
+                CREATE TABLE `message_windows_new` (
+                    `chatId` INTEGER NOT NULL,
+                    `scopeType` TEXT NOT NULL,
+                    `scopeId` INTEGER NOT NULL,
+                    `oldestMessageId` INTEGER,
+                    `newestMessageId` INTEGER,
+                    `olderBoundaryReached` INTEGER NOT NULL,
+                    `newerBoundaryReached` INTEGER NOT NULL,
+                    `lastNetworkSyncAt` INTEGER NOT NULL,
+                    `generation` INTEGER NOT NULL,
+                    `protectedMessageId` INTEGER,
+                    PRIMARY KEY(`chatId`, `scopeType`, `scopeId`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT INTO `message_windows_new` (
+                    `chatId`, `scopeType`, `scopeId`, `oldestMessageId`, `newestMessageId`,
+                    `olderBoundaryReached`, `newerBoundaryReached`, `lastNetworkSyncAt`,
+                    `generation`, `protectedMessageId`
+                )
+                SELECT `chatId`, `scopeType`, `scopeId`, `oldestMessageId`, `newestMessageId`,
+                    `olderBoundaryReached`, `newerBoundaryReached`, `$sourceColumn`,
+                    `generation`, `protectedMessageId`
+                FROM `message_windows`
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE `message_windows`")
+            db.execSQL("ALTER TABLE `message_windows_new` RENAME TO `message_windows`")
         }
     }
 

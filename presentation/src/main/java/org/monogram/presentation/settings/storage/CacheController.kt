@@ -25,7 +25,6 @@ internal data class AppCacheTrimResult(
 }
 
 class CacheController(val context: Context, val exoPlayerCache: ExoPlayerCache) {
-    private val tdlibCacheRootName = "tdlib"
     private val appTempFilesDirPrefixes = listOf("CIRCLE_FULL_")
     private val trimMutex = Mutex()
 
@@ -75,7 +74,7 @@ class CacheController(val context: Context, val exoPlayerCache: ExoPlayerCache) 
                 trimCacheFiles(
                     roots = cacheScanRoots(),
                     targetSizeBytes = maxSizeBytes - maxSizeBytes / 10,
-                    protectedTopLevelNames = setOf(tdlibCacheRootName),
+                    protectedTopLevelNames = emptySet(),
                     minFileAgeMillis = AUTO_TRIM_FILE_IMMUNITY_MILLIS
                 ).copy(sizeBefore = sizeBefore)
             }
@@ -88,22 +87,12 @@ class CacheController(val context: Context, val exoPlayerCache: ExoPlayerCache) 
 
     private fun clearDirectoryChildren(directory: File) {
         val children = directory.listFiles() ?: return
-        children.forEach { child ->
-            if (child.name == tdlibCacheRootName) {
-                return@forEach
-            }
-            child.deleteRecursively()
-        }
+        children.forEach(File::deleteRecursively)
     }
 
     private fun collectCacheTempFiles(directory: File, destination: MutableList<File>) {
         val children = directory.listFiles() ?: return
-        children.forEach { child ->
-            if (child.name == tdlibCacheRootName) {
-                return@forEach
-            }
-            collectFilesRecursively(child, destination)
-        }
+        children.forEach { child -> collectFilesRecursively(child, destination) }
     }
 
     private fun clearAppInternalTempFiles() {
@@ -180,7 +169,7 @@ internal fun trimCacheFiles(
 }
 
 private fun cacheFilesSize(root: File): Long =
-    collectCacheFiles(root, setOf("tdlib")).sumOf(File::length)
+    collectCacheFiles(root, emptySet()).sumOf(File::length)
 
 private fun collectCacheFiles(root: File, protectedTopLevelNames: Set<String>): List<File> {
     if (!root.exists()) return emptyList()

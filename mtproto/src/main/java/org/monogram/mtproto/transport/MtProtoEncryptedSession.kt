@@ -116,7 +116,7 @@ class MtProtoEncryptedSession internal constructor(
         return true
     }
 
-    /** TDLib calibrates from the first authenticated server message before enforcing its replay window. */
+    /** Telegram calibrates from the first authenticated server message before enforcing its replay window. */
     private fun calibrateServerTime(messageId: Long) {
         val observedOffsetMillis = (messageId ushr 32) * 1_000L - currentTimeMillis()
         if (!serverTimeCalibrated || observedOffsetMillis > serverTimeOffsetMillis) {

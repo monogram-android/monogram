@@ -13,6 +13,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.Chat_65eab3b078
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.ResolvePhone
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.ResolveUsername
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.CheckChatInvite
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ImportChatInvite
@@ -44,7 +45,7 @@ internal class MtProtoLinkHandlerImpl(
         is ParsedLink.JoinChat -> checkInvite(parsed.inviteLink)
         is ParsedLink.OpenExternal -> LinkAction.OpenExternalLink(parsed.url)
         ParsedLink.None -> LinkAction.None
-        is ParsedLink.ResolveByPhone -> throw UnsupportedOperationException("MTProto phone link resolution is not available")
+        is ParsedLink.ResolveByPhone -> resolvePhone(parsed.phoneNumber)
     }
 
     override suspend fun joinChat(inviteLink: String): Long? =
@@ -114,7 +115,7 @@ internal class MtProtoLinkHandlerImpl(
                     chat.id,
                 ),
             )
-            else -> throw UnsupportedOperationException("MTProto invited chat type is not available")
+            else -> LinkAction.ShowToast("This chat is not supported here")
         }
     }
 
@@ -123,6 +124,26 @@ internal class MtProtoLinkHandlerImpl(
         val scope = scope()
         val response = transportFactory.open(accountSlot).use { transport ->
             transport.execute(ResolveUsername(username, null)) as? ResolvedPeer_28e60b6802
+        } ?: return LinkAction.ShowToast("Chat not found")
+        users.upsert(scope, response.users)
+        chats.upsert(scope, response.chats)
+        return when (val peer = response.peer) {
+            is PeerUser -> LinkAction.OpenUser(peer.userId)
+            is PeerChat -> LinkAction.OpenChat(TelegramPeerChatId.encode(DialogPeerType.BASIC_GROUP, peer.chatId))
+            is PeerChannel -> {
+                val chat = requireNotNull(chats.get(scope, peer.channelId)) { "Missing MTProto resolved channel: ${peer.channelId}" }
+                val type = if (chat.type == MtProtoChatType.CHANNEL) DialogPeerType.CHANNEL else DialogPeerType.SUPERGROUP
+                LinkAction.OpenChat(TelegramPeerChatId.encode(type, peer.channelId))
+            }
+        }
+    }
+
+    /** Mirrors upstream UserNameResolver: numeric targets go through contacts.resolvePhone. */
+    private suspend fun resolvePhone(phone: String): LinkAction {
+        require(phone.isNotBlank()) { "MTProto phone number must not be blank" }
+        val scope = scope()
+        val response = transportFactory.open(accountSlot).use { transport ->
+            transport.execute(ResolvePhone(phone)) as? ResolvedPeer_28e60b6802
         } ?: return LinkAction.ShowToast("Chat not found")
         users.upsert(scope, response.users)
         chats.upsert(scope, response.chats)

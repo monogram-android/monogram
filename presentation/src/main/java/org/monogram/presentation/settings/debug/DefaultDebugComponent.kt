@@ -8,9 +8,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.monogram.domain.repository.ConversationPipelineMode
-import org.monogram.domain.repository.TelegramBackendMode
-import org.monogram.domain.repository.TelegramBackendModeRepository
-import org.monogram.domain.repository.TelegramBackendSwitchRepository
 import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.core.util.conversationPipelineModeWithLegacyKillSwitch
@@ -29,31 +26,21 @@ class DefaultDebugComponent(
     private val assetsManager = container.utils.assetsManager()
     private val distrManager = container.utils.distrManager()
     private val pushDebugRepository = container.repositories.pushDebugRepository
-    private val telegramBackendModeRepository: TelegramBackendModeRepository =
-        container.repositories.telegramBackendModeRepository
-    private val telegramBackendSwitchRepository: TelegramBackendSwitchRepository =
-        container.repositories.telegramBackendSwitchRepository
     private val sponsorRepository = container.repositories.sponsorRepository
     private val appPreferences = container.preferences.appPreferencesProvider
     private val scope = componentScope
 
     private val conversationPipelineDefault = defaultConversationPipelineMode(
-        isOfficialTdlib = BuildConfig.IS_OFFICIAL_TDLIB,
-        isLibreRuntime = BuildConfig.IS_LIBRE_RUNTIME,
-        isDebug = BuildConfig.DEBUG
+        isDebug = BuildConfig.DEBUG,
     )
     private val isConversationPipelineKillSwitchAvailable =
-        isConversationPipelineKillSwitchAvailable(
-            isOfficialTdlib = BuildConfig.IS_OFFICIAL_TDLIB,
-            isLibreRuntime = BuildConfig.IS_LIBRE_RUNTIME
-        )
+        isConversationPipelineKillSwitchAvailable()
 
     private val _state = MutableValue(
         DebugComponent.State(
             isConversationPipelineKillSwitchAvailable = isConversationPipelineKillSwitchAvailable,
             isLegacyConversationPipelineForced =
                 appPreferences.conversationPipelineMode.value == ConversationPipelineMode.Legacy,
-            isTelegramBackendSwitchAvailable = BuildConfig.DEBUG,
             isGmsAvailable = distrManager.isGmsAvailable(),
             isFcmAvailable = distrManager.isFcmAvailable(),
             isUnifiedPushDistributorAvailable = distrManager.isUnifiedPushDistributorAvailable(),
@@ -69,9 +56,6 @@ class DefaultDebugComponent(
             }
         }.launchIn(scope)
 
-        telegramBackendModeRepository.backendMode.onEach { backendMode ->
-            _state.update { it.copy(telegramBackendMode = backendMode, isTelegramBackendSwitching = false) }
-        }.launchIn(scope)
 
         pushDebugRepository.diagnostics.onEach { diagnostics ->
             _state.update {
@@ -82,7 +66,7 @@ class DefaultDebugComponent(
                     isPowerSavingMode = diagnostics.isPowerSavingMode,
                     isWakeLockEnabled = diagnostics.isWakeLockEnabled,
                     batteryOptimizationEnabled = diagnostics.batteryOptimizationEnabled,
-                    isTdNotificationServiceRunning = diagnostics.isTdNotificationServiceRunning,
+                    isMtProtoNotificationServiceRunning = diagnostics.isMtProtoNotificationServiceRunning,
                     unifiedPushStatus = diagnostics.unifiedPushStatus,
                     unifiedPushEndpoint = diagnostics.unifiedPushEndpoint,
                     unifiedPushSavedDistributor = diagnostics.unifiedPushSavedDistributor,
@@ -132,21 +116,6 @@ class DefaultDebugComponent(
         messageDisplayer.show("Chat pipeline mode will apply to newly opened chats")
     }
 
-    override fun onTelegramBackendModeChanged(useMtProto: Boolean) {
-        if (!BuildConfig.DEBUG || _state.value.isTelegramBackendSwitching) return
-        val target = if (useMtProto) TelegramBackendMode.KOTLIN_MTPROTO else TelegramBackendMode.LEGACY
-        if (_state.value.telegramBackendMode == target) return
-        scope.launch {
-            _state.update { it.copy(isTelegramBackendSwitching = true) }
-            runCatching { telegramBackendSwitchRepository.switchTo(target) }
-                .onSuccess { messageDisplayer.show("Telegram backend switched to ${target.name}") }
-                .onFailure { error ->
-                    _state.update { it.copy(isTelegramBackendSwitching = false) }
-                    messageDisplayer.show("Telegram backend switch failed: ${error.message.orEmpty()}")
-                }
-        }
-    }
-
     override fun onTestPushClicked() {
         pushDebugRepository.triggerTestPush()
         messageDisplayer.show("Debug push dispatched")
@@ -159,11 +128,6 @@ class DefaultDebugComponent(
     override fun onDropDatabasesClicked() {
         messageDisplayer.show("Dropping databases and restarting...")
         assetsManager.getDatabasePath("monogram_db").delete()
-        File(assetsManager.getFilesDir(), "td-db").deleteRecursively()
-        File(assetsManager.getCacheDir(), "tdlib/files").deleteRecursively()
-        assetsManager.getExternalCacheDir()?.let { externalCacheDir ->
-            File(externalCacheDir, "tdlib/files").deleteRecursively()
-        }
         assetsManager.exitProcess(0)
     }
 

@@ -4,12 +4,9 @@ import android.util.Log
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.monogram.data.backend.TelegramBackendKind
-import org.monogram.data.backend.TelegramBackendSelectionStore
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.DialogSnapshotRepository
@@ -34,7 +31,6 @@ internal fun interface MtProtoLiveSessionResetter {
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class MtProtoLiveUpdateCoordinator(
-    selectionStore: TelegramBackendSelectionStore,
     authRepository: AuthRepository,
     private val transportFactory: MtProtoSessionTransportFactory,
     private val configSource: TelegramMtProtoBootstrapConfigSource,
@@ -52,7 +48,6 @@ internal class MtProtoLiveUpdateCoordinator(
 
     init {
         scope.launchSelectedSession(
-            selectionStore = selectionStore,
             authRepository = authRepository,
         )
     }
@@ -63,20 +58,19 @@ internal class MtProtoLiveUpdateCoordinator(
     }
 
     private fun CoroutineScope.launchSelectedSession(
-        selectionStore: TelegramBackendSelectionStore,
         authRepository: AuthRepository,
     ) {
         launch {
-            combine(
-                selectionStore.observe(accountSlot),
-                authRepository.authState,
-            ) { backend, authStep -> backend to authStep }
-                .collectLatest { (backend, authStep) ->
-                    if (backend != TelegramBackendKind.KOTLIN_MTPROTO || authStep !is AuthStep.Ready) {
+            authRepository.authState
+                .collectLatest { authStep ->
+                    if (authStep !is AuthStep.Ready) {
+                        Log.i(TAG, "MTProto authorization is not ready; live updates stopped")
                         resetLiveSession()
                         return@collectLatest
                     }
+                    Log.i(TAG, "MTProto authorization ready; starting live updates")
                     while (runSelectedSession()) {
+                        Log.i(TAG, "MTProto live session reconnect scheduled")
                         delay(RECONNECT_DELAY_MILLIS)
                     }
                 }
@@ -100,6 +94,7 @@ internal class MtProtoLiveUpdateCoordinator(
             return true
         }
         activeTransport = transport
+        Log.i(TAG, "MTProto live transport opened")
         try {
             val session = when (val opened = recovery.open(scope, transport) { }) {
                 is MtProtoRoomRecoveryOpenResult.Opened -> opened.session
@@ -109,8 +104,9 @@ internal class MtProtoLiveUpdateCoordinator(
                 }
             }
             session.initialize()
+            Log.i(TAG, "MTProto update recovery initialized")
             when (session.recoverAndReplay { }) {
-                is MtProtoRoomRecoveryResult.Completed -> Unit
+                is MtProtoRoomRecoveryResult.Completed -> Log.i(TAG, "MTProto update recovery completed")
                 MtProtoRoomRecoveryResult.ResyncRequired -> {
                     Log.e(TAG, "MTProto difference requires a full resync; refusing live updates")
                     return false
@@ -119,7 +115,10 @@ internal class MtProtoLiveUpdateCoordinator(
             runCatching { storyRefresh.refreshInitialLists() }
                 .onFailure { Log.w(TAG, "MTProto story refresh failed; retaining previous projections", it) }
             dialogs.getDialogs(accountSlot)
-            val inbox = transport.updates ?: return true
+            val inbox = transport.updates ?: run {
+                Log.w(TAG, "MTProto live transport has no update inbox")
+                return true
+            }
             while (true) {
                 val envelope = inbox.receive() ?: return true
                 when (liveUpdateApplier.apply(scope, envelope) { }) {
@@ -150,6 +149,7 @@ internal class MtProtoLiveUpdateCoordinator(
             return true
         } finally {
             if (activeTransport === transport) activeTransport = null
+            Log.i(TAG, "MTProto live transport closed")
             transport.close()
         }
     }

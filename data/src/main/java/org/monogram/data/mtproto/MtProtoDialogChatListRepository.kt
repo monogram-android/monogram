@@ -23,7 +23,6 @@ import org.monogram.domain.repository.DialogSnapshotRepository
 import org.monogram.domain.repository.FolderChatsUpdate
 import org.monogram.domain.repository.FolderLoadingUpdate
 import org.monogram.domain.repository.MtProtoReadHistoryRepository
-import org.monogram.data.backend.TelegramBackendChatReadRouter
 
 /**
  * Read-only chat list backed by the persisted MTProto dialog projection.
@@ -47,7 +46,7 @@ internal class MtProtoDialogChatListRepository(
     private val folderRepository: ChatFolderRepository? = null,
     private val refreshFolders: suspend () -> Unit = {},
     private val accountId: String = DEFAULT_ACCOUNT_ID,
-) : TelegramBackendChatReadRouter.ChatReadContracts {
+) : MtProtoChatListAdapter.Contracts {
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
     override val chatListFlow: StateFlow<List<ChatModel>> = _chatListFlow.asStateFlow()
     private val _isLoadingFlow = MutableStateFlow(false)

@@ -22,8 +22,8 @@ data class RecentCommitsState(
 
 interface AboutComponent {
     val updateState: StateFlow<UpdateState>
-    val tdLibVersion: StateFlow<String>
-    val tdLibCommitHash: StateFlow<String>
+    val protocolVersion: StateFlow<String>
+    val protocolRevision: StateFlow<String>
     val recentCommitsState: StateFlow<RecentCommitsState>
     val buildBranch: String
     val buildCommitHash: String
@@ -51,7 +51,6 @@ class DefaultAboutComponent(
 ) : AboutComponent, AppComponentContext by context {
 
     private val scope = componentScope
-    private val isTelemtBuild = BuildConfig.ENABLE_TELEMT_DNS
     private val stringProvider = container.utils.stringProvider()
     override val hasOpenSourceLicenses: Boolean = BuildConfig.HAS_OSS_LICENSES
     override val buildBranch: String = BuildConfig.BUILD_BRANCH
@@ -61,11 +60,11 @@ class DefaultAboutComponent(
         buildCommitHash.takeIf { it.isNotBlank() && it != "unknown" }
             ?.let { "https://github.com/monogram-android/monogram/commit/$it" }
 
-    private val _tdLibVersion = MutableStateFlow(stringProvider.getString("loading_text"))
-    override val tdLibVersion: StateFlow<String> = _tdLibVersion.asStateFlow()
+    private val _protocolVersion = MutableStateFlow(stringProvider.getString("loading_text"))
+    override val protocolVersion: StateFlow<String> = _protocolVersion.asStateFlow()
 
-    private val _tdLibCommitHash = MutableStateFlow("")
-    override val tdLibCommitHash: StateFlow<String> = _tdLibCommitHash.asStateFlow()
+    private val _protocolRevision = MutableStateFlow("")
+    override val protocolRevision: StateFlow<String> = _protocolRevision.asStateFlow()
 
     private val _recentCommitsState = MutableStateFlow(RecentCommitsState())
     override val recentCommitsState: StateFlow<RecentCommitsState> =
@@ -73,8 +72,8 @@ class DefaultAboutComponent(
 
     init {
         scope.launch {
-            _tdLibVersion.value = updateRepository.getTdLibVersion()
-            _tdLibCommitHash.value = updateRepository.getTdLibCommitHash()
+            _protocolVersion.value = updateRepository.getProtocolVersion()
+            _protocolRevision.value = updateRepository.getProtocolRevision()
         }
     }
 
@@ -85,7 +84,6 @@ class DefaultAboutComponent(
     }
 
     override fun checkForUpdates() {
-        if (isTelemtBuild) return
         scope.launch {
             updateRepository.checkForUpdates()
         }

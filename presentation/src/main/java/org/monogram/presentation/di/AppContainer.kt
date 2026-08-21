@@ -59,9 +59,7 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StringProvider
-import org.monogram.domain.repository.TdLibLimitsRepository
-import org.monogram.domain.repository.TelegramBackendModeRepository
-import org.monogram.domain.repository.TelegramBackendSwitchRepository
+import org.monogram.domain.repository.TelegramLimitsRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
@@ -91,8 +89,6 @@ interface PreferencesContainer {
 
 interface RepositoriesContainer {
     val authRepository: AuthRepository
-    val telegramBackendModeRepository: TelegramBackendModeRepository
-    val telegramBackendSwitchRepository: TelegramBackendSwitchRepository
     val chatListRepository: ChatListRepository
     val chatFolderRepository: ChatFolderRepository
     val chatOperationsRepository: ChatOperationsRepository
@@ -136,7 +132,7 @@ interface RepositoriesContainer {
     val proxyDiagnosticsRepository: ProxyDiagnosticsRepository
     val stickerRepository: StickerRepository
     val storyRepository: StoryRepository
-    val tdLibLimitsRepository: TdLibLimitsRepository
+    val telegramLimitsRepository: TelegramLimitsRepository
     val gifRepository: GifRepository
     val emojiRepository: EmojiRepository
     val telegramLinkRepository: TelegramLinkRepository

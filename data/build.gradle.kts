@@ -25,18 +25,11 @@ android {
         val apiHash = localProperties.getProperty("API_HASH", "")
         buildConfigField("int", "API_ID", apiId)
         buildConfigField("String", "API_HASH", "\"$apiHash\"")
-        buildConfigField("boolean", "ENABLE_TDLIB_DEBUG", "false")
     }
 
-    flavorDimensions += listOf("tdlib", "runtime")
+    flavorDimensions += listOf("runtime")
 
     productFlavors {
-        create("official") {
-            dimension = "tdlib"
-        }
-        create("telemt") {
-            dimension = "tdlib"
-        }
         create("firebase") {
             dimension = "runtime"
         }
@@ -51,12 +44,6 @@ android {
         }
         getByName("androidTest") {
             assets.srcDir(file("schemas"))
-        }
-        getByName("official") {
-            jniLibs.directories.add("src/official/jniLibs")
-        }
-        getByName("telemt") {
-            jniLibs.directories.add("src/telemt/jniLibs")
         }
     }
 

@@ -12,87 +12,15 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.BuildConfig
-import org.monogram.data.backend.KeyValueTelegramBackendSelectionStore
-import org.monogram.data.backend.LegacyActiveAccountBinding
-import org.monogram.data.backend.LegacyBackendAccessGuard
-import org.monogram.data.backend.LegacyMessageHistorySnapshotRepository
-import org.monogram.data.backend.LegacyUserProfileSnapshotRepository
-import org.monogram.data.backend.LegacyDialogSnapshotRepository
-import org.monogram.data.backend.TelegramBackendAuthRouter
-import org.monogram.data.backend.TelegramBackendAttachMenuBotRouter
-import org.monogram.data.backend.TelegramBackendChatReadRouter
-import org.monogram.data.backend.TelegramBackendChatSearchRouter
-import org.monogram.data.backend.TelegramBackendChatInfoRouter
-import org.monogram.data.backend.TelegramBackendChatCreationRouter
-import org.monogram.data.backend.TelegramBackendChatSettingsRouter
-import org.monogram.data.backend.TelegramBackendForumTopicsRouter
-import org.monogram.data.backend.TelegramBackendChatStatisticsRouter
-import org.monogram.data.backend.TelegramBackendClientOptionsRouter
-import org.monogram.data.backend.TelegramBackendBotRouter
-import org.monogram.data.backend.TelegramBackendEmojiRouter
-import org.monogram.data.backend.TelegramBackendGifRouter
-import org.monogram.data.backend.TelegramBackendContactEditRouter
-import org.monogram.data.backend.TelegramBackendMessageRouter
-import org.monogram.data.backend.TelegramBackendNotificationActionRouter
-import org.monogram.data.backend.TelegramBackendNotificationSettingsRouter
-import org.monogram.data.backend.TelegramBackendNetworkStatisticsRouter
-import org.monogram.data.backend.TelegramBackendModeRepositoryImpl
-import org.monogram.data.backend.TelegramBackendLimitsRouter
-import org.monogram.data.backend.TelegramBackendLinkHandlerRouter
-import org.monogram.data.backend.TelegramBackendLinkRouter
-import org.monogram.data.backend.TelegramBackendSessionRouter
-import org.monogram.data.backend.LegacyChatReadContracts
-import org.monogram.data.backend.TelegramBackendReadRouter
-import org.monogram.data.backend.TelegramBackendSelectionStore
-import org.monogram.data.backend.TelegramBackendSwitchRepositoryImpl
-import org.monogram.data.backend.TelegramBackendSwitchService
-import org.monogram.data.chats.ChatCache
-import org.monogram.data.datasource.FileDataSource
-import org.monogram.data.datasource.PlayerDataSourceFactoryImpl
-import org.monogram.data.datasource.TdFileDataSource
 import org.monogram.data.datasource.cache.ChatLocalDataSource
-import org.monogram.data.datasource.cache.ChatsCacheDataSource
-import org.monogram.data.datasource.cache.InMemorySettingsCacheDataSource
 import org.monogram.data.datasource.cache.MessageCacheWriter
 import org.monogram.data.datasource.cache.invalidateFailedMessageCacheCoverage
 import org.monogram.data.datasource.cache.RoomChatLocalDataSource
 import org.monogram.data.datasource.cache.RoomStickerLocalDataSource
-import org.monogram.data.datasource.cache.RoomUserLocalDataSource
-import org.monogram.data.datasource.cache.SettingsCacheDataSource
 import org.monogram.data.datasource.cache.StickerLocalDataSource
-import org.monogram.data.datasource.cache.UserCacheDataSource
-import org.monogram.data.datasource.cache.UserLocalDataSource
-import org.monogram.data.datasource.remote.AuthRemoteDataSource
-import org.monogram.data.datasource.remote.ChatRemoteSource
-import org.monogram.data.datasource.remote.ChatsRemoteDataSource
-import org.monogram.data.datasource.remote.EmojiRemoteSource
 import org.monogram.data.datasource.remote.FxEmbedRemoteDataSource
-import org.monogram.data.datasource.remote.GifRemoteSource
 import org.monogram.data.datasource.remote.GitHubRemoteDataSource
-import org.monogram.data.datasource.remote.LinkRemoteDataSource
-import org.monogram.data.datasource.remote.MessageFileApi
-import org.monogram.data.datasource.remote.MessageFileCoordinator
-import org.monogram.data.datasource.remote.MessageRemoteDataSource
 import org.monogram.data.datasource.remote.NominatimRemoteDataSource
-import org.monogram.data.datasource.remote.PrivacyRemoteDataSource
-import org.monogram.data.datasource.remote.ProxyRemoteDataSource
-import org.monogram.data.datasource.remote.SettingsRemoteDataSource
-import org.monogram.data.datasource.remote.StickerRemoteSource
-import org.monogram.data.datasource.remote.TdAuthRemoteDataSource
-import org.monogram.data.datasource.remote.TdChatRemoteSource
-import org.monogram.data.datasource.remote.TdChatsRemoteDataSource
-import org.monogram.data.datasource.remote.TdEmojiRemoteSource
-import org.monogram.data.datasource.remote.TdGifRemoteSource
-import org.monogram.data.datasource.remote.TdLinkRemoteDataSource
-import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
-import org.monogram.data.datasource.remote.TdPrivacyRemoteDataSource
-import org.monogram.data.datasource.remote.TdProxyRemoteDataSource
-import org.monogram.data.datasource.remote.TdSettingsRemoteDataSource
-import org.monogram.data.datasource.remote.TdStickerRemoteSource
-import org.monogram.data.datasource.remote.TdUpdateRemoteDataSource
-import org.monogram.data.datasource.remote.TdUserRemoteDataSource
-import org.monogram.data.datasource.remote.UpdateRemoteDateSource
-import org.monogram.data.datasource.remote.UserRemoteDataSource
 import org.monogram.data.datasource.remote.createMonogramHttpClient
 import org.monogram.data.db.MonogramDatabase
 import org.monogram.data.db.MonogramMigrations
@@ -209,7 +137,30 @@ import org.monogram.data.mtproto.MtProtoUserProfileReader
 import org.monogram.data.mtproto.MtProtoRecoveryStateStore
 import org.monogram.data.mtproto.MtProtoTransactionalUpdateStateStore
 import org.monogram.data.mtproto.MtProtoUpdateCursorStore
+import org.monogram.data.mtproto.MtProtoUpdateRepository
 import org.monogram.data.mtproto.MtProtoAccountStateCleaner
+import org.monogram.data.mtproto.MtProtoBotAdapter
+import org.monogram.data.mtproto.MtProtoChatCreationAdapter
+import org.monogram.data.mtproto.MtProtoChatListAdapter
+import org.monogram.data.mtproto.MtProtoChatSettingsAdapter
+import org.monogram.data.mtproto.MtProtoChatStatisticsAdapter
+import org.monogram.data.mtproto.MtProtoClientOptionsAdapter
+import org.monogram.data.mtproto.MtProtoContactEditRepository
+import org.monogram.data.mtproto.MtProtoForumTopicsRepository
+import org.monogram.data.mtproto.MtProtoLimitsRepository
+import org.monogram.data.mtproto.MtProtoLinkHandlerAdapter
+import org.monogram.data.mtproto.MtProtoMessageRepositoryAdapter
+import org.monogram.data.mtproto.MtProtoPremiumAdapter
+import org.monogram.data.mtproto.MtProtoProxyDiagnosticsRepository
+import org.monogram.data.mtproto.MtProtoProxyRepository
+import org.monogram.data.mtproto.MtProtoPlayerDataSourceFactory
+import org.monogram.data.mtproto.MtProtoStorageAdapter
+import org.monogram.data.mtproto.MtProtoStoryAdapter
+import org.monogram.data.mtproto.MtProtoStreamingAdapter
+import org.monogram.data.mtproto.MtProtoTelegramLinkRepository
+import org.monogram.data.mtproto.MtProtoUserRepository
+import org.monogram.data.mtproto.MtProtoWallpaperAdapter
+import org.monogram.data.mtproto.NoOpNotificationActionManager
 import org.monogram.data.mtproto.MtProtoAccountStateResetter
 import org.monogram.data.mtproto.MtProtoAuthRepository
 import org.monogram.data.mtproto.MtProtoAttachMenuBotRepository
@@ -217,38 +168,12 @@ import org.monogram.data.mtproto.MtProtoStickerRepository
 import org.monogram.data.mtproto.MtProtoAuthSessionResetter
 import org.monogram.data.mtproto.MtProtoAuthSessionHandleFactory
 import org.monogram.data.mtproto.MtProtoPhoneAuthSessionFactory
-import org.monogram.data.gateway.TelegramGateway
-import org.monogram.data.gateway.TelegramGatewayImpl
-import org.monogram.data.gateway.UpdateDispatcher
-import org.monogram.data.gateway.UpdateDispatcherImpl
 import org.monogram.data.infra.AndroidStringProvider
-import org.monogram.data.infra.ConnectionManager
 import org.monogram.data.infra.ConnectivityNetworkSnapshotProvider
-import org.monogram.data.infra.DataMemoryDiagnostics
-import org.monogram.data.infra.DataMemoryPressureHandler
 import org.monogram.data.infra.DefaultDispatcherProvider
-import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileMessageRegistry
-import org.monogram.data.infra.FileObserverHub
-import org.monogram.data.infra.FileUpdateHandler
-import org.monogram.data.infra.FileUpdateQueue
 import org.monogram.data.infra.NetworkSnapshotProvider
-import org.monogram.data.infra.OfflineWarmup
-import org.monogram.data.infra.SponsorSyncManager
 import org.monogram.data.infra.TelegramClientMetadataProvider
-import org.monogram.data.infra.TdLibParametersProvider
-import org.monogram.data.mapper.ChatMapper
-import org.monogram.data.mapper.CustomEmojiLoader
-import org.monogram.data.mapper.MappedMediaDemandCoordinator
-import org.monogram.data.mapper.MessageMapper
-import org.monogram.data.mapper.NetworkMapper
-import org.monogram.data.mapper.SponsoredMessageMapper
-import org.monogram.data.mapper.StorageMapper
-import org.monogram.data.mapper.TdFileHelper
-import org.monogram.data.mapper.WebPageMapper
-import org.monogram.data.mapper.message.MessageContentMapper
-import org.monogram.data.mapper.message.MessagePersistenceMapper
-import org.monogram.data.mapper.message.MessageSenderResolver
 import org.monogram.data.mtproto.AndroidMtProtoAuthKeyStore
 import org.monogram.data.mtproto.MtProtoAuthKeyPersistence
 import org.monogram.data.mtproto.MtProtoAuthKeyEstablisher
@@ -264,67 +189,20 @@ import org.monogram.data.mtproto.MtProtoAuthKeyLoader
 import org.monogram.data.mtproto.TelegramMtProtoBootstrapConfigProvider
 import org.monogram.data.mtproto.TelegramMtProtoBootstrapConfigSource
 import org.monogram.data.mtproto.TelegramMtProtoSessionFactory
-import org.monogram.data.notifications.NotificationMuteResolver
-import org.monogram.data.push.PushProcessingCoordinator
-import org.monogram.data.push.PushSyncRequester
-import org.monogram.data.push.PushSyncTrigger
 import org.monogram.data.push.UnifiedPushManager
-import org.monogram.data.repository.AttachMenuBotRepositoryImpl
-import org.monogram.data.repository.AuthRepositoryImpl
-import org.monogram.data.repository.BotRepositoryImpl
-import org.monogram.data.repository.ChatInfoRepositoryImpl
-import org.monogram.data.repository.ChatStatisticsRepositoryImpl
-import org.monogram.data.repository.ChatsListRepositoryImpl
-import org.monogram.data.repository.ClientOptionsRepositoryImpl
-import org.monogram.data.repository.ContactEditRepositoryImpl
 import org.monogram.data.repository.DraftLinkPreviewResolver
-import org.monogram.data.repository.EmojiRepositoryImpl
-import org.monogram.data.repository.GifRepositoryImpl
 import org.monogram.data.repository.GitHubCommitRepositoryImpl
-import org.monogram.data.repository.LinkHandlerRepositoryImpl
 import org.monogram.data.repository.LinkParser
 import org.monogram.data.repository.LocationRepositoryImpl
-import org.monogram.data.repository.MessageRepositoryImpl
-import org.monogram.data.repository.NetworkStatisticsRepositoryImpl
-import org.monogram.data.repository.NotificationSettingsRepositoryImpl
 import org.monogram.data.repository.PinnedMessageVisibilityRepositoryImpl
 import org.monogram.data.repository.PollRepositoryImpl
-import org.monogram.data.repository.PremiumRepositoryImpl
-import org.monogram.data.repository.PrivacyRepositoryImpl
-import org.monogram.data.backend.TelegramBackendPrivacyRouter
 import org.monogram.data.mtproto.MtProtoPrivacyRepository
 import org.monogram.data.mtproto.MtProtoProfileEditRepository
 import org.monogram.data.mtproto.MtProtoFileUploader
 import org.monogram.data.mtproto.MtProtoMediaMessageRepository
 import org.monogram.data.mtproto.TelegramMtProtoMediaMessageRepository
 import org.monogram.data.mtproto.TelegramMtProtoFileUploader
-import org.monogram.data.backend.TelegramBackendProfileEditRouter
-import org.monogram.data.backend.TelegramBackendPremiumRouter
-import org.monogram.data.backend.TelegramBackendProfilePhotoRouter
-import org.monogram.data.backend.TelegramBackendProxyRouter
-import org.monogram.data.backend.TelegramBackendStorageRouter
-import org.monogram.data.backend.TelegramBackendStreamingRouter
-import org.monogram.data.backend.TelegramBackendStoryRouter
-import org.monogram.data.backend.TelegramBackendStickerRouter
-import org.monogram.data.backend.TelegramBackendWallpaperRouter
-import org.monogram.data.backend.TelegramBackendUserRouter
-import org.monogram.data.repository.ProfilePhotoRepositoryImpl
-import org.monogram.data.repository.ProxyDiagnosticsRepositoryImpl
-import org.monogram.data.repository.ProxyRepositoryImpl
 import org.monogram.data.repository.PushDebugRepositoryImpl
-import org.monogram.data.repository.SessionRepositoryImpl
-import org.monogram.data.repository.SponsorRepositoryImpl
-import org.monogram.data.repository.StickerRepositoryImpl
-import org.monogram.data.repository.StorageRepositoryImpl
-import org.monogram.data.repository.StoryRepositoryImpl
-import org.monogram.data.repository.StreamingRepositoryImpl
-import org.monogram.data.repository.TdLibLimitsRepositoryImpl
-import org.monogram.data.repository.TelegramLinkRepositoryImpl
-import org.monogram.data.repository.UpdateRepositoryImpl
-import org.monogram.data.repository.UserProfileEditRepositoryImpl
-import org.monogram.data.repository.WallpaperRepositoryImpl
-import org.monogram.data.repository.user.UserRepositoryImpl
-import org.monogram.data.stickers.StickerFileManager
 import org.monogram.domain.repository.AttachMenuBotRepository
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.BotRepository
@@ -358,7 +236,6 @@ import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.PaymentRepository
 import org.monogram.domain.repository.PinnedMessageVisibilityRepository
-import org.monogram.domain.repository.PlayerDataSourceFactory
 import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.PremiumRepository
 import org.monogram.domain.repository.PrivacyRepository
@@ -368,18 +245,16 @@ import org.monogram.domain.repository.ProxyRepository
 import org.monogram.domain.repository.PushDebugRepository
 import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.domain.repository.SessionRepository
-import org.monogram.domain.repository.SponsorRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StreamingRepository
 import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UserProfileSnapshotRepository
-import org.monogram.domain.repository.TdLibLimitsRepository
-import org.monogram.domain.repository.TelegramBackendModeRepository
-import org.monogram.domain.repository.TelegramBackendSwitchRepository
+import org.monogram.domain.repository.TelegramLimitsRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
+import org.monogram.domain.repository.PlayerDataSourceFactory
 import org.monogram.mtproto.tl.generated.cloud.layer223.CodeSettings_3f851bba91
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
@@ -388,11 +263,16 @@ import org.monogram.domain.repository.WebAppRepository
 import org.monogram.mtproto.handshake.MtProtoAuthHandshake
 
 val dataModule = module {
+    single<ConnectivityManager> {
+        requireNotNull(androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager)
+    }
+    single<TelephonyManager> {
+        requireNotNull(androidContext().getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager)
+    }
     includes(fcmRuntimeOverrideModule)
 
     single { CoroutineScope(SupervisorJob() + get<DispatcherProvider>().default) }
 
-    single { TdLibClient() }
 
     single<DispatcherProvider> { DefaultDispatcherProvider() }
     single { TelegramClientMetadataProvider(androidContext()) }
@@ -478,54 +358,6 @@ val dataModule = module {
     }
     single { MtProtoAuthRepository(get(), get(), get(), get(), get()) }
     single<MtProtoAuthSessionResetter> { get<MtProtoAuthRepository>() }
-    single { TdLibParametersProvider(androidContext(), get()) }
-    single {
-        OfflineWarmup(
-            scope = get(),
-            dispatchers = get(),
-            gateway = get(),
-            chatDao = get(),
-            messageDao = get(),
-            keyValueDao = get(),
-            userDao = get(),
-            userFullInfoDao = get(),
-            chatFullInfoDao = get(),
-            messageMapper = get(),
-            chatCache = get(),
-            stickerRepository = get(),
-            storyRepository = get()
-        )
-    }
-    single {
-        SponsorSyncManager(
-            scope = get(),
-            gateway = get(),
-            sponsorDao = get(),
-            authRepository = get()
-        )
-    }
-
-    single { ChatCache() }
-    single<TelegramGateway> {
-        TelegramGatewayImpl { get<TdLibClient>() }
-    }
-    single<UpdateDispatcher> {
-        UpdateDispatcherImpl(
-            gateway = get()
-        )
-    }
-    single<FileDataSource> {
-        TdFileDataSource(
-            gateway = get(),
-            fileDownloadQueue = get()
-        )
-    }
-
-    factory<AuthRemoteDataSource> {
-        TdAuthRemoteDataSource(
-            gateway = get()
-        )
-    }
 
     single<HttpClient> {
         createMonogramHttpClient()
@@ -543,39 +375,8 @@ val dataModule = module {
         GitHubRemoteDataSource(get())
     }
 
-    factory<PlayerDataSourceFactory> {
-        PlayerDataSourceFactoryImpl(
-            fileDataSource = get()
-        )
-    }
-
-    single {
-        AuthRepositoryImpl(
-            parametersProvider = get(),
-            remote = get(),
-            updates = get(),
-            scope = get()
-        )
-    }
     single<AuthRepository>(createdAtStart = true) {
-        TelegramBackendAuthRouter(
-            selectionStore = get(),
-            legacyFactory = { get<AuthRepositoryImpl>() },
-            mtProtoFactory = { get<MtProtoAuthRepository>() },
-            scope = get(),
-        )
-    }
-
-    factory<UserRemoteDataSource> {
-        TdUserRemoteDataSource(
-            gateway = get()
-        )
-    }
-
-    factory<LinkRemoteDataSource> {
-        TdLinkRemoteDataSource(
-            gateway = get()
-        )
+        get<MtProtoAuthRepository>()
     }
 
     // Database
@@ -621,6 +422,7 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_57_58,
                 MonogramMigrations.MIGRATION_58_59,
                 MonogramMigrations.MIGRATION_59_60,
+                MonogramMigrations.MIGRATION_60_61,
             )
             .build()
     }
@@ -855,22 +657,16 @@ val dataModule = module {
         )
     }
     single<MtProtoAccountStateResetter> { get<MtProtoAccountStateCleaner>() }
-    single { get<MonogramDatabase>().userDao() }
     single { get<MonogramDatabase>().chatFullInfoDao() }
     single { get<MonogramDatabase>().topicDao() }
-    single { get<MonogramDatabase>().userFullInfoDao() }
     single { get<MonogramDatabase>().stickerSetDao() }
     single { get<MonogramDatabase>().recentEmojiDao() }
     single { get<MonogramDatabase>().searchHistoryDao() }
     single { get<MonogramDatabase>().chatFolderDao() }
     single { get<MonogramDatabase>().attachBotDao() }
     single { get<MonogramDatabase>().keyValueDao() }
-    single { KeyValueTelegramBackendSelectionStore(get()) }
-    single<TelegramBackendSelectionStore> { get<KeyValueTelegramBackendSelectionStore>() }
-    single<TelegramBackendModeRepository> { TelegramBackendModeRepositoryImpl(get(), get()) }
     single(createdAtStart = true) {
         MtProtoLiveUpdateCoordinator(
-            selectionStore = get(),
             authRepository = get(),
             transportFactory = get(),
             configSource = get(),
@@ -882,31 +678,12 @@ val dataModule = module {
         )
     }
     single<MtProtoLiveSessionResetter> { get<MtProtoLiveUpdateCoordinator>() }
-    single { LegacyActiveAccountBinding() }
-    single { LegacyBackendAccessGuard(get(), get()) }
-    single {
-        TelegramBackendSwitchService(
-            selectionStore = get(),
-            legacyActiveAccountBinding = get(),
-            mtProtoAccountStateResetter = get<MtProtoAccountStateResetter>(),
-            mtProtoAuthSessionResetter = get(),
-            mtProtoLiveSessionResetter = get(),
-        )
-    }
-    single<TelegramBackendSwitchRepository> { TelegramBackendSwitchRepositoryImpl(get()) }
     single { get<MonogramDatabase>().notificationSettingDao() }
     single { get<MonogramDatabase>().notificationExceptionDao() }
     single { get<MonogramDatabase>().wallpaperDao() }
     single { get<MonogramDatabase>().stickerPathDao() }
     single { get<MonogramDatabase>().sponsorDao() }
     single { get<MonogramDatabase>().textCompositionStyleDao() }
-
-    single<UserLocalDataSource> {
-        RoomUserLocalDataSource(
-            userDao = get(),
-            userFullInfoDao = get()
-        )
-    }
 
     single<ChatLocalDataSource> {
         RoomChatLocalDataSource(
@@ -927,26 +704,8 @@ val dataModule = module {
         )
     }
 
-    single {
-        UserRepositoryImpl(
-            remote = get(),
-            userLocal = get(),
-            chatLocal = get(),
-            chatCache = get(),
-            updates = get(),
-            scope = get(),
-            gateway = get(),
-            fileQueue = get(),
-            fileObserverHub = get(),
-            keyValueDao = get(),
-            cacheProvider = get(),
-            legacyActiveAccountBinding = get()
-        )
-    }
     single<UserRepository> {
-        TelegramBackendUserRouter(
-            selectionStore = get(),
-            legacyFactory = { get<UserRepositoryImpl>() },
+        MtProtoUserRepository(
             mtProtoProfiles = get<MtProtoUserProfileReader>(),
             scope = get(),
             mtProtoAccountStateResetter = get(),
@@ -956,25 +715,10 @@ val dataModule = module {
             mtProtoUserFullInfo = { userId -> get<MtProtoChatInfoRepository>().getChatFullInfo(userId) },
         )
     }
-    single { LegacyUserProfileSnapshotRepository(get(), get<UserRepository>()) }
-    single { LegacyDialogSnapshotRepository(get(), get<ChatListRepository>(), get()) }
-    single { LegacyMessageHistorySnapshotRepository(get(), get<MessageRepository>(), get()) }
-    single {
-        TelegramBackendReadRouter(
-            selectionStore = get(),
-            legacyDialogs = get<LegacyDialogSnapshotRepository>(),
-            mtProtoDialogs = get<MtProtoDialogSnapshotRepository>(),
-            legacyMessageHistory = get<LegacyMessageHistorySnapshotRepository>(),
-            mtProtoMessageHistory = get<MtProtoMessageHistorySnapshotRepository>(),
-            legacyUserProfiles = get<LegacyUserProfileSnapshotRepository>(),
-            mtProtoUserProfiles = get<MtProtoUserProfileSnapshotRepository>(),
-        )
-    }
-    single<DialogSnapshotRepository> { get<TelegramBackendReadRouter>() }
-    single<MessageHistorySnapshotRepository> { get<TelegramBackendReadRouter>() }
-    single<UserProfileSnapshotRepository> { get<TelegramBackendReadRouter>() }
+    single<DialogSnapshotRepository> { get<MtProtoDialogSnapshotRepository>() }
+    single<MessageHistorySnapshotRepository> { get<MtProtoMessageHistorySnapshotRepository>() }
+    single<UserProfileSnapshotRepository> { get<MtProtoUserProfileSnapshotRepository>() }
 
-    single { UserProfileEditRepositoryImpl(remote = get()) }
     single<MtProtoFileUploader> { TelegramMtProtoFileUploader(get()) }
     single {
         MtProtoProfileEditRepository(
@@ -986,53 +730,25 @@ val dataModule = module {
         )
     }
     single<UserProfileEditRepository> {
-        TelegramBackendProfileEditRouter(
-            selectionStore = get(),
-            legacyFactory = { get<UserProfileEditRepositoryImpl>() },
-            mtProtoFactory = { get<MtProtoProfileEditRepository>() },
-            scope = get(),
-        )
+        get<MtProtoProfileEditRepository>()
     }
 
     single<ContactEditRepository> {
-        TelegramBackendContactEditRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                ContactEditRepositoryImpl(
-                    userRepository = get(),
-                    userRemoteDataSource = get(),
-                )
-            },
+        MtProtoContactEditRepository(
             users = get(),
             mtProtoProfiles = get(),
-            scope = get(),
         )
     }
 
     single<ProfilePhotoRepository> {
-        TelegramBackendProfilePhotoRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                ProfilePhotoRepositoryImpl(
-                    remote = get(),
-                    chatLocal = get(),
-                    gateway = get(),
-                    fileQueue = get(),
-                    fileObserverHub = get(),
-                )
-            },
-            mtProtoFactory = {
-                MtProtoProfilePhotoRepository(
-                    configSource = get(),
-                    transportFactory = get(),
-                    users = get(),
-                    chats = get(),
-                    resultStager = get(),
-                    locations = get(),
-                    files = get(),
-                    scope = get(),
-                )
-            },
+        MtProtoProfilePhotoRepository(
+            configSource = get(),
+            transportFactory = get(),
+            users = get(),
+            chats = get(),
+            resultStager = get(),
+            locations = get(),
+            files = get(),
             scope = get(),
         )
     }
@@ -1048,35 +764,18 @@ val dataModule = module {
         )
     }
     single<ChatInfoRepository> {
-        TelegramBackendChatInfoRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                ChatInfoRepositoryImpl(
-                    remote = get(),
-                    chatLocal = get(),
-                    userRepository = get(),
-                    scope = get(),
-                )
-            },
-            mtProto = get(),
-            scope = get(),
-        )
+        get<MtProtoChatInfoRepository>()
     }
 
     single<MtProtoPremiumRepository> { MtProtoPremiumRepositoryImpl(get()) }
     single<PremiumRepository> {
-        TelegramBackendPremiumRouter(
-            selectionStore = get(),
-            legacyFactory = { PremiumRepositoryImpl(remote = get()) },
-            mtProtoFactory = { get() },
-            scope = get(),
+        MtProtoPremiumAdapter(
+            mtProtoFactory = { get<MtProtoPremiumRepository>() },
         )
     }
 
     single<BotRepository> {
-        TelegramBackendBotRouter(
-            selectionStore = get(),
-            legacyFactory = { BotRepositoryImpl(remote = get()) },
+        MtProtoBotAdapter(
             mtProtoFactory = {
                 MtProtoBotCommandRepositoryImpl(
                     configSource = get(),
@@ -1084,190 +783,23 @@ val dataModule = module {
                     users = get(),
                 )
             },
-            scope = get(),
         )
     }
 
     single<ChatStatisticsRepository> {
-        TelegramBackendChatStatisticsRouter(
-            selectionStore = get(),
-            legacyFactory = { ChatStatisticsRepositoryImpl(remote = get()) },
+        MtProtoChatStatisticsAdapter(
             mtProtoFactory = { get<MtProtoChatStatisticsRepository>() },
-            scope = get(),
         )
     }
 
-    single<SponsorRepository> {
-        SponsorRepositoryImpl(
-            sponsorSyncManager = get()
-        )
-    }
-
-    factory<ChatsRemoteDataSource> {
-        TdChatsRemoteDataSource(
-            gateway = get()
-        )
-    }
-
-    single<ChatsCacheDataSource> {
-        get<ChatCache>()
-    }
-
-    single<ChatRemoteSource> {
-        TdChatRemoteSource(
-            gateway = get(),
-            connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
-            telegramLinkRepository = get()
-        )
-    }
     single<NetworkSnapshotProvider> {
         ConnectivityNetworkSnapshotProvider(
             connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         )
     }
 
-    factory<ProxyRemoteDataSource> {
-        TdProxyRemoteDataSource(
-            gateway = get(),
-            dispatchers = get()
-        )
-    }
 
-    single {
-        ChatMapper(get(), get())
-    }
 
-    single {
-        StorageMapper(get())
-    }
-
-    single {
-        NetworkMapper(get(), get())
-    }
-
-    single<MessageFileApi> {
-        MessageFileCoordinator(
-            fileDownloadQueue = get()
-        )
-    }
-
-    single<UserCacheDataSource> {
-        get<ChatCache>()
-    }
-
-    single {
-        TdFileHelper(
-            connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
-            fileApi = get(),
-            appPreferences = get(),
-            cache = get()
-        )
-    }
-
-    single {
-        CustomEmojiLoader(
-            gateway = get(),
-            fileApi = get(),
-            fileUpdateHandler = get(),
-            fileHelper = get()
-        )
-    }
-
-    single {
-        WebPageMapper(
-            fileHelper = get()
-        )
-    }
-
-    single {
-        MessageContentMapper(
-            fileHelper = get(),
-            customEmojiLoader = get(),
-            webPageMapper = get(),
-            cache = get(),
-            stringProvider = get()
-        )
-    }
-
-    single { MappedMediaDemandCoordinator(fileApi = get()) }
-
-    single {
-        MessageSenderResolver(
-            gateway = get(),
-            userRepository = get(),
-            chatInfoRepository = get(),
-            cache = get(),
-            fileHelper = get(),
-            stringProvider = get()
-        )
-    }
-
-    single {
-        MessagePersistenceMapper(
-            cache = get(),
-            fileHelper = get(),
-            stringProvider = get()
-        )
-    }
-
-    single {
-        MessageMapper(
-            gateway = get(),
-            userRepository = get(),
-            cache = get(),
-            fileHelper = get(),
-            senderResolver = get(),
-            contentMapper = get(),
-            mediaDemandCoordinator = get(),
-            persistenceMapper = get(),
-            customEmojiLoader = get(),
-            stringProvider = get()
-        )
-    }
-
-    single {
-        ConnectionManager(
-            chatRemoteSource = get(),
-            proxyRemoteSource = get(),
-            updates = get(),
-            appPreferences = get(),
-            dispatchers = get(),
-            networkSnapshotProvider = get(),
-            appForegroundTracker = get(),
-            scope = get()
-        )
-    }
-
-    single { PushSyncTrigger(connectionManager = get(), gateway = get()) }
-    single<PushSyncRequester> { get<PushSyncTrigger>() }
-    single { PushProcessingCoordinator(androidContext(), get(), get()) }
-    single { UnifiedPushManager(androidContext()) }
-    single { NotificationMuteResolver() }
-
-    single {
-        ChatsListRepositoryImpl(
-            remoteDataSource = get(),
-            chatRemoteSource = get(),
-            updates = get(),
-            appPreferences = get(),
-            cacheProvider = get(),
-            dispatchers = get(),
-            cache = get(),
-            chatMapper = get(),
-            messageMapper = get(),
-            gateway = get(),
-            scope = get(),
-            chatLocalDataSource = get(),
-            connectionManager = get(),
-            databaseFile = androidContext().getDatabasePath("monogram_db"),
-            searchHistoryDao = get(),
-            chatFolderDao = get(),
-            userFullInfoDao = get(),
-            fileQueue = get(),
-            fileUpdateHandler = get(),
-            stringProvider = get()
-        )
-    }
     single<MtProtoClearHistoryRepository> {
         MtProtoClearHistoryRepositoryImpl(
             messages = get<MtProtoTextMessageRepository>(),
@@ -1340,22 +872,14 @@ val dataModule = module {
         )
     }
     single {
-        TelegramBackendChatReadRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                LegacyChatReadContracts(
-                    chatListRepository = get<ChatsListRepositoryImpl>(),
-                    chatFolderRepository = get<ChatsListRepositoryImpl>(),
-                    chatOperationsRepository = get<ChatsListRepositoryImpl>(),
-                )
-            },
+        MtProtoChatListAdapter(
             mtProtoFactory = { get<MtProtoDialogChatListRepository>() },
             scope = get(),
         )
     }
-    single<ChatListRepository> { get<TelegramBackendChatReadRouter>() }
-    single<ChatFolderRepository> { get<TelegramBackendChatReadRouter>() }
-    single<ChatOperationsRepository> { get<TelegramBackendChatReadRouter>() }
+    single<ChatListRepository> { get<MtProtoChatListAdapter>() }
+    single<ChatFolderRepository> { get<MtProtoChatListAdapter>() }
+    single<ChatOperationsRepository> { get<MtProtoChatListAdapter>() }
     single {
         MtProtoChatSearchRepository(
             dialogRepository = get<MtProtoDialogSnapshotRepository>(),
@@ -1370,73 +894,38 @@ val dataModule = module {
         )
     }
     single<ChatSearchRepository> {
-        TelegramBackendChatSearchRouter(
-            selectionStore = get(),
-            legacyFactory = { get<ChatsListRepositoryImpl>() },
-            mtProtoFactory = { get<MtProtoChatSearchRepository>() },
-            scope = get(),
-        )
+        get<MtProtoChatSearchRepository>()
     }
     single<ForumTopicsRepository> {
-        TelegramBackendForumTopicsRouter(
-            selectionStore = get(),
-            legacyFactory = { get<ChatsListRepositoryImpl>() },
-            scope = get(),
+        MtProtoForumTopicsRepository(
+            configSource = get(),
+            transportFactory = get(),
+            userStore = get(),
+            chatStore = get(),
         )
     }
     single<ChatSettingsRepository> {
-        TelegramBackendChatSettingsRouter(
-            selectionStore = get(),
-            legacyFactory = { get<ChatsListRepositoryImpl>() },
+        MtProtoChatSettingsAdapter(
             mtProtoFactory = { get<MtProtoChatSettingsRepository>() },
-            scope = get(),
         )
     }
     single<ChatCreationRepository> {
-        TelegramBackendChatCreationRouter(
-            selectionStore = get(),
-            legacyFactory = { get<ChatsListRepositoryImpl>() },
+        MtProtoChatCreationAdapter(
             mtProtoFactory = { get<MtProtoChatCreationRepository>() },
             mtProtoDatabaseSizeReaderFactory = {
                 FileMtProtoDatabaseSizeReader(androidContext().getDatabasePath("monogram_db"))
             },
-            scope = get(),
         )
-    }
-
-    factory<SettingsRemoteDataSource> {
-        TdSettingsRemoteDataSource(
-            gateway = get(),
-            fileQueue = get()
-        )
-    }
-
-    single<SettingsCacheDataSource> {
-        InMemorySettingsCacheDataSource()
     }
 
     single<ClientOptionsRepository> {
-        TelegramBackendClientOptionsRouter(
-            selectionStore = get(),
-            legacyFactory = { ClientOptionsRepositoryImpl(remote = get()) },
+        MtProtoClientOptionsAdapter(
             mtProtoFactory = { get<MtProtoClientOptionsRepository>() },
-            scope = get(),
         )
     }
 
-    single<TdLibLimitsRepository> {
-        TelegramBackendLimitsRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                TdLibLimitsRepositoryImpl(
-                    remote = get(),
-                    updates = get(),
-                    authRepository = get(),
-                    scope = get(),
-                )
-            },
-            scope = get(),
-        )
+    single<TelegramLimitsRepository> {
+        MtProtoLimitsRepository()
     }
 
     single<MtProtoNotificationSettingsRepository> {
@@ -1450,46 +939,16 @@ val dataModule = module {
         )
     }
     single<NotificationSettingsRepository> {
-        TelegramBackendNotificationSettingsRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                NotificationSettingsRepositoryImpl(
-                    remote = get(),
-                    cache = get(),
-                    chatsRemote = get(),
-                    notificationExceptionDao = get(),
-                    updates = get(),
-                    scope = get(),
-                    dispatchers = get(),
-                )
-            },
-            mtProto = get(),
-            scope = get(),
-        )
+        get<MtProtoNotificationSettingsRepository>()
     }
 
     single<MtProtoSessionRepository> { MtProtoSessionRepository(transportFactory = get()) }
     single<SessionRepository> {
-        TelegramBackendSessionRouter(
-            selectionStore = get(),
-            legacyFactory = { SessionRepositoryImpl(remote = get()) },
-            mtProto = get(),
-            scope = get(),
-        )
+        get<MtProtoSessionRepository>()
     }
 
     single<WallpaperRepository> {
-        TelegramBackendWallpaperRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                WallpaperRepositoryImpl(
-                    remote = get(),
-                    wallpaperDao = get(),
-                    fileObserverHub = get(),
-                    dispatchers = get(),
-                    scope = get(),
-                )
-            },
+        MtProtoWallpaperAdapter(
             mtProtoFactory = {
                 MtProtoWallpaperRepositoryImpl(
                     configSource = get(),
@@ -1499,26 +958,11 @@ val dataModule = module {
                     scope = get(),
                 )
             },
-            scope = get(),
         )
     }
 
     single<StorageRepository> {
-        TelegramBackendStorageRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                StorageRepositoryImpl(
-                    remote = get(),
-                    cache = get(),
-                    chatsRemote = get(),
-                    dispatchers = get(),
-                    storageMapper = get(),
-                    stringProvider = get(),
-                    chatLocalDataSource = get(),
-                    userLocalDataSource = get(),
-                    stickerLocalDataSource = get(),
-                )
-            },
+        MtProtoStorageAdapter(
             mtProtoCleanupFactory = {
                 MtProtoStorageCleanupRepositoryImpl(
                     transfers = get(),
@@ -1531,7 +975,7 @@ val dataModule = module {
                     filesDirectory = java.io.File(androidContext().filesDir, "mtproto/files"),
                 )
             },
-            scope = get(),
+            keyValues = get(),
         )
     }
 
@@ -1547,17 +991,7 @@ val dataModule = module {
     }
 
     single<NetworkStatisticsRepository> {
-        TelegramBackendNetworkStatisticsRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                NetworkStatisticsRepositoryImpl(
-                    remote = get(),
-                    networkMapper = get(),
-                )
-            },
-            mtProtoFactory = { get<MtProtoNetworkStatisticsRepository>() },
-            scope = get(),
-        )
+        get<MtProtoNetworkStatisticsRepository>()
     }
 
     single<MtProtoAttachMenuBotRepository> {
@@ -1567,76 +1001,16 @@ val dataModule = module {
         )
     }
     single<AttachMenuBotRepository> {
-        TelegramBackendAttachMenuBotRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                AttachMenuBotRepositoryImpl(
-                    remote = get(),
-                    cache = get(),
-                    cacheProvider = get(),
-                    updates = get(),
-                    fileObserverHub = get(),
-                    dispatchers = get(),
-                    attachBotDao = get(),
-                    scope = get(),
-                )
-            },
-            mtProto = get(),
-            scope = get(),
-        )
+        get<MtProtoAttachMenuBotRepository>()
     }
 
     single<PollRepository> {
         PollRepositoryImpl()
     }
 
-    single<MessageRemoteDataSource> {
-        TdMessageRemoteDataSource(
-            gateway = get(),
-            messageMapper = get(),
-            userRepository = get(),
-            chatListRepository = get(),
-            cache = get(),
-            pollRepository = get(),
-            fileDownloadQueue = get(),
-            fileUpdateHandler = get(),
-            webPageMapper = get(),
-            draftLinkPreviewResolver = get(),
-            dispatcherProvider = get(),
-            scope = get(),
-            tdLibLimitsRepository = get()
-        )
-    }
 
-    single {
-        MessageRepositoryImpl(
-            context = androidContext(),
-            gateway = get(),
-            updates = get(),
-            pollRepository = get(),
-            messageMapper = get(),
-            messageRemoteDataSource = get(),
-            cache = get(),
-            fileHelper = get(),
-            sponsoredMessageMapper = get(),
-            fileDataSource = get(),
-            fxEmbedRemoteDataSource = get(),
-            draftLinkPreviewResolver = get(),
-            dispatcherProvider = get(),
-            scope = get(),
-            chatLocalDataSource = get(),
-            messageCacheWriter = get(),
-            userLocalDataSource = get(),
-            stickerPathDao = get(),
-            keyValueDao = get(),
-            textCompositionStyleDao = get(),
-            tdLibLimitsRepository = get()
-        )
-    }
     single<MessageRepository> {
-        TelegramBackendMessageRouter(
-            selectionStore = get(),
-            legacyFactory = { get<MessageRepositoryImpl>() },
+        MtProtoMessageRepositoryAdapter(
             draftFactory = { get<MtProtoDraftRepository>() },
             deleteFactory = { get<MtProtoDeleteMessageRepository>() },
             pinnedFactory = { get<MtProtoPinnedMessageRepository>() },
@@ -1648,16 +1022,9 @@ val dataModule = module {
             fileFactory = { get<MtProtoFileRepository>() },
             mediaFactory = { get<MtProtoMediaMessageRepository>() },
             historyRepository = get<MtProtoMessageHistorySnapshotRepository>(),
-            scope = get(),
         ).repository
     }
 
-    single {
-        SponsoredMessageMapper(
-            fileHelper = get(),
-            contentMapper = get()
-        )
-    }
 
     single<PinnedMessageVisibilityRepository> {
         PinnedMessageVisibilityRepositoryImpl(
@@ -1673,82 +1040,6 @@ val dataModule = module {
     single<FileRepository> { get<MessageRepository>() }
     single<WebAppRepository> { get<MessageRepository>() }
 
-    factory<StickerRemoteSource> {
-        TdStickerRemoteSource(
-            gateway = get()
-        )
-    }
-
-    factory<GifRemoteSource> {
-        TdGifRemoteSource(
-            gateway = get()
-        )
-    }
-
-    factory<EmojiRemoteSource> {
-        TdEmojiRemoteSource(
-            gateway = get()
-        )
-    }
-
-    single {
-        FileMessageRegistry()
-    }
-
-    single {
-        FileDownloadQueue(
-            gateway = get(),
-            registry = get(),
-            cache = get(),
-            scope = get(),
-            dispatcherProvider = get()
-        )
-    }
-
-    single<FileUpdateQueue> { get<FileDownloadQueue>() }
-
-    single {
-        FileUpdateHandler(
-            registry = get(),
-            queue = get(),
-            updates = get(),
-            scope = get()
-        )
-    }
-
-    single {
-        FileObserverHub(
-            queue = get(),
-            fileUpdateHandler = get()
-        )
-    }
-
-    single {
-        DataMemoryPressureHandler(
-            chatsListRepository = get(),
-            fileUpdateHandler = get()
-        )
-    }
-
-    if (BuildConfig.DEBUG) {
-        single {
-            DataMemoryDiagnostics(
-                scope = get(),
-                memoryPressureHandler = get()
-            )
-        }
-    }
-
-    single {
-        StickerFileManager(
-            localDataSource = get(),
-            fileDataSource = get(),
-            fileQueue = get(),
-            fileUpdateHandler = get(),
-            dispatchers = get(),
-            scope = get()
-        )
-    }
 
     single<MtProtoStickerRepository> {
         MtProtoStickerRepository(
@@ -1759,22 +1050,7 @@ val dataModule = module {
         )
     }
     single<StickerRepository> {
-        TelegramBackendStickerRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                StickerRepositoryImpl(
-                    remote = get(),
-                    fileManager = get(),
-                    updates = get(),
-                    cacheProvider = get(),
-                    dispatchers = get(),
-                    localDataSource = get(),
-                    scope = get(),
-                )
-            },
-            mtProtoFactory = { get<MtProtoStickerRepository>() },
-            scope = get(),
-        )
+        get<MtProtoStickerRepository>()
     }
 
     single<MtProtoGifRepository> {
@@ -1786,53 +1062,20 @@ val dataModule = module {
         )
     }
     single<GifRepository> {
-        TelegramBackendGifRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                GifRepositoryImpl(
-                    remote = get(),
-                    cacheProvider = get(),
-                    stickerFileManager = get(),
-                )
-            },
-            mtProtoFactory = { get<MtProtoGifRepository>() },
-            scope = get(),
-        )
+        get<MtProtoGifRepository>()
     }
 
     single<EmojiRepository> {
-        TelegramBackendEmojiRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                EmojiRepositoryImpl(
-                    remote = get(),
-                    localDataSource = get(),
-                    cacheProvider = get(),
-                    dispatchers = get(),
-                    context = androidContext(),
-                    scope = get(),
-                )
-            },
-            mtProtoFactory = {
-                MtProtoEmojiRepository(
-                    context = androidContext(),
-                    localDataSource = get(),
-                    transportFactory = get(),
-                    configSource = get(),
-                    locations = get(),
-                )
-            },
-            scope = get(),
+        MtProtoEmojiRepository(
+            context = androidContext(),
+            localDataSource = get(),
+            transportFactory = get(),
+            configSource = get(),
+            locations = get(),
         )
     }
 
-    factory<PrivacyRemoteDataSource> {
-        TdPrivacyRemoteDataSource(
-            gateway = get()
-        )
-    }
 
-    single { PrivacyRepositoryImpl(remote = get(), updates = get()) }
     single {
         MtProtoPrivacyRepository(
             configSource = get(),
@@ -1844,28 +1087,11 @@ val dataModule = module {
         )
     }
     single<PrivacyRepository> {
-        TelegramBackendPrivacyRouter(
-            selectionStore = get(),
-            legacyFactory = { get<PrivacyRepositoryImpl>() },
-            mtProtoFactory = { get<MtProtoPrivacyRepository>() },
-            scope = get(),
-        )
+        get<MtProtoPrivacyRepository>()
     }
 
     single<TelegramLinkRepository> {
-        TelegramBackendLinkRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                TelegramLinkRepositoryImpl(
-                    gateway = get(),
-                    updates = get(),
-                    keyValueDao = get(),
-                    scope = get(),
-                    dispatchers = get(),
-                )
-            },
-            scope = get(),
-        )
+        MtProtoTelegramLinkRepository()
     }
 
     single<GitHubCommitRepository> {
@@ -1883,9 +1109,7 @@ val dataModule = module {
     }
 
     single<LinkHandlerRepository> {
-        TelegramBackendLinkHandlerRouter(
-            selectionStore = get(),
-            legacyFactory = { LinkHandlerRepositoryImpl(get(), get(), get(), get(), get()) },
+        MtProtoLinkHandlerAdapter(
             mtProtoFactory = {
                 MtProtoLinkHandlerImpl(
                     parser = get(),
@@ -1896,22 +1120,12 @@ val dataModule = module {
                     cloudObjectStager = get(),
                 )
             },
-            scope = get(),
         )
     }
 
     single<StoryRepository> {
-        TelegramBackendStoryRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                StoryRepositoryImpl(
-                    gateway = get(),
-                    updates = get(),
-                    scope = get(),
-                    fileDataSource = get(),
-                    tdLibLimitsRepository = get(),
-                )
-            },
+        MtProtoStoryAdapter(
+            scope = get(),
             mtProtoFactory = {
                 MtProtoStoryListRepositoryImpl(
                     configSource = get(),
@@ -1951,37 +1165,31 @@ val dataModule = module {
                 )
             },
             mtProtoStealthModeFactory = { get() },
-            scope = get(),
         )
     }
 
     single<StreamingRepository> {
-        TelegramBackendStreamingRouter(
-            selectionStore = get(),
-            legacyFactory = { StreamingRepositoryImpl(fileDataSource = get(), fileObserverHub = get()) },
+        MtProtoStreamingAdapter(
             mtProtoFactory = { MtProtoStreamingRepository(get()) },
-            scope = get(),
         )
+    }
+
+    single<PlayerDataSourceFactory> {
+        MtProtoPlayerDataSourceFactory(files = get())
     }
 
     single<ProxyRepository> {
-        TelegramBackendProxyRouter(
-            selectionStore = get(),
-            legacyFactory = {
-                ProxyRepositoryImpl(
-                    remote = get(),
-                    appPreferences = get(),
-                )
-            },
-            scope = get(),
-        )
+        MtProtoProxyRepository(keyValues = get())
+    }
+
+    single<UpdateRepository> {
+        MtProtoUpdateRepository(androidContext())
     }
 
     single<ProxyDiagnosticsRepository> {
-        ProxyDiagnosticsRepositoryImpl(
-            remote = get()
-        )
+        MtProtoProxyDiagnosticsRepository()
     }
+
 
     single<LocationRepository> {
         LocationRepositoryImpl(
@@ -1989,55 +1197,18 @@ val dataModule = module {
         )
     }
 
-    factory<UpdateRemoteDateSource> {
-        TdUpdateRemoteDataSource(
-            gateway = get()
-        )
-    }
-
-    single<UpdateRepository> {
-        UpdateRepositoryImpl(
-            context = androidContext(),
-            remote = get(),
-            fileQueue = get(),
-            fileUpdateHandler = get(),
-            authRepository = get(),
-            scope = get(),
-            stringProvider = get(),
-        )
-    }
 
     single<PushDebugRepository> {
         PushDebugRepositoryImpl(
             context = androidContext(),
             appPreferences = get(),
             unifiedPushManager = get(),
-            pushSyncTrigger = get(),
             scope = get()
         )
     }
 
-    single<TdNotificationManager> {
-        TdNotificationManager(
-            androidContext(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get()
-        )
-    }
 
     single<org.monogram.data.service.NotificationActionManager> {
-        TelegramBackendNotificationActionRouter(
-            selectionStore = get(),
-            legacyFactory = { get<TdNotificationManager>() },
-            scope = get(),
-        )
+        NoOpNotificationActionManager()
     }
 }

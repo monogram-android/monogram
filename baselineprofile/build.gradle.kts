@@ -10,7 +10,6 @@ android {
     defaultConfig {
         minSdk = 25
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        missingDimensionStrategy("tdlib", "official")
         missingDimensionStrategy("runtime", "libre")
     }
 

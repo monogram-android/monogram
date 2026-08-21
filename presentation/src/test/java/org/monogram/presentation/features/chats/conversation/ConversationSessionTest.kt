@@ -136,7 +136,7 @@ class ConversationSessionTest {
                 messages = listOf(message(10L)),
                 olderBoundary = BoundaryState.Reached,
                 newerBoundary = BoundaryState.Gap(20L),
-                source = HistorySource.TdlibNetwork
+                source = HistorySource.NetworkSnapshot
             )
         )
         load.await()
@@ -267,7 +267,7 @@ class ConversationSessionTest {
         messages = listOf(message(messageId)),
         olderBoundary = BoundaryState.Open,
         newerBoundary = BoundaryState.Open,
-        source = HistorySource.TdlibNetwork
+        source = HistorySource.NetworkSnapshot
     )
 
     private fun message(id: Long, isOutgoing: Boolean = false) = MessageModel(

@@ -1,7 +1,7 @@
 package org.monogram.data.service
 
 /**
- * Handles Android notification actions without exposing the TDLib notification implementation to
+ * Handles Android notification actions without exposing the Telegram notification implementation to
  * receivers that can be invoked after the selected account changes backend.
  */
 interface NotificationActionManager {

@@ -102,7 +102,7 @@ class MtProtoAuthRepositoryTest {
             },
         )
 
-        assertEquals(AuthStep.InputPhone, repository.authState.value)
+        assertEquals(AuthStep.Loading, repository.authState.value)
         testScheduler.runCurrent()
 
         assertEquals(1, restoreCalls.get())
@@ -117,6 +117,7 @@ class MtProtoAuthRepositoryTest {
             authorizedSessionRestorer = MtProtoAuthorizedSessionRestorer { false },
         )
 
+        assertEquals(AuthStep.Loading, repository.authState.value)
         testScheduler.runCurrent()
 
         assertEquals(AuthStep.InputPhone, repository.authState.value)
@@ -132,6 +133,7 @@ class MtProtoAuthRepositoryTest {
             },
         )
 
+        assertEquals(AuthStep.Loading, repository.authState.value)
         testScheduler.runCurrent()
 
         assertEquals(AuthStep.InputPhone, repository.authState.value)

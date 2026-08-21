@@ -7,16 +7,16 @@ data class StorageUsageModel(
 )
 
 data class StorageUsageBreakdownModel(
-    val tdlibMediaSize: Long,
-    val tdlibDatabaseSize: Long,
-    val tdlibLogsSize: Long,
+    val mediaCacheSize: Long,
+    val databaseSize: Long,
+    val logsSize: Long,
     val languagePackDatabaseSize: Long
 )
 
 data class StorageCleanupResultModel(
-    val tdlibFreedSize: Long,
-    val tdlibFreedFileCount: Int,
-    val tdlibCleanupSucceeded: Boolean
+    val freedSize: Long,
+    val freedFileCount: Int,
+    val cleanupSucceeded: Boolean
 )
 
 data class ChatStorageUsageModel(

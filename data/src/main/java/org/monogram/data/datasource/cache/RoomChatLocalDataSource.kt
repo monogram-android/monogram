@@ -216,7 +216,7 @@ class RoomChatLocalDataSource(
     )
 
     override suspend fun updateMediaPath(chatId: Long, messageId: Long, fileId: Int, path: String) {
-        // TDLib file ids and local paths are session-local
+        // Telegram file ids and local paths are session-local
     }
 
     override suspend fun clearCachedMediaPaths() = messageDao.clearCachedMediaPaths()

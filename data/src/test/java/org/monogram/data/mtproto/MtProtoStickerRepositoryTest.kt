@@ -9,8 +9,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiKeyword_0d35930ff3
+import org.monogram.mtproto.tl.generated.cloud.layer223.EmojiKeywordsDifference_ce8b93b74e
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetShortName
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AllStickers_638a4b63d6
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.AllStickersNotModified
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ArchivedStickers_8455cc1f39
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ClearRecentStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetAllStickers
@@ -22,6 +25,12 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchStickers
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.FoundStickerSets_215fe0f754
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.SearchStickerSets
 import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.GetEmojiKeywords
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.InstallStickerSet
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.ReorderStickerSets
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.StickerSetInstallResultSuccess
+import org.monogram.mtproto.tl.generated.cloud.layer223.messages.UninstallStickerSet
+import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.FileModel
 import org.monogram.mtproto.tl.runtime.TlMethod
@@ -34,10 +43,74 @@ class MtProtoStickerRepositoryTest {
         var opened = false
         val repository = repository { opened = true; Transport() }
 
-        assertThrows(UnsupportedOperationException::class.java) {
+        assertThrows(IllegalStateException::class.java) {
             runBlocking { repository.getStickerSet(42L) }
         }
         assertEquals(false, opened)
+    }
+
+    @Test
+    fun `rejects mutations for sets without a known access hash`() = runBlocking {
+        var opened = false
+        val repository = repository { opened = true; Transport() }
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { repository.toggleStickerSetInstalled(42L, isInstalled = true) }
+        }
+        assertEquals(false, opened)
+    }
+
+    @Test
+    fun `reorders regular sticker sets through selected transport`() = runBlocking {
+        val transport = Transport(
+            true,
+            AllStickers_638a4b63d6(0, emptyList()),
+            AllStickers_638a4b63d6(0, emptyList()),
+            ArchivedStickers_8455cc1f39(0, emptyList()),
+        )
+        val repository = repository { transport }
+
+        repository.reorderStickerSets(StickerRepository.StickerSetType.REGULAR, listOf(3L, 2L))
+
+        assertEquals(ReorderStickerSets(masks = false, emojis = false, order = listOf(3L, 2L)), transport.requests[0])
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
+    fun `installs sticker sets through selected transport`() = runBlocking {
+        val set = org.monogram.mtproto.tl.generated.cloud.layer223.StickerSet_97ab856701(
+            archived = false, official = false, masks = false, emojis = false,
+            textColor = false, channelEmojiStatus = false, creator = true,
+            installedDate = null, id = 42L, accessHash = 7L, title = "T", shortName = "t",
+            thumbs = null, thumbDcId = null, thumbVersion = null, thumbDocumentId = null,
+            count = 0, hash = 0,
+        )
+        val transport = Transport(
+            ArchivedStickers_8455cc1f39(0, listOf(org.monogram.mtproto.tl.generated.cloud.layer223.StickerSetMultiCovered(set, emptyList()))),
+            StickerSetInstallResultSuccess,
+            AllStickers_638a4b63d6(0, emptyList()),
+            AllStickers_638a4b63d6(0, emptyList()),
+            ArchivedStickers_8455cc1f39(0, emptyList()),
+        )
+        val repository = repository { transport }
+
+        repository.loadArchivedEmojiSets()
+        repository.toggleStickerSetInstalled(42L, isInstalled = true)
+
+        assertEquals(InstallStickerSet(org.monogram.mtproto.tl.generated.cloud.layer223.InputStickerSetId(42L, 7L), archived = false), transport.requests[1])
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
+    fun `resolves emoji hints from fetched keywords`() = runBlocking {
+        val transport = Transport(
+            EmojiKeywordsDifference_ce8b93b74e("en", 0, 1, listOf(EmojiKeyword_0d35930ff3("cat", listOf("🐱")))),
+        )
+        val repository = repository { transport }
+
+        assertEquals(listOf("🐱"), repository.getStickerEmojiHints("cats"))
+        assertEquals(GetEmojiKeywords("en"), transport.request)
+        assertEquals(true, transport.closed)
     }
 
     @Test

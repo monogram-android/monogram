@@ -6,7 +6,15 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.mtproto.handshake.MtProtoHandshakeConfig
+import org.monogram.mtproto.tl.generated.cloud.layer223.ChatEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
+import org.monogram.mtproto.tl.generated.cloud.layer223.UserEmpty
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Found_bc39b7fc74
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Search
+import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
+import org.monogram.mtproto.transport.MtProtoRpcTransport
 
 class MtProtoUserProfileSnapshotRepositoryTest {
     @Test
@@ -41,6 +49,32 @@ class MtProtoUserProfileSnapshotRepositoryTest {
             ),
             profile,
         )
+    }
+
+    @Test
+    fun `searches contacts and stages returned peer projections`() = runBlocking {
+        val users = SearchingUserStore()
+        val chats = RecordingChatStore()
+        val transport = Transport(
+            Found_bc39b7fc74(
+                myResults = listOf(PeerUser(8)),
+                results = listOf(PeerChannel(9), PeerUser(7), PeerUser(8)),
+                chats = listOf(ChatEmpty(9)),
+                users = listOf(UserEmpty(7), UserEmpty(8)),
+            ),
+        )
+        val repository = MtProtoUserProfileSnapshotRepository(
+            configSource = TelegramMtProtoBootstrapConfigSource { config(dcId = 2) },
+            userStore = users,
+            chatStore = chats,
+            sessionFactory = MtProtoSessionTransportFactory { transport },
+        )
+
+        assertEquals(listOf(8L, 7L), repository.searchContacts("account-2", "ada").map { it.userId })
+        assertEquals(Search("ada", 100), transport.request)
+        assertEquals(listOf(7L, 8L), users.upsertedIds)
+        assertEquals(listOf(9L), chats.upsertedIds)
+        assertEquals(true, transport.closed)
     }
 
     @Test
@@ -89,6 +123,57 @@ class MtProtoUserProfileSnapshotRepositoryTest {
             systemLanguageCode = "en",
         ),
     )
+
+    private class SearchingUserStore : MtProtoUserProjectionStore by NoOpMtProtoUserProjectionStore {
+        val upsertedIds = mutableListOf<Long>()
+
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, users: List<org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57>) {
+            upsertedIds += users.map { (it as UserEmpty).id }
+        }
+
+        override suspend fun get(scope: MtProtoAuthKeyScope, userId: Long) = MtProtoUserReadModel(
+            userId = userId,
+            accessHash = null,
+            firstName = "User$userId",
+            lastName = null,
+            username = null,
+            phone = null,
+            isSelf = false,
+            isContact = false,
+            isMutualContact = false,
+            isDeleted = false,
+            isBot = false,
+            isVerified = false,
+            isRestricted = false,
+            isScam = false,
+            isFake = false,
+            isPremium = false,
+            isMin = false,
+        )
+    }
+
+    private class RecordingChatStore : MtProtoChatProjectionStore by NoOpMtProtoChatProjectionStore {
+        val upsertedIds = mutableListOf<Long>()
+
+        override suspend fun upsert(scope: MtProtoAuthKeyScope, chats: List<org.monogram.mtproto.tl.generated.cloud.layer223.Chat_7fdd7beb6e>) {
+            upsertedIds += chats.map { (it as ChatEmpty).id }
+        }
+    }
+
+    private class Transport(private val response: Any) : MtProtoRpcTransport {
+        lateinit var request: TlMethod<*>
+        var closed = false
+
+        override suspend fun <R> execute(method: TlMethod<R>): R {
+            request = method
+            @Suppress("UNCHECKED_CAST")
+            return response as R
+        }
+
+        override fun close() {
+            closed = true
+        }
+    }
 
     private class RecordingUserStore(
         private val profile: MtProtoUserReadModel?,

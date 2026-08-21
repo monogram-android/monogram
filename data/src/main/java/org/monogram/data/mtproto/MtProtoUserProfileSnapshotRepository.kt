@@ -13,6 +13,9 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.users.UserFull_a7968baaa
 import org.monogram.mtproto.tl.generated.cloud.layer223.Contact_fd1b8c949c
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Contacts_9469c223cd
 import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.GetContacts
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Found_bc39b7fc74
+import org.monogram.mtproto.tl.generated.cloud.layer223.contacts.Search
+import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.transport.MtProtoRpcTransport
 import org.monogram.domain.repository.UserProfileSnapshotRepository
 
@@ -20,6 +23,9 @@ internal interface MtProtoUserProfileReader {
     suspend fun getCurrentUser(accountId: String): UserProfileSnapshotModel?
     suspend fun getUser(accountId: String, userId: Long): UserProfileSnapshotModel?
     suspend fun getContacts(accountId: String): List<UserProfileSnapshotModel>
+    suspend fun searchContacts(accountId: String, query: String): List<UserProfileSnapshotModel> {
+        throw UnsupportedOperationException("MTProto contact search is not available")
+    }
     suspend fun addContact(
         accountId: String,
         user: UserProfileSnapshotModel,
@@ -39,7 +45,7 @@ internal class MtProtoUserProfileSnapshotRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val userStore: MtProtoUserProjectionStore,
     private val chatStore: MtProtoChatProjectionStore = NoOpMtProtoChatProjectionStore,
-    private val sessionFactory: TelegramMtProtoSessionFactory? = null,
+    private val sessionFactory: MtProtoSessionTransportFactory? = null,
 ) : UserProfileSnapshotRepository, MtProtoUserProfileReader {
     override suspend fun getCurrentUser(accountId: String): UserProfileSnapshotModel? {
         val scope = scope(accountId)
@@ -59,6 +65,26 @@ internal class MtProtoUserProfileSnapshotRepository(
             }
         }
         return userStore.getAll(scope).filter { it.isContact }.map { it.toDomain() }
+    }
+
+    override suspend fun searchContacts(accountId: String, query: String): List<UserProfileSnapshotModel> {
+        val normalized = query.trim()
+        if (normalized.isEmpty()) return getContacts(accountId)
+        val scope = scope(accountId)
+        val transport = requireNotNull(sessionFactory) { "MTProto session factory is unavailable" }.open(accountId)
+        val response = try {
+            transport.execute(Search(normalized, CONTACT_SEARCH_LIMIT)) as? Found_bc39b7fc74
+                ?: error("Unsupported MTProto contact search response")
+        } finally {
+            transport.close()
+        }
+        userStore.upsert(scope, response.users)
+        chatStore.upsert(scope, response.chats)
+        return (response.myResults + response.results)
+            .filterIsInstance<PeerUser>()
+            .map { it.userId }
+            .distinct()
+            .mapNotNull { userStore.get(scope, it)?.toDomain() }
     }
 
     override suspend fun addContact(
@@ -178,4 +204,8 @@ internal class MtProtoUserProfileSnapshotRepository(
         isPremium = isPremium,
         isPartial = isMin,
     )
+
+    private companion object {
+        const val CONTACT_SEARCH_LIMIT = 100
+    }
 }

@@ -29,6 +29,7 @@ class TelegramBackendUserRouterTest {
                 override suspend fun getCurrentUser(accountId: String) = profile(42)
                 override suspend fun getUser(accountId: String, userId: Long) = profile(userId)
                 override suspend fun getContacts(accountId: String) = listOf(profile(43))
+                override suspend fun searchContacts(accountId: String, query: String) = listOf(profile(43))
                 override suspend fun addContact(accountId: String, user: UserProfileSnapshotModel, sharePhoneNumber: Boolean) { addedId = user.userId }
                 override suspend fun removeContact(accountId: String, userId: Long) { removedId = userId }
             },

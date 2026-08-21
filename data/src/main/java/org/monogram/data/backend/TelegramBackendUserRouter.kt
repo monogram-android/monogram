@@ -108,13 +108,7 @@ internal class TelegramBackendUserRouter(
     }
     override suspend fun searchContacts(query: String): List<UserModel> = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.searchContacts(query)
-        TelegramBackendKind.KOTLIN_MTPROTO -> {
-            val normalized = query.trim()
-            getContacts().filter { user ->
-                normalized.isEmpty() || listOfNotNull(user.firstName, user.lastName, user.username, user.phoneNumber)
-                    .any { it.contains(normalized, ignoreCase = true) }
-            }
-        }
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProtoProfiles.searchContacts(accountId, query).map { it.toUserModel() }
     }
     override suspend fun addContact(user: UserModel) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.addContact(user)

@@ -58,12 +58,12 @@ internal class TelegramBackendClientOptionsRouter(
 
     override suspend fun getArchiveAndMuteNewChatsFromUnknownUsersEnabled() = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.getArchiveAndMuteNewChatsFromUnknownUsersEnabled()
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.getArchiveAndMuteNewChatsFromUnknownUsersEnabled()
     }
 
     override suspend fun setArchiveAndMuteNewChatsFromUnknownUsersEnabled(enabled: Boolean) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.setArchiveAndMuteNewChatsFromUnknownUsersEnabled(enabled)
-        TelegramBackendKind.KOTLIN_MTPROTO -> unsupported()
+        TelegramBackendKind.KOTLIN_MTPROTO -> mtProto.setArchiveAndMuteNewChatsFromUnknownUsersEnabled(enabled)
     }
 
     private fun selected() = checkNotNull(selectedBackend.value) { "Telegram backend selection is not loaded" }

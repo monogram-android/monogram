@@ -21,6 +21,8 @@ class TelegramBackendClientOptionsRouterTest {
                 object : MtProtoClientOptionsRepository {
                     override suspend fun getContactJoinedNotificationsEnabled() = true
                     override suspend fun setContactJoinedNotificationsEnabled(enabled: Boolean) { observedEnabled = enabled }
+                    override suspend fun getArchiveAndMuteNewChatsFromUnknownUsersEnabled() = true
+                    override suspend fun setArchiveAndMuteNewChatsFromUnknownUsersEnabled(enabled: Boolean) = Unit
                 }
             },
             scope = CoroutineScope(Dispatchers.Unconfined),

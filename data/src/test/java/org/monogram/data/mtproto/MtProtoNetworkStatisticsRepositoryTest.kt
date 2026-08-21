@@ -12,7 +12,7 @@ class MtProtoNetworkStatisticsRepositoryTest {
     fun `accumulates traffic per network type and reports usage`() = runBlocking {
         val store = FakeKeyValueStore()
         var type = NetworkType.WIFI
-        val repository = MtProtoNetworkStatisticsRepositoryImpl(store, networkType = { type })
+        val repository = MtProtoNetworkStatisticsRepositoryImpl(store, networkType = { type }, recordingScope = CoroutineScope(Dispatchers.Unconfined))
 
         repository.trafficListener.onTraffic(100, 0)
         repository.trafficListener.onTraffic(0, 400)

@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.monogram.data.mtproto.MtProtoStoryActiveListReader
 import org.monogram.data.mtproto.MtProtoStoryListRepository
 import org.monogram.data.mtproto.MtProtoStoryReadRepository
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
@@ -18,6 +19,7 @@ internal class TelegramBackendStoryRouter(
     private val legacyFactory: () -> StoryRepository,
     scope: CoroutineScope,
     private val mtProtoFactory: () -> MtProtoStoryListRepository = { throw UnsupportedOperationException("MTProto story mutations are not configured") },
+    private val mtProtoActiveListFactory: () -> MtProtoStoryActiveListReader = { throw UnsupportedOperationException("MTProto active story lists are not configured") },
     private val mtProtoReadFactory: () -> MtProtoStoryReadRepository = { throw UnsupportedOperationException("MTProto story reads are not configured") },
     private val mtProtoStealthModeFactory: () -> MtProtoStoryStealthModeReader = { throw UnsupportedOperationException("MTProto story stealth mode is not configured") },
     private val accountId: String = DEFAULT_ACCOUNT_ID,
@@ -25,6 +27,7 @@ internal class TelegramBackendStoryRouter(
     private val selectedBackend = MutableStateFlow<TelegramBackendKind?>(null)
     private val legacy by lazy(LazyThreadSafetyMode.NONE, legacyFactory)
     private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
+    private val mtProtoActiveLists by lazy(LazyThreadSafetyMode.NONE, mtProtoActiveListFactory)
     private val mtProtoReads by lazy(LazyThreadSafetyMode.NONE, mtProtoReadFactory)
     private val mtProtoStealthMode by lazy(LazyThreadSafetyMode.NONE, mtProtoStealthModeFactory)
     private val emptyActiveStories = MutableStateFlow<Map<StoryListType, List<ActiveStoryListModel>>>(emptyMap())
@@ -74,9 +77,14 @@ internal class TelegramBackendStoryRouter(
 
     override suspend fun loadActiveStories(listType: StoryListType) = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.loadActiveStories(listType)
-        // The host invokes this lifecycle refresh unconditionally after auth. Active-list projection
-        // cannot yet satisfy StorySummaryModel's required isLive semantics, so retain an empty list.
-        TelegramBackendKind.KOTLIN_MTPROTO -> Unit
+        TelegramBackendKind.KOTLIN_MTPROTO -> {
+            if (!emptyActiveStories.value.containsKey(listType)) {
+                val active = mtProtoActiveLists.refreshAndRead()
+                emptyActiveStories.value = active
+                emptyStoryCounts.value = active.mapValues { it.value.size }
+            }
+            Unit
+        }
     }
     override suspend fun refreshStoryOptions() = when (selected()) {
         TelegramBackendKind.LEGACY -> legacy.refreshStoryOptions()

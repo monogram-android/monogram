@@ -133,6 +133,7 @@ import org.monogram.data.mtproto.MtProtoStoryRefreshRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStorageCleanupRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.KeyValueMtProtoStoryStealthModeStore
+import org.monogram.data.mtproto.MtProtoStoryActiveListReaderImpl
 import org.monogram.data.mtproto.MtProtoStoryListRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStoryReadRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
@@ -1897,6 +1898,9 @@ val dataModule = module {
                     cloudObjectStager = get(),
                     storyResultStager = get(),
                 )
+            },
+            mtProtoActiveListFactory = {
+                MtProtoStoryActiveListReaderImpl(get(), get(), get(), get())
             },
             mtProtoReadFactory = {
                 MtProtoStoryReadRepositoryImpl(

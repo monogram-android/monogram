@@ -10,10 +10,12 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.data.mtproto.MtProtoStoryActiveListReader
 import org.monogram.data.mtproto.MtProtoStoryListRepository
 import org.monogram.data.mtproto.MtProtoStoryReadRepository
 import org.monogram.data.mtproto.MtProtoStoryStealthMode
 import org.monogram.data.mtproto.MtProtoStoryStealthModeReader
+import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryMediaModel
 import org.monogram.domain.models.stories.StoryMediaType
@@ -41,6 +43,7 @@ class TelegramBackendStoryRouterTest {
         val router = TelegramBackendStoryRouter(
             selectionStore = FakeSelectionStore(TelegramBackendKind.KOTLIN_MTPROTO),
             legacyFactory = { error("legacy story repository must not be created") },
+            mtProtoActiveListFactory = { MtProtoStoryActiveListReader { emptyStoryLists() } },
             mtProtoStealthModeFactory = { stealthReader(0, 0) },
             scope = CoroutineScope(Dispatchers.Unconfined),
         )
@@ -50,7 +53,7 @@ class TelegramBackendStoryRouterTest {
         router.loadActiveStories(StoryListType.ARCHIVE)
         router.clearLastPostResult()
 
-        assertTrue(router.activeStories.value.isEmpty())
+        assertTrue(router.activeStories.value.values.all(List<*>::isEmpty))
         assertEquals(0, router.storyOptions.value.captionLengthMax)
     }
 
@@ -291,6 +294,11 @@ class TelegramBackendStoryRouterTest {
             else -> throw UnsupportedOperationException("Unexpected legacy story method: ${method.name}")
         }
     } as StoryRepository
+
+    private fun emptyStoryLists(): Map<StoryListType, List<ActiveStoryListModel>> = mapOf(
+        StoryListType.MAIN to emptyList(),
+        StoryListType.ARCHIVE to emptyList(),
+    )
 
     private fun stealthReader(activeUntilDate: Int, cooldownUntilDate: Int) =
         MtProtoStoryStealthModeReader { flowOf(MtProtoStoryStealthMode(activeUntilDate, cooldownUntilDate)) }

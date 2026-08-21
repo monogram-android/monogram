@@ -6,7 +6,7 @@ data class ActiveStoryListModel(
     val chatId: Long,
     val listType: StoryListType,
     val order: Long,
-    val canBeArchived: Boolean,
+    val canBeArchived: Boolean? = null,
     val maxReadStoryId: Int,
     val stories: List<StorySummaryModel>
 )

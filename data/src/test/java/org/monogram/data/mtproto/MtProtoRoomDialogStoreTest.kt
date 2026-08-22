@@ -187,6 +187,11 @@ class MtProtoRoomDialogStoreTest {
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long) = messages.filter { it.peerType == peerType && it.peerId == peerId }
         override suspend fun search(accountSlot: String, environment: String, dcId: Int, query: String, limit: Int, offset: Int) = emptyList<MtProtoMessageProjectionEntity>()
         override suspend fun getPage(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, beforeDate: Int?, beforeMessageId: Int?, limit: Int) = getAll(accountSlot, environment, dcId, peerType, peerId).take(limit)
+        override suspend fun getPageAfter(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, afterDate: Int?, afterMessageId: Int?, limit: Int) =
+            getAll(accountSlot, environment, dcId, peerType, peerId)
+                .filter { afterDate == null || it.date > afterDate || (it.date == afterDate && it.messageId > checkNotNull(afterMessageId)) }
+                .sortedWith(compareBy<MtProtoMessageProjectionEntity> { it.date }.thenBy { it.messageId })
+                .take(limit)
         override suspend fun getLatestByPeer(accountSlot: String, environment: String, dcId: Int) = messages
             .groupBy { it.peerType to it.peerId }
             .values
@@ -216,6 +221,8 @@ class MtProtoRoomDialogStoreTest {
         var unread = false
         var muted = false
         override suspend fun getAll(accountSlot: String, environment: String, dcId: Int) = dialogs
+        override suspend fun getByFolder(accountSlot: String, environment: String, dcId: Int, folderId: Int) =
+            dialogs.filter { it.folderId == folderId }
         override suspend fun upsert(entity: org.monogram.data.db.model.MtProtoDialogProjectionEntity) = Unit
         override suspend fun upsertAll(entities: List<org.monogram.data.db.model.MtProtoDialogProjectionEntity>) = Unit
         override suspend fun updateTopMessage(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int, updatedAt: Long) = Unit

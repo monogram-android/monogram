@@ -211,6 +211,36 @@ class MtProtoEncryptedSessionTest {
     }
 
     @Test
+    fun schedulesSaltRefreshFromLatestExpiryWithFloor() {
+        val nowSeconds = 1_700_000_000L
+        val session = MtProtoEncryptedSession(authKey(), CounterEntropy(), { nowSeconds * 1_000L })
+        try {
+            // No salts fetched yet: fall back to the retry interval.
+            assertEquals(MtProtoEncryptedSession.FUTURE_SALT_REFRESH_RETRY_MILLIS, session.futureSaltRefreshDelayMillis())
+
+            // Coverage ending far in the future: refresh one lead interval before the last salt expires.
+            session.updateFutureSalts(
+                listOf(
+                    MtProtoFutureSalt((nowSeconds - 60).toInt(), (nowSeconds + 300).toInt(), 11L),
+                    MtProtoFutureSalt((nowSeconds + 300).toInt(), (nowSeconds + 3_600).toInt(), 22L),
+                ),
+            )
+            assertEquals(
+                (3_600L - MtProtoEncryptedSession.FUTURE_SALT_REFRESH_LEAD_SECONDS) * 1_000L,
+                session.futureSaltRefreshDelayMillis(),
+            )
+
+            // Inside the lead window or already expired: never spin; clamp to the minimum delay.
+            session.updateFutureSalts(listOf(MtProtoFutureSalt((nowSeconds - 120).toInt(), (nowSeconds + 60).toInt(), 33L)))
+            assertEquals(MtProtoEncryptedSession.FUTURE_SALT_REFRESH_MIN_DELAY_MILLIS, session.futureSaltRefreshDelayMillis())
+            session.updateFutureSalts(listOf(MtProtoFutureSalt((nowSeconds - 600).toInt(), (nowSeconds - 10).toInt(), 44L)))
+            assertEquals(MtProtoEncryptedSession.FUTURE_SALT_REFRESH_MIN_DELAY_MILLIS, session.futureSaltRefreshDelayMillis())
+        } finally {
+            session.close()
+        }
+    }
+
+    @Test
     fun appliesUpdatedSaltAndRejectsUseAfterClose() {
         val authKey = authKey()
         val session = MtProtoEncryptedSession(authKey, CounterEntropy(), { 1_700_000_000_000L })

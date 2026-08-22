@@ -48,6 +48,13 @@ class DefaultAuthComponent(
                     )
                     AuthStep.InputSignUp -> AuthComponent.AuthState.InputSignUp
                     AuthStep.InputLoginEmail -> AuthComponent.AuthState.InputLoginEmail
+                    is AuthStep.PaidCodeRequired -> AuthComponent.AuthState.PaidCodeRequired(
+                        storeProduct = step.storeProduct,
+                        supportEmailAddress = step.supportEmailAddress,
+                        supportEmailSubject = step.supportEmailSubject,
+                        currency = step.currency,
+                        amount = step.amount,
+                    )
                     else -> null
                 }
                 if (newAuthState != null) {

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
@@ -88,6 +90,7 @@ fun AuthContent(component: AuthComponent) {
                                     is AuthComponent.AuthState.InputPassword -> stringResource(R.string.auth_title_password)
                                     AuthComponent.AuthState.InputSignUp -> stringResource(R.string.auth_signup_title)
                                     AuthComponent.AuthState.InputLoginEmail -> stringResource(R.string.auth_login_email_title)
+                                    is AuthComponent.AuthState.PaidCodeRequired -> stringResource(R.string.auth_paid_code_title)
                                 },
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
@@ -196,6 +199,21 @@ fun AuthContent(component: AuthComponent) {
                             onConfirm = component::onLoginEmailSubmitted,
                             isSubmitting = model.isSubmitting,
                         )
+
+                        is AuthComponent.AuthState.PaidCodeRequired -> Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(horizontal = 32.dp),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.auth_paid_code_body,
+                                    targetState.storeProduct,
+                                    targetState.supportEmailAddress,
+                                ),
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
                     }
                 }
             }
@@ -219,4 +237,5 @@ private val AuthComponent.AuthState.index: Int
         is AuthComponent.AuthState.InputPassword -> 3
         AuthComponent.AuthState.InputSignUp -> 4
         AuthComponent.AuthState.InputLoginEmail -> 5
+        is AuthComponent.AuthState.PaidCodeRequired -> 6
     }

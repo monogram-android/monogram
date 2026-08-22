@@ -44,7 +44,7 @@ internal class TelegramMtProtoMediaMessageRepository(
         require(scheduleDate == null || scheduleDate > 0)
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
-        val protocolEntities = entities.map { it.toMtProtoEntity(scope, caption, users) }
+        val protocolEntities = entities.mapNotNull { it.toMtProtoEntity(scope, caption, users) }
         val peer = resolvePeer(scope, chatId)
         transportFactory.open(accountSlot).use { transport ->
             messages.stageLive(scope, transport.execute(SendMedia(options.silent, false, true, false, false, showCaptionAboveMedia, false, peer, replyTo?.let { InputReplyToMessage(it.toInt(), threadId?.toInt(), null, null, null, null, null, null) }, media, caption, Random.nextLong(), null, protocolEntities.takeIf { it.isNotEmpty() }, scheduleDate, null, null, null, null, null, null)))

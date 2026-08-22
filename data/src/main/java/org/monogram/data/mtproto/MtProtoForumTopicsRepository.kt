@@ -38,7 +38,7 @@ import org.monogram.mtproto.transport.MtProtoRpcTransport
 /**
  * Real MTProto forum-topic support.
  *
- * Pagination mirrors upstream TopicsController (td/telegram/messenger/TopicsController.java):
+ * Pagination mirrors the upstream Telegram Android TopicsController behavior:
  * messages.getForumTopics with offset_date / offset_id / offset_topic and limit <= 100.
  */
 internal class MtProtoForumTopicsRepository(

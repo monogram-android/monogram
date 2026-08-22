@@ -2,6 +2,8 @@ package org.monogram.data.mtproto
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.mtproto.tl.generated.cloud.layer223.Dialog_cf9860a8bd
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
@@ -84,6 +86,8 @@ class MtProtoDialogSnapshotRepositoryTest {
         ttlPeriod = null,
     )
 
+    private fun config() = config(dcId = 2)
+
     private fun config(dcId: Int) = TelegramMtProtoBootstrapConfig(
         endpoint = TelegramMtProtoEndpoint(dcId, "dc", 443),
         handshake = MtProtoHandshakeConfig(dcId, listOf("test-key")),
@@ -130,5 +134,26 @@ class MtProtoDialogSnapshotRepositoryTest {
                 )
             )
         }
+
+        override suspend fun getByFolder(scope: MtProtoAuthKeyScope, folderId: Int): List<MtProtoDialogReadModel> =
+            getAll(scope)
+    }
+
+    @Test
+    fun `loadMore reports exhausted without opening a transport before or after a full fetch`() = runBlocking {
+        var opened = false
+        val repository = MtProtoDialogSnapshotRepository(
+            configSource = TelegramMtProtoBootstrapConfigSource { config() },
+            dialogStore = NoOpMtProtoDialogStore,
+            sessionFactory = TelegramMtProtoSessionFactory(
+                configSource = TelegramMtProtoBootstrapConfigSource { config() },
+                keyLoader = MtProtoAuthKeyLoader { _, _, _ -> error("no transport expected") },
+                handshakeConnectionFactory = { opened = true; error("no handshake expected") },
+            ),
+        )
+
+        // Before any fetch: no continuation exists.
+        assertTrue(repository.loadMore("default", 20).isEmpty())
+        assertFalse(opened)
     }
 }

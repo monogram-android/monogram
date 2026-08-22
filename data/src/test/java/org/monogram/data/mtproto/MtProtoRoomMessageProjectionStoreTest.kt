@@ -333,6 +333,12 @@ class MtProtoRoomMessageProjectionStoreTest {
                 .filter { beforeDate == null || it.date < beforeDate || (it.date == beforeDate && it.messageId < checkNotNull(beforeMessageId)) }
                 .take(limit)
 
+        override suspend fun getPageAfter(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, afterDate: Int?, afterMessageId: Int?, limit: Int) =
+            getAll(accountSlot, environment, dcId, peerType, peerId)
+                .filter { afterDate == null || it.date > afterDate || (it.date == afterDate && it.messageId > checkNotNull(afterMessageId)) }
+                .sortedWith(compareBy<MtProtoMessageProjectionEntity> { it.date }.thenBy { it.messageId })
+                .take(limit)
+
         override suspend fun getLatestByPeer(accountSlot: String, environment: String, dcId: Int) =
             entities.filter { it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId }
                 .groupBy { it.peerType to it.peerId }

@@ -211,7 +211,8 @@ class DefaultRootComponent(
                     is AuthStep.InputCode,
                     is AuthStep.InputPassword,
                     AuthStep.InputSignUp,
-                    AuthStep.InputLoginEmail -> {
+                    AuthStep.InputLoginEmail,
+                    is AuthStep.PaidCodeRequired -> {
                         _isLocked.update { false }
                         appPreferences.setPasscode(null)
                         appPreferences.setBiometricEnabled(false)

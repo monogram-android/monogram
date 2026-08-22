@@ -14,6 +14,8 @@ import org.monogram.mtproto.transport.CloudLayer223RpcTransport
 import org.monogram.mtproto.transport.IntermediateTcpEncryptedTransport
 import org.monogram.mtproto.transport.IntermediateTcpHandshakeTransport
 import org.monogram.mtproto.transport.MtProtoHandshakeConnection
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.monogram.mtproto.transport.MtProtoRpcTransport
@@ -117,6 +119,13 @@ internal fun telegramMtProtoEndpointForDc(dcId: Int): TelegramMtProtoEndpoint = 
     else -> throw IllegalArgumentException("Unsupported Telegram production DC: $dcId")
 }
 
+internal object NoOpMtProtoAuthKeyStore : MtProtoAuthKeyStore {
+    override suspend fun load(scope: MtProtoAuthKeyScope) = MtProtoAuthKeyLoadResult.Missing
+    override suspend fun save(scope: MtProtoAuthKeyScope, authKey: StoredMtProtoAuthKey) = Unit
+    override suspend fun delete(scope: MtProtoAuthKeyScope) = Unit
+    override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
+}
+
 internal class TelegramMtProtoSessionFactory(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val keyLoader: MtProtoAuthKeyLoader,
@@ -144,7 +153,20 @@ internal class TelegramMtProtoSessionFactory(
         )
     },
 ) {
+    private data class SessionKey(
+        val accountSlot: String,
+        val dcId: Int,
+    )
+
+    private class CachedSession(
+        val transport: MtProtoRpcTransport,
+        var references: Int = 0,
+    )
+
     private val secondaryAuthorizationMutex = Mutex()
+    private val sessionLock = Any()
+    private val sessions = mutableMapOf<SessionKey, CachedSession>()
+    private val openingSessions = mutableMapOf<SessionKey, CompletableDeferred<CachedSession>>()
 
     suspend fun open(accountSlot: String = DEFAULT_ACCOUNT_SLOT): MtProtoRpcTransport = open(accountSlot, null)
 
@@ -154,6 +176,59 @@ internal class TelegramMtProtoSessionFactory(
         } else {
             configSource.createForDc(dcId)
         }
+        val key = SessionKey(accountSlot, config.endpoint.dcId)
+        var cached: CachedSession? = null
+        var pending: CompletableDeferred<CachedSession>? = null
+        var isOwner = false
+        synchronized(sessionLock) {
+            val existing = sessions[key]
+            if (existing != null) {
+                existing.references++
+                cached = existing
+            } else {
+                pending = openingSessions[key]
+                if (pending == null) {
+                    pending = CompletableDeferred()
+                    openingSessions[key] = pending!!
+                    isOwner = true
+                }
+            }
+        }
+        if (cached != null) return lease(key, cached!!)
+        if (!isOwner) {
+            val completed = pending!!.await()
+            synchronized(sessionLock) {
+                val current = sessions[key]
+                if (current === completed) {
+                    current.references++
+                    return lease(key, current)
+                }
+            }
+            // The owner may have released the session before this waiter acquired its lease.
+            return open(accountSlot, key.dcId)
+        }
+
+        return try {
+            val opened = openFresh(accountSlot, config)
+            synchronized(sessionLock) {
+                val completed = CachedSession(opened, references = 1)
+                sessions[key] = completed
+                openingSessions.remove(key)?.complete(completed)
+                cached = completed
+            }
+            lease(key, cached!!)
+        } catch (failure: Throwable) {
+            synchronized(sessionLock) {
+                openingSessions.remove(key)?.completeExceptionally(failure)
+            }
+            throw failure
+        }
+    }
+
+    private suspend fun openFresh(
+        accountSlot: String,
+        config: TelegramMtProtoBootstrapConfig,
+    ): MtProtoRpcTransport {
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         val handshake = handshakeConnectionFactory(config.endpoint)
         val bootstrapped = handshake.use { connection ->
@@ -165,6 +240,8 @@ internal class TelegramMtProtoSessionFactory(
             bootstrapped.authKey.close()
             throw failure
         }
+        (transport as? org.monogram.mtproto.transport.MtProtoFutureSaltState)
+            ?.restoreFutureSalts(bootstrapped.futureSalts)
         return try {
             try {
                 (transport as? MtProtoSessionMaintenance)?.refreshFutureSalts()
@@ -175,6 +252,82 @@ internal class TelegramMtProtoSessionFactory(
             userProjectionStore.backfill(scope)
             chatProjectionStore.backfill(scope)
             messageProjectionStore.backfill(scope)
+            transport
+        } catch (failure: Throwable) {
+            transport.close()
+            throw failure
+        }
+    }
+
+    private fun lease(key: SessionKey, cached: CachedSession): MtProtoRpcTransport =
+        object : MtProtoRpcTransport {
+            private val released = AtomicBoolean(false)
+
+            override val updates
+                get() = cached.transport.updates
+
+            override val newSessions
+                get() = cached.transport.newSessions
+
+            override suspend fun <R> execute(method: org.monogram.mtproto.tl.runtime.TlMethod<R>): R =
+                cached.transport.execute(method)
+
+            override fun close() {
+                if (released.compareAndSet(false, true)) release(key, cached)
+            }
+        }
+
+    private fun release(key: SessionKey, cached: CachedSession) {
+        var close: MtProtoRpcTransport? = null
+        synchronized(sessionLock) {
+            if (cached.references > 0) cached.references--
+            if (cached.references == 0 && sessions[key] === cached) {
+                sessions.remove(key)
+                close = cached.transport
+            }
+        }
+        close?.close()
+    }
+
+    /**
+     * Opens a transport to one CDN DC reusing the persisted home-DC auth key, as required by
+     * core.telegram.org/cdn. No handshake key establishment and no secondary export/import run;
+     * per-connection salt/time updates are discarded instead of polluting home-DC records.
+     */
+    suspend fun openCdn(accountSlot: String = DEFAULT_ACCOUNT_SLOT, dcId: Int): MtProtoRpcTransport {
+        require(dcId in SUPPORTED_DC_IDS) { "Unsupported CDN Telegram DC: $dcId" }
+        val persistence = authKeyPersistence
+            ?: throw IllegalStateException("MTProto auth-key persistence is required for CDN transports")
+        val homeConfig = configSource.createForAccount(accountSlot)
+        val homeScope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, homeConfig.endpoint.dcId)
+        val persisted = when (val loaded = persistence.load(homeScope)) {
+            PersistedMtProtoAuthKeyResult.Missing,
+            PersistedMtProtoAuthKeyResult.Corrupt,
+            -> throw IllegalStateException("CDN transports require an authorized session on the home DC")
+            is PersistedMtProtoAuthKeyResult.Found -> loaded
+        }
+        val endpoint = telegramMtProtoEndpointForDc(dcId)
+        val transport = try {
+            createEncryptedTransport(
+                scope = homeScope,
+                endpoint = endpoint,
+                authKey = persisted.authKey,
+                cloudConfig = homeConfig.cloud,
+                authKeyPersistence = NO_OP_AUTH_KEY_PERSISTENCE,
+                trafficListener = trafficListener,
+            )
+        } catch (failure: Throwable) {
+            persisted.authKey.close()
+            throw failure
+        }
+        (transport as? org.monogram.mtproto.transport.MtProtoFutureSaltState)
+            ?.restoreFutureSalts(persisted.futureSalts)
+        return try {
+            try {
+                (transport as? MtProtoSessionMaintenance)?.refreshFutureSalts()
+            } catch (failure: Throwable) {
+                if (failure is CancellationException) throw failure
+            }
             transport
         } catch (failure: Throwable) {
             transport.close()
@@ -213,6 +366,9 @@ internal class TelegramMtProtoSessionFactory(
         const val DEFAULT_ACCOUNT_SLOT = "default"
         val SUPPORTED_DC_IDS = 1..5
 
+        /** Discards per-connection salt/time updates so CDN transports never pollute home-DC records. */
+        private val NO_OP_AUTH_KEY_PERSISTENCE = MtProtoAuthKeyPersistence(NoOpMtProtoAuthKeyStore)
+
         fun createEncryptedTransport(
             scope: MtProtoAuthKeyScope,
             endpoint: TelegramMtProtoEndpoint,
@@ -238,13 +394,36 @@ internal class TelegramMtProtoSessionFactory(
                     onServerSaltChanged = { updatedSalt ->
                         stateLock.withLock {
                             serverSalt = updatedSalt
-                            authKeyPersistence.updateServerState(scope, authKey, serverSalt, serverTimeSeconds)
+                            authKeyPersistence.updateServerState(
+                                scope,
+                                authKey,
+                                serverSalt,
+                                serverTimeSeconds,
+                                session.copyFutureSalts(),
+                            )
+                        }
+                    },
+                    onFutureSaltsChanged = { updatedSalts ->
+                        stateLock.withLock {
+                            authKeyPersistence.updateServerState(
+                                scope,
+                                authKey,
+                                serverSalt,
+                                serverTimeSeconds,
+                                updatedSalts,
+                            )
                         }
                     },
                     onServerTimeChanged = { updatedTime ->
                         stateLock.withLock {
                             serverTimeSeconds = updatedTime
-                            authKeyPersistence.updateServerState(scope, authKey, serverSalt, serverTimeSeconds)
+                            authKeyPersistence.updateServerState(
+                                scope,
+                                authKey,
+                                serverSalt,
+                                serverTimeSeconds,
+                                session.copyFutureSalts(),
+                            )
                         }
                     },
                     trafficListener = trafficListener,

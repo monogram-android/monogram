@@ -41,7 +41,7 @@ data class CloudLayer223ConnectionConfig(
 class CloudLayer223RpcTransport(
     private val delegate: MtProtoRpcTransport,
     private val config: CloudLayer223ConnectionConfig,
-) : MtProtoRpcTransport, MtProtoSessionMaintenance {
+) : MtProtoRpcTransport, MtProtoSessionMaintenance, MtProtoFutureSaltState {
     private val mutex = Mutex()
     private val closed = AtomicBoolean()
     private var headerRequired = true
@@ -93,6 +93,10 @@ class CloudLayer223RpcTransport(
 
     override suspend fun refreshFutureSalts() {
         (delegate as? MtProtoSessionMaintenance)?.refreshFutureSalts()
+    }
+
+    override fun restoreFutureSalts(salts: List<MtProtoFutureSalt>) {
+        (delegate as? MtProtoFutureSaltState)?.restoreFutureSalts(salts)
     }
 
     override fun close() {

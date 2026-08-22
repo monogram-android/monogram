@@ -187,6 +187,10 @@ class MtProtoRoomUpdateRecoveryTest {
             records.removeAll { it.sequenceId == sequenceId }
         }
 
+        override suspend fun deleteScope(scope: MtProtoAuthKeyScope) {
+            records.clear()
+        }
+
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
     }
 

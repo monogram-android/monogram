@@ -17,6 +17,12 @@ fun Throwable.isRecoverableMtProtoTransportFailure(): Boolean =
 
 fun Throwable.toAuthError(): AuthError {
     if (this is MtProtoSignUpRequiredException) return AuthError.SignUpRequired
+    if (this is MtProtoPaidCodeRequiredException) {
+        return AuthError.PaidCodeRequired(
+            storeProduct = this.storeProduct,
+            supportEmailAddress = this.supportEmailAddress,
+        )
+    }
     if (this is CancellationException) return AuthError.Unexpected
     if (message == AUTH_NETWORK_TIMEOUT_ERROR) return AuthError.NetworkTimeout
     if (this is SocketTimeoutException || this is SocketException || this is UnknownHostException) {

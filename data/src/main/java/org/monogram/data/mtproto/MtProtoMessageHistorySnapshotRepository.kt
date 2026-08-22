@@ -37,22 +37,37 @@ internal class MtProtoMessageHistorySnapshotRepository(
                             addOffset = 0,
                             limit = request.limit,
                             maxId = 0,
-                            minId = 0,
+                            // Newer-than-cursor pages use the server-side min_id filter.
+                            minId = request.after?.messageId?.toMtProtoMessageId() ?: 0,
                             hash = 0L,
                         ),
                     ),
                 )
             }
         }
-        val messages = messageStore.getPage(
-            scope = scope,
-            peerType = request.peerType.toMtProtoPeerType(),
-            peerId = request.peerId,
-            before = request.before?.let {
-                MtProtoMessageHistoryCursor(it.date, it.messageId.toMtProtoMessageId())
-            },
-            limit = request.limit,
-        )
+        val afterCursor = request.after
+        val messages = if (afterCursor != null) {
+            messageStore.getPageAfter(
+                scope = scope,
+                peerType = request.peerType.toMtProtoPeerType(),
+                peerId = request.peerId,
+                after = MtProtoMessageHistoryCursor(
+                    afterCursor.date,
+                    afterCursor.messageId.toMtProtoMessageId(),
+                ),
+                limit = request.limit,
+            )
+        } else {
+            messageStore.getPage(
+                scope = scope,
+                peerType = request.peerType.toMtProtoPeerType(),
+                peerId = request.peerId,
+                before = request.before?.let {
+                    MtProtoMessageHistoryCursor(it.date, it.messageId.toMtProtoMessageId())
+                },
+                limit = request.limit,
+            )
+        }
         return MessageHistorySnapshotPage(
             messages = messages.map { it.toDomain() },
             nextCursor = messages.lastOrNull()

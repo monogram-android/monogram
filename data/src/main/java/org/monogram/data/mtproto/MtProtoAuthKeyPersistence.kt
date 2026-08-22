@@ -7,7 +7,10 @@ import org.monogram.mtproto.handshake.MtProtoHandshakeTransport
 internal sealed interface PersistedMtProtoAuthKeyResult {
     data object Missing : PersistedMtProtoAuthKeyResult
     data object Corrupt : PersistedMtProtoAuthKeyResult
-    data class Found(val authKey: MtProtoAuthKey) : PersistedMtProtoAuthKeyResult
+    data class Found(
+        val authKey: MtProtoAuthKey,
+        val futureSalts: List<org.monogram.mtproto.transport.MtProtoFutureSalt> = emptyList(),
+    ) : PersistedMtProtoAuthKeyResult
 }
 
 internal class MtProtoAuthKeyPersistence(
@@ -22,6 +25,7 @@ internal class MtProtoAuthKeyPersistence(
                 serverSalt = authKey.serverSalt,
                 authKeyCreatedAt = authKey.createdAt,
                 serverTimeAnchorSeconds = authKey.serverTimeAnchorSeconds,
+                futureSalts = emptyList(),
             )
         } finally {
             material.fill(0)
@@ -41,13 +45,14 @@ internal class MtProtoAuthKeyPersistence(
             val material = stored.copyMaterial()
             try {
                 PersistedMtProtoAuthKeyResult.Found(
-                    MtProtoAuthKey.restore(
+                    authKey = MtProtoAuthKey.restore(
                         material = material,
                         id = stored.id,
                         serverSalt = stored.serverSalt,
                         createdAt = stored.authKeyCreatedAt,
                         serverTimeAnchorSeconds = stored.serverTimeAnchorSeconds,
                     ),
+                    futureSalts = stored.futureSalts,
                 )
             } finally {
                 material.fill(0)
@@ -63,6 +68,7 @@ internal class MtProtoAuthKeyPersistence(
         authKey: MtProtoAuthKey,
         serverSalt: Long,
         serverTimeSeconds: Long,
+        futureSalts: List<org.monogram.mtproto.transport.MtProtoFutureSalt> = emptyList(),
     ) {
         require(serverTimeSeconds in 0..Int.MAX_VALUE) { "MTProto server time is outside the persisted range" }
         val material = authKey.toByteArray()
@@ -73,6 +79,7 @@ internal class MtProtoAuthKeyPersistence(
                 serverSalt = serverSalt,
                 authKeyCreatedAt = authKey.createdAt,
                 serverTimeAnchorSeconds = serverTimeSeconds.toInt(),
+                futureSalts = futureSalts,
             )
         } finally {
             material.fill(0)
@@ -102,6 +109,7 @@ internal enum class MtProtoAuthKeySource {
 internal data class BootstrappedMtProtoAuthKey(
     val authKey: MtProtoAuthKey,
     val source: MtProtoAuthKeySource,
+    val futureSalts: List<org.monogram.mtproto.transport.MtProtoFutureSalt> = emptyList(),
 )
 
 internal fun interface MtProtoAuthKeyEstablisher {
@@ -122,6 +130,7 @@ internal class MtProtoAuthKeySessionBootstrap(
             is PersistedMtProtoAuthKeyResult.Found -> return BootstrappedMtProtoAuthKey(
                 persisted.authKey,
                 MtProtoAuthKeySource.STORED,
+                persisted.futureSalts,
             )
             PersistedMtProtoAuthKeyResult.Missing -> Unit
             PersistedMtProtoAuthKeyResult.Corrupt -> persistence.delete(scope)

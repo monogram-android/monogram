@@ -46,11 +46,12 @@ internal class MtProtoPlayerDataSourceFactory(
             this.dataSpec = dataSpec
             transferInitializing(dataSpec)
             val localPath = runBlocking {
-                val info = files.getInfo(fileId)
+                files.getInfo(fileId)
                     ?: throw IOException("Unknown MTProto media handle: $fileId")
-                val path = info.local.takeIf { it.isDownloadingCompleted }?.path
-                    ?: downloadToCompletion()
-                path.takeIf { it.isNotBlank() }
+                // Seek prioritization: bounded specs open once the durable prefix covers
+                // [position, position+length); unbounded specs wait for full completion.
+                val neededEnd = if (dataSpec.length == C.LENGTH_UNSET.toLong()) Long.MAX_VALUE else dataSpec.position + dataSpec.length
+                awaitReadablePath(neededEnd).takeIf { it.isNotBlank() }
                     ?: throw IOException("MTProto media download did not produce a local file")
             }
             val stream = try {
@@ -98,18 +99,38 @@ internal class MtProtoPlayerDataSourceFactory(
             }
         }
 
-        private suspend fun downloadToCompletion(): String = coroutineScope {
-            val completion = async(start = CoroutineStart.UNDISPATCHED) {
+        private suspend fun awaitReadablePath(neededEnd: Long): String = coroutineScope {
+            val terminal = async(start = CoroutineStart.UNDISPATCHED) {
                 files.fileDownloadFlow
                     .filter { it.fileId == fileId }
                     .first { it is FileDownloadEvent.Completed || it is FileDownloadEvent.Cancelled }
             }
             files.download(fileId, offset = 0L, limit = 0L)
-            when (val event = completion.await()) {
-                is FileDownloadEvent.Completed -> event.path
-                is FileDownloadEvent.Cancelled -> throw IOException("MTProto media download was cancelled")
-                else -> error("Unexpected MTProto file download event")
+            var covered: String? = null
+            while (covered == null && !terminal.isCompleted && neededEnd != Long.MAX_VALUE) {
+                val event = files.fileDownloadFlow
+                    .filter { it.fileId == fileId }
+                    .first {
+                        it is FileDownloadEvent.Completed ||
+                            it is FileDownloadEvent.Cancelled ||
+                            (it is FileDownloadEvent.Progress && it.downloadedBytes >= neededEnd)
+                    }
+                when (event) {
+                    is FileDownloadEvent.Completed -> covered = event.path
+                    is FileDownloadEvent.Cancelled -> throw IOException("MTProto media download was cancelled")
+                    is FileDownloadEvent.Progress -> covered = files.getPath(fileId).takeIf {
+                        event.downloadedBytes >= neededEnd
+                    } ?: covered
+                }
             }
+            if (terminal.isCompleted) {
+                when (val event = terminal.getCompleted()) {
+                    is FileDownloadEvent.Completed -> covered = event.path
+                    is FileDownloadEvent.Cancelled -> throw IOException("MTProto media download was cancelled")
+                    else -> error("Unexpected MTProto file download event")
+                }
+            }
+            covered ?: throw IOException("MTProto media range never became readable")
         }
     }
 }

@@ -64,6 +64,7 @@ import org.monogram.data.mtproto.MtProtoStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoStoryResultStager
 import org.monogram.data.mtproto.MtProtoStoryRefreshRepository
 import org.monogram.data.mtproto.MtProtoStoryRefreshRepositoryImpl
+import org.monogram.data.mtproto.MtProtoStorageCleanupRepository
 import org.monogram.data.mtproto.MtProtoStorageCleanupRepositoryImpl
 import org.monogram.data.mtproto.MtProtoStoryStealthModeStore
 import org.monogram.data.mtproto.KeyValueMtProtoStoryStealthModeStore
@@ -158,6 +159,17 @@ import org.monogram.data.mtproto.MtProtoStorageAdapter
 import org.monogram.data.mtproto.MtProtoStoryAdapter
 import org.monogram.data.mtproto.MtProtoStreamingAdapter
 import org.monogram.data.mtproto.MtProtoTelegramLinkRepository
+import org.monogram.data.mtproto.KtorMtProtoUpdateApkDownloader
+import org.monogram.data.mtproto.MtProtoCdnTransportFactory
+import org.monogram.data.mtproto.MtProtoRoomUploadProgressStore
+import org.monogram.data.mtproto.MtProtoRoomSecretChatStateStore
+import org.monogram.data.mtproto.MtProtoSecretChatStateStore
+import org.monogram.data.mtproto.MtProtoPollPayloadStore
+import org.monogram.data.mtproto.MtProtoRoomPollStore
+import org.monogram.data.push.MtProtoPushSync
+import org.monogram.data.mtproto.MtProtoServerFileReferenceRefresher
+import org.monogram.data.mtproto.MtProtoServerLogOut
+import org.monogram.data.mtproto.MtProtoUpdateApkDownloader
 import org.monogram.data.mtproto.MtProtoUserRepository
 import org.monogram.data.mtproto.MtProtoWallpaperAdapter
 import org.monogram.data.mtproto.NoOpNotificationActionManager
@@ -262,6 +274,9 @@ import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.domain.repository.WebAppRepository
 import org.monogram.mtproto.handshake.MtProtoAuthHandshake
 
+/** Account slot shared by the single-account MTProto wiring. */
+internal const val MT_PROTO_DEFAULT_ACCOUNT_SLOT = "default"
+
 val dataModule = module {
     single<ConnectivityManager> {
         requireNotNull(androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager)
@@ -345,7 +360,7 @@ val dataModule = module {
     single<MtProtoAuthSessionHandleFactory> { get<MtProtoPhoneAuthSessionFactory>() }
     single<MtProtoAccountAuthorizationStore> { KeyValueMtProtoAccountAuthorizationStore(get()) }
     single<MtProtoAuthorizedSessionRestorer> {
-        TelegramMtProtoAuthorizedSessionRestorer(get(), get(), get(), get())
+        TelegramMtProtoAuthorizedSessionRestorer(get(), get(), get(), get(), get())
     }
     single<MtProtoSessionTransportFactory> {
         object : MtProtoSessionTransportFactory {
@@ -423,6 +438,10 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_58_59,
                 MonogramMigrations.MIGRATION_59_60,
                 MonogramMigrations.MIGRATION_60_61,
+                MonogramMigrations.MIGRATION_61_62,
+                MonogramMigrations.MIGRATION_62_63,
+                MonogramMigrations.MIGRATION_63_64,
+                MonogramMigrations.MIGRATION_64_65,
             )
             .build()
     }
@@ -469,7 +488,12 @@ val dataModule = module {
         )
     }
     single<MtProtoFileHandleStore> { MtProtoRoomFileHandleStore(get()) }
-    single { MtProtoFileTransferCoordinator(transportFactory = get()) }
+    single { MtProtoFileTransferCoordinator(
+        transportFactory = get(),
+        cdnTransportFactory = MtProtoCdnTransportFactory { dcId ->
+            get<TelegramMtProtoSessionFactory>().openCdn(MT_PROTO_DEFAULT_ACCOUNT_SLOT, dcId)
+        },
+    ) }
     single<MtProtoFileRepository> {
         MtProtoDocumentFileRepository(
             context = androidContext(),
@@ -480,6 +504,13 @@ val dataModule = module {
             transfers = get(),
             coordinator = get(),
             scope = get(),
+            referenceRefresher = MtProtoServerFileReferenceRefresher(
+                configSource = get(),
+                transportFactory = get(),
+                chats = get(),
+                documentLocations = get(),
+                photoLocations = get(),
+            ),
         )
     }
     single {
@@ -630,12 +661,36 @@ val dataModule = module {
     }
     single<MtProtoCloudObjectStager> { get<MtProtoRoomCloudObjectStager>() }
     single { MtProtoRoomPendingEnvelopeStore(get()) }
+    single { get<MonogramDatabase>().secretChatStateDao() }
+    single<org.monogram.domain.repository.SponsorRepository> {
+        org.monogram.data.mtproto.MtProtoSponsorRepository(scope = get())
+    }
+    single<MtProtoPushSync> {
+        val sessionFactory = get<TelegramMtProtoSessionFactory>()
+        MtProtoPushSync(
+            scope = get(),
+            execute = { reason ->
+                sessionFactory.open(MT_PROTO_DEFAULT_ACCOUNT_SLOT).use { transport ->
+                    @Suppress("UNCHECKED_CAST")
+                    transport.execute(
+                        org.monogram.mtproto.tl.generated.cloud.layer223.help.GetAppConfig(hash = 0)
+                            as org.monogram.mtproto.tl.runtime.TlMethod<org.monogram.mtproto.tl.runtime.TlObject>
+                    )
+                }
+            },
+        )
+    }
+    single { get<MonogramDatabase>().mtProtoPollDao() }
+    single<MtProtoPollPayloadStore> { MtProtoRoomPollStore(dao = get(), accountSlot = MT_PROTO_DEFAULT_ACCOUNT_SLOT) }
+    single<MtProtoSecretChatStateStore> {
+        MtProtoRoomSecretChatStateStore(dao = get(), accountSlot = MT_PROTO_DEFAULT_ACCOUNT_SLOT)
+    }
     single<MtProtoPendingEnvelopeStore> { get<MtProtoRoomPendingEnvelopeStore>() }
     single { MtProtoRoomUpdateStateStore(get(), get()) }
     single<MtProtoTransactionalUpdateStateStore> { get<MtProtoRoomUpdateStateStore>() }
     single { MtProtoRoomLiveUpdateApplier(get(), get(), get()) }
     single<MtProtoRecoveryStateStore> { get<MtProtoRoomUpdateStateStore>() }
-    single { MtProtoRoomUpdateRecovery(get(), get(), get()) }
+    single { MtProtoRoomUpdateRecovery(get(), get(), get(), get()) }
     single<MtProtoUpdateCursorStore> { get<MtProtoRoomUpdateStateStore>() }
     single {
         MtProtoAccountStateCleaner(
@@ -653,6 +708,8 @@ val dataModule = module {
             photoLocationStore = get(),
             storyProjectionStore = get(),
             storyStealthModeStore = get(),
+            secretChatStateStore = get(),
+            pollPayloads = get<MtProtoPollPayloadStore>() as? MtProtoRoomPollStore,
             authorizationStore = get(),
         )
     }
@@ -674,6 +731,10 @@ val dataModule = module {
             liveUpdateApplier = get(),
             storyRefresh = get(),
             dialogs = get<MtProtoDialogSnapshotRepository>(),
+            fullResync = { resyncScope ->
+                get<MtProtoPendingEnvelopeStore>().deleteScope(resyncScope)
+                get<MtProtoRoomUpdateStateStore>().delete(resyncScope)
+            },
             scope = get(),
         )
     }
@@ -708,9 +769,15 @@ val dataModule = module {
         MtProtoUserRepository(
             mtProtoProfiles = get<MtProtoUserProfileReader>(),
             scope = get(),
+            mtProtoAuthorizationStore = get(),
             mtProtoAccountStateResetter = get(),
             mtProtoAuthSessionResetter = get(),
             mtProtoLiveSessionResetter = get(),
+            mtProtoServerLogOut = MtProtoServerLogOut {
+                get<TelegramMtProtoSessionFactory>().open(MT_PROTO_DEFAULT_ACCOUNT_SLOT).use { transport ->
+                    transport.execute(org.monogram.mtproto.tl.generated.cloud.layer223.auth.LogOut)
+                }
+            },
             mtProtoUserUpdates = get<MtProtoUserProjectionStore>().updates,
             mtProtoUserFullInfo = { userId -> get<MtProtoChatInfoRepository>().getChatFullInfo(userId) },
         )
@@ -719,7 +786,19 @@ val dataModule = module {
     single<MessageHistorySnapshotRepository> { get<MtProtoMessageHistorySnapshotRepository>() }
     single<UserProfileSnapshotRepository> { get<MtProtoUserProfileSnapshotRepository>() }
 
-    single<MtProtoFileUploader> { TelegramMtProtoFileUploader(get()) }
+    single<MtProtoFileUploader> {
+        TelegramMtProtoFileUploader(
+            transportFactory = get(),
+            progressStore = MtProtoRoomUploadProgressStore(
+                dao = get(),
+                accountSlot = MT_PROTO_DEFAULT_ACCOUNT_SLOT,
+                dcIdProvider = {
+                    get<TelegramMtProtoBootstrapConfigSource>()
+                        .createForAccount(MT_PROTO_DEFAULT_ACCOUNT_SLOT).endpoint.dcId
+                },
+            ),
+        )
+    }
     single {
         MtProtoProfileEditRepository(
             configSource = get(),
@@ -915,6 +994,7 @@ val dataModule = module {
             mtProtoDatabaseSizeReaderFactory = {
                 FileMtProtoDatabaseSizeReader(androidContext().getDatabasePath("monogram_db"))
             },
+            storageCleanupFactory = { get<MtProtoStorageCleanupRepository>() },
         )
     }
 
@@ -925,7 +1005,10 @@ val dataModule = module {
     }
 
     single<TelegramLimitsRepository> {
-        MtProtoLimitsRepository()
+        MtProtoLimitsRepository(
+            configSource = get(),
+            transportFactory = get(),
+        )
     }
 
     single<MtProtoNotificationSettingsRepository> {
@@ -1022,6 +1105,7 @@ val dataModule = module {
             fileFactory = { get<MtProtoFileRepository>() },
             mediaFactory = { get<MtProtoMediaMessageRepository>() },
             historyRepository = get<MtProtoMessageHistorySnapshotRepository>(),
+            pollPayloads = get(),
         ).repository
     }
 
@@ -1183,7 +1267,12 @@ val dataModule = module {
     }
 
     single<UpdateRepository> {
-        MtProtoUpdateRepository(androidContext())
+        MtProtoUpdateRepository(
+            context = androidContext(),
+            releaseSource = { get<GitHubRemoteDataSource>().getLatestRelease() },
+            apkDownloader = KtorMtProtoUpdateApkDownloader(get()),
+            scope = get(),
+        )
     }
 
     single<ProxyDiagnosticsRepository> {

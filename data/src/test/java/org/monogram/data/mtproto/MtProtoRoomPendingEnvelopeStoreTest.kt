@@ -97,6 +97,12 @@ class MtProtoRoomPendingEnvelopeStoreTest {
             assertTrue(entities.removeAll { it.sequenceId == sequenceId })
         }
 
+        override suspend fun deleteScope(accountSlot: String, environment: String, dcId: Int) {
+            entities.removeAll {
+                it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId
+            }
+        }
+
         override suspend fun deleteAccount(accountSlot: String, environment: String) {
             entities.removeAll { it.accountSlot == accountSlot && it.environment == environment }
         }

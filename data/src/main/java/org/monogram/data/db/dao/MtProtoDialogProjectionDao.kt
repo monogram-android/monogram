@@ -20,6 +20,19 @@ interface MtProtoDialogProjectionDao {
     )
     suspend fun getAll(accountSlot: String, environment: String, dcId: Int): List<MtProtoDialogProjectionEntity>
 
+    @Query(
+        "SELECT dialog.* FROM mtproto_dialog_projection AS dialog " +
+            "LEFT JOIN mtproto_message_projection AS message ON message.accountSlot = dialog.accountSlot " +
+            "AND message.environment = dialog.environment AND message.dcId = dialog.dcId " +
+            "AND message.peerType = dialog.peerType AND message.peerId = dialog.peerId " +
+            "AND message.messageId = dialog.topMessageId " +
+            "WHERE dialog.accountSlot = :accountSlot AND dialog.environment = :environment AND dialog.dcId = :dcId " +
+            "AND dialog.folderId = :folderId " +
+            "ORDER BY dialog.pinned DESC, COALESCE(message.date, 0) DESC, dialog.topMessageId DESC, " +
+            "dialog.peerType ASC, dialog.peerId ASC"
+    )
+    suspend fun getByFolder(accountSlot: String, environment: String, dcId: Int, folderId: Int): List<MtProtoDialogProjectionEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: MtProtoDialogProjectionEntity)
 

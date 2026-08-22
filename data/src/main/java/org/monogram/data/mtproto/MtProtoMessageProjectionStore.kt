@@ -6,6 +6,13 @@ import org.monogram.data.db.dao.MtProtoCloudObjectDao
 import org.monogram.data.db.dao.MtProtoMessageProjectionDao
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.mtproto.codec.CloudTlObjectCodec
+import org.monogram.mtproto.tl.generated.cloud.layer223.TextWithEntities_d094604bd3
+import org.monogram.mtproto.tl.generated.cloud.layer223.Poll_942021f3e0
+import org.monogram.mtproto.tl.generated.cloud.layer223.WebPage_f814c33072
+import org.monogram.mtproto.tl.generated.cloud.layer223.Game_616d2a0f4e
+import org.monogram.mtproto.tl.generated.cloud.layer223.GeoPoint_126ad61cec
+import org.monogram.mtproto.tl.generated.cloud.layer223.GeoPoint_9a65b6b51e
+import org.monogram.mtproto.tl.generated.cloud.layer223.PollAnswer_ef4c0287fd
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEmpty
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageService
 import org.monogram.mtproto.tl.generated.cloud.layer223.Message_73e57f95e4
@@ -60,6 +67,8 @@ internal data class MtProtoMessageReadModel(
     val documentId: Long? = null,
     val isScheduled: Boolean = false,
     val photoId: Long? = null,
+    val mediaType: String? = null,
+    val mediaKey: String? = null,
 )
 
 internal data class MtProtoMessageHistoryCursor(
@@ -78,6 +87,7 @@ internal interface MtProtoMessageProjectionStore {
     suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel>
     suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel>
     suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel>
+    suspend fun getPageAfter(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, after: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel>
     suspend fun markDeleted(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageIds: List<Int>) = Unit
     suspend fun backfill(scope: MtProtoAuthKeyScope): MtProtoMessageProjectionBackfillResult
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
@@ -98,6 +108,7 @@ internal object NoOpMtProtoMessageProjectionStore : MtProtoMessageProjectionStor
     override suspend fun getAll(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun search(scope: MtProtoAuthKeyScope, query: String, limit: Int, offset: Int): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun getPage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, before: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel> = emptyList()
+    override suspend fun getPageAfter(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, after: MtProtoMessageHistoryCursor?, limit: Int): List<MtProtoMessageReadModel> = emptyList()
     override suspend fun markDeleted(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageIds: List<Int>) = Unit
     override suspend fun backfill(scope: MtProtoAuthKeyScope) = MtProtoMessageProjectionBackfillResult(0, 0)
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
@@ -110,6 +121,7 @@ internal class MtProtoRoomMessageProjectionStore(
     private val dialogStore: MtProtoDialogStore? = null,
     private val documentLocations: MtProtoDocumentLocationStore = NoOpMtProtoDocumentLocationStore,
     private val photoLocations: MtProtoPhotoLocationStore = NoOpMtProtoPhotoLocationStore,
+    private val pollPayloads: MtProtoPollPayloadStore? = null,
     private val database: MonogramDatabase? = null,
 ) : MtProtoMessageProjectionStore {
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) {
@@ -171,6 +183,26 @@ internal class MtProtoRoomMessageProjectionStore(
             peerId,
             before?.date,
             before?.messageId,
+            limit,
+        ).map { it.toReadModel() }
+    }
+
+    override suspend fun getPageAfter(
+        scope: MtProtoAuthKeyScope,
+        peerType: MtProtoMessagePeerType,
+        peerId: Long,
+        after: MtProtoMessageHistoryCursor?,
+        limit: Int,
+    ): List<MtProtoMessageReadModel> {
+        require(limit in 1..MAX_HISTORY_PAGE_SIZE)
+        return dao.getPageAfter(
+            scope.accountSlot,
+            scope.environment.storageName,
+            scope.dcId,
+            peerType.name,
+            peerId,
+            after?.date,
+            after?.messageId,
             limit,
         ).map { it.toReadModel() }
     }
@@ -263,6 +295,11 @@ internal class MtProtoRoomMessageProjectionStore(
             entity,
             (message as? org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3)?.document(),
             (message as? org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3)?.photo(),
+            (message as? org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3)?.poll(),
+            (message as? org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3)?.let { concrete ->
+                (concrete.media as? org.monogram.mtproto.tl.generated.cloud.layer223.MessageMediaPoll)?.results
+                    as? org.monogram.mtproto.tl.generated.cloud.layer223.PollResults_267c8c3226
+            },
             updateDialog,
         )
         return true
@@ -273,11 +310,33 @@ internal class MtProtoRoomMessageProjectionStore(
         entity: MtProtoMessageProjectionEntity,
         document: org.monogram.mtproto.tl.generated.cloud.layer223.Document_be725c3b31? = null,
         photo: org.monogram.mtproto.tl.generated.cloud.layer223.Photo_97e0ed8316? = null,
+        poll: Poll_942021f3e0? = null,
+        pollResults: org.monogram.mtproto.tl.generated.cloud.layer223.PollResults_267c8c3226? = null,
         updateDialog: Boolean = true,
     ) {
         suspend fun persistProjection() {
             document?.let { documentLocations.upsert(scope, it) }
             photo?.let { photoLocations.upsert(scope, it) }
+            poll?.let { poll ->
+                val votersByOption = pollResults?.results.orEmpty()
+                    .mapNotNull { voterEntry ->
+                        val concrete = voterEntry as? org.monogram.mtproto.tl.generated.cloud.layer223.PollAnswerVoters_8e83b26601
+                            ?: return@mapNotNull null
+                        concrete.option.toByteArray().toList() to MtProtoPollVoterInfo(concrete.voters, concrete.chosen)
+                    }.toMap()
+                pollPayloads?.upsert(
+                    pollId = poll.id,
+                    question = (poll.question as? org.monogram.mtproto.tl.generated.cloud.layer223.TextWithEntities_d094604bd3)?.text ?: "",
+                    optionLabels = poll.answers.mapNotNull { answer ->
+                        val answerText = (answer as? PollAnswer_ef4c0287fd)?.text
+                        (answerText as? org.monogram.mtproto.tl.generated.cloud.layer223.TextWithEntities_d094604bd3)?.text
+                    },
+                    totalVoters = pollResults?.totalVoters ?: 0,
+                    isClosed = poll.closed,
+                    isAnonymous = !poll.publicVoters,
+                    voterCountsByOption = votersByOption,
+                )
+            }
             dao.upsert(entity)
             if (updateDialog) dialogStore?.updateTopMessage(
                 scope = scope,
@@ -292,8 +351,12 @@ internal class MtProtoRoomMessageProjectionStore(
     private fun Message_73e57f95e4.toEntity(scope: MtProtoAuthKeyScope, updatedAt: Long, scheduled: Boolean = false): MtProtoMessageProjectionEntity? = when (this) {
         is MessageEmpty -> peerId?.toPeerKey()?.let { (type, id) -> entity(scope, type, id, this.id, updatedAt, isDeleted = true) }
         is MessageService -> peerId.toPeerKey().let { (type, id) -> entity(scope, type, id, this.id, updatedAt, sender = fromId, date = date, isService = true, isOutgoing = out_, isMentioned = mentioned, isMediaUnread = mediaUnread, isSilent = silent) }
-        is Message_7b7ecf54a3 -> peerId.toPeerKey().let { (type, id) -> entity(scope, type, id, this.id, updatedAt, sender = fromId, date = date, text = message, isOutgoing = out_, isMentioned = mentioned, isMediaUnread = mediaUnread, isSilent = silent, isPinned = pinned, editDate = editDate, groupedId = groupedId, hasMedia = media != null, documentId = document()?.id, photoId = photo()?.id, isScheduled = scheduled || fromScheduled) }
+        is Message_7b7ecf54a3 -> peerId.toPeerKey().let { (type, id) -> entity(scope, type, id, this.id, updatedAt, sender = fromId, date = date, text = message, isOutgoing = out_, isMentioned = mentioned, isMediaUnread = mediaUnread, isSilent = silent, isPinned = pinned, editDate = editDate, groupedId = groupedId, hasMedia = media != null, documentId = document()?.id, photoId = photo()?.id, isScheduled = scheduled || fromScheduled,
+            mediaType = classifyMedia(media).first, mediaKey = classifyMedia(media).second) }
     }
+
+    private fun classifyMedia(media: org.monogram.mtproto.tl.generated.cloud.layer223.MessageMedia?): Pair<String?, String?> =
+        classifyMessageMedia(media)
 
     private fun org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3.document() =
         (media as? org.monogram.mtproto.tl.generated.cloud.layer223.MessageMediaDocument)
@@ -302,6 +365,10 @@ internal class MtProtoRoomMessageProjectionStore(
     private fun org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3.photo() =
         (media as? org.monogram.mtproto.tl.generated.cloud.layer223.MessageMediaPhoto)
             ?.photo as? org.monogram.mtproto.tl.generated.cloud.layer223.Photo_97e0ed8316
+
+    private fun org.monogram.mtproto.tl.generated.cloud.layer223.Message_7b7ecf54a3.poll() =
+        (media as? org.monogram.mtproto.tl.generated.cloud.layer223.MessageMediaPoll)
+            ?.poll as? Poll_942021f3e0
 
     private fun UpdateShortMessage.toEntity(scope: MtProtoAuthKeyScope) = entity(
         scope,
@@ -338,12 +405,12 @@ internal class MtProtoRoomMessageProjectionStore(
         is PeerChannel -> MtProtoMessagePeerType.CHANNEL to channelId
     }
 
-    private fun entity(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int, updatedAt: Long, sender: Peer? = null, date: Int = 0, text: String? = null, isService: Boolean = false, isDeleted: Boolean = false, isOutgoing: Boolean = false, isMentioned: Boolean = false, isMediaUnread: Boolean = false, isSilent: Boolean = false, isPinned: Boolean = false, editDate: Int? = null, groupedId: Long? = null, hasMedia: Boolean = false, documentId: Long? = null, photoId: Long? = null, isScheduled: Boolean = false): MtProtoMessageProjectionEntity {
+    private fun entity(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int, updatedAt: Long, sender: Peer? = null, date: Int = 0, text: String? = null, isService: Boolean = false, isDeleted: Boolean = false, isOutgoing: Boolean = false, isMentioned: Boolean = false, isMediaUnread: Boolean = false, isSilent: Boolean = false, isPinned: Boolean = false, editDate: Int? = null, groupedId: Long? = null, hasMedia: Boolean = false, documentId: Long? = null, photoId: Long? = null, isScheduled: Boolean = false, mediaType: String? = null, mediaKey: String? = null): MtProtoMessageProjectionEntity {
         val senderKey = sender?.toPeerKey()
-        return MtProtoMessageProjectionEntity(scope.accountSlot, scope.environment.storageName, scope.dcId, peerType.name, peerId, messageId, senderKey?.first?.name, senderKey?.second, date, text, isService, isDeleted, isOutgoing, isMentioned, isMediaUnread, isSilent, isPinned, editDate, groupedId, hasMedia, documentId, photoId, isScheduled, updatedAt)
+        return MtProtoMessageProjectionEntity(scope.accountSlot, scope.environment.storageName, scope.dcId, peerType.name, peerId, messageId, senderKey?.first?.name, senderKey?.second, date, text, isService, isDeleted, isOutgoing, isMentioned, isMediaUnread, isSilent, isPinned, editDate, groupedId, hasMedia, documentId, photoId, mediaType, mediaKey, isScheduled, updatedAt)
     }
 
-    private fun MtProtoMessageProjectionEntity.toReadModel() = MtProtoMessageReadModel(MtProtoMessagePeerType.valueOf(peerType), peerId, messageId, senderType?.let(MtProtoMessagePeerType::valueOf), senderId, date, text, isService, isDeleted, isOutgoing, isMentioned, isMediaUnread, isSilent, isPinned, editDate, groupedId, hasMedia, documentId, isScheduled, photoId)
+    private fun MtProtoMessageProjectionEntity.toReadModel() = MtProtoMessageReadModel(MtProtoMessagePeerType.valueOf(peerType), peerId, messageId, senderType?.let(MtProtoMessagePeerType::valueOf), senderId, date, text, isService, isDeleted, isOutgoing, isMentioned, isMediaUnread, isSilent, isPinned, editDate, groupedId, hasMedia, documentId, isScheduled, photoId, mediaType, mediaKey)
 
     private companion object {
         const val MESSAGE_OBJECT_TYPE = "message"

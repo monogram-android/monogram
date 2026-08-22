@@ -142,6 +142,8 @@
     <string name="auth_signup_last_name">Last name (optional)</string>
     <string name="auth_signup_continue">Continue</string>
     <string name="auth_login_email_title">Add Email</string>
+    <string name="auth_paid_code_title">Purchase Required</string>
+    <string name="auth_paid_code_body">A paid code is required to sign in. Product: %1$s. For help contact %2$s.</string>
     <string name="auth_login_email_description">Enter an email address to finish setting up sign-in.</string>
     <string name="auth_login_email_address">Email address</string>
     <string name="dismiss_button">Dismiss</string>

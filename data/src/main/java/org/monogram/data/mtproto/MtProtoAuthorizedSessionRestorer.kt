@@ -15,8 +15,24 @@ internal class TelegramMtProtoAuthorizedSessionRestorer(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val sessionFactory: TelegramMtProtoSessionFactory,
     private val userStore: MtProtoUserProjectionStore,
+    private val accountStateResetter: MtProtoAccountStateResetter? = null,
 ) : MtProtoAuthorizedSessionRestorer {
     override suspend fun restore(accountSlot: String): Boolean {
+        // Resume an interrupted logout: the tombstone proves the user already asked to log out,
+        // so finishing the local-only wipe (see [MtProtoAccountStateResetter]) is safe here. An
+        // active or authorized account never enters this branch.
+        if (authorizationStore.isLogoutPending(accountSlot)) {
+            return try {
+                accountStateResetter?.deleteAccount(accountSlot, MtProtoEnvironment.PRODUCTION)
+                Log.i(TAG, "Resumed pending MTProto logout cleanup")
+                false
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                Log.w(TAG, "Pending MTProto logout cleanup failed; retaining tombstone", failure)
+                false
+            }
+        }
         if (!authorizationStore.isAuthorized(accountSlot)) {
             Log.i(TAG, "No persisted MTProto authorization to restore")
             return false

@@ -51,5 +51,14 @@ interface AuthComponent {
 
         object InputSignUp : AuthState()
         object InputLoginEmail : AuthState()
+
+        /** The server requires a paid code purchase before delivering a login code. */
+        data class PaidCodeRequired(
+            val storeProduct: String,
+            val supportEmailAddress: String,
+            val supportEmailSubject: String,
+            val currency: String,
+            val amount: Long
+        ) : AuthState()
     }
 }

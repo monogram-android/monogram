@@ -179,8 +179,6 @@ internal class MtProtoProfileEditRepository(
         }
     }
 
-    private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto profile edit is not available")
-
     private companion object {
         const val CHANNEL_OFFSET = 1_000_000_000_000L
         const val WEEK_MINUTES = 7 * 24 * 60

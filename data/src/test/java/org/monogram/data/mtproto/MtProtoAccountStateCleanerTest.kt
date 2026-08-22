@@ -214,6 +214,7 @@ class MtProtoAccountStateCleanerTest {
 
         override suspend fun pending(scope: MtProtoAuthKeyScope): List<MtProtoPendingEnvelope> = error("not used")
         override suspend fun delete(sequenceId: Long) = error("not used")
+        override suspend fun deleteScope(scope: MtProtoAuthKeyScope) = Unit
 
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
             deletedAccounts += accountSlot to environment
@@ -294,6 +295,11 @@ class MtProtoAccountStateCleanerTest {
         override suspend fun stageDifference(
             scope: MtProtoAuthKeyScope,
             batch: org.monogram.mtproto.updates.MtProtoUpdateDifferenceBatch,
+        ) = error("not used")
+
+        override suspend fun stageChannelDifference(
+            scope: MtProtoAuthKeyScope,
+            batch: org.monogram.mtproto.updates.MtProtoChannelDifferenceBatch,
         ) = error("not used")
 
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {

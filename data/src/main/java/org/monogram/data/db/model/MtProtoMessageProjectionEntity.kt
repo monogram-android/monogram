@@ -33,6 +33,9 @@ data class MtProtoMessageProjectionEntity(
     val hasMedia: Boolean,
     val documentId: Long? = null,
     val photoId: Long? = null,
+    /** Coarse media classification (POLL, GEO, CONTACT, WEBPAGE, ...) with a stable lookup key. */
+    val mediaType: String? = null,
+    val mediaKey: String? = null,
     val isScheduled: Boolean = false,
     val updatedAt: Long,
 )

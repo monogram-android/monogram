@@ -12,6 +12,10 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.AccountDaysTtl_f6ad918c5
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPrivacyKeyPhoneNumber
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPrivacyValueDisallowAll
 import org.monogram.mtproto.tl.generated.cloud.layer223.PrivacyValueAllowAll
+import org.monogram.mtproto.tl.generated.cloud.layer223.PrivacyValueDisallowBots
+import org.monogram.mtproto.tl.generated.cloud.layer223.PrivacyValueAllowPremium
+import org.monogram.mtproto.tl.generated.cloud.layer223.PrivacyValueAllowCloseFriends
+import org.monogram.mtproto.tl.generated.cloud.layer223.PrivacyValueAllowBots
 import org.monogram.mtproto.tl.generated.cloud.layer223.PasswordKdfAlgoUnknown
 import org.monogram.mtproto.tl.generated.cloud.layer223.SecurePasswordKdfAlgoUnknown
 import org.monogram.mtproto.tl.generated.cloud.layer223.account.ContentSettings_33d483dc78

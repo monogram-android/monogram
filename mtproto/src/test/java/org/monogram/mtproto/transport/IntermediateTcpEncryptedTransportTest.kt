@@ -31,6 +31,7 @@ import org.monogram.mtproto.tl.generated.transport.BadServerSalt
 import org.monogram.mtproto.tl.generated.transport.Message_48a7e89a1b
 import org.monogram.mtproto.tl.generated.transport.MsgContainer
 import org.monogram.mtproto.tl.generated.transport.MsgsAck_3546e430bb
+import org.monogram.mtproto.tl.generated.transport.MsgsStateInfo_0ad1af2039
 import org.monogram.mtproto.tl.generated.transport.NewSessionCreated
 import org.monogram.mtproto.tl.generated.transport.Ping
 import org.monogram.mtproto.tl.generated.transport.Pong_fbc65fe5b1
@@ -132,6 +133,58 @@ class IntermediateTcpEncryptedTransportTest {
                     runBlocking { transport.execute(Ping(PING_ID)) }
                 }
                 assertTrue(failure.cause != null)
+            } finally {
+                transport.close()
+            }
+            worker.join(5_000)
+            assertTrue("Loopback worker did not finish", !worker.isAlive)
+            failure.get()?.let { throw AssertionError("Loopback server failed", it) }
+        }
+    }
+
+    @Test
+    fun classifiesMatchingMessageStateInfoAsUncertainDelivery() {
+        ServerSocket(0).use { server ->
+            val clientAuth = authKey()
+            val serverAuth = authKey()
+            val session = MtProtoEncryptedSession(clientAuth, CounterEntropy(), NOW_MILLIS)
+            val failure = AtomicReference<Throwable?>()
+            val worker = thread(name = "mtproto-message-state-info-loopback") {
+                try {
+                    server.accept().use { peer ->
+                        val request = readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, true)
+                        try {
+                            val stateInfo = encodeObject(
+                                MsgsStateInfo_0ad1af2039(request.metadata.messageId, org.monogram.mtproto.tl.runtime.TlBytes.copyOf(byteArrayOf(0x03))),
+                            )
+                            try {
+                                writeServerMessage(peer, serverAuth, session.sessionId, serverMessageId(1), 1, stateInfo)
+                            } finally {
+                                stateInfo.fill(0)
+                            }
+                        } finally {
+                            request.close()
+                        }
+                        readClientMessage(peer.getInputStream(), serverAuth, session.sessionId, false).close()
+                    }
+                } catch (problem: Throwable) {
+                    failure.set(problem)
+                } finally {
+                    serverAuth.close()
+                }
+            }
+
+            val transport = IntermediateTcpEncryptedTransport(
+                "127.0.0.1",
+                server.localPort,
+                session,
+                TransportConstructorRegistry,
+            )
+            try {
+                val thrown = assertThrows(MtProtoUncertainDeliveryException::class.java) {
+                    runBlocking { transport.execute(Ping(PING_ID)) }
+                }
+                assertTrue(thrown.cause != null)
             } finally {
                 transport.close()
             }

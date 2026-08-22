@@ -47,6 +47,47 @@ class GitHubRemoteDataSource(
         }
     }
 
+    /** Latest published GitHub release with its downloadable assets, for the MTProto update channel. */
+    suspend fun getLatestRelease(): Result<GitHubReleaseResponse> {
+        return try {
+            val response = httpClient.get("$BASE_URL/releases/latest") {
+                accept(ContentType.parse("application/vnd.github+json"))
+                header("X-GitHub-Api-Version", GITHUB_API_VERSION)
+            }
+
+            if (response.status != HttpStatusCode.OK) {
+                val responseCode = response.status.value
+                Log.w(TAG, "GitHub release request failed code=$responseCode")
+                return Result.failure(IllegalStateException("GitHub response code=$responseCode"))
+            }
+
+            Result.success(json.decodeFromString<GitHubReleaseResponse>(response.bodyAsText()))
+        } catch (error: Exception) {
+            Log.w(TAG, "GitHub release request failed", error)
+            Result.failure(error)
+        }
+    }
+
+    @Serializable
+    data class GitHubReleaseResponse(
+        @SerialName("tag_name")
+        val tagName: String,
+        val name: String? = null,
+        val body: String? = null,
+        val prerelease: Boolean = false,
+        val draft: Boolean = false,
+        val assets: List<GitHubReleaseAsset> = emptyList(),
+    )
+
+    @Serializable
+    data class GitHubReleaseAsset(
+        val id: Long,
+        val name: String,
+        val size: Long,
+        @SerialName("browser_download_url")
+        val browserDownloadUrl: String,
+    )
+
     @Serializable
     data class GitHubCommitResponse(
         val sha: String,

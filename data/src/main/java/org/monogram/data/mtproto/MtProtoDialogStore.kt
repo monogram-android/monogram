@@ -54,6 +54,7 @@ internal enum class MtProtoDialogPeerKind {
 
 internal interface MtProtoDialogStore {
     suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoDialogReadModel>
+    suspend fun getByFolder(scope: MtProtoAuthKeyScope, folderId: Int): List<MtProtoDialogReadModel>
 
     suspend fun upsert(scope: MtProtoAuthKeyScope, dialogs: List<Dialog_cf9860a8bd>) = Unit
 
@@ -74,6 +75,7 @@ internal interface MtProtoDialogStore {
 
 internal object NoOpMtProtoDialogStore : MtProtoDialogStore {
     override suspend fun getAll(scope: MtProtoAuthKeyScope) = emptyList<MtProtoDialogReadModel>()
+    override suspend fun getByFolder(scope: MtProtoAuthKeyScope, folderId: Int) = emptyList<MtProtoDialogReadModel>()
 }
 
 internal class MtProtoRoomDialogStore(
@@ -188,6 +190,26 @@ internal class MtProtoRoomDialogStore(
                     MtProtoMessagePeerType.GROUP,
                     MtProtoMessagePeerType.CHANNEL -> message.toDialog(peerType, null, chats[key.second])
                 }
+            }
+    }
+
+    override suspend fun getByFolder(scope: MtProtoAuthKeyScope, folderId: Int): List<MtProtoDialogReadModel> {
+        val accountSlot = scope.accountSlot
+        val environment = scope.environment.storageName
+        val dcId = scope.dcId
+        val users = userDao.getAll(accountSlot, environment, dcId).associateBy { it.userId }
+        val chats = chatDao.getAll(accountSlot, environment, dcId).associateBy { it.chatId }
+        val latest = messageDao.getLatestByPeer(accountSlot, environment, dcId)
+            .associateBy { it.peerType to it.peerId }
+        return dialogDao.getByFolder(accountSlot, environment, dcId, folderId)
+            .mapNotNull { dialog ->
+                val peerType = MtProtoMessagePeerType.valueOf(dialog.peerType)
+                dialog.toDialog(
+                    peerType = peerType,
+                    user = users[dialog.peerId],
+                    chat = chats[dialog.peerId],
+                    message = latest[dialog.peerType to dialog.peerId],
+                )
             }
     }
 

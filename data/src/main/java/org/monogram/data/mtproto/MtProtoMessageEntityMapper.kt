@@ -25,11 +25,15 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityTextUrl
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityUnderline
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityUrl
 
+/**
+ * Maps a domain entity to its TL equivalent. Returns null for entity types that have no
+ * TL representation (MediaTimestamp, Other); callers must filter out nulls.
+ */
 internal suspend fun MessageEntity.toMtProtoEntity(
     scope: MtProtoAuthKeyScope,
     text: String,
     users: MtProtoUserProjectionStore,
-): TlMessageEntity {
+): TlMessageEntity? {
     require(offset >= 0 && length > 0 && offset <= text.length - length) {
         "MTProto message entity range is outside the message text"
     }
@@ -73,6 +77,7 @@ internal suspend fun MessageEntity.toMtProtoEntity(
             require(entityType.emojiId > 0) { "MTProto custom emoji id must be positive" }
             MessageEntityCustomEmoji(offset, length, entityType.emojiId)
         }
-        is MessageEntityType.MediaTimestamp, is MessageEntityType.Other -> throw UnsupportedOperationException("MTProto message entity type is not available")
+        // No TL wire representation; dropped to prevent crashes from server-originated entities.
+        is MessageEntityType.MediaTimestamp, is MessageEntityType.Other -> null
     }
 }

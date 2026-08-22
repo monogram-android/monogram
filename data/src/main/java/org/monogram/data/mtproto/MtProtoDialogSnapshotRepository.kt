@@ -25,16 +25,29 @@ import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.DialogSnapshotModel
 import org.monogram.domain.repository.DialogSnapshotRepository
 
+internal data class MtProtoDialogFolderUpdate(
+    val folderId: Int?,
+    val dialogs: List<DialogSnapshotModel>,
+)
+
 internal class MtProtoDialogSnapshotRepository(
     private val configSource: TelegramMtProtoBootstrapConfigSource,
     private val dialogStore: MtProtoDialogStore,
     private val sessionFactory: TelegramMtProtoSessionFactory? = null,
     private val resultStager: MtProtoDialogResultStager? = null,
 ) : DialogSnapshotRepository {
-    private val _dialogUpdates = MutableSharedFlow<List<DialogSnapshotModel>>(replay = 1, extraBufferCapacity = 1)
+    private val _dialogUpdates = MutableSharedFlow<MtProtoDialogFolderUpdate>(replay = 1, extraBufferCapacity = 1)
     internal val dialogUpdates = _dialogUpdates.asSharedFlow()
+    private val continuationCursors = mutableMapOf<DialogPageKey, DialogCursor>()
+    private val exhaustedPages = mutableSetOf<DialogPageKey>()
 
-    override suspend fun getDialogs(accountId: String): List<DialogSnapshotModel> {
+    override suspend fun getDialogs(accountId: String): List<DialogSnapshotModel> =
+        getDialogsForFolder(accountId, null)
+
+    override suspend fun getDialogsForFolder(accountId: String, folderId: Int?): List<DialogSnapshotModel> {
+        val pageKey = DialogPageKey(accountId, folderId)
+        exhaustedPages.remove(pageKey)
+        continuationCursors.remove(pageKey)
         val config = configSource.createForAccount(accountId)
         val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         if (sessionFactory != null && resultStager != null) {
@@ -44,12 +57,13 @@ internal class MtProtoDialogSnapshotRepository(
                 var offsetPeer: InputPeer = InputPeerEmpty
                 var previousCursor: DialogCursor? = null
                 var loadedDialogs = 0
-                for (pageIndex in 0 until MAX_DIALOG_PAGES) {
+                // Publish a bounded first snapshot; further pages are streamed through loadMore.
+                for (pageIndex in 0 until INITIAL_DIALOG_PAGES) {
                     val result = executeDialogsPage(
                         transport = transport,
                         request = GetDialogs(
                             excludePinned = pageIndex > 0,
-                            folderId = null,
+                            folderId = folderId,
                             offsetDate = offsetDate,
                             offsetId = offsetId,
                             offsetPeer = offsetPeer,
@@ -58,10 +72,14 @@ internal class MtProtoDialogSnapshotRepository(
                         ),
                     )
                     check(resultStager.stage(scope, result)) { "Unsupported messages.getDialogs result" }
-                    _dialogUpdates.emit(dialogStore.getAll(scope).map { it.toDomain() })
+                    _dialogUpdates.emit(MtProtoDialogFolderUpdate(folderId, dialogsForFolder(scope, folderId)))
                     val page = result.dialogPage()
                     loadedDialogs += page.dialogs.size
-                    if (!page.hasMore(loadedDialogs)) break
+                    if (!page.hasMore(loadedDialogs)) {
+                        continuationCursors.remove(pageKey)
+                        exhaustedPages += pageKey
+                        break
+                    }
                     val cursor = page.cursor { peer, users, chats -> peer.toInputPeer(users, chats) }
                     check(cursor != previousCursor) { "messages.getDialogs returned a duplicate cursor" }
                     previousCursor = cursor
@@ -69,10 +87,76 @@ internal class MtProtoDialogSnapshotRepository(
                     offsetId = cursor.messageId
                     offsetPeer = cursor.peer
                 }
+                if (previousCursor != null && pageKey !in exhaustedPages) {
+                    continuationCursors[pageKey] = previousCursor
+                } else if (previousCursor == null) {
+                    exhaustedPages += pageKey
+                }
             }
         }
-        return dialogStore.getAll(scope).map { it.toDomain() }
+        return dialogsForFolder(scope, folderId)
     }
+
+    override suspend fun loadMore(accountId: String, limit: Int): List<DialogSnapshotModel> =
+        loadMoreForFolder(accountId, limit, null)
+
+    override suspend fun loadMoreForFolder(accountId: String, limit: Int, folderId: Int?): List<DialogSnapshotModel> {
+        require(limit > 0) { "Dialog chunk limit must be positive" }
+        val pageKey = DialogPageKey(accountId, folderId)
+        if (pageKey in exhaustedPages) return emptyList()
+        val startCursor = continuationCursors[pageKey] ?: return emptyList()
+        val sessionFactory = sessionFactory ?: return emptyList()
+        val resultStager = resultStager ?: return emptyList()
+        val config = configSource.createForAccount(accountId)
+        val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        sessionFactory.open(accountId).use { transport ->
+            var offsetDate = startCursor.date
+            var offsetId = startCursor.messageId
+            var offsetPeer: InputPeer = startCursor.peer
+            var previousCursor: DialogCursor? = startCursor
+            var loaded = 0
+            for (pageIndex in 0 until MAX_DIALOG_PAGES) {
+                if (loaded >= limit) break
+                val result = executeDialogsPage(
+                    transport = transport,
+                    request = GetDialogs(
+                        excludePinned = true,
+                        folderId = folderId,
+                        offsetDate = offsetDate,
+                        offsetId = offsetId,
+                        offsetPeer = offsetPeer,
+                        limit = INITIAL_PAGE_SIZE,
+                        hash = 0L,
+                    ),
+                )
+                check(resultStager.stage(scope, result)) { "Unsupported messages.getDialogs result" }
+                _dialogUpdates.emit(MtProtoDialogFolderUpdate(folderId, dialogsForFolder(scope, folderId)))
+                val page = result.dialogPage()
+                loaded += page.dialogs.size
+                if (!page.hasMore(loaded + 1) || page.dialogs.isEmpty()) {
+                    continuationCursors.remove(pageKey)
+                    exhaustedPages += pageKey
+                    break
+                }
+                val cursor = page.cursor { peer, users, chats -> peer.toInputPeer(users, chats) }
+                check(cursor != previousCursor) { "messages.getDialogs returned a duplicate cursor" }
+                previousCursor = cursor
+                offsetDate = cursor.date
+                offsetId = cursor.messageId
+                offsetPeer = cursor.peer
+            }
+            if (previousCursor != null && pageKey !in exhaustedPages) {
+                continuationCursors[pageKey] = previousCursor
+            }
+        }
+        return dialogsForFolder(scope, folderId)
+    }
+
+    private suspend fun dialogsForFolder(scope: MtProtoAuthKeyScope, folderId: Int?): List<DialogSnapshotModel> =
+        (folderId?.let { dialogStore.getByFolder(scope, it) } ?: dialogStore.getAll(scope))
+            .map { it.toDomain() }
+
+    private data class DialogPageKey(val accountId: String, val folderId: Int?)
 
     private suspend fun executeDialogsPage(
         transport: org.monogram.mtproto.transport.MtProtoRpcTransport,
@@ -181,6 +265,7 @@ internal class MtProtoDialogSnapshotRepository(
 
     private companion object {
         const val INITIAL_PAGE_SIZE = 100
+        const val INITIAL_DIALOG_PAGES = 3
         const val MAX_DIALOG_PAGES = 100
         const val MAX_FLOOD_WAIT_RETRIES = 3
     }

@@ -43,6 +43,7 @@ class MtProtoDialogResultStagerTest {
         var calls = 0
         var dialogs = emptyList<Dialog_cf9860a8bd>()
         override suspend fun getAll(scope: MtProtoAuthKeyScope) = emptyList<MtProtoDialogReadModel>()
+        override suspend fun getByFolder(scope: MtProtoAuthKeyScope, folderId: Int) = emptyList<MtProtoDialogReadModel>()
         override suspend fun upsert(scope: MtProtoAuthKeyScope, dialogs: List<Dialog_cf9860a8bd>) {
             calls++
             this.dialogs = dialogs

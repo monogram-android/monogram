@@ -33,6 +33,12 @@ interface MtProtoPendingEnvelopeDao {
     @Query("DELETE FROM mtproto_pending_envelopes WHERE sequenceId = :sequenceId")
     suspend fun delete(sequenceId: Long)
 
+    @Query(
+        "DELETE FROM mtproto_pending_envelopes " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId"
+    )
+    suspend fun deleteScope(accountSlot: String, environment: String, dcId: Int)
+
     @Query("DELETE FROM mtproto_pending_envelopes WHERE accountSlot = :accountSlot AND environment = :environment")
     suspend fun deleteAccount(accountSlot: String, environment: String)
 }

@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.monogram.mtproto.updates.MtProtoChannelUpdateRecoveryResult
+import org.monogram.mtproto.updates.MtProtoUpdateStateTransitionResult
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.DialogSnapshotRepository
@@ -41,8 +43,10 @@ internal class MtProtoLiveUpdateCoordinator(
     private val liveUpdateApplier: MtProtoRoomLiveUpdateApplier,
     private val storyRefresh: MtProtoStoryRefreshRepository = NoOpMtProtoStoryRefreshRepository,
     private val dialogs: DialogSnapshotRepository = object : DialogSnapshotRepository {
-        override suspend fun getDialogs(accountId: String) = emptyList<org.monogram.domain.models.DialogSnapshotModel>()
-    },
+        override suspend fun getDialogs(accountId: String) =
+            emptyList<org.monogram.domain.models.DialogSnapshotModel>()
+    }, 
+    private val fullResync: (suspend (MtProtoAuthKeyScope) -> Unit)? = null,
     scope: CoroutineScope,
     private val accountSlot: String = DEFAULT_ACCOUNT_SLOT,
 ) : MtProtoLiveSessionResetter {
@@ -117,13 +121,9 @@ internal class MtProtoLiveUpdateCoordinator(
             Log.i(TAG, "MTProto update recovery initialized")
             when (session.recoverAndReplay { }) {
                 is MtProtoRoomRecoveryResult.Completed -> Log.i(TAG, "MTProto update recovery completed")
-                MtProtoRoomRecoveryResult.ResyncRequired -> {
-                    Log.e(TAG, "MTProto difference requires a full resync; refusing live updates")
-                    return false
-                }
+                MtProtoRoomRecoveryResult.ResyncRequired -> return handleResyncRequired(scope)
             }
-            runCatching { storyRefresh.refreshInitialLists() }
-                .onFailure { Log.w(TAG, "MTProto story refresh failed; retaining previous projections", it) }
+            refreshStoriesWithRetry()
             dialogs.getDialogs(accountSlot)
             newSessionWatcher = transport.newSessions?.let { events ->
                 CoroutineScope(currentCoroutineContext()).launch {
@@ -139,15 +139,26 @@ internal class MtProtoLiveUpdateCoordinator(
             }
             while (true) {
                 val envelope = inbox.receive() ?: return true
-                when (liveUpdateApplier.apply(scope, envelope) { }) {
+                when (val result = liveUpdateApplier.apply(scope, envelope) { }) {
                     is MtProtoLiveUpdateApplyResult.Applied,
                     MtProtoLiveUpdateApplyResult.Duplicate -> Unit
 
-                    is MtProtoLiveUpdateApplyResult.Gap,
+                    is MtProtoLiveUpdateApplyResult.Gap -> {
+                        val transition = result.transition
+                        if (transition is MtProtoUpdateStateTransitionResult.ChannelGap) {
+                            Log.i(TAG, "MTProto channel pts gap detected for channel ${transition.gap.channelId}; running channel difference recovery")
+                            when (session.recoverChannel(transition.gap.channelId)) {
+                                is MtProtoChannelUpdateRecoveryResult.Completed -> Unit
+                                MtProtoChannelUpdateRecoveryResult.ResyncRequired -> return handleResyncRequired(scope)
+                            }
+                        } else if (session.recoverAndReplay { } is MtProtoRoomRecoveryResult.ResyncRequired) {
+                            return handleResyncRequired(scope)
+                        }
+                    }
+
                     MtProtoLiveUpdateApplyResult.RecoveryRequired -> {
                         if (session.recoverAndReplay { } is MtProtoRoomRecoveryResult.ResyncRequired) {
-                            Log.e(TAG, "MTProto live update requires a full resync; stopping session")
-                            return false
+                            return handleResyncRequired(scope)
                         }
                     }
 
@@ -173,10 +184,45 @@ internal class MtProtoLiveUpdateCoordinator(
         }
     }
 
+    private suspend fun refreshStoriesWithRetry() {
+        repeat(STORY_REFRESH_ATTEMPTS) { attempt ->
+            try {
+                storyRefresh.refreshInitialLists()
+                return
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                if (attempt == STORY_REFRESH_ATTEMPTS - 1) {
+                    Log.w(TAG, "MTProto story refresh failed; retaining previous projections", failure)
+                } else {
+                    delay(STORY_REFRESH_RETRY_DELAY_MILLIS * (attempt + 1))
+                }
+            }
+        }
+    }
+
+    /**
+     * Crash-safe `differenceTooLong` handling: clears durable update state and pending envelopes so
+     * the reconnect re-initializes from a fresh `updates.getState` and dialog refresh. Without a
+     * resync hook the session stops fail-closed.
+     */
+    private suspend fun handleResyncRequired(scope: MtProtoAuthKeyScope): Boolean {
+        val resync = fullResync
+        if (resync == null) {
+            Log.e(TAG, "MTProto difference requires a full resync; refusing live updates")
+            return false
+        }
+        Log.w(TAG, "MTProto difference requires a full resync; clearing durable update state")
+        resync(scope)
+        return true
+    }
+
     private companion object {
         const val DEFAULT_ACCOUNT_SLOT = "default"
         const val RECONNECT_DELAY_MILLIS = 1_000L
         const val MAX_RECONNECT_ATTEMPTS = 5
+        const val STORY_REFRESH_ATTEMPTS = 3
+        const val STORY_REFRESH_RETRY_DELAY_MILLIS = 1_000L
         const val TAG = "MtProtoLiveUpdates"
     }
 }

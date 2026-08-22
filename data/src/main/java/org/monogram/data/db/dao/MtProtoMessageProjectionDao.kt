@@ -39,6 +39,25 @@ interface MtProtoMessageProjectionDao {
         "SELECT * FROM mtproto_message_projection " +
             "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
             "AND peerType = :peerType AND peerId = :peerId AND isScheduled = 0 " +
+            "AND (:afterDate IS NULL OR date > :afterDate " +
+            "OR (date = :afterDate AND messageId > :afterMessageId)) " +
+            "ORDER BY date ASC, messageId ASC LIMIT :limit"
+    )
+    suspend fun getPageAfter(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        afterDate: Int?,
+        afterMessageId: Int?,
+        limit: Int,
+    ): List<MtProtoMessageProjectionEntity>
+
+    @Query(
+        "SELECT * FROM mtproto_message_projection " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId AND isScheduled = 0 " +
             "AND (:beforeDate IS NULL OR date < :beforeDate " +
             "OR (date = :beforeDate AND messageId < :beforeMessageId)) " +
             "ORDER BY date DESC, messageId DESC LIMIT :limit"

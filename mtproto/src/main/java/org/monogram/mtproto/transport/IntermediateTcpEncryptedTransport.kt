@@ -80,6 +80,10 @@ interface MtProtoSessionMaintenance {
     suspend fun refreshFutureSalts()
 }
 
+interface MtProtoFutureSaltState {
+    fun restoreFutureSalts(salts: List<MtProtoFutureSalt>)
+}
+
 open class MtProtoRpcException(
     val errorCode: Int,
     val rpcMessage: String,
@@ -124,9 +128,10 @@ class IntermediateTcpEncryptedTransport(
     private val readTimeoutMillis: Int = 15_000,
     private val idlePingIntervalMillis: Long = DEFAULT_IDLE_PING_INTERVAL_MILLIS,
     private val onServerSaltChanged: (suspend (Long) -> Unit)? = null,
+    private val onFutureSaltsChanged: (suspend (List<MtProtoFutureSalt>) -> Unit)? = null,
     private val onServerTimeChanged: (suspend (Long) -> Unit)? = null,
     private val trafficListener: MtProtoTrafficListener? = null,
-) : MtProtoRpcTransport, MtProtoSessionMaintenance {
+) : MtProtoRpcTransport, MtProtoSessionMaintenance, MtProtoFutureSaltState {
     private val requestMutex = Mutex()
     private val stateLock = Any()
     private val writeLock = Any()
@@ -137,6 +142,7 @@ class IntermediateTcpEncryptedTransport(
     private var closed = false
     private var pendingRequest: PendingRequest? = null
     private var idleWatchdog: Job? = null
+    private var futureSaltMaintenance: Job? = null
     @Volatile
     private var lastTrafficAtMillis = System.currentTimeMillis()
     private val sentMessages = SentMessageRegistry()
@@ -216,7 +222,11 @@ class IntermediateTcpEncryptedTransport(
                     }
                     disconnect()
                 }
-                if (requestSent && failure !is CancellationException) {
+                if (
+                    requestSent &&
+                    failure !is CancellationException &&
+                    failure !is MtProtoUncertainDeliveryException
+                ) {
                     throw MtProtoUncertainDeliveryException(failure)
                 }
                 throw failure
@@ -260,6 +270,8 @@ class IntermediateTcpEncryptedTransport(
         if (shouldStart) {
             idleWatchdog?.cancel()
             idleWatchdog = readerScope.launch { idlePingLoop() }
+            futureSaltMaintenance?.cancel()
+            futureSaltMaintenance = readerScope.launch { futureSaltMaintenanceLoop() }
             readerScope.launch { readLoop(activeSocket) }
         }
     }
@@ -269,6 +281,22 @@ class IntermediateTcpEncryptedTransport(
             delay(idlePingIntervalMillis)
             if (System.currentTimeMillis() - lastTrafficAtMillis >= idlePingIntervalMillis) {
                 runCatching { sendIdlePing() }.onFailure { disconnect() }
+            }
+        }
+    }
+
+    private suspend fun futureSaltMaintenanceLoop() {
+        while (currentCoroutineContext().isActive) {
+            delay(session.futureSaltRefreshDelayMillis())
+            try {
+                refreshFutureSalts()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                MtProtoTransportLog.warn {
+                    "future salt refresh failed endpoint=$host:$port detail=${MtProtoTransportLog.localDetail(failure)}"
+                }
+                delay(FUTURE_SALT_REFRESH_RETRY_MILLIS)
             }
         }
     }
@@ -424,6 +452,22 @@ class IntermediateTcpEncryptedTransport(
                 sendMessageStateInfo(metadata.messageId, value.msgIds)
                 null
             }
+            is MsgsStateInfo_0ad1af2039 -> {
+                val info = value.info.toByteArray()
+                try {
+                    val pending = synchronized(stateLock) { pendingRequest }
+                    if (pending != null && pending.metadata.messageId == value.reqMsgId && info.isNotEmpty()) {
+                        pending.completion.completeExceptionally(
+                            MtProtoUncertainDeliveryException(
+                                IllegalStateException("Server reported state for the transmitted request without an RPC result"),
+                            ),
+                        )
+                    }
+                } finally {
+                    info.fill(0)
+                }
+                null
+            }
             is Pong_fbc65fe5b1 -> null
             is MsgsAck_3546e430bb -> {
                 sentMessages.removeAll(value.msgIds)
@@ -432,6 +476,17 @@ class IntermediateTcpEncryptedTransport(
             is Updates_faf6aaa3d5 -> {
                 updates.admit(value)
                 null
+            }
+            is FutureSalts_9e3c917caa -> {
+                val salts = value.salts.map { MtProtoFutureSalt(it.validSince, it.validUntil, it.salt) }
+                session.updateFutureSalts(salts)
+                onFutureSaltsChanged?.invoke(salts)
+                val pending = synchronized(stateLock) { pendingRequest }
+                if (pending != null) {
+                    TerminalAction.Result(pending, RpcOutcome.Success(value))
+                } else {
+                    null
+                }
             }
             else -> throw protocolFailure("Unsupported MTProto service object ${value.constructorId}")
         }
@@ -520,13 +575,17 @@ class IntermediateTcpEncryptedTransport(
 
     override suspend fun refreshFutureSalts() = refreshFutureSalts(FUTURE_SALT_REQUEST_COUNT)
 
+    override fun restoreFutureSalts(salts: List<MtProtoFutureSalt>) {
+        session.updateFutureSalts(salts)
+    }
+
     private suspend fun refreshFutureSalts(count: Int) {
         require(count in 1..MAX_FUTURE_SALT_REQUEST_COUNT) { "Invalid MTProto future-salt request count" }
         val result = execute(GetFutureSalts(count)) as? FutureSalts_9e3c917caa
             ?: throw protocolFailure("Unexpected get_future_salts response")
-        session.updateFutureSalts(
-            result.salts.map { MtProtoFutureSalt(it.validSince, it.validUntil, it.salt) },
-        )
+        val salts = result.salts.map { MtProtoFutureSalt(it.validSince, it.validUntil, it.salt) }
+        session.updateFutureSalts(salts)
+        onFutureSaltsChanged?.invoke(salts)
     }
 
     private fun encodeMethod(method: TlMethod<*>): ByteArray {
@@ -670,6 +729,8 @@ class IntermediateTcpEncryptedTransport(
         socket = null
         idleWatchdog?.cancel()
         idleWatchdog = null
+        futureSaltMaintenance?.cancel()
+        futureSaltMaintenance = null
         if (readerSocket === current) readerSocket = null
         preambleSent = false
         runCatching { current.close() }
@@ -685,6 +746,8 @@ class IntermediateTcpEncryptedTransport(
             readerSocket = null
             idleWatchdog?.cancel()
             idleWatchdog = null
+            futureSaltMaintenance?.cancel()
+            futureSaltMaintenance = null
             preambleSent = false
             runCatching { current?.close() }
             pending = pendingRequest
@@ -750,6 +813,7 @@ class IntermediateTcpEncryptedTransport(
         const val MAX_CONTAINER_DEPTH = 8
         const val DEFAULT_IDLE_PING_INTERVAL_MILLIS = 60_000L
         const val IDLE_DISCONNECT_DELAY_SECONDS = 75
+        const val FUTURE_SALT_REFRESH_RETRY_MILLIS = 15 * 60 * 1_000L
         const val PING_ID_PREFIX = 0x4d5450524f544f4cL
         const val MAX_SERVICE_MESSAGE_IDS = 8_192
         const val FUTURE_SALT_REQUEST_COUNT = 32

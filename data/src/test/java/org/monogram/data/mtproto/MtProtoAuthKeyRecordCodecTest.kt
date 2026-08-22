@@ -10,7 +10,11 @@ class MtProtoAuthKeyRecordCodecTest {
     fun recordRoundTripPreservesMetadataAndDefensiveMaterial() {
         val material = material()
         val id = StoredMtProtoAuthKey.calculateId(material)
-        val original = StoredMtProtoAuthKey.create(material, id, 42L, 1_783_001_185)
+        val futureSalts = listOf(
+            org.monogram.mtproto.transport.MtProtoFutureSalt(1_783_001_200, 1_783_004_800, 77L),
+            org.monogram.mtproto.transport.MtProtoFutureSalt(1_783_004_800, 1_783_008_400, 88L),
+        )
+        val original = StoredMtProtoAuthKey.create(material, id, 42L, 1_783_001_185, futureSalts = futureSalts)
         material.fill(0)
 
         val encoded = MtProtoAuthKeyRecordCodec.encode(original)
@@ -25,6 +29,7 @@ class MtProtoAuthKeyRecordCodecTest {
                 assertEquals(42L, decoded.serverSalt)
                 assertEquals(1_783_001_185, decoded.authKeyCreatedAt)
                 assertEquals(1_783_001_185, decoded.serverTimeAnchorSeconds)
+                assertEquals(futureSalts, decoded.futureSalts)
             } finally {
                 restored.fill(0)
             }

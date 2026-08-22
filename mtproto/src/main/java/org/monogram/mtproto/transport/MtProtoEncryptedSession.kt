@@ -14,7 +14,7 @@ internal data class DecodedEncryptedMessage(
     val duplicate: Boolean,
 )
 
-internal data class MtProtoFutureSalt(
+data class MtProtoFutureSalt(
     val validSince: Int,
     val validUntil: Int,
     val value: Long,
@@ -126,6 +126,19 @@ class MtProtoEncryptedSession internal constructor(
             .sortedBy { it.validSince }
     }
 
+    fun copyFutureSalts(): List<MtProtoFutureSalt> = synchronized(lock) { futureSalts.toList() }
+
+    internal fun futureSaltRefreshDelayMillis(): Long = synchronized(lock) {
+        // Salt coverage ends when the LAST fetched salt expires; scheduling from the earliest
+        // expiry with a large lead produced a non-positive delay and a refresh spin loop.
+        val latestExpiry = futureSalts.maxOfOrNull { it.validUntil }
+        if (latestExpiry == null) return@synchronized FUTURE_SALT_REFRESH_RETRY_MILLIS
+        val now = serverTimeSeconds()
+        if (latestExpiry <= now) return@synchronized FUTURE_SALT_REFRESH_MIN_DELAY_MILLIS
+        ((latestExpiry - now - FUTURE_SALT_REFRESH_LEAD_SECONDS) * 1_000L)
+            .coerceIn(FUTURE_SALT_REFRESH_MIN_DELAY_MILLIS, FUTURE_SALT_REFRESH_MAX_DELAY_MILLIS)
+    }
+
     private fun activeServerSalt(): Long {
         val now = serverTimeSeconds().toInt()
         return futureSalts.firstOrNull { now in it.validSince until it.validUntil }?.value ?: salt
@@ -174,7 +187,7 @@ class MtProtoEncryptedSession internal constructor(
         closed = true
     }
 
-    private companion object {
+    internal companion object {
         const val MAX_TRACKED_INBOUND_IDS = 65_536
         const val STATUS_UNKNOWN_TOO_LOW = 1
         const val STATUS_NOT_RECEIVED = 2
@@ -184,6 +197,10 @@ class MtProtoEncryptedSession internal constructor(
         const val STATUS_NO_ACK_REQUIRED = 16
         const val MAX_INBOUND_AGE_SECONDS = 300L
         const val MAX_INBOUND_FUTURE_SECONDS = 30L
+        const val FUTURE_SALT_REFRESH_LEAD_SECONDS = 5 * 60
+        const val FUTURE_SALT_REFRESH_MIN_DELAY_MILLIS = 30_000L
+        const val FUTURE_SALT_REFRESH_RETRY_MILLIS = 15 * 60 * 1_000L
+        const val FUTURE_SALT_REFRESH_MAX_DELAY_MILLIS = 6 * 60 * 60 * 1_000L
 
         fun generateSessionId(entropy: EntropySource): Long {
             repeat(32) {

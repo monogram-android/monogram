@@ -1,24 +1,35 @@
 package org.monogram.data.mtproto
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.monogram.domain.models.ChatFullInfoModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.domain.repository.UserRepository
 
+/** Revokes the current session server-side through `auth.logOut`. */
+internal fun interface MtProtoServerLogOut {
+    suspend fun logOut()
+}
+
 internal class MtProtoUserRepository(
     private val mtProtoProfiles: MtProtoUserProfileReader,
     private val scope: CoroutineScope,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
+    private val mtProtoAuthorizationStore: MtProtoAccountAuthorizationStore = NoOpMtProtoAccountAuthorizationStore,
     private val mtProtoAccountStateResetter: MtProtoAccountStateResetter = MtProtoAccountStateResetter { _, _ -> },
     private val mtProtoAuthSessionResetter: MtProtoAuthSessionResetter = MtProtoAuthSessionResetter {},
     private val mtProtoLiveSessionResetter: MtProtoLiveSessionResetter = MtProtoLiveSessionResetter {},
+    private val mtProtoServerLogOut: MtProtoServerLogOut = MtProtoServerLogOut {},
     private val mtProtoUserUpdates: Flow<Long> = emptyFlow(),
     private val mtProtoUserFullInfo: suspend (Long) -> ChatFullInfoModel? = {
         throw UnsupportedOperationException("MTProto user full info is not configured")
@@ -51,13 +62,23 @@ internal class MtProtoUserRepository(
     override fun logOut() {
         _currentUserFlow.value = null
         scope.launch {
-            runCatching {
-                mtProtoLiveSessionResetter.resetLiveSession()
-                mtProtoAuthSessionResetter.resetAuthSession()
-                mtProtoAccountStateResetter.deleteAccount(
-                    accountSlot = accountId,
-                    environment = MtProtoEnvironment.PRODUCTION,
-                )
+            withContext(NonCancellable) {
+                runCatching {
+                    mtProtoAuthorizationStore.markLogoutPending(accountId)
+                    mtProtoLiveSessionResetter.resetLiveSession()
+                    mtProtoAuthSessionResetter.resetAuthSession()
+                    // Server-side invalidation is best effort: a failed call must not block the
+                    // explicit local logout, but the remote session is still told to revoke.
+                    try {
+                        mtProtoServerLogOut.logOut()
+                    } catch (failure: Throwable) {
+                        android.util.Log.w("MtProtoUser", "MTProto server logout failed; continuing local cleanup", failure)
+                    }
+                    mtProtoAccountStateResetter.deleteAccount(
+                        accountSlot = accountId,
+                        environment = MtProtoEnvironment.PRODUCTION,
+                    )
+                }
             }
         }
     }
@@ -65,7 +86,12 @@ internal class MtProtoUserRepository(
     override suspend fun searchContacts(query: String): List<UserModel> = mtProtoProfiles.searchContacts(accountId, query).map { it.toUserModel() }
     override suspend fun addContact(user: UserModel) = mtProtoProfiles.addContact(accountId, user.toProfileSnapshot())
     override suspend fun removeContact(userId: Long) = mtProtoProfiles.removeContact(accountId, userId)
-    override suspend fun setCachedSimCountryIso(iso: String?) = Unit
+    private var cachedSimCountryIso: String? = null
+
+    override suspend fun setCachedSimCountryIso(iso: String?) {
+        // Client-side preference for phone formatting; no server call needed.
+        cachedSimCountryIso = iso
+    }
 
     private fun UserModel.toProfileSnapshot() = UserProfileSnapshotModel(
         userId = id,

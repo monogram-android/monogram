@@ -161,6 +161,8 @@ class MtProtoRoomLiveUpdateApplierTest {
             events += "delete"
         }
 
+        override suspend fun deleteScope(scope: MtProtoAuthKeyScope) = Unit
+
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
     }
 
@@ -174,6 +176,11 @@ class MtProtoRoomLiveUpdateApplierTest {
         override suspend fun stageDifference(
             scope: MtProtoAuthKeyScope,
             batch: org.monogram.mtproto.updates.MtProtoUpdateDifferenceBatch,
+        ) = Unit
+
+        override suspend fun stageChannelDifference(
+            scope: MtProtoAuthKeyScope,
+            batch: org.monogram.mtproto.updates.MtProtoChannelDifferenceBatch,
         ) = Unit
 
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit

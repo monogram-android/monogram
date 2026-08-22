@@ -14,12 +14,15 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShortSentMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.Chat_7fdd7beb6e
 import org.monogram.mtproto.tl.generated.cloud.layer223.User_655b5dfc57
 import org.monogram.mtproto.tl.runtime.TlObject
+import org.monogram.mtproto.updates.MtProtoChannelDifferenceBatch
 import org.monogram.mtproto.updates.MtProtoUpdateDifferenceBatch
 
 internal interface MtProtoCloudObjectStager {
     suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5)
 
     suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch)
+
+    suspend fun stageChannelDifference(scope: MtProtoAuthKeyScope, batch: MtProtoChannelDifferenceBatch)
 
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
@@ -28,6 +31,8 @@ internal object NoOpMtProtoCloudObjectStager : MtProtoCloudObjectStager {
     override suspend fun stageLive(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5) = Unit
 
     override suspend fun stageDifference(scope: MtProtoAuthKeyScope, batch: MtProtoUpdateDifferenceBatch) = Unit
+
+    override suspend fun stageChannelDifference(scope: MtProtoAuthKeyScope, batch: MtProtoChannelDifferenceBatch) = Unit
 
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
 }
@@ -61,6 +66,20 @@ internal class MtProtoRoomCloudObjectStager(
         )
         messageProjectionStore.stageDifference(scope, batch)
         storyResultStager?.stageDifference(scope, batch)
+    }
+
+    override suspend fun stageChannelDifference(scope: MtProtoAuthKeyScope, batch: MtProtoChannelDifferenceBatch) {
+        stage(
+            scope,
+            buildList {
+                batch.users.forEach { add(MtProtoCloudObject("user", it)) }
+                batch.chats.forEach { add(MtProtoCloudObject("chat", it)) }
+                batch.newMessages.forEach { add(MtProtoCloudObject("message", it)) }
+                batch.otherUpdates.forEach { add(MtProtoCloudObject("update", it)) }
+            },
+        )
+        // Channel-gap repair must land repaired messages in Room projections too.
+        messageProjectionStore.stageMessages(scope, batch.newMessages)
     }
 
     private suspend fun stage(scope: MtProtoAuthKeyScope, objects: List<MtProtoCloudObject>) {

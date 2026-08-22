@@ -6,6 +6,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -28,6 +29,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSmsWord
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCodeTypeSms
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_f9e8fc1d16
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.SentCode_250764ccd9
+import org.monogram.mtproto.auth.MtProtoTermsOfServiceState
 import org.monogram.mtproto.transport.MtProtoRpcException
 
 class MtProtoPhoneAuthSessionTest {
@@ -67,13 +69,14 @@ class MtProtoPhoneAuthSessionTest {
     }
 
     @Test
-    fun rejectsUnsupportedPaymentResultWithoutChangingState() = runBlocking {
-        val paymentApi = FakeApi(sentCodes = ArrayDeque(listOf(SentCodePaymentRequired("p", "h", "e", "s", "USD", 1))))
+    fun paidCodeRequirementPreservesHashForPostPurchaseContinuation() = runBlocking {
+        val paymentApi = FakeApi(sentCodes = ArrayDeque(listOf(SentCodePaymentRequired("p", "paid-hash", "e", "s", "USD", 1))))
         val payment = MtProtoPhoneAuthSession(paymentApi, 12345, "hash", settings())
-        assertThrows(UnsupportedOperationException::class.java) { runBlocking { payment.requestCode("+1") } }
-        assertEquals(AuthStep.InputPhone, payment.currentState())
+        val state = payment.requestCode("+1")
 
-        Unit
+        // The hash is retained internally so a completed purchase can continue the flow.
+        state as AuthStep.PaidCodeRequired
+        assertEquals("USD", state.currency)
     }
 
     @Test
@@ -197,6 +200,93 @@ class MtProtoPhoneAuthSessionTest {
     }
 
     @Test
+    fun recoversLoginWithRecoveryEmailCode() = runBlocking {
+        val authorization = Authorization_d8660c55a3(false, null, null, null, fakeUser())
+        val api = FakeApi(
+            sentCodes = ArrayDeque(listOf(SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0))),
+            signInError = MtProtoRpcException(401, "SESSION_PASSWORD_NEEDED"),
+            passwordInfo = MtProtoPasswordChallengeInfo("secret", true),
+            recoveryEmailPattern = "u***@example.com",
+            recoveryAuthorization = authorization,
+        )
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+
+        session.requestCode("+1")
+        session.submitCode("12345")
+
+        // Requesting recovery surfaces the masked email pattern without leaving the password step.
+        assertEquals(
+            AuthStep.InputPassword(passwordHint = "secret", hasRecoveryEmail = true, recoveryEmailPattern = "u***@example.com"),
+            session.requestPasswordRecovery(),
+        )
+
+        assertEquals(AuthStep.Ready, session.submitRecoveryCode("123456"))
+        assertEquals("123456", api.lastRecoveryCode)
+    }
+
+    @Test
+    fun rejectsRecoveryWhenNoRecoveryEmailExists() = runBlocking {
+        val api = FakeApi(
+            sentCodes = ArrayDeque(listOf(SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0))),
+            signInError = MtProtoRpcException(400, "SESSION_PASSWORD_NEEDED"),
+            passwordInfo = MtProtoPasswordChallengeInfo("secret", false),
+        )
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+
+        session.requestCode("+1")
+        session.submitCode("12345")
+
+        assertThrows(IllegalStateException::class.java) { runBlocking { session.submitRecoveryCode("123456") } }
+        Unit
+    }
+
+    @Test
+    fun surfacesPendingTermsAndAcceptsByIdentifier() = runBlocking {
+        val api = FakeApi(
+            sentCodes = ArrayDeque(listOf(SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0))),
+            pendingTerms = org.monogram.mtproto.auth.MtProtoTermsOfServiceState.Pending(
+                expiresAtSeconds = 900, popup = false, idData = "{\"id\":\"tos-1\"}",
+                text = "Be kind.", minAgeConfirmYears = null,
+            ),
+        )
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+
+        session.requestCode("+1")
+
+        val state: MtProtoTermsOfServiceState = session.termsOfServiceUpdate()
+        state as MtProtoTermsOfServiceState.Pending
+        assertEquals("Be kind.", state.text)
+        assertTrue(api.acceptCalled.not())
+        assertTrue(session.acceptTermsOfService(state.idData))
+        assertTrue(api.acceptCalled)
+    }
+
+    @Test
+    fun completesBotLoginOnFreshSessionAndPersistsReadyState() = runBlocking {
+        val authorization = Authorization_d8660c55a3(false, null, null, null, fakeUser())
+        val api = FakeApi(botAuthorization = authorization)
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+
+        assertEquals(AuthStep.Ready, session.startBotLogin("  123:ABC "))
+        assertEquals("123:ABC", api.lastBotToken)
+    }
+
+    @Test
+    fun rejectsBotLoginAfterTheSessionHasProgressed() = runBlocking {
+        val api = FakeApi(
+            sentCodes = ArrayDeque(listOf(SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0))),
+            botAuthorization = Authorization_d8660c55a3(false, null, null, null, fakeUser()),
+        )
+        val session = MtProtoPhoneAuthSession(api, 12345, "hash", settings())
+        session.requestCode("+1")
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { session.startBotLogin("123:ABC") }
+        }
+        Unit
+    }
+
+    @Test
     fun preservesPasswordStateWhenPasswordIsRejected() = runBlocking {
         val api = FakeApi(
             sentCodes = ArrayDeque(listOf(SentCode_f9e8fc1d16(SentCodeTypeSms(5), "hash-1", null, 0))),
@@ -225,11 +315,10 @@ class MtProtoPhoneAuthSessionTest {
         assertEquals(AuthCodeInputKind.TEXT, text.inputKind)
         assertEquals("word", text.codeHint)
 
-        assertThrows(UnsupportedOperationException::class.java) { runBlocking { session.requestCode("+2") } }
-        assertEquals(text, session.currentState())
-        session.resendCode()
-        assertEquals("hash-1", api.lastHash)
-        assertEquals("+1", api.lastPhone)
+        // Paid-code requirements are explicit states now; the retained hash supports
+        // continuation after purchase. The earlier text-code delivery was SMS-word.
+        val paid = session.requestCode("+2")
+        assertTrue(paid is AuthStep.PaidCodeRequired)
     }
 
     @Test
@@ -238,6 +327,15 @@ class MtProtoPhoneAuthSessionTest {
         val releaseFirst = CompletableDeferred<Unit>()
         val requestedPhones = mutableListOf<String>()
         val api = object : MtProtoAuthorizationApi {
+            override suspend fun requestPasswordRecovery(): String = error("not used")
+            override suspend fun checkRecoveryPassword(code: String): Boolean = true
+            override suspend fun recoverPassword(code: String): Authorization_fb75ff221f = error("not used")
+            override suspend fun termsOfServiceUpdate(): MtProtoTermsOfServiceState =
+                MtProtoTermsOfServiceState.Current
+            override suspend fun acceptTermsOfService(idData: String): Boolean = true
+            override suspend fun importBotAuthorization(apiId: Int, apiHash: String, botAuthToken: String): Authorization_fb75ff221f =
+                error("not used")
+
             override suspend fun sendCode(
                 phoneNumber: String,
                 settings: CodeSettings_fb610807ca,
@@ -327,12 +425,42 @@ class MtProtoPhoneAuthSessionTest {
         private val signUpAuthorization: Authorization_fb75ff221f? = null,
         private val loginSetupEmailCode: MtProtoLoginSetupEmailCode? = null,
         private val verifiedLoginCode: SentCode_250764ccd9? = null,
+        val recoveryEmailPattern: String? = null,
+        val recoveryAuthorization: Authorization_fb75ff221f? = null,
+        val botAuthorization: Authorization_fb75ff221f? = null,
+        var pendingTerms: MtProtoTermsOfServiceState = MtProtoTermsOfServiceState.Current,
+        var acceptCalled: Boolean = false,
     ) : MtProtoAuthorizationApi {
+        var lastBotToken: String? = null
+
+        override suspend fun termsOfServiceUpdate(): MtProtoTermsOfServiceState = pendingTerms
+
+        override suspend fun acceptTermsOfService(idData: String): Boolean {
+            acceptCalled = true
+            return true
+        }
+
+        override suspend fun importBotAuthorization(apiId: Int, apiHash: String, botAuthToken: String): Authorization_fb75ff221f {
+            lastBotToken = botAuthToken.trim()
+            return botAuthorization ?: error("No bot authorization result")
+        }
+
         var lastHash: String? = null
         var lastPhone: String? = null
         var lastFirstName: String? = null
         var lastLastName: String? = null
         var lastLoginSetupCode: String? = null
+        var lastRecoveryCode: String? = null
+
+        override suspend fun requestPasswordRecovery(): String =
+            recoveryEmailPattern ?: error("No recovery email pattern")
+
+        override suspend fun checkRecoveryPassword(code: String): Boolean = true
+
+        override suspend fun recoverPassword(code: String): Authorization_fb75ff221f {
+            lastRecoveryCode = code
+            return recoveryAuthorization ?: error("No recovery authorization result")
+        }
 
         override suspend fun sendCode(phoneNumber: String, settings: CodeSettings_fb610807ca, apiId: Int, apiHash: String): SentCode_250764ccd9 {
             lastPhone = phoneNumber

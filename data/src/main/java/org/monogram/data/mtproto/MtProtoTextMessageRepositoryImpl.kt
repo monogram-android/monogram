@@ -115,7 +115,7 @@ internal class MtProtoTextMessageRepositoryImpl(
         require(scheduleDate == null || scheduleDate > 0) { "MTProto schedule date must be positive" }
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
-        val protocolEntities = entities.map { it.toMtProtoEntity(scope, text, users) }
+        val protocolEntities = entities.mapNotNull { it.toMtProtoEntity(scope, text, users) }
         val peer = resolvePeer(scope, chatId, peerType)
         val transport = transportFactory.open(accountSlot)
         try {
@@ -271,7 +271,7 @@ internal class MtProtoTextMessageRepositoryImpl(
         require(messageId in 1..Int.MAX_VALUE) { "MTProto message id must fit a positive int" }
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
-        val protocolEntities = entities.map { it.toMtProtoEntity(scope, text, users) }
+        val protocolEntities = entities.mapNotNull { it.toMtProtoEntity(scope, text, users) }
         val peer = resolvePeer(scope, chatId, peerType)
         val transport = transportFactory.open(accountSlot)
         try {

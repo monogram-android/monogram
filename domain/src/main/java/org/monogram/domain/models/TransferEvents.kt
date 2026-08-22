@@ -5,7 +5,9 @@ sealed interface FileDownloadEvent {
 
     data class Progress(
         override val fileId: Int,
-        val progress: Float
+        val progress: Float,
+        /** Absolute durable prefix size in bytes, enabling progressive/seek-aware consumers. */
+        val downloadedBytes: Long = 0L
     ) : FileDownloadEvent
 
     data class Completed(
@@ -27,7 +29,8 @@ sealed interface MessageDownloadEvent {
         override val chatId: Long,
         override val messageId: Long,
         override val fileId: Int,
-        val progress: Float
+        val progress: Float,
+        val downloadedBytes: Long = 0L
     ) : MessageDownloadEvent
 
     data class Completed(

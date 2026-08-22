@@ -91,6 +91,31 @@ class MtProtoUpdateRecoveryTest {
     }
 
     @Test
+    fun `bounds a server that never finishes difference slices`() = runBlocking {
+        var differenceCalls = 0
+        val recovery = MtProtoUpdateRecovery(
+            executor = MtProtoUpdateRecoveryExecutor {
+                differenceCalls++
+                DifferenceSlice(
+                    emptyList(),
+                    emptyList(),
+                    emptyList(),
+                    emptyList(),
+                    emptyList(),
+                    State_ddba9d7af9(differenceCalls, 2, 3, 4, 0),
+                )
+            },
+            applyBatch = {},
+            initialCursor = MtProtoUpdateCursor(1, 2, 3, 4),
+            maxDifferenceBatches = 2,
+        )
+
+        assertEquals(MtProtoUpdateRecoveryResult.ResyncRequired, recovery.recover())
+        assertEquals(2, differenceCalls)
+        assertEquals(MtProtoUpdateCursor(2, 2, 3, 4), recovery.currentCursor())
+    }
+
+    @Test
     fun `surfaces too-long without advancing cursor or applying`() = runBlocking {
         val results = ArrayDeque<TlObject>().apply {
             add(State_ddba9d7af9(1, 2, 3, 4, 0))

@@ -629,6 +629,68 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_64_65 = object : Migration(64, 65) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_poll` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `pollId` INTEGER NOT NULL,
+                    `question` TEXT NOT NULL,
+                    `optionsJson` TEXT NOT NULL,
+                    `totalVoters` INTEGER NOT NULL,
+                    `isClosed` INTEGER NOT NULL,
+                    `isAnonymous` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `pollId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_63_64 = object : Migration(63, 64) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `exchangeId` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `futureAuthKey` BLOB")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `futureKeyFingerprint` INTEGER")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `keyCreateDateSeconds` INTEGER")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `keyUseCountIn` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `keyUseCountOut` INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    val MIGRATION_62_63 = object : Migration(62, 63) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_secret_chat_state` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `chatId` INTEGER NOT NULL,
+                    `accessHash` INTEGER NOT NULL,
+                    `adminId` INTEGER NOT NULL,
+                    `participantId` INTEGER NOT NULL,
+                    `authKey` BLOB NOT NULL,
+                    `keyFingerprint` INTEGER NOT NULL,
+                    `maxInSeq` INTEGER NOT NULL,
+                    `maxOutSeq` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `chatId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_61_62 = object : Migration(61, 62) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `mtproto_message_projection` ADD COLUMN `mediaType` TEXT")
+            db.execSQL("ALTER TABLE `mtproto_message_projection` ADD COLUMN `mediaKey` TEXT")
+        }
+    }
+
     val MIGRATION_60_61 = object : Migration(60, 61) {
         override fun migrate(db: SupportSQLiteDatabase) {
             val sourceColumn = db.query("PRAGMA table_info(`message_windows`)").use { cursor ->

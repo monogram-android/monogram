@@ -173,6 +173,10 @@ internal class MtProtoPrivacyRepository(
         PrivacyValueDisallowContacts -> PrivacyRule.DisallowContacts
         is PrivacyValueDisallowUsers -> PrivacyRule.DisallowUsers(users)
         is PrivacyValueDisallowChatParticipants -> PrivacyRule.DisallowChatMembers(chats)
+        PrivacyValueAllowBots -> PrivacyRule.AllowBots
+        PrivacyValueAllowCloseFriends -> PrivacyRule.AllowCloseFriends
+        PrivacyValueAllowPremium -> PrivacyRule.AllowPremium
+        PrivacyValueDisallowBots -> PrivacyRule.DisallowBots
         else -> throw UnsupportedOperationException("MTProto privacy rule is not available")
     }
 
@@ -185,6 +189,10 @@ internal class MtProtoPrivacyRepository(
         PrivacyRule.DisallowContacts -> InputPrivacyValueDisallowContacts
         is PrivacyRule.DisallowUsers -> InputPrivacyValueDisallowUsers(userIds.map { it.toInputUser(scope) })
         is PrivacyRule.DisallowChatMembers -> InputPrivacyValueDisallowChatParticipants(chatIds)
+        PrivacyRule.AllowBots -> InputPrivacyValueAllowBots
+        PrivacyRule.AllowCloseFriends -> InputPrivacyValueAllowCloseFriends
+        PrivacyRule.AllowPremium -> InputPrivacyValueAllowPremium
+        PrivacyRule.DisallowBots -> InputPrivacyValueDisallowBots
     }
 
     private suspend fun Long.toInputUser(scope: MtProtoAuthKeyScope): InputUser_0bd9c3151c {

@@ -21,6 +21,10 @@ internal interface MtProtoPendingEnvelopeStore {
     suspend fun enqueue(scope: MtProtoAuthKeyScope, envelope: Updates_faf6aaa3d5): MtProtoPendingEnvelope.Decoded
     suspend fun pending(scope: MtProtoAuthKeyScope): List<MtProtoPendingEnvelope>
     suspend fun delete(sequenceId: Long)
+
+    /** Drops every durable envelope for one account/DC scope; used by full-resync recovery. */
+    suspend fun deleteScope(scope: MtProtoAuthKeyScope)
+
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
 
@@ -75,6 +79,9 @@ internal class MtProtoRoomPendingEnvelopeStore(
         }
 
     override suspend fun delete(sequenceId: Long) = dao.delete(sequenceId)
+
+    override suspend fun deleteScope(scope: MtProtoAuthKeyScope) =
+        dao.deleteScope(scope.accountSlot, scope.environment.storageName, scope.dcId)
 
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) =
         dao.deleteAccount(accountSlot, environment.storageName)

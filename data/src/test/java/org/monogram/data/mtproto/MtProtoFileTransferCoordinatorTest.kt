@@ -53,16 +53,133 @@ class MtProtoFileTransferCoordinatorTest {
     }
 
     @Test
-    fun `fails closed on CDN redirect and closes transport`() = runBlocking {
+    fun `fails closed on CDN redirect without a CDN transport factory`() = runBlocking {
         val transport = RecordingTransport(emptyList(), redirect = true)
         val coordinator = MtProtoFileTransferCoordinator(
             transportFactory = MtProtoSessionTransportFactory { transport },
             chunkSize = 1024,
         )
 
-        assertThrows(UnsupportedOperationException::class.java) {
+        assertThrows(IllegalStateException::class.java) {
             runBlocking { coordinator.download(location(), RecordingSink()) }
         }
+        assertEquals(true, transport.closed)
+    }
+
+    @Test
+    fun `follows CDN redirect decrypting and verifying chunks`() = runBlocking {
+        val key = ByteArray(32) { (it + 1).toByte() }
+        val iv = ByteArray(16) { (it + 3).toByte() }
+        val offset = 64L
+        val plain = ByteArray(2048) { (it % 253).toByte() }
+        // The CDN encrypts every chunk independently: counter IV = the chunk's absolute offset.
+        fun serverEncrypt(chunk: ByteArray, chunkOffset: Long): ByteArray {
+            val chunkIv = iv.copyOf().also {
+                it[12] = (chunkOffset.toInt() and 0xFF).toByte()
+                it[13] = ((chunkOffset shr 8).toInt() and 0xFF).toByte()
+                it[14] = ((chunkOffset shr 16).toInt() and 0xFF).toByte()
+                it[15] = ((chunkOffset shr 24).toInt() and 0xFF).toByte()
+            }
+            val aes = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding")
+            aes.init(javax.crypto.Cipher.ENCRYPT_MODE, javax.crypto.spec.SecretKeySpec(key.copyOf(), "AES"), javax.crypto.spec.IvParameterSpec(chunkIv))
+            return aes.doFinal(chunk)
+        }
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        @Suppress("UNUSED_VARIABLE") val unusedStreamEncryption = null
+        val hashes = listOf(0, 1024).map { piece ->
+            org.monogram.mtproto.tl.generated.cloud.layer223.FileHash_be7ffe4837(
+                offset + piece,
+                1024,
+                TlBytes.copyOf(digest.digest(plain.copyOfRange(piece, piece + 1024))),
+            )
+        }
+        val redirect = FileCdnRedirect(
+            dcId = 2,
+            fileToken = TlBytes.copyOf(byteArrayOf(7, 7)),
+            encryptionKey = TlBytes.copyOf(key),
+            encryptionIv = TlBytes.copyOf(iv),
+            fileHashes = hashes,
+        )
+        val mainTransport = RecordingTransport(emptyList(), fixedRedirect = redirect)
+        var cdnDc: Int? = null
+        val cdnTransport = object : MtProtoRpcTransport {
+            var closed = false
+            @Suppress("UNCHECKED_CAST")
+            override suspend fun <R> execute(method: TlMethod<R>): R {
+                val request = method as org.monogram.mtproto.tl.generated.cloud.layer223.upload.GetCdnFile
+                val from = (request.offset - offset).toInt()
+                if (from >= plain.size) {
+                    return org.monogram.mtproto.tl.generated.cloud.layer223.upload.CdnFile_901d2b96cc(
+                        TlBytes.copyOf(ByteArray(0)),
+                    ) as R
+                }
+                val to = minOf(plain.size, from + request.limit)
+                return org.monogram.mtproto.tl.generated.cloud.layer223.upload.CdnFile_901d2b96cc(
+                    TlBytes.copyOf(serverEncrypt(plain.copyOfRange(from, to), request.offset)),
+                ) as R
+            }
+            override fun close() { closed = true }
+        }
+        val sink = RecordingSink(committed = offset)
+        val coordinator = MtProtoFileTransferCoordinator(
+            transportFactory = MtProtoSessionTransportFactory { mainTransport },
+            cdnTransportFactory = MtProtoCdnTransportFactory { dcId ->
+                cdnDc = dcId
+                cdnTransport
+            },
+            chunkSize = 1024,
+        )
+
+        coordinator.download(location(), sink)
+
+        assertEquals(2, cdnDc)
+        assertEquals(
+            listOf(
+                offset to plain.copyOfRange(0, 1024).toList(),
+                (offset + 1024) to plain.copyOfRange(1024, 2048).toList(),
+            ),
+            sink.writes,
+        )
+        assertEquals(offset + plain.size, sink.completed)
+        assertEquals(true, cdnTransport.closed)
+        assertEquals(true, mainTransport.closed)
+    }
+
+    @Test
+    fun `bounded range read stops exactly at the length limit`() = runBlocking {
+        val payload = ByteArray(4096) { (it % 251).toByte() }
+        val transport = object : MtProtoRpcTransport {
+            val requests = mutableListOf<GetFile>()
+            var closed = false
+            @Suppress("UNCHECKED_CAST")
+            override suspend fun <R> execute(method: TlMethod<R>): R {
+                val request = method as GetFile
+                requests += request
+                val from = request.offset.toInt()
+                val to = minOf(payload.size, from + request.limit)
+                return File_34a32a2519(FileUnknown, 0, TlBytes.copyOf(payload.copyOfRange(from, to))) as R
+            }
+            override fun close() { closed = true }
+        }
+        val sink = RecordingSink()
+        val coordinator = MtProtoFileTransferCoordinator(
+            transportFactory = MtProtoSessionTransportFactory { transport },
+            chunkSize = 1024,
+        )
+
+        coordinator.download(location(), sink, lengthLimit = 1500L, startOverride = 2048L)
+
+        // Requests are clamped to the remaining bound; the transfer stops at offset+limit.
+        assertEquals(listOf(2048L, 3072L), transport.requests.map { it.offset })
+        assertEquals(listOf(1024, 476), transport.requests.map { it.limit })
+        assertEquals(
+            listOf(
+                2048L to payload.copyOfRange(2048, 3072).toList(),
+                3072L to payload.copyOfRange(3072, 3548).toList(),
+            ),
+            sink.writes,
+        )
+        assertEquals(3548L, sink.completed)
         assertEquals(true, transport.closed)
     }
 
@@ -84,13 +201,15 @@ class MtProtoFileTransferCoordinatorTest {
     private class RecordingTransport(
         private val chunks: List<ByteArray>,
         private val redirect: Boolean = false,
+        private val fixedRedirect: FileCdnRedirect? = null,
     ) : MtProtoRpcTransport {
         val requests = mutableListOf<GetFile>()
         var closed = false
+        @Suppress("UNCHECKED_CAST")
         override suspend fun <R> execute(method: TlMethod<R>): R {
+            fixedRedirect?.let { return it as R }
             val request = method as GetFile
             requests += request
-            @Suppress("UNCHECKED_CAST")
             return if (redirect) {
                 FileCdnRedirect(1, TlBytes.copyOf(byteArrayOf()), TlBytes.copyOf(byteArrayOf()), TlBytes.copyOf(byteArrayOf()), emptyList()) as R
             } else {

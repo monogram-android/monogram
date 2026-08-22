@@ -12,6 +12,7 @@ import org.monogram.domain.models.MessageHistoryCursorModel
 import org.monogram.domain.models.MessageHistorySnapshotModel
 import org.monogram.domain.models.MessageHistorySnapshotRequest
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.PollOption
 import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.repository.BoundaryState
 import org.monogram.domain.repository.HistoryPage
@@ -66,6 +67,7 @@ internal class MtProtoMessageRepositoryAdapter(
         error("MTProto file repository is not configured")
     },
     private val historyRepository: MessageHistorySnapshotRepository? = null,
+    private val pollPayloads: MtProtoPollPayloadStore? = null,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) {
     private val media by lazy(LazyThreadSafetyMode.NONE, mediaFactory)
@@ -301,6 +303,8 @@ internal class MtProtoMessageRepositoryAdapter(
         isPinned = isPinned,
         documentId = documentId,
         photoId = photoId,
+        mediaType = mediaType,
+        mediaKey = mediaKey,
     )
 
     private suspend fun MessageHistorySnapshotModel.toMessageModel(chatId: Long): MessageModel = toMessageModel(
@@ -331,9 +335,46 @@ internal class MtProtoMessageRepositoryAdapter(
         isPinned: Boolean,
         documentId: Long?,
         photoId: Long?,
+        mediaType: String? = null,
+        mediaKey: String? = null,
     ): MessageModel {
         val content = when {
             isService -> MessageContent.Service(text.orEmpty())
+            mediaType == "GEO" || mediaType == "GEO_LIVE" -> {
+                val (lat, lon) = parseGeo(mediaKey)
+                MessageContent.Location(
+                    latitude = lat,
+                    longitude = lon,
+                    livePeriod = if (mediaType == "GEO_LIVE") GEO_LIVE_PERIOD else 0,
+                )
+            }
+            mediaType == "VENUE" -> text?.takeIf { it.isNotBlank() }?.let { venueTitle ->
+                MessageContent.Text(venueTitle)
+            } ?: MessageContent.Text("Venue")
+            mediaType == "POLL" -> {
+                val payload = mediaKey?.toLongOrNull()?.let { pollKey -> pollPayloads?.get(pollKey) }
+                if (payload == null) MessageContent.Text(text.orEmpty())
+                else MessageContent.Poll(
+                    id = payload.pollId,
+                    question = payload.question,
+                    options = payload.options.mapIndexed { index, option ->
+                        val voters = payload.voterCounts.getOrNull(index) ?: 0
+                        val total = payload.totalVoters.coerceAtLeast(1)
+                        PollOption(
+                            text = option,
+                            voterCount = voters,
+                            votePercentage = if (payload.totalVoters > 0) (voters * 100) / payload.totalVoters else 0,
+                            isChosen = payload.chosenFlags.getOrNull(index) ?: false,
+                        )
+                    },
+                    totalVoterCount = payload.totalVoters,
+                    isClosed = payload.isClosed,
+                    isAnonymous = payload.isAnonymous,
+                    type = org.monogram.domain.models.PollType.Regular(allowMultipleAnswers = false),
+                    openPeriod = 0,
+                    closeDate = 0,
+                )
+            }
             documentId != null -> files.registerDocument(documentId, chatId, messageId)?.let { document ->
                 document.toMessageContent(files.getPath(document.fileId), text.orEmpty())
             } ?: MessageContent.Text(text.orEmpty())
@@ -440,7 +481,15 @@ internal class MtProtoMessageRepositoryAdapter(
         "MTProto does not support ${method.name} through MessageRepository"
     )
 
+    private fun parseGeo(key: String?): Pair<Double, Double> {
+        require(!key.isNullOrBlank()) { "geo media key must not be blank" }
+        val parts = key.split(",")
+        require(parts.size == 2) { "Malformed geo media key: $key" }
+        return Pair(parts[0].trim().toDouble(), parts[1].trim().toDouble())
+    }
+
     private companion object {
+        const val GEO_LIVE_PERIOD = 60
         const val DEFAULT_ACCOUNT_ID = "default"
     }
 }

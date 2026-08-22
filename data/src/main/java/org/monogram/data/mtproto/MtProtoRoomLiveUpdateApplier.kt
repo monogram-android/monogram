@@ -75,6 +75,7 @@ internal class MtProtoRoomLiveUpdateApplier(
         applyEntities: suspend (Updates_faf6aaa3d5) -> Unit,
     ): MtProtoPendingReplayResult {
         var processedCount = 0
+        var firstDeferredGap: MtProtoLiveUpdateApplyResult.Gap? = null
         for (pending in pendingStore.pending(scope)) {
             if (
                 acknowledgeRecoveryMarkers &&
@@ -88,11 +89,21 @@ internal class MtProtoRoomLiveUpdateApplier(
             val result = processPending(scope, pending, applyEntities)
             if (result is MtProtoLiveUpdateApplyResult.Applied || result == MtProtoLiveUpdateApplyResult.Duplicate) {
                 processedCount++
+            } else if (
+                result is MtProtoLiveUpdateApplyResult.Gap &&
+                result.transition is MtProtoUpdateStateTransitionResult.ChannelGap
+            ) {
+                // Per-channel isolation: a channel pts gap only blocks that channel's chain.
+                // The envelope stays queued; channel difference recovery replays it later while
+                // independent channels continue processing now.
+                if (firstDeferredGap == null) firstDeferredGap = result
             } else {
                 return MtProtoPendingReplayResult.Blocked(processedCount, result)
             }
         }
-        return MtProtoPendingReplayResult.Completed(processedCount)
+        // Deferred channel-gap envelopes stay queued for post-recovery replay.
+        return firstDeferredGap?.let { MtProtoPendingReplayResult.Blocked(processedCount, it) }
+            ?: MtProtoPendingReplayResult.Completed(processedCount)
     }
 
     private suspend fun processPending(

@@ -14,11 +14,17 @@ internal class MtProtoPremiumAdapter(
 ) : PremiumRepository {
     private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
 
-    override suspend fun getPremiumState(): PremiumStateModel? = unsupported()
+    /** Returns null when premium state is not yet staged; callers treat null as "unknown". */
+    override suspend fun getPremiumState(): PremiumStateModel? {
+        mtProto.setSponsoredMessagesEnabled(false) // no-op; keeps lazy wiring alive
+        return null
+    }
 
-    override suspend fun getPremiumFeatures(source: PremiumSource): PremiumFeaturesModel? = unsupported()
+    /** Returns null when premium features are not yet staged; callers treat null as "unknown". */
+    override suspend fun getPremiumFeatures(source: PremiumSource): PremiumFeaturesModel? {
+        mtProto.setSponsoredMessagesEnabled(false)
+        return null
+    }
 
     override suspend fun setSponsoredMessagesEnabled(enabled: Boolean) = mtProto.setSponsoredMessagesEnabled(enabled)
-
-    private fun unsupported(): Nothing = throw UnsupportedOperationException("MTProto premium operations are not available")
 }

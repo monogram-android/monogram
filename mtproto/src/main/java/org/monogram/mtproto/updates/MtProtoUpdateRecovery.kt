@@ -50,7 +50,13 @@ class MtProtoUpdateRecovery(
     private val executor: MtProtoUpdateRecoveryExecutor,
     private val applyBatch: suspend (MtProtoUpdateDifferenceBatch) -> Unit,
     initialCursor: MtProtoUpdateCursor? = null,
+    private val maxDifferenceBatches: Int = DEFAULT_MAX_DIFFERENCE_BATCHES,
 ) {
+    init {
+        require(maxDifferenceBatches in 1..MAX_ALLOWED_DIFFERENCE_BATCHES) {
+            "maxDifferenceBatches must be within 1..$MAX_ALLOWED_DIFFERENCE_BATCHES"
+        }
+    }
     private val mutex = Mutex()
     @Volatile
     private var cursor: MtProtoUpdateCursor? = initialCursor
@@ -70,7 +76,11 @@ class MtProtoUpdateRecovery(
 
     suspend fun recover(): MtProtoUpdateRecoveryResult = mutex.withLock {
         var current = cursor ?: error("MTProto update recovery is not initialized")
+        var batchCount = 0
         while (true) {
+            if (batchCount++ >= maxDifferenceBatches) {
+                return@withLock MtProtoUpdateRecoveryResult.ResyncRequired
+            }
             val result = executor.execute(
                 GetDifference(
                     pts = current.pts,
@@ -126,4 +136,9 @@ class MtProtoUpdateRecovery(
 
     private fun emptyBatch(cursor: MtProtoUpdateCursor) =
         MtProtoUpdateDifferenceBatch(emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), cursor)
+
+    private companion object {
+        const val DEFAULT_MAX_DIFFERENCE_BATCHES = 128
+        const val MAX_ALLOWED_DIFFERENCE_BATCHES = 1_024
+    }
 }

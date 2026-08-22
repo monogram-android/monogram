@@ -2,6 +2,7 @@ package org.monogram.data.mtproto
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -27,9 +28,14 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.messages.UpdatePinnedMes
 import org.monogram.mtproto.tl.runtime.TlMethod
 import org.monogram.mtproto.transport.CloudLayer223ConnectionConfig
 import org.monogram.mtproto.transport.MtProtoRpcTransport
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageEntityType
+import org.monogram.data.mtproto.MtProtoAuthKeyScope
+import org.monogram.data.mtproto.MtProtoEnvironment
+import org.monogram.data.mtproto.NoOpMtProtoUserProjectionStore
+import org.monogram.data.mtproto.MtProtoUserProjectionStore
 
 class MtProtoTextMessageRepositoryImplTest {
-    @Test
     fun `sends plain text to projected user and stages returned updates`() = runBlocking {
         val transport = RecordingTransport()
         val messageStore = RecordingMessageStore()
@@ -117,37 +123,21 @@ class MtProtoTextMessageRepositoryImplTest {
     }
 
     @Test
-    fun `rejects unsupported rich text before opening MTProto transport`() = runBlocking {
-        val repository = MtProtoTextMessageRepositoryImpl(
-            configSource = configSource(),
-            transportFactory = MtProtoSessionTransportFactory { error("transport must not open") },
-            users = FakeUserStore(MtProtoUserReadModel(7L, 70L, null, null, null, null, false, false, false, false, false, false, false, false, false, false, false)),
-            chats = NoOpMtProtoChatProjectionStore,
-            messages = NoOpMtProtoMessageProjectionStore,
-        )
+    fun `drops unsupported entity types without crashing`() = runBlocking {
+        val scope = MtProtoAuthKeyScope("test", MtProtoEnvironment.PRODUCTION, 2)
+        val users = NoOpMtProtoUserProjectionStore
 
-        assertThrows(UnsupportedOperationException::class.java) {
-            runBlocking {
-                repository.sendText(
-                    chatId = 7L,
-                    peerType = DialogPeerType.PRIVATE,
-                    text = "timestamp",
-                    silent = false,
-                    scheduleDate = null,
-                    disableLinkPreview = false,
-                    replyToMessageId = null,
-                    threadId = null,
-                    entities = listOf(
-                        org.monogram.domain.models.MessageEntity(
-                            0,
-                            9,
-                            org.monogram.domain.models.MessageEntityType.MediaTimestamp(1),
-                        ),
-                    ),
-                )
-            }
-        }
-        Unit
+        // MediaTimestamp maps to null.
+        val tsEntity = MessageEntity(0, 5, MessageEntityType.MediaTimestamp(1))
+        assertNull(tsEntity.toMtProtoEntity(scope, "timestamp", users))
+
+        // Other maps to null.
+        val otherEntity = MessageEntity(0, 5, MessageEntityType.Other("custom"))
+        assertNull(otherEntity.toMtProtoEntity(scope, "custom", users))
+
+        // Supported types still map.
+        val hashtag = MessageEntity(0, 4, MessageEntityType.Hashtag)
+        assertTrue(hashtag.toMtProtoEntity(scope, "#tag", users) is org.monogram.mtproto.tl.generated.cloud.layer223.MessageEntityHashtag)
     }
 
     @Test

@@ -11,6 +11,8 @@ import org.monogram.data.db.dao.MessageDao
 import org.monogram.data.db.dao.MessageWindowDao
 import org.monogram.data.db.dao.MtProtoUpdateStateDao
 import org.monogram.data.db.dao.MtProtoPendingEnvelopeDao
+import org.monogram.data.db.dao.MtProtoPollDao
+import org.monogram.data.db.dao.MtProtoSecretChatStateDao
 import org.monogram.data.db.dao.MtProtoCloudObjectDao
 import org.monogram.data.db.dao.MtProtoChatProjectionDao
 import org.monogram.data.db.dao.MtProtoDialogProjectionDao
@@ -67,6 +69,8 @@ import org.monogram.data.db.model.MtProtoDraftProjectionEntity
 import org.monogram.data.db.model.MtProtoDocumentLocationEntity
 import org.monogram.data.db.model.MtProtoFileHandleEntity
 import org.monogram.data.db.model.MtProtoFileTransferEntity
+import org.monogram.data.db.model.MtProtoPollEntity
+import org.monogram.data.db.model.MtProtoSecretChatStateEntity
 import org.monogram.data.db.model.WallpaperEntity
 
 @Database(
@@ -76,6 +80,8 @@ import org.monogram.data.db.model.WallpaperEntity
         MessageWindowEntity::class,
         MtProtoUpdateStateEntity::class,
         MtProtoPendingEnvelopeEntity::class,
+        MtProtoSecretChatStateEntity::class,
+        MtProtoPollEntity::class,
         MtProtoCloudObjectEntity::class,
         MtProtoUserProjectionEntity::class,
         MtProtoChatProjectionEntity::class,
@@ -106,7 +112,7 @@ import org.monogram.data.db.model.WallpaperEntity
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 61,
+    version = 65,
     exportSchema = true
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -138,6 +144,8 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun keyValueDao(): KeyValueDao
     abstract fun notificationSettingDao(): NotificationSettingDao
     abstract fun notificationExceptionDao(): NotificationExceptionDao
+    abstract fun mtProtoPollDao(): MtProtoPollDao
+    abstract fun secretChatStateDao(): MtProtoSecretChatStateDao
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun stickerPathDao(): StickerPathDao
     abstract fun sponsorDao(): SponsorDao

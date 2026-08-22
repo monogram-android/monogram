@@ -516,27 +516,31 @@ private suspend fun DefaultChatComponent.loadMtProtoHistorySnapshot(request: His
     require(request.key.scope == ConversationScope.Main) {
         "MTProto snapshot history supports only main conversations"
     }
-    require(request.direction != HistoryDirection.Newer) {
-        "MTProto snapshot history does not support newer pages"
-    }
     val chat = chatListRepository.getChatById(request.key.chatId)
     val peer = TelegramPeerChatId.decode(request.key.chatId, chat?.isChannel)
+    // Newer pages read forward from the anchor via the server-side min_id filter; older pages
+    // read backward from the in-memory anchor message. A missing older anchor falls back to the
+    // latest page instead of failing the whole conversation load.
+    val anchorCursor: org.monogram.domain.models.MessageHistoryCursorModel? = when (val anchor = request.anchor) {
+        HistoryAnchor.Latest -> null
+        is HistoryAnchor.Message -> when {
+            request.direction == HistoryDirection.Newer ->
+                org.monogram.domain.models.MessageHistoryCursorModel(date = 0, messageId = anchor.id)
+            else -> _state.value.messages.firstOrNull { it.id == anchor.id }?.let { loaded ->
+                org.monogram.domain.models.MessageHistoryCursorModel(
+                    date = loaded.date,
+                    messageId = loaded.id,
+                )
+            }
+        }
+    }
     val page = messageHistorySnapshotRepository.getHistory(
         MessageHistorySnapshotRequest(
             accountId = "default",
             peerType = peer.type,
             peerId = peer.id,
-            before = when (val anchor = request.anchor) {
-                HistoryAnchor.Latest -> null
-                is HistoryAnchor.Message -> {
-                    val anchorMessage = _state.value.messages.firstOrNull { it.id == anchor.id }
-                        ?: error("MTProto history anchor is not loaded")
-                    org.monogram.domain.models.MessageHistoryCursorModel(
-                        date = anchorMessage.date,
-                        messageId = anchorMessage.id,
-                    )
-                }
-            },
+            before = if (request.direction != HistoryDirection.Newer) anchorCursor else null,
+            after = if (request.direction == HistoryDirection.Newer) anchorCursor else null,
             limit = request.limit,
         )
     )
@@ -551,8 +555,16 @@ private suspend fun DefaultChatComponent.loadMtProtoHistorySnapshot(request: His
     }
     return HistoryPage(
         messages = page.messages.map { it.toMessageModel(request.key.chatId, senderNames[it.senderId].orEmpty()) },
-        olderBoundary = if (page.nextCursor == null) BoundaryState.Reached else BoundaryState.Open,
-        newerBoundary = BoundaryState.Reached,
+        olderBoundary = if (request.direction == HistoryDirection.Newer) {
+            BoundaryState.Reached
+        } else {
+            if (page.nextCursor == null) BoundaryState.Reached else BoundaryState.Open
+        },
+        newerBoundary = if (request.direction == HistoryDirection.Newer) {
+            if (page.nextCursor == null) BoundaryState.Reached else BoundaryState.Open
+        } else {
+            BoundaryState.Reached
+        },
         source = HistorySource.RoomSnapshot,
     )
 }

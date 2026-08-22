@@ -5,6 +5,7 @@ import kotlinx.coroutines.sync.withLock
 import org.monogram.domain.repository.AuthCodeDelivery
 import org.monogram.domain.repository.AuthCodeInputKind
 import org.monogram.domain.repository.AuthStep
+import org.monogram.mtproto.auth.MtProtoTermsOfServiceState
 import org.monogram.mtproto.auth.MtProtoAuthorizationApi
 import org.monogram.mtproto.auth.MtProtoPasswordChallengeInfo
 import org.monogram.mtproto.tl.generated.cloud.layer223.auth.CodeType
@@ -35,6 +36,13 @@ import org.monogram.mtproto.transport.MtProtoRpcException
 internal class MtProtoSignUpRequiredException : UnsupportedOperationException(
     "MTProto signup is not implemented"
 )
+
+/** Thrown when a paid-code RPC error carries requirement details mid-flow. */
+internal class MtProtoPaidCodeRequiredException(
+    val storeProduct: String,
+    val supportEmailAddress: String,
+) : UnsupportedOperationException("MTProto login requires a paid code")
+
 
 internal class MtProtoPhoneAuthSession(
     private val api: MtProtoAuthorizationApi,
@@ -136,6 +144,56 @@ internal class MtProtoPhoneAuthSession(
         }
     }
 
+    /** Requests the recovery-email pattern for the pending 2FA challenge; stays on InputPassword. */
+    suspend fun requestPasswordRecovery(): AuthStep = mutex.withLock {
+        check(state is AuthStep.InputPassword) { "Password recovery is not expected" }
+        val pattern = api.requestPasswordRecovery()
+        state = (state as AuthStep.InputPassword).copy(recoveryEmailPattern = pattern)
+        state
+    }
+
+    /** Completes login with a recovery code sent to the account's recovery email. */
+    suspend fun submitRecoveryCode(code: String): AuthStep = mutex.withLock {
+        val passwordState = state as? AuthStep.InputPassword
+            ?: throw IllegalStateException("Password recovery is not expected")
+        check(passwordState.hasRecoveryEmail || !passwordState.recoveryEmailPattern.isNullOrBlank()) {
+            "No recovery email is available for this account"
+        }
+        require(code.isNotBlank()) { "recovery code must not be blank" }
+        when (val authorization = api.recoverPassword(code.trim())) {
+            is org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3 -> {
+                markReady()
+                state
+            }
+            is AuthorizationSignUpRequired -> throw MtProtoSignUpRequiredException()
+            else -> throw IllegalStateException("Unsupported MTProto authorization result: ${authorization.constructorId}")
+        }
+    }
+
+    /** Surfaces pending terms-of-service state for the current session. */
+    suspend fun termsOfServiceUpdate(): MtProtoTermsOfServiceState = mutex.withLock {
+        api.termsOfServiceUpdate()
+    }
+
+    /** Accepts a pending terms-of-service update by its JSON identifier. */
+    suspend fun acceptTermsOfService(idData: String): Boolean = mutex.withLock {
+        api.acceptTermsOfService(idData)
+    }
+
+    /** Completes bot-integration login on this fresh session without any phone flow. */
+    suspend fun startBotLogin(botAuthToken: String): AuthStep = mutex.withLock {
+        check(state is AuthStep.InputPhone) { "Bot login requires a fresh auth session" }
+        require(botAuthToken.isNotBlank()) { "bot auth token must not be blank" }
+        when (val authorization = api.importBotAuthorization(apiId, apiHash, botAuthToken.trim())) {
+            is org.monogram.mtproto.tl.generated.cloud.layer223.auth.Authorization_d8660c55a3 -> {
+                markReady()
+                state
+            }
+            is AuthorizationSignUpRequired -> throw MtProtoSignUpRequiredException()
+            else -> throw IllegalStateException("Unsupported MTProto authorization result: ${authorization.constructorId}")
+        }
+    }
+
     suspend fun submitPassword(password: String): AuthStep = mutex.withLock {
         check(state is AuthStep.InputPassword) { "Password is not expected" }
         require(password.isNotBlank()) { "password must not be blank" }
@@ -165,7 +223,16 @@ internal class MtProtoPhoneAuthSession(
                 is AuthorizationSignUpRequired -> throw MtProtoSignUpRequiredException()
                 else -> throw IllegalStateException("Unsupported MTProto authorization result")
             }
-            is SentCodePaymentRequired -> throw UnsupportedOperationException("MTProto paid-code flow is not implemented")
+            is SentCodePaymentRequired -> SentCodeOutcome(
+                state = AuthStep.PaidCodeRequired(
+                    storeProduct = sent.storeProduct,
+                    supportEmailAddress = sent.supportEmailAddress,
+                    supportEmailSubject = sent.supportEmailSubject,
+                    currency = sent.currency,
+                    amount = sent.amount,
+                ),
+                phoneCodeHash = sent.phoneCodeHash,
+            )
             is SentCode_f9e8fc1d16 -> {
                 if (sent.type is SentCodeTypeSetUpEmailRequired) {
                     return SentCodeOutcome(AuthStep.InputLoginEmail, sent.phoneCodeHash)

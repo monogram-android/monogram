@@ -28,6 +28,14 @@ sealed class AuthStep {
     ) : AuthStep()
     object InputSignUp : AuthStep()
     object InputLoginEmail : AuthStep()
+    /** The server requires a paid code purchase before delivering a login code. */
+    data class PaidCodeRequired(
+        val storeProduct: String,
+        val supportEmailAddress: String,
+        val supportEmailSubject: String,
+        val currency: String,
+        val amount: Long
+    ) : AuthStep()
     object Ready : AuthStep()
 }
 
@@ -72,6 +80,10 @@ sealed class AuthError {
     object InvalidPassword : AuthError()
     object CodeExpired : AuthError()
     object SignUpRequired : AuthError()
+    data class PaidCodeRequired(
+        val storeProduct: String,
+        val supportEmailAddress: String
+    ) : AuthError()
     data class RateLimited(val retryAfterSeconds: Int?) : AuthError()
     object NetworkTimeout : AuthError()
     object Unexpected : AuthError()

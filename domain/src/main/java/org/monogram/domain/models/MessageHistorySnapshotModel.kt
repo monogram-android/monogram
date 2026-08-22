@@ -5,8 +5,15 @@ data class MessageHistorySnapshotRequest(
     val peerType: DialogPeerType,
     val peerId: Long,
     val before: MessageHistoryCursorModel? = null,
+    val after: MessageHistoryCursorModel? = null,
     val limit: Int = 50,
-)
+) {
+    init {
+        check(before == null || after == null) {
+            "Message history snapshot request supports either an older or a newer cursor, not both"
+        }
+    }
+}
 
 data class MessageHistoryCursorModel(
     val date: Int,

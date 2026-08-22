@@ -43,6 +43,7 @@ fun AuthErrorDialog(
                 AuthError.InvalidPassword -> stringResource(R.string.auth_password_hash_invalid)
                 AuthError.CodeExpired -> stringResource(R.string.auth_code_expired_error)
                 AuthError.SignUpRequired -> stringResource(R.string.auth_signup_required_error)
+                is AuthError.PaidCodeRequired -> stringResource(R.string.auth_signup_required_error)
                 is AuthError.RateLimited -> stringResource(
                     R.string.auth_rate_limited_error,
                     error.retryAfterSeconds ?: 0

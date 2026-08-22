@@ -1,5 +1,8 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -60,7 +63,7 @@ class TelegramMtProtoSessionFactoryTest {
 
         val result = factory.open()
 
-        assertSame(transport, result)
+        assertTrue(result !== transport)
         assertSame(authKey, receivedKey)
         assertEquals(
             listOf(MtProtoAuthKeyScope("default", MtProtoEnvironment.PRODUCTION, 2)),
@@ -82,6 +85,7 @@ class TelegramMtProtoSessionFactoryTest {
         } finally {
             copy.fill(0)
             authKey.close()
+            result.close()
         }
     }
 
@@ -112,12 +116,77 @@ class TelegramMtProtoSessionFactoryTest {
 
         val result = factory.open("default", 3)
 
-        assertSame(secondaryTransport, result)
+        assertTrue(result !== secondaryTransport)
         assertEquals(listOf(3), homeTransport.exportedForDcIds)
         assertEquals(listOf(ImportAuthorization(42L, TlBytes.copyOf(exportedBytes))), secondaryTransport.imported)
         assertEquals(1, homeTransport.closeCalls)
         exportedBytes.fill(0)
-        secondaryTransport.close()
+        result.close()
+    }
+
+    @Test
+    fun sharesConcurrentOpenInitialization() = runBlocking {
+        val authKey = authKey()
+        val transport = FakeRpcTransport()
+        val enteredLoader = CompletableDeferred<Unit>()
+        val releaseLoader = CompletableDeferred<Unit>()
+        var loads = 0
+        var assemblies = 0
+        val factory = TelegramMtProtoSessionFactory(
+            configSource = TelegramMtProtoBootstrapConfigSource { config(TelegramMtProtoEndpoint(2, "dc", 443)) },
+            keyLoader = MtProtoAuthKeyLoader { _, _, _ ->
+                loads++
+                enteredLoader.complete(Unit)
+                releaseLoader.await()
+                BootstrappedMtProtoAuthKey(authKey, MtProtoAuthKeySource.STORED)
+            },
+            handshakeConnectionFactory = { FakeHandshakeConnection() },
+            encryptedTransportFactory = { _, _, _, _ ->
+                assemblies++
+                transport
+            },
+        )
+
+        coroutineScope {
+            val first = async { factory.open() }
+            enteredLoader.await()
+            val second = async { factory.open() }
+            releaseLoader.complete(Unit)
+            val firstLease = first.await()
+            val secondLease = second.await()
+            assertEquals(1, loads)
+            assertEquals(1, assemblies)
+            firstLease.close()
+            assertEquals(0, transport.closeCalls)
+            secondLease.close()
+        }
+        assertEquals(1, transport.closeCalls)
+        authKey.close()
+    }
+
+    @Test
+    fun reusesTransportUntilTheLastLeaseCloses() = runBlocking {
+        val authKey = authKey()
+        val transport = FakeRpcTransport()
+        var assemblies = 0
+        val factory = TelegramMtProtoSessionFactory(
+            configSource = TelegramMtProtoBootstrapConfigSource { config(TelegramMtProtoEndpoint(2, "dc", 443)) },
+            keyLoader = MtProtoAuthKeyLoader { _, _, _ -> BootstrappedMtProtoAuthKey(authKey, MtProtoAuthKeySource.STORED) },
+            handshakeConnectionFactory = { FakeHandshakeConnection() },
+            encryptedTransportFactory = { _, _, _, _ ->
+                assemblies++
+                transport
+            },
+        )
+
+        val first = factory.open()
+        val second = factory.open()
+        assertEquals(1, assemblies)
+        first.close()
+        assertEquals(0, transport.closeCalls)
+        second.close()
+        assertEquals(1, transport.closeCalls)
+        authKey.close()
     }
 
     @Test
@@ -131,10 +200,10 @@ class TelegramMtProtoSessionFactoryTest {
             encryptedTransportFactory = { _, _, _, _ -> transport },
         )
         try {
-            factory.open()
+            val result = factory.open()
             assertEquals(1, transport.futureSaltRefreshes)
+            result.close()
         } finally {
-            transport.close()
             authKey.close()
         }
     }
@@ -150,10 +219,11 @@ class TelegramMtProtoSessionFactoryTest {
             encryptedTransportFactory = { _, _, _, _ -> transport },
         )
         try {
-            assertSame(transport, factory.open())
+            val result = factory.open()
+            assertTrue(result !== transport)
             assertEquals(1, transport.futureSaltRefreshes)
+            result.close()
         } finally {
-            transport.close()
             authKey.close()
         }
     }

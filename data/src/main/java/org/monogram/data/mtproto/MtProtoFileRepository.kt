@@ -76,6 +76,7 @@ internal class MtProtoDocumentFileRepository(
     private val transfers: MtProtoFileTransferDao,
     private val coordinator: MtProtoFileTransferCoordinator,
     private val scope: CoroutineScope,
+    private val referenceRefresher: MtProtoFileReferenceRefresher? = null,
     private val accountId: String = DEFAULT_ACCOUNT_ID,
 ) : MtProtoFileRepository {
     private val events = MutableSharedFlow<FileDownloadEvent>(extraBufferCapacity = EVENT_BUFFER_CAPACITY)
@@ -138,14 +139,11 @@ internal class MtProtoDocumentFileRepository(
     override fun download(fileId: Int, offset: Long, limit: Long) {
         require(offset >= 0L) { "MTProto file offset must not be negative" }
         require(limit >= 0L) { "MTProto file limit must not be negative" }
-        require(offset == 0L && limit == 0L) {
-            "MTProto partial file downloads are not available"
-        }
         var created = false
         val download = downloads.compute(fileId) { _, current ->
             current?.takeIf { it.isActive } ?: scope.launch(start = CoroutineStart.LAZY) {
                 try {
-                    downloadFile(fileId)
+                    downloadFile(fileId, offset, limit)
                 } finally {
                     coroutineContext[Job]?.let { downloads.remove(fileId, it) }
                 }
@@ -192,16 +190,22 @@ internal class MtProtoDocumentFileRepository(
         )
     }
 
-    private suspend fun downloadFile(fileId: Int) {
+    private suspend fun downloadFile(fileId: Int, requestedOffset: Long, requestedLimit: Long) {
+        val rangeMode = requestedOffset > 0L || requestedLimit > 0L
         val resolved = requireNotNull(resolve(fileId)) { "Unknown MTProto file handle: $fileId" }
-        val path = outputFile(resolved.scope, fileId).absolutePath
+        val path = if (rangeMode) {
+            outputFile(resolved.scope, fileId, suffix = "-$requestedOffset-$requestedLimit").absolutePath
+        } else {
+            outputFile(resolved.scope, fileId).absolutePath
+        }
         val sink = ProgressSink(
             delegate = MtProtoRoomFileTransferSink(
                 dao = transfers,
                 accountSlot = resolved.scope.accountSlot,
                 environment = resolved.scope.environment.storageName,
                 dcId = resolved.dcId,
-                fileKey = resolved.fileKey,
+                // Range reads keep separate durable records so full-file resume stays intact.
+                fileKey = if (rangeMode) "${resolved.fileKey}:range:$requestedOffset:$requestedLimit" else resolved.fileKey,
                 path = path,
                 expectedSize = resolved.size,
             ),
@@ -209,17 +213,46 @@ internal class MtProtoDocumentFileRepository(
             expectedSize = resolved.size,
             emit = ::emit,
         )
-        emit(FileDownloadEvent.Progress(fileId, sink.progress()))
-        try {
-            coordinator.download(
-                location = resolved.location,
-                sink = sink,
-                dcId = resolved.dcId,
-            )
-        } catch (cancelled: CancellationException) {
-            throw cancelled
+        emit(FileDownloadEvent.Progress(fileId, sink.progress(), sink.committedOffset()))
+        var refreshed = false
+        while (true) {
+            val current = requireNotNull(resolve(fileId)) { "Unknown MTProto file handle: $fileId" }
+            try {
+                coordinator.download(
+                    location = current.location,
+                    sink = sink,
+                    dcId = current.dcId,
+                )
+                break
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (rpc: org.monogram.mtproto.transport.MtProtoRpcException) {
+                val referenceInvalid = rpc.rpcMessage.trim().uppercase() in EXPIRED_REFERENCE_ERRORS
+                if (refreshed || !referenceInvalid) throw rpc
+                refreshed = true
+                refreshReference(fileId)
+            }
         }
         emit(FileDownloadEvent.Completed(fileId, path))
+    }
+
+    /** Re-fetches the origin message so the stored `file_reference` is renewed, once per download. */
+    private suspend fun refreshReference(fileId: Int): Boolean {
+        val refresher = referenceRefresher ?: return false
+        val config = configSource.createForAccount(accountId)
+        val scope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+        val resource = handles.get(scope, fileId)?.resource ?: return false
+        val origin = messageReferences[fileId]?.firstOrNull() ?: return false
+        val ok = refresher.refresh(
+            documentId = if (resource.type == MtProtoFileResourceType.DOCUMENT) resource.id else 0L,
+            photoId = if (resource.type == MtProtoFileResourceType.PHOTO) resource.id else 0L,
+            chatId = origin.first,
+            messageId = origin.second,
+        )
+        if (!ok) {
+            android.util.Log.w("MtProtoFiles", "File reference refresh failed for handle $fileId")
+        }
+        return ok
     }
 
     private suspend fun emit(event: FileDownloadEvent) {
@@ -227,7 +260,7 @@ internal class MtProtoDocumentFileRepository(
         messageReferences[event.fileId]?.forEach { (chatId, messageId) ->
             messageEvents.emit(
                 when (event) {
-                    is FileDownloadEvent.Progress -> MessageDownloadEvent.Progress(chatId, messageId, event.fileId, event.progress)
+                    is FileDownloadEvent.Progress -> MessageDownloadEvent.Progress(chatId, messageId, event.fileId, event.progress, event.downloadedBytes)
                     is FileDownloadEvent.Completed -> MessageDownloadEvent.Completed(chatId, messageId, event.fileId, event.path)
                     is FileDownloadEvent.Cancelled -> MessageDownloadEvent.Cancelled(chatId, messageId, event.fileId)
                 }
@@ -261,9 +294,9 @@ internal class MtProtoDocumentFileRepository(
         }
     }
 
-    private fun outputFile(scope: MtProtoAuthKeyScope, fileId: Int): File = File(
+    private fun outputFile(scope: MtProtoAuthKeyScope, fileId: Int, suffix: String = ""): File = File(
         context.filesDir,
-        "mtproto/files/${scope.environment.storageName}/${scope.accountSlot}/${scope.dcId}/$fileId.bin",
+        "mtproto/files/${scope.environment.storageName}/${scope.accountSlot}/${scope.dcId}/$fileId$suffix.bin",
     ).also { it.parentFile?.mkdirs() }
 
     private data class ResolvedFile(
@@ -284,7 +317,7 @@ internal class MtProtoDocumentFileRepository(
 
         override suspend fun write(offset: Long, bytes: ByteArray) {
             delegate.write(offset, bytes)
-            emit(FileDownloadEvent.Progress(fileId, progress()))
+            emit(FileDownloadEvent.Progress(fileId, progress(), committedOffset()))
         }
 
         override suspend fun complete(totalBytes: Long) = delegate.complete(totalBytes)
@@ -295,6 +328,7 @@ internal class MtProtoDocumentFileRepository(
     private companion object {
         const val DEFAULT_ACCOUNT_ID = "default"
         const val EVENT_BUFFER_CAPACITY = 32
+        val EXPIRED_REFERENCE_ERRORS = setOf("FILE_REFERENCE_INVALID", "FILE_REFERENCE_EXPIRED")
 
         fun Long.toProgress(expectedSize: Long): Float = when {
             expectedSize <= 0L -> 0f

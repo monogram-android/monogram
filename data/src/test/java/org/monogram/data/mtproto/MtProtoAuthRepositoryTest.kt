@@ -76,7 +76,9 @@ class MtProtoAuthRepositoryTest {
             scope = backgroundScope,
             authorizationStore = object : MtProtoAccountAuthorizationStore {
                 override suspend fun isAuthorized(accountSlot: String) = false
+                override suspend fun isLogoutPending(accountSlot: String) = false
                 override suspend fun markAuthorized(accountSlot: String) { storedSlots += accountSlot }
+                override suspend fun markLogoutPending(accountSlot: String) = Unit
                 override suspend fun clear(accountSlot: String) = Unit
             },
         )
@@ -289,6 +291,39 @@ class MtProtoAuthRepositoryTest {
         assertEquals(listOf("+10000000000"), migrated.phones)
         assertEquals(1, initial.closeCalls.get())
         assertEquals(AuthStep.InputCode(AuthCodeDelivery.SMS, codeLength = 5), repository.authState.value)
+    }
+
+    @Test
+    fun `stops after one phone migration reroute`() = runTest {
+        val migration: suspend (String) -> AuthStep = {
+            throw org.monogram.mtproto.transport.MtProtoDcMigrationException(
+                303,
+                "PHONE_MIGRATE_5",
+                org.monogram.mtproto.transport.MtProtoDcMigrationKind.PHONE,
+                5,
+            )
+        }
+        val initial = FakeHandle(requestCode = migration)
+        val migrated = FakeHandle(requestCode = migration)
+        val openedDcs = mutableListOf<Int>()
+        val repository = MtProtoAuthRepository(
+            sessionFactory = object : MtProtoAuthSessionHandleFactory {
+                override suspend fun open(accountSlot: String): MtProtoAuthSessionHandle = initial
+                override suspend fun open(accountSlot: String, dcId: Int): MtProtoAuthSessionHandle {
+                    openedDcs += dcId
+                    return migrated
+                }
+            },
+            scope = backgroundScope,
+        )
+
+        repository.sendPhone("+10000000000")
+        testScheduler.runCurrent()
+
+        assertEquals(listOf(5), openedDcs)
+        assertEquals(AuthStep.InputPhone, repository.authState.value)
+        assertEquals(1, initial.closeCalls.get())
+        assertEquals(0, migrated.closeCalls.get())
     }
 
     @Test

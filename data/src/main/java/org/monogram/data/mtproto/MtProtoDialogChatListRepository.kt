@@ -34,7 +34,7 @@ internal class MtProtoDialogChatListRepository(
     private val dialogRepository: DialogSnapshotRepository,
     private val readHistoryRepository: MtProtoReadHistoryRepository,
     private val scope: CoroutineScope,
-    private val dialogUpdates: Flow<List<DialogSnapshotModel>>? = null,
+    private val dialogUpdates: Flow<MtProtoDialogFolderUpdate>? = null,
     private val archiveRepository: MtProtoArchiveRepository = MtProtoArchiveRepository { _, _ -> },
     private val dialogPinRepository: MtProtoDialogPinRepository = MtProtoDialogPinRepository { _, _ -> },
     private val muteRepository: MtProtoMuteRepository = MtProtoMuteRepository { _, _ -> },
@@ -59,8 +59,10 @@ internal class MtProtoDialogChatListRepository(
     override val foldersFlow: StateFlow<List<FolderModel>> = _foldersFlow.asStateFlow()
     private val _folderLoadingFlow = MutableSharedFlow<FolderLoadingUpdate>(replay = 1, extraBufferCapacity = 1)
     private var selectedFolderId = ALL_CHATS_FOLDER_ID
+    private var archiveChats: List<ChatModel> = emptyList()
     override val folderLoadingFlow: Flow<FolderLoadingUpdate> = _folderLoadingFlow.asSharedFlow()
-    override val isArchivePinned = MutableStateFlow(false).asStateFlow()
+    private val _isArchivePinned = MutableStateFlow(false)
+    override val isArchivePinned: StateFlow<Boolean> = _isArchivePinned.asStateFlow()
     override val isArchiveAlwaysVisible = MutableStateFlow(false).asStateFlow()
 
     init {
@@ -69,40 +71,75 @@ internal class MtProtoDialogChatListRepository(
         }
         dialogUpdates?.let { updates ->
             scope.launch {
-                updates.collect(::publishDialogs)
+                updates.collect { update ->
+                    if (update.folderId == ARCHIVE_SERVER_FOLDER_ID) {
+                        publishArchiveDialogs(update.dialogs)
+                    } else {
+                        publishDialogs(update.dialogs)
+                    }
+                }
             }
         }
         refresh()
     }
 
-    override fun loadNextChunk(limit: Int) = Unit
+    override fun loadNextChunk(limit: Int) {
+        scope.launch {
+            try {
+                dialogRepository.loadMoreForFolder(
+                    accountId,
+                    limit,
+                    ARCHIVE_SERVER_FOLDER_ID.takeIf { selectedFolderId == ARCHIVE_FOLDER_ID },
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                _connectionStateFlow.value = ConnectionStatus.Connecting
+            }
+        }
+    }
 
     override fun selectFolder(folderId: Int) {
-        require(folderId == ALL_CHATS_FOLDER_ID || _foldersFlow.value.any { it.id == folderId }) { "Unknown MTProto folder: $folderId" }
+        require(
+            folderId == ALL_CHATS_FOLDER_ID ||
+                folderId == ARCHIVE_FOLDER_ID ||
+                _foldersFlow.value.any { it.id == folderId },
+        ) { "Unknown MTProto folder: $folderId" }
         selectedFolderId = folderId
-        scope.launch { publishCurrentChats() }
+        scope.launch {
+            if (folderId == ARCHIVE_FOLDER_ID && archiveChats.isEmpty()) {
+                publishArchiveDialogs(dialogRepository.getDialogsForFolder(accountId, ARCHIVE_SERVER_FOLDER_ID))
+            } else {
+                publishCurrentChats()
+            }
+        }
     }
 
     override fun refresh() {
         scope.launch {
             _isLoadingFlow.value = true
-            _folderLoadingFlow.emit(FolderLoadingUpdate(ALL_CHATS_FOLDER_ID, true))
+            _folderLoadingFlow.emit(FolderLoadingUpdate(selectedFolderId, true))
             try {
                 runCatching { refreshFolders() }
-                publishDialogs(dialogRepository.getDialogs(accountId))
+                if (selectedFolderId == ARCHIVE_FOLDER_ID) {
+                    publishArchiveDialogs(dialogRepository.getDialogsForFolder(accountId, ARCHIVE_SERVER_FOLDER_ID))
+                } else {
+                    publishDialogs(dialogRepository.getDialogs(accountId))
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Throwable) {
                 _connectionStateFlow.value = ConnectionStatus.Connecting
             }
             _isLoadingFlow.value = false
-            _folderLoadingFlow.emit(FolderLoadingUpdate(ALL_CHATS_FOLDER_ID, false))
+            _folderLoadingFlow.emit(FolderLoadingUpdate(selectedFolderId, false))
         }
     }
 
     override fun refreshOnResume() = refresh()
 
-    override suspend fun getChatById(chatId: Long): ChatModel? = chatListFlow.value.firstOrNull { it.id == chatId }
+    override suspend fun getChatById(chatId: Long): ChatModel? =
+        chatListFlow.value.firstOrNull { it.id == chatId } ?: archiveChats.firstOrNull { it.id == chatId }
 
     override suspend fun isChatArchived(chatId: Long): Boolean? =
         chatListFlow.value.firstOrNull { it.id == chatId }?.isArchived
@@ -125,9 +162,17 @@ internal class MtProtoDialogChatListRepository(
         publishCurrentChats()
     }
 
+    private suspend fun publishArchiveDialogs(dialogs: List<DialogSnapshotModel>) {
+        archiveChats = dialogs.mapNotNull(::toChatModel)
+            .sortedWith(compareByDescending<ChatModel> { it.lastMessageDate }.thenByDescending { it.lastMessageId })
+        publishCurrentChats()
+    }
+
     private suspend fun publishCurrentChats() {
         val chats = if (selectedFolderId == ALL_CHATS_FOLDER_ID) {
             chatListFlow.value
+        } else if (selectedFolderId == ARCHIVE_FOLDER_ID) {
+            archiveChats
         } else {
             val included = _foldersFlow.value.first { it.id == selectedFolderId }.includedChatIds.toSet()
             chatListFlow.value.filter { it.id in included }
@@ -172,7 +217,8 @@ internal class MtProtoDialogChatListRepository(
         refresh()
     }
     override suspend fun togglePinChats(chatIds: Set<Long>, pin: Boolean, folderId: Int) {
-        require(folderId == ALL_CHATS_FOLDER_ID) { "MTProto folder-specific pinning is not available" }
+        // Per-peer `messages.toggleDialogPin` covers every folder: the server tracks each
+        // dialog's folder membership, matching the reference client behavior (MessagesController.pinDialog).
         dialogPinRepository.setPinned(chatIds, pin)
         refresh()
     }
@@ -200,7 +246,10 @@ internal class MtProtoDialogChatListRepository(
         refresh()
     }
     override suspend fun leaveChat(chatId: Long) = leaveChats(setOf(chatId))
-    override fun setArchivePinned(pinned: Boolean) = unsupportedOperations()
+    override fun setArchivePinned(pinned: Boolean) {
+        // Archive pinning is a client-side preference; no server call needed.
+        _isArchivePinned.value = pinned
+    }
     override suspend fun clearChatHistories(chatIds: Set<Long>, revoke: Boolean) {
         clearHistoryRepository.clear(chatIds, revoke)
         refresh()
@@ -232,12 +281,11 @@ internal class MtProtoDialogChatListRepository(
             }
     }
 
-    private fun unsupportedOperations(): Nothing =
-        throw UnsupportedOperationException("MTProto chat operations are not available")
-
     private companion object {
         const val DEFAULT_ACCOUNT_ID = "default"
         const val ALL_CHATS_FOLDER_ID = -1
+        const val ARCHIVE_FOLDER_ID = -2
+        const val ARCHIVE_SERVER_FOLDER_ID = 1
         val ALL_CHATS_FOLDER = FolderModel(id = ALL_CHATS_FOLDER_ID, title = "All chats")
     }
 }

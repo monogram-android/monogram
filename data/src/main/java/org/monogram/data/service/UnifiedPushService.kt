@@ -3,6 +3,7 @@ package org.monogram.data.service
 import android.util.Log
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.monogram.data.push.MtProtoPushSync
 import org.monogram.data.push.UnifiedPushManager
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
@@ -14,6 +15,7 @@ import org.unifiedpush.android.connector.data.PushMessage
 class UnifiedPushService : PushService(), KoinComponent {
     private val unifiedPushManager: UnifiedPushManager by inject()
     private val appPreferences: AppPreferencesProvider by inject()
+    private val pushSync: MtProtoPushSync by inject()
 
     override fun onMessage(message: PushMessage, instance: String) {
         Log.d(
@@ -27,8 +29,8 @@ class UnifiedPushService : PushService(), KoinComponent {
         }
 
         unifiedPushManager.markPushReceived()
-        // Push payload processing is not wired to the MTProto stack yet.
-        Log.d(TAG, "Push payload ignored (bytes=${message.content.size})")
+        val accepted = pushSync.requestSync("unified_push_message")
+        Log.d(TAG, "Push sync ${if (accepted) "enqueued" else "saturated"} (bytes=${message.content.size})")
     }
 
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
@@ -40,7 +42,7 @@ class UnifiedPushService : PushService(), KoinComponent {
         unifiedPushManager.onNewEndpoint(endpoint)
 
         if (!isUnifiedPushSelected()) return
-        Log.d(TAG, "Reconciliation skipped: MTProto push sync is not wired yet")
+        pushSync.requestSync("unified_push_endpoint")
     }
 
     override fun onRegistrationFailed(reason: FailedReason, instance: String) {

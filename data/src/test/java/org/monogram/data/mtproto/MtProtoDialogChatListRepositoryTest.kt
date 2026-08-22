@@ -4,10 +4,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.monogram.domain.models.DialogMessagePreviewModel
@@ -50,8 +53,24 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `loads archive folder from server folder one`() = runTest {
+        val repository = FakeDialogRepository(emptyList(), archiveDialogs = listOf(dialog(DialogPeerType.PRIVATE, 77L, date = 9, title = "Archived")))
+        val chatList = MtProtoDialogChatListRepository(
+            dialogRepository = repository,
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+        )
+        runCurrent()
+
+        chatList.selectFolder(-2)
+        val update = chatList.folderChatsFlow.filter { it.folderId == -2 }.first()
+        assertEquals(listOf(77L), update.chats.map { it.id })
+        assertEquals(listOf(1), repository.folderCalls)
+    }
+
+    @Test
     fun `publishes staged dialog pages before snapshot completion`() = runTest {
-        val updates = MutableSharedFlow<List<DialogSnapshotModel>>(replay = 1)
+        val updates = MutableSharedFlow<MtProtoDialogFolderUpdate>(replay = 1)
         val repository = MtProtoDialogChatListRepository(
             dialogRepository = FakeDialogRepository(emptyList()),
             readHistoryRepository = RecordingReadHistoryRepository(),
@@ -60,7 +79,7 @@ class MtProtoDialogChatListRepositoryTest {
         )
         runCurrent()
 
-        updates.emit(listOf(dialog(DialogPeerType.PRIVATE, 42L, date = 7, title = "Peer")))
+        updates.emit(MtProtoDialogFolderUpdate(null, listOf(dialog(DialogPeerType.PRIVATE, 42L, date = 7, title = "Peer"))))
         runCurrent()
 
         assertEquals(listOf(42L), repository.chatListFlow.value.map { it.id })
@@ -223,6 +242,57 @@ class MtProtoDialogChatListRepositoryTest {
     }
 
     @Test
+    fun `archive pinning updates flow instead of crashing`() = runTest {
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = FakeDialogRepository(emptyList()),
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+        )
+        runCurrent()
+
+        assertFalse(repository.isArchivePinned.value)
+        repository.setArchivePinned(pinned = true)
+        assertTrue(repository.isArchivePinned.value)
+
+        repository.setArchivePinned(pinned = false)
+        assertFalse(repository.isArchivePinned.value)
+    }
+
+    @Test
+    fun `pins chats inside a specific folder without folder restrictions`() = runTest {
+        val source = FakeDialogRepository(emptyList())
+        val pins = RecordingDialogPinRepository()
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = source,
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+            dialogPinRepository = pins,
+        )
+        runCurrent()
+
+        repository.togglePinChats(setOf(7L), pin = true, folderId = 1)
+        runCurrent()
+
+        assertEquals(listOf(setOf(7L) to true), pins.requests)
+    }
+
+    @Test
+    fun `loadNextChunk requests server continuation through the snapshot repository`() = runTest {
+        val source = FakeDialogRepository(emptyList())
+        val repository = MtProtoDialogChatListRepository(
+            dialogRepository = source,
+            readHistoryRepository = RecordingReadHistoryRepository(),
+            scope = backgroundScope,
+        )
+        runCurrent()
+
+        repository.loadNextChunk(25)
+        runCurrent()
+
+        assertEquals(listOf(25), source.loadMoreCalls)
+    }
+
+    @Test
     fun `archives chats through the owned archive repository then refreshes`() = runTest {
         val source = FakeDialogRepository(emptyList())
         val archive = RecordingArchiveRepository()
@@ -373,14 +443,27 @@ class MtProtoDialogChatListRepositoryTest {
 
     private class FakeDialogRepository(
         private val dialogs: List<DialogSnapshotModel>,
+        private val archiveDialogs: List<DialogSnapshotModel> = emptyList(),
     ) : DialogSnapshotRepository {
         var failure: Throwable? = null
         var calls = 0
+        val loadMoreCalls = mutableListOf<Int>()
+        val folderCalls = mutableListOf<Int?>()
 
         override suspend fun getDialogs(accountId: String): List<DialogSnapshotModel> {
             calls++
             failure?.let { throw it }
             return dialogs
+        }
+
+        override suspend fun getDialogsForFolder(accountId: String, folderId: Int?): List<DialogSnapshotModel> {
+            folderCalls += folderId
+            return if (folderId == 1) archiveDialogs else dialogs
+        }
+
+        override suspend fun loadMore(accountId: String, limit: Int): List<DialogSnapshotModel> {
+            loadMoreCalls += limit
+            return emptyList()
         }
     }
 

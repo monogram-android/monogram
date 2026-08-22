@@ -30,12 +30,11 @@ internal class MtProtoMessageViewerReaderImpl(
         val transport = transportFactory.open(accountSlot)
         try {
             return transport.execute(GetMessageReadParticipants(peer, messageId.toInt()))
-                .map { record ->
+                .mapNotNull { record ->
                     val participant = record as? ReadParticipantDate_d00bb53fcf
-                        ?: throw UnsupportedOperationException("MTProto read participant type is not available")
-                    val user = requireNotNull(users.get(scope, participant.userId)) {
-                        "Missing MTProto user projection for message viewer: ${participant.userId}"
-                    }
+                        ?: return@mapNotNull null // Skip unrecognized variants.
+                    val user = users.get(scope, participant.userId)
+                        ?: return@mapNotNull null // Skip missing projections.
                     MessageViewerModel(user.toUserModel(), participant.date)
                 }
         } finally {

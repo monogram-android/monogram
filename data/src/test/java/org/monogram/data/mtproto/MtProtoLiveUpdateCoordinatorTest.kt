@@ -94,6 +94,64 @@ class MtProtoLiveUpdateCoordinatorTest {
     }
 
     @Test
+    fun `full resync clears durable state and reinitializes from fresh getState`() = runTest {
+        val first = RecordingTransport(
+            responses = ArrayDeque<TlObject>().apply {
+                add(State_ddba9d7af9(pts = 10, qts = 20, date = 30, seq = 40, unreadCount = 0))
+                add(DifferenceTooLong(99))
+            },
+        )
+        val secondEntered = CompletableDeferred<Unit>()
+        val secondResponses = ArrayDeque<TlObject>().apply {
+            add(State_ddba9d7af9(pts = 50, qts = 60, date = 70, seq = 80, unreadCount = 0))
+            add(DifferenceEmpty(date = 81, seq = 82))
+        }
+        val second = RecordingTransport(onExecute = {
+            secondEntered.complete(Unit)
+            if (secondResponses.isEmpty()) {
+                CompletableDeferred<TlObject>().await()
+            } else {
+                secondResponses.removeFirst()
+            }
+        })
+        val stateStore = FakeStateStore()
+        var resyncs = 0
+        var dialogRequests = 0
+        var opens = 0
+        coordinator(
+            auth = FakeAuthRepository(AuthStep.Ready),
+            transportFactory = MtProtoSessionTransportFactory { _ ->
+                opens++
+                if (opens == 1) first else second
+            },
+            stateStore = stateStore,
+            dialogs = object : DialogSnapshotRepository {
+                override suspend fun getDialogs(accountId: String): List<org.monogram.domain.models.DialogSnapshotModel> {
+                    dialogRequests++
+                    return emptyList()
+                }
+            },
+            fullResync = {
+                resyncs++
+                stateStore.state = null
+            },
+            scope = backgroundScope,
+        )
+
+        testScheduler.runCurrent()
+        assertTrue(first.closed)
+        assertEquals(1, resyncs)
+        assertEquals(null, stateStore.state)
+
+        testScheduler.advanceTimeBy(1_000)
+        testScheduler.runCurrent()
+        secondEntered.await()
+        testScheduler.runCurrent()
+        assertEquals(1, dialogRequests)
+        assertEquals(MtProtoUpdateCursor(50, 60, 81, 82), stateStore.state?.cursor)
+    }
+
+    @Test
     fun `closed MTProto transport is reopened after backoff`() = runTest {
         val first = RecordingTransport(
             responses = ArrayDeque<TlObject>().apply {
@@ -179,6 +237,7 @@ class MtProtoLiveUpdateCoordinatorTest {
         dialogs: DialogSnapshotRepository = object : DialogSnapshotRepository {
             override suspend fun getDialogs(accountId: String) = emptyList<org.monogram.domain.models.DialogSnapshotModel>()
         },
+        fullResync: (suspend (MtProtoAuthKeyScope) -> Unit)? = null,
         scope: CoroutineScope,
     ) = MtProtoLiveUpdateCoordinator(
         authRepository = auth,
@@ -190,6 +249,7 @@ class MtProtoLiveUpdateCoordinatorTest {
         ),
         liveUpdateApplier = MtProtoRoomLiveUpdateApplier(stateStore, FakePendingStore()),
         dialogs = dialogs,
+        fullResync = fullResync,
         scope = scope,
     )
 
@@ -235,6 +295,7 @@ class MtProtoLiveUpdateCoordinatorTest {
             error("no live envelope expected")
         override suspend fun pending(scope: MtProtoAuthKeyScope) = emptyList<MtProtoPendingEnvelope>()
         override suspend fun delete(sequenceId: Long) = Unit
+        override suspend fun deleteScope(scope: MtProtoAuthKeyScope) = Unit
         override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) = Unit
     }
 

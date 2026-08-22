@@ -2,6 +2,14 @@ package org.monogram.data.mtproto
 
 import kotlinx.coroutines.CancellationException
 
+/**
+ * Deletes all *local* MTProto data for one account slot: persisted auth keys, update cursors,
+ * pending envelopes, staged cloud objects, user/chat/message/dialog/draft/story projections,
+ * file handles, and the account authorization/DC markers.
+ *
+ * This never touches the Telegram server: session revocation happens separately through
+ * `auth.logOut`, and Telegram account deletion (`account.deleteAccount`) is unrelated.
+ */
 internal fun interface MtProtoAccountStateResetter {
     suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment)
 }
@@ -21,6 +29,8 @@ internal class MtProtoAccountStateCleaner(
     private val photoLocationStore: MtProtoPhotoLocationStore = NoOpMtProtoPhotoLocationStore,
     private val storyProjectionStore: MtProtoStoryProjectionStore = NoOpMtProtoStoryProjectionStore,
     private val storyStealthModeStore: MtProtoStoryStealthModeStore = NoOpMtProtoStoryStealthModeStore,
+    private val secretChatStateStore: MtProtoSecretChatStateStore = NoOpMtProtoSecretChatStateStore,
+    private val pollPayloads: MtProtoPollPayloadStore? = null,
     private val authorizationStore: MtProtoAccountAuthorizationStore = NoOpMtProtoAccountAuthorizationStore,
 ) : MtProtoAccountStateResetter {
     override suspend fun deleteAccount(accountSlot: String, environment: MtProtoEnvironment) {
@@ -68,9 +78,13 @@ internal class MtProtoAccountStateCleaner(
             accountDcStore.delete(accountSlot)
         }
         failure = collectFailure(failure) {
-            authorizationStore.clear(accountSlot)
+            secretChatStateStore.deleteAccount(accountSlot, environment)
+        }
+        failure = collectFailure(failure) {
+            pollPayloads?.deleteAccount(accountSlot, environment)
         }
         failure?.let { throw it }
+        authorizationStore.clear(accountSlot)
     }
 
     private suspend fun collectFailure(

@@ -14,6 +14,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItem_7c2143443e
 import org.monogram.mtproto.tl.generated.cloud.layer223.Update
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateStory
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShort
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdatesCombined
 import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_02c952992b
 import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_faf6aaa3d5
@@ -91,6 +92,8 @@ internal class MtProtoStoryResultStager(
         when (envelope) {
             is UpdatesCombined -> envelope.updates.forEach { stageUpdate(scope, it) }
             is Updates_02c952992b -> envelope.updates.forEach { stageUpdate(scope, it) }
+            // Single-update envelopes (e.g. UpdateShort wrapping UpdateStory) must not be dropped.
+            is UpdateShort -> stageUpdate(scope, envelope.update)
             else -> Unit
         }
     }

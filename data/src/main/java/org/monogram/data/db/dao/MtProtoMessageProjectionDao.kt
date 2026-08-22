@@ -134,6 +134,40 @@ interface MtProtoMessageProjectionDao {
         updatedAt: Long,
     )
 
+    @Query(
+        "UPDATE mtproto_message_projection SET isMentioned = 0, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND messageId IN (:messageIds)"
+    )
+    suspend fun markContentsReadNonChannel(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        messageIds: List<Int>,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "UPDATE mtproto_message_projection SET isMentioned = 0, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = 'CHANNEL' AND peerId = :channelId AND messageId IN (:messageIds)"
+    )
+    suspend fun markContentsReadChannel(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        channelId: Long,
+        messageIds: List<Int>,
+        updatedAt: Long,
+    )
+
+    /** Emits on every message-table write so dialog-derived read models can republish. */
+    @Query(
+        "SELECT COALESCE(MAX(updatedAt), 0) FROM mtproto_message_projection " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId"
+    )
+    fun observeChangeToken(accountSlot: String, environment: String, dcId: Int): kotlinx.coroutines.flow.Flow<Long>
+
     @Query("DELETE FROM mtproto_message_projection WHERE accountSlot = :accountSlot AND environment = :environment")
     suspend fun deleteAccount(accountSlot: String, environment: String)
 }

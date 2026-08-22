@@ -1,6 +1,11 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -33,6 +38,27 @@ class MtProtoDialogSnapshotRepositoryTest {
         assertEquals(2, dialogs.single().unreadCount)
         assertEquals(1, dialogs.single().unreadMentionsCount)
         assertEquals(true, dialogs.single().isPinned)
+    }
+
+    @Test
+    fun `republishes all chat dialogs when the projection store signals changes`() = runTest {
+        val store = RecordingDialogStore()
+        val repository = MtProtoDialogSnapshotRepository(
+            configSource = TelegramMtProtoBootstrapConfigSource { config(dcId = 4) },
+            dialogStore = store,
+            scope = backgroundScope,
+            accountId = "account-1",
+        )
+        val received = mutableListOf<MtProtoDialogFolderUpdate>()
+        val collector = launch { repository.dialogUpdates.collect { received += it } }
+
+        store.changeSignal.emit(Unit)
+        advanceUntilIdle()
+
+        val update = received.single { it.folderId == null }
+        assertEquals(1, update.dialogs.size)
+        assertEquals(DialogPeerType.SUPERGROUP, update.dialogs.single().peerType)
+        collector.cancel()
     }
 
     @Test
@@ -102,6 +128,12 @@ class MtProtoDialogSnapshotRepositoryTest {
 
     private class RecordingDialogStore : MtProtoDialogStore {
         var scope: MtProtoAuthKeyScope? = null
+        val changeSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+        override fun observeChanges(scope: MtProtoAuthKeyScope): Flow<Unit> {
+            this.scope = scope
+            return changeSignal
+        }
 
         override suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoDialogReadModel> {
             this.scope = scope

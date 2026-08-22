@@ -1,6 +1,9 @@
 package org.monogram.data.mtproto
 
 import androidx.room.withTransaction
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
 import org.monogram.data.db.MonogramDatabase
 import org.monogram.data.db.dao.MtProtoStoryProjectionDao
 import org.monogram.data.db.model.MtProtoStoryActiveListEntity
@@ -35,6 +38,9 @@ internal data class MtProtoStoryListCursor(
 internal interface MtProtoStoryProjectionStore {
     suspend fun upsert(scope: MtProtoAuthKeyScope, story: MtProtoStoryPayload)
     suspend fun get(scope: MtProtoAuthKeyScope, key: MtProtoStoryKey): MtProtoStoryPayload?
+
+    /** Emits whenever story projections change; drives live stories-list republish. */
+    fun observeChanges(scope: MtProtoAuthKeyScope): Flow<Unit> = emptyFlow()
     suspend fun replaceActiveList(
         scope: MtProtoAuthKeyScope,
         listType: String,
@@ -62,6 +68,10 @@ internal class MtProtoRoomStoryProjectionStore(
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val database: MonogramDatabase? = null,
 ) : MtProtoStoryProjectionStore {
+    override fun observeChanges(scope: MtProtoAuthKeyScope): Flow<Unit> =
+        dao.observeChangeToken(scope.accountSlot, scope.environment.storageName, scope.dcId)
+            .map { }
+
     override suspend fun upsert(scope: MtProtoAuthKeyScope, story: MtProtoStoryPayload) {
         dao.upsertStory(story.toEntity(scope, nowMillis()))
     }

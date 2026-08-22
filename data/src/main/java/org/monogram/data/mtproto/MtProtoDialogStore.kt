@@ -8,6 +8,10 @@ import org.monogram.data.db.model.MtProtoChatProjectionEntity
 import org.monogram.data.db.model.MtProtoDialogProjectionEntity
 import org.monogram.data.db.model.MtProtoMessageProjectionEntity
 import org.monogram.data.db.model.MtProtoUserProjectionEntity
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import org.monogram.mtproto.tl.generated.cloud.layer223.Dialog_cf9860a8bd
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogPinned
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogUnreadMark
@@ -56,9 +60,26 @@ internal interface MtProtoDialogStore {
     suspend fun getAll(scope: MtProtoAuthKeyScope): List<MtProtoDialogReadModel>
     suspend fun getByFolder(scope: MtProtoAuthKeyScope, folderId: Int): List<MtProtoDialogReadModel>
 
+    /** Emits whenever dialog- or message-projection rows change; drives live list republish. */
+    fun observeChanges(scope: MtProtoAuthKeyScope): Flow<Unit> = emptyFlow()
+
     suspend fun upsert(scope: MtProtoAuthKeyScope, dialogs: List<Dialog_cf9860a8bd>) = Unit
 
-    suspend fun updateTopMessage(scope: MtProtoAuthKeyScope, peerType: MtProtoMessagePeerType, peerId: Long, messageId: Int) = Unit
+    suspend fun updateTopMessage(
+        scope: MtProtoAuthKeyScope,
+        peerType: MtProtoMessagePeerType,
+        peerId: Long,
+        messageId: Int,
+        countAsUnread: Boolean = false,
+        countAsMention: Boolean = false,
+    ) = Unit
+
+    suspend fun updateUnreadCount(
+        scope: MtProtoAuthKeyScope,
+        peerType: MtProtoMessagePeerType,
+        peerId: Long,
+        unreadCount: Int,
+    ) = Unit
 
     suspend fun updatePinned(scope: MtProtoAuthKeyScope, update: UpdateDialogPinned) = Unit
 
@@ -84,11 +105,23 @@ internal class MtProtoRoomDialogStore(
     private val chatDao: MtProtoChatProjectionDao,
     private val dialogDao: MtProtoDialogProjectionDao,
 ) : MtProtoDialogStore {
+    override fun observeChanges(scope: MtProtoAuthKeyScope): Flow<Unit> {
+        val accountSlot = scope.accountSlot
+        val environment = scope.environment.storageName
+        val dcId = scope.dcId
+        return combine(
+            dialogDao.observeChangeToken(accountSlot, environment, dcId),
+            messageDao.observeChangeToken(accountSlot, environment, dcId),
+        ) { _, _ -> Unit }.distinctUntilChanged()
+    }
+
     override suspend fun updateTopMessage(
         scope: MtProtoAuthKeyScope,
         peerType: MtProtoMessagePeerType,
         peerId: Long,
         messageId: Int,
+        countAsUnread: Boolean,
+        countAsMention: Boolean,
     ) = dialogDao.updateTopMessage(
         accountSlot = scope.accountSlot,
         environment = scope.environment.storageName,
@@ -96,6 +129,23 @@ internal class MtProtoRoomDialogStore(
         peerType = peerType.name,
         peerId = peerId,
         messageId = messageId,
+        unreadDelta = if (countAsUnread) 1 else 0,
+        mentionDelta = if (countAsMention) 1 else 0,
+        updatedAt = System.currentTimeMillis(),
+    )
+
+    override suspend fun updateUnreadCount(
+        scope: MtProtoAuthKeyScope,
+        peerType: MtProtoMessagePeerType,
+        peerId: Long,
+        unreadCount: Int,
+    ) = dialogDao.updateInboxUnread(
+        accountSlot = scope.accountSlot,
+        environment = scope.environment.storageName,
+        dcId = scope.dcId,
+        peerType = peerType.name,
+        peerId = peerId,
+        unreadCount = unreadCount,
         updatedAt = System.currentTimeMillis(),
     )
 

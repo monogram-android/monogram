@@ -60,6 +60,8 @@ import org.monogram.data.mtproto.MtProtoWallpaperRepositoryImpl
 import org.monogram.data.mtproto.MtProtoRoomMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoMessageProjectionStore
 import org.monogram.data.mtproto.MtProtoRoomStoryProjectionStore
+import org.monogram.data.mtproto.MtProtoAuthKeyScope
+import org.monogram.data.mtproto.MtProtoEnvironment
 import org.monogram.data.mtproto.MtProtoStoryProjectionStore
 import org.monogram.data.mtproto.MtProtoStoryResultStager
 import org.monogram.data.mtproto.MtProtoStoryRefreshRepository
@@ -530,7 +532,15 @@ val dataModule = module {
     single<MtProtoDraftStore> { get<MtProtoRoomDraftStore>() }
     single { MtProtoDialogResultStager(get(), get(), get(), get(), get()) }
     single { MtProtoHistoryResultStager(get(), get(), get(), get()) }
-    single { MtProtoDialogSnapshotRepository(get(), get(), get(), get()) }
+    single {
+        MtProtoDialogSnapshotRepository(
+            configSource = get(),
+            dialogStore = get(),
+            sessionFactory = get(),
+            resultStager = get(),
+            scope = get(),
+        )
+    }
     single<MtProtoMessageDeletionRepository> {
         MtProtoMessageDeletionRepositoryImpl(get(), get(), get(), get())
     }
@@ -1249,6 +1259,17 @@ val dataModule = module {
                 )
             },
             mtProtoStealthModeFactory = { get() },
+            mtProtoStoryChangesFactory = {
+                val configSource = get<TelegramMtProtoBootstrapConfigSource>()
+                val config = configSource.createForAccount(MT_PROTO_DEFAULT_ACCOUNT_SLOT)
+                get<MtProtoStoryProjectionStore>().observeChanges(
+                    MtProtoAuthKeyScope(
+                        accountSlot = MT_PROTO_DEFAULT_ACCOUNT_SLOT,
+                        environment = MtProtoEnvironment.PRODUCTION,
+                        dcId = config.endpoint.dcId,
+                    ),
+                )
+            },
         )
     }
 

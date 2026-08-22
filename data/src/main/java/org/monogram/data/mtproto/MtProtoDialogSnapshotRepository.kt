@@ -1,8 +1,11 @@
 package org.monogram.data.mtproto
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
 import org.monogram.domain.models.DialogMessagePreviewModel
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeer
 import org.monogram.mtproto.tl.generated.cloud.layer223.InputPeerChannel
@@ -35,11 +38,27 @@ internal class MtProtoDialogSnapshotRepository(
     private val dialogStore: MtProtoDialogStore,
     private val sessionFactory: TelegramMtProtoSessionFactory? = null,
     private val resultStager: MtProtoDialogResultStager? = null,
+    private val scope: CoroutineScope? = null,
+    private val accountId: String = "default",
 ) : DialogSnapshotRepository {
     private val _dialogUpdates = MutableSharedFlow<MtProtoDialogFolderUpdate>(replay = 1, extraBufferCapacity = 1)
     internal val dialogUpdates = _dialogUpdates.asSharedFlow()
     private val continuationCursors = mutableMapOf<DialogPageKey, DialogCursor>()
     private val exhaustedPages = mutableSetOf<DialogPageKey>()
+
+    init {
+        // Live republish: Room projection writes (messages, pins, read state) re-emit the All-chats
+        // snapshot so MtProtoDialogChatListRepository stays fresh without a network refresh.
+        scope?.launch {
+            val config = configSource.createForAccount(accountId)
+            val authScope = MtProtoAuthKeyScope(accountId, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
+            dialogStore.observeChanges(authScope)
+                .debounce(PROJECTION_REPUBLISH_DEBOUNCE_MILLIS)
+                .collect {
+                    _dialogUpdates.emit(MtProtoDialogFolderUpdate(null, dialogsForFolder(authScope, null)))
+                }
+        }
+    }
 
     override suspend fun getDialogs(accountId: String): List<DialogSnapshotModel> =
         getDialogsForFolder(accountId, null)
@@ -268,6 +287,7 @@ internal class MtProtoDialogSnapshotRepository(
         const val INITIAL_DIALOG_PAGES = 3
         const val MAX_DIALOG_PAGES = 100
         const val MAX_FLOOD_WAIT_RETRIES = 3
+        const val PROJECTION_REPUBLISH_DEBOUNCE_MILLIS = 250L
     }
 }
 

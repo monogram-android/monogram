@@ -11,6 +11,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.StoriesStealthMode_9a2f1
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadStories
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateStoriesStealthMode
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateStory
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShort
 import org.monogram.mtproto.tl.generated.cloud.layer223.Updates_02c952992b
 import org.monogram.mtproto.tl.generated.cloud.layer223.stories.AllStories_75ae93d8cd
 
@@ -37,6 +38,17 @@ class MtProtoStoryResultStagerTest {
         assertEquals(MtProtoStoryKey("USER", 9, 7), stored.key)
         assertTrue(stored.isDeleted)
         assertTrue(stored.payload.isNotEmpty())
+    }
+
+    @Test
+    fun `stages live story update delivered as a single UpdateShort envelope`() = runBlocking {
+        val stories = RecordingStories()
+        val stager = MtProtoStoryResultStager(stories)
+
+        stager.stageLive(scope, UpdateShort(UpdateStory(PeerUser(9), StoryItemDeleted(7)), 1))
+
+        val stored = stories.staged.single()
+        assertEquals(MtProtoStoryKey("USER", 9, 7), stored.key)
     }
 
     @Test

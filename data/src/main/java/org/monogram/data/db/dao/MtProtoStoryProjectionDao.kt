@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 import org.monogram.data.db.model.MtProtoStoryActiveListEntity
 import org.monogram.data.db.model.MtProtoStoryListCursorEntity
 import org.monogram.data.db.model.MtProtoStoryProjectionEntity
@@ -79,6 +80,13 @@ interface MtProtoStoryProjectionDao {
 
     @Query("DELETE FROM mtproto_story_projection WHERE accountSlot = :accountSlot AND environment = :environment")
     suspend fun deleteStoriesForAccount(accountSlot: String, environment: String)
+
+    /** Emits on every active-list/story-table write so live UI flows can republish. */
+    @Query(
+        "SELECT COALESCE(MAX(updatedAt), 0) FROM mtproto_story_active_list " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId"
+    )
+    fun observeChangeToken(accountSlot: String, environment: String, dcId: Int): Flow<Long>
 
     @Query("DELETE FROM mtproto_story_active_list WHERE accountSlot = :accountSlot AND environment = :environment")
     suspend fun deleteActiveListsForAccount(accountSlot: String, environment: String)

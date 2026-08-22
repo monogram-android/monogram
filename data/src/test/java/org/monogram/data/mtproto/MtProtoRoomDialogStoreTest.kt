@@ -200,6 +200,9 @@ class MtProtoRoomDialogStoreTest {
         override suspend fun upsert(entity: MtProtoMessageProjectionEntity) = Unit
         override suspend fun markDeletedNonChannel(accountSlot: String, environment: String, dcId: Int, messageIds: List<Int>, updatedAt: Long) = Unit
         override suspend fun markDeletedChannel(accountSlot: String, environment: String, dcId: Int, peerId: Long, messageIds: List<Int>, updatedAt: Long) = Unit
+        override suspend fun markContentsReadNonChannel(accountSlot: String, environment: String, dcId: Int, messageIds: List<Int>, updatedAt: Long) = Unit
+        override suspend fun markContentsReadChannel(accountSlot: String, environment: String, dcId: Int, channelId: Long, messageIds: List<Int>, updatedAt: Long) = Unit
+        override fun observeChangeToken(accountSlot: String, environment: String, dcId: Int) = kotlinx.coroutines.flow.flowOf(0L)
         override suspend fun deleteAccount(accountSlot: String, environment: String) = Unit
     }
 
@@ -225,7 +228,9 @@ class MtProtoRoomDialogStoreTest {
             dialogs.filter { it.folderId == folderId }
         override suspend fun upsert(entity: org.monogram.data.db.model.MtProtoDialogProjectionEntity) = Unit
         override suspend fun upsertAll(entities: List<org.monogram.data.db.model.MtProtoDialogProjectionEntity>) = Unit
-        override suspend fun updateTopMessage(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int, updatedAt: Long) = Unit
+        override suspend fun updateTopMessage(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int, unreadDelta: Int, mentionDelta: Int, updatedAt: Long) = Unit
+        override suspend fun updateInboxUnread(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, unreadCount: Int, updatedAt: Long) = Unit
+        override fun observeChangeToken(accountSlot: String, environment: String, dcId: Int) = kotlinx.coroutines.flow.flowOf(0L)
         override suspend fun updatePinned(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, pinned: Boolean, folderId: Int?, updatedAt: Long) {
             pinnedPeerType = peerType
             pinnedPeerId = peerId

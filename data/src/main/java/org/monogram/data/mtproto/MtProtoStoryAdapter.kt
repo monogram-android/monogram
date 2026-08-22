@@ -1,6 +1,7 @@
 package org.monogram.data.mtproto
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -16,6 +17,7 @@ internal class MtProtoStoryAdapter(
     private val mtProtoComposerFactory: () -> MtProtoStoryComposerRepository ,
     private val mtProtoStealthModeFactory: () -> MtProtoStoryStealthModeReader,
     private val mtProtoAvailableReactionsFactory: () -> MtProtoStoryAvailableReactionsReader? = { null },
+    private val mtProtoStoryChangesFactory: (suspend () -> Flow<Unit>)? = null,
     private val accountId: String = "default",
 ) : StoryRepository {
     private val mtProto by lazy(LazyThreadSafetyMode.NONE, mtProtoFactory)
@@ -40,7 +42,34 @@ internal class MtProtoStoryAdapter(
                     } ?: StoryStealthModeModel()
                 }
             }
+            // Live stories: projection writes republish the strip immediately from Room, then a
+            // throttled server refresh picks up brand-new peers. Local re-reads are deduped by the
+            // StateFlow; the throttle prevents refresh-driven writes from looping back into
+            // unbounded network refreshes.
+            launch {
+                val changes = mtProtoStoryChangesFactory?.invoke() ?: return@launch
+                changes.collect {
+                    runCatching { mtProtoActiveLists.readLocal() }.onSuccess { active ->
+                        publishActiveLists(active)
+                    }
+                    val now = System.currentTimeMillis()
+                    if (now - lastNetworkRefreshMillis >= STORY_NETWORK_REFRESH_MIN_INTERVAL_MILLIS) {
+                        lastNetworkRefreshMillis = now
+                        runCatching {
+                            mtProtoActiveLists.refreshAndRead()
+                        }.onSuccess { active -> publishActiveLists(active) }
+                            .onFailure { lastNetworkRefreshMillis = 0L }
+                    }
+                }
+            }
         }
+    }
+
+    private var lastNetworkRefreshMillis = 0L
+
+    private fun publishActiveLists(active: Map<StoryListType, List<ActiveStoryListModel>>) {
+        emptyActiveStories.value = active
+        emptyStoryCounts.value = active.mapValues { it.value.size }
     }
 
     override val activeStories: StateFlow<Map<StoryListType, List<ActiveStoryListModel>>>
@@ -57,10 +86,7 @@ internal class MtProtoStoryAdapter(
     override suspend fun loadActiveStories(listType: StoryListType) {
         if (!emptyActiveStories.value.containsKey(listType)) {
             runCatching { mtProtoActiveLists.refreshAndRead() }
-                .onSuccess { active ->
-                    emptyActiveStories.value = active
-                    emptyStoryCounts.value = active.mapValues { it.value.size }
-                }
+                .onSuccess { active -> publishActiveLists(active) }
         }
     }
     override suspend fun refreshStoryOptions() {
@@ -163,5 +189,8 @@ internal class MtProtoStoryAdapter(
 
 
 
-    private companion object { const val DEFAULT_ACCOUNT_ID = "default" }
+    private companion object {
+        const val DEFAULT_ACCOUNT_ID = "default"
+        const val STORY_NETWORK_REFRESH_MIN_INTERVAL_MILLIS = 15_000L
+    }
 }

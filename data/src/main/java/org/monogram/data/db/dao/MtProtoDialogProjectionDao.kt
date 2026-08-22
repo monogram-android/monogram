@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 import org.monogram.data.db.model.MtProtoDialogProjectionEntity
 
 @Dao
@@ -39,10 +40,35 @@ interface MtProtoDialogProjectionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entities: List<MtProtoDialogProjectionEntity>)
 
+    /** Emits on every dialog-table write so repositories can republish live read models. */
     @Query(
-        "UPDATE mtproto_dialog_projection SET topMessageId = :messageId, updatedAt = :updatedAt " +
+        "SELECT COALESCE(MAX(updatedAt), 0) FROM mtproto_dialog_projection " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId"
+    )
+    fun observeChangeToken(accountSlot: String, environment: String, dcId: Int): Flow<Long>
+
+    @Query(
+        "UPDATE mtproto_dialog_projection SET unreadCount = :unreadCount, updatedAt = :updatedAt " +
             "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
             "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updateInboxUnread(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        unreadCount: Int,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "UPDATE mtproto_dialog_projection SET topMessageId = :messageId, " +
+            "unreadCount = unreadCount + :unreadDelta, " +
+            "unreadMentionsCount = unreadMentionsCount + :mentionDelta, " +
+            "updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId AND topMessageId < :messageId"
     )
     suspend fun updateTopMessage(
         accountSlot: String,
@@ -51,6 +77,8 @@ interface MtProtoDialogProjectionDao {
         peerType: String,
         peerId: Long,
         messageId: Int,
+        unreadDelta: Int,
+        mentionDelta: Int,
         updatedAt: Long,
     )
 

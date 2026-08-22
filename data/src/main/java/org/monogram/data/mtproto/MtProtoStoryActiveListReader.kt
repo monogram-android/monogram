@@ -9,8 +9,11 @@ import org.monogram.mtproto.codec.CloudTlObjectCodec
 import org.monogram.mtproto.tl.generated.cloud.layer223.MessageMediaVideoStream
 import org.monogram.mtproto.tl.generated.cloud.layer223.StoryItem_025493d1a8
 
-internal fun interface MtProtoStoryActiveListReader {
+internal interface MtProtoStoryActiveListReader {
     suspend fun refreshAndRead(): Map<StoryListType, List<ActiveStoryListModel>>
+
+    /** Re-reads persisted projections without any network refresh; used for live republish. */
+    suspend fun readLocal(): Map<StoryListType, List<ActiveStoryListModel>> = refreshAndRead()
 }
 
 internal class MtProtoStoryActiveListReaderImpl(
@@ -22,6 +25,10 @@ internal class MtProtoStoryActiveListReaderImpl(
 ) : MtProtoStoryActiveListReader {
     override suspend fun refreshAndRead(): Map<StoryListType, List<ActiveStoryListModel>> {
         refresh.refreshInitialLists()
+        return readLocal()
+    }
+
+    override suspend fun readLocal(): Map<StoryListType, List<ActiveStoryListModel>> {
         val config = configSource.createForAccount(accountSlot)
         val scope = MtProtoAuthKeyScope(accountSlot, MtProtoEnvironment.PRODUCTION, config.endpoint.dcId)
         return StoryListType.entries.associateWith { type -> read(scope, type) }

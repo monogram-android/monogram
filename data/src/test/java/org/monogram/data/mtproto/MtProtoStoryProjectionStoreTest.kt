@@ -116,6 +116,9 @@ class MtProtoStoryProjectionStoreTest {
             lists.keys.removeAll { it[0] == accountSlot && it[1] == environment }
         }
 
+        override fun observeChangeToken(accountSlot: String, environment: String, dcId: Int) =
+            kotlinx.coroutines.flow.flowOf(0L)
+
         override suspend fun deleteCursorsForAccount(accountSlot: String, environment: String) {
             deletedCursors++
             cursors.keys.removeAll { it[0] == accountSlot && it[1] == environment }

@@ -24,6 +24,7 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.Update
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteChannelMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateChannelReadMessagesContents
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogPinned
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDialogUnreadMark
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateNotifySettings
@@ -31,6 +32,11 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateEditChannelMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateEditMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateNewChannelMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateNewMessage
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadChannelInbox
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadChannelOutbox
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadHistoryInbox
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadHistoryOutbox
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadMessagesContents
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShortChatMessage
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShort
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShortMessage
@@ -285,6 +291,38 @@ internal class MtProtoRoomMessageProjectionStore(
             dialogStore?.updateNotifySettings(scope, update)
             dialogStore != null
         }
+        is UpdateReadHistoryInbox -> {
+            val key = update.peer.toPeerKey()
+            dialogStore?.updateUnreadCount(scope, key.first, key.second, update.stillUnreadCount)
+            true
+        }
+        is UpdateReadChannelInbox -> {
+            dialogStore?.updateUnreadCount(scope, MtProtoMessagePeerType.CHANNEL, update.channelId, update.stillUnreadCount)
+            true
+        }
+        is UpdateReadHistoryOutbox -> true
+        is UpdateReadChannelOutbox -> true
+        is UpdateReadMessagesContents -> {
+            if (update.messages.isNotEmpty()) dao.markContentsReadNonChannel(
+                scope.accountSlot,
+                scope.environment.storageName,
+                scope.dcId,
+                update.messages,
+                nowMillis(),
+            )
+            true
+        }
+        is UpdateChannelReadMessagesContents -> {
+            if (update.messages.isNotEmpty()) dao.markContentsReadChannel(
+                scope.accountSlot,
+                scope.environment.storageName,
+                scope.dcId,
+                update.channelId,
+                update.messages,
+                nowMillis(),
+            )
+            true
+        }
         else -> false
     }
 
@@ -338,12 +376,20 @@ internal class MtProtoRoomMessageProjectionStore(
                 )
             }
             dao.upsert(entity)
-            if (updateDialog) dialogStore?.updateTopMessage(
-                scope = scope,
-                peerType = MtProtoMessagePeerType.valueOf(entity.peerType),
-                peerId = entity.peerId,
-                messageId = entity.messageId,
-            )
+            if (updateDialog) {
+                // Reference behavior (Telegram-Android MessagesController): incoming non-service,
+                // non-silent messages bump the dialog's local unread counters.
+                val countAsUnread = !entity.isOutgoing && !entity.isSilent && !entity.isService &&
+                    !entity.isDeleted && !entity.isScheduled
+                dialogStore?.updateTopMessage(
+                    scope = scope,
+                    peerType = MtProtoMessagePeerType.valueOf(entity.peerType),
+                    peerId = entity.peerId,
+                    messageId = entity.messageId,
+                    countAsUnread = countAsUnread,
+                    countAsMention = countAsUnread && entity.isMentioned,
+                )
+            }
         }
         database?.withTransaction { persistProjection() } ?: persistProjection()
     }

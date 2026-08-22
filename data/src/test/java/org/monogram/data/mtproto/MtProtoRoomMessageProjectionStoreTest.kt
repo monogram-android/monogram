@@ -20,6 +20,10 @@ import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChannel
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerChat
 import org.monogram.mtproto.tl.generated.cloud.layer223.PeerUser
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteChannelMessages
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateChannelReadMessagesContents
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadChannelInbox
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadHistoryInbox
+import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateReadMessagesContents
 import org.monogram.mtproto.tl.runtime.TlBytes
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateDeleteMessages
 import org.monogram.mtproto.tl.generated.cloud.layer223.UpdateShort
@@ -58,6 +62,49 @@ class MtProtoRoomMessageProjectionStoreTest {
 
         assertTrue(store.get(scope, MtProtoMessagePeerType.CHANNEL, 50, 20)?.isDeleted == true)
         assertTrue(store.get(scope, MtProtoMessagePeerType.CHANNEL, 60, 20)?.isDeleted == false)
+    }
+
+    @Test
+    fun `inbox read update publishes authoritative unread count to the dialog store`() = runBlocking {
+        val dialogs = RecordingDialogStore()
+        val store = MtProtoRoomMessageProjectionStore(FakeMessageProjectionDao(), nowMillis = { 1234L }, dialogStore = dialogs)
+
+        store.stageLive(scope, UpdateShort(UpdateReadHistoryInbox(null, PeerUser(7), null, 10, 0, 3, 1), 101))
+
+        assertEquals(listOf(Triple(MtProtoMessagePeerType.USER, 7L, 0)), dialogs.unreadUpdates)
+    }
+
+    @Test
+    fun `channel inbox read update publishes unread count for the channel peer`() = runBlocking {
+        val dialogs = RecordingDialogStore()
+        val store = MtProtoRoomMessageProjectionStore(FakeMessageProjectionDao(), nowMillis = { 1234L }, dialogStore = dialogs)
+
+        store.stageLive(scope, UpdateShort(UpdateReadChannelInbox(null, 50, 10, 2, 4), 101))
+
+        assertEquals(listOf(Triple(MtProtoMessagePeerType.CHANNEL, 50L, 2)), dialogs.unreadUpdates)
+    }
+
+    @Test
+    fun `incoming non-silent message counts toward dialog unread counters`() = runBlocking {
+        val dialogs = RecordingDialogStore()
+        val store = MtProtoRoomMessageProjectionStore(FakeMessageProjectionDao(), nowMillis = { 1234L }, dialogStore = dialogs)
+
+        store.stageLive(scope, shortMessage(id = 10, userId = 7, text = "hello"))
+
+        assertEquals(listOf(true to true), dialogs.topMessageCalls)
+    }
+
+    @Test
+    fun `contents read update clears mention flags without touching other messages`() = runBlocking {
+        val dao = FakeMessageProjectionDao()
+        dao.upsert(entity(MtProtoMessagePeerType.GROUP, 20, 5).copy(isMentioned = true))
+        dao.upsert(entity(MtProtoMessagePeerType.GROUP, 20, 6).copy(isMentioned = true))
+        val store = MtProtoRoomMessageProjectionStore(dao, nowMillis = { 1234L })
+
+        store.stageDifference(scope, batch(otherUpdates = listOf(UpdateReadMessagesContents(listOf(5), 1, 1, null))))
+
+        assertTrue(store.get(scope, MtProtoMessagePeerType.GROUP, 20, 5)?.isMentioned == false)
+        assertTrue(store.get(scope, MtProtoMessagePeerType.GROUP, 20, 6)?.isMentioned == true)
     }
 
     @Test
@@ -359,12 +406,47 @@ class MtProtoRoomMessageProjectionStoreTest {
             entities.replaceAll { if (it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.peerType == "CHANNEL" && it.peerId == peerId && it.messageId in messageIds) it.copy(isDeleted = true, updatedAt = updatedAt) else it }
         }
 
+        override suspend fun markContentsReadNonChannel(accountSlot: String, environment: String, dcId: Int, messageIds: List<Int>, updatedAt: Long) {
+            entities.replaceAll { if (it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.peerType != "CHANNEL" && it.messageId in messageIds) it.copy(isMentioned = false, updatedAt = updatedAt) else it }
+        }
+
+        override suspend fun markContentsReadChannel(accountSlot: String, environment: String, dcId: Int, channelId: Long, messageIds: List<Int>, updatedAt: Long) {
+            entities.replaceAll { if (it.accountSlot == accountSlot && it.environment == environment && it.dcId == dcId && it.peerType == "CHANNEL" && it.peerId == channelId && it.messageId in messageIds) it.copy(isMentioned = false, updatedAt = updatedAt) else it }
+        }
+
+        override fun observeChangeToken(accountSlot: String, environment: String, dcId: Int) = kotlinx.coroutines.flow.flowOf(0L)
+
         override suspend fun deleteAccount(accountSlot: String, environment: String) {
             entities.removeAll { it.accountSlot == accountSlot && it.environment == environment }
         }
 
         private fun MtProtoMessageProjectionEntity.matches(accountSlot: String, environment: String, dcId: Int, peerType: String, peerId: Long, messageId: Int) =
             this.accountSlot == accountSlot && this.environment == environment && this.dcId == dcId && this.peerType == peerType && this.peerId == peerId && this.messageId == messageId
+    }
+
+    private class RecordingDialogStore : MtProtoDialogStore by NoOpMtProtoDialogStore {
+        val unreadUpdates = mutableListOf<Triple<MtProtoMessagePeerType, Long, Int>>()
+        val topMessageCalls = mutableListOf<Pair<Boolean, Boolean>>()
+
+        override suspend fun updateUnreadCount(
+            scope: MtProtoAuthKeyScope,
+            peerType: MtProtoMessagePeerType,
+            peerId: Long,
+            unreadCount: Int,
+        ) {
+            unreadUpdates += Triple(peerType, peerId, unreadCount)
+        }
+
+        override suspend fun updateTopMessage(
+            scope: MtProtoAuthKeyScope,
+            peerType: MtProtoMessagePeerType,
+            peerId: Long,
+            messageId: Int,
+            countAsUnread: Boolean,
+            countAsMention: Boolean,
+        ) {
+            topMessageCalls += countAsUnread to countAsMention
+        }
     }
 
     private class FakeCloudObjectDao(private val entities: List<MtProtoCloudObjectEntity>) : MtProtoCloudObjectDao {

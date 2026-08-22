@@ -123,9 +123,9 @@ class DefaultStorageUsageComponent(
                 cacheController.clearAllCache()
                 showCleanupMessage(
                     cleanupResult = StorageCleanupResultModel(
-                        tdlibFreedSize = 0L,
-                        tdlibFreedFileCount = 0,
-                        tdlibCleanupSucceeded = true
+                        freedSize = 0L,
+                        freedFileCount = 0,
+                        cleanupSucceeded = true
                     ),
                     appTempFreedSize = appTempUsage.size
                 )
@@ -159,9 +159,9 @@ class DefaultStorageUsageComponent(
         cleanupResult: StorageCleanupResultModel,
         appTempFreedSize: Long = 0L
     ) {
-        val totalFreedSize = cleanupResult.tdlibFreedSize + appTempFreedSize
+        val totalFreedSize = cleanupResult.freedSize + appTempFreedSize
         val message = when {
-            totalFreedSize > 0L && cleanupResult.tdlibCleanupSucceeded -> {
+            totalFreedSize > 0L && cleanupResult.cleanupSucceeded -> {
                 stringProvider.getString(
                     "storage_cleanup_result_freed",
                     formatStorageSize(totalFreedSize)
@@ -175,7 +175,7 @@ class DefaultStorageUsageComponent(
                 )
             }
 
-            cleanupResult.tdlibCleanupSucceeded -> {
+            cleanupResult.cleanupSucceeded -> {
                 stringProvider.getString("storage_cleanup_result_empty")
             }
 

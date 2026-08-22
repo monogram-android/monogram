@@ -27,7 +27,7 @@ interface DebugComponent {
         val isPowerSavingMode: Boolean = false,
         val isWakeLockEnabled: Boolean = false,
         val batteryOptimizationEnabled: Boolean = false,
-        val isTdNotificationServiceRunning: Boolean = false,
+        val isMtProtoNotificationServiceRunning: Boolean = false,
         val unifiedPushStatus: UnifiedPushDebugStatus = UnifiedPushDebugStatus.IDLE,
         val unifiedPushEndpoint: String? = null,
         val unifiedPushSavedDistributor: String? = null,

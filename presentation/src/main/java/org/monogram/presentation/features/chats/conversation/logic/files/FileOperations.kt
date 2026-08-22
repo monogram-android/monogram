@@ -28,6 +28,7 @@ internal fun DefaultChatComponent.handleCancelDownloadFile(fileId: Int) {
 }
 
 internal fun DefaultChatComponent.handleDownloadHighRes(messageId: Long) {
+    return
     scope.launch {
         val fileId = repositoryMessage.getHighResFileId(chatId, messageId)
         if (fileId != null) {

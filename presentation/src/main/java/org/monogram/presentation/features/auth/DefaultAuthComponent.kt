@@ -37,13 +37,23 @@ class DefaultAuthComponent(
                         nextDelivery = step.nextDelivery,
                         timeout = step.timeout,
                         emailPattern = step.emailPattern,
-                        canResend = step.canResend
+                        canResend = step.canResend,
+                        isLoginEmailSetupCode = step.isLoginEmailSetupCode,
                     )
 
                     is AuthStep.InputPassword -> AuthComponent.AuthState.InputPassword(
                         passwordHint = step.passwordHint,
                         hasRecoveryEmail = step.hasRecoveryEmail,
                         recoveryEmailPattern = step.recoveryEmailPattern
+                    )
+                    AuthStep.InputSignUp -> AuthComponent.AuthState.InputSignUp
+                    AuthStep.InputLoginEmail -> AuthComponent.AuthState.InputLoginEmail
+                    is AuthStep.PaidCodeRequired -> AuthComponent.AuthState.PaidCodeRequired(
+                        storeProduct = step.storeProduct,
+                        supportEmailAddress = step.supportEmailAddress,
+                        supportEmailSubject = step.supportEmailSubject,
+                        currency = step.currency,
+                        amount = step.amount,
                     )
                     else -> null
                 }
@@ -101,6 +111,16 @@ class DefaultAuthComponent(
         repository.sendPassword(password)
     }
 
+    override fun onSignUpSubmitted(firstName: String, lastName: String) {
+        _model.update { it.copy(isSubmitting = true) }
+        repository.signUp(firstName, lastName)
+    }
+
+    override fun onLoginEmailSubmitted(email: String) {
+        _model.update { it.copy(isSubmitting = true) }
+        repository.sendLoginEmail(email)
+    }
+
     override fun onBackToPhone() {
         _model.update { it.copy(error = null) }
         repository.reset()
@@ -124,6 +144,8 @@ class DefaultAuthComponent(
         repository.reset()
     }
 }
+
+private const val TAG = "DefaultAuthComponent"
 
 private fun AuthUiStatus.isSubmitting(): Boolean {
     return this is AuthUiStatus.Submitting || this is AuthUiStatus.SlowNetwork

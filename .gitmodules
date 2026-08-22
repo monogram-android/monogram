@@ -4,3 +4,6 @@
 [submodule "presentation/src/main/cpp/third_party/rlottie"]
 	path = presentation/src/main/cpp/third_party/rlottie
 	url = https://github.com/monogram-android/rlottie
+[submodule "tools/tellers-tl"]
+	path = tools/tellers-tl
+	url = https://github.com/tellers-project/tellers-tl.git

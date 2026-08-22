@@ -401,7 +401,7 @@ class DefaultStoriesHostComponent(
         val current = _state.value
         val story = current.currentStory ?: return
         val mediaPath = resolveStoryEditableMediaPath(story)
-        if (!story.canBeEdited || mediaPath == null) {
+        if (!story.canBeEdited || story.privacy == null || mediaPath == null) {
             _state.value = current.copy(inlineError = "This story can't be edited yet")
             return
         }
@@ -948,6 +948,7 @@ class DefaultStoriesHostComponent(
         )
         scope.launch {
             val rawPage = storyRepository.getStoryInteractions(
+                chatId = story.posterChatId,
                 storyId = story.id,
                 offset = "",
                 limit = STORY_INTERACTIONS_PAGE_SIZE
@@ -992,6 +993,7 @@ class DefaultStoriesHostComponent(
         _state.value = current.copy(isStoryInteractionsLoading = true, inlineError = null)
         scope.launch {
             val rawNextPage = storyRepository.getStoryInteractions(
+                chatId = story.posterChatId,
                 storyId = story.id,
                 offset = page.nextOffset,
                 limit = STORY_INTERACTIONS_PAGE_SIZE
@@ -1494,7 +1496,7 @@ internal fun createEditComposerDraft(
             )
         ),
         caption = story.caption,
-        privacy = story.privacy,
+        privacy = checkNotNull(story.privacy),
         widgetLink = story.linkUrls.firstOrNull()
     )
 }

@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.SettingsEthernet
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -36,12 +39,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.auth.components.AuthErrorDialog
 import org.monogram.presentation.features.auth.components.CodeInputScreen
 import org.monogram.presentation.features.auth.components.PasswordInputScreen
 import org.monogram.presentation.features.auth.components.PhoneInputScreen
+import org.monogram.presentation.features.auth.components.SignUpInputScreen
+import org.monogram.presentation.features.auth.components.LoginEmailInputScreen
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -54,7 +60,10 @@ fun AuthContent(component: AuthComponent) {
     val maxContentWidth = if (isTablet && isLandscape) 1000.dp else 600.dp
     val motionScheme = MaterialTheme.motionScheme
 
-    val isCustomBackHandlingEnabled = model.authState is AuthComponent.AuthState.InputCode || model.authState is AuthComponent.AuthState.InputPassword
+    val isCustomBackHandlingEnabled = model.authState is AuthComponent.AuthState.InputCode ||
+        model.authState is AuthComponent.AuthState.InputPassword ||
+        model.authState is AuthComponent.AuthState.InputSignUp ||
+        model.authState is AuthComponent.AuthState.InputLoginEmail
 
     BackHandler(enabled = isCustomBackHandlingEnabled) {
         component.onBackToPhone()
@@ -79,13 +88,20 @@ fun AuthContent(component: AuthComponent) {
                                     is AuthComponent.AuthState.InputPhone -> stringResource(R.string.auth_title_phone)
                                     is AuthComponent.AuthState.InputCode -> stringResource(R.string.auth_title_verification)
                                     is AuthComponent.AuthState.InputPassword -> stringResource(R.string.auth_title_password)
+                                    AuthComponent.AuthState.InputSignUp -> stringResource(R.string.auth_signup_title)
+                                    AuthComponent.AuthState.InputLoginEmail -> stringResource(R.string.auth_login_email_title)
+                                    is AuthComponent.AuthState.PaidCodeRequired -> stringResource(R.string.auth_paid_code_title)
                                 },
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                         },
                         navigationIcon = {
-                            if (model.authState is AuthComponent.AuthState.InputCode || model.authState is AuthComponent.AuthState.InputPassword) {
+                            if (model.authState is AuthComponent.AuthState.InputCode ||
+                                model.authState is AuthComponent.AuthState.InputPassword ||
+                                model.authState is AuthComponent.AuthState.InputSignUp ||
+                                model.authState is AuthComponent.AuthState.InputLoginEmail
+                            ) {
                                 IconButton(onClick = component::onBackToPhone) {
                                     Icon(
                                         Icons.AutoMirrored.Rounded.ArrowBack,
@@ -173,6 +189,31 @@ fun AuthContent(component: AuthComponent) {
                             isSubmitting = model.isSubmitting,
                             uiStatus = model.uiStatus
                         )
+
+                        AuthComponent.AuthState.InputSignUp -> SignUpInputScreen(
+                            onConfirm = component::onSignUpSubmitted,
+                            isSubmitting = model.isSubmitting,
+                        )
+
+                        AuthComponent.AuthState.InputLoginEmail -> LoginEmailInputScreen(
+                            onConfirm = component::onLoginEmailSubmitted,
+                            isSubmitting = model.isSubmitting,
+                        )
+
+                        is AuthComponent.AuthState.PaidCodeRequired -> Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(horizontal = 32.dp),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.auth_paid_code_body,
+                                    targetState.storeProduct,
+                                    targetState.supportEmailAddress,
+                                ),
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
                     }
                 }
             }
@@ -194,4 +235,7 @@ private val AuthComponent.AuthState.index: Int
         is AuthComponent.AuthState.InputPhone -> 1
         is AuthComponent.AuthState.InputCode -> 2
         is AuthComponent.AuthState.InputPassword -> 3
+        AuthComponent.AuthState.InputSignUp -> 4
+        AuthComponent.AuthState.InputLoginEmail -> 5
+        is AuthComponent.AuthState.PaidCodeRequired -> 6
     }

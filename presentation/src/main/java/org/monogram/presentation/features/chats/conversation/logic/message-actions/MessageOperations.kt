@@ -9,6 +9,7 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
+import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.RichTextParseMode
@@ -44,14 +45,30 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
                 visibleMessageIds = visibleMessageIds
             )
         }
-        repositoryMessage.markMessagesAsRead(
-            chatId = targetChatId,
-            messageIds = visibleMessageIds,
-            threadId = currentState.effectiveThreadId()
-        )
-        if (hadUnreadTarget) {
-            repositoryMessage.markAllMentionsAsRead(targetChatId)
-            repositoryMessage.markAllReactionsAsRead(targetChatId)
+        if (true) {
+            val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+            mtProtoReadHistoryRepository.markRead(
+                chatId = targetChatId,
+                peerType = peer.type,
+                maxMessageId = visibleMessageIds.max(),
+            )
+            if (hadUnreadTarget) {
+                mtProtoTextMessageRepository.markMentionsRead(targetChatId, peer.type)
+                mtProtoTextMessageRepository.markReactionsRead(targetChatId, peer.type)
+            }
+        } else {
+            repositoryMessage.markMessagesAsRead(
+                chatId = targetChatId,
+                messageIds = visibleMessageIds,
+                threadId = currentState.effectiveThreadId()
+            )
+            if (hadUnreadTarget) {
+                repositoryMessage.markAllMentionsAsRead(targetChatId)
+                repositoryMessage.markAllReactionsAsRead(targetChatId)
+            }
         }
 
         visibleMessage?.let { requestSenderRefreshIfNeeded(it) }
@@ -107,9 +124,20 @@ private fun DefaultChatComponent.clearUnreadShortcut(type: UnreadShortcutType) {
         )
     }
     scope.launch {
-        when (type) {
-            UnreadShortcutType.Mention -> repositoryMessage.markAllMentionsAsRead(targetChatId)
-            UnreadShortcutType.Reaction -> repositoryMessage.markAllReactionsAsRead(targetChatId)
+        if (true) {
+            val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+            when (type) {
+                UnreadShortcutType.Mention -> mtProtoTextMessageRepository.markMentionsRead(targetChatId, peer.type)
+                UnreadShortcutType.Reaction -> mtProtoTextMessageRepository.markReactionsRead(targetChatId, peer.type)
+            }
+        } else {
+            when (type) {
+                UnreadShortcutType.Mention -> repositoryMessage.markAllMentionsAsRead(targetChatId)
+                UnreadShortcutType.Reaction -> repositoryMessage.markAllReactionsAsRead(targetChatId)
+            }
         }
     }
 }
@@ -129,7 +157,15 @@ internal fun DefaultChatComponent.handleDeleteMessage(message: MessageModel, rev
     }
 
     scope.launch {
-        repositoryMessage.deleteMessage(message.chatId, messageIdsToDelete, revoke)
+        if (true) {
+            val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(message.chatId, chat.isChannel)
+            mtProtoMessageDeletionRepository.delete(message.chatId, peer.type, messageIdsToDelete, revoke)
+        } else {
+            repositoryMessage.deleteMessage(message.chatId, messageIdsToDelete, revoke)
+        }
     }
 }
 
@@ -150,8 +186,8 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
         else -> false
     }
     val isAllowed = when {
-        isCaption -> ensureTdLibCaptionLimit(text)
-        else -> ensureTdLibMessageLimit(text, rich = isRichMessage)
+        isCaption -> ensureTelegramCaptionLimit(text)
+        else -> ensureTelegramMessageLimit(text, rich = isRichMessage)
     }
     if (!isAllowed) return
     val targetChatId = editingMsg.chatId
@@ -162,7 +198,15 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
 
     scope.launch {
         runCatching {
-            when (editingMsg.content) {
+            if (true) {
+                require(editingMsg.content is MessageContent.Text) { "MTProto media caption editing is not available" }
+                require(parseMode == null) { "MTProto Markdown and HTML parsing is not available" }
+                val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
+                    "MTProto target chat is not projected"
+                }
+                val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+                mtProtoTextMessageRepository.editText(targetChatId, peer.type, editingMsg.id, text, entities)
+            } else when (editingMsg.content) {
                 is MessageContent.RichMessage -> repositoryMessage.editRichMessage(
                     chatId = targetChatId,
                     messageId = editingMsg.id,
@@ -192,7 +236,7 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(
 }
 
 internal fun DefaultChatComponent.handleSaveChecklistDraft(draft: ChecklistDraft) {
-    val limits = tdLibLimitsRepository.limits.value
+    val limits = telegramLimitsRepository.limits.value
     val checklistTitleLengthMax = limits.checklistTitleLengthMax
     if (checklistTitleLengthMax != null && draft.title.length > checklistTitleLengthMax) {
         toastMessageDisplayer.show("Checklist title is too long. Maximum is $checklistTitleLengthMax")
@@ -419,6 +463,10 @@ private fun ChecklistTask.withCompletion(
 }
 
 internal fun DefaultChatComponent.handleDraftChange(text: String) {
+    if (
+        true &&
+        _state.value.effectiveThreadId() != null
+    ) return
     val isEditing = _state.value.editingMessage != null
     recomputeDraftLinkPreview(
         text = text,
@@ -478,7 +526,15 @@ internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: 
                 newReactions.remove(reactionToUpdate)
             }
             scope.launch {
-                repositoryMessage.removeMessageReaction(chatId, messageId, reaction)
+                if (true) {
+                    val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
+                        "MTProto target chat is not projected"
+                    }
+                    val peer = TelegramPeerChatId.decode(message.chatId, chat.isChannel)
+                    mtProtoTextMessageRepository.setEmojiReaction(message.chatId, peer.type, messageId, null)
+                } else {
+                    repositoryMessage.removeMessageReaction(chatId, messageId, reaction)
+                }
             }
         } else {
             if (existingReaction != null) {
@@ -500,7 +556,15 @@ internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: 
                 )
             }
             scope.launch {
-                repositoryMessage.addMessageReaction(chatId, messageId, reaction)
+                if (true) {
+                    val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
+                        "MTProto target chat is not projected"
+                    }
+                    val peer = TelegramPeerChatId.decode(message.chatId, chat.isChannel)
+                    mtProtoTextMessageRepository.setEmojiReaction(message.chatId, peer.type, messageId, reaction)
+                } else {
+                    repositoryMessage.addMessageReaction(chatId, messageId, reaction)
+                }
             }
         }
 
@@ -510,26 +574,54 @@ internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: 
 }
 
 internal fun DefaultChatComponent.handlePinMessage(message: MessageModel) {
-    scope.launch {
-        repositoryMessage.pinMessage(chatId, message.id)
-    }
+    updatePinnedMessage(message, pinned = true)
 }
 
 internal fun DefaultChatComponent.handleUnpinMessage(message: MessageModel) {
+    updatePinnedMessage(message, pinned = false)
+}
+
+private fun DefaultChatComponent.updatePinnedMessage(message: MessageModel, pinned: Boolean) {
     scope.launch {
-        repositoryMessage.unpinMessage(chatId, message.id)
+        if (true) {
+            val chat = requireNotNull(chatListRepository.getChatById(message.chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(message.chatId, chat.isChannel)
+            mtProtoTextMessageRepository.setPinned(message.chatId, peer.type, message.id, pinned)
+        } else if (pinned) {
+            repositoryMessage.pinMessage(chatId, message.id)
+        } else {
+            repositoryMessage.unpinMessage(chatId, message.id)
+        }
     }
 }
 
 internal fun DefaultChatComponent.handleClearMessages() {
     scope.launch {
-        chatOperationsRepository.clearChatHistory(chatId, false)
+        if (true) {
+            val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(chatId, chat.isChannel)
+            mtProtoTextMessageRepository.clearHistory(chatId, peer.type, revoke = false)
+        } else {
+            chatOperationsRepository.clearChatHistory(chatId, false)
+        }
     }
 }
 
 internal fun DefaultChatComponent.handleSendScheduledNow(message: MessageModel) {
     scope.launch {
-        repositoryMessage.sendScheduledNow(chatId, message.id)
+        if (true) {
+            val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(chatId, chat.isChannel)
+            mtProtoTextMessageRepository.sendScheduledNow(chatId, peer.type, message.id)
+        } else {
+            repositoryMessage.sendScheduledNow(chatId, message.id)
+        }
         loadScheduledMessages()
     }
 }

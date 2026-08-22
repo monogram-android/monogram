@@ -41,6 +41,7 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.TelegramLimits
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WallpaperModel
@@ -57,11 +58,15 @@ import org.monogram.domain.repository.GifRepository
 import org.monogram.domain.repository.InlineBotRepository
 import org.monogram.domain.repository.MessageDisplayer
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.MtProtoTextMessageRepository
+import org.monogram.domain.repository.MtProtoReadHistoryRepository
+import org.monogram.domain.repository.MtProtoMessageDeletionRepository
 import org.monogram.domain.repository.PaymentRepository
 import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
@@ -255,6 +260,7 @@ internal class RichMessageCoordinator(
     }
 
     private fun request(key: RichMessageKey) {
+        return
         if (!inFlightMessageIds.add(key)) return
         component.scope.launch(component.dispatcherProvider.io) {
             ChatConversationLog.logViewport(
@@ -298,8 +304,8 @@ class DefaultChatComponent(
 
     internal val wallpaperRepository: WallpaperRepository = container.repositories.wallpaperRepository
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
-    internal val userRepository: UserRepository = container.repositories.userRepository
-    internal val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
+    internal val userRepository: UserRepository by lazy { container.repositories.userRepository }
+    internal val chatInfoRepository: ChatInfoRepository by lazy { container.repositories.chatInfoRepository }
     internal val botRepository: BotRepository = container.repositories.botRepository
     override val stickerRepository: StickerRepository = container.repositories.stickerRepository
     internal val gifRepository: GifRepository = container.repositories.gifRepository
@@ -309,14 +315,26 @@ class DefaultChatComponent(
     internal val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     internal val toastMessageDisplayer: MessageDisplayer = container.utils.messageDisplayer()
     internal val chatListRepository: ChatListRepository = container.repositories.chatListRepository
-    internal val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
-    internal val forumTopicsRepository: ForumTopicsRepository = container.repositories.forumTopicsRepository
-    override val repositoryMessage: MessageRepository = container.repositories.messageRepository
+    internal val chatOperationsRepository: ChatOperationsRepository by lazy { container.repositories.chatOperationsRepository }
+    internal val forumTopicsRepository: ForumTopicsRepository by lazy { container.repositories.forumTopicsRepository }
+    internal val messageHistorySnapshotRepository: MessageHistorySnapshotRepository =
+        container.repositories.messageHistorySnapshotRepository
+    internal val userProfileSnapshotRepository = container.repositories.userProfileSnapshotRepository
+    override val repositoryMessage: MessageRepository by lazy { container.repositories.messageRepository }
+    internal val mtProtoTextMessageRepository: MtProtoTextMessageRepository by lazy {
+        container.repositories.mtProtoTextMessageRepository
+    }
+    internal val mtProtoReadHistoryRepository: MtProtoReadHistoryRepository by lazy {
+        container.repositories.mtProtoReadHistoryRepository
+    }
+    internal val mtProtoMessageDeletionRepository: MtProtoMessageDeletionRepository by lazy {
+        container.repositories.mtProtoMessageDeletionRepository
+    }
     internal val pinnedMessageVisibilityRepository: PinnedMessageVisibilityRepository =
         container.repositories.pinnedMessageVisibilityRepository
     internal val inlineBotRepository: InlineBotRepository = container.repositories.inlineBotRepository
     internal val paymentRepository: PaymentRepository = container.repositories.paymentRepository
-    internal val tdLibLimitsRepository = container.repositories.tdLibLimitsRepository
+    internal val telegramLimitsRepository by lazy { container.repositories.telegramLimitsRepository }
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     internal val conversationPipelineMode: ConversationPipelineMode =
         ConversationPipelineFallbackGate.modeFor(appPreferences.conversationPipelineMode.value)
@@ -353,11 +371,12 @@ class DefaultChatComponent(
     internal var sponsoredMessageLoadingJob: Job? = null
     internal var unreadBackfillJob: Job? = null
     internal var lastStartedLoadKey: ChatInitialLoadKey? = null
+    internal var lastMtProtoTypingAtMillis: Long = 0L
     internal var hasStartedInitialLoadForContext: Boolean = false
     internal var activeLoadSession: ConversationLoadSession? = null
     internal val conversationSession = ConversationSession(
         scope = scope,
-        historyLoader = repositoryMessage::getHistoryPage
+        historyLoader = { request -> repositoryMessage.getHistoryPage(request) }
     )
 
     internal fun isLoadingGenerationCurrent(generation: Long): Boolean =
@@ -397,7 +416,11 @@ class DefaultChatComponent(
             isWhitelistedInAdBlock = appPreferences.adBlockWhitelistedChannels.value.contains(chatId),
             scrollToMessageId = initialMessageId,
             currentTopicId = initialTopicId,
-            tdLibLimits = tdLibLimitsRepository.limits.value,
+            telegramLimits = if (true) {
+                TelegramLimits()
+            } else {
+                telegramLimitsRepository.limits.value
+            },
             initialShare = initialShare,
             lastScrollPosition = cacheProvider.getChatScrollPosition(chatId),
             lastSavedViewport = cacheProvider.getChatViewport(chatId, null),
@@ -471,7 +494,9 @@ class DefaultChatComponent(
                     componentInstanceId = componentInstanceId
                 )
                 conversationSession.close(loadingGeneration + 1L)
-                repositoryMessage.closeChat(chatId, ownerTag = componentInstanceId)
+                if (false) {
+                    repositoryMessage.closeChat(chatId, ownerTag = componentInstanceId)
+                }
             }
         }
 
@@ -488,9 +513,11 @@ class DefaultChatComponent(
     }
 
     private fun setupCollectors() {
-        tdLibLimitsRepository.limits
-            .onEach { limits -> _state.update { it.copy(tdLibLimits = limits) } }
-            .launchIn(scope)
+        if (false) {
+            telegramLimitsRepository.limits
+                .onEach { limits -> _state.update { it.copy(telegramLimits = limits) } }
+                .launchIn(scope)
+        }
         setupMessageCollectors()
         setupPinnedMessageCollector()
         observeUserUpdates()
@@ -573,24 +600,26 @@ class DefaultChatComponent(
             }
             .launchIn(scope)
 
-        repositoryMessage.fileDownloadFlow
-            .filterIsInstance<org.monogram.domain.models.FileDownloadEvent.Completed>()
-            .onEach { event ->
-                refreshDraftLinkPreviewOnPhotoDownloadIfNeeded(event.fileId)
-            }
-            .launchIn(scope)
+        if (false) {
+            repositoryMessage.fileDownloadFlow
+                .filterIsInstance<org.monogram.domain.models.FileDownloadEvent.Completed>()
+                .onEach { event ->
+                    refreshDraftLinkPreviewOnPhotoDownloadIfNeeded(event.fileId)
+                }
+                .launchIn(scope)
 
-        repositoryMessage.messageDownloadFlow
-            .filterIsInstance<org.monogram.domain.models.MessageDownloadEvent.Completed>()
-            .onEach { event ->
-                if (event.chatId != chatId) return@onEach
-                refreshSponsoredMessageAfterMediaDownload(
-                    messageId = event.messageId,
-                    fileId = event.fileId,
-                    path = event.path
-                )
-            }
-            .launchIn(scope)
+            repositoryMessage.messageDownloadFlow
+                .filterIsInstance<org.monogram.domain.models.MessageDownloadEvent.Completed>()
+                .onEach { event ->
+                    if (event.chatId != chatId) return@onEach
+                    refreshSponsoredMessageAfterMediaDownload(
+                        messageId = event.messageId,
+                        fileId = event.fileId,
+                        path = event.path
+                    )
+                }
+                .launchIn(scope)
+        }
     }
 
     private fun initialLoad() {
@@ -611,7 +640,9 @@ class DefaultChatComponent(
                     }
                 }
             }
-            repositoryMessage.openChat(chatId, ownerTag = componentInstanceId)
+            if (false) {
+                repositoryMessage.openChat(chatId, ownerTag = componentInstanceId)
+            }
             ChatConversationLog.logViewport(
                 chatId = chatId,
                 threadId = _state.value.currentMessageThreadId ?: _state.value.currentTopicId,
@@ -620,9 +651,11 @@ class DefaultChatComponent(
             )
             withContext(Dispatchers.Main) {
                 loadChatInfo()
-                loadDraft()
-                loadPinnedMessage()
-                loadScheduledMessages()
+                if (false) {
+                    loadDraft()
+                    loadPinnedMessage()
+                    loadScheduledMessages()
+                }
                 loadMembers()
             }
         }
@@ -687,6 +720,7 @@ class DefaultChatComponent(
     }
 
     private fun loadMembers() {
+        return
         scope.launch {
             val currentState = _state.value
             if (currentState.isGroup || currentState.isChannel) {
@@ -704,6 +738,7 @@ class DefaultChatComponent(
     }
 
     private fun observeCurrentUser() {
+        return
         userRepository.currentUserFlow
             .onEach { user ->
                 _state.update { it.copy(currentUser = user) }
@@ -900,6 +935,7 @@ class DefaultChatComponent(
             visibleMessageIds = visibleMessageIds,
             nearbyMessageIds = nearbyMessageIds
         )
+        return
         val state = _state.value
         val networkEnabled = when {
             downloadUtils.isRoaming() -> state.autoDownloadRoaming
@@ -979,14 +1015,15 @@ class DefaultChatComponent(
         store.accept(ChatStore.Intent.SendReaction(messageId, reaction))
 
     override suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int {
+        error("MTProto message read-date diagnostics are not available")
         return repositoryMessage.getMessageReadDate(chatId, messageId, messageDate)
     }
 
-    override suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel> {
-        return repositoryMessage.getMessageViewers(chatId, messageId)
-    }
+    override suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel> =
+        repositoryMessage.getMessageViewers(chatId, messageId)
 
     override suspend fun getRawMessageJson(chatId: Long, messageId: Long): String? {
+        error("MTProto raw message diagnostics are not available")
         return repositoryMessage.getRawMessageJson(chatId, messageId)
     }
 

@@ -19,6 +19,8 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.PollDraft
+import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
@@ -35,8 +37,9 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 private const val MaxCompressedPhotoLongSide = 3840
+private const val MtProtoPlainTextLimit = 4_096
 
-internal fun DefaultChatComponent.ensureTdLibTextLimit(
+internal fun DefaultChatComponent.ensureTelegramTextLimit(
     text: String,
     limit: Int?,
     label: String
@@ -48,22 +51,25 @@ internal fun DefaultChatComponent.ensureTdLibTextLimit(
     return true
 }
 
-internal fun DefaultChatComponent.ensureTdLibMessageLimit(
+internal fun DefaultChatComponent.ensureTelegramMessageLimit(
     text: String,
     rich: Boolean
 ): Boolean {
-    val limits = tdLibLimitsRepository.limits.value
-    return ensureTdLibTextLimit(
+    if (true) {
+        return ensureTelegramTextLimit(text, MtProtoPlainTextLimit, "Message")
+    }
+    val limits = telegramLimitsRepository.limits.value
+    return ensureTelegramTextLimit(
         text = text,
         limit = if (rich) limits.richMessageTextLengthMax else limits.messageTextLengthMax,
         label = if (rich) "Rich message" else "Message"
     )
 }
 
-internal fun DefaultChatComponent.ensureTdLibCaptionLimit(caption: String): Boolean =
-    ensureTdLibTextLimit(
+internal fun DefaultChatComponent.ensureTelegramCaptionLimit(caption: String): Boolean =
+    ensureTelegramTextLimit(
         text = caption,
-        limit = tdLibLimitsRepository.limits.value.messageCaptionLengthMax,
+        limit = telegramLimitsRepository.limits.value.messageCaptionLengthMax,
         label = "Caption"
     )
 internal data class PhotoCompressionProfile(
@@ -184,19 +190,53 @@ private inline fun DefaultChatComponent.launchPendingAttachmentSend(
     }
 }
 
+internal fun DefaultChatComponent.handleTyping() {
+    scope.launch {
+        val now = System.currentTimeMillis()
+        if (true) {
+            if (now - lastMtProtoTypingAtMillis < 4_000L) return@launch
+            val targetChatId = _state.value.effectiveThreadChatId(chatId)
+            val chat = chatListRepository.getChatById(targetChatId)
+                ?: return@launch
+            val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+            mtProtoTextMessageRepository.sendTyping(targetChatId, peer.type, _state.value.effectiveThreadId())
+            lastMtProtoTypingAtMillis = now
+        } else {
+            repositoryMessage.sendChatAction(chatId, MessageRepository.ChatAction.Typing, activeThreadId())
+        }
+    }
+}
+
 internal fun DefaultChatComponent.handleSendMessage(
     text: String,
     entities: List<MessageEntity>,
     sendOptions: MessageSendOptions = MessageSendOptions(),
     parseMode: RichTextParseMode? = null
 ) {
-    if (!ensureTdLibMessageLimit(text, rich = parseMode != null)) return
+    if (!ensureTelegramMessageLimit(text, rich = parseMode != null)) return
     scope.launch {
         val currentState = _state.value
         val replyId = currentState.replyMessage?.id
         val threadId = currentState.effectiveThreadId()
         val targetChatId = currentState.effectiveThreadChatId(chatId)
-        if (parseMode == null) {
+        if (true) {
+            require(parseMode == null) { "MTProto Markdown and HTML parsing is not available" }
+            val chat = requireNotNull(chatListRepository.getChatById(targetChatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(targetChatId, chat.isChannel)
+            mtProtoTextMessageRepository.sendText(
+                chatId = targetChatId,
+                peerType = peer.type,
+                text = text,
+                silent = sendOptions.silent,
+                scheduleDate = sendOptions.scheduleDate,
+                disableLinkPreview = sendOptions.disableLinkPreview,
+                replyToMessageId = replyId,
+                threadId = threadId,
+                entities = entities,
+            )
+        } else if (parseMode == null) {
             repositoryMessage.sendMessage(
                 targetChatId,
                 text,
@@ -255,7 +295,7 @@ internal fun DefaultChatComponent.handleSendPhoto(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    if (!ensureTdLibCaptionLimit(caption)) return
+    if (!ensureTelegramCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "photo",
         paths = listOf(photoPath),
@@ -314,7 +354,7 @@ internal fun DefaultChatComponent.handleSendVideo(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    if (!ensureTdLibCaptionLimit(caption)) return
+    if (!ensureTelegramCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "video",
         paths = listOf(videoPath),
@@ -419,7 +459,7 @@ internal fun DefaultChatComponent.handleSendDocument(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    if (!ensureTdLibCaptionLimit(caption)) return
+    if (!ensureTelegramCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "document",
         paths = listOf(path),
@@ -466,7 +506,7 @@ internal fun DefaultChatComponent.handleSendPoll(
     poll: PollDraft,
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    val limits = tdLibLimitsRepository.limits.value
+    val limits = telegramLimitsRepository.limits.value
     val pollAnswerCountMax = limits.pollAnswerCountMax
     if (pollAnswerCountMax != null && poll.options.size > pollAnswerCountMax) {
         toastMessageDisplayer.show("Poll has too many answers. Maximum is $pollAnswerCountMax")
@@ -508,7 +548,7 @@ internal fun DefaultChatComponent.handleSendGifFile(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    if (!ensureTdLibCaptionLimit(caption)) return
+    if (!ensureTelegramCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "gif_file",
         paths = listOf(path),
@@ -557,7 +597,7 @@ internal fun DefaultChatComponent.handleSendAlbum(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    if (!ensureTdLibCaptionLimit(caption)) return
+    if (!ensureTelegramCaptionLimit(caption)) return
     launchPendingAttachmentSend(
         operation = "album",
         paths = paths,
@@ -950,7 +990,16 @@ internal fun DefaultChatComponent.handleRepeatMessage(message: MessageModel) {
     scope.launch {
         val key = OutgoingMessageReducer.Key(message.chatId, message.id)
         val outgoingState = _state.value.outgoingMessageStates[key]
-        if (outgoingState is OutgoingMessageReducer.State.Failed && outgoingState.retryable) {
+        if (true) {
+            require(outgoingState !is OutgoingMessageReducer.State.Failed || !outgoingState.retryable) {
+                "MTProto retrying failed messages is not available"
+            }
+            val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(chatId, chat.isChannel)
+            mtProtoTextMessageRepository.forwardToSelf(chatId, peer.type, message.id)
+        } else if (outgoingState is OutgoingMessageReducer.State.Failed && outgoingState.retryable) {
             repositoryMessage.retryFailedMessage(message.chatId, message.id)
         } else {
             repositoryMessage.forwardMessage(chatId, chatId, message.id, sendCopy = true)

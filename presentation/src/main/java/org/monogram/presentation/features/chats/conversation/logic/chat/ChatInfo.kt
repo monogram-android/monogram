@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
+import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.ChatMemberStatus
@@ -24,11 +25,9 @@ internal fun DefaultChatComponent.loadChatInfo() {
         val baseChat = chatListRepository.getChatById(chatId)
         if (baseChat != null) {
             updateBaseChatState(baseChat)
-            if (baseChat.viewAsTopics && _state.value.topics.isEmpty()) {
-                loadTopics()
-            }
 
-            val isBot = baseChat.type == ChatType.PRIVATE && baseChat.isBot
+            val isBot = false &&
+                    baseChat.type == ChatType.PRIVATE && baseChat.isBot
             if (isBot) {
                 val botInfo = botRepository.getBotInfo(chatId)
                 if (botInfo != null) {
@@ -73,11 +72,7 @@ internal fun DefaultChatComponent.loadChatInfo() {
         .onEach { chat ->
             val wasTopics = _state.value.viewAsTopics
             updateBaseChatState(chat)
-            if (chat.viewAsTopics) {
-                if (_state.value.topics.isEmpty()) {
-                    loadTopics()
-                }
-            } else if (wasTopics) {
+            if (wasTopics) {
                 ChatConversationLog.logState(
                     stream = ChatConversationLog.STREAM_VIEWPORT,
                     event = "chat_info_topics_disabled_reload_messages",
@@ -123,29 +118,10 @@ internal fun DefaultChatComponent.loadChatInfo() {
         }
         .onEach(::updateEffectiveChatState)
         .launchIn(scope)
-
-    forumTopicsRepository.forumTopicsFlow
-        .filter { it.first == chatId }
-        .onEach { (_, topics) ->
-            _state.update { it.copy(topics = topics) }
-        }
-        .launchIn(scope)
-}
-
-internal fun DefaultChatComponent.loadTopics() {
-    if (_state.value.isLoadingTopics) return
-    scope.launch {
-        _state.update { it.copy(isLoadingTopics = true) }
-        try {
-            val topics = forumTopicsRepository.getForumTopics(chatId)
-            _state.update { it.copy(topics = topics) }
-        } finally {
-            _state.update { it.copy(isLoadingTopics = false) }
-        }
-    }
 }
 
 internal fun DefaultChatComponent.observeUserUpdates() {
+    return
     if (_state.value.isGroup || _state.value.isChannel) return
     scope.launch {
         userRepository.getUserFlow(chatId).collectLatest { user ->
@@ -241,7 +217,15 @@ internal fun DefaultChatComponent.handleRemoveFromAdBlockWhitelist() {
 
 internal fun DefaultChatComponent.handleClearHistory() {
     runChatAction(ChatActionType.ClearHistory) {
-        chatOperationsRepository.clearChatHistory(chatId, true)
+        if (true) {
+            val chat = requireNotNull(chatListRepository.getChatById(chatId)) {
+                "MTProto target chat is not projected"
+            }
+            val peer = TelegramPeerChatId.decode(chatId, chat.isChannel)
+            mtProtoTextMessageRepository.clearHistory(chatId, peer.type, revoke = true)
+        } else {
+            chatOperationsRepository.clearChatHistory(chatId, true)
+        }
     }
 }
 
@@ -323,6 +307,7 @@ internal fun DefaultChatComponent.handleConfirmRestrict(
 }
 
 private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
+    return
     val me = runCatching { userRepository.getMe() }.getOrNull() ?: return
     val effectiveChatId = _state.value.effectiveThreadChatId(chatId)
     val effectiveChat = runCatching { chatListRepository.getChatById(effectiveChatId) }.getOrNull()
@@ -350,6 +335,7 @@ private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
 }
 
 private suspend fun DefaultChatComponent.refreshEffectiveChatDetails(effectiveChatId: Long) {
+    return
     runCatching { chatInfoRepository.getChatFullInfo(effectiveChatId) }
         .getOrNull()
         ?.let { fullInfo ->

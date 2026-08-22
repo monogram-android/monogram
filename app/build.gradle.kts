@@ -59,15 +59,9 @@ android {
         versionName = "0.3.1"
     }
 
-    flavorDimensions += listOf("tdlib", "runtime")
+    flavorDimensions += listOf("runtime")
 
     productFlavors {
-        create("official") {
-            dimension = "tdlib"
-        }
-        create("telemt") {
-            dimension = "tdlib"
-        }
         create("firebase") {
             dimension = "runtime"
         }
@@ -129,12 +123,10 @@ android {
 
 androidComponents {
     onVariants { variant ->
-        val tdlibFlavor =
-            variant.productFlavors.firstOrNull { it.first == "tdlib" }?.second ?: "default"
         val runtimeFlavor =
             variant.productFlavors.firstOrNull { it.first == "runtime" }?.second ?: "default"
         val apkNamePrefix = buildString {
-            append(if (tdlibFlavor == "telemt") "monogram-telemt" else "monogram")
+            append("monogram")
             if (runtimeFlavor == "libre") {
                 append("-libre")
             }

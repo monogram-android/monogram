@@ -1,0 +1,291 @@
+package org.monogram.data.mtproto
+
+import java.util.concurrent.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import org.monogram.domain.models.ChatModel
+import org.monogram.domain.models.ChatType
+import org.monogram.domain.models.DialogPeerType
+import org.monogram.domain.models.DialogSnapshotModel
+import org.monogram.domain.models.FolderModel
+import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.ChatFolderRepository
+import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChatOperationsRepository
+import org.monogram.domain.repository.ConnectionStatus
+import org.monogram.domain.repository.DialogSnapshotRepository
+import org.monogram.domain.repository.FolderChatsUpdate
+import org.monogram.domain.repository.FolderLoadingUpdate
+import org.monogram.domain.repository.MtProtoReadHistoryRepository
+
+/**
+ * Read-only chat list backed by the persisted MTProto dialog projection.
+ *
+ * Commands and custom folders stay on their dedicated migration paths. This repository deliberately
+ * exposes only the All chats folder until MTProto folder synchronization is implemented.
+ */
+internal class MtProtoDialogChatListRepository(
+    private val dialogRepository: DialogSnapshotRepository,
+    private val readHistoryRepository: MtProtoReadHistoryRepository,
+    private val scope: CoroutineScope,
+    private val dialogUpdates: Flow<MtProtoDialogFolderUpdate>? = null,
+    private val archiveRepository: MtProtoArchiveRepository = MtProtoArchiveRepository { _, _ -> },
+    private val dialogPinRepository: MtProtoDialogPinRepository = MtProtoDialogPinRepository { _, _ -> },
+    private val muteRepository: MtProtoMuteRepository = MtProtoMuteRepository { _, _ -> },
+    private val leaveChatRepository: MtProtoLeaveChatRepository = MtProtoLeaveChatRepository { },
+    private val clearHistoryRepository: MtProtoClearHistoryRepository = MtProtoClearHistoryRepository { _, _ -> },
+    private val deletePrivateDialogRepository: MtProtoDeletePrivateDialogRepository = MtProtoDeletePrivateDialogRepository { },
+    private val reportPeerRepository: MtProtoReportPeerRepository = MtProtoReportPeerRepository { _, _, _ -> },
+    private val dialogUnreadRepository: MtProtoDialogUnreadRepository = MtProtoDialogUnreadRepository { _, _ -> },
+    private val folderRepository: ChatFolderRepository? = null,
+    private val refreshFolders: suspend () -> Unit = {},
+    private val accountId: String = DEFAULT_ACCOUNT_ID,
+) : MtProtoChatListAdapter.Contracts {
+    private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
+    override val chatListFlow: StateFlow<List<ChatModel>> = _chatListFlow.asStateFlow()
+    private val _isLoadingFlow = MutableStateFlow(false)
+    override val isLoadingFlow: StateFlow<Boolean> = _isLoadingFlow.asStateFlow()
+    private val _connectionStateFlow = MutableStateFlow<ConnectionStatus>(ConnectionStatus.Connected)
+    override val connectionStateFlow: StateFlow<ConnectionStatus> = _connectionStateFlow.asStateFlow()
+    private val _folderChatsFlow = MutableSharedFlow<FolderChatsUpdate>(replay = 1, extraBufferCapacity = 1)
+    override val folderChatsFlow: Flow<FolderChatsUpdate> = _folderChatsFlow.asSharedFlow()
+    private val _foldersFlow = MutableStateFlow(listOf(ALL_CHATS_FOLDER))
+    override val foldersFlow: StateFlow<List<FolderModel>> = _foldersFlow.asStateFlow()
+    private val _folderLoadingFlow = MutableSharedFlow<FolderLoadingUpdate>(replay = 1, extraBufferCapacity = 1)
+    private var selectedFolderId = ALL_CHATS_FOLDER_ID
+    private var archiveChats: List<ChatModel> = emptyList()
+    override val folderLoadingFlow: Flow<FolderLoadingUpdate> = _folderLoadingFlow.asSharedFlow()
+    private val _isArchivePinned = MutableStateFlow(false)
+    override val isArchivePinned: StateFlow<Boolean> = _isArchivePinned.asStateFlow()
+    override val isArchiveAlwaysVisible = MutableStateFlow(false).asStateFlow()
+
+    init {
+        folderRepository?.let { folders ->
+            scope.launch { folders.foldersFlow.collect { _foldersFlow.value = listOf(ALL_CHATS_FOLDER) + it } }
+        }
+        dialogUpdates?.let { updates ->
+            scope.launch {
+                updates.collect { update ->
+                    if (update.folderId == ARCHIVE_SERVER_FOLDER_ID) {
+                        publishArchiveDialogs(update.dialogs)
+                    } else {
+                        publishDialogs(update.dialogs)
+                    }
+                }
+            }
+        }
+        refresh()
+    }
+
+    override fun loadNextChunk(limit: Int) {
+        scope.launch {
+            try {
+                dialogRepository.loadMoreForFolder(
+                    accountId,
+                    limit,
+                    ARCHIVE_SERVER_FOLDER_ID.takeIf { selectedFolderId == ARCHIVE_FOLDER_ID },
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                _connectionStateFlow.value = ConnectionStatus.Connecting
+            }
+        }
+    }
+
+    override fun selectFolder(folderId: Int) {
+        require(
+            folderId == ALL_CHATS_FOLDER_ID ||
+                folderId == ARCHIVE_FOLDER_ID ||
+                _foldersFlow.value.any { it.id == folderId },
+        ) { "Unknown MTProto folder: $folderId" }
+        selectedFolderId = folderId
+        scope.launch {
+            if (folderId == ARCHIVE_FOLDER_ID && archiveChats.isEmpty()) {
+                publishArchiveDialogs(dialogRepository.getDialogsForFolder(accountId, ARCHIVE_SERVER_FOLDER_ID))
+            } else {
+                publishCurrentChats()
+            }
+        }
+    }
+
+    override fun refresh() {
+        scope.launch {
+            _isLoadingFlow.value = true
+            _folderLoadingFlow.emit(FolderLoadingUpdate(selectedFolderId, true))
+            try {
+                runCatching { refreshFolders() }
+                if (selectedFolderId == ARCHIVE_FOLDER_ID) {
+                    publishArchiveDialogs(dialogRepository.getDialogsForFolder(accountId, ARCHIVE_SERVER_FOLDER_ID))
+                } else {
+                    publishDialogs(dialogRepository.getDialogs(accountId))
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                _connectionStateFlow.value = ConnectionStatus.Connecting
+            }
+            _isLoadingFlow.value = false
+            _folderLoadingFlow.emit(FolderLoadingUpdate(selectedFolderId, false))
+        }
+    }
+
+    override fun refreshOnResume() = refresh()
+
+    override suspend fun getChatById(chatId: Long): ChatModel? =
+        chatListFlow.value.firstOrNull { it.id == chatId } ?: archiveChats.firstOrNull { it.id == chatId }
+
+    override suspend fun isChatArchived(chatId: Long): Boolean? =
+        chatListFlow.value.firstOrNull { it.id == chatId }?.isArchived
+
+    override fun retryConnection() = refresh()
+
+    override suspend fun createFolder(title: String, iconName: String?, includedChatIds: List<Long>) =
+        requireFolderRepository().createFolder(title, iconName, includedChatIds)
+
+    override suspend fun deleteFolder(folderId: Int) = requireFolderRepository().deleteFolder(folderId)
+
+    override suspend fun updateFolder(folderId: Int, title: String, iconName: String?, includedChatIds: List<Long>) =
+        requireFolderRepository().updateFolder(folderId, title, iconName, includedChatIds)
+
+    override suspend fun reorderFolders(folderIds: List<Int>) = requireFolderRepository().reorderFolders(folderIds)
+
+    private suspend fun publishDialogs(dialogs: List<DialogSnapshotModel>) {
+        _chatListFlow.value = dialogs.mapNotNull(::toChatModel)
+            .sortedWith(compareByDescending<ChatModel> { it.lastMessageDate }.thenByDescending { it.lastMessageId })
+        publishCurrentChats()
+    }
+
+    private suspend fun publishArchiveDialogs(dialogs: List<DialogSnapshotModel>) {
+        archiveChats = dialogs.mapNotNull(::toChatModel)
+            .sortedWith(compareByDescending<ChatModel> { it.lastMessageDate }.thenByDescending { it.lastMessageId })
+        publishCurrentChats()
+    }
+
+    private suspend fun publishCurrentChats() {
+        val chats = if (selectedFolderId == ALL_CHATS_FOLDER_ID) {
+            chatListFlow.value
+        } else if (selectedFolderId == ARCHIVE_FOLDER_ID) {
+            archiveChats
+        } else {
+            val included = _foldersFlow.value.first { it.id == selectedFolderId }.includedChatIds.toSet()
+            chatListFlow.value.filter { it.id in included }
+        }
+        _folderChatsFlow.emit(FolderChatsUpdate(selectedFolderId, chats))
+    }
+
+    private fun toChatModel(dialog: DialogSnapshotModel): ChatModel? = with(dialog) {
+        if (!isPeerResolved || isPeerDeleted || isPeerForbidden || peerType == DialogPeerType.UNKNOWN) return null
+        val chatId = TelegramPeerChatId.encode(peerType, peerId)
+        return ChatModel(
+            id = chatId,
+            title = title?.takeIf(String::isNotBlank) ?: username.orEmpty().ifBlank { chatId.toString() },
+            unreadCount = unreadCount,
+            lastMessageText = latestMessage.text.orEmpty(),
+            lastMessageDate = latestMessage.date,
+            lastMessageId = latestMessage.messageId,
+            isLastMessageOutgoing = latestMessage.isOutgoing,
+            messageSenderId = latestMessage.senderId,
+            lastMessageContentType = if (latestMessage.hasMedia) "media" else "text",
+            username = username,
+            type = when (peerType) {
+                DialogPeerType.PRIVATE -> ChatType.PRIVATE
+                DialogPeerType.BASIC_GROUP -> ChatType.BASIC_GROUP
+                DialogPeerType.SUPERGROUP,
+                DialogPeerType.CHANNEL -> ChatType.SUPERGROUP
+                DialogPeerType.UNKNOWN -> return null
+            },
+            isGroup = peerType != DialogPeerType.PRIVATE,
+            isSupergroup = peerType == DialogPeerType.SUPERGROUP || peerType == DialogPeerType.CHANNEL,
+            isChannel = peerType == DialogPeerType.CHANNEL,
+            isMuted = isMuted,
+        )
+    }
+
+    override suspend fun toggleMuteChats(chatIds: Set<Long>, mute: Boolean) {
+        muteRepository.setMuted(chatIds, mute)
+        refresh()
+    }
+    override suspend fun toggleArchiveChats(chatIds: Set<Long>, archive: Boolean) {
+        archiveRepository.setArchived(chatIds, archive)
+        refresh()
+    }
+    override suspend fun togglePinChats(chatIds: Set<Long>, pin: Boolean, folderId: Int) {
+        // Per-peer `messages.toggleDialogPin` covers every folder: the server tracks each
+        // dialog's folder membership, matching the reference client behavior (MessagesController.pinDialog).
+        dialogPinRepository.setPinned(chatIds, pin)
+        refresh()
+    }
+
+    override suspend fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) {
+        if (markAsUnread) dialogUnreadRepository.setUnread(chatIds, unread = true) else markChatsRead(chatIds)
+    }
+
+    override fun markChatsAsRead(chatIds: Set<Long>) {
+        scope.launch { markChatsRead(chatIds) }
+    }
+
+    override fun markFolderAsRead(folderId: Int, chatIds: Set<Long>) {
+        require(folderId == ALL_CHATS_FOLDER_ID || _foldersFlow.value.any { it.id == folderId }) {
+            "Unknown MTProto folder: $folderId"
+        }
+        scope.launch { markChatsRead(chatIds) }
+    }
+    override suspend fun deleteChats(chatIds: Set<Long>) {
+        deletePrivateDialogRepository.delete(chatIds)
+        refresh()
+    }
+    override suspend fun leaveChats(chatIds: Set<Long>) {
+        leaveChatRepository.leave(chatIds)
+        refresh()
+    }
+    override suspend fun leaveChat(chatId: Long) = leaveChats(setOf(chatId))
+    override fun setArchivePinned(pinned: Boolean) {
+        // Archive pinning is a client-side preference; no server call needed.
+        _isArchivePinned.value = pinned
+    }
+    override suspend fun clearChatHistories(chatIds: Set<Long>, revoke: Boolean) {
+        clearHistoryRepository.clear(chatIds, revoke)
+        refresh()
+    }
+    override suspend fun clearChatHistory(chatId: Long, revoke: Boolean) = clearChatHistories(setOf(chatId), revoke)
+    override suspend fun getChatLink(chatId: Long): String? =
+        chatListFlow.value.firstOrNull { it.id == chatId }?.username
+            ?.trim()
+            ?.removePrefix("@")
+            ?.takeIf(String::isNotBlank)
+            ?.let { "https://t.me/$it" }
+    override suspend fun reportChats(chatIds: Set<Long>, reason: String, messageIds: List<Long>) {
+        reportPeerRepository.report(chatIds, reason, messageIds)
+    }
+    override suspend fun reportChat(chatId: Long, reason: String, messageIds: List<Long>) =
+        reportChats(setOf(chatId), reason, messageIds)
+
+    private fun requireFolderRepository(): ChatFolderRepository = requireNotNull(folderRepository) {
+        "MTProto folder repository is not configured"
+    }
+
+    private suspend fun markChatsRead(chatIds: Set<Long>) {
+        chatListFlow.value
+            .asSequence()
+            .filter { it.id in chatIds && it.lastMessageId > 0L }
+            .forEach { chat ->
+                val peer = TelegramPeerChatId.decode(chat.id, chat.isChannel)
+                readHistoryRepository.markRead(chat.id, peer.type, chat.lastMessageId)
+            }
+    }
+
+    private companion object {
+        const val DEFAULT_ACCOUNT_ID = "default"
+        const val ALL_CHATS_FOLDER_ID = -1
+        const val ARCHIVE_FOLDER_ID = -2
+        const val ARCHIVE_SERVER_FOLDER_ID = 1
+        val ALL_CHATS_FOLDER = FolderModel(id = ALL_CHATS_FOLDER_ID, title = "All chats")
+    }
+}

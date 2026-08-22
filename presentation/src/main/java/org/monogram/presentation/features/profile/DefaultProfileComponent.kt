@@ -20,11 +20,15 @@ import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.ChatRevenueStatisticsModel
 import org.monogram.domain.models.ChatStatisticsModel
+import org.monogram.domain.models.DialogPeerType
 import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.ProfilePhotoMedia
 import org.monogram.domain.models.StatisticsGraphModel
+import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.UserProfileSnapshotModel
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.BotPreferencesProvider
 import org.monogram.domain.repository.BotRepository
@@ -48,6 +52,7 @@ import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.TelegramLinkRepository
+import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
@@ -55,6 +60,8 @@ import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.root.AppComponentContext
+
+private const val DEFAULT_ACCOUNT_ID = "default"
 
 class DefaultProfileComponent(
     context: AppComponentContext,
@@ -79,7 +86,9 @@ class DefaultProfileComponent(
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
     private val chatSettingsRepository: ChatSettingsRepository = container.repositories.chatSettingsRepository
-    private val userRepository: UserRepository = container.repositories.userRepository
+    private val userRepository: UserRepository by lazy { container.repositories.userRepository }
+    private val userProfileSnapshotRepository: UserProfileSnapshotRepository =
+        container.repositories.userProfileSnapshotRepository
     private val profilePhotoRepository: ProfilePhotoRepository = container.repositories.profilePhotoRepository
     private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
     private val botRepository: BotRepository = container.repositories.botRepository
@@ -121,7 +130,7 @@ class DefaultProfileComponent(
             try {
                 val chat = coRunCatching { chatListRepository.getChatById(chatId) }.getOrNull()
                 val user = if (chat == null || (!chat.isGroup && !chat.isChannel)) {
-                    userRepository.getUser(chatId)
+                    loadProfileUser(chatId)
                 } else null
                 val isBlocked = if (user != null) {
                     privacyRepository.getBlockedUsers().contains(user.id)
@@ -232,13 +241,43 @@ class DefaultProfileComponent(
         }
     }
 
-    private fun observeCurrentUser() {
-        userRepository.currentUserFlow
-            .onEach { user ->
-                _state.update { it.copy(currentUser = user) }
-                refreshProfileStories()
+    private suspend fun loadProfileUser(userId: Long): UserModel? =
+        runCatching { TelegramPeerChatId.decode(userId) }
+            .getOrNull()
+            ?.takeIf { it.type == DialogPeerType.PRIVATE }
+            ?.let { peer ->
+                userProfileSnapshotRepository.getUser(DEFAULT_ACCOUNT_ID, peer.id)
             }
-            .launchIn(scope)
+            ?.toUserModel()
+
+    private fun UserProfileSnapshotModel.toUserModel() = UserModel(
+        id = userId,
+        firstName = firstName.orEmpty(),
+        lastName = lastName,
+        username = username,
+        phoneNumber = phoneNumber,
+        isPremium = isPremium,
+        isVerified = isVerified,
+        isScam = isScam,
+        isFake = isFake,
+        isContact = isContact,
+        isMutualContact = isMutualContact,
+        type = when {
+            isDeleted -> UserTypeEnum.DELETED
+            isBot -> UserTypeEnum.BOT
+            else -> UserTypeEnum.REGULAR
+        },
+    )
+
+    private fun observeCurrentUser() {
+        scope.launch {
+            userProfileSnapshotRepository.getCurrentUser(DEFAULT_ACCOUNT_ID)
+                ?.toUserModel()
+                ?.let { user ->
+                    _state.update { it.copy(currentUser = user) }
+                    refreshProfileStories()
+                }
+        }
 
         storyRepository.activeStories
             .onEach { activeStories ->
@@ -851,13 +890,12 @@ class DefaultProfileComponent(
         }
 
     private fun observeUserUpdates() {
-        userRepository.getUserFlow(chatId)
-            .onEach { user ->
-                if (user != null) {
-                    _state.update { it.copy(user = user, personalAvatarPath = user.personalAvatarPath) }
-                }
+        if (isGroupOrChannelProfile()) return
+        scope.launch {
+            loadProfileUser(chatId)?.let { user ->
+                _state.update { it.copy(user = user, personalAvatarPath = user.personalAvatarPath) }
             }
-            .launchIn(scope)
+        }
     }
 
     private fun observeProfilePhotos() {
@@ -1712,7 +1750,7 @@ class DefaultProfileComponent(
                             anchor = HistoryAnchor.Message(interaction.objectId),
                             direction = HistoryDirection.Around,
                             limit = 1,
-                            source = HistorySource.TdlibNetwork
+                            source = HistorySource.NetworkSnapshot
                         )
                     )
                         .messages

@@ -229,7 +229,7 @@ class InMemoryChatLocalDataSourceTest {
         newestMessageId = null,
         olderBoundaryReached = false,
         newerBoundaryReached = false,
-        lastTdlibSyncAt = 0L,
+        lastNetworkSyncAt = 0L,
         generation = 1L
     )
 }

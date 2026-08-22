@@ -6,7 +6,7 @@ data class ActiveStoryListModel(
     val chatId: Long,
     val listType: StoryListType,
     val order: Long,
-    val canBeArchived: Boolean,
+    val canBeArchived: Boolean? = null,
     val maxReadStoryId: Int,
     val stories: List<StorySummaryModel>
 )
@@ -26,7 +26,7 @@ data class StoryModel(
     val caption: String,
     val media: StoryMediaModel,
     val chosenReaction: StoryReactionModel? = null,
-    val privacy: StoryPrivacySettingsModel,
+    val privacy: StoryPrivacySettingsModel? = null,
     val albumIds: List<Int> = emptyList(),
     val areas: List<StoryAreaModel> = emptyList(),
     val linkUrls: List<String> = emptyList(),

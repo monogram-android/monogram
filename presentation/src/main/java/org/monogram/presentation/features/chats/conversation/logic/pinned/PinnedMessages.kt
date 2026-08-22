@@ -97,6 +97,7 @@ private suspend fun DefaultChatComponent.canLoadScheduledMessages(): Boolean {
 }
 
 internal fun DefaultChatComponent.setupPinnedMessageCollector() {
+    return
     repositoryMessage.pinnedMessageFlow
         .onEach { cId ->
             if (cId == chatId) {

@@ -23,14 +23,15 @@ class ConflatedSyncRequestQueueTest {
         val processed = mutableListOf<String>()
         val queue = ConflatedSyncRequestQueue(
             scope = scope,
-            minIntervalMs = 0L
-        ) { reason ->
-            processed += reason
-            if (reason == "first") {
-                firstStarted.complete(Unit)
-                releaseFirst.await()
-            }
-        }
+            minIntervalMs = 0L,
+            execute = { reason ->
+                processed += reason
+                if (reason == "first") {
+                    firstStarted.complete(Unit)
+                    releaseFirst.await()
+                }
+            },
+        )
 
         assertTrue(queue.request("first"))
         runCurrent()

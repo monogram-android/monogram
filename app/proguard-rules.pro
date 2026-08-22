@@ -3,9 +3,7 @@
 -overloadaggressively
 
 -keepnames class org.monogram.**
--keepnames class org.drinkless.tdlib.**
 -keepclassmembernames class org.monogram.** { *; }
--keepclassmembernames class org.drinkless.tdlib.** { *; }
 
 -assumenosideeffects class android.util.Log {
     public static *** v(...);
@@ -29,7 +27,6 @@
     @kotlinx.serialization.SerialName <fields>;
 }
 
--keep class org.drinkless.tdlib.** { *; }
 
 -keep class org.monogram.presentation.features.stickers.core.RLottieWrapper { *; }
 -keep class org.monogram.presentation.features.stickers.core.StickerBackgroundCleaner { *; }

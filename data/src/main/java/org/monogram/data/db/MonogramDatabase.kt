@@ -9,6 +9,21 @@ import org.monogram.data.db.dao.ChatFullInfoDao
 import org.monogram.data.db.dao.KeyValueDao
 import org.monogram.data.db.dao.MessageDao
 import org.monogram.data.db.dao.MessageWindowDao
+import org.monogram.data.db.dao.MtProtoUpdateStateDao
+import org.monogram.data.db.dao.MtProtoPendingEnvelopeDao
+import org.monogram.data.db.dao.MtProtoPollDao
+import org.monogram.data.db.dao.MtProtoSecretChatStateDao
+import org.monogram.data.db.dao.MtProtoCloudObjectDao
+import org.monogram.data.db.dao.MtProtoChatProjectionDao
+import org.monogram.data.db.dao.MtProtoDialogProjectionDao
+import org.monogram.data.db.dao.MtProtoDraftProjectionDao
+import org.monogram.data.db.dao.MtProtoDocumentLocationDao
+import org.monogram.data.db.dao.MtProtoFileHandleDao
+import org.monogram.data.db.dao.MtProtoFileTransferDao
+import org.monogram.data.db.dao.MtProtoMessageProjectionDao
+import org.monogram.data.db.dao.MtProtoPhotoLocationDao
+import org.monogram.data.db.dao.MtProtoStoryProjectionDao
+import org.monogram.data.db.dao.MtProtoUserProjectionDao
 import org.monogram.data.db.dao.NotificationExceptionDao
 import org.monogram.data.db.dao.NotificationSettingDao
 import org.monogram.data.db.dao.RecentEmojiDao
@@ -28,6 +43,17 @@ import org.monogram.data.db.model.ChatFullInfoEntity
 import org.monogram.data.db.model.KeyValueEntity
 import org.monogram.data.db.model.MessageEntity
 import org.monogram.data.db.model.MessageWindowEntity
+import org.monogram.data.db.model.MtProtoUpdateStateEntity
+import org.monogram.data.db.model.MtProtoPendingEnvelopeEntity
+import org.monogram.data.db.model.MtProtoCloudObjectEntity
+import org.monogram.data.db.model.MtProtoChatProjectionEntity
+import org.monogram.data.db.model.MtProtoDialogProjectionEntity
+import org.monogram.data.db.model.MtProtoMessageProjectionEntity
+import org.monogram.data.db.model.MtProtoPhotoLocationEntity
+import org.monogram.data.db.model.MtProtoStoryActiveListEntity
+import org.monogram.data.db.model.MtProtoStoryListCursorEntity
+import org.monogram.data.db.model.MtProtoStoryProjectionEntity
+import org.monogram.data.db.model.MtProtoUserProjectionEntity
 import org.monogram.data.db.model.NotificationExceptionEntity
 import org.monogram.data.db.model.NotificationSettingEntity
 import org.monogram.data.db.model.RecentEmojiEntity
@@ -39,6 +65,12 @@ import org.monogram.data.db.model.TextCompositionStyleEntity
 import org.monogram.data.db.model.TopicEntity
 import org.monogram.data.db.model.UserEntity
 import org.monogram.data.db.model.UserFullInfoEntity
+import org.monogram.data.db.model.MtProtoDraftProjectionEntity
+import org.monogram.data.db.model.MtProtoDocumentLocationEntity
+import org.monogram.data.db.model.MtProtoFileHandleEntity
+import org.monogram.data.db.model.MtProtoFileTransferEntity
+import org.monogram.data.db.model.MtProtoPollEntity
+import org.monogram.data.db.model.MtProtoSecretChatStateEntity
 import org.monogram.data.db.model.WallpaperEntity
 
 @Database(
@@ -46,6 +78,23 @@ import org.monogram.data.db.model.WallpaperEntity
         ChatEntity::class,
         MessageEntity::class,
         MessageWindowEntity::class,
+        MtProtoUpdateStateEntity::class,
+        MtProtoPendingEnvelopeEntity::class,
+        MtProtoSecretChatStateEntity::class,
+        MtProtoPollEntity::class,
+        MtProtoCloudObjectEntity::class,
+        MtProtoUserProjectionEntity::class,
+        MtProtoChatProjectionEntity::class,
+        MtProtoDialogProjectionEntity::class,
+        MtProtoMessageProjectionEntity::class,
+        MtProtoPhotoLocationEntity::class,
+        MtProtoDraftProjectionEntity::class,
+        MtProtoDocumentLocationEntity::class,
+        MtProtoFileHandleEntity::class,
+        MtProtoFileTransferEntity::class,
+        MtProtoStoryProjectionEntity::class,
+        MtProtoStoryActiveListEntity::class,
+        MtProtoStoryListCursorEntity::class,
         UserEntity::class,
         ChatFullInfoEntity::class,
         TopicEntity::class,
@@ -63,13 +112,26 @@ import org.monogram.data.db.model.WallpaperEntity
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 38,
+    version = 65,
     exportSchema = true
 )
 abstract class MonogramDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun messageDao(): MessageDao
     abstract fun messageWindowDao(): MessageWindowDao
+    abstract fun mtProtoUpdateStateDao(): MtProtoUpdateStateDao
+    abstract fun mtProtoPendingEnvelopeDao(): MtProtoPendingEnvelopeDao
+    abstract fun mtProtoCloudObjectDao(): MtProtoCloudObjectDao
+    abstract fun mtProtoUserProjectionDao(): MtProtoUserProjectionDao
+    abstract fun mtProtoChatProjectionDao(): MtProtoChatProjectionDao
+    abstract fun mtProtoDialogProjectionDao(): MtProtoDialogProjectionDao
+    abstract fun mtProtoMessageProjectionDao(): MtProtoMessageProjectionDao
+    abstract fun mtProtoPhotoLocationDao(): MtProtoPhotoLocationDao
+    abstract fun mtProtoStoryProjectionDao(): MtProtoStoryProjectionDao
+    abstract fun mtProtoDraftProjectionDao(): MtProtoDraftProjectionDao
+    abstract fun mtProtoDocumentLocationDao(): MtProtoDocumentLocationDao
+    abstract fun mtProtoFileHandleDao(): MtProtoFileHandleDao
+    abstract fun mtProtoFileTransferDao(): MtProtoFileTransferDao
     abstract fun userDao(): UserDao
     abstract fun chatFullInfoDao(): ChatFullInfoDao
     abstract fun topicDao(): TopicDao
@@ -82,6 +144,8 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun keyValueDao(): KeyValueDao
     abstract fun notificationSettingDao(): NotificationSettingDao
     abstract fun notificationExceptionDao(): NotificationExceptionDao
+    abstract fun mtProtoPollDao(): MtProtoPollDao
+    abstract fun secretChatStateDao(): MtProtoSecretChatStateDao
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun stickerPathDao(): StickerPathDao
     abstract fun sponsorDao(): SponsorDao

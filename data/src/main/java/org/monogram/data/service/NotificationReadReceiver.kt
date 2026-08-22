@@ -4,17 +4,17 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import org.drinkless.tdlib.TdApi
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import org.monogram.data.di.TdNotificationManager
-import org.monogram.data.gateway.TdLibException
-import org.monogram.data.gateway.TelegramGateway
+import org.monogram.domain.models.TelegramPeerChatId
+import org.monogram.domain.repository.DialogSnapshotRepository
+import org.monogram.domain.repository.MessageRepository
 
 class NotificationReadReceiver : BroadcastReceiver(), KoinComponent {
 
-    private val gateway: TelegramGateway by inject()
-    private val notificationManager: TdNotificationManager by inject()
+    private val messages: MessageRepository by inject()
+    private val dialogs: DialogSnapshotRepository by inject()
+    private val notificationManager: NotificationActionManager by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
         val chatId = intent.getLongExtra("chat_id", 0L)
@@ -30,32 +30,23 @@ class NotificationReadReceiver : BroadcastReceiver(), KoinComponent {
                     notificationManager.clearHistory(chatId)
                 }
 
-                val chat = try {
-                    gateway.execute(TdApi.GetChat(chatId))
-                } catch (e: TdLibException) {
-                    if (e.error.message == "Not Found") {
+                val dialog = dialogs.getDialogs(DEFAULT_ACCOUNT_ID).firstOrNull {
+                    TelegramPeerChatId.encode(it.peerType, it.peerId) == chatId
+                }
+                    ?: run {
                         Log.w("NotificationReadReceiver", "Chat $chatId not found")
                         return@goAsync
                     }
-                    throw e
-                }
-
-                if (chat.unreadCount > 0) {
-                    chat.lastMessage?.let { lastMessage ->
-                        try {
-                            gateway.execute(TdApi.ViewMessages(chatId, longArrayOf(lastMessage.id), null, true))
-                        } catch (e: TdLibException) {
-                            if (e.error.message == "Message is too old" || e.error.message == "Not Found") {
-                                Log.w("NotificationReadReceiver", "Failed to mark message as read: ${e.error.message}")
-                            } else {
-                                throw e
-                            }
-                        }
-                    }
+                if (dialog.unreadCount > 0 && dialog.latestMessage.messageId > 0) {
+                    messages.markAsRead(chatId, dialog.latestMessage.messageId)
                 }
             } catch (e: Exception) {
                 Log.e("NotificationReadReceiver", "Failed to mark messages as read", e)
             }
         }
+    }
+
+    private companion object {
+        const val DEFAULT_ACCOUNT_ID = "default"
     }
 }

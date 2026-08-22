@@ -49,6 +49,7 @@ import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.CacheProvider
 import org.monogram.domain.repository.ExternalNavigator
+import org.monogram.domain.repository.ForwardRequest
 import org.monogram.domain.repository.LinkAction
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.MessageDisplayer
@@ -110,6 +111,7 @@ class DefaultRootComponent(
 
     private val authRepository: AuthRepository = container.repositories.authRepository
     private val messageRepository: MessageRepository = container.repositories.messageRepository
+    private val mtProtoTextMessageRepository = container.repositories.mtProtoTextMessageRepository
     private val storageRepository: StorageRepository = container.repositories.storageRepository
     private val linkHandlerRepository: LinkHandlerRepository = container.repositories.linkHandlerRepository
     private val proxyRepository: ProxyRepository = container.repositories.proxyRepository
@@ -207,7 +209,10 @@ class DefaultRootComponent(
 
                     is AuthStep.InputPhone,
                     is AuthStep.InputCode,
-                    is AuthStep.InputPassword -> {
+                    is AuthStep.InputPassword,
+                    AuthStep.InputSignUp,
+                    AuthStep.InputLoginEmail,
+                    is AuthStep.PaidCodeRequired -> {
                         _isLocked.update { false }
                         appPreferences.setPasscode(null)
                         appPreferences.setBiometricEnabled(false)
@@ -267,6 +272,8 @@ class DefaultRootComponent(
     }
 
     private suspend fun runStorageMaintenance(limit: Long, time: Int, force: Boolean) {
+        // Telegram-local database maintenance is gone with the legacy backend; only the app
+        // cache budget is still enforced.
         maintenanceMutex.withLock {
             val now = SystemClock.elapsedRealtime()
             val lastCheck = lastMaintenanceCheckAt
@@ -274,10 +281,7 @@ class DefaultRootComponent(
                 return
             }
 
-            val ttl = if (time > 0) time * 24 * 60 * 60 else -1
-            storageRepository.setDatabaseMaintenanceSettings(limit, ttl)
-            val tdlibMediaSize = storageRepository.getStorageUsageBreakdown()?.tdlibMediaSize
-            val appCacheBudget = remainingAppCacheBudget(limit, tdlibMediaSize)
+            val appCacheBudget = remainingAppCacheBudget(limit, null)
             cacheController.enforceCacheLimit(appCacheBudget)
             lastMaintenanceCheckAt = now
         }
@@ -720,7 +724,7 @@ class DefaultRootComponent(
                         if (config.forwardingMessageIds != null) {
                             scope.launch {
                                 try {
-                                    messageRepository.forwardMessages(request)
+                                    mtProtoTextMessageRepository.forwardMessages(request)
                                     val commentText = request.options.commentText.trim()
                                     if (commentText.isNotEmpty()) {
                                         request.targets.forEach { target ->
@@ -1117,8 +1121,8 @@ class DefaultRootComponent(
     }
 }
 
-internal fun remainingAppCacheBudget(limit: Long, tdlibMediaSize: Long?): Long = when {
+internal fun remainingAppCacheBudget(limit: Long, mediaCacheSize: Long?): Long = when {
     limit < 0L -> -1L
-    tdlibMediaSize == null -> limit
-    else -> (limit - tdlibMediaSize).coerceAtLeast(0L)
+    mediaCacheSize == null -> limit
+    else -> (limit - mediaCacheSize).coerceAtLeast(0L)
 }

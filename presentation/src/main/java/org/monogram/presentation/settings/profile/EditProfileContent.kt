@@ -963,7 +963,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
-                    state.tdLibLimits.bioLengthMax?.let { maxLength ->
+                    state.telegramLimits.bioLengthMax?.let { maxLength ->
                         Text(
                             text = stringResource(
                                 R.string.message_length_counter,
@@ -1107,7 +1107,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                             icon = Icons.Rounded.Business,
                             position = ItemPosition.MIDDLE
                         )
-                        state.tdLibLimits.businessStartPageMessageLengthMax?.let { maxLength ->
+                        state.telegramLimits.businessStartPageMessageLengthMax?.let { maxLength ->
                             Text(
                                 text = stringResource(
                                     R.string.message_length_counter,

@@ -744,13 +744,13 @@ private fun StorageBreakdownCard(
     val rows = buildList {
         if (breakdown != null) {
             add(
-                stringResource(R.string.storage_breakdown_tdlib_media) to breakdown.tdlibMediaSize
+                stringResource(R.string.storage_breakdown_media) to breakdown.mediaCacheSize
             )
             add(
-                stringResource(R.string.storage_breakdown_tdlib_database) to breakdown.tdlibDatabaseSize
+                stringResource(R.string.storage_breakdown_database) to breakdown.databaseSize
             )
             add(
-                stringResource(R.string.storage_breakdown_tdlib_logs) to breakdown.tdlibLogsSize
+                stringResource(R.string.storage_breakdown_logs) to breakdown.logsSize
             )
             add(
                 stringResource(R.string.storage_breakdown_language_pack) to breakdown.languagePackDatabaseSize

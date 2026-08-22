@@ -16,6 +16,7 @@ sealed class AuthStep {
         val nextDelivery: AuthCodeDelivery? = null,
         val timeout: Int = 0,
         val isEmailCode: Boolean = false,
+        val isLoginEmailSetupCode: Boolean = false,
         val emailPattern: String? = null,
         val canResend: Boolean = false
     ) : AuthStep()
@@ -24,6 +25,16 @@ sealed class AuthStep {
         val passwordHint: String? = null,
         val hasRecoveryEmail: Boolean = false,
         val recoveryEmailPattern: String? = null
+    ) : AuthStep()
+    object InputSignUp : AuthStep()
+    object InputLoginEmail : AuthStep()
+    /** The server requires a paid code purchase before delivering a login code. */
+    data class PaidCodeRequired(
+        val storeProduct: String,
+        val supportEmailAddress: String,
+        val supportEmailSubject: String,
+        val currency: String,
+        val amount: Long
     ) : AuthStep()
     object Ready : AuthStep()
 }
@@ -52,7 +63,9 @@ enum class AuthSubmissionStage {
     PHONE,
     CODE,
     RESEND,
-    PASSWORD
+    PASSWORD,
+    SIGN_UP,
+    LOGIN_EMAIL
 }
 
 sealed class AuthUiStatus {
@@ -66,6 +79,11 @@ sealed class AuthError {
     object InvalidCode : AuthError()
     object InvalidPassword : AuthError()
     object CodeExpired : AuthError()
+    object SignUpRequired : AuthError()
+    data class PaidCodeRequired(
+        val storeProduct: String,
+        val supportEmailAddress: String
+    ) : AuthError()
     data class RateLimited(val retryAfterSeconds: Int?) : AuthError()
     object NetworkTimeout : AuthError()
     object Unexpected : AuthError()
@@ -82,6 +100,8 @@ interface AuthRepository {
     fun resendCode()
     fun sendCode(code: String)
     fun sendPassword(password: String)
+    fun signUp(firstName: String, lastName: String)
+    fun sendLoginEmail(email: String) = Unit
     fun retryLastAction()
     fun reset()
 }

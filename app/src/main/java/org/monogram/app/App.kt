@@ -13,7 +13,7 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.WellKnownTileServer
 import org.monogram.app.di.appModule
 import org.monogram.data.infra.AppForegroundTracker
-import org.monogram.data.infra.DataMemoryPressureHandler
+import org.monogram.data.mtproto.isRecoverableMtProtoTransportFailure
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
@@ -50,6 +50,10 @@ class App : Application(), SingletonImageLoader.Factory {
     private fun initCrashHandler() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            if (throwable.isRecoverableMtProtoTransportFailure()) {
+                Log.w("CrashHandler", "Ignoring recoverable MTProto transport failure", throwable)
+                return@setDefaultUncaughtExceptionHandler
+            }
             try {
                 val sw = StringWriter()
                 val pw = PrintWriter(sw)
@@ -113,12 +117,6 @@ class App : Application(), SingletonImageLoader.Factory {
 
     private fun trimInMemoryCaches(reason: String) {
         if (!::container.isInitialized) return
-        runCatching {
-            get<DataMemoryPressureHandler>().clearDataCaches(reason)
-        }.onFailure { error ->
-            Log.w(TAG, "Failed to clear data caches for $reason", error)
-        }
-
         runCatching {
             get<ImageLoader>().memoryCache?.clear()
         }.onFailure { error ->

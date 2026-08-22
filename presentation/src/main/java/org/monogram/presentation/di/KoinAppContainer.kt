@@ -39,7 +39,11 @@ import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.LocationRepository
 import org.monogram.domain.repository.MessageAiRepository
 import org.monogram.domain.repository.MessageDisplayer
+import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.MtProtoTextMessageRepository
+import org.monogram.domain.repository.MtProtoReadHistoryRepository
+import org.monogram.domain.repository.MtProtoMessageDeletionRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.PaymentRepository
@@ -56,10 +60,11 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StringProvider
-import org.monogram.domain.repository.TdLibLimitsRepository
+import org.monogram.domain.repository.TelegramLimitsRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
+import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.domain.repository.WebAppRepository
@@ -93,6 +98,10 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val chatSettingsRepository: ChatSettingsRepository by lazy { koin.get() }
     override val chatCreationRepository: ChatCreationRepository by lazy { koin.get() }
     override val messageRepository: MessageRepository by lazy { koin.get() }
+    override val mtProtoTextMessageRepository: MtProtoTextMessageRepository by lazy { koin.get() }
+    override val mtProtoReadHistoryRepository: MtProtoReadHistoryRepository by lazy { koin.get() }
+    override val mtProtoMessageDeletionRepository: MtProtoMessageDeletionRepository by lazy { koin.get() }
+    override val messageHistorySnapshotRepository: MessageHistorySnapshotRepository by lazy { koin.get() }
     override val inlineBotRepository: InlineBotRepository by lazy { koin.get() }
     override val chatEventLogRepository: ChatEventLogRepository by lazy { koin.get() }
     override val messageAiRepository: MessageAiRepository by lazy { koin.get() }
@@ -101,6 +110,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val fileRepository: FileRepository by lazy { koin.get() }
     override val webAppRepository: WebAppRepository by lazy { koin.get() }
     override val userRepository: UserRepository by lazy { koin.get() }
+    override val userProfileSnapshotRepository: UserProfileSnapshotRepository by lazy { koin.get() }
     override val userProfileEditRepository: UserProfileEditRepository by lazy { koin.get() }
     override val contactEditRepository: ContactEditRepository by lazy { koin.get() }
     override val profilePhotoRepository: ProfilePhotoRepository by lazy { koin.get() }
@@ -123,7 +133,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val proxyDiagnosticsRepository: ProxyDiagnosticsRepository by lazy { koin.get() }
     override val stickerRepository: StickerRepository by lazy { koin.get() }
     override val storyRepository: StoryRepository by lazy { koin.get() }
-    override val tdLibLimitsRepository: TdLibLimitsRepository by lazy { koin.get() }
+    override val telegramLimitsRepository: TelegramLimitsRepository by lazy { koin.get() }
     override val gifRepository: GifRepository by lazy { koin.get() }
     override val emojiRepository: EmojiRepository by lazy { koin.get() }
     override val telegramLinkRepository: TelegramLinkRepository by lazy { koin.get() }

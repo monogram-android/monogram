@@ -1,0 +1,4735 @@
+{
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Schema",
+    "description": "A complete schema suitable for generators in any language.",
+    "type": "object",
+    "properties": {
+      "constructors": {
+        "description": "Constructors, in source order.",
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Combinator"
+        }
+      },
+      "finalizations": {
+        "description": "Finalization declarations.",
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Finalization"
+        }
+      },
+      "format_version": {
+        "description": "Interchange format version (independent of Telegram's layer).",
+        "type": "integer",
+        "format": "uint32",
+        "minimum": 0
+      },
+      "functions": {
+        "description": "RPC methods, in source order.",
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Combinator"
+        }
+      },
+      "layer": {
+        "description": "Telegram API layer advertised by the source.",
+        "type": [
+          "integer",
+          "null"
+        ],
+        "format": "uint32",
+        "minimum": 0
+      },
+      "partial_applications": {
+        "description": "Template/partial application declarations.",
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "source": {
+        "description": "Provenance supplied by the caller.",
+        "$ref": "#/$defs/Source"
+      }
+    },
+    "required": [
+      "format_version",
+      "source",
+      "constructors",
+      "functions",
+      "finalizations",
+      "partial_applications"
+    ],
+    "$defs": {
+      "Argument": {
+        "description": "One argument.",
+        "type": "object",
+        "properties": {
+          "condition": {
+            "description": "Optional bit guard.",
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Condition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "description": "Documentation derived from `@param`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "functional": {
+            "description": "Functional/exclamation argument.",
+            "type": "boolean"
+          },
+          "implicit": {
+            "description": "Implicit/braced generic argument.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "TL field name.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "description": "Ordinary value or repeated field group.",
+            "$ref": "#/$defs/ArgumentValue"
+          }
+        },
+        "required": [
+          "value",
+          "implicit",
+          "functional"
+        ]
+      },
+      "ArgumentValue": {
+        "description": "The mutually exclusive forms of a combinator argument.",
+        "oneOf": [
+          {
+            "description": "One value with a TL type expression.",
+            "type": "object",
+            "properties": {
+              "expression": {
+                "description": "Parsed expression; never a schema-name placeholder.",
+                "$ref": "#/$defs/Expression"
+              },
+              "kind": {
+                "type": "string",
+                "const": "type"
+              }
+            },
+            "required": [
+              "kind",
+              "expression"
+            ]
+          },
+          {
+            "description": "A bracketed group repeated according to a natural expression.",
+            "type": "object",
+            "properties": {
+              "arguments": {
+                "description": "Fields in one repeated element.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/Argument"
+                }
+              },
+              "kind": {
+                "type": "string",
+                "const": "repetition"
+              },
+              "multiplicity": {
+                "description": "Count expression, or the preceding natural argument when omitted.",
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Expression"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "arguments"
+            ]
+          }
+        ]
+      },
+      "Combinator": {
+        "description": "A constructor or function.",
+        "type": "object",
+        "properties": {
+          "arguments": {
+            "description": "Ordered arguments.",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/Argument"
+            }
+          },
+          "builtin": {
+            "description": "Built-in pseudo-declaration.",
+            "type": "boolean"
+          },
+          "documentation": {
+            "description": "Structured documentation.",
+            "$ref": "#/$defs/Documentation"
+          },
+          "id": {
+            "description": "Resolved constructor number (explicit or canonical CRC32).",
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "id_explicit": {
+            "description": "Whether the source supplied the number instead of relying on canonical CRC32.",
+            "type": "boolean"
+          },
+          "id_hex": {
+            "description": "Hex form convenient for languages with awkward unsigned integers.",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Constructor or function.",
+            "$ref": "#/$defs/CombinatorKind"
+          },
+          "layer": {
+            "description": "Layer known for this declaration. Current flat schemas only identify the\ncontaining layer and cannot prove an earlier introduction layer.",
+            "$ref": "#/$defs/LayerInfo"
+          },
+          "name": {
+            "description": "Namespace-qualified TL name.",
+            "type": "string"
+          },
+          "result": {
+            "description": "Result expression.",
+            "$ref": "#/$defs/Expression"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "id_hex",
+          "id_explicit",
+          "kind",
+          "arguments",
+          "result",
+          "documentation",
+          "layer",
+          "builtin"
+        ]
+      },
+      "CombinatorKind": {
+        "description": "Kind of combinator.",
+        "oneOf": [
+          {
+            "description": "Data constructor.",
+            "type": "string",
+            "const": "constructor"
+          },
+          {
+            "description": "RPC function.",
+            "type": "string",
+            "const": "function"
+          }
+        ]
+      },
+      "Condition": {
+        "description": "Optional-field condition.",
+        "type": "object",
+        "properties": {
+          "bit": {
+            "description": "Optional bit number.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          },
+          "variable": {
+            "description": "Flags/natural argument name.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variable"
+        ]
+      },
+      "Documentation": {
+        "description": "Documentation and cross-language official links.",
+        "type": "object",
+        "properties": {
+          "description": {
+            "description": "Prose description.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "links": {
+            "description": "Other URLs found in comments.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "official_url": {
+            "description": "Official Telegram documentation page inferred from the declaration kind.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parameters": {
+            "description": "Named parameter descriptions.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "parameters",
+          "links"
+        ]
+      },
+      "Expression": {
+        "description": "Language-neutral expression tree.",
+        "oneOf": [
+          {
+            "description": "An identifier.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "ident"
+              },
+              "name": {
+                "description": "Namespace-qualified TL spelling.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "name"
+            ]
+          },
+          {
+            "description": "Natural constant.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "nat"
+              },
+              "value": {
+                "description": "Constant value.",
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ]
+          },
+          {
+            "description": "The natural-number type `#`.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "hash"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          {
+            "description": "Natural addition supported by the TL formal grammar.",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add"
+              },
+              "left": {
+                "description": "Left operand.",
+                "$ref": "#/$defs/Expression"
+              },
+              "right": {
+                "description": "Right operand.",
+                "$ref": "#/$defs/Expression"
+              }
+            },
+            "required": [
+              "kind",
+              "left",
+              "right"
+            ]
+          },
+          {
+            "description": "Applied type expression.",
+            "type": "object",
+            "properties": {
+              "arguments": {
+                "description": "Application arguments.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/Expression"
+                }
+              },
+              "constructor": {
+                "description": "Applied constructor/type.",
+                "$ref": "#/$defs/Expression"
+              },
+              "kind": {
+                "type": "string",
+                "const": "apply"
+              }
+            },
+            "required": [
+              "kind",
+              "constructor",
+              "arguments"
+            ]
+          },
+          {
+            "description": "Bare type expression.",
+            "type": "object",
+            "properties": {
+              "inner": {
+                "description": "Wrapped expression.",
+                "$ref": "#/$defs/Expression"
+              },
+              "kind": {
+                "type": "string",
+                "const": "bare"
+              }
+            },
+            "required": [
+              "kind",
+              "inner"
+            ]
+          },
+          {
+            "description": "Functional type expression.",
+            "type": "object",
+            "properties": {
+              "inner": {
+                "description": "Wrapped expression.",
+                "$ref": "#/$defs/Expression"
+              },
+              "kind": {
+                "type": "string",
+                "const": "bang"
+              }
+            },
+            "required": [
+              "kind",
+              "inner"
+            ]
+          }
+        ]
+      },
+      "Finalization": {
+        "description": "`New`, `Final`, or `Empty` type declaration.",
+        "type": "object",
+        "properties": {
+          "mode": {
+            "description": "Lowercase finalization mode.",
+            "type": "string"
+          },
+          "type": {
+            "description": "Affected type.",
+            "$ref": "#/$defs/Expression"
+          }
+        },
+        "required": [
+          "mode",
+          "type"
+        ]
+      },
+      "LayerInfo": {
+        "description": "Layer metadata with explicit semantics.",
+        "type": "object",
+        "properties": {
+          "introduced": {
+            "description": "First layer, only when the input explicitly provides it.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          },
+          "schema": {
+            "description": "Layer of the containing schema.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint32",
+            "minimum": 0
+          }
+        }
+      },
+      "Source": {
+        "description": "Input provenance.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Human-readable file or URL.",
+            "type": "string"
+          },
+          "url": {
+            "description": "Upstream URL, when known.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    }
+  },
+  "schema": {
+    "format_version": 1,
+    "layer": 143,
+    "source": {
+      "name": "schemas/secret-chat/layers/143.tl",
+      "url": "https://core.telegram.org/schema/end-to-end?raw=1"
+    },
+    "constructors": [
+      {
+        "name": "decryptedMessage",
+        "id": 2446083700,
+        "id_hex": "91cc4674",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "flags",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "hash"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Flags, see TL conditional fields (added in layer 45)"
+          },
+          {
+            "name": "no_webpage",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "true"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 1
+            },
+            "description": null
+          },
+          {
+            "name": "silent",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "true"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 5
+            },
+            "description": null
+          },
+          {
+            "name": "random_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Random message ID, assigned by the author of message. Must be equal to the ID passed to sending method. See here » for more info on random ID deduplication and updateMessageID mapping."
+          },
+          {
+            "name": "ttl",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Message lifetime. Has higher priority than decryptedMessageActionSetMessageTTL . Parameter added in Layer 17."
+          },
+          {
+            "name": "message",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Message text"
+          },
+          {
+            "name": "media",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "DecryptedMessageMedia"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 9
+            },
+            "description": "Media content"
+          },
+          {
+            "name": "entities",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "MessageEntity"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 7
+            },
+            "description": "Message entities for styled text (parameter added in layer 45)"
+          },
+          {
+            "name": "via_bot_name",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 11
+            },
+            "description": "Specifies the ID of the inline bot that generated the message (parameter added in layer 45)"
+          },
+          {
+            "name": "reply_to_random_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 3
+            },
+            "description": "Random message ID of the message this message replies to (parameter added in layer 45)"
+          },
+          {
+            "name": "grouped_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 17
+            },
+            "description": "Random group ID, assigned by the author of message. Multiple encrypted messages with a photo attached and with the same group ID indicate an album or grouped media (parameter added in layer 45)"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessage"
+        },
+        "documentation": {
+          "description": "LAYER 143\n@introduced 73\nContents of an encrypted message.",
+          "parameters": {
+            "entities": "Message entities for styled text (parameter added in layer 45)",
+            "flags": "Flags, see TL conditional fields (added in layer 45)",
+            "grouped_id": "Random group ID, assigned by the author of message. Multiple encrypted messages with a photo attached and with the same group ID indicate an album or grouped media (parameter added in layer 45)",
+            "media": "Media content",
+            "message": "Message text",
+            "random_bytes": "Random bytes, removed in layer 17.",
+            "random_id": "Random message ID, assigned by the author of message. Must be equal to the ID passed to sending method. See here » for more info on random ID deduplication and updateMessageID mapping.",
+            "reply_to_random_id": "Random message ID of the message this message replies to (parameter added in layer 45)",
+            "ttl": "Message lifetime. Has higher priority than decryptedMessageActionSetMessageTTL . Parameter added in Layer 17.",
+            "via_bot_name": "Specifies the ID of the inline bot that generated the message (parameter added in layer 45)"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessage",
+          "links": [
+            "https://core.telegram.org/api/entities",
+            "https://core.telegram.org/api/files#albums-grouped-media",
+            "https://core.telegram.org/api/updates#updatemessageid-updates",
+            "https://core.telegram.org/constructor/decryptedMessageActionSetMessageTTL",
+            "https://core.telegram.org/mtproto/TL-combinators#conditional-fields",
+            "https://core.telegram.org/type/%23",
+            "https://core.telegram.org/type/DecryptedMessageMedia",
+            "https://core.telegram.org/type/MessageEntity",
+            "https://core.telegram.org/type/Vector%20t",
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/long",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 73
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageService",
+        "id": 1930838368,
+        "id_hex": "73164160",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "random_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Random message ID, assigned by the message author. Must be equal to the ID passed to the sending method. See here » for more info on random ID deduplication and updateMessageID mapping."
+          },
+          {
+            "name": "action",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "DecryptedMessageAction"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Action relevant to the service message"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessage"
+        },
+        "documentation": {
+          "description": "@introduced 17\nContents of an encrypted service message.",
+          "parameters": {
+            "action": "Action relevant to the service message",
+            "random_bytes": "Random bytes, removed in Layer 17.",
+            "random_id": "Random message ID, assigned by the message author. Must be equal to the ID passed to the sending method. See here » for more info on random ID deduplication and updateMessageID mapping."
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageService",
+          "links": [
+            "https://core.telegram.org/api/updates#updatemessageid-updates",
+            "https://core.telegram.org/type/DecryptedMessageAction",
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaEmpty",
+        "id": 144661578,
+        "id_hex": "089f5c4a",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 8\nEmpty constructor, no media content.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaEmpty",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 8
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaPhoto",
+        "id": 4059729272,
+        "id_hex": "f1fa8d78",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "thumb",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Content of thumbnail file (JPEGfile, quality 55, set in a square 90x90)"
+          },
+          {
+            "name": "thumb_w",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Thumbnail width"
+          },
+          {
+            "name": "thumb_h",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Thumbnail height"
+          },
+          {
+            "name": "w",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Photo width"
+          },
+          {
+            "name": "h",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Photo height"
+          },
+          {
+            "name": "size",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Size of the photo in bytes"
+          },
+          {
+            "name": "key",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Key to decrypt an attached file with a full version"
+          },
+          {
+            "name": "iv",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Initialization vector"
+          },
+          {
+            "name": "caption",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Caption"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 45\nPhoto attached to an encrypted message.",
+          "parameters": {
+            "caption": "Caption",
+            "h": "Photo height",
+            "iv": "Initialization vector",
+            "key": "Key to decrypt an attached file with a full version",
+            "size": "Size of the photo in bytes",
+            "thumb": "Content of thumbnail file (JPEGfile, quality 55, set in a square 90x90)",
+            "thumb_h": "Thumbnail height",
+            "thumb_w": "Thumbnail width",
+            "w": "Photo width"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaPhoto",
+          "links": [
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaVideo",
+        "id": 2534181902,
+        "id_hex": "970c8c0e",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "thumb",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Content of thumbnail file (JPEG file, quality 55, set in a square 90x90)"
+          },
+          {
+            "name": "thumb_w",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Thumbnail width"
+          },
+          {
+            "name": "thumb_h",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Thumbnail height"
+          },
+          {
+            "name": "duration",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Duration of video in seconds"
+          },
+          {
+            "name": "mime_type",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "MIME-type of the video file Parameter added in Layer 17."
+          },
+          {
+            "name": "w",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Image width"
+          },
+          {
+            "name": "h",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Image height"
+          },
+          {
+            "name": "size",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "File size"
+          },
+          {
+            "name": "key",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Key to decrypt the attached video file"
+          },
+          {
+            "name": "iv",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Initialization vector"
+          },
+          {
+            "name": "caption",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Caption"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 45\nVideo attached to an encrypted message.",
+          "parameters": {
+            "caption": "Caption",
+            "duration": "Duration of video in seconds",
+            "h": "Image height",
+            "iv": "Initialization vector",
+            "key": "Key to decrypt the attached video file",
+            "mime_type": "MIME-type of the video file Parameter added in Layer 17.",
+            "size": "File size",
+            "thumb": "Content of thumbnail file (JPEG file, quality 55, set in a square 90x90)",
+            "thumb_h": "Thumbnail height",
+            "thumb_w": "Thumbnail width",
+            "w": "Image width"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaVideo",
+          "links": [
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaGeoPoint",
+        "id": 893913689,
+        "id_hex": "35480a59",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "lat",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "double"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Latitude of point"
+          },
+          {
+            "name": "long",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "double"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Longitude of point"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 8\nGeoPoint attached to an encrypted message.",
+          "parameters": {
+            "lat": "Latitude of point",
+            "long": "Longitude of point"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaGeoPoint",
+          "links": [
+            "https://core.telegram.org/type/double"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 8
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaContact",
+        "id": 1485441687,
+        "id_hex": "588a0a97",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "phone_number",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Phone number"
+          },
+          {
+            "name": "first_name",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Contact's first name"
+          },
+          {
+            "name": "last_name",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Contact's last name"
+          },
+          {
+            "name": "user_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Telegram User ID of signed-up contact"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 8\nContact attached to an encrypted message.",
+          "parameters": {
+            "first_name": "Contact's first name",
+            "last_name": "Contact's last name",
+            "phone_number": "Phone number",
+            "user_id": "Telegram User ID of signed-up contact"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaContact",
+          "links": [
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 8
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionSetMessageTTL",
+        "id": 2708683500,
+        "id_hex": "a1733aec",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "ttl_seconds",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Lifetime in seconds"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 8\nSetting of a message lifetime after reading.",
+          "parameters": {
+            "ttl_seconds": "Lifetime in seconds"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionSetMessageTTL",
+          "links": [
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 8
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaDocument",
+        "id": 1790809986,
+        "id_hex": "6abd9782",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "thumb",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Thumbnail-file contents (JPEG-file, quality 55, set in a 90x90 square)"
+          },
+          {
+            "name": "thumb_w",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Thumbnail width"
+          },
+          {
+            "name": "thumb_h",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Thumbnail height"
+          },
+          {
+            "name": "mime_type",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "File MIME-type"
+          },
+          {
+            "name": "size",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Document size ( int on layer <143, long on layer >=143)"
+          },
+          {
+            "name": "key",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Key to decrypt the attached document file"
+          },
+          {
+            "name": "iv",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Initialization"
+          },
+          {
+            "name": "attributes",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "DocumentAttribute"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Document attributes for media types"
+          },
+          {
+            "name": "caption",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Caption"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 143\nDocument attached to a message in a secret chat.",
+          "parameters": {
+            "attributes": "Document attributes for media types",
+            "caption": "Caption",
+            "file_name": "File name, moved to attributes in Layer 45.",
+            "iv": "Initialization",
+            "key": "Key to decrypt the attached document file",
+            "mime_type": "File MIME-type",
+            "size": "Document size ( int on layer <143, long on layer >=143)",
+            "thumb": "Thumbnail-file contents (JPEG-file, quality 55, set in a 90x90 square)",
+            "thumb_h": "Thumbnail height",
+            "thumb_w": "Thumbnail width"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaDocument",
+          "links": [
+            "https://core.telegram.org/type/DocumentAttribute",
+            "https://core.telegram.org/type/Vector%20t",
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/long",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 143
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaAudio",
+        "id": 1474341323,
+        "id_hex": "57e0a9cb",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "duration",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Audio duration in seconds"
+          },
+          {
+            "name": "mime_type",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "MIME-type of the audio file Parameter added in Layer 13."
+          },
+          {
+            "name": "size",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "File size"
+          },
+          {
+            "name": "key",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Key to decrypt the attached media file"
+          },
+          {
+            "name": "iv",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Initialization vector"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 17\nAudio file attached to a secret chat message.",
+          "parameters": {
+            "duration": "Audio duration in seconds",
+            "iv": "Initialization vector",
+            "key": "Key to decrypt the attached media file",
+            "mime_type": "MIME-type of the audio file Parameter added in Layer 13.",
+            "size": "File size"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaAudio",
+          "links": [
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionReadMessages",
+        "id": 206520510,
+        "id_hex": "0c4f40be",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "random_ids",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "long"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "List of message IDs"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 8\nMessages marked as read.",
+          "parameters": {
+            "random_ids": "List of message IDs"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionReadMessages",
+          "links": [
+            "https://core.telegram.org/type/Vector%20t",
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 8
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionDeleteMessages",
+        "id": 1700872964,
+        "id_hex": "65614304",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "random_ids",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "long"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "List of deleted message IDs"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 8\nDeleted messages.",
+          "parameters": {
+            "random_ids": "List of deleted message IDs"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionDeleteMessages",
+          "links": [
+            "https://core.telegram.org/type/Vector%20t",
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 8
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionScreenshotMessages",
+        "id": 2327966837,
+        "id_hex": "8ac1f475",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "random_ids",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "long"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "List of affected message ids (that appeared on the screenshot)"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 8\nA screenshot was taken.",
+          "parameters": {
+            "random_ids": "List of affected message ids (that appeared on the screenshot)"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionScreenshotMessages",
+          "links": [
+            "https://core.telegram.org/type/Vector%20t",
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 8
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionFlushHistory",
+        "id": 1729750108,
+        "id_hex": "6719e45c",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 8\nThe entire message history has been deleted.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionFlushHistory",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 8
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageLayer",
+        "id": 467867529,
+        "id_hex": "1be31789",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "random_bytes",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Set of random bytes to prevent content recognition in short encrypted messages. Clients are required to check that there are at least 15 random bytes included in each message. Messages with less than 15 random bytes must be ignored. Parameter moved here from decryptedMessage in Layer 17."
+          },
+          {
+            "name": "layer",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Layer number. Mimimal value - 17 (the layer in which the constructor was added)."
+          },
+          {
+            "name": "in_seq_no",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "2x the number of messages in the sender's inbox (including deleted and service messages), incremented by 1 if current user was not the chat creator Parameter added in Layer 17."
+          },
+          {
+            "name": "out_seq_no",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "2x the number of messages in the recipient's inbox (including deleted and service messages), incremented by 1 if current user was the chat creator Parameter added in Layer 17."
+          },
+          {
+            "name": "message",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "DecryptedMessage"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "The content of message itself"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageLayer"
+        },
+        "documentation": {
+          "description": "@introduced 17\nSets the layer number for the contents of an encrypted message.",
+          "parameters": {
+            "in_seq_no": "2x the number of messages in the sender's inbox (including deleted and service messages), incremented by 1 if current user was not the chat creator Parameter added in Layer 17.",
+            "layer": "Layer number. Mimimal value - 17 (the layer in which the constructor was added).",
+            "message": "The content of message itself",
+            "out_seq_no": "2x the number of messages in the recipient's inbox (including deleted and service messages), incremented by 1 if current user was the chat creator Parameter added in Layer 17.",
+            "random_bytes": "Set of random bytes to prevent content recognition in short encrypted messages. Clients are required to check that there are at least 15 random bytes included in each message. Messages with less than 15 random bytes must be ignored. Parameter moved here from decryptedMessage in Layer 17."
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageLayer",
+          "links": [
+            "https://core.telegram.org/constructor/decryptedMessage",
+            "https://core.telegram.org/type/DecryptedMessage",
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageTypingAction",
+        "id": 381645902,
+        "id_hex": "16bf744e",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is typing.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/sendMessageTypingAction",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageCancelAction",
+        "id": 4250847477,
+        "id_hex": "fd5ec8f5",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nInvalidate all previous action updates. E.g. when user deletes entered text or aborts a video upload.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/sendMessageCancelAction",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageRecordVideoAction",
+        "id": 2710034031,
+        "id_hex": "a187d66f",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is recording a video.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/sendMessageRecordVideoAction",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageUploadVideoAction",
+        "id": 2449747959,
+        "id_hex": "92042ff7",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is uploading a video.",
+          "parameters": {
+            "progress": "Progress percentage"
+          },
+          "official_url": "https://core.telegram.org/constructor/sendMessageUploadVideoAction",
+          "links": [
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageRecordAudioAction",
+        "id": 3576656887,
+        "id_hex": "d52f73f7",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is recording a voice message.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/sendMessageRecordAudioAction",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageUploadAudioAction",
+        "id": 3870067311,
+        "id_hex": "e6ac8a6f",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is uploading a voice message.",
+          "parameters": {
+            "progress": "Progress percentage"
+          },
+          "official_url": "https://core.telegram.org/constructor/sendMessageUploadAudioAction",
+          "links": [
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageUploadPhotoAction",
+        "id": 2567584794,
+        "id_hex": "990a3c1a",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is uploading a photo.",
+          "parameters": {
+            "progress": "Progress percentage"
+          },
+          "official_url": "https://core.telegram.org/constructor/sendMessageUploadPhotoAction",
+          "links": [
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageUploadDocumentAction",
+        "id": 2410604942,
+        "id_hex": "8faee98e",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is uploading a file.",
+          "parameters": {
+            "progress": "Progress percentage"
+          },
+          "official_url": "https://core.telegram.org/constructor/sendMessageUploadDocumentAction",
+          "links": [
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageGeoLocationAction",
+        "id": 393186209,
+        "id_hex": "176f8ba1",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is selecting a location to share.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/sendMessageGeoLocationAction",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageChooseContactAction",
+        "id": 1653390447,
+        "id_hex": "628cbc6f",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is selecting a contact to share.",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/sendMessageChooseContactAction",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionResend",
+        "id": 1360072880,
+        "id_hex": "511110b0",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "start_seq_no",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "out_seq_no of the first message to be resent, with correct parity"
+          },
+          {
+            "name": "end_seq_no",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "out_seq_no of the last message to be resent, with same parity."
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nRequest for the other party in a Secret Chat to automatically resend a contiguous range of previously sent messages, as explained in Sequence number is Secret Chats .",
+          "parameters": {
+            "end_seq_no": "out_seq_no of the last message to be resent, with same parity.",
+            "start_seq_no": "out_seq_no of the first message to be resent, with correct parity"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionResend",
+          "links": [
+            "https://core.telegram.org/api/end-to-end/seq_no",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionNotifyLayer",
+        "id": 4077160579,
+        "id_hex": "f3048883",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "layer",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Layer number, must be 17 or higher (this constructor was introduced in Layer 17."
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nA notification stating the API layer that is used by the client. You should use your current layer and take notice of the layer used on the other side of a conversation when sending messages.",
+          "parameters": {
+            "layer": "Layer number, must be 17 or higher (this constructor was introduced in Layer 17."
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionNotifyLayer",
+          "links": [
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionTyping",
+        "id": 3434247745,
+        "id_hex": "ccb27641",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "action",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "SendMessageAction"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Type of action"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 17\nUser is preparing a message: typing, recording, uploading, etc.",
+          "parameters": {
+            "action": "Type of action"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionTyping",
+          "links": [
+            "https://core.telegram.org/type/SendMessageAction"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 17
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionRequestKey",
+        "id": 4090061083,
+        "id_hex": "f3c9611b",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "exchange_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Exchange ID"
+          },
+          {
+            "name": "g_a",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "g_a, see rekeying process"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 20\nRequest rekeying, see rekeying process",
+          "parameters": {
+            "exchange_id": "Exchange ID",
+            "g_a": "g_a, see rekeying process"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionRequestKey",
+          "links": [
+            "https://core.telegram.org/api/end-to-end/pfs",
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 20
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionAcceptKey",
+        "id": 1877046107,
+        "id_hex": "6fe1735b",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "exchange_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Exchange ID"
+          },
+          {
+            "name": "g_b",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "B parameter, see rekeying process"
+          },
+          {
+            "name": "key_fingerprint",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Key fingerprint, see rekeying process"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 20\nAccept new key",
+          "parameters": {
+            "exchange_id": "Exchange ID",
+            "g_b": "B parameter, see rekeying process",
+            "key_fingerprint": "Key fingerprint, see rekeying process"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionAcceptKey",
+          "links": [
+            "https://core.telegram.org/api/end-to-end/pfs",
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 20
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionAbortKey",
+        "id": 3708152939,
+        "id_hex": "dd05ec6b",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "exchange_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Exchange ID"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 20\nAbort rekeying",
+          "parameters": {
+            "exchange_id": "Exchange ID"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionAbortKey",
+          "links": [
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 20
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionCommitKey",
+        "id": 3962440603,
+        "id_hex": "ec2e0b9b",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "exchange_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Exchange ID, see rekeying process"
+          },
+          {
+            "name": "key_fingerprint",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Key fingerprint, see rekeying process"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 20\nCommit new key, see rekeying process",
+          "parameters": {
+            "exchange_id": "Exchange ID, see rekeying process",
+            "key_fingerprint": "Key fingerprint, see rekeying process"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionCommitKey",
+          "links": [
+            "https://core.telegram.org/api/end-to-end/pfs",
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 20
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageActionNoop",
+        "id": 2821709155,
+        "id_hex": "a82fdd63",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 20\nNOOP action",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageActionNoop",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 20
+        },
+        "builtin": false
+      },
+      {
+        "name": "documentAttributeImageSize",
+        "id": 1815593308,
+        "id_hex": "6c37c15c",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "w",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Width of image"
+          },
+          {
+            "name": "h",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Height of image"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DocumentAttribute"
+        },
+        "documentation": {
+          "description": "@introduced 23\nDefines the width and height of an image uploaded as document",
+          "parameters": {
+            "h": "Height of image",
+            "w": "Width of image"
+          },
+          "official_url": "https://core.telegram.org/constructor/documentAttributeImageSize",
+          "links": [
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 23
+        },
+        "builtin": false
+      },
+      {
+        "name": "documentAttributeAnimated",
+        "id": 297109817,
+        "id_hex": "11b58939",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "DocumentAttribute"
+        },
+        "documentation": {
+          "description": "@introduced 23\nDefines an animated GIF",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/documentAttributeAnimated",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 23
+        },
+        "builtin": false
+      },
+      {
+        "name": "documentAttributeSticker",
+        "id": 978674434,
+        "id_hex": "3a556302",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "alt",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Alternative emoji representation of sticker"
+          },
+          {
+            "name": "stickerset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "InputStickerSet"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Associated stickerset"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DocumentAttribute"
+        },
+        "documentation": {
+          "description": "@introduced 45\nDefines a sticker",
+          "parameters": {
+            "alt": "Alternative emoji representation of sticker",
+            "flags": "Flags, see TL conditional fields",
+            "mask": "Whether this is a mask sticker",
+            "mask_coords": "Mask coordinates (if this is a mask sticker, attached to a photo)",
+            "stickerset": "Associated stickerset"
+          },
+          "official_url": "https://core.telegram.org/constructor/documentAttributeSticker",
+          "links": [
+            "https://core.telegram.org/constructor/true",
+            "https://core.telegram.org/mtproto/TL-combinators#conditional-fields",
+            "https://core.telegram.org/type/%23",
+            "https://core.telegram.org/type/InputStickerSet",
+            "https://core.telegram.org/type/MaskCoords",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "documentAttributeVideo",
+        "id": 250621158,
+        "id_hex": "0ef02ce6",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "flags",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "hash"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Flags, see TL conditional fields"
+          },
+          {
+            "name": "round_message",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "true"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 0
+            },
+            "description": "Whether this is a round video"
+          },
+          {
+            "name": "duration",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Duration in seconds"
+          },
+          {
+            "name": "w",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Video width"
+          },
+          {
+            "name": "h",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Video height"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DocumentAttribute"
+        },
+        "documentation": {
+          "description": "@introduced 66\nDefines a video",
+          "parameters": {
+            "duration": "Duration in seconds",
+            "flags": "Flags, see TL conditional fields",
+            "h": "Video height",
+            "nosound": "Whether the specified document is a video file with no audio tracks",
+            "preload_prefix_size": "Number of bytes to preload when preloading videos (particularly video stories ).",
+            "round_message": "Whether this is a round video",
+            "supports_streaming": "Whether the video supports streaming",
+            "video_codec": "Codec used for the video, i.e. \"h264\", \"h265\", or \"av1\"",
+            "video_start_ts": "Floating point UNIX timestamp in seconds, indicating the frame of the video that should be used as static preview and thumbnail.",
+            "w": "Video width"
+          },
+          "official_url": "https://core.telegram.org/constructor/documentAttributeVideo",
+          "links": [
+            "https://core.telegram.org/api/stories",
+            "https://core.telegram.org/constructor/true",
+            "https://core.telegram.org/mtproto/TL-combinators#conditional-fields",
+            "https://core.telegram.org/type/%23",
+            "https://core.telegram.org/type/double",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 66
+        },
+        "builtin": false
+      },
+      {
+        "name": "documentAttributeAudio",
+        "id": 2555574726,
+        "id_hex": "9852f9c6",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "flags",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "hash"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Flags, see TL conditional fields"
+          },
+          {
+            "name": "voice",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "true"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 10
+            },
+            "description": "Whether this is a voice message"
+          },
+          {
+            "name": "duration",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Duration in seconds"
+          },
+          {
+            "name": "title",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 0
+            },
+            "description": "Name of song"
+          },
+          {
+            "name": "performer",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 1
+            },
+            "description": "Performer"
+          },
+          {
+            "name": "waveform",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": {
+              "variable": "flags",
+              "bit": 2
+            },
+            "description": "Waveform: consists in a series of bitpacked 5-bit values. Example implementation: android ."
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DocumentAttribute"
+        },
+        "documentation": {
+          "description": "@introduced 46\nRepresents an audio file",
+          "parameters": {
+            "duration": "Duration in seconds",
+            "flags": "Flags, see TL conditional fields",
+            "performer": "Performer",
+            "title": "Name of song",
+            "voice": "Whether this is a voice message",
+            "waveform": "Waveform: consists in a series of bitpacked 5-bit values. Example implementation: android ."
+          },
+          "official_url": "https://core.telegram.org/constructor/documentAttributeAudio",
+          "links": [
+            "https://core.telegram.org/constructor/true",
+            "https://core.telegram.org/mtproto/TL-combinators#conditional-fields",
+            "https://core.telegram.org/type/%23",
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string",
+            "https://github.com/DrKLO/Telegram/blob/4d7a3a40c88ce28a211aa2814e9569389fc40567/TMessagesProj/jni/audio.c#L562"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 46
+        },
+        "builtin": false
+      },
+      {
+        "name": "documentAttributeFilename",
+        "id": 358154344,
+        "id_hex": "15590068",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "file_name",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "The file name"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DocumentAttribute"
+        },
+        "documentation": {
+          "description": "@introduced 23\nA simple document with a file name",
+          "parameters": {
+            "file_name": "The file name"
+          },
+          "official_url": "https://core.telegram.org/constructor/documentAttributeFilename",
+          "links": [
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 23
+        },
+        "builtin": false
+      },
+      {
+        "name": "photoSizeEmpty",
+        "id": 236446268,
+        "id_hex": "0e17e23c",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "type",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "PhotoSize.type value »"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "PhotoSize"
+        },
+        "documentation": {
+          "description": "@introduced 23\nEmpty constructor. Image with this thumbnail is unavailable.",
+          "parameters": {
+            "type": "PhotoSize.type value »"
+          },
+          "official_url": "https://core.telegram.org/constructor/photoSizeEmpty",
+          "links": [
+            "https://core.telegram.org/api/files#photosizetype-values",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 23
+        },
+        "builtin": false
+      },
+      {
+        "name": "photoSize",
+        "id": 2009052699,
+        "id_hex": "77bfb61b",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "type",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "PhotoSize.type value »"
+          },
+          {
+            "name": "location",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "FileLocation"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "w",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Image width"
+          },
+          {
+            "name": "h",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Image height"
+          },
+          {
+            "name": "size",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "File size"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "PhotoSize"
+        },
+        "documentation": {
+          "description": "@introduced 23\nImage description.",
+          "parameters": {
+            "h": "Image height",
+            "size": "File size",
+            "type": "PhotoSize.type value »",
+            "w": "Image width"
+          },
+          "official_url": "https://core.telegram.org/constructor/photoSize",
+          "links": [
+            "https://core.telegram.org/api/files#photosizetype-values",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 23
+        },
+        "builtin": false
+      },
+      {
+        "name": "photoCachedSize",
+        "id": 3920049402,
+        "id_hex": "e9a734fa",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "type",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "PhotoSize.type value »"
+          },
+          {
+            "name": "location",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "FileLocation"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": null
+          },
+          {
+            "name": "w",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Image width"
+          },
+          {
+            "name": "h",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Image height"
+          },
+          {
+            "name": "bytes",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "bytes"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Binary data, file content"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "PhotoSize"
+        },
+        "documentation": {
+          "description": "@introduced 23\nDescription of an image and its content.",
+          "parameters": {
+            "bytes": "Binary data, file content",
+            "h": "Image height",
+            "type": "PhotoSize.type value »",
+            "w": "Image width"
+          },
+          "official_url": "https://core.telegram.org/constructor/photoCachedSize",
+          "links": [
+            "https://core.telegram.org/api/files#photosizetype-values",
+            "https://core.telegram.org/type/bytes",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 23
+        },
+        "builtin": false
+      },
+      {
+        "name": "fileLocationUnavailable",
+        "id": 2086234950,
+        "id_hex": "7c596b46",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "volume_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Volume ID"
+          },
+          {
+            "name": "local_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Local ID"
+          },
+          {
+            "name": "secret",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Secret"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "FileLocation"
+        },
+        "documentation": {
+          "description": "@introduced 23\nFile is currently unavailable.",
+          "parameters": {
+            "local_id": "Local ID",
+            "secret": "Secret",
+            "volume_id": "Volume ID"
+          },
+          "official_url": "https://core.telegram.org/constructor/fileLocationUnavailable",
+          "links": [
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 23
+        },
+        "builtin": false
+      },
+      {
+        "name": "fileLocation",
+        "id": 1406570614,
+        "id_hex": "53d69076",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "dc_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "DC ID"
+          },
+          {
+            "name": "volume_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Volume ID"
+          },
+          {
+            "name": "local_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Local ID"
+          },
+          {
+            "name": "secret",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Secret"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "FileLocation"
+        },
+        "documentation": {
+          "description": "@introduced 23\nFile location.",
+          "parameters": {
+            "dc_id": "DC ID",
+            "local_id": "Local ID",
+            "secret": "Secret",
+            "volume_id": "Volume ID"
+          },
+          "official_url": "https://core.telegram.org/constructor/fileLocation",
+          "links": [
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/long"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 23
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaExternalDocument",
+        "id": 4204114141,
+        "id_hex": "fa95b0dd",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Document ID"
+          },
+          {
+            "name": "access_hash",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "long"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "access hash"
+          },
+          {
+            "name": "date",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Date"
+          },
+          {
+            "name": "mime_type",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Mime type"
+          },
+          {
+            "name": "size",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Size"
+          },
+          {
+            "name": "thumb",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "PhotoSize"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Thumbnail"
+          },
+          {
+            "name": "dc_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "DC ID"
+          },
+          {
+            "name": "attributes",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "apply",
+                "constructor": {
+                  "kind": "ident",
+                  "name": "Vector"
+                },
+                "arguments": [
+                  {
+                    "kind": "ident",
+                    "name": "DocumentAttribute"
+                  }
+                ]
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Attributes for media types"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 23\nNon-e2e documented forwarded from non-secret chat",
+          "parameters": {
+            "access_hash": "access hash",
+            "attributes": "Attributes for media types",
+            "date": "Date",
+            "dc_id": "DC ID",
+            "id": "Document ID",
+            "mime_type": "Mime type",
+            "size": "Size",
+            "thumb": "Thumbnail"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaExternalDocument",
+          "links": [
+            "https://core.telegram.org/type/DocumentAttribute",
+            "https://core.telegram.org/type/PhotoSize",
+            "https://core.telegram.org/type/Vector%20t",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/long",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 23
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityUnknown",
+        "id": 3146955413,
+        "id_hex": "bb92ba95",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nUnknown message entity",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityUnknown",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityMention",
+        "id": 4194588573,
+        "id_hex": "fa04579d",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nMessage entity mentioning a user by @username ; messageEntityMentionName can also be used to mention users by their ID.",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityMention",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/api/mentions",
+            "https://core.telegram.org/constructor/messageEntityMentionName",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityHashtag",
+        "id": 1868782349,
+        "id_hex": "6f635b0d",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\n#hashtag message entity",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityHashtag",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityBotCommand",
+        "id": 1827637959,
+        "id_hex": "6cef8ac7",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nMessage entity representing a bot /command",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityBotCommand",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityUrl",
+        "id": 1859134776,
+        "id_hex": "6ed02538",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nMessage entity representing an in-text url: https://google.com ; for text urls , use messageEntityTextUrl .",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityUrl",
+          "links": [
+            "https://google.com",
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/constructor/messageEntityTextUrl",
+            "https://core.telegram.org/type/int",
+            "https://google.com"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityEmail",
+        "id": 1692693954,
+        "id_hex": "64e475c2",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nMessage entity representing an email@example.com .",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityEmail",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityBold",
+        "id": 3177253833,
+        "id_hex": "bd610bc9",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nMessage entity representing bold text .",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityBold",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityItalic",
+        "id": 2188348256,
+        "id_hex": "826f8b60",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nMessage entity representing italic text .",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityItalic",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityCode",
+        "id": 681706865,
+        "id_hex": "28a20571",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nMessage entity representing a codeblock .",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityCode",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityPre",
+        "id": 1938967520,
+        "id_hex": "73924be0",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "language",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Programming language of the code"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nMessage entity representing a preformatted codeblock , allowing the user to specify a programming language for the codeblock.",
+          "parameters": {
+            "language": "Programming language of the code",
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityPre",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityTextUrl",
+        "id": 1990644519,
+        "id_hex": "76a6d327",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "url",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "The actual URL"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 45\nMessage entity representing a text url : for in-text urls like https://google.com use messageEntityUrl .",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )",
+            "url": "The actual URL"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityTextUrl",
+          "links": [
+            "https://google.com",
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/constructor/messageEntityUrl",
+            "https://core.telegram.org/type/int",
+            "https://core.telegram.org/type/string",
+            "https://google.com"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "inputStickerSetShortName",
+        "id": 2250033312,
+        "id_hex": "861cc8a0",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "short_name",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Short name from a stickerset deep link »"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "InputStickerSet"
+        },
+        "documentation": {
+          "description": "@introduced 45\nStickerset by short name, from a stickerset deep link »",
+          "parameters": {
+            "short_name": "Short name from a stickerset deep link »"
+          },
+          "official_url": "https://core.telegram.org/constructor/inputStickerSetShortName",
+          "links": [
+            "https://core.telegram.org/api/links#stickerset-links",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "inputStickerSetEmpty",
+        "id": 4290128789,
+        "id_hex": "ffb62b95",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "InputStickerSet"
+        },
+        "documentation": {
+          "description": "@introduced 45\nEmpty constructor",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/inputStickerSetEmpty",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaVenue",
+        "id": 2316170607,
+        "id_hex": "8a0df56f",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "lat",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "double"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Latitude of venue"
+          },
+          {
+            "name": "long",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "double"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Longitude of venue"
+          },
+          {
+            "name": "title",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Venue name"
+          },
+          {
+            "name": "address",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Address"
+          },
+          {
+            "name": "provider",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Venue provider: currently only \"foursquare\" and \"gplaces\" (Google Places) need to be supported"
+          },
+          {
+            "name": "venue_id",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Venue ID in the provider's database"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 45\nVenue",
+          "parameters": {
+            "address": "Address",
+            "lat": "Latitude of venue",
+            "long": "Longitude of venue",
+            "provider": "Venue provider: currently only \"foursquare\" and \"gplaces\" (Google Places) need to be supported",
+            "title": "Venue name",
+            "venue_id": "Venue ID in the provider's database"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaVenue",
+          "links": [
+            "https://core.telegram.org/type/double",
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "decryptedMessageMediaWebPage",
+        "id": 3842314712,
+        "id_hex": "e50511d8",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "url",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "string"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "URL of webpage"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "DecryptedMessageMedia"
+        },
+        "documentation": {
+          "description": "@introduced 45\nWebpage preview",
+          "parameters": {
+            "url": "URL of webpage"
+          },
+          "official_url": "https://core.telegram.org/constructor/decryptedMessageMediaWebPage",
+          "links": [
+            "https://core.telegram.org/type/string"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 45
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageRecordRoundAction",
+        "id": 2297593788,
+        "id_hex": "88f27fbc",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 66\nUser is recording a round video to share",
+          "parameters": {},
+          "official_url": "https://core.telegram.org/constructor/sendMessageRecordRoundAction",
+          "links": []
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 66
+        },
+        "builtin": false
+      },
+      {
+        "name": "sendMessageUploadRoundAction",
+        "id": 3144779300,
+        "id_hex": "bb718624",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [],
+        "result": {
+          "kind": "ident",
+          "name": "SendMessageAction"
+        },
+        "documentation": {
+          "description": "@introduced 66\nUser is uploading a round video",
+          "parameters": {
+            "progress": "Progress percentage"
+          },
+          "official_url": "https://core.telegram.org/constructor/sendMessageUploadRoundAction",
+          "links": [
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 66
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityUnderline",
+        "id": 2622389899,
+        "id_hex": "9c4e7e8b",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 101\nMessage entity representing underlined text.",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityUnderline",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 101
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityStrike",
+        "id": 3204879316,
+        "id_hex": "bf0693d4",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 101\nMessage entity representing strikethrough text.",
+          "parameters": {
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityStrike",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 101
+        },
+        "builtin": false
+      },
+      {
+        "name": "messageEntityBlockquote",
+        "id": 34469328,
+        "id_hex": "020df5d0",
+        "id_explicit": true,
+        "kind": "constructor",
+        "arguments": [
+          {
+            "name": "offset",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          {
+            "name": "length",
+            "value": {
+              "kind": "type",
+              "expression": {
+                "kind": "ident",
+                "name": "int"
+              }
+            },
+            "implicit": false,
+            "functional": false,
+            "condition": null,
+            "description": "Length of message entity within message (in UTF-16 code units )"
+          }
+        ],
+        "result": {
+          "kind": "ident",
+          "name": "MessageEntity"
+        },
+        "documentation": {
+          "description": "@introduced 101\nMessage entity representing a block quote.",
+          "parameters": {
+            "collapsed": "Whether the quote is collapsed by default.",
+            "flags": "Flags, see TL conditional fields",
+            "length": "Length of message entity within message (in UTF-16 code units )",
+            "offset": "Offset of message entity within message (in UTF-16 code units )"
+          },
+          "official_url": "https://core.telegram.org/constructor/messageEntityBlockquote",
+          "links": [
+            "https://core.telegram.org/api/entities#entity-length",
+            "https://core.telegram.org/constructor/true",
+            "https://core.telegram.org/mtproto/TL-combinators#conditional-fields",
+            "https://core.telegram.org/type/%23",
+            "https://core.telegram.org/type/int"
+          ]
+        },
+        "layer": {
+          "schema": 143,
+          "introduced": 101
+        },
+        "builtin": false
+      }
+    ],
+    "functions": [],
+    "finalizations": [],
+    "partial_applications": []
+  }
+}

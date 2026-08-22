@@ -407,12 +407,548 @@ object MonogramMigrations {
                     `newestMessageId` INTEGER,
                     `olderBoundaryReached` INTEGER NOT NULL,
                     `newerBoundaryReached` INTEGER NOT NULL,
-                    `lastTdlibSyncAt` INTEGER NOT NULL,
+                    `lastNetworkSyncAt` INTEGER NOT NULL,
                     `generation` INTEGER NOT NULL,
                     `protectedMessageId` INTEGER,
                     PRIMARY KEY(`chatId`, `scopeType`, `scopeId`)
                 )
                 """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_38_39 = object : Migration(38, 39) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_update_state` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `pts` INTEGER NOT NULL,
+                    `qts` INTEGER NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `seq` INTEGER NOT NULL,
+                    `channelPtsData` TEXT,
+                    PRIMARY KEY(`accountSlot`, `environment`, `dcId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_39_40 = object : Migration(39, 40) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_pending_envelopes` (
+                    `sequenceId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `payloadHash` TEXT NOT NULL,
+                    `payload` BLOB NOT NULL,
+                    `createdAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                    "`index_mtproto_pending_envelopes_accountSlot_environment_dcId_payloadHash` " +
+                    "ON `mtproto_pending_envelopes` (`accountSlot`, `environment`, `dcId`, `payloadHash`)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS " +
+                    "`index_mtproto_pending_envelopes_accountSlot_environment_dcId_sequenceId` " +
+                    "ON `mtproto_pending_envelopes` (`accountSlot`, `environment`, `dcId`, `sequenceId`)"
+            )
+        }
+    }
+
+    val MIGRATION_40_41 = object : Migration(40, 41) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_cloud_objects` (
+                    `sequenceId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `objectType` TEXT NOT NULL,
+                    `payloadHash` TEXT NOT NULL,
+                    `payload` BLOB NOT NULL,
+                    `createdAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                    "`index_mtproto_cloud_objects_accountSlot_environment_dcId_objectType_payloadHash` " +
+                    "ON `mtproto_cloud_objects` (`accountSlot`, `environment`, `dcId`, `objectType`, `payloadHash`)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS " +
+                    "`index_mtproto_cloud_objects_accountSlot_environment_dcId_sequenceId` " +
+                    "ON `mtproto_cloud_objects` (`accountSlot`, `environment`, `dcId`, `sequenceId`)"
+            )
+        }
+    }
+
+    val MIGRATION_41_42 = object : Migration(41, 42) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_user_projection` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `userId` INTEGER NOT NULL,
+                    `accessHash` INTEGER,
+                    `firstName` TEXT,
+                    `lastName` TEXT,
+                    `username` TEXT,
+                    `phone` TEXT,
+                    `isSelf` INTEGER NOT NULL,
+                    `isContact` INTEGER NOT NULL,
+                    `isMutualContact` INTEGER NOT NULL,
+                    `isDeleted` INTEGER NOT NULL,
+                    `isBot` INTEGER NOT NULL,
+                    `isVerified` INTEGER NOT NULL,
+                    `isRestricted` INTEGER NOT NULL,
+                    `isScam` INTEGER NOT NULL,
+                    `isFake` INTEGER NOT NULL,
+                    `isPremium` INTEGER NOT NULL,
+                    `isMin` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY (`accountSlot`, `environment`, `dcId`, `userId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_42_43 = object : Migration(42, 43) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_chat_projection` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `chatId` INTEGER NOT NULL,
+                    `type` TEXT NOT NULL,
+                    `accessHash` INTEGER,
+                    `title` TEXT,
+                    `username` TEXT,
+                    `participantsCount` INTEGER,
+                    `isDeleted` INTEGER NOT NULL,
+                    `isForbidden` INTEGER NOT NULL,
+                    `isLeft` INTEGER NOT NULL,
+                    `isDeactivated` INTEGER NOT NULL,
+                    `isBroadcast` INTEGER NOT NULL,
+                    `isMegagroup` INTEGER NOT NULL,
+                    `isVerified` INTEGER NOT NULL,
+                    `isRestricted` INTEGER NOT NULL,
+                    `isScam` INTEGER NOT NULL,
+                    `isFake` INTEGER NOT NULL,
+                    `isForum` INTEGER NOT NULL,
+                    `isMin` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY (`accountSlot`, `environment`, `dcId`, `chatId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_43_44 = object : Migration(43, 44) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_message_projection` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `peerType` TEXT NOT NULL,
+                    `peerId` INTEGER NOT NULL,
+                    `messageId` INTEGER NOT NULL,
+                    `senderType` TEXT,
+                    `senderId` INTEGER,
+                    `date` INTEGER NOT NULL,
+                    `text` TEXT,
+                    `isService` INTEGER NOT NULL,
+                    `isDeleted` INTEGER NOT NULL,
+                    `isOutgoing` INTEGER NOT NULL,
+                    `isMentioned` INTEGER NOT NULL,
+                    `isMediaUnread` INTEGER NOT NULL,
+                    `isSilent` INTEGER NOT NULL,
+                    `isPinned` INTEGER NOT NULL,
+                    `editDate` INTEGER,
+                    `groupedId` INTEGER,
+                    `hasMedia` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY (`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`, `messageId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_59_60 = object : Migration(59, 60) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_story_projection` (" +
+                    "`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, " +
+                    "`peerType` TEXT NOT NULL, `peerId` INTEGER NOT NULL, `storyId` INTEGER NOT NULL, " +
+                    "`payload` BLOB NOT NULL, `isDeleted` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`, `storyId`))"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_mtproto_story_projection_accountSlot_environment_dcId_peerType_peerId_storyId` " +
+                    "ON `mtproto_story_projection` (`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`, `storyId`)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_story_active_list` (" +
+                    "`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, " +
+                    "`listType` TEXT NOT NULL, `peerType` TEXT NOT NULL, `peerId` INTEGER NOT NULL, " +
+                    "`storyId` INTEGER NOT NULL, `orderKey` INTEGER NOT NULL, `canBeArchived` INTEGER NOT NULL, " +
+                    "`maxReadStoryId` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `listType`, `peerType`, `peerId`, `storyId`))"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_mtproto_story_active_list_accountSlot_environment_dcId_listType_orderKey` " +
+                    "ON `mtproto_story_active_list` (`accountSlot`, `environment`, `dcId`, `listType`, `orderKey`)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_story_list_cursor` (" +
+                    "`accountSlot` TEXT NOT NULL, `environment` TEXT NOT NULL, `dcId` INTEGER NOT NULL, " +
+                    "`listType` TEXT NOT NULL, `state` TEXT NOT NULL, `hasMore` INTEGER NOT NULL, " +
+                    "`totalCount` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `listType`))"
+            )
+        }
+    }
+
+    val MIGRATION_64_65 = object : Migration(64, 65) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_poll` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `pollId` INTEGER NOT NULL,
+                    `question` TEXT NOT NULL,
+                    `optionsJson` TEXT NOT NULL,
+                    `totalVoters` INTEGER NOT NULL,
+                    `isClosed` INTEGER NOT NULL,
+                    `isAnonymous` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `pollId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_63_64 = object : Migration(63, 64) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `exchangeId` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `futureAuthKey` BLOB")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `futureKeyFingerprint` INTEGER")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `keyCreateDateSeconds` INTEGER")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `keyUseCountIn` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `mtproto_secret_chat_state` ADD COLUMN `keyUseCountOut` INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    val MIGRATION_62_63 = object : Migration(62, 63) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_secret_chat_state` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `chatId` INTEGER NOT NULL,
+                    `accessHash` INTEGER NOT NULL,
+                    `adminId` INTEGER NOT NULL,
+                    `participantId` INTEGER NOT NULL,
+                    `authKey` BLOB NOT NULL,
+                    `keyFingerprint` INTEGER NOT NULL,
+                    `maxInSeq` INTEGER NOT NULL,
+                    `maxOutSeq` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `chatId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_61_62 = object : Migration(61, 62) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `mtproto_message_projection` ADD COLUMN `mediaType` TEXT")
+            db.execSQL("ALTER TABLE `mtproto_message_projection` ADD COLUMN `mediaKey` TEXT")
+        }
+    }
+
+    val MIGRATION_60_61 = object : Migration(60, 61) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val sourceColumn = db.query("PRAGMA table_info(`message_windows`)").use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                generateSequence { if (cursor.moveToNext()) cursor.getString(nameIndex) else null }
+                    .firstOrNull { it == "lastNetworkSyncAt" || it == "lastTdlibSyncAt" }
+                    ?: error("message_windows is missing its sync timestamp column")
+            }
+            db.execSQL(
+                """
+                CREATE TABLE `message_windows_new` (
+                    `chatId` INTEGER NOT NULL,
+                    `scopeType` TEXT NOT NULL,
+                    `scopeId` INTEGER NOT NULL,
+                    `oldestMessageId` INTEGER,
+                    `newestMessageId` INTEGER,
+                    `olderBoundaryReached` INTEGER NOT NULL,
+                    `newerBoundaryReached` INTEGER NOT NULL,
+                    `lastNetworkSyncAt` INTEGER NOT NULL,
+                    `generation` INTEGER NOT NULL,
+                    `protectedMessageId` INTEGER,
+                    PRIMARY KEY(`chatId`, `scopeType`, `scopeId`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT INTO `message_windows_new` (
+                    `chatId`, `scopeType`, `scopeId`, `oldestMessageId`, `newestMessageId`,
+                    `olderBoundaryReached`, `newerBoundaryReached`, `lastNetworkSyncAt`,
+                    `generation`, `protectedMessageId`
+                )
+                SELECT `chatId`, `scopeType`, `scopeId`, `oldestMessageId`, `newestMessageId`,
+                    `olderBoundaryReached`, `newerBoundaryReached`, `$sourceColumn`,
+                    `generation`, `protectedMessageId`
+                FROM `message_windows`
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE `message_windows`")
+            db.execSQL("ALTER TABLE `message_windows_new` RENAME TO `message_windows`")
+        }
+    }
+
+    val MIGRATION_58_59 = object : Migration(58, 59) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_chat_projection", "signaturesEnabled", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("mtproto_chat_projection", "signatureProfilesEnabled", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("mtproto_chat_projection", "forumTabs", "INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    val MIGRATION_57_58 = object : Migration(57, 58) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_document_location", "stickerSetId", "INTEGER")
+            db.addColumn("mtproto_document_location", "stickerEmoji", "TEXT")
+            db.addColumn("mtproto_document_location", "stickerFormat", "TEXT")
+        }
+    }
+
+    val MIGRATION_56_57 = object : Migration(56, 57) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_document_location", "mediaKind", "TEXT NOT NULL DEFAULT 'DOCUMENT'")
+            db.addColumn("mtproto_document_location", "width", "INTEGER")
+            db.addColumn("mtproto_document_location", "height", "INTEGER")
+            db.addColumn("mtproto_document_location", "duration", "INTEGER")
+            db.addColumn("mtproto_document_location", "supportsStreaming", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("mtproto_document_location", "title", "TEXT")
+            db.addColumn("mtproto_document_location", "performer", "TEXT")
+            db.addColumn("mtproto_document_location", "waveform", "BLOB")
+        }
+    }
+
+    val MIGRATION_55_56 = object : Migration(55, 56) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE `mtproto_file_handle_new` (" +
+                    "`fileId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`accountSlot` TEXT NOT NULL, " +
+                    "`environment` TEXT NOT NULL, " +
+                    "`sessionDcId` INTEGER NOT NULL, " +
+                    "`resourceType` TEXT NOT NULL, " +
+                    "`resourceId` INTEGER NOT NULL, " +
+                    "`resourceVariant` TEXT NOT NULL)"
+            )
+            db.execSQL(
+                "INSERT INTO `mtproto_file_handle_new` " +
+                    "(`fileId`, `accountSlot`, `environment`, `sessionDcId`, `resourceType`, `resourceId`, `resourceVariant`) " +
+                    "SELECT `fileId`, `accountSlot`, `environment`, `sessionDcId`, 'DOCUMENT', `documentId`, '' " +
+                    "FROM `mtproto_file_handle`"
+            )
+            db.execSQL("DROP TABLE `mtproto_file_handle`")
+            db.execSQL("ALTER TABLE `mtproto_file_handle_new` RENAME TO `mtproto_file_handle`")
+            db.execSQL(
+                "CREATE UNIQUE INDEX `index_mtproto_file_handle_accountSlot_environment_sessionDcId_resourceType_resourceId_resourceVariant` " +
+                    "ON `mtproto_file_handle` (`accountSlot`, `environment`, `sessionDcId`, `resourceType`, `resourceId`, `resourceVariant`)"
+            )
+        }
+    }
+
+    val MIGRATION_54_55 = object : Migration(54, 55) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_message_projection", "photoId", "INTEGER")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_photo_location` (" +
+                    "`accountSlot` TEXT NOT NULL, " +
+                    "`environment` TEXT NOT NULL, " +
+                    "`sessionDcId` INTEGER NOT NULL, " +
+                    "`photoId` INTEGER NOT NULL, " +
+                    "`thumbSize` TEXT NOT NULL, " +
+                    "`accessHash` INTEGER NOT NULL, " +
+                    "`fileReference` BLOB NOT NULL, " +
+                    "`photoDcId` INTEGER NOT NULL, " +
+                    "`width` INTEGER NOT NULL, " +
+                    "`height` INTEGER NOT NULL, " +
+                    "`size` INTEGER NOT NULL, " +
+                    "`updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`accountSlot`, `environment`, `sessionDcId`, `photoId`, `thumbSize`))"
+            )
+        }
+    }
+
+    val MIGRATION_53_54 = object : Migration(53, 54) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_document_location", "fileName", "TEXT NOT NULL DEFAULT ''")
+        }
+    }
+
+    val MIGRATION_52_53 = object : Migration(52, 53) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `mtproto_file_handle` (" +
+                    "`fileId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`accountSlot` TEXT NOT NULL, " +
+                    "`environment` TEXT NOT NULL, " +
+                    "`sessionDcId` INTEGER NOT NULL, " +
+                    "`documentId` INTEGER NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_mtproto_file_handle_accountSlot_environment_sessionDcId_documentId` " +
+                    "ON `mtproto_file_handle` (`accountSlot`, `environment`, `sessionDcId`, `documentId`)"
+            )
+        }
+    }
+
+    val MIGRATION_51_52 = object : Migration(51, 52) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_message_projection", "documentId", "INTEGER")
+        }
+    }
+
+    val MIGRATION_50_51 = object : Migration(50, 51) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_document_location` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `sessionDcId` INTEGER NOT NULL,
+                    `documentId` INTEGER NOT NULL,
+                    `accessHash` INTEGER NOT NULL,
+                    `fileReference` BLOB NOT NULL,
+                    `documentDcId` INTEGER NOT NULL,
+                    `mimeType` TEXT NOT NULL,
+                    `size` INTEGER NOT NULL,
+                    `fileName` TEXT NOT NULL DEFAULT '',
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `sessionDcId`, `documentId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_49_50 = object : Migration(49, 50) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_file_transfer` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `fileKey` TEXT NOT NULL,
+                    `path` TEXT NOT NULL,
+                    `expectedSize` INTEGER NOT NULL,
+                    `committedOffset` INTEGER NOT NULL,
+                    `isComplete` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `fileKey`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_48_49 = object : Migration(48, 49) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_message_projection", "isScheduled", "INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    val MIGRATION_47_48 = object : Migration(47, 48) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("mtproto_dialog_projection", "muted", "INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    val MIGRATION_46_47 = object : Migration(46, 47) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_draft_projection` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `peerType` TEXT NOT NULL,
+                    `peerId` INTEGER NOT NULL,
+                    `text` TEXT NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_45_46 = object : Migration(45, 46) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `mtproto_dialog_projection` (
+                    `accountSlot` TEXT NOT NULL,
+                    `environment` TEXT NOT NULL,
+                    `dcId` INTEGER NOT NULL,
+                    `peerType` TEXT NOT NULL,
+                    `peerId` INTEGER NOT NULL,
+                    `pinned` INTEGER NOT NULL,
+                    `muted` INTEGER NOT NULL DEFAULT 0,
+                    `unreadMark` INTEGER NOT NULL,
+                    `topMessageId` INTEGER NOT NULL,
+                    `unreadCount` INTEGER NOT NULL,
+                    `unreadMentionsCount` INTEGER NOT NULL,
+                    `unreadReactionsCount` INTEGER NOT NULL,
+                    `folderId` INTEGER,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
+    val MIGRATION_44_45 = object : Migration(44, 45) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS " +
+                    "`index_mtproto_message_projection_accountSlot_environment_dcId_peerType_peerId_date_messageId` " +
+                    "ON `mtproto_message_projection` " +
+                    "(`accountSlot`, `environment`, `dcId`, `peerType`, `peerId`, `date`, `messageId`)"
             )
         }
     }

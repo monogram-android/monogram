@@ -2,18 +2,18 @@ package org.monogram.data.service
 
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import org.monogram.data.push.MtProtoPushSync
 import org.koin.android.ext.android.inject
-import org.monogram.data.push.PushProcessingCoordinator
 import org.monogram.domain.repository.AppPreferencesProvider
 
-class FcmPushService : FirebaseMessagingService() {
+internal class FcmPushService : FirebaseMessagingService() {
     private val appPreferences: AppPreferencesProvider by inject()
-    private val pushCoordinator: PushProcessingCoordinator by inject()
+    private val pushSync: MtProtoPushSync by inject()
     private val delegate by lazy {
         BaseFcmPushService(
             context = this,
             appPreferences = appPreferences,
-            pushCoordinator = pushCoordinator
+            pushSync = pushSync
         )
     }
 

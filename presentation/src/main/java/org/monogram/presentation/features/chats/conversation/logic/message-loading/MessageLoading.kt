@@ -17,15 +17,20 @@ import org.monogram.domain.models.ConversationUpdate
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageDownloadEvent
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageHistorySnapshotModel
+import org.monogram.domain.models.MessageHistorySnapshotRequest
 import org.monogram.domain.models.MessageReactionModel
+import org.monogram.domain.models.TelegramPeerChatId
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.BoundaryState
 import org.monogram.domain.repository.ConversationPipelineMode
+import org.monogram.domain.repository.ConversationScope
 import org.monogram.domain.repository.HistoryAnchor
 import org.monogram.domain.repository.HistoryDirection
 import org.monogram.domain.repository.HistoryRequest
 import org.monogram.domain.repository.HistorySource
+import org.monogram.domain.repository.HistoryPage
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.conversation.ChatComponent
@@ -493,7 +498,9 @@ private fun MessageContent.projectMediaRuntime(incoming: MessageContent): Messag
 }
 
 private suspend fun DefaultChatComponent.loadHistoryPage(request: HistoryRequest) = try {
-    if (conversationPipelineMode == ConversationPipelineMode.Legacy) {
+    if (true) {
+        loadMtProtoHistorySnapshot(request)
+    } else if (conversationPipelineMode == ConversationPipelineMode.Legacy) {
         repositoryMessage.getHistoryPage(request)
     } else {
         conversationSession.loadHistory(loadingGeneration, request)
@@ -504,6 +511,77 @@ private suspend fun DefaultChatComponent.loadHistoryPage(request: HistoryRequest
     }
     throw error
 }
+
+private suspend fun DefaultChatComponent.loadMtProtoHistorySnapshot(request: HistoryRequest): HistoryPage {
+    require(request.key.scope == ConversationScope.Main) {
+        "MTProto snapshot history supports only main conversations"
+    }
+    val chat = chatListRepository.getChatById(request.key.chatId)
+    val peer = TelegramPeerChatId.decode(request.key.chatId, chat?.isChannel)
+    // Newer pages read forward from the anchor via the server-side min_id filter; older pages
+    // read backward from the in-memory anchor message. A missing older anchor falls back to the
+    // latest page instead of failing the whole conversation load.
+    val anchorCursor: org.monogram.domain.models.MessageHistoryCursorModel? = when (val anchor = request.anchor) {
+        HistoryAnchor.Latest -> null
+        is HistoryAnchor.Message -> when {
+            request.direction == HistoryDirection.Newer ->
+                org.monogram.domain.models.MessageHistoryCursorModel(date = 0, messageId = anchor.id)
+            else -> _state.value.messages.firstOrNull { it.id == anchor.id }?.let { loaded ->
+                org.monogram.domain.models.MessageHistoryCursorModel(
+                    date = loaded.date,
+                    messageId = loaded.id,
+                )
+            }
+        }
+    }
+    val page = messageHistorySnapshotRepository.getHistory(
+        MessageHistorySnapshotRequest(
+            accountId = "default",
+            peerType = peer.type,
+            peerId = peer.id,
+            before = if (request.direction != HistoryDirection.Newer) anchorCursor else null,
+            after = if (request.direction == HistoryDirection.Newer) anchorCursor else null,
+            limit = request.limit,
+        )
+    )
+    val senderNames = page.messages.mapNotNull { it.senderId }.distinct().associateWith { senderId ->
+        runCatching {
+            userProfileSnapshotRepository.getUser("default", senderId)?.let { user ->
+                listOfNotNull(user.firstName, user.lastName)
+                    .joinToString(" ")
+                    .ifBlank { user.username.orEmpty() }
+            }
+        }.getOrNull().orEmpty()
+    }
+    return HistoryPage(
+        messages = page.messages.map { it.toMessageModel(request.key.chatId, senderNames[it.senderId].orEmpty()) },
+        olderBoundary = if (request.direction == HistoryDirection.Newer) {
+            BoundaryState.Reached
+        } else {
+            if (page.nextCursor == null) BoundaryState.Reached else BoundaryState.Open
+        },
+        newerBoundary = if (request.direction == HistoryDirection.Newer) {
+            if (page.nextCursor == null) BoundaryState.Reached else BoundaryState.Open
+        } else {
+            BoundaryState.Reached
+        },
+        source = HistorySource.RoomSnapshot,
+    )
+}
+
+private fun MessageHistorySnapshotModel.toMessageModel(chatId: Long, senderName: String) = MessageModel(
+    id = messageId,
+    date = date,
+    isOutgoing = isOutgoing,
+    senderName = senderName,
+    chatId = chatId,
+    content = if (isService) MessageContent.Service(text.orEmpty()) else MessageContent.Text(text.orEmpty()),
+    senderId = senderId ?: 0L,
+    editDate = editDate ?: 0,
+    mediaAlbumId = groupedId ?: 0L,
+    isPinned = isPinned,
+    hasUnreadMention = isMentioned,
+)
 
 private fun pruneDeliveredPendingDuplicates(messages: List<MessageModel>): List<MessageModel> {
     if (messages.none { it.sendingState is MessageSendingState.Pending }) return messages
@@ -630,7 +708,7 @@ internal fun DefaultChatComponent.loadMessages(
                             anchor = HistoryAnchor.Message(lastRead),
                             direction = HistoryDirection.Newer,
                             limit = 1,
-                            source = HistorySource.TdlibNetwork
+                            source = HistorySource.NetworkSnapshot
                         )
                     )
                         .messages
@@ -755,7 +833,7 @@ internal suspend fun DefaultChatComponent.loadComments(
             anchor = HistoryAnchor.Latest,
             direction = HistoryDirection.Initial,
             limit = PAGE_SIZE,
-            source = HistorySource.TdlibNetwork
+            source = HistorySource.NetworkSnapshot
         )
     )
     val messages = olderPage.messages
@@ -857,7 +935,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
             anchor = HistoryAnchor.Latest,
             direction = HistoryDirection.Initial,
             limit = PAGE_SIZE,
-            source = HistorySource.TdlibLocal
+            source = HistorySource.LocalSnapshot
         )
     )
     if (localPage.messages.isNotEmpty()) {
@@ -866,7 +944,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
         updateMessages(localPage.messages, replace = true)
         refreshCachedSenderProfiles(localPage.messages)
         ChatConversationLog.logViewportState(
-            event = "load_bottom_tdlib_local_preview",
+            event = "load_bottom_local_preview",
             state = _state.value,
             componentInstanceId = componentInstanceId,
             extra = "targetChatId=$targetChatId localMessages=${localPage.messages.size}"
@@ -880,7 +958,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
                 anchor = HistoryAnchor.Latest,
                 direction = HistoryDirection.Initial,
                 limit = PAGE_SIZE,
-                source = HistorySource.TdlibNetwork
+                source = HistorySource.NetworkSnapshot
             )
         )
     } else {
@@ -1024,7 +1102,7 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
             anchor = HistoryAnchor.Message(messageId),
             direction = HistoryDirection.Around,
             limit = PAGE_SIZE,
-            source = HistorySource.TdlibNetwork
+            source = HistorySource.NetworkSnapshot
         )
     ).messages
     if (messages.isNotEmpty()) {
@@ -1274,7 +1352,7 @@ internal fun DefaultChatComponent.loadMoreMessages() {
                         anchor = HistoryAnchor.Message(currentAnchorId),
                         direction = HistoryDirection.Older,
                         limit = PAGE_SIZE,
-                        source = HistorySource.TdlibNetwork
+                        source = HistorySource.NetworkSnapshot
                     )
                 )
                 val olderMessages = olderPage.messages
@@ -1295,7 +1373,7 @@ internal fun DefaultChatComponent.loadMoreMessages() {
                 val afterSize = _state.value.messages.size
                 val listGrew = afterSize > beforeSize
 
-                val isRemote = olderPage.source == HistorySource.TdlibNetwork
+                val isRemote = olderPage.source == HistorySource.NetworkSnapshot
                 isOldestLoaded = olderPage.olderBoundary is BoundaryState.Reached ||
                         (isRemote && !hasOlderProgress)
 
@@ -1399,12 +1477,12 @@ private suspend fun DefaultChatComponent.loadNewerMessagesPage(): Boolean {
             anchor = HistoryAnchor.Message(anchorId),
             direction = HistoryDirection.Newer,
             limit = PAGE_SIZE,
-            source = HistorySource.TdlibNetwork
+            source = HistorySource.NetworkSnapshot
         )
     )
     val newerMessages = newerPage.messages
     val isLatestLoaded =
-        newerPage.source == HistorySource.TdlibNetwork &&
+        newerPage.source == HistorySource.NetworkSnapshot &&
                 (newerMessages.size < PAGE_SIZE ||
                         (newerMessages.isNotEmpty() && newerMessages.all { msg -> currentMessages.any { it.id == msg.id } }))
 
@@ -1749,6 +1827,8 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
             }
             .launchIn(scope)
     }
+    return
+
     if (conversationPipelineMode != ConversationPipelineMode.Legacy) {
         repositoryMessage.conversationUpdates
             .onEach { update ->
@@ -2301,6 +2381,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
 }
 
 private fun DefaultChatComponent.observeSenderUpdates() {
+    return
     repositoryMessage.senderUpdateFlow
         .onEach { senderId ->
             if (senderId <= 0L) return@onEach
@@ -2410,6 +2491,10 @@ internal fun DefaultChatComponent.handleEditedRichMessage(message: MessageModel)
 }
 
 internal fun DefaultChatComponent.loadDraft() {
+    if (
+        true &&
+        activeThreadId() != null
+    ) return
     scope.launch {
         _state.value.currentTopicId
         val draft = repositoryMessage.getChatDraft(activeThreadChatId(), activeThreadId())
@@ -2457,7 +2542,7 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
         componentInstanceId = componentInstanceId,
         extra = "topicId=$topicId"
     )
-    if (topicId != 0) {
+    if (topicId != 0 && false) {
         scope.launch {
             forumTopicsRepository.markForumTopicAsRead(chatId, topicId)
         }

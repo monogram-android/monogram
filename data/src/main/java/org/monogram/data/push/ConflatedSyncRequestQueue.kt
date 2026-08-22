@@ -8,7 +8,8 @@ import kotlinx.coroutines.launch
 internal class ConflatedSyncRequestQueue(
     scope: CoroutineScope,
     private val minIntervalMs: Long,
-    private val execute: suspend (String) -> Unit
+    private val execute: suspend (String) -> Unit,
+    private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
     private val requests = Channel<String>(Channel.CONFLATED)
 
@@ -22,7 +23,13 @@ internal class ConflatedSyncRequestQueue(
                     delay(waitMs)
                 }
 
-                execute(reason)
+                try {
+                    execute(reason)
+                } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                    throw cancellation
+                } catch (_: Exception) {
+                    // Sync failures are non-fatal; the next request retries.
+                }
                 lastCompletedAt = System.currentTimeMillis()
             }
         }

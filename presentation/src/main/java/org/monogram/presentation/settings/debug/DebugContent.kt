@@ -123,7 +123,7 @@ fun DebugContent(component: DebugComponent) {
                 SettingsItem(
                     icon = Icons.Rounded.Sync,
                     title = "Push service running",
-                    subtitle = state.isTdNotificationServiceRunning.toUiToggle(),
+                    subtitle = state.isMtProtoNotificationServiceRunning.toUiToggle(),
                     iconBackgroundColor = Color(0xFF00ACC1),
                     position = ItemPosition.MIDDLE,
                     onClick = { }
@@ -338,7 +338,7 @@ fun DebugContent(component: DebugComponent) {
                 SettingsItem(
                     icon = Icons.Rounded.Storage,
                     title = "Drop Databases",
-                    subtitle = "Delete all app databases and tdlib",
+                    subtitle = "Delete all app databases and cached protocol data",
                     iconBackgroundColor = Color.Red,
                     position = ItemPosition.MIDDLE,
                     onClick = component::onDropDatabasesClicked

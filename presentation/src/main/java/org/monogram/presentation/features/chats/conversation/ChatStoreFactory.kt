@@ -84,6 +84,7 @@ import org.monogram.presentation.features.chats.conversation.logic.handleShowPin
 import org.monogram.presentation.features.chats.conversation.logic.handleShowVoters
 import org.monogram.presentation.features.chats.conversation.logic.handleStickerClick
 import org.monogram.presentation.features.chats.conversation.logic.handleToggleChecklistTask
+import org.monogram.presentation.features.chats.conversation.logic.handleTyping
 import org.monogram.presentation.features.chats.conversation.logic.handleToggleMessageSelection
 import org.monogram.presentation.features.chats.conversation.logic.handleToggleMute
 import org.monogram.presentation.features.chats.conversation.logic.handleTopicClick
@@ -318,8 +319,7 @@ class ChatStoreFactory(
                     else nextState.copy(isAtBottom = intent.isAtBottom)
                 }
                 is Intent.HighlightConsumed -> component._state.update(ConversationViewportReducer::consumeHighlight)
-                is Intent.Typing -> { /* Handle typing */
-                }
+                is Intent.Typing -> component.handleTyping()
 
                 is Intent.SendReaction -> component.handleSendReaction(intent.messageId, intent.reaction)
                 is Intent.ToggleMessageSelection -> component.handleToggleMessageSelection(intent.messageId)

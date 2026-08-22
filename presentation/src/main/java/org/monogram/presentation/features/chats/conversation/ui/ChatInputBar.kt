@@ -50,7 +50,7 @@ import kotlinx.coroutines.delay
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.StickerModel
-import org.monogram.domain.models.TdLibLimits
+import org.monogram.domain.models.TelegramLimits
 import org.monogram.domain.repository.RichTextParseMode
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
@@ -112,21 +112,21 @@ internal fun resolveChatInputMaxMessageLength(
     editingContent: MessageContent?,
     hasPendingMedia: Boolean,
     hasPendingDocuments: Boolean,
-    limits: TdLibLimits
+    limits: TelegramLimits
 ): Int {
     val usesCaptionLimit = editingContent?.usesCaptionLengthLimit()
         ?: (hasPendingMedia || hasPendingDocuments)
 
     return when {
         usesCaptionLimit -> limits.messageCaptionLengthMax
-            ?: TdLibLimits.DEFAULT_MESSAGE_CAPTION_LENGTH_MAX
+            ?: TelegramLimits.DEFAULT_MESSAGE_CAPTION_LENGTH_MAX
 
         editingContent is MessageContent.RichMessage -> limits.richMessageTextLengthMax
             ?: limits.messageTextLengthMax
-            ?: TdLibLimits.DEFAULT_MESSAGE_TEXT_LENGTH_MAX
+            ?: TelegramLimits.DEFAULT_MESSAGE_TEXT_LENGTH_MAX
 
         else -> limits.messageTextLengthMax
-            ?: TdLibLimits.DEFAULT_MESSAGE_TEXT_LENGTH_MAX
+            ?: TelegramLimits.DEFAULT_MESSAGE_TEXT_LENGTH_MAX
     }
 }
 
@@ -393,14 +393,14 @@ internal fun ChatInputBar(
         state.pendingMediaPaths,
         state.pendingDocumentPaths,
         state.editingMessage,
-        state.tdLibLimits
+        state.telegramLimits
     ) {
         derivedStateOf {
             resolveChatInputMaxMessageLength(
                 editingContent = state.editingMessage?.content,
                 hasPendingMedia = state.pendingMediaPaths.isNotEmpty(),
                 hasPendingDocuments = state.pendingDocumentPaths.isNotEmpty(),
-                limits = state.tdLibLimits
+                limits = state.telegramLimits
             )
         }
     }
@@ -431,7 +431,7 @@ internal fun ChatInputBar(
         richTextParseMode: RichTextParseMode? = null
     ) {
         val effectiveMaxMessageLength = if (richTextParseMode != null) {
-            state.tdLibLimits.richMessageTextLengthMax ?: maxMessageLength
+            state.telegramLimits.richMessageTextLengthMax ?: maxMessageLength
         } else {
             maxMessageLength
         }
@@ -1082,7 +1082,7 @@ internal fun ChatInputBar(
                 emojiFontFamily = emojiFontFamily,
                 isKeyboardVisible = isKeyboardVisible,
                 maxMessageLength = maxMessageLength,
-                richMessageLengthMax = state.tdLibLimits.richMessageTextLengthMax,
+                richMessageLengthMax = state.telegramLimits.richMessageTextLengthMax,
                 initialParseMode = if (state.editingMessage?.content is MessageContent.RichMessage) {
                     EditorParseMode.Markdown
                 } else {

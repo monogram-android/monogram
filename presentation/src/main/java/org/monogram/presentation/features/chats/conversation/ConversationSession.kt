@@ -482,7 +482,7 @@ internal class ConversationSession(
             HistoryDirection.Newer -> current.copy(
                 isLatestLoaded = current.isLatestLoaded ||
                         page.newerBoundary is BoundaryState.Reached ||
-                        (page.source == HistorySource.TdlibNetwork && page.messages.size < request.limit)
+                        (page.source == HistorySource.NetworkSnapshot && page.messages.size < request.limit)
             )
         }
     }

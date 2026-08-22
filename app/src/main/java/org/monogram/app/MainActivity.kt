@@ -21,7 +21,7 @@ import com.arkivanov.decompose.retainedComponent
 import org.koin.android.ext.android.inject
 import org.monogram.app.ui.theme.AppThemeContainer
 import org.monogram.data.infra.AppForegroundTracker
-import org.monogram.data.service.TdNotificationService
+import org.monogram.data.service.MtProtoNotificationService
 import org.monogram.domain.repository.PushProvider
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.LocalVideoPlayerPool
@@ -138,9 +138,9 @@ class MainActivity : FragmentActivity() {
         if (appPreferences.pushProvider.value != PushProvider.GMS_LESS) return
         if (!appPreferences.backgroundServiceEnabled.value) return
         if (!appForegroundTracker.isForeground.value) return
-        if (TdNotificationService.isRunningFlow.value) return
+        if (MtProtoNotificationService.isRunningFlow.value) return
 
-        val intent = Intent(this, TdNotificationService::class.java)
+        val intent = Intent(this, MtProtoNotificationService::class.java)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)

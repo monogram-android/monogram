@@ -38,7 +38,11 @@ import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.LocationRepository
 import org.monogram.domain.repository.MessageAiRepository
 import org.monogram.domain.repository.MessageDisplayer
+import org.monogram.domain.repository.MessageHistorySnapshotRepository
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.MtProtoTextMessageRepository
+import org.monogram.domain.repository.MtProtoReadHistoryRepository
+import org.monogram.domain.repository.MtProtoMessageDeletionRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.PaymentRepository
@@ -55,10 +59,11 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StringProvider
-import org.monogram.domain.repository.TdLibLimitsRepository
+import org.monogram.domain.repository.TelegramLimitsRepository
 import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
+import org.monogram.domain.repository.UserProfileSnapshotRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.domain.repository.WebAppRepository
@@ -92,6 +97,10 @@ interface RepositoriesContainer {
     val chatSettingsRepository: ChatSettingsRepository
     val chatCreationRepository: ChatCreationRepository
     val messageRepository: MessageRepository
+    val mtProtoTextMessageRepository: MtProtoTextMessageRepository
+    val mtProtoReadHistoryRepository: MtProtoReadHistoryRepository
+    val mtProtoMessageDeletionRepository: MtProtoMessageDeletionRepository
+    val messageHistorySnapshotRepository: MessageHistorySnapshotRepository
     val inlineBotRepository: InlineBotRepository
     val chatEventLogRepository: ChatEventLogRepository
     val messageAiRepository: MessageAiRepository
@@ -100,6 +109,7 @@ interface RepositoriesContainer {
     val fileRepository: FileRepository
     val webAppRepository: WebAppRepository
     val userRepository: UserRepository
+    val userProfileSnapshotRepository: UserProfileSnapshotRepository
     val userProfileEditRepository: UserProfileEditRepository
     val contactEditRepository: ContactEditRepository
     val profilePhotoRepository: ProfilePhotoRepository
@@ -122,7 +132,7 @@ interface RepositoriesContainer {
     val proxyDiagnosticsRepository: ProxyDiagnosticsRepository
     val stickerRepository: StickerRepository
     val storyRepository: StoryRepository
-    val tdLibLimitsRepository: TdLibLimitsRepository
+    val telegramLimitsRepository: TelegramLimitsRepository
     val gifRepository: GifRepository
     val emojiRepository: EmojiRepository
     val telegramLinkRepository: TelegramLinkRepository

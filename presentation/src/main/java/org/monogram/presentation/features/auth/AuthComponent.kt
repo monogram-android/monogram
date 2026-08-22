@@ -13,6 +13,8 @@ interface AuthComponent {
     fun onCodeEntered(code: String)
     fun onResendCode()
     fun onPasswordEntered(password: String)
+    fun onSignUpSubmitted(firstName: String, lastName: String)
+    fun onLoginEmailSubmitted(email: String)
     fun onBackToPhone()
     fun onRetry()
     fun onProxyClicked()
@@ -24,7 +26,7 @@ interface AuthComponent {
         val uiStatus: AuthUiStatus = AuthUiStatus.Idle,
         val isSubmitting: Boolean = false,
         val error: AuthError? = null,
-        val phoneNumber: String? = null
+        val phoneNumber: String? = null,
     )
 
     sealed class AuthState {
@@ -37,13 +39,26 @@ interface AuthComponent {
             val nextDelivery: AuthCodeDelivery? = null,
             val timeout: Int = 0,
             val emailPattern: String? = null,
-            val canResend: Boolean = false
+            val canResend: Boolean = false,
+            val isLoginEmailSetupCode: Boolean = false,
         ) : AuthState()
 
         data class InputPassword(
             val passwordHint: String? = null,
             val hasRecoveryEmail: Boolean = false,
             val recoveryEmailPattern: String? = null
+        ) : AuthState()
+
+        object InputSignUp : AuthState()
+        object InputLoginEmail : AuthState()
+
+        /** The server requires a paid code purchase before delivering a login code. */
+        data class PaidCodeRequired(
+            val storeProduct: String,
+            val supportEmailAddress: String,
+            val supportEmailSubject: String,
+            val currency: String,
+            val amount: Long
         ) : AuthState()
     }
 }

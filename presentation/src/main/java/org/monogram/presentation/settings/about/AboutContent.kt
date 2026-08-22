@@ -92,22 +92,16 @@ import org.monogram.presentation.core.util.toGitHubCommitTimeString
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutContent(component: AboutComponent) {
-    val isTelemtBuild = BuildConfig.ENABLE_TELEMT_DNS
     val updateState by component.updateState.collectAsState()
-    val tdLibVersion by component.tdLibVersion.collectAsState()
-    val tdLibCommitHash by component.tdLibCommitHash.collectAsState()
+    val protocolVersion by component.protocolVersion.collectAsState()
+    val protocolRevision by component.protocolRevision.collectAsState()
     val recentCommitsState by component.recentCommitsState.collectAsState()
     val hasOpenSourceLicenses = component.hasOpenSourceLicenses
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val telegramLinkRepository: TelegramLinkRepository = koinInject()
     val scope = rememberCoroutineScope()
-    val version = remember {
-        buildString {
-            append(AppUtils.getFullVersionString(context))
-            if (isTelemtBuild) append(" (Telemt)")
-        }
-    }
+    val version = remember { AppUtils.getFullVersionString(context) }
     val buildTimeText = remember(component.buildTimeMillis) {
         component.buildTimeMillis.toBuildTimeString()
     }
@@ -138,14 +132,14 @@ fun AboutContent(component: AboutComponent) {
     )
     val recentCommitsTitle = stringResource(R.string.recent_commits_title)
 
-    val versionWithHashFormat = stringResource(R.string.tdlib_version_with_hash)
-    val displayTdLibVersion = remember(tdLibVersion, tdLibCommitHash, versionWithHashFormat, loadingText) {
-        if (tdLibVersion == loadingText) {
-            tdLibVersion
-        } else if (tdLibCommitHash.isNotEmpty()) {
-            String.format(versionWithHashFormat, tdLibVersion, tdLibCommitHash.take(7))
+    val versionWithHashFormat = stringResource(R.string.protocol_version_with_hash)
+    val displayProtocolVersion = remember(protocolVersion, protocolRevision, versionWithHashFormat, loadingText) {
+        if (protocolVersion == loadingText) {
+            protocolVersion
+        } else if (protocolRevision.isNotEmpty()) {
+            String.format(versionWithHashFormat, protocolVersion, protocolRevision.take(7))
         } else {
-            tdLibVersion
+            protocolVersion
         }
     }
     val openTelegramPath: (String) -> Unit = { path ->
@@ -265,25 +259,14 @@ fun AboutContent(component: AboutComponent) {
 
                 SettingsItem(
                     icon = Icons.Rounded.Terminal,
-                    title = stringResource(R.string.tdlib_version_title),
-                    subtitle = displayTdLibVersion,
+                    title = stringResource(R.string.protocol_version_title),
+                    subtitle = displayProtocolVersion,
                     iconBackgroundColor = Color(0xFF673AB7),
-                    position = if (isTelemtBuild) ItemPosition.BOTTOM else ItemPosition.MIDDLE,
-                    onClick = {
-                        if (tdLibCommitHash.isNotEmpty()) {
-                            val tdLibCommitUrl = if (isTelemtBuild) {
-                                "https://github.com/telemt/tdlib-obf/commit/$tdLibCommitHash"
-                            } else {
-                                "https://github.com/tdlib/td/commit/$tdLibCommitHash"
-                            }
-                            uriHandler.openUri(tdLibCommitUrl)
-                        }
-                    }
+                    position = ItemPosition.MIDDLE,
+                    onClick = {}
                 )
 
-                if (!isTelemtBuild) {
-                    UpdateSection(updateState, component)
-                }
+                UpdateSection(updateState, component)
             }
 
             item {

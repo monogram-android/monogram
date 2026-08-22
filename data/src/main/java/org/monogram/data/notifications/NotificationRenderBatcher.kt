@@ -5,7 +5,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Coalesces related TDLib notification updates before the Android render pass. */
+/** Coalesces related Telegram notification updates before the Android render pass. */
 internal class NotificationRenderBatcher(
     scope: CoroutineScope,
     private val batchWindowMs: Long = DEFAULT_BATCH_WINDOW_MS,

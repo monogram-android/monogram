@@ -1,0 +1,145 @@
+package org.monogram.data.db.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
+import org.monogram.data.db.model.MtProtoDialogProjectionEntity
+
+@Dao
+interface MtProtoDialogProjectionDao {
+    @Query(
+        "SELECT dialog.* FROM mtproto_dialog_projection AS dialog " +
+            "LEFT JOIN mtproto_message_projection AS message ON " +
+            "message.accountSlot = dialog.accountSlot AND message.environment = dialog.environment " +
+            "AND message.dcId = dialog.dcId AND message.peerType = dialog.peerType " +
+            "AND message.peerId = dialog.peerId AND message.messageId = dialog.topMessageId " +
+            "WHERE dialog.accountSlot = :accountSlot AND dialog.environment = :environment AND dialog.dcId = :dcId " +
+            "ORDER BY dialog.pinned DESC, COALESCE(message.date, 0) DESC, dialog.topMessageId DESC, " +
+            "dialog.peerType ASC, dialog.peerId ASC"
+    )
+    suspend fun getAll(accountSlot: String, environment: String, dcId: Int): List<MtProtoDialogProjectionEntity>
+
+    @Query(
+        "SELECT dialog.* FROM mtproto_dialog_projection AS dialog " +
+            "LEFT JOIN mtproto_message_projection AS message ON message.accountSlot = dialog.accountSlot " +
+            "AND message.environment = dialog.environment AND message.dcId = dialog.dcId " +
+            "AND message.peerType = dialog.peerType AND message.peerId = dialog.peerId " +
+            "AND message.messageId = dialog.topMessageId " +
+            "WHERE dialog.accountSlot = :accountSlot AND dialog.environment = :environment AND dialog.dcId = :dcId " +
+            "AND dialog.folderId = :folderId " +
+            "ORDER BY dialog.pinned DESC, COALESCE(message.date, 0) DESC, dialog.topMessageId DESC, " +
+            "dialog.peerType ASC, dialog.peerId ASC"
+    )
+    suspend fun getByFolder(accountSlot: String, environment: String, dcId: Int, folderId: Int): List<MtProtoDialogProjectionEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: MtProtoDialogProjectionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(entities: List<MtProtoDialogProjectionEntity>)
+
+    /** Emits on every dialog-table write so repositories can republish live read models. */
+    @Query(
+        "SELECT COALESCE(MAX(updatedAt), 0) FROM mtproto_dialog_projection " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId"
+    )
+    fun observeChangeToken(accountSlot: String, environment: String, dcId: Int): Flow<Long>
+
+    @Query(
+        "UPDATE mtproto_dialog_projection SET unreadCount = :unreadCount, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updateInboxUnread(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        unreadCount: Int,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "UPDATE mtproto_dialog_projection SET topMessageId = :messageId, " +
+            "unreadCount = unreadCount + :unreadDelta, " +
+            "unreadMentionsCount = unreadMentionsCount + :mentionDelta, " +
+            "updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId AND topMessageId < :messageId"
+    )
+    suspend fun updateTopMessage(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        messageId: Int,
+        unreadDelta: Int,
+        mentionDelta: Int,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "UPDATE mtproto_dialog_projection SET pinned = :pinned, folderId = :folderId, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updatePinned(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        pinned: Boolean,
+        folderId: Int?,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "UPDATE mtproto_dialog_projection SET muted = :muted, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updateMuted(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        muted: Boolean,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "UPDATE mtproto_dialog_projection SET unreadMark = :unread, updatedAt = :updatedAt " +
+            "WHERE accountSlot = :accountSlot AND environment = :environment AND dcId = :dcId " +
+            "AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun updateUnreadMark(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+        unread: Boolean,
+        updatedAt: Long,
+    )
+
+    @Query(
+        "DELETE FROM mtproto_dialog_projection WHERE accountSlot = :accountSlot AND environment = :environment " +
+            "AND dcId = :dcId AND peerType = :peerType AND peerId = :peerId"
+    )
+    suspend fun delete(
+        accountSlot: String,
+        environment: String,
+        dcId: Int,
+        peerType: String,
+        peerId: Long,
+    )
+
+    @Query("DELETE FROM mtproto_dialog_projection WHERE accountSlot = :accountSlot AND environment = :environment")
+    suspend fun deleteAccount(accountSlot: String, environment: String)
+}

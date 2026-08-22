@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.tasks.Exec
 
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
@@ -10,7 +11,6 @@ plugins {
     alias(libs.plugins.google.oss.licenses) apply false
     alias(libs.plugins.androidx.baselineprofile) apply false
 }
-
 val localProperties by lazy {
     Properties().apply {
         val file = rootProject.file("local.properties")
@@ -19,30 +19,55 @@ val localProperties by lazy {
 }
 extra.set("localProperties", localProperties)
 
-val tdlibFlavors = listOf("Official", "Telemt")
+val telegramTlSnapshotScript = layout.projectDirectory.file("protocol/schema/snapshot.py")
+val refreshTelegramTlSchemas = tasks.register<Exec>("refreshTelegramTlSchemas") {
+    group = "telegram schema"
+    description = "Explicitly refreshes reviewed TL JSON snapshots from a pinned LF-preserving tellers-tl checkout."
+    outputs.upToDateWhen { false }
+
+    val toolDirectory = providers.gradleProperty("tellersTlDir")
+    val generatedAt = providers.gradleProperty("telegramTlGeneratedAt")
+    doFirst {
+        require(toolDirectory.isPresent) {
+            "refreshTelegramTlSchemas requires -PtellersTlDir=<pinned LF-preserving checkout>"
+        }
+        require(generatedAt.isPresent) {
+            "refreshTelegramTlSchemas requires -PtelegramTlGeneratedAt=<RFC3339 UTC timestamp>"
+        }
+        commandLine(
+            "python",
+            telegramTlSnapshotScript.asFile.absolutePath,
+            "export",
+            "--tool-dir",
+            toolDirectory.get(),
+            "--generated-at",
+            generatedAt.get(),
+        )
+    }
+}
+tasks.register("refreshTelegramTlSchema") {
+    group = "telegram schema"
+    description = "Alias for refreshTelegramTlSchemas."
+    dependsOn(refreshTelegramTlSchemas)
+}
 val runtimeFlavors = listOf("Firebase", "Libre")
 val buildTypes = listOf("Debug", "Release")
 
 data class AppAssemblyVariant(
-    val tdlib: String,
     val runtime: String,
     val buildType: String,
 ) {
-    val name: String get() = "$tdlib$runtime$buildType"
+    val name: String get() = "$runtime$buildType"
     val unitTestBuildType: String get() = "Debug"
-    val unitTestVariantName: String get() = "$tdlib$runtime$unitTestBuildType"
+    val unitTestVariantName: String get() = "$runtime$unitTestBuildType"
 }
-
 val appAssemblyVariants =
-    tdlibFlavors.flatMap { tdlib ->
-        runtimeFlavors.flatMap { runtime ->
-            buildTypes.map { buildType ->
-                AppAssemblyVariant(
-                    tdlib = tdlib,
-                    runtime = runtime,
-                    buildType = buildType,
-                )
-            }
+    runtimeFlavors.flatMap { runtime ->
+        buildTypes.map { buildType ->
+            AppAssemblyVariant(
+                runtime = runtime,
+                buildType = buildType,
+            )
         }
     }
 
@@ -70,46 +95,4 @@ appAssemblyVariants.forEach { variant ->
             dependsOn(verifyTask)
         }
     }
-}
-
-tasks.register("assembleOfficialReleaseTdlibApks") {
-    group = "build"
-    description = "Assembles release APKs with the official TDLib prebuilts."
-    dependsOn(":app:assembleOfficialFirebaseRelease")
-}
-
-tasks.register("assembleTelemtReleaseTdlibApks") {
-    group = "build"
-    description = "Assembles release APKs with the Telemt TDLib prebuilts."
-    dependsOn(":app:assembleTelemtFirebaseRelease")
-}
-
-tasks.register("assembleAllReleaseTdlibApks") {
-    group = "build"
-    description = "Assembles release APKs for both official and Telemt TDLib variants."
-    dependsOn(
-        "assembleOfficialReleaseTdlibApks",
-        "assembleTelemtReleaseTdlibApks"
-    )
-}
-
-tasks.register("assembleOfficialDebugTdlibApks") {
-    group = "build"
-    description = "Assembles debug APKs with the official TDLib prebuilts."
-    dependsOn(":app:assembleOfficialFirebaseDebug")
-}
-
-tasks.register("assembleTelemtDebugTdlibApks") {
-    group = "build"
-    description = "Assembles debug APKs with the Telemt TDLib prebuilts."
-    dependsOn(":app:assembleTelemtFirebaseDebug")
-}
-
-tasks.register("assembleAllDebugTdlibApks") {
-    group = "build"
-    description = "Assembles debug APKs for both official and Telemt TDLib variants."
-    dependsOn(
-        "assembleOfficialDebugTdlibApks",
-        "assembleTelemtDebugTdlibApks"
-    )
 }

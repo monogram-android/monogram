@@ -136,7 +136,7 @@ class MessageCacheWriterTest {
             newestMessageId = 2L,
             olderBoundaryReached = false,
             newerBoundaryReached = true,
-            lastTdlibSyncAt = 30L,
+            lastNetworkSyncAt = 30L,
             generation = 1L,
             protectedMessageId = 99L
         )
@@ -168,7 +168,7 @@ class MessageCacheWriterTest {
                     newestMessageId = 2L,
                     olderBoundaryReached = false,
                     newerBoundaryReached = true,
-                    lastTdlibSyncAt = 30L,
+                    lastNetworkSyncAt = 30L,
                     generation = 1L
                 )
             )

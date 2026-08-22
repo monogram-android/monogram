@@ -52,8 +52,8 @@
     <string name="recent_commits_error">Couldn\'t load commits from GitHub.</string>
     <string name="recent_commit_item_subtitle_format">%1$s · %2$s · %3$s</string>
     <string name="retry_action">Retry</string>
-    <string name="tdlib_version_title">TDLib Version</string>
-    <string name="tdlib_version_with_hash">%1$s (%2$s)</string>
+    <string name="protocol_version_title">Telegram Version</string>
+    <string name="protocol_version_with_hash">%1$s (%2$s)</string>
     <string name="community_section">Community</string>
     <string name="telegram_chat_title">Telegram Chat</string>
     <string name="telegram_chat_subtitle">Join our community to discuss features and get help</string>
@@ -135,6 +135,17 @@
     <string name="unlock_button">Unlock</string>
     <string name="paste_action">Paste</string>
     <string name="auth_error_title">Authentication Error</string>
+    <string name="auth_signup_required_error">This phone number needs account registration, which is not available with this backend.</string>
+    <string name="auth_signup_title">Create Account</string>
+    <string name="auth_signup_description">Enter your name to create your Telegram account.</string>
+    <string name="auth_signup_first_name">First name</string>
+    <string name="auth_signup_last_name">Last name (optional)</string>
+    <string name="auth_signup_continue">Continue</string>
+    <string name="auth_login_email_title">Add Email</string>
+    <string name="auth_paid_code_title">Purchase Required</string>
+    <string name="auth_paid_code_body">A paid code is required to sign in. Product: %1$s. For help contact %2$s.</string>
+    <string name="auth_login_email_description">Enter an email address to finish setting up sign-in.</string>
+    <string name="auth_login_email_address">Email address</string>
     <string name="dismiss_button">Dismiss</string>
 
     <!-- Loading -->
@@ -1039,21 +1050,21 @@
     <string name="proxy_offline">Offline</string>
     <string name="proxy_ping_format">%1$dms</string>
 
-    <!-- Telemt DNS Settings -->
-    <string name="telemt_dns_section_header">Telemt DNS</string>
-    <string name="telemt_dns_section_subtitle">Configure DNS-over-HTTPS provider for TDLib</string>
-    <string name="telemt_dns_provider_title">DNS Provider</string>
-    <string name="telemt_dns_provider_subtitle">Select DoH provider for domain resolution</string>
-    <string name="telemt_dns_provider_google">Google DNS</string>
-    <string name="telemt_dns_provider_cloudflare">CloudFlare DNS</string>
-    <string name="telemt_dns_provider_custom">Custom DoH</string>
-    <string name="telemt_dns_custom_url_title">Custom DoH URL</string>
-    <string name="telemt_dns_custom_url_subtitle">Enter custom DNS-over-HTTPS server URL</string>
-    <string name="telemt_dns_custom_headers_title">Custom Headers</string>
-    <string name="telemt_dns_custom_headers_subtitle">Optional headers for custom DoH (e.g., Authorization)</string>
-    <string name="telemt_dns_fallback_google">Fallback: Google DNS → CloudFlare DNS</string>
-    <string name="telemt_dns_fallback_cloudflare">Fallback: CloudFlare DNS → Google DNS</string>
-    <string name="telemt_dns_fallback_custom">Custom DoH has no fallback</string>
+    <!-- Telegram DNS Settings -->
+    <string name="telegram_dns_section_header">Telegram DNS</string>
+    <string name="telegram_dns_section_subtitle">Configure DNS-over-HTTPS provider for Telegram</string>
+    <string name="telegram_dns_provider_title">DNS Provider</string>
+    <string name="telegram_dns_provider_subtitle">Select DoH provider for domain resolution</string>
+    <string name="telegram_dns_provider_google">Google DNS</string>
+    <string name="telegram_dns_provider_cloudflare">CloudFlare DNS</string>
+    <string name="telegram_dns_provider_custom">Custom DoH</string>
+    <string name="telegram_dns_custom_url_title">Custom DoH URL</string>
+    <string name="telegram_dns_custom_url_subtitle">Enter custom DNS-over-HTTPS server URL</string>
+    <string name="telegram_dns_custom_headers_title">Custom Headers</string>
+    <string name="telegram_dns_custom_headers_subtitle">Optional headers for custom DoH (e.g., Authorization)</string>
+    <string name="telegram_dns_fallback_google">Fallback: Google DNS → CloudFlare DNS</string>
+    <string name="telegram_dns_fallback_cloudflare">Fallback: CloudFlare DNS → Google DNS</string>
+    <string name="telegram_dns_fallback_custom">Custom DoH has no fallback</string>
     <string name="dns_provider_change_failed">Failed to change DNS provider</string>
     <string name="dns_url_change_failed">Failed to change DNS URL</string>
     <string name="dns_headers_change_failed">Failed to change DNS headers</string>
@@ -1314,13 +1325,13 @@
     <string name="storage_optimizer_title">Storage Optimizer</string>
     <string name="storage_optimizer_subtitle">Background storage optimization</string>
     <string name="storage_breakdown_header">Storage Breakdown</string>
-    <string name="storage_breakdown_tdlib_media">TDLib media cache</string>
-    <string name="storage_breakdown_tdlib_database">TDLib database</string>
-    <string name="storage_breakdown_tdlib_logs">TDLib logs</string>
+    <string name="storage_breakdown_media">Telegram media cache</string>
+    <string name="storage_breakdown_database">Telegram database</string>
+    <string name="storage_breakdown_logs">Telegram logs</string>
     <string name="storage_breakdown_language_pack">Language pack database</string>
     <string name="storage_breakdown_app_temp">App temporary cache</string>
     <string name="storage_cleanup_result_freed">Freed %1$s</string>
-    <string name="storage_cleanup_result_partial">Freed %1$s, but TDLib cleanup couldn\'t be fully confirmed.</string>
+    <string name="storage_cleanup_result_partial">Freed %1$s, but Telegram cleanup couldn\'t be fully confirmed.</string>
     <string name="storage_cleanup_result_empty">No cached files were removed.</string>
     <string name="storage_cleanup_result_failed">Cache cleanup couldn\'t be confirmed.</string>
     <string name="detailed_usage_header">Detailed Usage</string>

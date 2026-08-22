@@ -31,15 +31,10 @@ class DefaultDebugComponent(
     private val scope = componentScope
 
     private val conversationPipelineDefault = defaultConversationPipelineMode(
-        isOfficialTdlib = BuildConfig.IS_OFFICIAL_TDLIB,
-        isLibreRuntime = BuildConfig.IS_LIBRE_RUNTIME,
-        isDebug = BuildConfig.DEBUG
+        isDebug = BuildConfig.DEBUG,
     )
     private val isConversationPipelineKillSwitchAvailable =
-        isConversationPipelineKillSwitchAvailable(
-            isOfficialTdlib = BuildConfig.IS_OFFICIAL_TDLIB,
-            isLibreRuntime = BuildConfig.IS_LIBRE_RUNTIME
-        )
+        isConversationPipelineKillSwitchAvailable()
 
     private val _state = MutableValue(
         DebugComponent.State(
@@ -61,6 +56,7 @@ class DefaultDebugComponent(
             }
         }.launchIn(scope)
 
+
         pushDebugRepository.diagnostics.onEach { diagnostics ->
             _state.update {
                 it.copy(
@@ -70,7 +66,7 @@ class DefaultDebugComponent(
                     isPowerSavingMode = diagnostics.isPowerSavingMode,
                     isWakeLockEnabled = diagnostics.isWakeLockEnabled,
                     batteryOptimizationEnabled = diagnostics.batteryOptimizationEnabled,
-                    isTdNotificationServiceRunning = diagnostics.isTdNotificationServiceRunning,
+                    isMtProtoNotificationServiceRunning = diagnostics.isMtProtoNotificationServiceRunning,
                     unifiedPushStatus = diagnostics.unifiedPushStatus,
                     unifiedPushEndpoint = diagnostics.unifiedPushEndpoint,
                     unifiedPushSavedDistributor = diagnostics.unifiedPushSavedDistributor,
@@ -132,11 +128,6 @@ class DefaultDebugComponent(
     override fun onDropDatabasesClicked() {
         messageDisplayer.show("Dropping databases and restarting...")
         assetsManager.getDatabasePath("monogram_db").delete()
-        File(assetsManager.getFilesDir(), "td-db").deleteRecursively()
-        File(assetsManager.getCacheDir(), "tdlib/files").deleteRecursively()
-        assetsManager.getExternalCacheDir()?.let { externalCacheDir ->
-            File(externalCacheDir, "tdlib/files").deleteRecursively()
-        }
         assetsManager.exitProcess(0)
     }
 

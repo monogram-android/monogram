@@ -5,11 +5,10 @@ import android.content.Context
 import android.content.Intent
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import org.monogram.data.di.TdNotificationManager
 
 class NotificationDismissReceiver : BroadcastReceiver(), KoinComponent {
 
-    private val notificationManager: TdNotificationManager by inject()
+    private val notificationManager: NotificationActionManager by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
         val chatId = intent.getLongExtra("chat_id", 0L)

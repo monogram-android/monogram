@@ -11,7 +11,7 @@
 
     <application>
         <service
-            android:name=".service.TdNotificationService"
+            android:name=".service.MtProtoNotificationService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync|remoteMessaging"

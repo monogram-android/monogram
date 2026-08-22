@@ -10,7 +10,9 @@ import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,22 +86,19 @@ class DefaultChatListComponent(
     private val onEditFoldersClick: () -> Unit = {},
     activeChatId: Value<Long>
 ) : ChatListComponent, AppComponentContext by context {
-    private val isTelemtBuild = BuildConfig.ENABLE_TELEMT_DNS
-
     private val authRepository: AuthRepository = container.repositories.authRepository
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val chatFolderRepository: ChatFolderRepository = container.repositories.chatFolderRepository
-    private val chatSearchRepository: ChatSearchRepository = container.repositories.chatSearchRepository
     private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
-    private val messageRepository: MessageRepository = container.repositories.messageRepository
-    private val forumTopicsRepository: ForumTopicsRepository =
-        container.repositories.forumTopicsRepository
-    private val repositoryUser: UserRepository = container.repositories.userRepository
-    private val userProfileEditRepository: UserProfileEditRepository = container.repositories.userProfileEditRepository
-    private val botRepository: BotRepository = container.repositories.botRepository
-    private val attachMenuBotRepository: AttachMenuBotRepository = container.repositories.attachMenuBotRepository
-    private val updateRepository: UpdateRepository = container.repositories.updateRepository
-    private val storyRepository: StoryRepository = container.repositories.storyRepository
+    private val chatSearchRepository: ChatSearchRepository by lazy { container.repositories.chatSearchRepository }
+    private val messageRepository: MessageRepository by lazy { container.repositories.messageRepository }
+    private val forumTopicsRepository: ForumTopicsRepository by lazy { container.repositories.forumTopicsRepository }
+    private val repositoryUser: UserRepository by lazy { container.repositories.userRepository }
+    private val userProfileEditRepository: UserProfileEditRepository by lazy { container.repositories.userProfileEditRepository }
+    private val botRepository: BotRepository by lazy { container.repositories.botRepository }
+    private val attachMenuBotRepository: AttachMenuBotRepository by lazy { container.repositories.attachMenuBotRepository }
+    private val updateRepository: UpdateRepository by lazy { container.repositories.updateRepository }
+    private val storyRepository: StoryRepository by lazy { container.repositories.storyRepository }
     private val cacheProvider = container.cacheProvider
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     private val messageDisplayer = container.utils.messageDisplayer()
@@ -139,6 +138,7 @@ class DefaultChatListComponent(
 
     private val scope = componentScope
     private var searchJob: Job? = null
+    private var legacySubscriptionsJob: Job? = null
     private var isFetchingMoreMessages = false
     private var nextMessagesOffset = ""
     private var hasRequestedStoryLists = false
@@ -288,6 +288,97 @@ class DefaultChatListComponent(
         canLoadMoreMessages = canLoadMoreMessages
     )
 
+    private suspend fun startLegacySubscriptions(): Nothing = coroutineScope {
+        repositoryUser.currentUserFlow
+            .onEach { user ->
+                _state.update { it.copy(currentUser = user) }
+                if (user != null) refreshProjectChannelSubscription()
+            }
+            .launchIn(this)
+        repositoryUser.getMe()
+
+        chatSearchRepository.searchHistory
+            .onEach { history ->
+                _state.update {
+                    it.copy(
+                        recentUsers = history.filter { chat ->
+                            (chat.type == ChatType.PRIVATE || chat.type == ChatType.SECRET) && !chat.isBot
+                        },
+                        recentOthers = history.filter { chat ->
+                            chat.type != ChatType.PRIVATE && chat.type != ChatType.SECRET || chat.isBot
+                        }
+                    )
+                }
+            }
+            .launchIn(this)
+
+        attachMenuBotRepository.getAttachMenuBots()
+            .onEach { bots ->
+                _state.update { it.copy(attachMenuBots = bots) }
+                bots.firstOrNull()?.let { bot ->
+                    if (bot.botUserId != 0L) {
+                        val menuButton = botRepository.getBotInfo(bot.botUserId)?.menuButton
+                        if (menuButton is BotMenuButtonModel.WebApp) {
+                            _state.update {
+                                it.copy(botWebAppUrl = menuButton.url, botWebAppName = menuButton.text)
+                            }
+                        }
+                    }
+                }
+            }
+            .launchIn(this)
+
+        updateRepository.updateState
+            .onEach { updateState -> _state.update { it.copy(updateState = updateState) } }
+            .launchIn(this)
+
+        storyRepository.activeStories
+            .onEach { activeStories ->
+                trackedStoryChatIds = activeStories.values.asSequence()
+                    .flatMap(List<ActiveStoryListModel>::asSequence)
+                    .mapTo(linkedSetOf()) { it.chatId }
+                refreshStoriesState("repository")
+            }
+            .launchIn(this)
+        storyRepository.storyListChatCounts
+            .onEach { refreshStoriesState("counts") }
+            .launchIn(this)
+
+        authRepository.authState
+            .onEach { authState ->
+                when (authState) {
+                    is AuthStep.Ready -> if (!hasRequestedStoryLists) {
+                        hasRequestedStoryLists = true
+                        launch(Dispatchers.IO) {
+                            storyRepository.loadActiveStories(StoryListType.MAIN)
+                            storyRepository.loadActiveStories(StoryListType.ARCHIVE)
+                        }
+                    }
+                    else -> resetLegacyOnlyState()
+                }
+            }
+            .launchIn(this)
+
+        updateRepository.checkForUpdates()
+        refreshStoriesState("init")
+        awaitCancellation()
+    }
+
+    private fun resetLegacyOnlyState() {
+        hasRequestedStoryLists = false
+        trackedStoryChatIds = emptySet()
+        storyPrefetchTimestamps.clear()
+        _state.update {
+            it.copy(
+                currentUser = null,
+                attachMenuBots = emptyList(),
+                botWebAppUrl = null,
+                botWebAppName = null,
+                updateState = UpdateState.Idle,
+            )
+        }
+    }
+
     init {
         lifecycle.doOnResume {
             if (!hasSeenResume) {
@@ -301,18 +392,8 @@ class DefaultChatListComponent(
             _state.update { it.copy(activeChatId = id) }
         }
 
-        repositoryUser.currentUserFlow
-            .onEach { user ->
-                _state.update { it.copy(currentUser = user) }
-                if (user != null) {
-                    refreshProjectChannelSubscription()
-                }
-            }
-            .launchIn(scope)
-
-        scope.launch {
-            repositoryUser.getMe()
-        }
+        // The Kotlin MTProto stack is the only backend; clear any legacy-only state once.
+        resetLegacyOnlyState()
 
         chatFolderRepository.folderChatsFlow
             .onEach { update ->
@@ -412,101 +493,6 @@ class DefaultChatListComponent(
                 _state.update { it.copy(isArchiveAlwaysVisible = alwaysVisible) }
             }
             .launchIn(scope)
-
-        chatSearchRepository.searchHistory
-            .onEach { history ->
-                _state.update {
-                    it.copy(
-                        recentUsers = history.filter { chat ->
-                            (chat.type == ChatType.PRIVATE || chat.type == ChatType.SECRET) && !chat.isBot
-                        },
-                        recentOthers = history.filter { chat ->
-                            chat.type != ChatType.PRIVATE && chat.type != ChatType.SECRET || chat.isBot
-                        }
-                    )
-                }
-            }
-            .launchIn(scope)
-
-        attachMenuBotRepository.getAttachMenuBots()
-            .onEach { bots ->
-                _state.update { it.copy(attachMenuBots = bots) }
-
-                bots.firstOrNull()?.let { bot ->
-                    if (bot.botUserId != 0L) {
-                        val botInfo = botRepository.getBotInfo(bot.botUserId)
-                        val menuButton = botInfo?.menuButton
-                        if (menuButton is BotMenuButtonModel.WebApp) {
-                            _state.update {
-                                it.copy(
-                                    botWebAppUrl = menuButton.url,
-                                    botWebAppName = menuButton.text
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            .launchIn(scope)
-
-        updateRepository.updateState
-            .onEach { updateState ->
-                _state.update { it.copy(updateState = updateState) }
-            }
-            .launchIn(scope)
-
-        storyRepository.activeStories
-            .onEach { activeStories ->
-                trackedStoryChatIds = activeStories.values.asSequence()
-                    .flatMap(List<ActiveStoryListModel>::asSequence)
-                    .mapTo(linkedSetOf()) { it.chatId }
-                Log.d(
-                    STORY_TAG,
-                    "story repository update main=${activeStories[StoryListType.MAIN].orEmpty().size} " +
-                            "archive=${activeStories[StoryListType.ARCHIVE].orEmpty().size}"
-                )
-                refreshStoriesState("repository")
-            }
-            .launchIn(scope)
-
-        storyRepository.storyListChatCounts
-            .onEach { counts ->
-                Log.d(
-                    STORY_TAG,
-                    "story list counts update main=${counts[StoryListType.MAIN]} archive=${counts[StoryListType.ARCHIVE]}"
-                )
-                refreshStoriesState("counts")
-            }
-            .launchIn(scope)
-
-        authRepository.authState
-            .onEach { authState ->
-                when (authState) {
-                    is AuthStep.Ready -> {
-                        if (!hasRequestedStoryLists) {
-                            hasRequestedStoryLists = true
-                            scope.launch(Dispatchers.IO) {
-                                storyRepository.loadActiveStories(StoryListType.MAIN)
-                                storyRepository.loadActiveStories(StoryListType.ARCHIVE)
-                            }
-                        }
-                    }
-
-                    else -> {
-                        hasRequestedStoryLists = false
-                        trackedStoryChatIds = emptySet()
-                        storyPrefetchTimestamps.clear()
-                    }
-                }
-            }
-            .launchIn(scope)
-
-        scope.launch {
-            if (!isTelemtBuild) {
-                updateRepository.checkForUpdates()
-            }
-            refreshStoriesState("init")
-        }
 
         _state.onEach {
             _uiState.value = it.toUiState()
@@ -1271,7 +1257,7 @@ class DefaultChatListComponent(
                     anchor = HistoryAnchor.Latest,
                     direction = HistoryDirection.Initial,
                     limit = PREFETCH_PAGE_SIZE,
-                    source = HistorySource.TdlibNetwork
+                    source = HistorySource.NetworkSnapshot
                 )
             )
             if (chat.unreadCount > 0 && chat.lastReadInboxMessageId > 0L) {
@@ -1281,7 +1267,7 @@ class DefaultChatListComponent(
                         anchor = HistoryAnchor.Message(chat.lastReadInboxMessageId),
                         direction = HistoryDirection.Newer,
                         limit = PREFETCH_PAGE_SIZE,
-                        source = HistorySource.TdlibNetwork
+                        source = HistorySource.NetworkSnapshot
                     )
                 )
             }

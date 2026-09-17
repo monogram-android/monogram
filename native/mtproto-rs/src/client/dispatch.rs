@@ -852,11 +852,7 @@ pub fn get_unread_mentions(
     })
 }
 
-pub fn read_mentions(
-    handle: u64,
-    chat_id: i64,
-    top_msg_id: i32,
-) -> Result<(), MtprotoError> {
+pub fn read_mentions(handle: u64, chat_id: i64, top_msg_id: i32) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
@@ -907,11 +903,7 @@ pub fn get_unread_reactions(
     })
 }
 
-pub fn read_reactions(
-    handle: u64,
-    chat_id: i64,
-    top_msg_id: i32,
-) -> Result<(), MtprotoError> {
+pub fn read_reactions(handle: u64, chat_id: i64, top_msg_id: i32) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {

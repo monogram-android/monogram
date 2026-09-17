@@ -3,7 +3,7 @@
 //! Nested blockquotes are overlapping entities (outer contains inner).
 
 use crate::html::parse_html;
-use crate::utf16::{rtrim_utf16_len, OutBuf};
+use crate::utf16::{OutBuf, rtrim_utf16_len};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MarkupEntity {

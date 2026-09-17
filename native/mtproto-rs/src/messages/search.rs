@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     InputMessagesFilterChatPhotosConstructor, InputMessagesFilterDocumentConstructor,
@@ -13,7 +13,7 @@ use tellers_mtproto_session::Snapshot;
 
 use crate::api_invoke;
 use crate::media::MediaIndex;
-use crate::peers::{self, input_peer_from_cached, CachedPeer};
+use crate::peers::{self, CachedPeer, input_peer_from_cached};
 use crate::{MessageDto, MtprotoError};
 
 pub fn clamp_search_limit(limit: i32) -> i32 {

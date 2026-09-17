@@ -1,8 +1,8 @@
 use parking_lot::Mutex;
 use tellers_mtproto_session::Snapshot;
 
-use crate::scheduler;
 use crate::MtprotoError;
+use crate::scheduler;
 
 use super::*;
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::latest::api::{Chat as TlChat, ChatPhoto, Peer, User, UserProfilePhoto};
 
@@ -8,7 +8,7 @@ use super::permissions::{
 };
 use crate::media::{self, MediaIndex};
 use crate::peers::{
-    self, chat_id_for_channel, chat_id_for_chat, chat_id_for_user, CachedPeer, PeerKind,
+    self, CachedPeer, PeerKind, chat_id_for_channel, chat_id_for_chat, chat_id_for_user,
 };
 
 pub(crate) fn display_name(user: &User) -> String {

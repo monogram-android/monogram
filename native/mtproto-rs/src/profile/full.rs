@@ -2,7 +2,7 @@
 //! https://core.telegram.org/method/messages.getFullChat
 //! https://core.telegram.org/method/channels.getFullChannel
 
-use std::collections::HashMap;
+use crate::HashMap;
 
 use serde_json::json;
 use tellers_mtproto::latest::api::{
@@ -17,8 +17,8 @@ use crate::api_invoke;
 use crate::emoji_status::emoji_status_document_id;
 use crate::media::{self, MediaIndex};
 use crate::peers::{
-    self, chat_id_for_channel, chat_id_for_chat, chat_id_for_user, vector_boxed_items, CachedPeer,
-    PeerKind,
+    self, CachedPeer, PeerKind, chat_id_for_channel, chat_id_for_chat, chat_id_for_user,
+    vector_boxed_items,
 };
 use crate::presence::user_status_parts;
 use crate::{MtprotoError, ProfileDto};

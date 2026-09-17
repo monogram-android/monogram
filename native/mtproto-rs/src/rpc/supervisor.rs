@@ -1,7 +1,7 @@
-use crate::tcp;
 use crate::MtprotoError;
+use crate::tcp;
 
-use super::live::{put_live, take_live, LiveTransport, SUPERVISING};
+use super::live::{LiveTransport, SUPERVISING, put_live, take_live};
 
 pub(crate) fn is_waitable_io(message: &str) -> bool {
     let lower = message.to_ascii_lowercase();

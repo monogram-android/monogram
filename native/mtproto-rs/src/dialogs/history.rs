@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     ChannelsGetMessagesRequest, InputChannel, InputChannelConstructor, InputMessage,
@@ -11,7 +11,7 @@ use super::message_map::{dtos_from_messages, message_to_dto};
 use crate::api_invoke;
 use crate::media::MediaIndex;
 use crate::peers::{
-    self, channel_id_from_chat_id, input_peer_from_cached, vector_boxed_items, CachedPeer, PeerKind,
+    self, CachedPeer, PeerKind, channel_id_from_chat_id, input_peer_from_cached, vector_boxed_items,
 };
 use crate::{MessageDto, MtprotoError};
 

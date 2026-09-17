@@ -7,10 +7,10 @@ use tellers_mtproto::latest::api::{
 };
 use tellers_mtproto_session::Snapshot;
 
+use crate::MtprotoError;
 use crate::api_invoke::invoke_api;
 use crate::media::{self, MediaRef};
 use crate::peers::vector_boxed_items;
-use crate::MtprotoError;
 
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct WallpaperDto {

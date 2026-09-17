@@ -2,15 +2,15 @@
 
 use std::cell::Cell;
 
+use tellers_mtproto::LATEST_API_LAYER;
 use tellers_mtproto::codec::{Boxed, BoxedDecode, TlEncode};
 use tellers_mtproto::latest::api::{
     InitConnectionRequest, InvokeWithLayerRequest, InvokeWithoutUpdatesRequest,
 };
-use tellers_mtproto::LATEST_API_LAYER;
 use tellers_mtproto_session::Snapshot;
 
-use crate::rpc::{self, BoxedQuery};
 use crate::MtprotoError;
+use crate::rpc::{self, BoxedQuery};
 
 thread_local! {
     static WITHOUT_UPDATES: Cell<bool> = const { Cell::new(false) };

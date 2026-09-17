@@ -1,8 +1,8 @@
 [package]
 name = "monogram-markup"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.85"
+edition = "2024"
+rust-version = "1.98"
 license = "MPL-2.0"
 description = "UniFFI tree-sitter markup bridge for Monogram (Telegram markdown, code highlight, math spans)"
 publish = false

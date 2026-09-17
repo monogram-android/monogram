@@ -3,7 +3,7 @@
 //! https://core.telegram.org/method/updates.getDifference
 //! https://core.telegram.org/method/updates.getChannelDifference
 
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     ChannelMessagesFilter, ChannelMessagesFilterEmptyConstructor, Dialog, DialogPeer, InputChannel,
@@ -18,8 +18,8 @@ use crate::dialogs::{cache_from_users_chats, message_to_dto};
 use crate::emoji_status::emoji_status_document_id;
 use crate::media::MediaIndex;
 use crate::peers::{
-    self, channel_id_from_chat_id, chat_id_for_channel, chat_id_for_chat, chat_id_for_user,
-    peer_chat_id, vector_boxed_items, vector_items, CachedPeer, PeerKind,
+    self, CachedPeer, PeerKind, channel_id_from_chat_id, chat_id_for_channel, chat_id_for_chat,
+    chat_id_for_user, peer_chat_id, vector_boxed_items, vector_items,
 };
 use crate::presence::{action_kind, user_status_parts};
 use crate::{MtprotoError, UpdateEventDto, UpdatesStateDto};

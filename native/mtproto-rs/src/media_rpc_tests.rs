@@ -447,10 +447,12 @@ fn shared_transport_fetches_bounded_parts_and_removes_failed_download() {
             std::fs::remove_file(&path).unwrap();
         }
     }
-    assert!(download_media_with_fetch(4, &media, &path, &path, |_| {
-        panic!("A foreign-DC file must not send requests on the home transport")
-    })
-    .is_err());
+    assert!(
+        download_media_with_fetch(4, &media, &path, &path, |_| {
+            panic!("A foreign-DC file must not send requests on the home transport")
+        })
+        .is_err()
+    );
 }
 
 #[test]
@@ -1073,10 +1075,12 @@ fn live_geo_payload_marks_live_and_keeps_heading() {
 
 #[test]
 fn empty_geo_point_has_no_payload() {
-    assert!(geo_to_json(&MessageMediaGeoConstructor {
-        geo: Box::new(GeoPoint::GeoPointEmpty(GeoPointEmptyConstructor {})),
-    })
-    .is_none());
+    assert!(
+        geo_to_json(&MessageMediaGeoConstructor {
+            geo: Box::new(GeoPoint::GeoPointEmpty(GeoPointEmptyConstructor {})),
+        })
+        .is_none()
+    );
 }
 
 #[test]

@@ -33,11 +33,7 @@ pub(crate) fn trim_padded_mtproto_packet(packet: &[u8]) -> &[u8] {
     while n >= 24 && n % 16 != 8 {
         n -= 1;
     }
-    if n < 24 {
-        packet
-    } else {
-        &packet[..n]
-    }
+    if n < 24 { packet } else { &packet[..n] }
 }
 
 thread_local! {

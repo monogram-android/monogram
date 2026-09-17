@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::HashMap;
 
 use serde::{Deserialize, Serialize};
 use tellers_mtproto::latest::api::{

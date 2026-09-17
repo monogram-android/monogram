@@ -60,7 +60,7 @@ mod rights_tests {
 mod header_tests {
     use super::{fill_missing_reply_quotes, fwd_from_label, reply_meta, via_bot_label};
     use crate::MessageDto;
-    use std::collections::HashMap;
+    use crate::{HashMap, HashMapExt};
     use tellers_mtproto::latest::api::{
         MessageFwdHeader, MessageFwdHeaderConstructor, MessageReplyHeader,
         MessageReplyHeaderConstructor,
@@ -201,7 +201,7 @@ mod entity_tests {
 #[cfg(test)]
 mod history_tests {
     use super::{get_history, refresh_message_media};
-    use std::collections::HashMap;
+    use crate::{HashMap, HashMapExt};
     use tellers_mtproto_session::{OsRandom, Snapshot};
 
     #[test]
@@ -300,13 +300,13 @@ mod history_tests {
 
 #[cfg(test)]
 mod channel_pts_tests {
-    use std::collections::HashMap;
+    use crate::HashMap;
 
     use super::merge_channel_pts;
 
     #[test]
     fn dialog_pts_seed_is_positive_and_monotonic() {
-        let mut cursors = HashMap::from([(42_i64, 80_i32)]);
+        let mut cursors = HashMap::from_iter([(42_i64, 80_i32)]);
 
         merge_channel_pts(&mut cursors, 42, Some(64));
         merge_channel_pts(&mut cursors, 42, Some(96));

@@ -1,6 +1,6 @@
 //! Durable client session: Snapshot, user id, peer cache, updates cursor.
 
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt, HashSet, HashSetExt};
 use std::fs;
 use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
@@ -8,10 +8,10 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use tellers_mtproto_session::{Error as SessionError, Snapshot};
 
+use crate::UpdatesStateDto;
 use crate::media::{MediaIndex, MediaRef};
 use crate::peers::CachedPeer;
 use crate::rpc::NewSessionMetadata;
-use crate::UpdatesStateDto;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct ChannelRecovery {
@@ -40,7 +40,7 @@ pub struct ClientSession {
     pub(crate) channel_recovery: std::collections::VecDeque<ChannelRecovery>,
     /// Deduplication keys for update events.
     #[serde(default)]
-    pub seen_messages: std::collections::HashSet<(i64, i32)>,
+    pub seen_messages: HashSet<(i64, i32)>,
     /// Home auth key was rejected (401 AUTH_KEY_* / SESSION_* / USER_DEACTIVATED).
     #[serde(default)]
     pub session_dead: bool,
@@ -126,7 +126,7 @@ impl FileSessionStore {
             media: HashMap::new(),
             channel_pts: HashMap::new(),
             channel_recovery: Default::default(),
-            seen_messages: std::collections::HashSet::new(),
+            seen_messages: HashSet::new(),
             session_dead: false,
             logout_tokens: Vec::new(),
             new_session: None,

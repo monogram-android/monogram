@@ -1,14 +1,15 @@
 //! Authenticated session storage; Android supplies a Keystore-wrapped data key.
 use aes_gcm::{
-    aead::{Aead, Payload},
     Aes256Gcm, KeyInit, Nonce,
+    aead::{Aead, Payload},
 };
 use parking_lot::Mutex;
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, Weak},
 };
+
+use crate::{HashMap, HashMapExt};
 use tellers_mtproto_session::Error;
 use zeroize::Zeroizing;
 
@@ -82,8 +83,9 @@ fn encrypt_with(bytes: &[u8], key: &SessionKey, aad: &[u8]) -> Result<Vec<u8>, E
     let cipher = Aes256Gcm::new_from_slice(key.as_ref()).map_err(|_| error())?;
     let mut nonce = [0u8; NONCE_LEN];
     tellers_mtproto_crypto::fill_random(&mut nonce).map_err(|_| error())?;
+    let nonce = Nonce::try_from(nonce.as_slice()).map_err(|_| error())?;
     let ciphertext = cipher
-        .encrypt(Nonce::from_slice(&nonce), Payload { msg: bytes, aad })
+        .encrypt(&nonce, Payload { msg: bytes, aad })
         .map_err(|_| error())?;
     let mut result = Vec::with_capacity(aad.len() + nonce.len() + ciphertext.len());
     result.extend_from_slice(aad);
@@ -95,10 +97,10 @@ fn encrypt_with(bytes: &[u8], key: &SessionKey, aad: &[u8]) -> Result<Vec<u8>, E
 pub(crate) fn decrypt(bytes: &[u8], key: &SessionKey) -> Result<Zeroizing<Vec<u8>>, Error> {
     let aad_len = header(bytes).ok_or_else(error)?;
     let cipher = Aes256Gcm::new_from_slice(key.as_ref()).map_err(|_| error())?;
-    let nonce = &bytes[aad_len..aad_len + NONCE_LEN];
+    let nonce = Nonce::try_from(&bytes[aad_len..aad_len + NONCE_LEN]).map_err(|_| error())?;
     cipher
         .decrypt(
-            Nonce::from_slice(nonce),
+            &nonce,
             Payload {
                 msg: &bytes[aad_len + NONCE_LEN..],
                 aad: &bytes[..aad_len],

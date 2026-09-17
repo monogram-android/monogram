@@ -1,7 +1,7 @@
 //! Opt-in netcode timing spans: op names and durations only, never payloads.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use parking_lot::Mutex;

@@ -1,12 +1,12 @@
 //! Request cancellation independent of the lifetime of a client or socket lane.
 use crate::tcp::ConnectionControl;
+use crate::{HashMap, HashMapExt};
 use parking_lot::Mutex;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::net::TcpStream;
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
     Arc, LazyLock,
+    atomic::{AtomicU64, Ordering},
 };
 use tellers_mtproto_transport::Error;
 

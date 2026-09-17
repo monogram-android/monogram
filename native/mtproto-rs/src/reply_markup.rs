@@ -1,7 +1,7 @@
 //! Compact JSON for message `reply_markup`.
 //! https://core.telegram.org/api/bots/buttons
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tellers_mtproto::latest::api::{
     ButtonType, InlineButtonType, KeyboardButton, KeyboardButtonRow, KeyboardInlineButton,
     KeyboardInlineButtonRow, ReplyMarkup,

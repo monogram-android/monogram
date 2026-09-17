@@ -1,6 +1,6 @@
 //! TGS / Lottie playback via tlottie.
 
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt};
 use std::io::Read;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock};

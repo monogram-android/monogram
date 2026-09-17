@@ -15,9 +15,9 @@ use super::thumbs::{
     collect_photo_sizes, distinct_thumb_key, pick_display_size, pick_document_thumb_size,
     pick_getfile_preview, pick_photo_size, pick_thumb_size,
 };
+use crate::MtprotoError;
 use crate::api_invoke;
 use crate::peers::{peer_chat_id, vector_boxed_items};
-use crate::MtprotoError;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MediaMetrics {

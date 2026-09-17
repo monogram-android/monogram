@@ -3,7 +3,7 @@
 //! https://core.telegram.org/api/reactions
 //! https://core.telegram.org/method/messages.getDiscussionMessage
 
-use std::collections::HashMap;
+use crate::HashMap;
 
 use serde_json::json;
 use tellers_mtproto::latest::api::{
@@ -27,7 +27,7 @@ use tellers_mtproto_session::Snapshot;
 use crate::api_invoke;
 use crate::media::{self, MediaIndex, MediaLocation};
 use crate::messages;
-use crate::peers::{self, input_peer_from_cached, peer_chat_id, vector_boxed_items, CachedPeer};
+use crate::peers::{self, CachedPeer, input_peer_from_cached, peer_chat_id, vector_boxed_items};
 use crate::{
     BotCallbackAnswerDto, DiscussionDto, MessageDto, MtprotoError, ReactionChoiceDto, SavedGifDto,
 };

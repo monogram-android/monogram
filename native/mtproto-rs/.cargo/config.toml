@@ -1,8 +1,6 @@
-[target.aarch64-linux-android]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
-
-[target.armv7-linux-androideabi]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
-
-[target.x86_64-linux-android]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+[build]
+rustflags = [
+    "-C", "llvm-args=-vectorize-loops=true",
+    "-C", "prefer-dynamic=false",
+    "-C", "llvm-args=-enable-loop-flatten",
+]

@@ -5,8 +5,8 @@ use tellers_mtproto::latest::api::{
 };
 use tellers_mtproto_session::Snapshot;
 
-use crate::api_invoke;
 use crate::MtprotoError;
+use crate::api_invoke;
 
 pub fn update_status(
     snapshot: &mut Snapshot,

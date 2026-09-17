@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     Bool, ChannelsReadHistoryRequest, InputChannel, InputChannelConstructor, InputDialogPeer,
@@ -14,7 +14,7 @@ use tellers_mtproto_session::Snapshot;
 use crate::api_invoke;
 use crate::dialogs::dtos_from_messages;
 use crate::media::MediaIndex;
-use crate::peers::{self, channel_id_from_chat_id, input_peer_from_cached, CachedPeer, PeerKind};
+use crate::peers::{self, CachedPeer, PeerKind, channel_id_from_chat_id, input_peer_from_cached};
 use crate::rich_rpc;
 use crate::{MessageDto, MtprotoError};
 

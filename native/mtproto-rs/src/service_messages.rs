@@ -1,7 +1,7 @@
 //! Chat service messages (`messageService` + `MessageAction`).
 //! https://core.telegram.org/type/MessageAction
 
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{ChatTheme, MessageAction};
 

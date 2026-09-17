@@ -1,10 +1,10 @@
 use std::cell::Cell;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
-use crate::session_file::{media_from_index, ClientSession, FileSessionStore};
-use crate::tcp;
 use crate::MtprotoError;
+use crate::session_file::{ClientSession, FileSessionStore, media_from_index};
+use crate::tcp;
 
 use super::*;
 
@@ -110,20 +110,22 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
     let client = Arc::clone(client);
     let _ = std::thread::Builder::new()
         .name("mtproto-persist".into())
-        .spawn(move || loop {
-            client.persist_queued.store(false, Ordering::Release);
-            let span = crate::perf::span("persist_session");
-            let _ = persist_updates_data(&client, session_id);
-            drop(span);
-            if client.persist_queued.load(Ordering::Acquire) {
-                continue;
+        .spawn(move || {
+            loop {
+                client.persist_queued.store(false, Ordering::Release);
+                let span = crate::perf::span("persist_session");
+                let _ = persist_updates_data(&client, session_id);
+                drop(span);
+                if client.persist_queued.load(Ordering::Acquire) {
+                    continue;
+                }
+                client.persist_running.store(false, Ordering::Release);
+                if client.persist_queued.load(Ordering::Acquire)
+                    && !client.persist_running.swap(true, Ordering::AcqRel)
+                {
+                    continue;
+                }
+                break;
             }
-            client.persist_running.store(false, Ordering::Release);
-            if client.persist_queued.load(Ordering::Acquire)
-                && !client.persist_running.swap(true, Ordering::AcqRel)
-            {
-                continue;
-            }
-            break;
         });
 }

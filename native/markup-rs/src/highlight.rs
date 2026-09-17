@@ -45,6 +45,26 @@ pub fn supported_languages() -> Vec<String> {
         "regex",
         "nginx",
         "caddy",
+        "jsonc",
+        "less",
+        "dart",
+        "zig",
+        "elixir",
+        "scala",
+        "powershell",
+        "makefile",
+        "cmake",
+        "terraform",
+        "perl",
+        "julia",
+        "solidity",
+        "objc",
+        "ocaml",
+        "fsharp",
+        "clojure",
+        "nim",
+        "groovy",
+        "diff",
     ]
     .into_iter()
     .map(str::to_owned)
@@ -53,27 +73,10 @@ pub fn supported_languages() -> Vec<String> {
 
 pub fn highlight_code(code: &str, language: &str) -> Vec<HighlightSpan> {
     let normalized = language.trim().to_ascii_lowercase();
-    let language = match normalized.as_str() {
-        "kotlin" | "kt" | "kts" => "kotlin",
-        "c" | "cpp" | "c++" | "c#" | "cs" => "cpp",
-        "python" | "py" => "python",
-        "javascript" | "js" | "typescript" | "ts" | "tsx" | "jsx" => "javascript",
-        "go" | "golang" => "go",
-        "rust" | "rs" => "rust",
-        "xml" | "html" => "xml",
-        "bash" | "sh" | "zsh" | "shell" => "bash",
-        "yaml" | "yml" => "yaml",
-        "md" | "markdown" => "markdown",
-        "ruby" | "rb" => "ruby",
-        "haskell" | "hs" => "haskell",
-        "matlab" | "m" => "matlab",
-        "asm" | "s" => "asm",
-        "graphql" | "gql" => "graphql",
-        "scss" | "sass" => "scss",
-        "regex" | "regexp" => "regex",
-        "swift" | "sql" | "json" | "java" | "dockerfile" | "ini" | "toml" | "properties"
-        | "php" | "lua" | "r" | "proto" | "css" | "nginx" | "caddy" => normalized.as_str(),
-        _ => "kotlin",
+    let language = if normalized.is_empty() {
+        "plaintext"
+    } else {
+        crate::simple_highlight::normalize_lang(&normalized)
     };
     lexical_highlight::highlight(code, language)
         .unwrap_or_else(|| crate::simple_highlight::highlight(code, language))
@@ -93,7 +96,7 @@ mod tests {
             ("ts", "typescript"),
             ("golang", "go"),
             ("rs", "rust"),
-            ("html", "xml"),
+            ("htm", "html"),
             ("sh", "bash"),
             ("zsh", "bash"),
             ("yml", "yaml"),
@@ -105,8 +108,9 @@ mod tests {
             ("gql", "graphql"),
             ("sass", "scss"),
             ("regexp", "regex"),
-            ("", "kotlin"),
-            ("unknown", "kotlin"),
+            ("", "plaintext"),
+            ("ps1", "powershell"),
+            ("h", "c"),
             (" KOTLIN ", "kotlin"),
         ] {
             let source = "fun main() { val x = 42; # comment\n\"text\" }";
@@ -116,6 +120,14 @@ mod tests {
                 "{alias}"
             );
         }
+        assert_ne!(
+            highlight_code("fun main() {}", "dart"),
+            highlight_code("fun main() {}", "kotlin")
+        );
+        assert_ne!(
+            highlight_code("class Foo {}", "c"),
+            highlight_code("class Foo {}", "cpp")
+        );
     }
 
     #[test]

@@ -12,8 +12,8 @@ use tellers_mtproto_crypto::{
     temporary_aes_key_iv, validate_dh_parameters, validate_dh_public_value,
 };
 use tellers_mtproto_engine::{
-    decode_plain_message, encode_plain_message, Authorization, AuthorizationAdapter,
-    AuthorizationPhase, PlainMessage,
+    Authorization, AuthorizationAdapter, AuthorizationPhase, PlainMessage, decode_plain_message,
+    encode_plain_message,
 };
 use tellers_mtproto_session::{Clock, Snapshot};
 use tellers_mtproto_transport::{Connection, Framing, PaddedIntermediate};

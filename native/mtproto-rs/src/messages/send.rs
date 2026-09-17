@@ -3,7 +3,7 @@
 //! https://core.telegram.org/method/messages.deleteMessages
 //! https://core.telegram.org/method/messages.forwardMessages
 
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::latest::api::{
     ChannelsDeleteMessagesRequest, InputChannel, InputChannelConstructor, InputReplyTo,
@@ -19,7 +19,7 @@ use crate::api_invoke;
 use crate::dialogs::message_to_dto;
 use crate::media::MediaIndex;
 use crate::peers::{
-    self, channel_id_from_chat_id, input_peer_from_cached, vector_boxed_items, CachedPeer, PeerKind,
+    self, CachedPeer, PeerKind, channel_id_from_chat_id, input_peer_from_cached, vector_boxed_items,
 };
 use crate::{MessageDto, MtprotoError};
 
@@ -27,11 +27,7 @@ pub(crate) fn random_id() -> i64 {
     let mut bytes = [0_u8; 8];
     let _ = fill_random(&mut bytes);
     let value = i64::from_le_bytes(bytes);
-    if value == 0 {
-        1
-    } else {
-        value
-    }
+    if value == 0 { 1 } else { value }
 }
 
 pub(crate) fn message_from_updates(
@@ -95,16 +91,13 @@ pub(crate) fn message_from_updates(
             noforwards: false,
             reply_to_msg_id: crate::dialogs::reply_meta(m.reply_to.as_deref()).0,
             reply_to_top_id: crate::dialogs::reply_meta(m.reply_to.as_deref()).1,
-            fwd_from: crate::dialogs::fwd_from_label(
-                m.fwd_from.as_deref(),
-                &std::collections::HashMap::new(),
-            ),
+            fwd_from: crate::dialogs::fwd_from_label(m.fwd_from.as_deref(), &crate::HashMap::new()),
             fwd_from_id: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).0,
             fwd_date: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).1,
             via_bot: crate::dialogs::via_bot_label(
                 m.via_bot_id,
-                &std::collections::HashMap::new(),
-                &std::collections::HashMap::new(),
+                &crate::HashMap::new(),
+                &crate::HashMap::new(),
             ),
             sender_name: None,
             sender_emoji_status_document_id: None,
@@ -135,16 +128,13 @@ pub(crate) fn message_from_updates(
             noforwards: false,
             reply_to_msg_id: crate::dialogs::reply_meta(m.reply_to.as_deref()).0,
             reply_to_top_id: crate::dialogs::reply_meta(m.reply_to.as_deref()).1,
-            fwd_from: crate::dialogs::fwd_from_label(
-                m.fwd_from.as_deref(),
-                &std::collections::HashMap::new(),
-            ),
+            fwd_from: crate::dialogs::fwd_from_label(m.fwd_from.as_deref(), &crate::HashMap::new()),
             fwd_from_id: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).0,
             fwd_date: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).1,
             via_bot: crate::dialogs::via_bot_label(
                 m.via_bot_id,
-                &std::collections::HashMap::new(),
-                &std::collections::HashMap::new(),
+                &crate::HashMap::new(),
+                &crate::HashMap::new(),
             ),
             sender_name: None,
             sender_emoji_status_document_id: None,

@@ -3,10 +3,9 @@
 //! Algorithm matches <https://core.telegram.org/api/srp>
 //! (PH1 = SH(SH(password, salt1), salt2)).
 
-use hmac::Hmac;
 use num_bigint::BigUint;
 use num_traits::Zero;
-use pbkdf2::pbkdf2;
+use pbkdf2::pbkdf2_hmac;
 use sha2::{Digest, Sha256, Sha512};
 use tellers_mtproto::latest::api::{
     InputCheckPasswordSrp, InputCheckPasswordSrpConstructor,
@@ -15,8 +14,6 @@ use tellers_mtproto::latest::api::{
 use tellers_mtproto_crypto::fill_random;
 
 use crate::MtprotoError;
-
-type HmacSha512 = Hmac<Sha512>;
 
 fn h(parts: &[&[u8]]) -> [u8; 32] {
     let mut hasher = Sha256::new();
@@ -40,7 +37,7 @@ fn ph1(password: &[u8], salt1: &[u8], salt2: &[u8]) -> [u8; 32] {
 fn ph2(password: &[u8], salt1: &[u8], salt2: &[u8]) -> [u8; 32] {
     let hash1 = ph1(password, salt1, salt2);
     let mut dk = [0_u8; 64];
-    pbkdf2::<HmacSha512>(&hash1, salt1, 100_000, &mut dk).expect("pbkdf2 hmac-sha512");
+    pbkdf2_hmac::<Sha512>(&hash1, salt1, 100_000, &mut dk);
     sh(&dk, salt2)
 }
 

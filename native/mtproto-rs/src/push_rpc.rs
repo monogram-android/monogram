@@ -2,7 +2,7 @@
 //! https://core.telegram.org/api/push-updates
 //! https://core.telegram.org/method/account.registerDevice
 
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     AccountGetNotifyExceptionsRequest, AccountGetNotifySettingsRequest,
@@ -16,13 +16,13 @@ use tellers_mtproto::latest::api::{
     Update, Updates, Vector, VectorConstructor,
 };
 use tellers_mtproto_crypto::{
-    aes_ige_decrypt, aes_ige_encrypt, auth_key_id, constant_time_eq, message_aes_key_iv,
-    message_key, Direction,
+    Direction, aes_ige_decrypt, aes_ige_encrypt, auth_key_id, constant_time_eq, message_aes_key_iv,
+    message_key,
 };
 use tellers_mtproto_session::Snapshot;
 
 use crate::api_invoke;
-use crate::peers::{self, input_peer_from_cached, peer_chat_id, vector_boxed_items, CachedPeer};
+use crate::peers::{self, CachedPeer, input_peer_from_cached, peer_chat_id, vector_boxed_items};
 use crate::{MtprotoError, NotifyExceptionDto, NotifySettingsDto};
 
 pub const TOKEN_TYPE_FCM: i32 = 2;

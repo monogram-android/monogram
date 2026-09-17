@@ -2,7 +2,7 @@
 //! https://core.telegram.org/method/messages.getDialogFilters
 //! https://core.telegram.org/method/messages.updateDialogFilter
 
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     Bool, DialogFilter, DialogFilterConstructor, InputPeer, MessagesDialogFilters,
@@ -13,7 +13,7 @@ use tellers_mtproto::latest::api::{
 use tellers_mtproto_session::Snapshot;
 
 use crate::api_invoke;
-use crate::peers::{self, input_peer_from_cached, vector_boxed_items, CachedPeer};
+use crate::peers::{self, CachedPeer, input_peer_from_cached, vector_boxed_items};
 use crate::{FolderDto, MtprotoError};
 
 pub(crate) fn folder_title(title: &TextWithEntities) -> String {

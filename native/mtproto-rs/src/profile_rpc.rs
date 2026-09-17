@@ -19,7 +19,9 @@ mod tests {
     #[test]
     fn extra_json_omits_empty_and_keeps_counts() {
         assert_eq!(
-            profile_extra_json(None, None, None, None, false, false, false, None, false, None),
+            profile_extra_json(
+                None, None, None, None, false, false, false, None, false, None
+            ),
             None
         );
         let raw = profile_extra_json(

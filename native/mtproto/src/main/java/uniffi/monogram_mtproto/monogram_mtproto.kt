@@ -1264,349 +1264,349 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if (lib.uniffi_monogram_mtproto_checksum_func_animated_emoji_max() != 64831) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_animated_emoji_max() and 0xFFFF) != 64831) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_append_todo_items() != 40508) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_append_todo_items() and 0xFFFF) != 40508) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_bind_request_control() != 25628) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_bind_request_control() and 0xFFFF) != 25628) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_cancel_request_control() != 16061) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_cancel_request_control() and 0xFFFF) != 16061) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_check_password() != 43940) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_check_password() and 0xFFFF) != 43940) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_clear_active_dialog() != 35684) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_clear_active_dialog() and 0xFFFF) != 35684) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_client_api_id() != 53318) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_client_api_id() and 0xFFFF) != 53318) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_client_exists() != 36467) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_client_exists() and 0xFFFF) != 36467) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_connect() != 33063) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_connect() and 0xFFFF) != 33063) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_contacts_search() != 47716) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_contacts_search() and 0xFFFF) != 47716) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_create_client() != 12667) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_create_client() and 0xFFFF) != 12667) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_create_encrypted_client() != 41140) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_create_encrypted_client() and 0xFFFF) != 41140) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_create_lottie() != 23625) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_create_lottie() and 0xFFFF) != 23625) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_create_request_control() != 3332) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_create_request_control() and 0xFFFF) != 3332) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_create_vpx_decoder() != 63512) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_create_vpx_decoder() and 0xFFFF) != 63512) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_custom_emoji_is_free() != 48167) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_custom_emoji_is_free() and 0xFFFF) != 48167) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_decode_vpx_packet() != 27223) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_decode_vpx_packet() and 0xFFFF) != 27223) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_decrypt_push_payload() != 44009) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_decrypt_push_payload() and 0xFFFF) != 44009) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_delete_folder() != 5985) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_delete_folder() and 0xFFFF) != 5985) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_delete_message() != 62832) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_delete_message() and 0xFFFF) != 62832) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_destroy_client() != 9968) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_destroy_client() and 0xFFFF) != 9968) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_destroy_lottie() != 20966) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_destroy_lottie() and 0xFFFF) != 20966) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_destroy_vpx_decoder() != 65432) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_destroy_vpx_decoder() and 0xFFFF) != 65432) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_download_concurrency() != 62399) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_download_concurrency() and 0xFFFF) != 62399) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_download_custom_emoji() != 54633) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_download_custom_emoji() and 0xFFFF) != 54633) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_download_message_display() != 24775) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_download_message_display() and 0xFFFF) != 24775) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_download_message_media() != 18708) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_download_message_media() and 0xFFFF) != 18708) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_download_message_media_chunk() != 46836) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_download_message_media_chunk() and 0xFFFF) != 46836) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_download_message_thumb() != 47960) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_download_message_thumb() and 0xFFFF) != 47960) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_download_wallpaper() != 51704) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_download_wallpaper() and 0xFFFF) != 51704) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_drain_updates() != 44961) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_drain_updates() and 0xFFFF) != 44961) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_edit_text_message() != 17813) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_edit_text_message() and 0xFFFF) != 17813) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_forward_messages() != 60260) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_forward_messages() and 0xFFFF) != 60260) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_all_stickers() != 28474) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_all_stickers() and 0xFFFF) != 28474) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_bot_callback_answer() != 36176) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_bot_callback_answer() and 0xFFFF) != 36176) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_chats() != 2402) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_chats() and 0xFFFF) != 2402) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_common_chats() != 43261) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_common_chats() and 0xFFFF) != 43261) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_discussion_message() != 11564) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_discussion_message() and 0xFFFF) != 11564) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_emoji_stickers() != 38746) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_emoji_stickers() and 0xFFFF) != 38746) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_folders() != 19095) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_folders() and 0xFFFF) != 19095) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_forum_topics() != 13834) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_forum_topics() and 0xFFFF) != 13834) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_forum_topics_by_id() != 62) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_forum_topics_by_id() and 0xFFFF) != 62) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_group_admin_tags() != 1706) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_group_admin_tags() and 0xFFFF) != 1706) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_history() != 13617) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_history() and 0xFFFF) != 13617) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_history_page() != 29925) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_history_page() and 0xFFFF) != 29925) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_inline_bot_results() != 54626) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_inline_bot_results() and 0xFFFF) != 54626) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_message_reactions_list() != 38373) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_message_reactions_list() and 0xFFFF) != 38373) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_message_read_participants() != 1883) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_message_read_participants() and 0xFFFF) != 1883) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_notify_exceptions() != 22307) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_notify_exceptions() and 0xFFFF) != 22307) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_notify_settings() != 43188) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_notify_settings() and 0xFFFF) != 43188) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_outbox_read_date() != 2508) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_outbox_read_date() and 0xFFFF) != 2508) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_participants() != 24154) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_participants() and 0xFFFF) != 24154) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_pinned_messages() != 64998) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_pinned_messages() and 0xFFFF) != 64998) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_poll_votes() != 40734) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_poll_votes() and 0xFFFF) != 40734) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_profile() != 47208) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_profile() and 0xFFFF) != 47208) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_read_receipt_config() != 19499) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_read_receipt_config() and 0xFFFF) != 19499) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_recent_reactions() != 63454) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_recent_reactions() and 0xFFFF) != 63454) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_replies() != 57661) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_replies() and 0xFFFF) != 57661) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_saved_gifs() != 25721) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_saved_gifs() and 0xFFFF) != 25721) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_search_counters() != 938) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_search_counters() and 0xFFFF) != 938) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_sticker_pack() != 26753) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_sticker_pack() and 0xFFFF) != 26753) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_sticker_set() != 56037) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_sticker_set() and 0xFFFF) != 56037) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_stickers() != 17127) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_stickers() and 0xFFFF) != 17127) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_unread_mentions() != 6529) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_unread_mentions() and 0xFFFF) != 6529) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_unread_reactions() != 29271) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_unread_reactions() and 0xFFFF) != 29271) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_updates_state() != 39105) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_updates_state() and 0xFFFF) != 39105) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_wallpapers() != 61837) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_wallpapers() and 0xFFFF) != 61837) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_get_web_page() != 28449) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_web_page() and 0xFFFF) != 28449) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_is_authorized() != 9962) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_is_authorized() and 0xFFFF) != 9962) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_library_version() != 52652) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_library_version() and 0xFFFF) != 52652) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_load_more_chats() != 44522) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_load_more_chats() and 0xFFFF) != 44522) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_logout() != 21984) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_logout() and 0xFFFF) != 21984) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_lottie_frame_count() != 29890) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_lottie_frame_count() and 0xFFFF) != 29890) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_lottie_frame_rate() != 17829) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_lottie_frame_rate() and 0xFFFF) != 17829) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_lottie_size() != 51151) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_lottie_size() and 0xFFFF) != 51151) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_mark_dialog_unread() != 40354) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_mark_dialog_unread() and 0xFFFF) != 40354) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_perf_set_enabled() != 49824) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_perf_set_enabled() and 0xFFFF) != 49824) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_perf_snapshot() != 54140) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_perf_snapshot() and 0xFFFF) != 54140) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_read_discussion() != 59067) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_read_discussion() and 0xFFFF) != 59067) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_read_history() != 10555) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_read_history() and 0xFFFF) != 10555) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_read_mentions() != 64260) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_read_mentions() and 0xFFFF) != 64260) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_read_reactions() != 29510) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_read_reactions() and 0xFFFF) != 29510) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_register_device() != 43379) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_register_device() and 0xFFFF) != 43379) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_release_request_control() != 4655) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_release_request_control() and 0xFFFF) != 4655) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_render_lottie_frame() != 49231) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_render_lottie_frame() and 0xFFFF) != 49231) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_resend_auth_code() != 22197) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_resend_auth_code() and 0xFFFF) != 22197) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_reset_notify_settings() != 13731) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_reset_notify_settings() and 0xFFFF) != 13731) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_resolve_username() != 49790) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_resolve_username() and 0xFFFF) != 49790) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_search_global() != 26571) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_search_global() and 0xFFFF) != 26571) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_search_messages() != 1768) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_search_messages() and 0xFFFF) != 1768) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_search_messages_filtered() != 57700) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_search_messages_filtered() and 0xFFFF) != 57700) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_auth_code() != 8829) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_auth_code() and 0xFFFF) != 8829) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_inline_bot_result() != 10143) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_inline_bot_result() and 0xFFFF) != 10143) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_location() != 5819) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_location() and 0xFFFF) != 5819) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_photo_message() != 43362) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_photo_message() and 0xFFFF) != 43362) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_poll_vote() != 17828) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_poll_vote() and 0xFFFF) != 17828) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_reaction() != 64471) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_reaction() and 0xFFFF) != 64471) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_saved_gif() != 47209) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_saved_gif() and 0xFFFF) != 47209) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_text_message() != 13717) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_text_message() and 0xFFFF) != 13717) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_album() != 30233) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_album() and 0xFFFF) != 30233) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_media() != 20720) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_media() and 0xFFFF) != 20720) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_set_client_test_dc() != 26005) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_client_test_dc() and 0xFFFF) != 26005) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_set_contact_joined_silent() != 37991) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_contact_joined_silent() and 0xFFFF) != 37991) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_set_dispatch_class() != 55728) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_dispatch_class() and 0xFFFF) != 55728) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_set_download_concurrency() != 39908) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_download_concurrency() and 0xFFFF) != 39908) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_set_file_part_kib() != 34374) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_file_part_kib() and 0xFFFF) != 34374) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_set_typing() != 45608) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_typing() and 0xFFFF) != 45608) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_sign_in() != 6295) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_sign_in() and 0xFFFF) != 6295) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_start_updates() != 56295) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_start_updates() and 0xFFFF) != 56295) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_toggle_todo_completed() != 1354) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_toggle_todo_completed() and 0xFFFF) != 1354) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_unregister_device() != 63407) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_unregister_device() and 0xFFFF) != 63407) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_update_folder() != 37089) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_update_folder() and 0xFFFF) != 37089) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_update_folder_order() != 46483) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_update_folder_order() and 0xFFFF) != 46483) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_update_notify_settings() != 576) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_update_notify_settings() and 0xFFFF) != 576) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_mtproto_checksum_func_update_status() != 57001) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_update_status() and 0xFFFF) != 57001) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }

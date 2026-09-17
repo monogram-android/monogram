@@ -1,12 +1,12 @@
 //! VP9 video-sticker decode via slim libvpx.
 #![allow(unsafe_code)]
 
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt};
 use std::os::raw::{c_char, c_int, c_long, c_uint, c_void};
 #[cfg(has_libvpx)]
 use std::ptr;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 

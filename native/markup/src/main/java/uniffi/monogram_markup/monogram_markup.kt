@@ -828,22 +828,22 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if (lib.uniffi_monogram_markup_checksum_func_extract_math() != 45467) {
+    if ((lib.uniffi_monogram_markup_checksum_func_extract_math() and 0xFFFF) != 45467) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_markup_checksum_func_highlight_code() != 35715) {
+    if ((lib.uniffi_monogram_markup_checksum_func_highlight_code() and 0xFFFF) != 35715) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_markup_checksum_func_library_version() != 5846) {
+    if ((lib.uniffi_monogram_markup_checksum_func_library_version() and 0xFFFF) != 5846) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_markup_checksum_func_parse_telegram_markdown() != 32804) {
+    if ((lib.uniffi_monogram_markup_checksum_func_parse_telegram_markdown() and 0xFFFF) != 32804) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_markup_checksum_func_render_blocks() != 5310) {
+    if ((lib.uniffi_monogram_markup_checksum_func_render_blocks() and 0xFFFF) != 5310) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_monogram_markup_checksum_func_supported_highlight_languages() != 8231) {
+    if ((lib.uniffi_monogram_markup_checksum_func_supported_highlight_languages() and 0xFFFF) != 8231) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }

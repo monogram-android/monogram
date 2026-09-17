@@ -202,7 +202,7 @@ impl Connection for TcpConnection {
                             | std::io::ErrorKind::TimedOut
                     ) && std::time::Instant::now() < deadline =>
                 {
-                    continue
+                    continue;
                 }
                 result => return result.map_err(|e| TransportError::Connection(e.to_string())),
             }

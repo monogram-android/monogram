@@ -4,7 +4,7 @@
 //! https://core.telegram.org/method/contacts.search
 //! https://core.telegram.org/method/messages.searchGlobal
 
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::latest::api::{
     Chat as TlChat, ContactsFound, ContactsSearchRequest, InputMessagesFilterEmptyConstructor,
@@ -16,7 +16,7 @@ use crate::api_invoke;
 use crate::dialogs;
 use crate::media::MediaIndex;
 use crate::messages::clamp_search_limit;
-use crate::peers::{self, input_peer_from_cached, peer_chat_id, vector_boxed_items, CachedPeer};
+use crate::peers::{self, CachedPeer, input_peer_from_cached, peer_chat_id, vector_boxed_items};
 use crate::{ContactsSearchDto, GlobalMessageSearchDto, MessageDto, MtprotoError, SearchPeerDto};
 
 pub fn is_people_peer(peer: &Peer) -> bool {

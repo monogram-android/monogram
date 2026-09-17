@@ -7,7 +7,7 @@ pub use crate::media::*;
 #[cfg(test)]
 use crate::MtprotoError;
 #[cfg(test)]
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt};
 #[cfg(test)]
 use std::fs;
 #[cfg(test)]

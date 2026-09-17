@@ -266,7 +266,9 @@ fn updates_drain_uses_main_gate_between_home_media_batches() {
     let updates_client = client.clone();
     let updates = std::thread::spawn(move || {
         started_tx.send(()).expect("updates thread start");
-        let _updates_lane = lock_updates_lane(&updates_client).expect("updates lane").expect("idle transport");
+        let _updates_lane = lock_updates_lane(&updates_client)
+            .expect("updates lane")
+            .expect("idle transport");
         admitted_tx.send(()).expect("updates lane admitted");
         release_rx.recv().expect("release updates lane");
     });
@@ -391,11 +393,14 @@ fn cursor_sequences_progress_independently_of_pts() {
 
 #[test]
 fn lane_merge_preserves_concurrent_insert_update_and_delete() {
-    let before = HashMap::from([(1, 10), (2, 20), (3, 30), (4, 40)]);
-    let mut current = HashMap::from([(1, 11), (2, 20), (4, 40), (5, 50)]);
-    let incoming = HashMap::from([(1, 10), (2, 22), (3, 30), (6, 60)]);
+    let before = HashMap::from_iter([(1, 10), (2, 20), (3, 30), (4, 40)]);
+    let mut current = HashMap::from_iter([(1, 11), (2, 20), (4, 40), (5, 50)]);
+    let incoming = HashMap::from_iter([(1, 10), (2, 22), (3, 30), (6, 60)]);
     merge_changed_entries(&mut current, &before, incoming);
-    assert_eq!(current, HashMap::from([(1, 11), (2, 22), (5, 50), (6, 60)]));
+    assert_eq!(
+        current,
+        HashMap::from_iter([(1, 11), (2, 22), (5, 50), (6, 60)])
+    );
 }
 
 #[test]

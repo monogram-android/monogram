@@ -24,14 +24,18 @@ fn structural_entity_separators_do_not_render_empty_paragraphs() {
 fn raw_inline_markdown_has_utf16_entities() {
     let blocks = render_blocks("👋 **bold _italic_**", vec![], true);
     assert_eq!(blocks[0].text, "👋 bold italic");
-    assert!(blocks[0]
-        .entities
-        .iter()
-        .any(|entity| entity.kind == "bold" && entity.offset == 3));
-    assert!(blocks[0]
-        .entities
-        .iter()
-        .any(|entity| entity.kind == "italic" && entity.offset == 8));
+    assert!(
+        blocks[0]
+            .entities
+            .iter()
+            .any(|entity| entity.kind == "bold" && entity.offset == 3)
+    );
+    assert!(
+        blocks[0]
+            .entities
+            .iter()
+            .any(|entity| entity.kind == "italic" && entity.offset == 8)
+    );
 }
 
 #[test]
@@ -62,15 +66,19 @@ fn html_inline_and_table_render_as_markup() {
         true,
     );
     assert_eq!(inline[0].text, "Bold and link\nnext");
-    assert!(inline[0]
-        .entities
-        .iter()
-        .any(|entity| entity.kind == "bold"));
-    assert!(inline[0]
-        .entities
-        .iter()
-        .any(|entity| entity.kind == "text_url"
-            && entity.extra.as_deref() == Some("https://example.com")));
+    assert!(
+        inline[0]
+            .entities
+            .iter()
+            .any(|entity| entity.kind == "bold")
+    );
+    assert!(
+        inline[0]
+            .entities
+            .iter()
+            .any(|entity| entity.kind == "text_url"
+                && entity.extra.as_deref() == Some("https://example.com"))
+    );
 
     let table = render_blocks(
         "<table><tr><th>Name</th><th>Value</th></tr><tr><td>A</td><td>1</td></tr></table>",
@@ -105,9 +113,11 @@ fn lists_and_rules_render_readable_markers() {
 fn rules_after_heading_are_not_literal_text() {
     let blocks = render_blocks("## Horizontal Rules\n---\n---\n## Next", vec![], true);
     assert!(blocks.iter().any(|block| block.kind == "rule"));
-    assert!(!blocks
-        .iter()
-        .any(|block| block.kind == "paragraph" && block.text.trim() == "---"));
+    assert!(
+        !blocks
+            .iter()
+            .any(|block| block.kind == "paragraph" && block.text.trim() == "---")
+    );
 }
 
 #[test]
@@ -136,9 +146,11 @@ fn html_lists_and_headings_keep_structure() {
     );
     assert_eq!(blocks[0].kind, "heading");
     assert_eq!(blocks[0].text, "Tables");
-    assert!(blocks
-        .iter()
-        .any(|block| block.text.contains("• One") || block.text.contains("- One")));
+    assert!(
+        blocks
+            .iter()
+            .any(|block| block.text.contains("• One") || block.text.contains("- One"))
+    );
 }
 
 #[test]
@@ -260,20 +272,24 @@ fn nested_blockquote_entities_keep_inner_on_outer_quote() {
             .count(),
         2
     );
-    assert!(blocks[0]
-        .entities
-        .iter()
-        .any(|entity| entity.extra.as_deref() == Some("collapsed")));
+    assert!(
+        blocks[0]
+            .entities
+            .iter()
+            .any(|entity| entity.extra.as_deref() == Some("collapsed"))
+    );
 }
 
 #[test]
 fn markdown_nested_quotes_render() {
     let blocks = render_blocks("> outer\n>> middle\n>>> inner", vec![], true);
     assert_eq!(blocks[0].kind, "quote");
-    assert!(blocks[0]
-        .entities
-        .iter()
-        .any(|entity| entity.kind == "blockquote"));
+    assert!(
+        blocks[0]
+            .entities
+            .iter()
+            .any(|entity| entity.kind == "blockquote")
+    );
 }
 
 #[test]

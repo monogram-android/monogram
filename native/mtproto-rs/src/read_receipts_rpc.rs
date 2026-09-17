@@ -2,7 +2,7 @@
 //! https://core.telegram.org/method/messages.getOutboxReadDate
 //! https://core.telegram.org/api/config
 
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     HelpAppConfig, HelpGetAppConfigRequest, JsonObjectValue, JsonValue,
@@ -11,9 +11,9 @@ use tellers_mtproto::latest::api::{
 };
 use tellers_mtproto_session::Snapshot;
 
-use crate::api_invoke;
-use crate::peers::{self, input_peer_from_cached, CachedPeer};
 use crate::MtprotoError;
+use crate::api_invoke;
+use crate::peers::{self, CachedPeer, input_peer_from_cached};
 
 pub const DEFAULT_CHAT_READ_MARK_SIZE_THRESHOLD: i32 = 100;
 pub const DEFAULT_CHAT_READ_MARK_EXPIRE_PERIOD: i32 = 604_800;

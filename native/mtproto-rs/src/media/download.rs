@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 use tellers_mtproto::latest::api::{UploadFile, UploadGetFileRequest};
 use tellers_mtproto_session::Snapshot;
 
-use super::location::{input_location, media_dc, MediaLocation, MediaRef};
-use crate::api_invoke;
+use super::location::{MediaLocation, MediaRef, input_location, media_dc};
 use crate::MtprotoError;
+use crate::api_invoke;
 
 pub(crate) const CHUNK: i32 = 32 * 1024;
 

@@ -1,4 +1,4 @@
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use tellers_mtproto::latest::api::{InlineButtonType, RichText};
 
 use crate::media;

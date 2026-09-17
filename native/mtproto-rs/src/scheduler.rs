@@ -260,7 +260,10 @@ impl LaneGate {
         };
         loop {
             if let Err(error) = crate::request_control::check() {
-                self.state.lock().waiters.retain(|waiter| waiter.ticket != ticket);
+                self.state
+                    .lock()
+                    .waiters
+                    .retain(|waiter| waiter.ticket != ticket);
                 self.wake.notify_all();
                 return Err(MtprotoError::Message(error.to_string()));
             }

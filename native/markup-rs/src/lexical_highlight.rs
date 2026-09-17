@@ -510,9 +510,11 @@ mod tests {
             ] {
                 let spans = highlight(source, language).unwrap();
                 assert!(spans.windows(2).all(|pair| pair[0].end <= pair[1].start));
-                assert!(spans
-                    .iter()
-                    .all(|s| s.start < s.end && s.end <= utf16_len(source)));
+                assert!(
+                    spans
+                        .iter()
+                        .all(|s| s.start < s.end && s.end <= utf16_len(source))
+                );
                 for span in spans {
                     let encoded: Vec<_> = source.encode_utf16().collect();
                     assert!(

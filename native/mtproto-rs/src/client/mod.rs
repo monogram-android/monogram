@@ -21,8 +21,9 @@ pub(crate) use persist::*;
 pub(crate) use session::*;
 pub use updates::*;
 
+use crate::{HashMap, HashMapExt, HashSet, HashSetExt};
 use std::cell::Cell;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock};
@@ -33,7 +34,7 @@ use tellers_mtproto_session::{OsRandom, Snapshot};
 use crate::media::MediaIndex;
 use crate::peers::CachedPeer;
 use crate::scheduler;
-use crate::session_file::{media_to_index, ChannelRecovery, FileSessionStore};
+use crate::session_file::{ChannelRecovery, FileSessionStore, media_to_index};
 use crate::tcp;
 use crate::{MtprotoError, UpdatesStateDto};
 

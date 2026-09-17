@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{Message, Peer, RichMessage};
 

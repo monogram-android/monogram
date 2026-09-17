@@ -45,7 +45,13 @@ pub fn clear_active_dialog(handle: u64) -> Result<(), MtprotoError> {
 
 pub(crate) fn lock_updates_lane(
     client: &Client,
-) -> Result<Option<(scheduler::LaneGuard<'_>, parking_lot::MutexGuard<'_, SessionIo>)>, MtprotoError> {
+) -> Result<
+    Option<(
+        scheduler::LaneGuard<'_>,
+        parking_lot::MutexGuard<'_, SessionIo>,
+    )>,
+    MtprotoError,
+> {
     // Updates share the home transport with main RPCs. Taking the same gate as
     // request batches prevents a just-freed media batch from barging ahead.
     let gate = client

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::latest::api::{
     Chat as TlChat, Message, MessageEntity, MessageFwdHeader, MessageReplyHeader, MessagesMessages,
@@ -9,8 +9,8 @@ use super::peers::{cache_from_users_chats, display_name};
 use crate::emoji_status::emoji_status_document_id;
 use crate::media::{self, MediaIndex};
 use crate::peers::{
-    chat_id_for_channel, chat_id_for_chat, chat_id_for_user, peer_chat_id, vector_boxed_items,
-    CachedPeer,
+    CachedPeer, chat_id_for_channel, chat_id_for_chat, chat_id_for_user, peer_chat_id,
+    vector_boxed_items,
 };
 use crate::service_messages::service_action_text;
 use crate::{MessageDto, MtprotoError};

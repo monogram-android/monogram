@@ -213,9 +213,11 @@ fn encryption_reads_legacy_magic_and_rewrites_current() {
     let restored = store.load().unwrap().unwrap();
     assert_eq!(restored.user_id, Some(42));
     store.save(&restored).unwrap();
-    assert!(fs::read(&store.path)
-        .unwrap()
-        .starts_with(crate::session_crypto::MAGIC));
+    assert!(
+        fs::read(&store.path)
+            .unwrap()
+            .starts_with(crate::session_crypto::MAGIC)
+    );
 }
 
 #[test]
@@ -226,9 +228,11 @@ fn encryption_uses_opaque_tag_and_fresh_salt() {
     let second = crate::session_crypto::encrypt(b"{}", &key).unwrap();
     assert!(first.starts_with(crate::session_crypto::MAGIC));
     assert_ne!(first, second);
-    assert!(!first
-        .windows(6)
-        .any(|window| window == b"MONORE" || window == b"MONOGR"));
+    assert!(
+        !first
+            .windows(6)
+            .any(|window| window == b"MONORE" || window == b"MONOGR")
+    );
     assert_eq!(
         crate::session_crypto::decrypt(&first, &key)
             .unwrap()

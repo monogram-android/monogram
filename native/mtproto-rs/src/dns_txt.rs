@@ -16,9 +16,9 @@ use tellers_mtproto_crypto::{parse_rsa_public_key, rsa_encrypt_raw};
 use tellers_mtproto_session::{OsRandom, Snapshot};
 use tellers_mtproto_transport::PaddedIntermediate;
 
+use crate::MtprotoError;
 use crate::peers::vector_boxed_items;
 use crate::rpc::LiveTransport;
-use crate::MtprotoError;
 
 /// Public key used to unwrap the signed simple-config blob.
 const SIMPLE_CONFIG_RSA_PEM: &str = "-----BEGIN RSA PUBLIC KEY-----

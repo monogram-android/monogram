@@ -1,5 +1,5 @@
 use crate::markdown::MarkupEntity;
-use crate::utf16::{rtrim_utf16_len, OutBuf};
+use crate::utf16::{OutBuf, rtrim_utf16_len};
 
 pub(crate) fn parse_html(raw: &str, out: &mut OutBuf, entities: &mut Vec<MarkupEntity>) {
     parse_html_range(raw, 0, raw.len(), out, entities);

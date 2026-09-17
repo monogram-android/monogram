@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     Chat as TlChat, InputUser, InputUserConstructor, MessagesChats, MessagesGetCommonChatsRequest,
@@ -6,12 +6,12 @@ use tellers_mtproto::latest::api::{
 use tellers_mtproto_session::Snapshot;
 
 use super::full::{first_username, index_chat_photo};
+use crate::MtprotoError;
 use crate::api_invoke;
 use crate::media::MediaIndex;
 use crate::peers::{
-    self, chat_id_for_channel, chat_id_for_chat, vector_boxed_items, CachedPeer, PeerKind,
+    self, CachedPeer, PeerKind, chat_id_for_channel, chat_id_for_chat, vector_boxed_items,
 };
-use crate::MtprotoError;
 
 /// `messages.getCommonChats` — groups/channels shared with a user, as compact JSON
 /// `{"chats":[{id,title,kind,username,avatar}]}`.

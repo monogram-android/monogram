@@ -11,15 +11,15 @@ use crate::peers;
 #[cfg(test)]
 use crate::session_file::{ChannelRecovery, FileSessionStore};
 #[cfg(test)]
-use crate::{MtprotoError, UpdatesStateDto};
+use crate::{HashMap, HashMapExt, HashSet, HashSetExt, MtprotoError, UpdatesStateDto};
 #[cfg(test)]
 use parking_lot::Mutex;
 #[cfg(test)]
-use std::collections::{HashMap, HashSet, VecDeque};
-#[cfg(test)]
-use std::sync::atomic::Ordering;
+use std::collections::VecDeque;
 #[cfg(test)]
 use std::sync::Arc;
+#[cfg(test)]
+use std::sync::atomic::Ordering;
 #[cfg(test)]
 use tellers_mtproto_session::{OsRandom, Snapshot};
 

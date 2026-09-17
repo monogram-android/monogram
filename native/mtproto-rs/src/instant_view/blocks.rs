@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tellers_mtproto::latest::api::{
     Chat, ChatPhoto, Document, GeoPoint, PageBlock, PageButton, PageCaption, PageListItem,
     PageListOrderedItem, PageRelatedArticle, PageTableRow, Photo, PhotoSize, RichText,

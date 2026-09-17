@@ -10,6 +10,7 @@ mod auth_key;
 mod auth_rpc;
 mod client;
 mod client_mgr;
+mod collections;
 mod dialogs;
 mod dialogs_rpc;
 mod dns_txt;
@@ -52,6 +53,8 @@ mod upload_rpc;
 #[allow(unsafe_code)]
 mod vpx;
 mod wallpaper_rpc;
+
+pub(crate) use collections::{HashMap, HashMapExt, HashSet, HashSetExt};
 
 pub use dto::*;
 pub use error::*;

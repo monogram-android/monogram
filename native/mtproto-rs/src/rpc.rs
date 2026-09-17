@@ -15,11 +15,11 @@ pub use dc::{dc_endpoints, rotated_endpoints, same_ip_endpoints, set_use_test_dc
 pub use framing::SystemClock;
 pub(crate) use inbound::ungzip_if_needed;
 pub use inbound::{
-    clear_new_session_metadata, encode_boxed_bytes, take_new_session_metadata, BoxedQuery,
-    NewSessionMetadata,
+    BoxedQuery, NewSessionMetadata, clear_new_session_metadata, encode_boxed_bytes,
+    take_new_session_metadata,
 };
 pub use invoke::invoke_raw;
-pub use live::{drop_live_transport, with_live_transport, LiveTransport};
+pub use live::{LiveTransport, drop_live_transport, with_live_transport};
 pub use timeout::with_rpc_timeout_secs;
 
 pub(crate) use invoke::{
@@ -27,9 +27,9 @@ pub(crate) use invoke::{
 };
 
 #[cfg(test)]
-use crate::tcp;
-#[cfg(test)]
 use crate::MtprotoError;
+#[cfg(test)]
+use crate::tcp;
 #[cfg(test)]
 use std::io::Read;
 #[cfg(test)]
@@ -57,27 +57,27 @@ pub(crate) use framing::{
 };
 #[cfg(test)]
 pub(crate) use inbound::{
+    BAD_MSG_NOTIFICATION, BAD_SERVER_SALT, InboundEvent, MAX_UNPACKED_BYTES, MAX_WRAPPER_DEPTH,
+    MSG_CONTAINER, MSG_COPY, MSGS_ACK, NEW_SESSION_CREATED, PONG, RPC_RESULT,
     apply_new_session_salt, is_updates_type, parse_authenticated, parse_service_or_result,
-    should_process_inbound, InboundEvent, BAD_MSG_NOTIFICATION, BAD_SERVER_SALT,
-    MAX_UNPACKED_BYTES, MAX_WRAPPER_DEPTH, MSGS_ACK, MSG_CONTAINER, MSG_COPY, NEW_SESSION_CREATED,
-    PONG, RPC_RESULT,
+    should_process_inbound,
 };
 #[cfg(test)]
-pub(crate) use invoke::{may_reconnect_request, RawMethod, RpcRetryPolicy};
+pub(crate) use invoke::{RawMethod, RpcRetryPolicy, may_reconnect_request};
 #[cfg(test)]
 pub(crate) use live::{live_stack_depth, live_top_occupied};
 #[cfg(test)]
 pub(crate) use supervisor::{
-    failure_class, is_transport_error, is_waitable_io, ConnectionState, ConnectionSupervisor,
-    FailureClass,
+    ConnectionState, ConnectionSupervisor, FailureClass, failure_class, is_transport_error,
+    is_waitable_io,
 };
 #[cfg(test)]
 pub(crate) use timeout::{
-    fail_fast_idle, idle_after_complete_frames, idle_empty_first_byte, idle_needs_liveness_probe,
-    idle_reused_socket, is_mid_frame, keepalive_probe_failed, leftover_frame_grace,
-    live_transport_stale, note_inbound_liveness, recv_wait_deadline, rpc_attempt_budget,
-    rpc_timeout_message, rpc_timeout_secs, subscribed_read_deadline, timeout_idle_needs_probe,
-    trim_padded_mtproto_packet, KEEPALIVE_PING_SECS,
+    KEEPALIVE_PING_SECS, fail_fast_idle, idle_after_complete_frames, idle_empty_first_byte,
+    idle_needs_liveness_probe, idle_reused_socket, is_mid_frame, keepalive_probe_failed,
+    leftover_frame_grace, live_transport_stale, note_inbound_liveness, recv_wait_deadline,
+    rpc_attempt_budget, rpc_timeout_message, rpc_timeout_secs, subscribed_read_deadline,
+    timeout_idle_needs_probe, trim_padded_mtproto_packet,
 };
 
 #[cfg(test)]

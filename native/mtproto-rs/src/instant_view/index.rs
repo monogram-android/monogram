@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     Document, GeoPoint, InputGeoPoint, InputGeoPointConstructor,
@@ -7,9 +7,9 @@ use tellers_mtproto::latest::api::{
 };
 use tellers_mtproto_session::Snapshot;
 
+use crate::MtprotoError;
 use crate::media::{self, MediaIndex, MediaLocation, MediaRef};
 use crate::peers::vector_boxed_items;
-use crate::MtprotoError;
 
 /// Indexed as `(media_id, INSTANT_VIEW_MEDIA_MSG)` so avatars `(peer, 0)` stay distinct.
 pub const INSTANT_VIEW_MEDIA_MSG: i32 = -1;

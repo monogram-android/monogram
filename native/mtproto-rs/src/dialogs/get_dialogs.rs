@@ -1,7 +1,7 @@
 //! https://core.telegram.org/method/messages.getDialogs
 //! https://core.telegram.org/api/folders
 
-use std::collections::{HashMap, HashSet};
+use crate::{HashMap, HashMapExt, HashSet, HashSetExt};
 
 use tellers_mtproto::latest::api::{
     Chat as TlChat, ChatPhoto, Dialog, InputPeer, InputPeerEmptyConstructor, Message,
@@ -18,8 +18,8 @@ use crate::api_invoke;
 use crate::emoji_status::emoji_status_document_id;
 use crate::media::{self, MediaIndex};
 use crate::peers::{
-    self, chat_id_for_channel, chat_id_for_chat, chat_id_for_user, input_peer_from_cached,
-    peer_chat_id, vector_boxed_items, CachedPeer, PeerKind,
+    self, CachedPeer, PeerKind, chat_id_for_channel, chat_id_for_chat, chat_id_for_user,
+    input_peer_from_cached, peer_chat_id, vector_boxed_items,
 };
 use crate::presence::user_status_parts;
 use crate::{ChatDto, MtprotoError};

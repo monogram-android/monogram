@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::latest::api::{
     ForumTopic, Message, MessagesForumTopics, MessagesGetForumTopicsByIdRequest,
@@ -9,7 +9,7 @@ use tellers_mtproto_session::Snapshot;
 use super::peers::cache_from_users_chats;
 use crate::api_invoke;
 use crate::media::MediaIndex;
-use crate::peers::{self, input_peer_from_cached, vector_boxed_items, CachedPeer};
+use crate::peers::{self, CachedPeer, input_peer_from_cached, vector_boxed_items};
 use crate::{ForumTopicDto, ForumTopicsPageDto, MtprotoError};
 
 pub fn get_forum_topics(

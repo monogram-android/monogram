@@ -6,16 +6,16 @@ use tellers_mtproto_engine::{Engine, OutboundMessage};
 use tellers_mtproto_session::{Clock, OsRandom, Snapshot};
 use tellers_mtproto_transport::{Connection, Framing, PaddedIntermediate};
 
-use crate::tcp::{self, ObfuscatedTcp};
 use crate::MtprotoError;
+use crate::tcp::{self, ObfuscatedTcp};
 
 use super::dc::{rotated_endpoints, rotated_same_ip};
-use super::inbound::{encode_boxed_bytes, MAX_UNPACKED_BYTES};
+use super::inbound::{MAX_UNPACKED_BYTES, encode_boxed_bytes};
 use super::live::LiveTransport;
 use super::supervisor::is_waitable_io;
 use super::timeout::{
-    fail_fast_idle, idle_empty_first_byte, idle_needs_liveness_probe, is_mid_frame,
-    recv_wait_deadline, rpc_timeout_message, LAST_INBOUND_CTOR,
+    LAST_INBOUND_CTOR, fail_fast_idle, idle_empty_first_byte, idle_needs_liveness_probe,
+    is_mid_frame, recv_wait_deadline, rpc_timeout_message,
 };
 
 pub struct SystemClock;

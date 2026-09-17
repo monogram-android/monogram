@@ -9,9 +9,9 @@ pub use crate::instant_view::*;
 #[cfg(test)]
 use crate::media::MediaIndex;
 #[cfg(test)]
-use serde_json::Value;
+use crate::{HashMap, HashMapExt};
 #[cfg(test)]
-use std::collections::HashMap;
+use serde_json::Value;
 #[cfg(test)]
 use tellers_mtproto::latest::api::{
     Document, GeoPoint, InlineButtonType, Page, PageBlock, PageButton, PageCaption, PageListItem,
@@ -561,7 +561,7 @@ mod tests {
         });
         let ctx = PageContext {
             photos: HashMap::new(),
-            documents: HashMap::from([(8, &document)]),
+            documents: HashMap::from_iter([(8, &document)]),
         };
         let mapped = map_block(
             &PageBlock::PageBlockDocument(
@@ -635,7 +635,7 @@ mod tests {
         });
         let ctx = PageContext {
             photos: HashMap::new(),
-            documents: HashMap::from([(9, &document)]),
+            documents: HashMap::from_iter([(9, &document)]),
         };
         let mapped = map_block(
             &PageBlock::PageBlockVideo(tellers_mtproto::latest::api::PageBlockVideoConstructor {

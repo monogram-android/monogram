@@ -2,11 +2,11 @@ use tellers_mtproto::codec::{Boxed, Decoder, Encoder, Limits, TlDecode, TlEncode
 use tellers_mtproto::latest::api::{InputPeer, InputPeerSelfConstructor, PageBlock, Vector};
 use tellers_mtproto_session::Snapshot;
 
+use crate::MtprotoError;
 use crate::api_invoke;
 use crate::media;
-use crate::peers::{self, vector_boxed_items, CachedPeer};
+use crate::peers::{self, CachedPeer, vector_boxed_items};
 use crate::rpc;
-use crate::MtprotoError;
 
 /// `messages.getRichMessage#501569cf peer:InputPeer id:int = messages.Messages`
 const GET_RICH_MESSAGE_ID: u32 = 0x5015_69cf;
@@ -34,7 +34,7 @@ impl Boxed for MessagesGetRichMessageRequest {
 pub fn fill_unsupported_rich_text(
     snapshot: &mut Snapshot,
     api_id: i32,
-    peers: &std::collections::HashMap<i64, CachedPeer>,
+    peers: &crate::HashMap<i64, CachedPeer>,
     user_id: Option<i64>,
     dtos: &mut [crate::MessageDto],
 ) {
@@ -63,7 +63,7 @@ pub fn fill_unsupported_rich_text(
 fn fetch_rich_plain(
     snapshot: &mut Snapshot,
     api_id: i32,
-    peers: &std::collections::HashMap<i64, CachedPeer>,
+    peers: &crate::HashMap<i64, CachedPeer>,
     user_id: Option<i64>,
     chat_id: i64,
     message_id: i32,
@@ -105,9 +105,5 @@ fn extract_rich_plain(bytes: &[u8]) -> Option<String> {
     let _flags: u32 = TlDecode::decode(&mut decoder).ok()?;
     let blocks: Vector<Box<PageBlock>> = TlDecode::decode(&mut decoder).ok()?;
     let text = media::page_blocks_plain(vector_boxed_items(&blocks));
-    if text.is_empty() {
-        None
-    } else {
-        Some(text)
-    }
+    if text.is_empty() { None } else { Some(text) }
 }

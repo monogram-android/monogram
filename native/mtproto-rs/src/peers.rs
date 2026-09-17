@@ -61,7 +61,7 @@ pub fn channel_id_from_chat_id(chat_id: i64) -> Option<i64> {
 /// Apply a peer from TL. Never replace a full hash with a `*Min` hash.
 /// https://core.telegram.org/api/min
 pub fn upsert_cached_peer(
-    peers: &mut std::collections::HashMap<i64, CachedPeer>,
+    peers: &mut crate::HashMap<i64, CachedPeer>,
     chat_id: i64,
     kind: PeerKind,
     raw_id: i64,
@@ -101,7 +101,7 @@ pub fn has_usable_access_hash(peer: &CachedPeer) -> bool {
 }
 
 pub fn usable_cached_peer(
-    peers: &std::collections::HashMap<i64, CachedPeer>,
+    peers: &crate::HashMap<i64, CachedPeer>,
     chat_id: i64,
 ) -> Option<&CachedPeer> {
     peers
@@ -110,7 +110,7 @@ pub fn usable_cached_peer(
 }
 
 pub fn require_usable_peer(
-    peers: &std::collections::HashMap<i64, CachedPeer>,
+    peers: &crate::HashMap<i64, CachedPeer>,
     chat_id: i64,
 ) -> Result<&CachedPeer, crate::MtprotoError> {
     usable_cached_peer(peers, chat_id).ok_or_else(|| {
@@ -155,7 +155,7 @@ pub fn vector_boxed_items<T>(vector: &Vector<Box<T>>) -> impl Iterator<Item = &T
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use crate::{HashMap, HashMapExt};
 
     #[test]
     fn min_user_does_not_replace_full_hash() {

@@ -180,7 +180,7 @@ fn filter_keys_round_trip_profile_tabs() {
 
 #[test]
 fn forward_requires_known_peers() {
-    use std::collections::HashMap;
+    use crate::{HashMap, HashMapExt};
     use tellers_mtproto_session::{OsRandom, Snapshot};
     let mut snapshot = Snapshot::new(2, &mut OsRandom).expect("snapshot");
     let peers = HashMap::new();

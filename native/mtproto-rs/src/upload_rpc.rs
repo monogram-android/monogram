@@ -5,7 +5,7 @@
 //! https://core.telegram.org/method/messages.sendMedia
 //! https://core.telegram.org/method/messages.sendMultiMedia
 
-use std::collections::HashMap;
+use crate::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -25,7 +25,7 @@ use tellers_mtproto_session::Snapshot;
 use crate::api_invoke;
 use crate::media::MediaIndex;
 use crate::messages::{self, input_reply_to_thread, random_id};
-use crate::peers::{self, input_peer_from_cached, CachedPeer};
+use crate::peers::{self, CachedPeer, input_peer_from_cached};
 use crate::{MessageDto, MtprotoError, UploadItemDto};
 
 pub const FILE_PART_SMALL: usize = 32 * 1024;

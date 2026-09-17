@@ -28,11 +28,7 @@ pub(crate) fn webpage_plain(page: &WebPage) -> Option<String> {
             out.push_str(&body);
         }
     }
-    if out.is_empty() {
-        None
-    } else {
-        Some(out)
-    }
+    if out.is_empty() { None } else { Some(out) }
 }
 
 #[allow(dead_code)]
@@ -263,11 +259,7 @@ fn checkbox_prefix(checkbox: bool, checked: bool) -> &'static str {
     if !checkbox {
         return "";
     }
-    if checked {
-        "☑ "
-    } else {
-        "☐ "
-    }
+    if checked { "☑ " } else { "☐ " }
 }
 
 fn is_list_block(block: &PageBlock) -> bool {

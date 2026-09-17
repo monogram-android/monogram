@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     ChannelParticipant, ChannelParticipantsAdminsConstructor, ChannelParticipantsBotsConstructor,
@@ -9,11 +9,11 @@ use tellers_mtproto::latest::api::{
 use tellers_mtproto_session::Snapshot;
 
 use super::full::{display_user, index_user_avatar, user_from_list};
+use crate::MtprotoError;
 use crate::api_invoke;
 use crate::media::MediaIndex;
-use crate::peers::{self, chat_id_for_user, vector_boxed_items, CachedPeer, PeerKind};
+use crate::peers::{self, CachedPeer, PeerKind, chat_id_for_user, vector_boxed_items};
 use crate::presence::user_status_parts;
-use crate::MtprotoError;
 
 pub fn get_group_admin_tags(
     snapshot: &mut Snapshot,

@@ -4,7 +4,7 @@
 //! https://core.telegram.org/method/messages.getInlineBotResults
 //! https://core.telegram.org/method/messages.sendInlineBotResult
 
-use std::collections::HashMap;
+use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     BotInlineResult, Chat as TlChat, ContactsResolveUsernameRequest, ContactsResolvedPeer,
@@ -19,7 +19,7 @@ use crate::dialogs;
 use crate::media::{self, MediaIndex};
 use crate::messages;
 use crate::peers::{
-    self, input_peer_from_cached, peer_chat_id, vector_boxed_items, CachedPeer, PeerKind,
+    self, CachedPeer, PeerKind, input_peer_from_cached, peer_chat_id, vector_boxed_items,
 };
 use crate::{InlineBotResultDto, InlineBotResultsDto, MessageDto, MtprotoError, ResolvedPeerDto};
 

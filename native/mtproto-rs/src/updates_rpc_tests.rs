@@ -1,6 +1,6 @@
 use super::*;
 
-use std::collections::HashMap;
+use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::codec::{Encoder, TlEncode};
 use tellers_mtproto::latest::api::{
@@ -181,23 +181,27 @@ fn push_counter_checks_zero_count_overflow_and_qts() {
         )),
         qts: 3,
     });
-    assert!(advance_push_update(
-        &update,
-        &mut state,
-        &mut HashMap::new(),
-        true,
-        &mut Vec::new()
-    )
-    .unwrap());
+    assert!(
+        advance_push_update(
+            &update,
+            &mut state,
+            &mut HashMap::new(),
+            true,
+            &mut Vec::new()
+        )
+        .unwrap()
+    );
     assert_eq!(state.qts, 3);
-    assert!(!advance_push_update(
-        &update,
-        &mut state,
-        &mut HashMap::new(),
-        true,
-        &mut Vec::new()
-    )
-    .unwrap());
+    assert!(
+        !advance_push_update(
+            &update,
+            &mut state,
+            &mut HashMap::new(),
+            true,
+            &mut Vec::new()
+        )
+        .unwrap()
+    );
 }
 
 #[test]
@@ -213,17 +217,19 @@ fn push_channel_gaps_schedule_recovery_without_advancing_state() {
         pts_count: 1,
     });
     let mut state = cursor();
-    let mut channels = HashMap::from([(id, 10)]);
+    let mut channels = HashMap::from_iter([(id, 10)]);
     let mut pending = Vec::new();
-    assert!(apply_push(
-        &packet(4, vec![delete(11), update]),
-        &mut HashMap::new(),
-        &mut HashMap::new(),
-        &mut state,
-        &mut channels,
-        &mut pending
-    )
-    .is_err());
+    assert!(
+        apply_push(
+            &packet(4, vec![delete(11), update]),
+            &mut HashMap::new(),
+            &mut HashMap::new(),
+            &mut state,
+            &mut channels,
+            &mut pending
+        )
+        .is_err()
+    );
     assert_eq!(state.pts, 10);
     assert_eq!(channels[&id], 10);
     assert_eq!(pending, vec![id]);

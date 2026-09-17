@@ -1,16 +1,16 @@
-use std::collections::HashMap;
+use crate::HashMap;
 
 use serde_json::Value;
 use tellers_mtproto::latest::api::{MessagesGetWebPageRequest, MessagesWebPage, Page, WebPage};
 use tellers_mtproto_session::Snapshot;
 
 use super::blocks::map_block;
-use super::index::{document_id, index_map_previews, index_page_media, photo_id, PageContext};
+use super::index::{PageContext, document_id, index_map_previews, index_page_media, photo_id};
+use crate::MtprotoError;
 use crate::api_invoke::invoke_api;
 use crate::dialogs;
 use crate::media::MediaIndex;
-use crate::peers::{vector_boxed_items, CachedPeer};
-use crate::MtprotoError;
+use crate::peers::{CachedPeer, vector_boxed_items};
 
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct InstantViewDto {

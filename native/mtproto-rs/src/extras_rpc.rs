@@ -643,7 +643,7 @@ pub struct PollVotersDto {
     pub count: i32,
 }
 
-fn user_title(user: &User) -> (i64, String) {
+fn user_title(user: &User) -> (i64, crate::CompactString) {
     match user {
         User::User(u) => {
             let name = [
@@ -652,18 +652,19 @@ fn user_title(user: &User) -> (i64, String) {
             ]
             .into_iter()
             .filter(|part| !part.is_empty())
-            .collect::<Vec<_>>()
+            .collect::<crate::SmallVec<[&str; 2]>>()
             .join(" ");
             (
                 u.id,
                 if name.is_empty() {
-                    format!("User {}", u.id)
+                    crate::CompactString::from(format!("User {}", u.id))
                 } else {
-                    name
+                    crate::CompactString::from(name)
                 },
             )
         }
-        User::UserEmpty(u) => (u.id, format!("User {}", u.id)),
+        User::UserEmpty(u) => (u.id, crate::CompactString::from(format!("User {}", u.id))),
+        _ => (0, crate::CompactString::from("User")),
     }
 }
 
@@ -695,7 +696,7 @@ pub fn get_message_reactions_list(
             "unexpected messageReactionsList".into(),
         ));
     };
-    let titles: HashMap<i64, String> = vector_boxed_items(&body.users)
+    let titles: HashMap<i64, crate::CompactString> = vector_boxed_items(&body.users)
         .map(|user| user_title(user))
         .collect();
     let mut peers_out = Vec::new();
@@ -711,7 +712,10 @@ pub fn get_message_reactions_list(
         };
         peers_out.push(ReactionPeerDto {
             peer_id,
-            title: titles.get(&peer_id).cloned().unwrap_or_default(),
+            title: titles
+                .get(&peer_id)
+                .map(|name| name.to_string())
+                .unwrap_or_default(),
             date: item.date,
             emoticon,
             document_id,
@@ -749,7 +753,7 @@ pub fn get_poll_votes(
     let MessagesVotesList::MessagesVotesList(body) = response else {
         return Err(MtprotoError::Message("unexpected votesList".into()));
     };
-    let titles: HashMap<i64, String> = vector_boxed_items(&body.users)
+    let titles: HashMap<i64, crate::CompactString> = vector_boxed_items(&body.users)
         .map(|user| user_title(user))
         .collect();
     let mut voters = Vec::new();
@@ -762,7 +766,10 @@ pub fn get_poll_votes(
         let peer_id = peers::peer_chat_id(&peer);
         voters.push(PollVoterDto {
             peer_id,
-            title: titles.get(&peer_id).cloned().unwrap_or_default(),
+            title: titles
+                .get(&peer_id)
+                .map(|name| name.to_string())
+                .unwrap_or_default(),
             date,
         });
     }

@@ -42,7 +42,8 @@ pub(crate) fn page_plain(page: &Page) -> String {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FormattedText {
     pub text: String,
-    pub entities: Vec<FormatEntity>,
+    /// Format entities on page blocks are few and small per block. Stated inline: 4.
+    pub entities: crate::SmallVec<[FormatEntity; 4]>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

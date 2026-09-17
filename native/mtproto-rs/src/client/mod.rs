@@ -50,6 +50,7 @@ pub(crate) struct ClientData {
     pub(crate) session_path: PathBuf,
     pub(crate) user_id: Option<i64>,
     pub(crate) peers: HashMap<i64, CachedPeer>,
+    pub(crate) dialogs: crate::IndexMap<i64, crate::ChatDto>,
     pub(crate) updates: Option<UpdatesStateDto>,
     pub(crate) media: MediaIndex,
     pub(crate) updates_started: bool,
@@ -75,8 +76,8 @@ pub(crate) struct ClientData {
 pub(crate) struct LastInlineQuery {
     pub(crate) chat_id: i64,
     pub(crate) bot_id: i64,
-    pub(crate) query: String,
-    pub(crate) offset: String,
+    pub(crate) query: crate::CompactString,
+    pub(crate) offset: crate::CompactString,
     pub(crate) last_refresh: Option<std::time::Instant>,
 }
 
@@ -89,7 +90,7 @@ pub(crate) struct Client {
     /// Overlapping reads; never the updates subscriber.
     pub(crate) rpc: [Lane; scheduler::READ_LANES],
     /// File RPCs on separate sessions.
-    pub(crate) media: Vec<Lane>,
+    pub(crate) media: crate::SmallVec<[Lane; scheduler::MAX_MEDIA_LANES]>,
     pub(crate) persist_queued: AtomicBool,
     pub(crate) persist_running: AtomicBool,
     pub(crate) interactive_waiters: AtomicU64,
@@ -233,6 +234,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                 session_path: path,
                 user_id,
                 peers,
+                dialogs: crate::IndexMap::default(),
                 updates,
                 media,
                 updates_started: false,
@@ -326,6 +328,16 @@ pub(crate) fn with_client_transport<T>(
     tcp::with_connection_control(&client.connections, || {
         crate::rpc::with_live_transport(slot, body)
     })
+}
+
+pub(crate) fn remember_dialogs(handle: u64, chats: &[crate::ChatDto]) {
+    let Ok(client) = get_client(handle) else {
+        return;
+    };
+    let mut data = client.data.lock();
+    for chat in chats {
+        data.dialogs.insert(chat.id, chat.clone());
+    }
 }
 
 pub fn client_exists(handle: u64) -> bool {

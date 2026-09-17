@@ -5,6 +5,9 @@
 
 #![deny(unsafe_code)]
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 mod api_invoke;
 mod auth_key;
 mod auth_rpc;
@@ -54,7 +57,7 @@ mod upload_rpc;
 mod vpx;
 mod wallpaper_rpc;
 
-pub(crate) use collections::{HashMap, HashMapExt, HashSet, HashSetExt};
+pub(crate) use collections::{CompactString, HashMap, HashMapExt, HashSet, HashSetExt, IndexMap, SmallVec};
 
 pub use dto::*;
 pub use error::*;

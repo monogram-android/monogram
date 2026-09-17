@@ -221,11 +221,20 @@ pub fn location_token(loc: &MediaLocation) -> Vec<u8> {
     }
 }
 
-pub(crate) fn token_parts(id: i64, file_reference: &[u8], thumb_size: &str) -> Vec<u8> {
-    let mut out = id.to_le_bytes().to_vec();
-    out.extend_from_slice(file_reference);
-    out.extend_from_slice(thumb_size.as_bytes());
-    out
+thread_local! {
+    static TOKEN_SCRATCH: std::cell::RefCell<Vec<u8>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub(crate) fn token_parts(id: i64, file_reference: &[u8], thumb_size: impl AsRef<str>) -> Vec<u8> {
+    TOKEN_SCRATCH.with(|cell| {
+        let mut out = cell.borrow_mut();
+        out.clear();
+        out.extend_from_slice(&id.to_le_bytes());
+        out.extend_from_slice(file_reference);
+        out.extend_from_slice(thumb_size.as_ref().as_bytes());
+        out.clone()
+    })
 }
 
 pub(crate) fn location_is_getfile_thumb(loc: &MediaLocation) -> bool {

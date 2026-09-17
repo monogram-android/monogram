@@ -6,8 +6,8 @@ use crate::scheduler;
 
 use super::*;
 
-/// In-session pipelining depth for 32 KiB parts.
-pub(crate) const DEFAULT_PIPELINE_PARTS: usize = 4;
+/// In-session pipelining depth for 128 KiB parts.
+pub(crate) const DEFAULT_PIPELINE_PARTS: usize = 6;
 
 pub(crate) const MAX_PIPELINE_PARTS: usize = 16;
 

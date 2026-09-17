@@ -17,21 +17,21 @@ pub fn service_action_text(
     action: &MessageAction,
     actor_id: Option<i64>,
     actor: &str,
-    titles: &HashMap<i64, String>,
+    titles: &HashMap<i64, crate::CompactString>,
 ) -> String {
     let (kind, extra) = action_parts(action, actor_id, titles);
     encode_service(kind, actor, &extra)
 }
 
-fn name_of(id: i64, titles: &HashMap<i64, String>) -> String {
+fn name_of(id: i64, titles: &HashMap<i64, crate::CompactString>) -> String {
     titles
         .get(&id)
-        .cloned()
         .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
         .unwrap_or_else(|| "User".into())
 }
 
-fn names_of(ids: &[i64], titles: &HashMap<i64, String>) -> String {
+fn names_of(ids: &[i64], titles: &HashMap<i64, crate::CompactString>) -> String {
     ids.iter()
         .map(|id| name_of(*id, titles))
         .collect::<Vec<_>>()
@@ -41,7 +41,7 @@ fn names_of(ids: &[i64], titles: &HashMap<i64, String>) -> String {
 fn action_parts(
     action: &MessageAction,
     actor_id: Option<i64>,
-    titles: &HashMap<i64, String>,
+    titles: &HashMap<i64, crate::CompactString>,
 ) -> (&'static str, String) {
     match action {
         MessageAction::MessageActionEmpty(_) => ("empty", String::new()),

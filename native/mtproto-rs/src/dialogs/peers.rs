@@ -11,22 +11,24 @@ use crate::peers::{
     self, CachedPeer, PeerKind, chat_id_for_channel, chat_id_for_chat, chat_id_for_user,
 };
 
-pub(crate) fn display_name(user: &User) -> String {
+pub(crate) fn display_name(user: &User) -> crate::CompactString {
     match user {
         User::User(u) => {
-            let first = u.first_name.clone().unwrap_or_default();
-            let last = u.last_name.clone().unwrap_or_default();
-            let full = format!("{first} {last}").trim().to_string();
+            let first = u.first_name.as_deref().unwrap_or("");
+            let last = u.last_name.as_deref().unwrap_or("");
+            let full = format!("{first} {last}");
+            let full = full.trim();
             if !full.is_empty() {
-                full
+                crate::CompactString::from(full)
             } else {
                 u.username
-                    .clone()
-                    .unwrap_or_else(|| format!("User {}", u.id))
+                    .as_deref()
+                    .map(crate::CompactString::from)
+                    .unwrap_or_else(|| crate::CompactString::from(format!("User {}", u.id)))
             }
         }
-        User::UserEmpty(u) => format!("User {}", u.id),
-        _ => "User".into(),
+        User::UserEmpty(u) => crate::CompactString::from(format!("User {}", u.id)),
+        _ => crate::CompactString::from("User"),
     }
 }
 
@@ -143,7 +145,7 @@ pub(crate) fn index_dialog_avatar(
 
 #[derive(Clone)]
 pub(crate) struct ChatMeta {
-    pub(crate) title: String,
+    pub(crate) title: crate::CompactString,
     pub(crate) is_channel: bool,
     pub(crate) is_group: bool,
     pub(crate) is_forum: bool,
@@ -155,9 +157,9 @@ pub(crate) struct ChatMeta {
     pub(crate) can_delete_others: bool,
 }
 
-pub(crate) fn user_chat_meta(title: String) -> ChatMeta {
+pub(crate) fn user_chat_meta(title: impl Into<crate::CompactString>) -> ChatMeta {
     ChatMeta {
-        title,
+        title: title.into(),
         is_channel: false,
         is_group: false,
         is_forum: false,
@@ -172,7 +174,7 @@ pub(crate) fn user_chat_meta(title: String) -> ChatMeta {
 
 pub(crate) fn title_for_peer(
     peer: &Peer,
-    users: &HashMap<i64, String>,
+    users: &HashMap<i64, crate::CompactString>,
     chats: &HashMap<i64, ChatMeta>,
 ) -> ChatMeta {
     match peer {
@@ -180,10 +182,10 @@ pub(crate) fn title_for_peer(
             users
                 .get(&u.user_id)
                 .cloned()
-                .unwrap_or_else(|| format!("User {}", u.user_id)),
+                .unwrap_or_else(|| crate::CompactString::from(format!("User {}", u.user_id))),
         ),
         Peer::PeerChat(c) => chats.get(&c.chat_id).cloned().unwrap_or_else(|| ChatMeta {
-            title: format!("Chat {}", c.chat_id),
+            title: crate::CompactString::from(format!("Chat {}", c.chat_id)),
             is_channel: false,
             is_group: true,
             is_forum: false,
@@ -199,7 +201,7 @@ pub(crate) fn title_for_peer(
             .get(&c.channel_id)
             .cloned()
             .unwrap_or_else(|| ChatMeta {
-                title: format!("Channel {}", c.channel_id),
+                title: crate::CompactString::from(format!("Channel {}", c.channel_id)),
                 is_channel: true,
                 is_group: false,
                 is_forum: false,
@@ -210,14 +212,14 @@ pub(crate) fn title_for_peer(
                 can_forward: true,
                 can_delete_others: false,
             }),
-        _ => user_chat_meta("Chat".into()),
+        _ => user_chat_meta(crate::CompactString::from("Chat")),
     }
 }
 
 pub(crate) fn index_users_chats(
     users: impl Iterator<Item = User>,
     chats: impl Iterator<Item = TlChat>,
-) -> (HashMap<i64, String>, HashMap<i64, ChatMeta>) {
+) -> (HashMap<i64, crate::CompactString>, HashMap<i64, ChatMeta>) {
     let mut user_names = HashMap::new();
     for user in users {
         match &user {
@@ -225,7 +227,7 @@ pub(crate) fn index_users_chats(
                 user_names.insert(u.id, display_name(&user));
             }
             User::UserEmpty(u) => {
-                user_names.insert(u.id, format!("User {}", u.id));
+                user_names.insert(u.id, crate::CompactString::from(format!("User {}", u.id)));
             }
             _ => {}
         }
@@ -265,7 +267,7 @@ pub(crate) fn chat_meta_from_tl(chat: &TlChat) -> Option<(i64, ChatMeta)> {
             Some((
                 c.id,
                 ChatMeta {
-                    title: c.title.clone(),
+                    title: crate::CompactString::from(c.title.clone()),
                     is_channel: false,
                     is_group: true,
                     is_forum: false,
@@ -307,7 +309,7 @@ pub(crate) fn chat_meta_from_tl(chat: &TlChat) -> Option<(i64, ChatMeta)> {
             Some((
                 c.id,
                 ChatMeta {
-                    title: c.title.clone(),
+                    title: crate::CompactString::from(c.title.clone()),
                     is_channel,
                     is_group,
                     is_forum,
@@ -323,7 +325,7 @@ pub(crate) fn chat_meta_from_tl(chat: &TlChat) -> Option<(i64, ChatMeta)> {
         TlChat::ChatForbidden(c) => Some((
             c.id,
             ChatMeta {
-                title: c.title.clone(),
+                title: crate::CompactString::from(c.title.clone()),
                 is_channel: false,
                 is_group: true,
                 is_forum: false,
@@ -338,7 +340,7 @@ pub(crate) fn chat_meta_from_tl(chat: &TlChat) -> Option<(i64, ChatMeta)> {
         TlChat::ChannelForbidden(c) => Some((
             c.id,
             ChatMeta {
-                title: c.title.clone(),
+                title: crate::CompactString::from(c.title.clone()),
                 is_channel: true,
                 is_group: false,
                 is_forum: false,

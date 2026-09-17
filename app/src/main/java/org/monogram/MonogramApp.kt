@@ -15,6 +15,7 @@ import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.DownloadSettings
+import org.monogram.core.ui.DownloadState
 import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.perf.perfSpan
 import org.monogram.network.bridge.BridgedMtprotoClient
@@ -44,7 +45,7 @@ class MonogramApp : Application() {
 
     private val settingsScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private fun applyDownloadSettings(state: org.monogram.core.ui.DownloadState) {
+    private fun applyDownloadSettings(state: DownloadState) {
         client.applyDownloadConcurrency(state.lanes, state.parts)
         client.setFilePartKib(state.filePartKib)
     }

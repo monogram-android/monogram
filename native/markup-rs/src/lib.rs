@@ -3,6 +3,9 @@
 
 #![deny(unsafe_code)]
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 mod highlight;
 mod html;
 mod lexical_highlight;
@@ -96,7 +99,7 @@ pub fn highlight_code(code: String, language: String) -> Vec<HighlightSpanDto> {
         .map(|s| HighlightSpanDto {
             start: s.start,
             end: s.end,
-            scope: s.scope,
+            scope: s.scope.into(),
         })
         .collect()
 }

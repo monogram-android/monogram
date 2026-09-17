@@ -129,7 +129,7 @@ pub(crate) fn dialog_list_caption(
 
 pub(crate) fn message_preview(
     msg: &Message,
-    user_names: &HashMap<i64, String>,
+    user_names: &HashMap<i64, crate::CompactString>,
     chat_meta: &HashMap<i64, ChatMeta>,
     indexed: &media::IndexedMessageMedia,
 ) -> Option<(i32, i64, Option<String>, bool)> {
@@ -154,7 +154,7 @@ pub(crate) fn message_preview(
                         _ => None,
                     })
                 })
-                .map(String::as_str);
+                .map(|name| name.as_str());
             let media = indexed.kind.as_deref().and_then(chat_list_media_word);
             let caption = dialog_list_caption(m, indexed);
             Some((
@@ -168,7 +168,7 @@ pub(crate) fn message_preview(
             let actor = m
                 .from_id
                 .as_ref()
-                .and_then(|peer| user_names.get(&peer_chat_id(peer)).map(String::as_str));
+                .and_then(|peer| user_names.get(&peer_chat_id(peer)).map(|name| name.as_str()));
             Some((
                 m.id,
                 i64::from(m.date),

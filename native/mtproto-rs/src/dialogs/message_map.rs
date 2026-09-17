@@ -28,8 +28,8 @@ pub(crate) fn message_to_dto(msg: &Message, media_index: &mut MediaIndex) -> Opt
 pub(crate) fn message_to_dto_named(
     msg: &Message,
     media_index: &mut MediaIndex,
-    titles: &HashMap<i64, String>,
-    usernames: &HashMap<i64, String>,
+    titles: &HashMap<i64, crate::CompactString>,
+    usernames: &HashMap<i64, crate::CompactString>,
     emoji_status: &HashMap<i64, i64>,
 ) -> Option<MessageDto> {
     match msg {
@@ -102,7 +102,7 @@ pub(crate) fn message_to_dto_named(
                     .as_ref()
                     .and_then(|formatted| {
                         (!formatted.entities.is_empty())
-                            .then(|| serde_json::to_string(&formatted.entities).ok())
+                            .then(|| serde_json::to_string(&formatted.entities.as_slice()).ok())
                             .flatten()
                     })
                     .or_else(|| entities_to_json(m.entities.as_deref())),
@@ -116,7 +116,7 @@ pub(crate) fn message_to_dto_named(
                 sender_name: m
                     .from_id
                     .as_ref()
-                    .and_then(|peer| titles.get(&peer_chat_id(peer)).cloned()),
+                    .and_then(|peer| titles.get(&peer_chat_id(peer)).map(|name| name.to_string())),
                 sender_emoji_status_document_id: m
                     .from_id
                     .as_ref()
@@ -140,7 +140,7 @@ pub(crate) fn message_to_dto_named(
         }
         Message::MessageService(m) => {
             let sender_id = m.from_id.as_ref().map(|p| peer_chat_id(p));
-            let sender_name = sender_id.and_then(|id| titles.get(&id).cloned());
+            let sender_name = sender_id.and_then(|id| titles.get(&id).map(|name| name.to_string()));
             let (reply_to_msg_id, reply_to_top_id, _) = reply_meta(m.reply_to.as_deref());
             Some(MessageDto {
                 chat_id: peer_chat_id(&m.peer_id),
@@ -214,7 +214,7 @@ pub(crate) fn fwd_origin(header: Option<&MessageFwdHeader>) -> (Option<i64>, Opt
 
 pub(crate) fn fwd_from_label(
     header: Option<&MessageFwdHeader>,
-    titles: &HashMap<i64, String>,
+    titles: &HashMap<i64, crate::CompactString>,
 ) -> Option<String> {
     let MessageFwdHeader::MessageFwdHeader(h) = header? else {
         return None;
@@ -227,27 +227,27 @@ pub(crate) fn fwd_from_label(
     }
     h.from_id
         .as_ref()
-        .and_then(|peer| titles.get(&peer_chat_id(peer)).cloned())
+        .and_then(|peer| titles.get(&peer_chat_id(peer)).map(|name| name.to_string()))
 }
 
 pub(crate) fn via_bot_label(
     via_bot_id: Option<i64>,
-    usernames: &HashMap<i64, String>,
-    titles: &HashMap<i64, String>,
+    usernames: &HashMap<i64, crate::CompactString>,
+    titles: &HashMap<i64, crate::CompactString>,
 ) -> Option<String> {
     let id = via_bot_id?;
     usernames
         .get(&id)
-        .cloned()
-        .or_else(|| titles.get(&id).cloned())
+        .or_else(|| titles.get(&id))
+        .map(|name| name.to_string())
 }
 
 pub(crate) fn collect_peer_labels(
     users: impl Iterator<Item = User>,
     chats: impl Iterator<Item = TlChat>,
 ) -> (
-    HashMap<i64, String>,
-    HashMap<i64, String>,
+    HashMap<i64, crate::CompactString>,
+    HashMap<i64, crate::CompactString>,
     HashMap<i64, i64>,
 ) {
     let mut titles = HashMap::new();
@@ -259,7 +259,7 @@ pub(crate) fn collect_peer_labels(
                 let chat_id = chat_id_for_user(u.id);
                 titles.insert(chat_id, display_name(&user));
                 if let Some(name) = u.username.as_ref().filter(|s| !s.is_empty()) {
-                    usernames.insert(u.id, name.clone());
+                    usernames.insert(u.id, crate::CompactString::from(name.as_str()));
                 }
                 if let Some(document_id) =
                     emoji_status_document_id(u.emoji_status.as_ref().map(|s| s.as_ref()))
@@ -268,7 +268,10 @@ pub(crate) fn collect_peer_labels(
                 }
             }
             User::UserEmpty(u) => {
-                titles.insert(chat_id_for_user(u.id), format!("User {}", u.id));
+                titles.insert(
+                    chat_id_for_user(u.id),
+                    crate::CompactString::from(format!("User {}", u.id)),
+                );
             }
             _ => {}
         }
@@ -276,11 +279,14 @@ pub(crate) fn collect_peer_labels(
     for chat in chats {
         match &chat {
             TlChat::Chat(c) => {
-                titles.insert(chat_id_for_chat(c.id), c.title.clone());
+                titles.insert(
+                    chat_id_for_chat(c.id),
+                    crate::CompactString::from(c.title.clone()),
+                );
             }
             TlChat::Channel(c) => {
                 let chat_id = chat_id_for_channel(c.id);
-                titles.insert(chat_id, c.title.clone());
+                titles.insert(chat_id, crate::CompactString::from(c.title.clone()));
                 if let Some(document_id) =
                     emoji_status_document_id(c.emoji_status.as_ref().map(|s| s.as_ref()))
                 {

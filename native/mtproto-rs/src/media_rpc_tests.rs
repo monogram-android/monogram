@@ -50,7 +50,7 @@ fn successful_staging_publishes_complete_file() {
 
 #[test]
 fn chunk_is_telegram_max_part() {
-    assert_eq!(CHUNK, 32 * 1024);
+    assert_eq!(CHUNK, 128 * 1024);
     assert_eq!(CHUNK % 4096, 0);
     assert_eq!(CHUNK % 1024, 0);
 }

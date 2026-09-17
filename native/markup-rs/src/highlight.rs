@@ -4,7 +4,7 @@ use crate::lexical_highlight;
 pub struct HighlightSpan {
     pub start: i32,
     pub end: i32,
-    pub scope: String,
+    pub scope: compact_str::CompactString,
 }
 
 pub fn supported_languages() -> Vec<String> {

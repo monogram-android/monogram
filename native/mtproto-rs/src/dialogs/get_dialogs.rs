@@ -199,8 +199,10 @@ pub fn get_dialogs(
     }
     let (user_names, chat_meta) = index_users_chats(user_list.into_iter(), chat_list.into_iter());
 
-    let mut last_by_peer: HashMap<i64, (Option<String>, Option<i64>, Option<String>, i32, bool)> =
-        HashMap::new();
+    let mut last_by_peer: crate::IndexMap<
+        i64,
+        (Option<String>, Option<i64>, Option<String>, i32, bool),
+    > = crate::IndexMap::default();
     for msg in vector_boxed_items(&messages) {
         let indexed = media::index_message_media(msg, media_index);
         if let Some((id, date, text, outgoing)) =
@@ -237,7 +239,7 @@ pub fn get_dialogs(
             merge_channel_pts(channel_pts, chat_id, d.pts);
         }
         let (preview, date, last_thumb, last_id, last_outgoing) = last_by_peer
-            .remove(&chat_id)
+            .shift_remove(&chat_id)
             .unwrap_or((None, None, None, 0, false));
         let (
             is_contact,
@@ -252,7 +254,7 @@ pub fn get_dialogs(
             .unwrap_or((false, false, None, None, None, None));
         out.push(ChatDto {
             id: chat_id,
-            title,
+            title: title.into(),
             is_channel,
             is_group,
             is_forum: meta.is_forum,

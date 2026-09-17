@@ -255,8 +255,8 @@ pub fn get_inline_bot_results(
         state.last_inline = Some(LastInlineQuery {
             chat_id,
             bot_id,
-            query,
-            offset,
+            query: crate::CompactString::from(query),
+            offset: crate::CompactString::from(offset),
             last_refresh: None,
         });
         persist(state)?;

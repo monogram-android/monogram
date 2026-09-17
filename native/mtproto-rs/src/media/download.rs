@@ -12,7 +12,7 @@ use super::location::{MediaLocation, MediaRef, input_location, media_dc};
 use crate::MtprotoError;
 use crate::api_invoke;
 
-pub(crate) const CHUNK: i32 = 32 * 1024;
+pub(crate) const CHUNK: i32 = 128 * 1024;
 
 pub fn download_media(
     snapshot: &mut Snapshot,

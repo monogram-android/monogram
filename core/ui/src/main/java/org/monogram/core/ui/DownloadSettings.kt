@@ -11,7 +11,7 @@ data class DownloadConcurrency(val lanes: Int, val parts: Int)
 
 data class DownloadState(
     val lanes: Int = 8,
-    val parts: Int = 4,
+    val parts: Int = 6,
     val speedUpUploads: Boolean = false,
 ) {
     val concurrency: DownloadConcurrency get() = DownloadConcurrency(lanes = lanes, parts = parts)

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">Вход в Telegram</string>
+    <string name="auth_subtitle">Введите номер телефона</string>
+    <string name="auth_phone_label">Номер телефона</string>
+    <string name="auth_country_picker">Выберите страну</string>
+    <string name="auth_country_search_hint">Поиск страны</string>
+    <string name="auth_dial_code">Код страны</string>
+    <string name="auth_country_selected">Страна: %1$s</string>
+    <string name="auth_phone_hint">7 999 1234567</string>
+    <string name="auth_test_server">Тестовый сервер</string>
+    <string name="auth_test_server_sub">Тестовые DC Telegram, не production</string>
+    <string name="auth_code_title">Код</string>
+    <string name="auth_code_label">Код</string>
+    <string name="auth_send_code">Далее</string>
+    <string name="auth_cd_back">Изменить номер</string>
+    <string name="auth_show_password">Показать пароль</string>
+    <string name="auth_hide_password">Скрыть пароль</string>
+    <string name="auth_sign_in">Далее</string>
+    <string name="auth_code_sent_to">Код отправлен на номер %1$s</string>
+    <string name="auth_code_sent_telegram">Отправлено в другие сессии Telegram</string>
+    <string name="auth_error_code_unavailable">Код не отправлен. Подождите и нажмите «Далее» снова. Если официальный Telegram уже открыт, код придёт туда.</string>
+    <string name="auth_code_sent_sms">Telegram отправил SMS на номер %1$s</string>
+    <string name="auth_code_sent_call">Telegram позвонит на номер %1$s с кодом</string>
+    <string name="auth_password_title">Двухэтапная аутентификация</string>
+    <string name="auth_password_prompt">Введите облачный пароль Telegram</string>
+    <string name="auth_password_label">Облачный пароль</string>
+    <string name="auth_submit_password">Далее</string>
+    <string name="auth_error_phone_required">Введите номер телефона</string>
+    <string name="auth_error_code_required">Введите код</string>
+    <string name="auth_error_password_required">Введите облачный пароль</string>
+    <string name="auth_error_bad_password">Неверный облачный пароль — попробуйте ещё раз</string>
+    <string name="auth_error_srp_expired">Срок действия проверки истёк — введите пароль ещё раз</string>
+    <string name="auth_error_generic">Что-то пошло не так — попробуйте снова</string>
+    <string name="auth_error_network">Не удаётся подключиться к Telegram — проверьте соединение</string>
+    <string name="auth_error_no_account">Аккаунт Telegram для этого номера не найден</string>
+    <string name="auth_error_restart">Срок входа истёк — нажмите «Далее», чтобы получить новый код</string>
+    <string name="auth_working">Выполняется вход</string>
+    <string name="auth_step_indicator">Шаг %1$d из %2$d</string>
+    <string name="auth_resend_code">Отправить код ещё раз</string>
+    <string name="auth_resend_in">Повторить через %1$d с</string>
+    <string name="auth_paste_password">Вставить пароль</string>
+    <string name="auth_paste_empty">Буфер обмена пуст</string>
+</resources>

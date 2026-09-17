@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">Prihlásenie do Telegramu</string>
+    <string name="auth_subtitle">Zadajte telefónne číslo</string>
+    <string name="auth_phone_label">Telefónne číslo</string>
+    <string name="auth_country_picker">Vyberte krajinu</string>
+    <string name="auth_country_search_hint">Hľadať krajinu</string>
+    <string name="auth_dial_code">Predvoľba</string>
+    <string name="auth_country_selected">Krajina: %1$s</string>
+    <string name="auth_phone_hint">421 900 123 456</string>
+    <string name="auth_test_server">Testovací server</string>
+    <string name="auth_test_server_sub">Testovacie DC Telegramu, nie produkcia</string>
+    <string name="auth_code_title">Zadajte kód</string>
+    <string name="auth_code_label">Kód</string>
+    <string name="auth_send_code">Ďalej</string>
+    <string name="auth_cd_back">Zmeniť číslo</string>
+    <string name="auth_show_password">Zobraziť heslo</string>
+    <string name="auth_hide_password">Skryť heslo</string>
+    <string name="auth_sign_in">Ďalej</string>
+    <string name="auth_code_sent_to">Kód sme odoslali na číslo %1$s</string>
+    <string name="auth_code_sent_telegram">Odoslané do vašich ďalších aplikácií Telegram</string>
+    <string name="auth_error_code_unavailable">Kód nebol odoslaný. Počkajte a znova klepnite na Ďalej. Ak je prihlásený oficiálny Telegram, kód príde tam.</string>
+    <string name="auth_code_sent_sms">Telegram poslal SMS na číslo %1$s</string>
+    <string name="auth_code_sent_call">Telegram zavolá na číslo %1$s s kódom</string>
+    <string name="auth_password_title">Overenie v dvoch krokoch</string>
+    <string name="auth_password_prompt">Zadajte cloudové heslo Telegramu</string>
+    <string name="auth_password_label">Cloudové heslo</string>
+    <string name="auth_submit_password">Ďalej</string>
+    <string name="auth_error_phone_required">Zadajte telefónne číslo</string>
+    <string name="auth_error_code_required">Zadajte kód</string>
+    <string name="auth_error_password_required">Zadajte cloudové heslo</string>
+    <string name="auth_error_bad_password">Nesprávne cloudové heslo — skúste znova</string>
+    <string name="auth_error_srp_expired">Overenie v dvoch krokoch vypršalo — zadajte heslo znova</string>
+    <string name="auth_error_generic">Niečo sa pokazilo — skúste znova</string>
+    <string name="auth_error_network">Nedá sa pripojiť k Telegramu — skontrolujte pripojenie</string>
+    <string name="auth_error_no_account">Pre toto číslo sa nenašiel účet Telegram</string>
+    <string name="auth_error_restart">Prihlásenie vypršalo — klepnite na Ďalej pre nový kód</string>
+    <string name="auth_working">Prebieha prihlásenie</string>
+    <string name="auth_step_indicator">Krok %1$d z %2$d</string>
+    <string name="auth_resend_code">Poslať kód znova</string>
+    <string name="auth_resend_in">Znova o %1$d s</string>
+    <string name="auth_paste_password">Vložiť heslo</string>
+    <string name="auth_paste_empty">Schránka je prázdna</string>
+</resources>

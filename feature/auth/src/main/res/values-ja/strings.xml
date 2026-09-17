@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">Telegram にログイン</string>
+    <string name="auth_subtitle">電話番号を入力してください</string>
+    <string name="auth_phone_label">電話番号</string>
+    <string name="auth_country_picker">国を選択</string>
+    <string name="auth_country_search_hint">国を検索</string>
+    <string name="auth_dial_code">国番号</string>
+    <string name="auth_country_selected">国: %1$s</string>
+    <string name="auth_phone_hint">81 90 1234 5678</string>
+    <string name="auth_test_server">テストサーバー</string>
+    <string name="auth_test_server_sub">Telegram のテスト DC（本番ではありません）</string>
+    <string name="auth_code_title">コードを入力</string>
+    <string name="auth_code_label">コード</string>
+    <string name="auth_send_code">次へ</string>
+    <string name="auth_cd_back">番号を変更</string>
+    <string name="auth_show_password">パスワードを表示</string>
+    <string name="auth_hide_password">パスワードを隠す</string>
+    <string name="auth_sign_in">次へ</string>
+    <string name="auth_code_sent_to">%1$s にコードを送信しました</string>
+    <string name="auth_code_sent_telegram">他の Telegram アプリに送信しました</string>
+    <string name="auth_error_code_unavailable">コードは送信されていません。少し待ってから「次へ」を押してください。公式 Telegram にログインしている場合、コードはそちらに届きます。</string>
+    <string name="auth_code_sent_sms">Telegram が %1$s に SMS を送信しました</string>
+    <string name="auth_code_sent_call">Telegram が %1$s にコードを電話でお伝えします</string>
+    <string name="auth_password_title">2段階認証</string>
+    <string name="auth_password_prompt">Telegram のクラウドパスワードを入力</string>
+    <string name="auth_password_label">クラウドパスワード</string>
+    <string name="auth_submit_password">次へ</string>
+    <string name="auth_error_phone_required">電話番号を入力してください</string>
+    <string name="auth_error_code_required">コードを入力してください</string>
+    <string name="auth_error_password_required">クラウドパスワードを入力してください</string>
+    <string name="auth_error_bad_password">クラウドパスワードが正しくありません — もう一度お試しください</string>
+    <string name="auth_error_srp_expired">2段階認証の期限が切れました — パスワードを再入力してください</string>
+    <string name="auth_error_generic">問題が発生しました — もう一度お試しください</string>
+    <string name="auth_error_network">Telegram に接続できません — 接続を確認してください</string>
+    <string name="auth_error_no_account">この番号の Telegram アカウントが見つかりません</string>
+    <string name="auth_error_restart">ログインの期限が切れました — 「次へ」で新しいコードを取得してください</string>
+    <string name="auth_working">ログイン中</string>
+    <string name="auth_step_indicator">%1$d / %2$d ステップ</string>
+    <string name="auth_resend_code">コードを再送信</string>
+    <string name="auth_resend_in">%1$d秒後に再送信</string>
+    <string name="auth_paste_password">パスワードを貼り付け</string>
+    <string name="auth_paste_empty">クリップボードが空です</string>
+</resources>

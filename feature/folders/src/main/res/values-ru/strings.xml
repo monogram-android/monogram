@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">Папки</string>
+    <string name="folders_back">Назад</string>
+    <string name="folders_refresh">Обновить</string>
+    <string name="folders_loading">Загрузка папок</string>
+    <string name="folders_empty">Нет папок</string>
+    <string name="folders_list_heading">Папки чатов</string>
+    <string name="folders_all_chats">Все чаты</string>
+    <string name="folders_pinned">Закреплённая папка</string>
+    <string name="folders_reorder">Изменить порядок папок</string>
+    <string name="folders_add">Добавить папку</string>
+    <string name="folders_new">Новая папка</string>
+    <string name="folders_chat_count">%1$d чатов</string>
+    <string name="folders_save">Сохранить</string>
+    <string name="folders_search_chats">Поиск чатов</string>
+    <string name="folders_clear_search">Очистить поиск</string>
+    <string name="folders_include_empty">Найдите чаты, чтобы добавить</string>
+    <string name="folders_exclude_empty">Найдите чаты, чтобы исключить</string>
+    <string name="folders_delete">Удалить папку</string>
+    <string name="folders_name">Название папки</string>
+    <string name="folders_emoji">Иконка папки</string>
+    <string name="folders_include_types">Типы чатов</string>
+    <string name="folders_include_contacts">Контакты</string>
+    <string name="folders_include_non_contacts">Не контакты</string>
+    <string name="folders_include_groups">Группы</string>
+    <string name="folders_include_channels">Каналы</string>
+    <string name="folders_include_bots">Боты</string>
+    <string name="folders_exclude">Исключения</string>
+    <string name="folders_exclude_muted">Без уведомлений</string>
+    <string name="folders_exclude_read">Прочитанные</string>
+    <string name="folders_exclude_archived">В архиве</string>
+    <string name="folders_include_chats">Включённые чаты</string>
+    <string name="folders_exclude_chats">Исключённые чаты</string>
+</resources>

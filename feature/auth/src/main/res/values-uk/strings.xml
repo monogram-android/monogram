@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">Вхід у Telegram</string>
+    <string name="auth_subtitle">Введіть номер телефону</string>
+    <string name="auth_phone_label">Номер телефону</string>
+    <string name="auth_country_picker">Вибір країни</string>
+    <string name="auth_country_search_hint">Пошук країни</string>
+    <string name="auth_dial_code">Код країни</string>
+    <string name="auth_country_selected">Країна: %1$s</string>
+    <string name="auth_phone_hint">380 67 123 4567</string>
+    <string name="auth_test_server">Тестовий сервер</string>
+    <string name="auth_test_server_sub">Тестові DC Telegram, не production</string>
+    <string name="auth_code_title">Код</string>
+    <string name="auth_code_label">Код</string>
+    <string name="auth_send_code">Далі</string>
+    <string name="auth_cd_back">Змінити номер</string>
+    <string name="auth_show_password">Показати пароль</string>
+    <string name="auth_hide_password">Сховати пароль</string>
+    <string name="auth_sign_in">Далі</string>
+    <string name="auth_code_sent_to">Код надіслано на номер %1$s</string>
+    <string name="auth_code_sent_telegram">Надіслано в інші сесії Telegram</string>
+    <string name="auth_error_code_unavailable">Код не надіслано. Зачекайте й натисніть «Далі» ще раз. Якщо офіційний Telegram уже відкритий, код прийде туди.</string>
+    <string name="auth_code_sent_sms">Telegram надіслав SMS на номер %1$s</string>
+    <string name="auth_code_sent_call">Telegram зателефонує на номер %1$s з кодом</string>
+    <string name="auth_password_title">Двоетапна перевірка</string>
+    <string name="auth_password_prompt">Введіть хмарний пароль Telegram</string>
+    <string name="auth_password_label">Хмарний пароль</string>
+    <string name="auth_submit_password">Далі</string>
+    <string name="auth_error_phone_required">Введіть номер телефону</string>
+    <string name="auth_error_code_required">Введіть код</string>
+    <string name="auth_error_password_required">Введіть хмарний пароль</string>
+    <string name="auth_error_bad_password">Невірний хмарний пароль — спробуйте ще раз</string>
+    <string name="auth_error_srp_expired">Термін двоетапної перевірки минув — введіть пароль ще раз</string>
+    <string name="auth_error_generic">Щось пішло не так — спробуйте ще раз</string>
+    <string name="auth_error_network">Не вдається підключитися до Telegram — перевірте з\'єднання</string>
+    <string name="auth_error_no_account">Акаунт Telegram для цього номера не знайдено</string>
+    <string name="auth_error_restart">Сеанс входу закінчився — натисніть «Далі», щоб отримати новий код</string>
+    <string name="auth_working">Виконується вхід</string>
+    <string name="auth_step_indicator">Крок %1$d з %2$d</string>
+    <string name="auth_resend_code">Надіслати код ще раз</string>
+    <string name="auth_resend_in">Повторити через %1$d с</string>
+    <string name="auth_paste_password">Вставити пароль</string>
+    <string name="auth_paste_empty">Буфер обміну порожній</string>
+</resources>

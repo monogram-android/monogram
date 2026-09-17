@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">Telegram\'a giriş</string>
+    <string name="auth_subtitle">Telefon numaranızı girin</string>
+    <string name="auth_phone_label">Telefon numarası</string>
+    <string name="auth_country_picker">Ülke seçin</string>
+    <string name="auth_country_search_hint">Ülke ara</string>
+    <string name="auth_dial_code">Alan kodu</string>
+    <string name="auth_country_selected">Ülke: %1$s</string>
+    <string name="auth_phone_hint">90 532 123 4567</string>
+    <string name="auth_test_server">Test sunucusu</string>
+    <string name="auth_test_server_sub">Telegram test DC\'leri, üretim değil</string>
+    <string name="auth_code_title">Kodu girin</string>
+    <string name="auth_code_label">Kod</string>
+    <string name="auth_send_code">İleri</string>
+    <string name="auth_cd_back">Numarayı değiştir</string>
+    <string name="auth_show_password">Şifreyi göster</string>
+    <string name="auth_hide_password">Şifreyi gizle</string>
+    <string name="auth_sign_in">İleri</string>
+    <string name="auth_code_sent_to">Kod %1$s numarasına gönderildi</string>
+    <string name="auth_code_sent_telegram">Diğer Telegram uygulamalarınıza gönderildi</string>
+    <string name="auth_error_code_unavailable">Kod gönderilmedi. Bekleyin ve İleri\'ye tekrar dokunun. Resmi Telegram açıksa kod oraya gelir.</string>
+    <string name="auth_code_sent_sms">Telegram %1$s numarasına SMS gönderdi</string>
+    <string name="auth_code_sent_call">Telegram kod için %1$s numarasını arayacak</string>
+    <string name="auth_password_title">İki Adımlı Doğrulama</string>
+    <string name="auth_password_prompt">Telegram bulut şifrenizi girin</string>
+    <string name="auth_password_label">Bulut şifresi</string>
+    <string name="auth_submit_password">İleri</string>
+    <string name="auth_error_phone_required">Telefon numaranızı girin</string>
+    <string name="auth_error_code_required">Kodu girin</string>
+    <string name="auth_error_password_required">Bulut şifrenizi girin</string>
+    <string name="auth_error_bad_password">Yanlış bulut şifresi — tekrar deneyin</string>
+    <string name="auth_error_srp_expired">İki adımlı doğrulama süresi doldu — şifreyi yeniden girin</string>
+    <string name="auth_error_generic">Bir şeyler ters gitti — tekrar deneyin</string>
+    <string name="auth_error_network">Telegram\'a bağlanılamıyor — bağlantınızı kontrol edin</string>
+    <string name="auth_error_no_account">Bu numara için Telegram hesabı bulunamadı</string>
+    <string name="auth_error_restart">Giriş süresi doldu — yeni kod için İleri\'ye dokunun</string>
+    <string name="auth_working">Giriş yapılıyor</string>
+    <string name="auth_step_indicator">Adım %1$d / %2$d</string>
+    <string name="auth_resend_code">Kodu yeniden gönder</string>
+    <string name="auth_resend_in">%1$d sn sonra yeniden gönder</string>
+    <string name="auth_paste_password">Şifreyi yapıştır</string>
+    <string name="auth_paste_empty">Pano boş</string>
+</resources>

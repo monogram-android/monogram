@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">Carpetas</string>
+    <string name="folders_back">Atrás</string>
+    <string name="folders_refresh">Actualizar</string>
+    <string name="folders_loading">Cargando carpetas</string>
+    <string name="folders_empty">No hay carpetas</string>
+    <string name="folders_list_heading">Carpetas de chats</string>
+    <string name="folders_all_chats">Todos los chats</string>
+    <string name="folders_pinned">Carpeta fijada</string>
+    <string name="folders_reorder">Reordenar carpeta</string>
+    <string name="folders_add">Añadir carpeta</string>
+    <string name="folders_new">Nueva carpeta</string>
+    <string name="folders_chat_count">%1$d chats</string>
+    <string name="folders_save">Guardar</string>
+    <string name="folders_search_chats">Buscar chats</string>
+    <string name="folders_clear_search">Borrar búsqueda</string>
+    <string name="folders_include_empty">Busca para añadir chats</string>
+    <string name="folders_exclude_empty">Busca chats para excluir</string>
+    <string name="folders_delete">Eliminar carpeta</string>
+    <string name="folders_name">Nombre de la carpeta</string>
+    <string name="folders_emoji">Emoji de la carpeta</string>
+    <string name="folders_include_types">Incluir tipos de chat</string>
+    <string name="folders_include_contacts">Contactos</string>
+    <string name="folders_include_non_contacts">No contactos</string>
+    <string name="folders_include_groups">Grupos</string>
+    <string name="folders_include_channels">Canales</string>
+    <string name="folders_include_bots">Bots</string>
+    <string name="folders_exclude">Excluir</string>
+    <string name="folders_exclude_muted">Silenciados</string>
+    <string name="folders_exclude_read">Leídos</string>
+    <string name="folders_exclude_archived">Archivados</string>
+    <string name="folders_include_chats">Chats incluidos</string>
+    <string name="folders_exclude_chats">Chats excluidos</string>
+</resources>

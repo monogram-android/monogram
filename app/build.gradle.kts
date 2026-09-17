@@ -1,235 +1,170 @@
-import com.android.build.api.artifact.SingleArtifact
-import com.android.build.api.variant.FilterConfiguration
-import com.android.build.api.variant.impl.VariantOutputImpl
-import com.google.android.gms.oss.licenses.plugin.DependencyTask
 import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.oss.licenses)
-    alias(libs.plugins.androidx.baselineprofile)
+    alias(libs.plugins.kotlin.serialization)
 }
 
-val localProperties = rootProject.extra["localProperties"] as Properties
-val googleServicesFile = layout.projectDirectory.file("google-services.json").asFile
-val requestedTasks = gradle.startParameter.taskNames
-val requestsFirebaseVariant = requestedTasks.any { it.contains("Firebase", ignoreCase = true) }
-
-if (googleServicesFile.exists()) {
-    pluginManager.apply("com.google.gms.google-services")
-} else if (requestsFirebaseVariant) {
-    throw GradleException(
-        "Firebase build requested, but app/google-services.json is missing."
-    )
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
-val releaseStoreFile = localProperties.getProperty("RELEASE_STORE_FILE")?.takeIf { it.isNotBlank() }
-val releaseStorePassword =
-    localProperties.getProperty("RELEASE_STORE_PASSWORD")?.takeIf { it.isNotBlank() }
-val releaseKeyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")?.takeIf { it.isNotBlank() }
-val releaseKeyPassword =
-    localProperties.getProperty("RELEASE_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
-
-val hasReleaseSigning =
-    listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all {
-        !it.isNullOrBlank()
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use(::load)
     }
+}
+
+fun credential(name: String): String? =
+    localProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+        ?: providers.gradleProperty(name).orNull?.takeIf { it.isNotBlank() }
+        ?: System.getenv(name)?.takeIf { it.isNotBlank() }
+        ?: System.getenv("TELEGRAM_$name")?.takeIf { it.isNotBlank() }
+
+fun buildConfigString(value: String): String =
+    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+val telegramApiId: Int = credential("API_ID")?.toIntOrNull() ?: 0
+val telegramApiHash: String = credential("API_HASH").orEmpty()
+val unsignedBuild =
+    providers.gradleProperty("unsigned").orNull.equals("true", ignoreCase = true)
+val targetAbiProp = providers.gradleProperty("targetAbi").orNull
+val selectedAbis = if (!targetAbiProp.isNullOrBlank()) {
+    listOf(targetAbiProp)
+} else {
+    listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+}
+
+/** Short git SHA of the checked-out commit, shown next to the build type in settings. */
+val gitCommit: String = providers.exec {
+    commandLine("git", "rev-parse", "--short", "HEAD")
+    isIgnoreExitValue = true
+}.standardOutput.asText.get().trim().ifEmpty { "unknown" }
 
 android {
-    namespace = "org.monogram.app"
-    compileSdk = 37
-
-    signingConfigs {
-        if (hasReleaseSigning) {
-            create("release") {
-                storeFile = rootProject.file(releaseStoreFile!!)
-                storePassword = releaseStorePassword
-                keyAlias = releaseKeyAlias
-                keyPassword = releaseKeyPassword
-            }
-        }
+    namespace = "org.monogram"
+    compileSdk {
+        version = release(37)
     }
 
     defaultConfig {
         applicationId = "org.monogram"
-        minSdk = 25
+        minSdk = 24
         targetSdk = 37
-        versionCode = 16
-        versionName = "0.3.1"
-    }
+        versionCode = 1
+        versionName = "1.0"
 
-    flavorDimensions += listOf("tdlib", "runtime")
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-    productFlavors {
-        create("official") {
-            dimension = "tdlib"
-        }
-        create("telemt") {
-            dimension = "tdlib"
-        }
-        create("firebase") {
-            dimension = "runtime"
-        }
-        create("libre") {
-            dimension = "runtime"
+        buildConfigField("int", "TELEGRAM_API_ID", telegramApiId.toString())
+        buildConfigField("String", "TELEGRAM_API_HASH", buildConfigString(telegramApiHash))
+        buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
+
+        ndk {
+            abiFilters += selectedAbis
         }
     }
 
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = true
+    val releaseStoreFile = localProperties.getProperty("RELEASE_STORE_FILE")
+    if (!releaseStoreFile.isNullOrBlank()) {
+        signingConfigs {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile)
+                storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD").orEmpty()
+                keyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS").orEmpty()
+                keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD").orEmpty()
+            }
         }
-    }
-
-    androidResources {
-        @Suppress("UnstableApiUsage")
-        generateLocaleConfig = true
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            signingConfig = signingConfigs.findByName("release")
+                ?: if (unsignedBuild) null else signingConfigs.getByName("debug")
+            optimization {
+                enable = true
+                keepRules {
+                    includeDefault = true
+                }
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
-            buildFeatures {
-                resValues = true
-            }
-            signingConfig =
-                if (hasReleaseSigning) {
-                    signingConfigs.getByName("release")
-                } else {
-                    signingConfigs.getByName("debug")
-                }
-            resValue("string", "app_name", "MonoGram")
         }
-        debug {
-            buildFeatures {
-                resValues = true
+        create("beta") {
+            initWith(getByName("release"))
+            // Release behavior without R8: Kotlin/Java stays unminified so stack traces
+            // and debugger frames keep their real names.
+            optimization {
+                enable = false
             }
-            applicationIdSuffix = ".debug"
-            isMinifyEnabled = false
-            resValue("string", "app_name", "MonoGram Debug")
+            matchingFallbacks += listOf("release")
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.toVersion(libs.versions.javaToolchain.get().toIntOrNull()?: 25)
-        targetCompatibility = JavaVersion.toVersion(libs.versions.javaToolchain.get().toIntOrNull()?: 25)
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
-}
-
-androidComponents {
-    onVariants { variant ->
-        val tdlibFlavor =
-            variant.productFlavors.firstOrNull { it.first == "tdlib" }?.second ?: "default"
-        val runtimeFlavor =
-            variant.productFlavors.firstOrNull { it.first == "runtime" }?.second ?: "default"
-        val apkNamePrefix = buildString {
-            append(if (tdlibFlavor == "telemt") "monogram-telemt" else "monogram")
-            if (runtimeFlavor == "libre") {
-                append("-libre")
-            }
-        }
-
-        variant.outputs.forEach { output ->
-            val variantOutput = output as? VariantOutputImpl ?: return@forEach
-            val abi = variantOutput.filters.find {
-                it.filterType == FilterConfiguration.FilterType.ABI
-            }?.identifier ?: "universal"
-            val versionName = variantOutput.versionName.orNull ?: "unknown"
-
-            variantOutput.outputFileName.set(
-                "$apkNamePrefix-$abi-$versionName-${variant.buildType}.apk"
-            )
-        }
-
-        if (variant.buildType != "release") return@onVariants
-
-        val apkDirProvider = variant.artifacts.get(SingleArtifact.APK)
-
-        val capitalizedVariantName = variant.name.replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase() else it.toString()
-        }
-
-        val copyTask = tasks.register<Copy>("copy${capitalizedVariantName}Apk") {
-            description = "Task for copy apk into releases folder"
-            from(apkDirProvider)
-            include("*.apk")
-            into(layout.projectDirectory.dir("releases"))
-        }
-
-        project.tasks.matching { it.name == "assemble${capitalizedVariantName}" }.configureEach {
-            finalizedBy(copyTask)
-        }
-    }
-}
-
-configurations.configureEach {
-    val tink = "com.google.crypto.tink:tink-android:1.21.0"
-    resolutionStrategy {
-        force(tink)
-        dependencySubstitution {
-            substitute(module("com.google.crypto.tink:tink")).using(module(tink))
-        }
-    }
+    sourceSets.getByName("androidTest").assets.srcDir("../core/database/schemas")
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+    implementation(project(":core:common"))
+    implementation(project(":core:models"))
+    implementation(project(":core:markup"))
+    implementation(project(":core:ui"))
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.session)
+    implementation(project(":core:database"))
+    implementation(project(":feature:auth"))
+    implementation(project(":feature:chats"))
+    implementation(project(":feature:dialog"))
+    implementation(project(":feature:folders"))
+    implementation(project(":feature:profile"))
+    implementation(project(":feature:settings"))
+    implementation(project(":network:http"))
+    implementation(project(":network:bridge"))
+    implementation(project(":native:mtproto"))
+
+    implementation(libs.decompose)
+    implementation(libs.decompose.compose)
+    implementation(libs.essenty.lifecycle)
+    implementation(libs.mvikotlin)
+    implementation(libs.mvikotlin.main)
+
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.bundles.androidx.compose)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
-    implementation(libs.androidx.lifecycle.process)
-
-    implementation(libs.bundles.decompose)
-    implementation(libs.bundles.koin)
-
-    implementation(libs.coil.compose)
-    implementation(libs.coil.video)
-
-    implementation(libs.androidx.biometric)
-
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+    implementation(libs.play.services.base)
     implementation(libs.unifiedpush.connector)
-    add("firebaseImplementation", platform(libs.firebase.bom))
-    add("firebaseImplementation", libs.firebase.messaging)
-    add("firebaseImplementation", libs.play.services.oss.licenses)
-
-    implementation(libs.maplibre.compose)
-
-    implementation(project(":domain"))
-    implementation(project(":presentation"))
-    implementation(project(":data"))
-    implementation(project(":core"))
-
-    baselineProfile(project(":baselineprofile"))
 
     testImplementation(libs.junit)
-}
-
-tasks.withType(DependencyTask::class.java).configureEach {
-    if (name == "debugOssDependencyTask") {
-        val releaseJsonProvider =
-            layout.buildDirectory.file("generated/third_party_licenses/release/dependencies.json")
-        val debugJsonProvider =
-            layout.buildDirectory.file("generated/third_party_licenses/debug/dependencies.json")
-
-        dependsOn("releaseOssDependencyTask")
-
-        doLast {
-            val releaseJson = releaseJsonProvider.get().asFile
-            val debugJson = debugJsonProvider.get().asFile
-            if (releaseJson.exists()) {
-                debugJson.parentFile?.mkdirs()
-                releaseJson.copyTo(debugJson, overwrite = true)
-            }
-        }
-    }
+    testImplementation(libs.ktor.client.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.media3.exoplayer)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 }

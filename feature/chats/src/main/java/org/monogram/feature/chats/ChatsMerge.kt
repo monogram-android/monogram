@@ -1,0 +1,170 @@
+package org.monogram.feature.chats
+
+import org.monogram.core.database.dao.ChatReadState
+import org.monogram.core.models.Chat
+import org.monogram.core.models.Message
+import org.monogram.core.models.PeerId
+import org.monogram.core.models.chatListPreviewSource
+import org.monogram.core.models.mergeLocalCache
+import org.monogram.core.models.preferredPeerTitle
+
+internal fun applyReadStates(chats: List<Chat>, rows: Map<Long, ChatReadState>): List<Chat> {
+    // Room invalidates the whole table; apply its snapshot once, copying only on change.
+    var updated: MutableList<Chat>? = null
+    chats.forEachIndexed { index, chat ->
+        val row = rows[chat.id.value] ?: return@forEachIndexed
+        val unread = row.unreadCount.coerceAtLeast(0)
+        if (row.readInboxMaxId < chat.readInboxMaxId ||
+            (row.readInboxMaxId == chat.readInboxMaxId && unread == chat.unreadCount)
+        ) return@forEachIndexed
+        val target = updated ?: chats.toMutableList().also { updated = it }
+        target[index] = chat.copy(readInboxMaxId = row.readInboxMaxId, unreadCount = unread)
+    }
+    return updated ?: chats
+}
+
+internal fun Chat.isShownInChatList(): Boolean = !left
+
+internal fun Chat.isMainListRow(): Boolean = isShownInChatList() && !archived
+
+internal fun sortChats(chats: Collection<Chat>): List<Chat> =
+    chats.filter { it.isShownInChatList() }.sortedWith(
+        compareByDescending<Chat> { it.pinned }
+            .thenBy { it.pinnedOrder }
+            .thenByDescending { it.lastMessageDate ?: 0L },
+    )
+
+internal fun mergeChats(current: List<Chat>, extra: List<Chat>): List<Chat> {
+    val typing = current.filter { it.typing }.associateBy { it.id.value }
+    val byId = LinkedHashMap<Long, Chat>()
+    current.forEach { byId[it.id.value] = it }
+    val extraPinned = extra.count { it.pinned && it.isShownInChatList() }
+    extra.forEach { incoming ->
+        if (!incoming.isShownInChatList()) {
+            byId.remove(incoming.id.value)
+            return@forEach
+        }
+        val prev = byId[incoming.id.value]
+        val pinnedOrder = when {
+            incoming.pinned && extraPinned > 1 && incoming.pinnedOrder != Int.MAX_VALUE ->
+                incoming.pinnedOrder
+            else -> prev?.pinnedOrder ?: incoming.pinnedOrder
+        }
+        val live = typing[incoming.id.value]
+        byId[incoming.id.value] = incoming.mergeLocalCache(prev).copy(
+            title = preferredPeerTitle(incoming.title, prev?.title, incoming.id.value),
+            typing = live != null,
+            typingName = live?.typingName,
+            typingAction = live?.typingAction,
+            pinnedOrder = pinnedOrder,
+            photoCacheKey = incoming.photoCacheKey ?: prev?.photoCacheKey,
+            dialogScrollMessageId = incoming.dialogScrollMessageId ?: prev?.dialogScrollMessageId,
+        )
+    }
+    return sortChats(byId.values)
+}
+
+internal fun applyEditedMessage(chats: List<Chat>, message: Message): List<Chat> =
+    chats.map { chat ->
+        if (chat.id == message.id.chatId && chat.lastMessageId == message.id.id) {
+            chat.copy(
+                lastMessagePreview = message.chatListPreviewSource(),
+                lastMessageOutgoing = message.outgoing,
+                lastMessageSenderName = message.senderName,
+                lastMessageMediaKind = message.mediaKind,
+                lastMessageDate = message.date,
+                lastMediaThumbCacheKey = message.thumbCacheKey ?: chat.lastMediaThumbCacheKey,
+            )
+        } else {
+            chat
+        }
+    }
+
+internal fun applyLatestReplacement(
+    chats: List<Chat>,
+    chatId: PeerId,
+    next: Message?,
+): List<Chat> =
+    chats.map { chat ->
+        if (chat.id != chatId) {
+            chat
+        } else {
+            chat.copy(
+                lastMessagePreview = next?.chatListPreviewSource(),
+                lastMessageOutgoing = next?.outgoing ?: false,
+                lastMessageSenderName = next?.senderName,
+                lastMessageMediaKind = next?.mediaKind,
+                lastMessageDate = next?.date,
+                lastMessageId = next?.id?.id ?: 0,
+                lastMediaThumbCacheKey = next?.thumbCacheKey,
+            )
+        }
+    }
+
+internal fun applyUnreadMentions(chats: List<Chat>, chatId: PeerId, stillUnread: Int): List<Chat> {
+    val still = stillUnread.coerceAtLeast(0)
+    return chats.map { chat ->
+        if (chat.id == chatId && chat.unreadMentionsCount != still) {
+            chat.copy(unreadMentionsCount = still)
+        } else {
+            chat
+        }
+    }
+}
+
+internal fun applyUnreadReactions(chats: List<Chat>, chatId: PeerId, stillUnread: Int): List<Chat> {
+    val still = stillUnread.coerceAtLeast(0)
+    return chats.map { chat ->
+        if (chat.id == chatId && chat.unreadReactionsCount != still) {
+            chat.copy(unreadReactionsCount = still)
+        } else {
+            chat
+        }
+    }
+}
+
+internal fun applyUnreadMentionsDelta(chats: List<Chat>, chatId: PeerId, delta: Int): List<Chat> {
+    if (delta == 0) return chats
+    return chats.map { chat ->
+        if (chat.id == chatId) {
+            chat.copy(unreadMentionsCount = (chat.unreadMentionsCount + delta).coerceAtLeast(0))
+        } else {
+            chat
+        }
+    }
+}
+
+internal fun applyUnreadReactionsDelta(chats: List<Chat>, chatId: PeerId, delta: Int): List<Chat> {
+    if (delta == 0) return chats
+    return chats.map { chat ->
+        if (chat.id == chatId) {
+            chat.copy(unreadReactionsCount = (chat.unreadReactionsCount + delta).coerceAtLeast(0))
+        } else {
+            chat
+        }
+    }
+}
+
+internal fun applyIncomingMessage(chats: List<Chat>, message: Message): List<Chat> {
+    val existing = chats.firstOrNull { it.id == message.id.chatId } ?: return chats
+    val unread =
+        if (message.outgoing || message.id.id <= existing.readInboxMaxId ||
+            message.id.id == existing.lastMessageId
+        ) {
+            existing.unreadCount
+        } else {
+            existing.unreadCount + 1
+        }
+    val updated = existing.copy(
+        title = existing.title,
+        lastMessagePreview = message.chatListPreviewSource(),
+        lastMessageOutgoing = message.outgoing,
+        lastMessageSenderName = message.senderName,
+        lastMessageMediaKind = message.mediaKind,
+        lastMessageDate = message.date,
+        unreadCount = unread,
+        lastMessageId = message.id.id,
+        lastMediaThumbCacheKey = message.thumbCacheKey ?: existing.lastMediaThumbCacheKey,
+    )
+    return mergeChats(chats, listOf(updated))
+}

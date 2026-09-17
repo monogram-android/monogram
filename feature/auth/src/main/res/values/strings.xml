@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">Log in to Telegram</string>
+    <string name="auth_subtitle">Enter your phone number</string>
+    <string name="auth_phone_label">Phone number</string>
+    <string name="auth_country_picker">Select country</string>
+    <string name="auth_country_search_hint">Search country</string>
+    <string name="auth_dial_code">Dial code</string>
+    <string name="auth_country_selected">Country: %1$s</string>
+    <string name="auth_phone_hint">49 151 1234567</string>
+    <string name="auth_test_server">Test server</string>
+    <string name="auth_test_server_sub">Telegram test DCs, not production</string>
+    <string name="auth_code_title">Enter code</string>
+    <string name="auth_code_label">Code</string>
+    <string name="auth_send_code">Next</string>
+    <string name="auth_cd_back">Change phone number</string>
+    <string name="auth_show_password">Show password</string>
+    <string name="auth_hide_password">Hide password</string>
+    <string name="auth_sign_in">Next</string>
+    <string name="auth_code_sent_to">We sent the code to %1$s</string>
+    <string name="auth_code_sent_telegram">Sent to your other Telegram apps</string>
+    <string name="auth_error_code_unavailable">No code sent. Wait, then try Next again. If official Telegram is logged in, the code arrives there.</string>
+    <string name="auth_code_sent_sms">Telegram sent an SMS to %1$s</string>
+    <string name="auth_code_sent_call">Telegram will call %1$s with the code</string>
+    <string name="auth_password_title">Two-Step Verification</string>
+    <string name="auth_password_prompt">Enter your Telegram cloud password</string>
+    <string name="auth_password_label">Cloud password</string>
+    <string name="auth_submit_password">Next</string>
+    <string name="auth_error_phone_required">Enter your phone number</string>
+    <string name="auth_error_code_required">Enter the code</string>
+    <string name="auth_error_password_required">Enter your cloud password</string>
+    <string name="auth_error_bad_password">Incorrect cloud password — try again</string>
+    <string name="auth_error_srp_expired">Two-Step Verification expired — enter your password again</string>
+    <string name="auth_error_generic">Something went wrong — try again</string>
+    <string name="auth_error_network">Can’t connect to Telegram — check your connection</string>
+    <string name="auth_error_no_account">No Telegram account found for this number</string>
+    <string name="auth_error_restart">This sign-in expired — tap Next to get a new code</string>
+    <string name="auth_working">Logging in</string>
+    <string name="auth_step_indicator">Step %1$d of %2$d</string>
+    <string name="auth_resend_code">Resend code</string>
+    <string name="auth_resend_in">Resend in %1$d s</string>
+    <string name="auth_paste_password">Paste password</string>
+    <string name="auth_paste_empty">Clipboard is empty</string>
+</resources>

@@ -1,0 +1,17 @@
+## Copy to local.properties (gitignored) and fill in values.
+sdk.dir=C\:\\Users\\YOU\\AppData\\Local\\Android\\Sdk
+API_ID=YOUR_TELEGRAM_API_ID
+API_HASH=YOUR_TELEGRAM_API_HASH
+
+## Push (FCM): put app/google-services.json next to the app module (gitignored).
+## Register the same Firebase Cloud Messaging key on this API_ID at
+## https://my.telegram.org/apps or Telegram will not send FCM to this client.
+## Never commit firebase-adminsdk JSON or package it in the APK.
+## Live FCM tests need a Google Play emulator image, not AOSP.
+
+## Optional. Without these, assembleRelease signs with the debug keystore.
+## Pass -Punsigned=true to skip signing the release APK.
+# RELEASE_STORE_FILE=release.keystore
+# RELEASE_STORE_PASSWORD=
+# RELEASE_KEY_ALIAS=
+# RELEASE_KEY_PASSWORD=

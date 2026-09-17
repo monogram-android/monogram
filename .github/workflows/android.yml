@@ -1,45 +1,117 @@
-name: Android CI
+name: Android
 
 on:
+  push:
   pull_request:
-    branches: ["master", "develop"]
   workflow_dispatch:
 
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  build:
+  apk:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 120
+    env:
+      CI: true
+      CARGO_TERM_COLOR: always
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dkotlin.incremental=false
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-      with:
-        submodules: recursive
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
-    - name: Set up JDK 25
-      uses: actions/setup-java@v5
-      with:
-        java-version: '25'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Checkout Tellers MTProto
+        uses: actions/checkout@v5
+        with:
+          repository: gdlbo/telers-mtproto-impl
+          path: .ci/telers-mtproto-impl
+          persist-credentials: false
 
-    - name: Make all scripts executable
-      run: |
-        chmod +x gradlew
-        chmod +x presentation/src/main/cpp/build.sh
+      - name: Link Tellers MTProto crate
+        run: |
+          ln -sfn "$GITHUB_WORKSPACE/.ci/telers-mtproto-impl" "$GITHUB_WORKSPACE/../telers-mtproto-impl"
+          test -f "$GITHUB_WORKSPACE/../telers-mtproto-impl/crates/tellers-mtproto/Cargo.toml"
 
-    - name: Build libvpx
-      run: cd presentation/src/main/cpp && ./build.sh
+      - name: JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
 
-    - name: Run Official Libre Debug Unit Tests
-      run: ./gradlew testOfficialLibreDebugUnitTest
+      - name: Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
 
-    - name: Build Official Libre Debug APK
-      run: ./gradlew assembleOfficialLibreDebug
+      - name: Android NDK
+        uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r28c
+          add-to-path: false
+          link-to-sdk: true
 
-#    - name: Run Telemt Libre Debug Unit Tests
-#      run: ./gradlew testTelemtLibreDebugUnitTest
-#
-#    - name: Build Telemt Libre Debug APK
-#      run: ./gradlew assembleTelemtLibreDebug
+      - name: Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            native/mtproto-rs
+            native/markup-rs
+          cache-targets: true
+          cache-all-crates: true
+
+      - name: cargo-ndk
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: cargo-ndk
+
+      - name: SDK path
+        run: |
+          test -n "$ANDROID_SDK_ROOT" || echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=${{ steps.ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=${{ steps.ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+          chmod +x gradlew
+
+      - name: Assemble debug and release
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+          ANDROID_NDK_ROOT: ${{ steps.ndk.outputs.ndk-path }}
+        run: ./gradlew --no-daemon :app:assembleDebug :app:assembleRelease
+
+      - name: Stage APKs
+        run: |
+          mkdir -p dist
+          debug=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          release=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
+          test -n "$debug" && test -n "$release"
+          cp "$debug" dist/monogram-debug.apk
+          cp "$release" dist/monogram-release.apk
+          ls -l dist
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: monogram-debug
+          path: dist/monogram-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: monogram-release
+          path: dist/monogram-release.apk
+          if-no-files-found: error
+          retention-days: 14

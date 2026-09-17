@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">Մուտք Telegram</string>
+    <string name="auth_subtitle">Մուտքագրեք հեռախոսահամարը</string>
+    <string name="auth_phone_label">Հեռախոսահամար</string>
+    <string name="auth_country_picker">Ընտրել երկիրը</string>
+    <string name="auth_country_search_hint">Որոնել երկիր</string>
+    <string name="auth_dial_code">Երկրի կոդ</string>
+    <string name="auth_country_selected">Երկիր՝ %1$s</string>
+    <string name="auth_phone_hint">374 91 123456</string>
+    <string name="auth_test_server">Փորձարկման սերվեր</string>
+    <string name="auth_test_server_sub">Telegram-ի փորձարկման DC-ներ, ոչ արտադրական</string>
+    <string name="auth_code_title">Մուտքագրեք կոդը</string>
+    <string name="auth_code_label">Կոդ</string>
+    <string name="auth_send_code">Հաջորդը</string>
+    <string name="auth_cd_back">Փոխել համարը</string>
+    <string name="auth_show_password">Ցույց տալ գաղտնաբառը</string>
+    <string name="auth_hide_password">Թաքցնել գաղտնաբառը</string>
+    <string name="auth_sign_in">Հաջորդը</string>
+    <string name="auth_code_sent_to">Կոդն ուղարկվել է %1$s համարին</string>
+    <string name="auth_code_sent_telegram">Ուղարկված է ձեր մյուս Telegram հավելվածներին</string>
+    <string name="auth_error_code_unavailable">Կոդ չի ուղարկվել։ Սպասեք և կրկին սեղմեք «Հաջորդը»։ Եթե պաշտոնական Telegram-ը բաց է, կոդը կգա այնտեղ։</string>
+    <string name="auth_code_sent_sms">Telegram-ը SMS է ուղարկել %1$s համարին</string>
+    <string name="auth_code_sent_call">Telegram-ը կզանգի %1$s համարին կոդով</string>
+    <string name="auth_password_title">Երկու քայլով հաստատում</string>
+    <string name="auth_password_prompt">Մուտքագրեք Telegram-ի ամպային գաղտնաբառը</string>
+    <string name="auth_password_label">Ամպային գաղտնաբառ</string>
+    <string name="auth_submit_password">Հաջորդը</string>
+    <string name="auth_error_phone_required">Մուտքագրեք հեռախոսահամարը</string>
+    <string name="auth_error_code_required">Մուտքագրեք կոդը</string>
+    <string name="auth_error_password_required">Մուտքագրեք ամպային գաղտնաբառը</string>
+    <string name="auth_error_bad_password">Սխալ ամպային գաղտնաբառ — փորձեք կրկին</string>
+    <string name="auth_error_srp_expired">Երկու քայլով հաստատման ժամկետը սպառվեց — նորից մուտքագրեք գաղտնաբառը</string>
+    <string name="auth_error_generic">Ինչ-որ բան սխալ գնաց — փորձեք կրկին</string>
+    <string name="auth_error_network">Չի հաջողվում միանալ Telegram-ին — ստուգեք կապը</string>
+    <string name="auth_error_no_account">Այս համարի համար Telegram հաշիվ չգտնվեց</string>
+    <string name="auth_error_restart">Մուտքն ավարտվել է — սեղմեք «Հաջորդը»՝ նոր կոդ ստանալու համար</string>
+    <string name="auth_working">Մուտք է կատարվում</string>
+    <string name="auth_step_indicator">Քայլ %1$d / %2$d</string>
+    <string name="auth_resend_code">Կրկին ուղարկել կոդը</string>
+    <string name="auth_resend_in">Կրկին ուղարկել %1$d վրկ հետո</string>
+    <string name="auth_paste_password">Տեղադրել գաղտնաբառը</string>
+    <string name="auth_paste_empty">Սեղմատախտակը դատարկ է</string>
+</resources>

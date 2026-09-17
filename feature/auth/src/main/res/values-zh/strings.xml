@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">登录 Telegram</string>
+    <string name="auth_subtitle">输入你的手机号码</string>
+    <string name="auth_phone_label">手机号码</string>
+    <string name="auth_country_picker">选择国家/地区</string>
+    <string name="auth_country_search_hint">搜索国家/地区</string>
+    <string name="auth_dial_code">区号</string>
+    <string name="auth_country_selected">国家/地区：%1$s</string>
+    <string name="auth_phone_hint">86 138 0013 8000</string>
+    <string name="auth_test_server">测试服务器</string>
+    <string name="auth_test_server_sub">Telegram 测试数据中心，非正式环境</string>
+    <string name="auth_code_title">输入验证码</string>
+    <string name="auth_code_label">验证码</string>
+    <string name="auth_send_code">下一步</string>
+    <string name="auth_cd_back">更改手机号</string>
+    <string name="auth_show_password">显示密码</string>
+    <string name="auth_hide_password">隐藏密码</string>
+    <string name="auth_sign_in">下一步</string>
+    <string name="auth_code_sent_to">验证码已发送至 %1$s</string>
+    <string name="auth_code_sent_telegram">已发送到你的其他 Telegram 应用</string>
+    <string name="auth_error_code_unavailable">未发送验证码。请稍候再点下一步。如果官方 Telegram 已登录，验证码会发到那里。</string>
+    <string name="auth_code_sent_sms">Telegram 已向 %1$s 发送短信</string>
+    <string name="auth_code_sent_call">Telegram 将呼叫 %1$s 并告知验证码</string>
+    <string name="auth_password_title">两步验证</string>
+    <string name="auth_password_prompt">输入 Telegram 云密码</string>
+    <string name="auth_password_label">云密码</string>
+    <string name="auth_submit_password">下一步</string>
+    <string name="auth_error_phone_required">请输入手机号码</string>
+    <string name="auth_error_code_required">请输入验证码</string>
+    <string name="auth_error_password_required">请输入云密码</string>
+    <string name="auth_error_bad_password">云密码不正确 — 请重试</string>
+    <string name="auth_error_srp_expired">两步验证已过期 — 请重新输入密码</string>
+    <string name="auth_error_generic">出了点问题 — 请重试</string>
+    <string name="auth_error_network">无法连接 Telegram — 请检查网络</string>
+    <string name="auth_error_no_account">未找到此号码的 Telegram 账号</string>
+    <string name="auth_error_restart">登录已过期 — 点下一步获取新验证码</string>
+    <string name="auth_working">正在登录</string>
+    <string name="auth_step_indicator">第 %1$d 步，共 %2$d 步</string>
+    <string name="auth_resend_code">重新发送验证码</string>
+    <string name="auth_resend_in">%1$d 秒后可重新发送</string>
+    <string name="auth_paste_password">粘贴密码</string>
+    <string name="auth_paste_empty">剪贴板为空</string>
+</resources>

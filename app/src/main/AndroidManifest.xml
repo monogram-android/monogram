@@ -1,123 +1,152 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:tools="http://schemas.android.com/tools">
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera.any" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
-    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+
     <queries>
         <intent>
-            <action android:name="org.unifiedpush.android.connector.REGISTER" />
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="*/*" />
         </intent>
+        <intent>
+            <action android:name="org.unifiedpush.android.distributor.REGISTER" />
+        </intent>
+        <!-- Map apps for a shared location; API 30+ package visibility hides them otherwise. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <package android:name="com.google.android.apps.maps" />
+        <package android:name="ru.yandex.yandexmaps" />
+        <package android:name="ru.yandex.yandexnavi" />
+        <package android:name="ru.dublgis.dgismobile" />
+        <package android:name="com.waze" />
+        <package android:name="com.here.app.maps" />
     </queries>
 
     <application
-        android:allowBackup="true"
+        android:name=".MonogramApp"
+        android:allowBackup="false"
+        android:appCategory="social"
+        android:description="@string/app_description"
+        android:enableOnBackInvokedCallback="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:name=".App"
+        android:localeConfig="@xml/locales_config"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MonoGram">
+        android:usesCleartextTraffic="false"
+        android:theme="@style/Theme.Monogram"
+        tools:targetApi="33">
         <activity
-                android:name=".MainActivity"
-                android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
-                android:enableOnBackInvokedCallback="true"
-                android:exported="true"
-                android:hardwareAccelerated="true"
-                android:label="@string/app_name"
-                android:launchMode="singleTask"
-                android:supportsPictureInPicture="true"
+            android:name=".CrashActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Monogram" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
             android:theme="@style/Theme.MonoGram.Startup"
-                android:windowSoftInputMode="adjustResize"
-                tools:targetApi="33">
+            android:launchMode="singleTop"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboard|keyboardHidden|navigation|touchscreen|fontScale|uiMode|density|layoutDirection"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
-            <intent-filter android:autoVerify="false">
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="https" android:host="t.me"/>
-                <data
-                    android:host="www.t.me"
-                    android:scheme="https" />
-                <data
-                    android:host="telegram.me"
-                    android:scheme="https" />
-                <data
-                    android:host="www.telegram.me"
-                    android:scheme="https" />
-                <data
-                    android:host="telegram.dog"
-                    android:scheme="https" />
-                <data
-                    android:host="www.telegram.dog"
-                    android:scheme="https" />
-                <data
-                    android:host="t.you"
-                    android:scheme="https" />
-                <data
-                    android:host="www.t.you"
-                    android:scheme="https" />
-            </intent-filter>
-
             <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="tg"/>
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.SEND_MULTIPLE" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="t.me" />
+                <data android:scheme="http" android:host="t.me" />
+                <data android:scheme="https" android:host="www.t.me" />
+                <data android:scheme="http" android:host="www.t.me" />
+                <data android:scheme="https" android:host="telegram.me" />
+                <data android:scheme="http" android:host="telegram.me" />
+                <data android:scheme="https" android:host="www.telegram.me" />
+                <data android:scheme="http" android:host="www.telegram.me" />
+                <data android:scheme="https" android:host="telegram.dog" />
+                <data android:scheme="http" android:host="telegram.dog" />
+                <data android:scheme="https" android:host="www.telegram.dog" />
+                <data android:scheme="http" android:host="www.telegram.dog" />
+                <data android:scheme="tg" />
             </intent-filter>
         </activity>
-
-        <activity
-                android:name=".CrashActivity"
-                android:exported="false"
-                android:process=":crash"
-                android:theme="@style/Theme.MonoGram"/>
+        <service
+            android:name=".MonogramMediaSessionService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".push.MonogramFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".push.MonogramUnifiedPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
+        <receiver
+            android:name=".push.NotificationActionReceiver"
+            android:exported="false" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="private_messages" />
+        <meta-data
+            android:name="com.google.android.gms.car.notification.SmallIcon"
+            android:resource="@drawable/ic_notification" />
         <provider
-                android:name="androidx.core.content.FileProvider"
-                android:authorities="${applicationId}.provider"
-                android:exported="false"
-                android:grantUriPermissions="true">
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
             <meta-data
-                    android:name="android.support.FILE_PROVIDER_PATHS"
-                    android:resource="@xml/file_paths"/>
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
         </provider>
     </application>
 

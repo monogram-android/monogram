@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chats_settings">Ajustes</string>
+    <string name="chats_profile">Yo</string>
+    <string name="chats_my_profile">Mi perfil</string>
+    <string name="chats_refresh">Actualizar</string>
+    <string name="chats_loading">Cargando chats</string>
+    <string name="chats_empty">Aún no hay chats</string>
+    <string name="chats_untitled">Chat</string>
+    <string name="chats_saved_messages">Mensajes guardados</string>
+    <string name="chats_search">Buscar chats</string>
+    <string name="chats_search_close">Cerrar búsqueda</string>
+    <string name="chats_folder_all">Todos los chats</string>
+    <string name="chats_folder_archive">Archivados</string>
+    <string name="chats_folder_manage">Gestionar carpetas</string>
+    <string name="chats_mark_read">Marcar como leído</string>
+    <string name="chats_mark_all_read">Leer todos los mensajes</string>
+    <string name="chats_mark_unread">Marcar como no leído</string>
+    <string name="chats_marked_unread">Marcado como no leído</string>
+    <string name="chats_back">Atrás</string>
+    <string name="chats_archive_empty">No hay chats archivados</string>
+    <string name="chats_empty_body">Los chats que inicies o a los que te unas aparecerán aquí.</string>
+    <string name="chats_empty_show_all">Mostrar todos los chats</string>
+    <string name="chats_folder_empty">Esta carpeta está vacía</string>
+    <string name="chats_folder_empty_body">Ningún chat coincide con este filtro. Puedes añadir chats desde los ajustes de la carpeta.</string>
+    <string name="chats_archive_empty_body">Los chats que archives desaparecen de la lista principal y viven aquí.</string>
+    <string name="chats_search_empty">Nada encontrado</string>
+    <string name="chats_search_empty_body">Ningún chat coincide con “%1$s”.</string>
+    <string name="chats_search_clear">Borrar búsqueda</string>
+    <string name="chats_muted">Silenciado</string>
+    <string name="chats_pinned">Fijados</string>
+    <string name="chats_brand">Monogram</string>
+    <string name="chats_waiting_network">Esperando red</string>
+    <string name="chats_yesterday">Ayer</string>
+    <string name="chats_online">En línea</string>
+    <string name="chats_preview_you">Tú</string>
+    <string name="chats_preview_photo">Foto</string>
+    <string name="chats_preview_video">Video</string>
+    <string name="chats_preview_gif">GIF</string>
+    <string name="chats_preview_sticker">Sticker</string>
+    <string name="chats_preview_document">Archivo</string>
+    <string name="chats_preview_audio">Audio</string>
+    <string name="chats_preview_voice">Mensaje de voz</string>
+    <string name="chats_preview_link">Enlace</string>
+    <string name="chats_preview_checklist">Lista de tareas</string>
+    <string name="chats_status_sending">Enviando</string>
+    <string name="chats_status_sent">Enviado</string>
+    <string name="chats_status_read">Leído</string>
+    <plurals name="chats_unread_count">
+        <item quantity="one">%d mensaje no leído</item>
+        <item quantity="other">%d mensajes no leídos</item>
+    </plurals>
+    <plurals name="chats_unread_chats">
+        <item quantity="one">%d chat no leído</item>
+        <item quantity="other">%d chats no leídos</item>
+    </plurals>
+    <string name="chats_verified">Verificado</string>
+    <string name="chats_unread_mentions">Menciones no leídas</string>
+</resources>

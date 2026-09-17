@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <external-path name="external_files" path="."/>
-    <cache-path name="cache_files" path="."/>
-    <files-path name="internal_files" path="."/>
+    <files-path name="media" path="media/" />
+    <cache-path name="media-cache" path="media/" />
+    <cache-path name="cache" path="." />
+    <external-cache-path name="ext-cache" path="." />
 </paths>

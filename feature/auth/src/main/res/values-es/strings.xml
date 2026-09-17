@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">Iniciar sesión en Telegram</string>
+    <string name="auth_subtitle">Introduce tu número de teléfono</string>
+    <string name="auth_phone_label">Número de teléfono</string>
+    <string name="auth_country_picker">Elegir país</string>
+    <string name="auth_country_search_hint">Buscar país</string>
+    <string name="auth_dial_code">Prefijo</string>
+    <string name="auth_country_selected">País: %1$s</string>
+    <string name="auth_phone_hint">34 612 345 678</string>
+    <string name="auth_test_server">Servidor de prueba</string>
+    <string name="auth_test_server_sub">DC de prueba de Telegram, no producción</string>
+    <string name="auth_code_title">Introduce el código</string>
+    <string name="auth_code_label">Código</string>
+    <string name="auth_send_code">Siguiente</string>
+    <string name="auth_cd_back">Cambiar número</string>
+    <string name="auth_show_password">Mostrar contraseña</string>
+    <string name="auth_hide_password">Ocultar contraseña</string>
+    <string name="auth_sign_in">Siguiente</string>
+    <string name="auth_code_sent_to">Enviamos el código al %1$s</string>
+    <string name="auth_code_sent_telegram">Enviado a tus otras apps de Telegram</string>
+    <string name="auth_error_code_unavailable">No se envió el código. Espera y pulsa Siguiente de nuevo. Si Telegram oficial está abierto, el código llega allí.</string>
+    <string name="auth_code_sent_sms">Telegram envió un SMS al %1$s</string>
+    <string name="auth_code_sent_call">Telegram llamará al %1$s con el código</string>
+    <string name="auth_password_title">Verificación en dos pasos</string>
+    <string name="auth_password_prompt">Introduce tu contraseña de la nube de Telegram</string>
+    <string name="auth_password_label">Contraseña de la nube</string>
+    <string name="auth_submit_password">Siguiente</string>
+    <string name="auth_error_phone_required">Introduce tu número de teléfono</string>
+    <string name="auth_error_code_required">Introduce el código</string>
+    <string name="auth_error_password_required">Introduce tu contraseña de la nube</string>
+    <string name="auth_error_bad_password">Contraseña de la nube incorrecta — inténtalo de nuevo</string>
+    <string name="auth_error_srp_expired">La verificación en dos pasos caducó — introduce la contraseña otra vez</string>
+    <string name="auth_error_generic">Algo salió mal — inténtalo de nuevo</string>
+    <string name="auth_error_network">No se puede conectar a Telegram — comprueba la conexión</string>
+    <string name="auth_error_no_account">No hay una cuenta de Telegram para este número</string>
+    <string name="auth_error_restart">El inicio de sesión caducó — pulsa Siguiente para un código nuevo</string>
+    <string name="auth_working">Iniciando sesión</string>
+    <string name="auth_step_indicator">Paso %1$d de %2$d</string>
+    <string name="auth_resend_code">Reenviar código</string>
+    <string name="auth_resend_in">Reenviar en %1$d s</string>
+    <string name="auth_paste_password">Pegar contraseña</string>
+    <string name="auth_paste_empty">El portapapeles está vacío</string>
+</resources>

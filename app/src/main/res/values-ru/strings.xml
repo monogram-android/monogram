@@ -1,46 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Lock Screen -->
-    <string name="lock_unlock_title">Разблокировать MonoGram</string>
-    <string name="lock_unlock_subtitle">Используйте биометрические данные для входа</string>
-    <string name="lock_use_passcode">Использовать код</string>
-    <string name="lock_enter_passcode">Введите код-пароль</string>
-    <string name="lock_messages_protected">Ваши сообщения защищены</string>
-    <string name="lock_invalid_passcode">Неверный код-пароль</string>
-    <string name="lock_biometric_unlock">Биометрия</string>
-
-    <!-- Main Content / Proxy Confirm -->
-    <string name="proxy_details">Данные прокси</string>
-    <string name="proxy_add_connect">Добавить и подключиться к этому прокси-серверу</string>
-    <string name="proxy_server">Сервер</string>
-    <string name="proxy_port">Порт</string>
-    <string name="proxy_type">Тип</string>
-    <string name="proxy_unknown">Неизвестно</string>
-    <string name="cancel">Отмена</string>
-    <string name="connect">Подключиться</string>
-
-    <!-- Main Content / Chat Confirm -->
-    <string name="chat_join">Присоединиться</string>
-    <string name="chat_channel">Канал</string>
-    <string name="chat_group">Группа</string>
-    <plurals name="members_count">
-        <item quantity="one">%d участник</item>
-        <item quantity="few">%d участника</item>
-        <item quantity="many">%d участников</item>
-        <item quantity="other">%d участников</item>
+    <string name="app_name">Monogram</string>
+    <string name="app_description">Неофициальный клиент Telegram</string>
+    <string name="home_tab_chats">Чаты</string>
+    <string name="home_tab_folders">Папки</string>
+    <string name="select_chat">Выберите чат</string>
+    <string name="push_group_chats">Чаты</string>
+    <string name="push_group_stories">Истории</string>
+    <string name="push_group_reactions">Реакции</string>
+    <string name="push_group_folders">Папки</string>
+    <string name="push_channel_private">Личные чаты</string>
+    <string name="push_channel_groups">Группы</string>
+    <string name="push_channel_channels">Каналы</string>
+    <string name="push_channel_other">Другое</string>
+    <string name="push_channel_stories">Истории</string>
+    <string name="push_channel_reactions">Реакции</string>
+    <string name="push_folder">Папка %1$d</string>
+    <string name="push_hidden_title">Telegram</string>
+    <string name="push_hidden_body">Новое сообщение</string>
+    <string name="push_you">Вы</string>
+    <string name="push_reply">Ответить</string>
+    <string name="push_reply_hint">Сообщение</string>
+    <string name="push_mark_read">Прочитать</string>
+    <string name="push_open_link">Открыть ссылку</string>
+    <string name="push_more_chats">ещё +%1$d</string>
+    <plurals name="push_new_messages">
+        <item quantity="one">%1$d новое сообщение</item>
+        <item quantity="few">%1$d новых сообщения</item>
+        <item quantity="many">%1$d новых сообщений</item>
+        <item quantity="other">%1$d новых сообщений</item>
     </plurals>
-
-    <!-- Tablet Layout -->
-    <string name="tablet_select_setting">Выберите настройку</string>
-    <string name="tablet_select_chat">Выберите чат, чтобы начать общение</string>
-
-    <!-- Crash Activity -->
-    <string name="crash_log_label">Лог ошибки</string>
-    <string name="crash_copied_to_clipboard">Скопировано в буфер обмена</string>
-    <string name="crash_share_title">Поделиться логом ошибки</string>
+    <string name="crash_title">Что-то пошло не так</string>
+    <string name="crash_subtitle">В Monogram произошла непредвиденная ошибка. Отчёт ниже поможет её исправить.</string>
+    <string name="crash_log_label">Журнал сбоя</string>
+    <string name="crash_copy">Скопировать детали</string>
+    <string name="crash_copied">Детали сбоя скопированы</string>
     <string name="crash_share">Поделиться</string>
-    <string name="crash_copy">Копировать</string>
-    <string name="crash_restart">Перезапустить MonoGram</string>
-    <string name="crash_error_details">Детали ошибки</string>
-    <string name="crash_description">Что-то пошло не так. Пожалуйста, отправьте этот лог разработчикам, чтобы помочь исправить ошибку.</string>
-
+    <string name="crash_share_title">Отправить отчёт о сбое</string>
+    <string name="crash_restart">Перезапустить Monogram</string>
 </resources>

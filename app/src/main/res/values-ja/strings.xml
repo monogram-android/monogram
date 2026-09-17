@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Monogram</string>
+    <string name="app_description">非公式の Telegram クライアント</string>
+    <string name="home_tab_chats">チャット</string>
+    <string name="home_tab_folders">フォルダ</string>
+    <string name="select_chat">チャットを選択</string>
+    <string name="push_group_chats">チャット</string>
+    <string name="push_group_stories">ストーリー</string>
+    <string name="push_group_reactions">リアクション</string>
+    <string name="push_group_folders">フォルダ</string>
+    <string name="push_channel_private">プライベートチャット</string>
+    <string name="push_channel_groups">グループ</string>
+    <string name="push_channel_channels">チャンネル</string>
+    <string name="push_channel_other">その他</string>
+    <string name="push_channel_stories">ストーリー</string>
+    <string name="push_channel_reactions">リアクション</string>
+    <string name="push_folder">フォルダ %1$d</string>
+    <string name="push_hidden_title">Telegram</string>
+    <string name="push_hidden_body">新しいメッセージ</string>
+    <string name="push_you">あなた</string>
+    <string name="push_reply">返信</string>
+    <string name="push_reply_hint">メッセージ</string>
+    <string name="push_mark_read">既読にする</string>
+    <string name="push_open_link">リンクを開く</string>
+    <string name="push_more_chats">他 +%1$d</string>
+    <plurals name="push_new_messages">
+        <item quantity="other">%1$d件の新しいメッセージ</item>
+    </plurals>
+    <string name="crash_title">問題が発生しました</string>
+    <string name="crash_subtitle">Monogram で予期しないエラーが発生しました。下のレポートは修正に役立ちます。</string>
+    <string name="crash_log_label">クラッシュログ</string>
+    <string name="crash_copy">詳細をコピー</string>
+    <string name="crash_copied">クラッシュの詳細をコピーしました</string>
+    <string name="crash_share">共有</string>
+    <string name="crash_share_title">クラッシュレポートを共有</string>
+    <string name="crash_restart">Monogram を再起動</string>
+</resources>

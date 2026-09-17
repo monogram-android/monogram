@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">Թղթապանակներ</string>
+    <string name="folders_back">Հետ</string>
+    <string name="folders_refresh">Թարմացնել</string>
+    <string name="folders_loading">Թղթապանակները բեռնվում են</string>
+    <string name="folders_empty">Թղթապանակներ չկան</string>
+    <string name="folders_list_heading">Զրույցների թղթապանակներ</string>
+    <string name="folders_all_chats">Բոլոր զրույցները</string>
+    <string name="folders_pinned">Ամրացված թղթապանակ</string>
+    <string name="folders_reorder">Փոխել թղթապանակների հերթականությունը</string>
+    <string name="folders_add">Ավելացնել թղթապանակ</string>
+    <string name="folders_new">Նոր թղթապանակ</string>
+    <string name="folders_chat_count">%1$d զրույց</string>
+    <string name="folders_save">Պահպանել</string>
+    <string name="folders_search_chats">Որոնել զրույցներ</string>
+    <string name="folders_clear_search">Մաքրել որոնումը</string>
+    <string name="folders_include_empty">Որոնեք՝ զրույցներ ավելացնելու համար</string>
+    <string name="folders_exclude_empty">Որոնեք բացառելու զրույցներ</string>
+    <string name="folders_delete">Ջնջել թղթապանակը</string>
+    <string name="folders_name">Թղթապանակի անուն</string>
+    <string name="folders_emoji">Թղթապանակի էմոջի</string>
+    <string name="folders_include_types">Զրույցների տեսակներ</string>
+    <string name="folders_include_contacts">Կոնտակտներ</string>
+    <string name="folders_include_non_contacts">Ոչ կոնտակտներ</string>
+    <string name="folders_include_groups">Խմբեր</string>
+    <string name="folders_include_channels">Ալիքներ</string>
+    <string name="folders_include_bots">Բոտեր</string>
+    <string name="folders_exclude">Բացառել</string>
+    <string name="folders_exclude_muted">Անձայն</string>
+    <string name="folders_exclude_read">Կարդացված</string>
+    <string name="folders_exclude_archived">Արխիվում</string>
+    <string name="folders_include_chats">Ներառված զրույցներ</string>
+    <string name="folders_exclude_chats">Բացառված զրույցներ</string>
+</resources>

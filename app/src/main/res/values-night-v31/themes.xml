@@ -4,18 +4,18 @@
     <style name="Theme.MonoGram.Startup" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@android:color/system_neutral1_900</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
-        <item name="postSplashScreenTheme">@style/Theme.MonoGram</item>
+        <item name="postSplashScreenTheme">@style/Theme.Monogram</item>
     </style>
 
     <style name="Theme.MonoGram.Startup.Light" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@android:color/system_neutral1_50</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
-        <item name="postSplashScreenTheme">@style/Theme.MonoGram</item>
+        <item name="postSplashScreenTheme">@style/Theme.Monogram</item>
     </style>
 
     <style name="Theme.MonoGram.Startup.Dark" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@android:color/system_neutral1_900</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
-        <item name="postSplashScreenTheme">@style/Theme.MonoGram</item>
+        <item name="postSplashScreenTheme">@style/Theme.Monogram</item>
     </style>
 </resources>

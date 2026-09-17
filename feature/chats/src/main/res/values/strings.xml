@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chats_settings">Settings</string>
+    <string name="chats_profile">Me</string>
+    <string name="chats_my_profile">My profile</string>
+    <string name="chats_refresh">Refresh</string>
+    <string name="chats_loading">Loading chats</string>
+    <string name="chats_empty">No chats yet</string>
+    <string name="chats_untitled">Chat</string>
+    <string name="chats_saved_messages">Saved Messages</string>
+    <string name="chats_search">Search chats</string>
+    <string name="chats_search_close">Close search</string>
+    <string name="chats_folder_all">All Chats</string>
+    <string name="chats_folder_archive">Archived Chats</string>
+    <string name="chats_folder_manage">Manage folders</string>
+    <string name="chats_mark_read">Mark as Read</string>
+    <string name="chats_mark_all_read">Read all messages</string>
+    <string name="chats_mark_unread">Mark as Unread</string>
+    <string name="chats_marked_unread">Marked as unread</string>
+    <string name="chats_back">Back</string>
+    <string name="chats_archive_empty">No archived chats</string>
+    <string name="chats_empty_body">Chats you start or join will show up here.</string>
+    <string name="chats_empty_show_all">Show all chats</string>
+    <string name="chats_folder_empty">This folder is empty</string>
+    <string name="chats_folder_empty_body">No chats match this filter right now. You can move chats into it from the folder settings.</string>
+    <string name="chats_archive_empty_body">Chats you archive disappear from the main list and live here.</string>
+    <string name="chats_search_empty">Nothing found</string>
+    <string name="chats_search_empty_body">No chats match “%1$s”.</string>
+    <string name="chats_search_clear">Clear search</string>
+    <string name="chats_muted">Muted</string>
+    <string name="chats_pinned">Pinned</string>
+    <string name="chats_brand">Monogram</string>
+    <string name="chats_waiting_network">Waiting for network</string>
+    <string name="chats_yesterday">Yesterday</string>
+    <string name="chats_online">Online</string>
+    <string name="chats_preview_you">You</string>
+    <string name="chats_preview_photo">Photo</string>
+    <string name="chats_preview_video">Video</string>
+    <string name="chats_preview_gif">GIF</string>
+    <string name="chats_preview_sticker">Sticker</string>
+    <string name="chats_preview_document">Document</string>
+    <string name="chats_preview_audio">Audio</string>
+    <string name="chats_preview_voice">Voice message</string>
+    <string name="chats_preview_link">Link</string>
+    <string name="chats_preview_checklist">Checklist</string>
+    <string name="chats_status_sending">Sending</string>
+    <string name="chats_status_sent">Sent</string>
+    <string name="chats_status_read">Read</string>
+    <plurals name="chats_unread_count">
+        <item quantity="one">%d unread message</item>
+        <item quantity="other">%d unread messages</item>
+    </plurals>
+    <plurals name="chats_unread_chats">
+        <item quantity="one">%d unread chat</item>
+        <item quantity="other">%d unread chats</item>
+    </plurals>
+    <string name="chats_verified">Verified</string>
+    <string name="chats_unread_mentions">Unread mentions</string>
+</resources>

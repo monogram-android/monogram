@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">フォルダ</string>
+    <string name="folders_back">戻る</string>
+    <string name="folders_refresh">更新</string>
+    <string name="folders_loading">フォルダを読み込み中</string>
+    <string name="folders_empty">フォルダはありません</string>
+    <string name="folders_list_heading">チャットフォルダ</string>
+    <string name="folders_all_chats">すべてのチャット</string>
+    <string name="folders_pinned">ピン留めフォルダ</string>
+    <string name="folders_reorder">フォルダの並び替え</string>
+    <string name="folders_add">フォルダを追加</string>
+    <string name="folders_new">新しいフォルダ</string>
+    <string name="folders_chat_count">%1$d件のチャット</string>
+    <string name="folders_save">保存</string>
+    <string name="folders_search_chats">チャットを検索</string>
+    <string name="folders_clear_search">検索をクリア</string>
+    <string name="folders_include_empty">検索してチャットを追加</string>
+    <string name="folders_exclude_empty">除外するチャットを検索</string>
+    <string name="folders_delete">フォルダを削除</string>
+    <string name="folders_name">フォルダ名</string>
+    <string name="folders_emoji">フォルダの絵文字</string>
+    <string name="folders_include_types">含めるチャットの種類</string>
+    <string name="folders_include_contacts">連絡先</string>
+    <string name="folders_include_non_contacts">連絡先以外</string>
+    <string name="folders_include_groups">グループ</string>
+    <string name="folders_include_channels">チャンネル</string>
+    <string name="folders_include_bots">ボット</string>
+    <string name="folders_exclude">除外</string>
+    <string name="folders_exclude_muted">通知オフ</string>
+    <string name="folders_exclude_read">既読</string>
+    <string name="folders_exclude_archived">アーカイブ済み</string>
+    <string name="folders_include_chats">含めるチャット</string>
+    <string name="folders_exclude_chats">除外するチャット</string>
+</resources>

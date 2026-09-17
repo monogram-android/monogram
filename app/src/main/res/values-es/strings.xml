@@ -1,44 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Lock Screen -->
-    <string name="lock_unlock_title">Desbloquear MonoGram</string>
-    <string name="lock_unlock_subtitle">Inicia sesión usando tus credenciales biométricas</string>
-    <string name="lock_use_passcode">Usa contraseña</string>
-    <string name="lock_enter_passcode">Ingresa Contraseña</string>
-    <string name="lock_messages_protected">Tus Mensajes están protegidos</string>
-    <string name="lock_invalid_passcode">Contraseña Invalida</string>
-    <string name="lock_biometric_unlock">Desbloqueo Biométrico</string>
-
-    <!-- Main Content / Proxy Confirm -->
-    <string name="proxy_details">Detalles de Proxy</string>
-    <string name="proxy_add_connect">Añadir y conectar a este servidor proxy</string>
-    <string name="proxy_server">Servidor</string>
-    <string name="proxy_port">Puerto</string>
-    <string name="proxy_type">Tipo</string>
-    <string name="proxy_unknown">Desconocido</string>
-    <string name="cancel">Cancelar</string>
-    <string name="connect">Conectar</string>
-
-    <!-- Main Content / Chat Confirm -->
-    <string name="chat_join">Unirse</string>
-    <string name="chat_channel">Canal</string>
-    <string name="chat_group">Grupo</string>
-    <plurals name="members_count">
-        <item quantity="one">%d member</item>
-        <item quantity="other">%d members</item>
+    <string name="app_name">Monogram</string>
+    <string name="app_description">Cliente no oficial de Telegram</string>
+    <string name="home_tab_chats">Chats</string>
+    <string name="home_tab_folders">Carpetas</string>
+    <string name="select_chat">Selecciona un chat</string>
+    <string name="push_group_chats">Chats</string>
+    <string name="push_group_stories">Historias</string>
+    <string name="push_group_reactions">Reacciones</string>
+    <string name="push_group_folders">Carpetas</string>
+    <string name="push_channel_private">Chats privados</string>
+    <string name="push_channel_groups">Grupos</string>
+    <string name="push_channel_channels">Canales</string>
+    <string name="push_channel_other">Otros</string>
+    <string name="push_channel_stories">Historias</string>
+    <string name="push_channel_reactions">Reacciones</string>
+    <string name="push_folder">Carpeta %1$d</string>
+    <string name="push_hidden_title">Telegram</string>
+    <string name="push_hidden_body">Mensaje nuevo</string>
+    <string name="push_you">Tú</string>
+    <string name="push_reply">Responder</string>
+    <string name="push_reply_hint">Mensaje</string>
+    <string name="push_mark_read">Marcar como leído</string>
+    <string name="push_open_link">Abrir enlace</string>
+    <string name="push_more_chats">+%1$d más</string>
+    <plurals name="push_new_messages">
+        <item quantity="one">%1$d mensaje nuevo</item>
+        <item quantity="other">%1$d mensajes nuevos</item>
     </plurals>
-
-    <!-- Tablet Layout -->
-    <string name="tablet_select_setting">Seleccionar un ajuste</string>
-    <string name="tablet_select_chat">Selecciona un chat para comenzar</string>
-
-    <!-- Crash Activity -->
-    <string name="crash_log_label">Registro de Cierres</string>
-    <string name="crash_copied_to_clipboard">Copiado al portapapeles</string>
-    <string name="crash_share_title">Compartir Registro de Cierre</string>
+    <string name="crash_title">Algo salió mal</string>
+    <string name="crash_subtitle">Monogram encontró un error inesperado. El informe de abajo ayuda a corregirlo.</string>
+    <string name="crash_log_label">Registro del fallo</string>
+    <string name="crash_copy">Copiar detalles</string>
+    <string name="crash_copied">Detalles del fallo copiados</string>
     <string name="crash_share">Compartir</string>
-    <string name="crash_copy">Copiar</string>
-    <string name="crash_restart">Reiniciar app</string>
-    <string name="crash_error_details">Detalles</string>
-    <string name="crash_description">Algo salio mal, por favor copia o comparte los registros para reportar este problema a los desarrolladores.</string>
-
+    <string name="crash_share_title">Compartir informe del fallo</string>
+    <string name="crash_restart">Reiniciar Monogram</string>
 </resources>

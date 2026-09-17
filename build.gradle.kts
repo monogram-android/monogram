@@ -1,115 +1,22 @@
-import java.util.Properties
-
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
     alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.kotlin.compose) apply false
-    alias(libs.plugins.android.lint) apply false
     alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.ksp) apply false
     alias(libs.plugins.google.services) apply false
-    alias(libs.plugins.google.oss.licenses) apply false
-    alias(libs.plugins.androidx.baselineprofile) apply false
 }
 
-val localProperties by lazy {
-    Properties().apply {
-        val file = rootProject.file("local.properties")
-        if (file.exists()) file.inputStream().buffered().use(::load)
-    }
-}
-extra.set("localProperties", localProperties)
-
-val tdlibFlavors = listOf("Official", "Telemt")
-val runtimeFlavors = listOf("Firebase", "Libre")
-val buildTypes = listOf("Debug", "Release")
-
-data class AppAssemblyVariant(
-    val tdlib: String,
-    val runtime: String,
-    val buildType: String,
-) {
-    val name: String get() = "$tdlib$runtime$buildType"
-    val unitTestBuildType: String get() = "Debug"
-    val unitTestVariantName: String get() = "$tdlib$runtime$unitTestBuildType"
-}
-
-val appAssemblyVariants =
-    tdlibFlavors.flatMap { tdlib ->
-        runtimeFlavors.flatMap { runtime ->
-            buildTypes.map { buildType ->
-                AppAssemblyVariant(
-                    tdlib = tdlib,
-                    runtime = runtime,
-                    buildType = buildType,
-                )
+// Compose compiler stability/skipping reports for the recomposition work, off unless asked for:
+//   ./gradlew.bat :core:ui:compileDebugKotlin :feature:chats:compileDebugKotlin -PcomposeReports
+// Writes <module>/build/compose-reports/*-composables.txt and *-classes.txt.
+subprojects {
+    plugins.withId("org.jetbrains.kotlin.plugin.compose") {
+        if (providers.gradleProperty("composeReports").isPresent) {
+            extensions.configure<org.jetbrains.kotlin.compose.compiler.gradle.ComposeCompilerGradlePluginExtension> {
+                reportsDestination.set(layout.buildDirectory.dir("compose-reports"))
+                metricsDestination.set(layout.buildDirectory.dir("compose-metrics"))
             }
         }
     }
-
-val verifyBeforeAssemble =
-    providers.gradleProperty("verifyBeforeAssemble")
-        .map { it.equals("true", ignoreCase = true) }
-        .orElse(false)
-        .get()
-
-appAssemblyVariants.forEach { variant ->
-    val verifyTask = tasks.register("verify${variant.name}BeforeAssemble") {
-        group = "verification"
-        description = "Runs module unit tests before assembling the ${variant.name} APK."
-        dependsOn(
-            ":app:test${variant.unitTestVariantName}UnitTest",
-            ":data:test${variant.unitTestVariantName}UnitTest",
-            ":presentation:test${variant.unitTestVariantName}UnitTest",
-            ":core:test",
-            ":domain:test",
-        )
-    }
-
-    if (verifyBeforeAssemble) {
-        project(":app").tasks.matching { it.name == "assemble${variant.name}" }.configureEach {
-            dependsOn(verifyTask)
-        }
-    }
-}
-
-tasks.register("assembleOfficialReleaseTdlibApks") {
-    group = "build"
-    description = "Assembles release APKs with the official TDLib prebuilts."
-    dependsOn(":app:assembleOfficialFirebaseRelease")
-}
-
-tasks.register("assembleTelemtReleaseTdlibApks") {
-    group = "build"
-    description = "Assembles release APKs with the Telemt TDLib prebuilts."
-    dependsOn(":app:assembleTelemtFirebaseRelease")
-}
-
-tasks.register("assembleAllReleaseTdlibApks") {
-    group = "build"
-    description = "Assembles release APKs for both official and Telemt TDLib variants."
-    dependsOn(
-        "assembleOfficialReleaseTdlibApks",
-        "assembleTelemtReleaseTdlibApks"
-    )
-}
-
-tasks.register("assembleOfficialDebugTdlibApks") {
-    group = "build"
-    description = "Assembles debug APKs with the official TDLib prebuilts."
-    dependsOn(":app:assembleOfficialFirebaseDebug")
-}
-
-tasks.register("assembleTelemtDebugTdlibApks") {
-    group = "build"
-    description = "Assembles debug APKs with the Telemt TDLib prebuilts."
-    dependsOn(":app:assembleTelemtFirebaseDebug")
-}
-
-tasks.register("assembleAllDebugTdlibApks") {
-    group = "build"
-    description = "Assembles debug APKs for both official and Telemt TDLib variants."
-    dependsOn(
-        "assembleOfficialDebugTdlibApks",
-        "assembleTelemtDebugTdlibApks"
-    )
 }

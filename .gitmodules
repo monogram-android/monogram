@@ -1,6 +1,9 @@
-[submodule "presentation/src/main/cpp/third_party/libvpx"]
-	path = presentation/src/main/cpp/third_party/libvpx
-	url = https://github.com/webmproject/libvpx.git
-[submodule "presentation/src/main/cpp/third_party/rlottie"]
-	path = presentation/src/main/cpp/third_party/rlottie
-	url = https://github.com/monogram-android/rlottie
+[submodule "tellers-tl"]
+	path = vendor/tellers-tl
+	url = https://github.com/gdlbo/tellers-tl.git
+[submodule "telers-mtproto-impl"]
+	path = vendor/telers-mtproto-impl
+	url = https://github.com/gdlbo/telers-mtproto-impl
+[submodule "tlottie"]
+	path = vendor/tlottie
+	url = https://github.com/dkaraush/tlottie.git

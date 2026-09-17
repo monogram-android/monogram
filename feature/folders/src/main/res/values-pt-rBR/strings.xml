@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">Pastas</string>
+    <string name="folders_back">Voltar</string>
+    <string name="folders_refresh">Atualizar</string>
+    <string name="folders_loading">Carregando pastas</string>
+    <string name="folders_empty">Nenhuma pasta</string>
+    <string name="folders_list_heading">Pastas de conversas</string>
+    <string name="folders_all_chats">Todas as conversas</string>
+    <string name="folders_pinned">Pasta fixada</string>
+    <string name="folders_reorder">Reordenar pasta</string>
+    <string name="folders_add">Adicionar pasta</string>
+    <string name="folders_new">Nova pasta</string>
+    <string name="folders_chat_count">%1$d conversas</string>
+    <string name="folders_save">Salvar</string>
+    <string name="folders_search_chats">Buscar conversas</string>
+    <string name="folders_clear_search">Limpar busca</string>
+    <string name="folders_include_empty">Busque para adicionar conversas</string>
+    <string name="folders_exclude_empty">Busque conversas para excluir</string>
+    <string name="folders_delete">Excluir pasta</string>
+    <string name="folders_name">Nome da pasta</string>
+    <string name="folders_emoji">Emoji da pasta</string>
+    <string name="folders_include_types">Incluir tipos de conversa</string>
+    <string name="folders_include_contacts">Contatos</string>
+    <string name="folders_include_non_contacts">Não contatos</string>
+    <string name="folders_include_groups">Grupos</string>
+    <string name="folders_include_channels">Canais</string>
+    <string name="folders_include_bots">Bots</string>
+    <string name="folders_exclude">Excluir</string>
+    <string name="folders_exclude_muted">Silenciadas</string>
+    <string name="folders_exclude_read">Lidas</string>
+    <string name="folders_exclude_archived">Arquivadas</string>
+    <string name="folders_include_chats">Conversas incluídas</string>
+    <string name="folders_exclude_chats">Conversas excluídas</string>
+</resources>

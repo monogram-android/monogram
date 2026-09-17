@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chats_settings">设置</string>
+    <string name="chats_profile">我</string>
+    <string name="chats_my_profile">我的资料</string>
+    <string name="chats_refresh">刷新</string>
+    <string name="chats_loading">正在加载聊天</string>
+    <string name="chats_empty">暂无聊天</string>
+    <string name="chats_untitled">聊天</string>
+    <string name="chats_saved_messages">收藏夹</string>
+    <string name="chats_search">搜索聊天</string>
+    <string name="chats_search_close">关闭搜索</string>
+    <string name="chats_folder_all">全部聊天</string>
+    <string name="chats_folder_archive">已归档</string>
+    <string name="chats_folder_manage">管理文件夹</string>
+    <string name="chats_mark_read">标为已读</string>
+    <string name="chats_mark_all_read">全部标为已读</string>
+    <string name="chats_mark_unread">标为未读</string>
+    <string name="chats_marked_unread">已标为未读</string>
+    <string name="chats_back">返回</string>
+    <string name="chats_archive_empty">没有已归档的聊天</string>
+    <string name="chats_empty_body">你发起或加入的聊天会显示在这里。</string>
+    <string name="chats_empty_show_all">显示全部聊天</string>
+    <string name="chats_folder_empty">此文件夹为空</string>
+    <string name="chats_folder_empty_body">目前没有符合此筛选的聊天。可在文件夹设置中添加聊天。</string>
+    <string name="chats_archive_empty_body">归档的聊天会从主列表消失，并显示在这里。</string>
+    <string name="chats_search_empty">未找到结果</string>
+    <string name="chats_search_empty_body">没有与“%1$s”匹配的聊天。</string>
+    <string name="chats_search_clear">清除搜索</string>
+    <string name="chats_muted">已静音</string>
+    <string name="chats_pinned">已置顶</string>
+    <string name="chats_brand">Monogram</string>
+    <string name="chats_waiting_network">正在等待网络</string>
+    <string name="chats_yesterday">昨天</string>
+    <string name="chats_online">在线</string>
+    <string name="chats_preview_you">你</string>
+    <string name="chats_preview_photo">图片</string>
+    <string name="chats_preview_video">视频</string>
+    <string name="chats_preview_gif">GIF</string>
+    <string name="chats_preview_sticker">贴纸</string>
+    <string name="chats_preview_document">文件</string>
+    <string name="chats_preview_audio">音频</string>
+    <string name="chats_preview_voice">语音消息</string>
+    <string name="chats_preview_link">链接</string>
+    <string name="chats_preview_checklist">待办清单</string>
+    <string name="chats_status_sending">发送中</string>
+    <string name="chats_status_sent">已发送</string>
+    <string name="chats_status_read">已读</string>
+    <plurals name="chats_unread_count">
+        <item quantity="other">%d 条未读消息</item>
+    </plurals>
+    <plurals name="chats_unread_chats">
+        <item quantity="other">%d 个未读聊天</item>
+    </plurals>
+    <string name="chats_verified">已认证</string>
+    <string name="chats_unread_mentions">未读提及</string>
+</resources>

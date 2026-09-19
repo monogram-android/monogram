@@ -5,11 +5,13 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.monogram.core.common.AppLog
 
 internal const val APK_MIME = "application/vnd.android.package-archive"
 
@@ -71,12 +73,27 @@ internal fun fileForExternalView(source: File, displayName: String): File {
     return dest
 }
 
-internal fun needsUnknownSources(context: Context, mime: String): Boolean =
-    mime == APK_MIME && !context.packageManager.canRequestPackageInstalls()
+internal fun needsUnknownSources(context: Context, mime: String): Boolean {
+    if (mime != APK_MIME) return false
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        !context.packageManager.canRequestPackageInstalls()
+    } else {
+        @Suppress("DEPRECATION")
+        Settings.Secure.getInt(
+            context.contentResolver,
+            Settings.Secure.INSTALL_NON_MARKET_APPS,
+            0,
+        ) != 1
+    }
+}
 
 internal fun unknownSourcesIntent(packageName: String): Intent =
-    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
-        .setData(Uri.parse("package:$packageName"))
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+            .setData(Uri.parse("package:$packageName"))
+    } else {
+        Intent(Settings.ACTION_SECURITY_SETTINGS)
+    }
 
 internal fun viewFileIntent(context: Context, file: File, mime: String): Intent {
     val uri = FileProvider.getUriForFile(
@@ -87,20 +104,18 @@ internal fun viewFileIntent(context: Context, file: File, mime: String): Intent 
     return Intent(Intent.ACTION_VIEW)
         .setDataAndType(uri, mime)
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        .apply {
-            if (context !is Activity) {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-        }
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 }
 
 internal fun startViewFile(context: Context, file: File, mime: String) {
     try {
         context.startActivity(viewFileIntent(context, file, mime))
     } catch (e: SecurityException) {
+        AppLog.warn("file", "SecurityException opening $file ($mime): ${e.message}")
         if (mime == APK_MIME) throw e
         context.startActivity(viewFileIntent(context, file, "application/octet-stream"))
     } catch (e: ActivityNotFoundException) {
+        AppLog.warn("file", "ActivityNotFoundException opening $file ($mime): ${e.message}")
         if (mime == APK_MIME || mime == "application/octet-stream") throw e
         context.startActivity(viewFileIntent(context, file, "application/octet-stream"))
     }
@@ -113,5 +128,7 @@ internal suspend fun openDownloadedFile(context: Context, file: File, displayNam
         val share = withContext(Dispatchers.IO) { fileForExternalView(file, displayName) }
         startViewFile(context, share, mime)
         true
+    }.onFailure { e ->
+        AppLog.warn("file", "failed to open $displayName: ${e.message}")
     }.getOrDefault(false)
 }

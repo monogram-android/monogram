@@ -105,6 +105,16 @@ class FolderMembershipTest {
     }
 
     @Test
+    fun defaultFolderWhenAllChatsHiddenSelectsFirstCustomFolder() {
+        val folders = listOf(
+            Folder(id = 0, title = "All"),
+            Folder(id = 7, title = "Work"),
+            Folder(id = 3, title = "Fun"),
+        )
+        assertEquals(7, defaultFolderId(folders, showAllChats = false))
+    }
+
+    @Test
     fun allTabHidesMigratedServicePlaceholder() {
         val migrated = chat(2, title = "forum").copy(
             isGroup = true,
@@ -115,20 +125,47 @@ class FolderMembershipTest {
     }
 
     @Test
-    fun includeListAndExcludeFlags() {
+    fun explicitIncludesOverrideRuleExclusionsButNotNeverShow() {
         val folder = Folder(
             id = 7,
             title = "Work",
-            chatIds = listOf(PeerId(3), PeerId(1)),
+            chatIds = listOf(PeerId(1), PeerId(3), PeerId(4), PeerId(5)),
             excludeChatIds = listOf(PeerId(2)),
+            excludeArchived = true,
             excludeMuted = true,
+            excludeRead = true,
         )
-        val included = chat(1)
-        val excluded = chat(2)
-        val muted = chat(3, muted = true)
-        assertTrue(folder.contains(included))
-        assertFalse(folder.contains(excluded))
-        assertFalse(folder.contains(muted))
+        assertTrue(folder.contains(chat(1)))
+        assertFalse(folder.contains(chat(2)))
+        assertTrue(folder.contains(chat(3, muted = true)))
+        assertTrue(folder.contains(chat(4, archived = true)))
+        assertTrue(folder.contains(chat(5)))
+    }
+
+    @Test
+    fun visibleCustomFolderHonorsArchiveRulesThroughPublicPath() {
+        val archivedExplicit = chat(1, archived = true)
+        val archivedRuleMatch = chat(2, archived = true, isGroup = true)
+        val folder = Folder(
+            id = 7,
+            title = "Work",
+            chatIds = listOf(archivedExplicit.id),
+            includeGroups = true,
+            excludeArchived = true,
+        )
+
+        assertEquals(
+            listOf(1L),
+            visibleChats(listOf(archivedExplicit, archivedRuleMatch), listOf(folder), 7)
+                .map { it.id.value },
+        )
+
+        val archiveAllowed = folder.copy(excludeArchived = false)
+        assertEquals(
+            listOf(2L, 1L),
+            visibleChats(listOf(archivedExplicit, archivedRuleMatch), listOf(archiveAllowed), 7)
+                .map { it.id.value },
+        )
     }
 
     @Test
@@ -331,7 +368,7 @@ class FolderMembershipTest {
     }
 
     @Test
-    fun folderWithoutPinsKeepsMainListPins() {
+    fun folderWithoutPinsIgnoresMainListPins() {
         val folder = Folder(
             id = 9,
             title = "People",
@@ -343,9 +380,9 @@ class FolderMembershipTest {
             chat(3, date = 20, pinned = true).copy(pinnedOrder = 0, lastMessageId = 3),
         )
         val shown = visibleChats(chats, listOf(folder), 9)
-        assertEquals(listOf(3L, 1L, 2L), shown.map { it.id.value })
-        assertTrue(shown[0].pinned)
-        assertTrue(shown[1].pinned)
+        assertEquals(listOf(2L, 3L, 1L), shown.map { it.id.value })
+        assertFalse(shown[0].pinned)
+        assertFalse(shown[1].pinned)
         assertFalse(shown[2].pinned)
     }
 }

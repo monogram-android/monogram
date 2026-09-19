@@ -73,6 +73,8 @@ import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.localizedServiceMessage
 import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.isNonVisualAlbum
+import org.monogram.feature.dialog.isVisualAlbum
 import org.monogram.network.http.MediaRepository
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -189,7 +191,9 @@ fun MessageBubble(
         message.fwdDate != null ||
         !message.viaBot.isNullOrBlank()
     val mediaCaption = shouldShowMessageCaption(message.mediaKind, message.text, message.fileName)
-    val groupedAlbum = album.size > 1
+    val isVisual = isVisualAlbum(album)
+    val isNonVisual = isNonVisualAlbum(album)
+    val groupedAlbum = isVisual
     val singleVisualMedia = album.size <= 1 && isEdgeMediaKind(message.mediaKind)
     val edgeVisualMedia = singleVisualMedia || groupedAlbum
     // A picture, video, GIF or album alone in its bubble drops the bubble fill entirely.
@@ -445,12 +449,12 @@ fun MessageBubble(
                 )
             }
             val mediaOverlayMeta = stickerOnly || mediaOnlyBubble ||
-                (album.size > 1 && !mediaCaption)
+                (isVisual && !mediaCaption)
             Box(
-                modifier = if (centerMedia || album.size > 1) Modifier.fillMaxWidthInBubble() else Modifier,
+                modifier = if (centerMedia || isVisual || isNonVisual) Modifier.fillMaxWidthInBubble() else Modifier,
                 contentAlignment = Alignment.Center,
             ) {
-                if (groupedAlbum) {
+                if (isVisual) {
                     AlbumMosaic(
                         messages = album,
                         mediaRepository = mediaRepository,
@@ -465,30 +469,51 @@ fun MessageBubble(
                             )
                         },
                     )
-                } else {
-                ServiceMediaCard(
-                    message = message,
-                    mediaRepository = mediaRepository,
-                    onPollVote = onPollVote?.let { vote -> { options -> vote(message.id.id, options) } },
-                    onShowPollVoters = onShowPollVoters,
-                )
-                MessageMedia(
-                    message = message,
-                    mediaRepository = mediaRepository,
-                    edgeToEdge = singleVisualMedia,
-                    onStickerClick = onOpenStickerPack?.let { open ->
-                        {
-                            stickerDocumentId(message.mediaCacheKey)?.let(open)
+                } else if (isNonVisual) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        album.asReversed().forEach { docMessage ->
+                            MessageMedia(
+                                message = docMessage,
+                                mediaRepository = mediaRepository,
+                                edgeToEdge = false,
+                                onStickerClick = onOpenStickerPack?.let { open ->
+                                    {
+                                        stickerDocumentId(docMessage.mediaCacheKey)?.let(open)
+                                    }
+                                },
+                                onInstantView = onInstantView,
+                                onLongPress = onOpenMenu?.let { open -> { open(bubblePosition) } },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         }
-                    },
-                    onInstantView = onInstantView,
-                    onLongPress = onOpenMenu?.let { open -> { open(bubblePosition) } },
-                    modifier = if (singleVisualMedia) {
-                        Modifier.bleedBubbleMedia(horizontal = 0.dp, bleedTop = mediaBleedTop)
-                    } else {
-                        Modifier
-                    },
-                )
+                    }
+                } else {
+                    ServiceMediaCard(
+                        message = message,
+                        mediaRepository = mediaRepository,
+                        onPollVote = onPollVote?.let { vote -> { options -> vote(message.id.id, options) } },
+                        onShowPollVoters = onShowPollVoters,
+                    )
+                    MessageMedia(
+                        message = message,
+                        mediaRepository = mediaRepository,
+                        edgeToEdge = singleVisualMedia,
+                        onStickerClick = onOpenStickerPack?.let { open ->
+                            {
+                                stickerDocumentId(message.mediaCacheKey)?.let(open)
+                            }
+                        },
+                        onInstantView = onInstantView,
+                        onLongPress = onOpenMenu?.let { open -> { open(bubblePosition) } },
+                        modifier = if (singleVisualMedia) {
+                            Modifier.bleedBubbleMedia(horizontal = 0.dp, bleedTop = mediaBleedTop)
+                        } else {
+                            Modifier
+                        },
+                    )
                 }
                 if (mediaOverlayMeta) {
                     MessageMetadata(

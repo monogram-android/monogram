@@ -443,6 +443,17 @@ pub fn read_history(handle: u64, chat_id: i64, max_id: i32) -> Result<(), Mtprot
     client_mgr::read_history(handle, chat_id, max_id)
 }
 
+/// https://core.telegram.org/method/messages.readMessageContents
+/// https://core.telegram.org/method/channels.readMessageContents
+#[uniffi::export]
+pub fn read_message_contents(
+    handle: u64,
+    chat_id: i64,
+    message_ids: Vec<i32>,
+) -> Result<(), MtprotoError> {
+    client_mgr::read_message_contents(handle, chat_id, message_ids)
+}
+
 /// https://core.telegram.org/method/messages.markDialogUnread
 #[uniffi::export]
 pub fn mark_dialog_unread(handle: u64, chat_id: i64, unread: bool) -> Result<(), MtprotoError> {

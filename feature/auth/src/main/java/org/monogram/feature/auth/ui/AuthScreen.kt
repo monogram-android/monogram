@@ -70,10 +70,11 @@ import org.monogram.feature.auth.AuthStore
 import org.monogram.feature.auth.R
 import org.monogram.feature.auth.normalizePhone
 
-internal fun authStepOf(phase: AuthStore.Phase): Int = when (phase) {
-    AuthStore.Phase.PhoneEntry, is AuthStore.Phase.Authorized -> 0
+internal fun authStepOf(phase: AuthStore.Phase): Int? = when (phase) {
+    AuthStore.Phase.PhoneEntry -> 0
     is AuthStore.Phase.CodeEntry -> 1
     AuthStore.Phase.PasswordEntry -> 2
+    is AuthStore.Phase.Authorized -> null
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -83,8 +84,12 @@ fun AuthScreen(
     onIntent: (AuthStore.Intent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val motion = authMotionEnabled()
     val step = authStepOf(state.phase)
+    if (step == null) {
+        Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
+        return
+    }
+    val motion = authMotionEnabled()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val phoneFocus = remember { FocusRequester() }
@@ -128,7 +133,6 @@ fun AuthScreen(
     val canGoBack = state.phase is AuthStore.Phase.CodeEntry ||
         state.phase is AuthStore.Phase.PasswordEntry
     val fieldError = state.error != null && !state.loading
-    val otpStyle = localPassword.isNotEmpty() && localPassword.all(Char::isDigit)
     val errorMessage = state.error?.let { errorText(it) }
     val pasteMessage = if (pasteEmpty) stringResource(R.string.auth_paste_empty) else null
     val primaryEnabled = !state.loading && when (step) {
@@ -242,6 +246,7 @@ fun AuthScreen(
                             1 -> AuthOtpField(
                                 value = state.code,
                                 onValueChange = { raw ->
+                                    pasteEmpty = false
                                     onIntent(
                                         AuthStore.Intent.CodeChanged(
                                             raw.filter(Char::isDigit).take(AuthCodeLength),
@@ -254,7 +259,6 @@ fun AuthScreen(
                             2 -> AuthPasswordField(
                                 value = localPassword,
                                 visible = passwordVisible,
-                                otpStyle = otpStyle,
                                 enabled = !state.loading,
                                 isError = fieldError,
                                 focus = passwordFocus,
@@ -273,11 +277,10 @@ fun AuthScreen(
                                             ?.text
                                             ?.toString()
                                             .orEmpty()
-                                        val pasted = pastedPassword(text)
-                                        pasteEmpty = pasted.isEmpty()
-                                        if (pasted.isNotEmpty()) {
-                                            localPassword = pasted
-                                            onIntent(AuthStore.Intent.PasswordChanged(pasted))
+                                        pasteEmpty = text.isEmpty()
+                                        if (text.isNotEmpty()) {
+                                            localPassword = text
+                                            onIntent(AuthStore.Intent.PasswordChanged(text))
                                         }
                                     }
                                 },
@@ -298,6 +301,28 @@ fun AuthScreen(
                         }
                         AuthInlineError(message = errorMessage ?: pasteMessage)
                         if (active == 1) {
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        val text = clipboard.getClipEntry()
+                                            ?.clipData
+                                            ?.takeIf { it.itemCount > 0 }
+                                            ?.getItemAt(0)
+                                            ?.text
+                                            ?.toString()
+                                            .orEmpty()
+                                        pasteEmpty = text.isEmpty()
+                                        val code = text.filter(Char::isDigit).take(AuthCodeLength)
+                                        if (code.isNotEmpty()) {
+                                            onIntent(AuthStore.Intent.CodeChanged(code))
+                                        }
+                                    }
+                                },
+                                enabled = !state.loading,
+                                modifier = Modifier.testTag(AuthTestTags.PASTE_CODE),
+                            ) {
+                                Text(stringResource(R.string.auth_paste_code))
+                            }
                             AuthResendAction(
                                 seconds = resendSeconds,
                                 enabled = !state.loading,

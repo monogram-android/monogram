@@ -192,6 +192,7 @@ class ProfileStorePanelsTest {
         StubClient(profile = profile, counts = counts, members = members, commonChats = commonChats),
         sessionStore = null,
         peerId = PeerId(-100L),
+        ioDispatcher = Dispatchers.Main,
     ).create()
 
     private class StubClient(

@@ -41,4 +41,5 @@
     <string name="auth_resend_in">%1$d 秒后可重新发送</string>
     <string name="auth_paste_password">粘贴密码</string>
     <string name="auth_paste_empty">剪贴板为空</string>
+    <string name="auth_paste_code">粘贴验证码</string>
 </resources>

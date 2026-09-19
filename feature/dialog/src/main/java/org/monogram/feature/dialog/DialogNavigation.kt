@@ -144,6 +144,8 @@ internal object SenderTagMemory {
     fun put(chatId: Long, tags: Map<PeerId, String>) {
         if (tags.isEmpty()) byChat.remove(chatId) else byChat[chatId] = tags
     }
+
+    fun clear() = byChat.clear()
 }
 
 internal object TopicListMemory {
@@ -154,6 +156,8 @@ internal object TopicListMemory {
     fun put(chatId: Long, topics: List<ForumTopic>) {
         if (topics.isEmpty()) byChat.remove(chatId) else byChat[chatId] = topics
     }
+
+    fun clear() = byChat.clear()
 }
 
 internal object PinnedBarMemory {
@@ -171,6 +175,8 @@ internal object PinnedBarMemory {
             )
         }
     }
+
+    fun clear() = byChat.clear()
 }
 
 fun pinnedMetaKey(chatId: Long): String = "pinned.$chatId"
@@ -211,6 +217,7 @@ fun encodeForumTopics(topics: List<ForumTopic>): String {
             append(",\"date\":").append(topic.date)
             append(",\"unread\":").append(topic.unreadCount)
             append(",\"mentions\":").append(topic.unreadMentionsCount)
+            append(",\"reactions\":").append(topic.unreadReactionsCount)
             append(",\"readInbox\":").append(topic.readInboxMaxId)
             if (topic.pinned) append(",\"pinned\":true")
             if (topic.closed) append(",\"closed\":true")
@@ -240,6 +247,7 @@ fun parseForumTopics(raw: String?): List<ForumTopic> {
             date = obj.jsonInt("date") ?: 0,
             unreadCount = obj.jsonInt("unread") ?: 0,
             unreadMentionsCount = obj.jsonInt("mentions") ?: 0,
+            unreadReactionsCount = obj.jsonInt("reactions") ?: 0,
             readInboxMaxId = obj.jsonInt("readInbox") ?: 0,
             pinned = obj["pinned"] == true,
             closed = obj["closed"] == true,
@@ -442,7 +450,20 @@ fun albumSlice(messages: List<Message>, start: Int): List<Message> {
     return out
 }
 
+/** A grouped message shares its rendered row with the album head. */
+fun messageRowIndex(messages: List<Message>, messageId: Int): Int {
+    val index = messages.indexOfFirst { it.id.id == messageId }
+    if (index < 0) return -1
+    return (0..index).count { isAlbumHead(messages, it) } - 1
+}
+
 private val ALBUM_VISUAL_KINDS = setOf("photo", "video", "gif")
+
+fun isVisualAlbum(album: List<Message>): Boolean =
+    album.size > 1 && album.any { it.mediaKind in ALBUM_VISUAL_KINDS }
+
+fun isNonVisualAlbum(album: List<Message>): Boolean =
+    album.size > 1 && !isVisualAlbum(album)
 
 /** Newest-first slice -> send order (oldest first) for Telegram mosaic cells. */
 fun albumVisualItems(album: List<Message>): List<Message> {

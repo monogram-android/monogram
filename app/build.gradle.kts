@@ -30,6 +30,7 @@ val telegramApiId: Int = credential("API_ID")?.toIntOrNull() ?: 0
 val telegramApiHash: String = credential("API_HASH").orEmpty()
 val unsignedBuild =
     providers.gradleProperty("unsigned").orNull.equals("true", ignoreCase = true)
+val startupPrewarm = !providers.gradleProperty("startupPrewarm").orNull.equals("false", ignoreCase = true)
 val targetAbiProp = providers.gradleProperty("targetAbi").orNull
 val selectedAbis = if (!targetAbiProp.isNullOrBlank()) {
     listOf(targetAbiProp)
@@ -61,6 +62,7 @@ android {
         buildConfigField("int", "TELEGRAM_API_ID", telegramApiId.toString())
         buildConfigField("String", "TELEGRAM_API_HASH", buildConfigString(telegramApiHash))
         buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
+        buildConfigField("boolean", "STARTUP_PREWARM", startupPrewarm.toString())
 
         ndk {
             abiFilters += selectedAbis

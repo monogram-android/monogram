@@ -32,4 +32,6 @@
     <string name="folders_exclude_archived">Archivované</string>
     <string name="folders_include_chats">Zahrnuté chaty</string>
     <string name="folders_exclude_chats">Vylúčené chaty</string>
+    <string name="folders_show_all_chats">Zobraziť priečinok „Všetky chaty“</string>
+    <string name="folders_show_all_chats_sub">Zobraziť kartu „Všetky chaty“ v paneli priečinkov</string>
 </resources>

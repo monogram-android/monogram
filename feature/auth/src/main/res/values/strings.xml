@@ -41,4 +41,5 @@
     <string name="auth_resend_in">Resend in %1$d s</string>
     <string name="auth_paste_password">Paste password</string>
     <string name="auth_paste_empty">Clipboard is empty</string>
+    <string name="auth_paste_code">Paste code</string>
 </resources>

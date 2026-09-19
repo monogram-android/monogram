@@ -1,13 +1,14 @@
 use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
-    Bool, ChannelsReadHistoryRequest, InputChannel, InputChannelConstructor, InputDialogPeer,
-    InputDialogPeerConstructor, MessagesAffectedHistory, MessagesAffectedMessages,
+    Bool, ChannelsReadHistoryRequest, ChannelsReadMessageContentsRequest, InputChannel,
+    InputChannelConstructor, InputDialogPeer, InputDialogPeerConstructor, MessagesAffectedHistory,
+    MessagesAffectedMessages, MessagesReadMessageContentsRequest,
     MessagesGetUnreadMentionsRequest, MessagesGetUnreadReactionsRequest,
     MessagesMarkDialogUnreadRequest, MessagesMessages, MessagesReadDiscussionRequest,
     MessagesReadHistoryRequest, MessagesReadMentionsRequest, MessagesReadReactionsRequest,
     MessagesSetTypingRequest, SendMessageAction, SendMessageCancelActionConstructor,
-    SendMessageTypingActionConstructor, True, TrueConstructor,
+    SendMessageTypingActionConstructor, True, TrueConstructor, Vector, VectorConstructor,
 };
 use tellers_mtproto_session::Snapshot;
 
@@ -52,6 +53,51 @@ pub fn read_history(
             max_id,
         },
     )?;
+    Ok(())
+}
+
+/// https://core.telegram.org/method/messages.readMessageContents
+/// https://core.telegram.org/method/channels.readMessageContents
+pub fn read_message_contents(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    message_ids: Vec<i32>,
+) -> Result<(), MtprotoError> {
+    let message_ids: Vec<i32> = message_ids
+        .into_iter()
+        .filter(|id| *id > 0)
+        .collect();
+    if message_ids.is_empty() {
+        return Ok(());
+    }
+    let cached = peers::require_usable_peer(peers, chat_id)?;
+    let ids = Box::new(Vector::Vector(VectorConstructor {
+        field_0: message_ids.len() as u32,
+        field_1: message_ids,
+    }));
+    if cached.kind == PeerKind::Channel {
+        let channel_id = channel_id_from_chat_id(chat_id)
+            .ok_or_else(|| MtprotoError::Message("not a channel".into()))?;
+        let _: Bool = api_invoke::invoke_api(
+            snapshot,
+            api_id,
+            ChannelsReadMessageContentsRequest {
+                channel: Box::new(InputChannel::InputChannel(InputChannelConstructor {
+                    channel_id,
+                    access_hash: cached.access_hash,
+                })),
+                id: ids,
+            },
+        )?;
+    } else {
+        let _: MessagesAffectedMessages = api_invoke::invoke_api(
+            snapshot,
+            api_id,
+            MessagesReadMessageContentsRequest { id: ids },
+        )?;
+    }
     Ok(())
 }
 

@@ -41,4 +41,5 @@
     <string name="auth_resend_in">%1$d秒後に再送信</string>
     <string name="auth_paste_password">パスワードを貼り付け</string>
     <string name="auth_paste_empty">クリップボードが空です</string>
+    <string name="auth_paste_code">コードを貼り付け</string>
 </resources>

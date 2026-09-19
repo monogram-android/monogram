@@ -47,6 +47,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
 import org.monogram.core.models.PeerId
+import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.components.AppStatusBanner
 import org.monogram.core.ui.components.AppSyncStatus
 import org.monogram.core.ui.components.ItemPosition
@@ -93,6 +95,7 @@ fun FoldersListScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val appearance by AppearanceSettings.state.collectAsState()
     Column(modifier.fillMaxSize()) {
         Spacer(Modifier.height(innerPadding.calculateTopPadding()))
         AppStatusBanner(sync = AppSyncStatus.Hidden, error = state.error, onRetry = onRetry)
@@ -121,7 +124,53 @@ fun FoldersListScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
+                    item(key = "folders-show-all-toggle") {
+                        SettingsCard(position = ItemPosition.STANDALONE) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = FolderRowHeight)
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(FolderRowIconSize)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                            shape = CircleShape,
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Folder,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                Spacer(Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.folders_show_all_chats),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.folders_show_all_chats_sub),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Switch(
+                                    checked = appearance.showAllChats,
+                                    onCheckedChange = { AppearanceSettings.setShowAllChats(it) },
+                                )
+                            }
+                        }
+                    }
                     rows.forEachIndexed { index, folder ->
+                        if (folder.id == 0 && !appearance.showAllChats) return@forEachIndexed
                         item(key = "folder-${folder.id}") {
                             FolderRow(
                                 folder = folder,

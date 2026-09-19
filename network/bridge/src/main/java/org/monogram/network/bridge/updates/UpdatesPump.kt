@@ -48,9 +48,14 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
     private suspend fun drainUpdatesLoop() {
         var drainDelayMs = 25L
         var premiumRefreshPending = false
+        var chatsRefreshPending = false
         var foldersRefreshPending = false
-        var lastMetadataRefreshNanos = 0L
-        var lastPremiumRefreshNanos: Long? = null
+        // Keep refresh coalescing on the poller's coroutine clock. Wall-clock gates make
+        // update turnaround depend on scheduler timing and cannot be verified with virtual time.
+        var elapsedPollMs = 0L
+        var lastMetadataRefreshMs: Long? = null
+        var lastChatsRefreshMs: Long? = null
+        var lastPremiumRefreshMs: Long? = null
         while (true) {
             val activeHandle = core.activeHandleOrZero()
             // A network failure clears connectedHandle while the native handle
@@ -77,6 +82,9 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 ) {
                     core.native.drainUpdates(activeHandle)
                 }
+                if (drained.isNotEmpty()) {
+                    PerfLog.noteUpdateDrain(drained.size)
+                }
                 if (drainAt != 0L && drained.isNotEmpty()) {
                     PerfLog.trace(
                         op = "updates",
@@ -102,6 +110,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             for (event in events) {
                 when (event) {
                     is UpdateEventDto.ChatsChanged -> {
+                        chatsRefreshPending = true
                         premiumRefreshPending = true
                     }
 
@@ -257,9 +266,11 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             }
             // Chat metadata events carry no self-user flags. Coalesce the fallback
             // lookup after delivering messages and bound it during busy updates.
-            val now = System.nanoTime()
-            if (foldersRefreshPending && now - lastMetadataRefreshNanos >= 2_000_000_000L) {
-                lastMetadataRefreshNanos = now
+            val now = elapsedPollMs
+            if (foldersRefreshPending &&
+                (lastMetadataRefreshMs?.let { now - it >= 2_000L } != false)
+            ) {
+                lastMetadataRefreshMs = now
                 try {
                     val folders = core.onNativeIfFree {
                         core.native.getFolders(it).map { dto -> dto.toFolderModel() }
@@ -285,14 +296,32 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                         core.fail(e, "refresh folders failed", degradeHome = false)
                         15
                     }
-                    lastMetadataRefreshNanos =
-                        System.nanoTime() + (waitSec - 2).toLong() * 1_000_000_000L
+                    lastMetadataRefreshMs = now + (waitSec - 2).toLong() * 1_000L
+                }
+            }
+            if (chatsRefreshPending && core.isCurrentHandle(activeHandle) &&
+                (lastChatsRefreshMs?.let { now - it >= 2_000L } != false)
+            ) {
+                lastChatsRefreshMs = now
+                try {
+                    val chats = core.onNativeIfFree { handle ->
+                        core.native.getChats(handle).map { dto -> dto.toFolderModel() }
+                    }
+                    if (chats != null && core.isCurrentHandle(activeHandle)) {
+                        chatsRefreshPending = false
+                        core.updatesEvents.emit(MtprotoUpdate.ChatsChanged(chats))
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    core.fail(e, "refresh chats failed", degradeHome = false)
+                    lastChatsRefreshMs = now + 13_000L
                 }
             }
             if (premiumRefreshPending && core.isCurrentHandle(activeHandle) &&
-                (lastPremiumRefreshNanos == null || now - lastPremiumRefreshNanos >= 60_000_000_000L)
+                (lastPremiumRefreshMs?.let { now - it >= 60_000L } != false)
             ) {
-                lastPremiumRefreshNanos = now
+                lastPremiumRefreshMs = now
                 val profile = try {
                     core.onNativeIfFree { handle ->
                         core.native.getProfile(handle, 0L).toProfileModel()
@@ -308,7 +337,10 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     core.updatesEvents.emit(MtprotoUpdate.AccountPremium(profile.isPremium))
                 }
             }
-            if (core.isCurrentHandle(activeHandle)) delay(drainDelayMs)
+            if (core.isCurrentHandle(activeHandle)) {
+                delay(drainDelayMs)
+                elapsedPollMs += drainDelayMs
+            }
         }
     }
 

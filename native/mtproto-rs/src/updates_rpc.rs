@@ -7,7 +7,7 @@ use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     ChannelMessagesFilter, ChannelMessagesFilterEmptyConstructor, Dialog, DialogPeer, InputChannel,
-    InputChannelConstructor, Message, MessagePeerReaction, MessageReactions, Peer, Update,
+    InputChannelConstructor, Message, Peer, Update,
     UpdatesChannelDifference, UpdatesDifference, UpdatesGetChannelDifferenceRequest,
     UpdatesGetDifferenceRequest, UpdatesGetStateRequest, UpdatesState,
 };
@@ -167,6 +167,7 @@ pub(crate) fn advance_push_update(
         | Update::UpdatePeerBlocked(_)
         | Update::UpdateNotifySettings(_)
         | Update::UpdateSavedGifs(_)
+        | Update::UpdateChannelReadMessagesContents(_)
         | Update::UpdateReadChannelDiscussionInbox(_)
         | Update::UpdateMessageReactions(_)
         | Update::UpdateUserTyping(_)
@@ -333,19 +334,6 @@ fn push_mentioned(events: &mut Vec<UpdateEventDto>, msg: &Message) {
     });
 }
 
-fn reactions_have_unread(reactions: &MessageReactions) -> bool {
-    let MessageReactions::MessageReactions(body) = reactions else {
-        return false;
-    };
-    let Some(recent) = body.recent_reactions.as_ref() else {
-        return false;
-    };
-    vector_boxed_items(recent).any(|item| {
-        let MessagePeerReaction::MessagePeerReaction(reaction) = item;
-        reaction.unread.is_some()
-    })
-}
-
 fn push_peer_typing(
     events: &mut Vec<UpdateEventDto>,
     chat_id: i64,
@@ -455,13 +443,12 @@ pub(crate) fn collect_other_updates<'a>(
                     top_message_id: u.top_msg_id,
                     read_max_id: u.read_max_id,
                 });
+                chats_changed = true;
             }
             Update::UpdateMessageReactions(u) => {
-                if reactions_have_unread(u.reactions.as_ref()) {
-                    events.push(UpdateEventDto::Ignored {
-                        kind: format!("unread_reactions_delta:{}:1", peer_chat_id(&u.peer)),
-                    });
-                }
+                // This is a message snapshot, not a dialog-counter delta. It can repeat an
+                // unread reaction or remove the last one, so reconcile absolute dialog counts.
+                chats_changed = true;
                 events.push(crate::UpdateEventDto::MessageReactions {
                     chat_id: peer_chat_id(&u.peer),
                     message_id: u.msg_id,
@@ -508,6 +495,11 @@ pub(crate) fn collect_other_updates<'a>(
                     max_id: u.max_id,
                     still_unread: u.still_unread_count,
                 });
+            }
+            // These carry message ids but no absolute dialog-counter delta. Re-read dialogs so
+            // reading mentions/reactions on another device updates their absolute counters.
+            Update::UpdateReadMessagesContents(_) | Update::UpdateChannelReadMessagesContents(_) => {
+                chats_changed = true;
             }
             Update::UpdateReadChannelInbox(u) => {
                 events.push(UpdateEventDto::ReadInbox {

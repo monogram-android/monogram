@@ -5,6 +5,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
@@ -77,26 +78,29 @@ internal fun DialogExecutor.probesTopics(cachedChat: Chat?): Boolean =
 
 internal fun DialogExecutor.loadTopicHeader() {
     val topicId = threadTopMsgId
-    if (topicId <= 0) return
-    work.launch {
-        when (val result = client.getForumTopicsById(chatId, listOf(topicId))) {
-            is Outcome.Ok -> {
-                val topic = result.value.topics.firstOrNull { it.id == topicId }
-                if (topic != null) {
-                    emit(
-                        Msg.TopicHeader(
-                            title = topic.title,
-                            iconColor = topic.iconColor,
-                            iconEmojiId = topic.iconEmojiId,
-                        ),
-                    )
-                    emit(Msg.TopicClosed(topic.closed))
-                    emit(Msg.UnreadCount(topic.unreadCount))
-                    emit(Msg.ReadInbox(maxOf(snapshot().readInboxMaxId, topic.readInboxMaxId)))
+    if (topicId <= 0 || topicHeaderJob?.isActive == true) return
+    topicHeaderJob = work.launch {
+        unreadMutex.withLock {
+            when (val result = client.getForumTopicsById(chatId, listOf(topicId))) {
+                is Outcome.Ok -> {
+                    val topic = result.value.topics.firstOrNull { it.id == topicId }
+                    if (topic != null) {
+                        emit(
+                            Msg.TopicHeader(
+                                title = topic.title,
+                                iconColor = topic.iconColor,
+                                iconEmojiId = topic.iconEmojiId,
+                            ),
+                        )
+                        emit(Msg.TopicClosed(topic.closed))
+                        emit(Msg.UnreadCount(topic.unreadCount))
+                        applyUnreadCounters(topic.unreadMentionsCount, topic.unreadReactionsCount)
+                        emit(Msg.ReadInbox(maxOf(snapshot().readInboxMaxId, topic.readInboxMaxId)))
+                    }
                 }
-            }
-            is Outcome.Err -> if (!isNotForumError(result.telegramError)) {
-                handleError(result.telegramError, false)
+                is Outcome.Err -> if (!isNotForumError(result.telegramError)) {
+                    handleError(result.telegramError, false)
+                }
             }
         }
     }

@@ -12,6 +12,7 @@ data class ForumTopic(
     val date: Int = 0,
     val unreadCount: Int = 0,
     val unreadMentionsCount: Int = 0,
+    val unreadReactionsCount: Int = 0,
     val readInboxMaxId: Int = 0,
     val pinned: Boolean = false,
     val closed: Boolean = false,

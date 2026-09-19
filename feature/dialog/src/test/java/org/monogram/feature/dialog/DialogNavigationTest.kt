@@ -11,6 +11,14 @@ import org.monogram.core.models.Profile
 import org.monogram.core.ui.components.AppSyncStatus
 
 class DialogNavigationTest {
+    @Test
+    fun jumpToAlbumMemberUsesItsRenderedRow() {
+        val messages = listOf(msg(9), msg(8).copy(groupedId = 1), msg(7).copy(groupedId = 1), msg(6))
+        assertEquals(1, messageRowIndex(messages, 7))
+        assertEquals(2, messageRowIndex(messages, 6))
+        assertEquals(-1, messageRowIndex(messages, 5))
+    }
+
     private fun msg(id: Int, outgoing: Boolean = false) = Message(
         id = MessageId(PeerId(1), id),
         senderId = PeerId(2),
@@ -211,6 +219,29 @@ class DialogNavigationTest {
             listOf(3, 4, 5),
             albumVisualItems(albumSlice(messages, 0)).map { it.id.id },
         )
+    }
+
+    @Test
+    fun visualAndNonVisualAlbumIdentification() {
+        val photoAlbum = listOf(
+            msg(5).copy(groupedId = 1L, mediaKind = "photo", mediaCacheKey = "p1"),
+            msg(4).copy(groupedId = 1L, mediaKind = "photo", mediaCacheKey = "p2"),
+        )
+        val docAlbum = listOf(
+            msg(3).copy(groupedId = 2L, mediaKind = "document", fileName = "a.apk"),
+            msg(2).copy(groupedId = 2L, mediaKind = "document", fileName = "b.apk"),
+        )
+        val singleDoc = listOf(
+            msg(1).copy(mediaKind = "document", fileName = "c.apk"),
+        )
+        assertEquals(true, isVisualAlbum(photoAlbum))
+        assertEquals(false, isNonVisualAlbum(photoAlbum))
+
+        assertEquals(false, isVisualAlbum(docAlbum))
+        assertEquals(true, isNonVisualAlbum(docAlbum))
+
+        assertEquals(false, isVisualAlbum(singleDoc))
+        assertEquals(false, isNonVisualAlbum(singleDoc))
     }
 
     @Test
@@ -551,6 +582,8 @@ class DialogNavigationTest {
                 topMessageId = 44,
                 date = 9,
                 unreadCount = 2,
+                unreadMentionsCount = 1,
+                unreadReactionsCount = 3,
                 pinned = true,
                 lastMessagePreview = "hi \"there\"",
             ),
@@ -559,6 +592,8 @@ class DialogNavigationTest {
         val parsed = parseForumTopics(encodeForumTopics(topics))
         assertEquals(topics.map { it.id }, parsed.map { it.id })
         assertEquals("General", parsed[0].title)
+        assertEquals(1, parsed[0].unreadMentionsCount)
+        assertEquals(3, parsed[0].unreadReactionsCount)
         assertEquals(true, parsed[0].pinned)
         assertEquals("hi \"there\"", parsed[0].lastMessagePreview)
         assertEquals(true, parsed[1].closed)

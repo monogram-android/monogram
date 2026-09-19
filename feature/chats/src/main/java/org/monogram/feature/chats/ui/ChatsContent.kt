@@ -70,6 +70,7 @@ import org.monogram.core.ui.components.FolderChipRow
 import org.monogram.core.ui.components.FolderChips
 import org.monogram.core.ui.components.isPeerOnline
 import org.monogram.core.ui.components.uiLabel
+import org.monogram.core.ui.collectWhenActive
 import org.monogram.core.ui.perf.RecompositionProbe
 import org.monogram.core.ui.perf.perfSpan
 import org.monogram.core.ui.media.MediaPlaybackHolder
@@ -124,8 +125,9 @@ fun ChatsContent(
     folders: List<Folder> = emptyList(),
     modifier: Modifier = Modifier,
     selectedChatId: Long? = null,
+    listActive: Boolean = true,
 ) {
-    val state by component.state.collectAsState()
+    val state = collectWhenActive(component.state, listActive)
     val appearance by AppearanceSettings.state.collectAsState()
     if (state.chats.isEmpty() && state.loading && state.error == null) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -136,7 +138,7 @@ fun ChatsContent(
     var selectedFolderId by rememberSaveable { mutableStateOf<Int?>(null) }
     // The list opens on the first folder; a tap or the archive outranks that default.
     var folderChoiceMade by rememberSaveable { mutableStateOf(false) }
-    val defaultFolder = remember(folders) { defaultFolderId(folders) }
+    val defaultFolder = remember(folders, appearance.showAllChats) { defaultFolderId(folders, appearance.showAllChats) }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var folderMenu by remember { mutableStateOf<FolderChipItem?>(null) }
@@ -221,14 +223,15 @@ fun ChatsContent(
         )
     }
     // Folders arrive after the first frame; a selected folder that vanished also lands here.
-    LaunchedEffect(defaultFolder, folders, archiveOpen) {
+    LaunchedEffect(defaultFolder, folders, archiveOpen, appearance.showAllChats) {
         if (archiveOpen) return@LaunchedEffect
         val current = selectedFolderId
-        val missing = current != null && current != ARCHIVE_FOLDER_ID &&
-            folders.isNotEmpty() && folders.none { it.id == current }
+        val missing = (current != null && current != ARCHIVE_FOLDER_ID &&
+            folders.isNotEmpty() && folders.none { it.id == current }) ||
+            (current == null && !appearance.showAllChats && defaultFolder != null)
         if (missing) {
-            selectedFolderId = null
-            folderChoiceMade = false
+            selectedFolderId = defaultFolder
+            folderChoiceMade = defaultFolder != null
         }
         if ((current == null || missing) && !folderChoiceMade && defaultFolder != null) {
             selectedFolderId = defaultFolder
@@ -281,7 +284,8 @@ fun ChatsContent(
     val markUnreadLabel = stringResource(R.string.chats_mark_unread)
     val manageFoldersLabel = stringResource(R.string.chats_folder_manage)
     val foldersAtBottom = appearance.foldersAtBottom
-    val chipItems = remember(state.chats, folders, showMutedCounter, allChatsLabel) {
+    val showAllChats = appearance.showAllChats
+    val chipItems = remember(state.chats, folders, showMutedCounter, allChatsLabel, showAllChats) {
         perfSpan("chips") {
             FolderChips(
                 folderChipItems(
@@ -289,25 +293,25 @@ fun ChatsContent(
                     folders = folders,
                     allChatsLabel = allChatsLabel,
                     showMutedCounter = showMutedCounter,
+                    showAllChats = showAllChats,
                 ),
             )
         }
     }
-    val allChats = remember(state.chats) { ChatRows(state.chats) }
-    val shownChats = remember(state.chats, folders, homeFolderId, state.query) {
-        perfSpan("shownChats") {
-            ChatRows(filterChats(visibleChats(state.chats, folders, homeFolderId), state.query))
-        }
+    val allChats = remember { ChatListSnapshot() }
+    val shownChats = remember { ChatListSnapshot() }
+    val archivedChats = remember { ChatListSnapshot() }
+    allChats.replace(state.chats)
+    perfSpan("shownChats") {
+        shownChats.replace(filterChats(visibleChats(state.chats, folders, homeFolderId), state.query))
     }
     val archivedSlice = remember(state.chats) {
         perfSpan("archiveSlice") {
             visibleChats(state.chats, emptyList(), ARCHIVE_FOLDER_ID)
         }
     }
-    val archivedChats = remember(archivedSlice, state.query) {
-        perfSpan("archivedChats") {
-            ChatRows(filterChats(archivedSlice, state.query))
-        }
+    perfSpan("archivedChats") {
+        archivedChats.replace(filterChats(archivedSlice, state.query))
     }
     val archivedPreview = remember(archivedSlice) {
         folderUnreadBadge(archivedSlice)
@@ -338,7 +342,7 @@ fun ChatsContent(
         RecompositionProbe(if (archive) "ChatsPaneArchive" else "ChatsPaneHome")
         val paneChats = if (archive) archivedChats else shownChats
         val paneListState = if (archive) archiveListState else listState
-        val paneChatItems = paneChats.items
+        val paneEmpty = paneChats.isEmpty
         val atTop by remember(paneListState) {
             derivedStateOf {
                 paneListState.firstVisibleItemIndex == 0 &&
@@ -346,16 +350,16 @@ fun ChatsContent(
             }
         }
         val rawSync = when {
-            paneChatItems.isEmpty() && (state.loading || state.syncing) -> AppSyncStatus.Connecting
-            state.syncing || (state.loading && paneChatItems.isNotEmpty()) -> AppSyncStatus.Syncing
+            paneEmpty && (state.loading || state.syncing) -> AppSyncStatus.Connecting
+            state.syncing || (state.loading && !paneEmpty) -> AppSyncStatus.Syncing
             state.loadingMore -> AppSyncStatus.LoadingMore
             else -> AppSyncStatus.Hidden
         }
         val syncStatus = rememberDebouncedSync(
             status = rawSync,
-            immediate = paneChats.isEmpty && rawSync == AppSyncStatus.Connecting,
+            immediate = paneEmpty && rawSync == AppSyncStatus.Connecting,
         )
-        val unreadChats = paneChatItems.count { it.unreadCount > 0 && !it.muted }
+        val unreadChats = paneChats.unmutedUnread
         val subtitle = when {
             syncStatus == AppSyncStatus.Connecting -> syncStatus.uiLabel()
             syncStatus == AppSyncStatus.Syncing -> syncStatus.uiLabel()
@@ -435,7 +439,7 @@ fun ChatsContent(
                         .weight(1f)
                         .then(
                             folderSwipeModifier(
-                                folderIds = listOf<Int?>(null) + chipItems.items.mapNotNull { it.id },
+                                folderIds = chipItems.items.map { it.id },
                                 selectedId = homeFolderId,
                                 enabled = !archive && !searchOpen && state.query.isBlank(),
                                 onSelect = stableSelectFolder,
@@ -443,7 +447,7 @@ fun ChatsContent(
                         ),
                 ) {
                     androidx.compose.animation.AnimatedVisibility(
-                        visible = state.loading && paneChatItems.isEmpty(),
+                        visible = state.loading && paneEmpty,
                         modifier = Modifier.fillMaxSize(),
                         enter = fadeIn(animationSpec = tween(180)),
                         exit = fadeOut(animationSpec = tween(220)),
@@ -554,7 +558,7 @@ internal fun ChatRowMenu(
 private fun FloatingFolderBar(
     chips: FolderChips,
     selectedId: Int?,
-    allChats: ChatRows,
+    allChats: ChatListSnapshot,
     folders: List<Folder>,
     folderMenu: FolderChipItem?,
     markReadLabel: String,
@@ -596,7 +600,7 @@ private fun FloatingFolderBar(
                 onDismiss = onDismissFolderMenu,
             ) {
                 FolderChipMenu(
-                    chats = allChats.items,
+                    chats = allChats.items(),
                     folders = folders,
                     folderId = folderMenu?.id,
                     markReadLabel = markReadLabel,

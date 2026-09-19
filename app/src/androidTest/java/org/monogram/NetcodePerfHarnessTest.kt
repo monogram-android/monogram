@@ -6,6 +6,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -13,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.monogram.core.common.Outcome
@@ -30,7 +32,7 @@ import org.monogram.network.bridge.BridgedMtprotoClient
  * before launching the process:
  *
  * ```console
- * adb shell setprop log.tag.monogram.perf INFO
+ * adb shell setprop log.tag.monogram.perf DEBUG
  * ```
  */
 class NetcodePerfHarnessTest {
@@ -50,32 +52,40 @@ class NetcodePerfHarnessTest {
 
         emit("HARNESS start perf_enabled=${PerfLog.isEnabled()}")
 
-        val connected = withTimeoutOrNull(60_000) { client.connect() }
-        assumeTrue("not connected: $connected", connected is Outcome.Ok)
-        emit("HARNESS connect ${connected}")
+        var connected: Outcome<Unit>? = null
+        val connectMs = measure { connected = withTimeoutOrNull(60_000) { client.connect() } }
+        assertOk("connect", connected)
+        emit("HARNESS connect_cold ms=$connectMs result=ok")
+        var warmConnect: Outcome<Unit>? = null
+        val warmConnectMs = measure { warmConnect = withTimeoutOrNull(10_000) { client.connect() } }
+        assertOk("warm connect", warmConnect)
+        emit("HARNESS connect_warm ms=$warmConnectMs result=ok")
 
-        val chatsOutcome = withTimeoutOrNull(60_000) { client.getChats() } as? Outcome.Ok
-            ?: run {
-                emit("HARNESS chats failed")
-                return@runBlocking
-            }
-        val chats = chatsOutcome.value
+        val chatsOutcome = withTimeoutOrNull(60_000) { client.getChats() }
+        assertOk("get chats", chatsOutcome)
+        val chats = (chatsOutcome as Outcome.Ok).value
         emit("HARNESS chats count=${chats.size}")
 
         val media = collectMedia(client, chats, 6)
         emit("HARNESS media candidates=${media.size} sizes=${media.take(8).map { it.fileSize ?: 0 }}")
         assumeTrue("no downloadable media on this account", media.isNotEmpty())
 
-        // First-page history latency (dialog open) and thumbnail latency (first paint).
+        // First-page history latency (dialog open) and thumbnail retrieval latency.
         val firstChat = media.first().id.chatId
-        val historyMs = measure { withTimeoutOrNull(60_000) { client.getHistory(firstChat, 50) } }
+        var historyOutcome: Outcome<List<Message>>? = null
+        val historyMs = measure { historyOutcome = withTimeoutOrNull(60_000) { client.getHistory(firstChat, 50) } }
+        assertOk("first history page", historyOutcome)
         emit("HARNESS history_first_page chat_ms=$historyMs")
 
         val thumbTarget = media.first()
         thumbTarget.thumbCacheKey?.let { repository.removeCachedFile(it) }
-        val thumbMs = measure { withTimeoutOrNull(60_000) { repository.ensureLocalMessageThumb(thumbTarget) } }
-        emit("HARNESS thumb_first_paint ms=$thumbMs")
-        val thumbCachedMs = measure { withTimeoutOrNull(10_000) { repository.ensureLocalMessageThumb(thumbTarget) } }
+        var thumbOutcome: Outcome<File>? = null
+        val thumbMs = measure { thumbOutcome = withTimeoutOrNull(60_000) { repository.ensureLocalMessageThumb(thumbTarget) } }
+        assertOk("first thumbnail retrieval", thumbOutcome)
+        emit("HARNESS thumb_fetch ms=$thumbMs")
+        var thumbCachedOutcome: Outcome<File>? = null
+        val thumbCachedMs = measure { thumbCachedOutcome = withTimeoutOrNull(10_000) { repository.ensureLocalMessageThumb(thumbTarget) } }
+        assertOk("cached thumbnail retrieval", thumbCachedOutcome)
         emit("HARNESS thumb_cache_hit ms=$thumbCachedMs")
 
         // Single-file throughput on the real user path (queue -> native -> publish).
@@ -83,13 +93,17 @@ class NetcodePerfHarnessTest {
         val targetKey = target.mediaCacheKey
         if (targetKey != null) repository.removeCachedFile(targetKey)
         val size = target.fileSize ?: 0L
-        val singleMs = measure { withTimeoutOrNull(180_000) { repository.ensureLocalMessageMedia(target) } }
+        var singleOutcome: Outcome<File>? = null
+        val singleMs = measure { singleOutcome = withTimeoutOrNull(180_000) { repository.ensureLocalMessageMedia(target) } }
+        assertOk("single download", singleOutcome)
         emit("HARNESS download_single bytes=$size ms=$singleMs mib_s=${mibPerSecond(size, singleMs)}")
 
         // Same file again, cache cleared: separates first-use lane/transport cost from
         // steady-state throughput on the user path.
         if (targetKey != null) repository.removeCachedFile(targetKey)
-        val warmMs = measure { withTimeoutOrNull(180_000) { repository.ensureLocalMessageMedia(target) } }
+        var warmOutcome: Outcome<File>? = null
+        val warmMs = measure { warmOutcome = withTimeoutOrNull(180_000) { repository.ensureLocalMessageMedia(target) } }
+        assertOk("warm single download", warmOutcome)
         emit("HARNESS download_single_warm bytes=$size ms=$warmMs mib_s=${mibPerSecond(size, warmMs)}")
 
         // Warm-lane round trip: same 512 KiB chunk, fetched repeatedly (repo cache bypassed).
@@ -97,14 +111,17 @@ class NetcodePerfHarnessTest {
         val warmDir = File(app.cacheDir, "perf-warm").apply { mkdirs() }
         val warmLatencies = (1..3).mapNotNull { attempt ->
             val warmFile = File(warmDir, "warm-$attempt.part")
+            var chunkOutcome: Outcome<String>? = null
             val latency = measure {
-                withTimeoutOrNull(60_000) {
+                chunkOutcome = withTimeoutOrNull(60_000) {
                     client.downloadMessageMediaChunk(target.id.chatId, target.id.id, warmFile.absolutePath, 0L)
                 }
             }
+            assertOk("warm chunk $attempt", chunkOutcome)
             warmFile.delete()
             latency
         }
+        assertTrue("expected three successful warm chunks", warmLatencies.size == 3)
         emit("HARNESS rtt_warm_chunk ms=${warmLatencies.joinToString(",")} min=${warmLatencies.minOrNull() ?: 0}")
 
         // Parallel files: does a second and fourth concurrent download raise throughput?
@@ -118,7 +135,7 @@ class NetcodePerfHarnessTest {
             val parallelMs = measure {
                 coroutineScope {
                     jobs.map { message -> async(Dispatchers.IO) { repository.ensureLocalMessageMedia(message) } }
-                        .forEach { it.await() }
+                        .forEachIndexed { index, job -> assertOk("parallel download $index", job.await()) }
                 }
             }
             emit("HARNESS download_parallel width=$width bytes=$bytes ms=$parallelMs mib_s=${mibPerSecond(bytes, parallelMs)}")
@@ -132,7 +149,7 @@ class NetcodePerfHarnessTest {
             val largeMs = measure {
                 coroutineScope {
                     large.map { message -> async(Dispatchers.IO) { repository.ensureLocalMessageMedia(message) } }
-                        .forEach { it.await() }
+                        .forEachIndexed { index, job -> assertOk("large parallel download $index", job.await()) }
                 }
             }
             emit("HARNESS download_two_large bytes=$largeBytes ms=$largeMs mib_s=${mibPerSecond(largeBytes, largeMs)}")
@@ -143,18 +160,24 @@ class NetcodePerfHarnessTest {
         if (overlapMessage != null) {
             overlapMessage.mediaCacheKey?.let { repository.removeCachedFile(it) }
             val downloadStart = SystemClock.elapsedRealtime()
+            val downloadEnd = AtomicLong(0L)
             val download = async(Dispatchers.IO) {
-                withTimeoutOrNull(180_000) { repository.ensureLocalMessageMedia(overlapMessage) }
+                val result = withTimeoutOrNull(180_000) { repository.ensureLocalMessageMedia(overlapMessage) }
+                downloadEnd.set(SystemClock.elapsedRealtime())
+                result
             }
             delay(150)
             val historyStart = SystemClock.elapsedRealtime()
             val history = withTimeoutOrNull(60_000) { client.getHistory(overlapMessage.id.chatId, 50) }
             val historyEnd = SystemClock.elapsedRealtime()
-            download.await()
-            val downloadEnd = SystemClock.elapsedRealtime()
+            assertOk("overlap history", history)
+            assertOk("overlap download", download.await())
+            val completedAt = downloadEnd.get()
+            val overlap = historyStart < completedAt && downloadStart < historyEnd
+            assertTrue("history and media operations must overlap", overlap)
             emit(
                 "HARNESS overlap history=[${historyStart - downloadStart},${historyEnd - downloadStart}] " +
-                    "download=[0,${downloadEnd - downloadStart}] history_ok=${history is Outcome.Ok}",
+                    "download=[0,${completedAt - downloadStart}] overlap=$overlap history_ok=${history is Outcome.Ok}",
             )
         }
 
@@ -188,13 +211,19 @@ class NetcodePerfHarnessTest {
         // depth lives in native (`PIPELINE_PARTS`, swept by `curve-pipeline`).
         repeat(3) { round ->
             if (targetKey != null) repository.removeCachedFile(targetKey)
-            val millis = measure { withTimeoutOrNull(240_000) { repository.ensureLocalMessageMedia(target) } }
+            var repeatOutcome: Outcome<File>? = null
+            val millis = measure { repeatOutcome = withTimeoutOrNull(240_000) { repository.ensureLocalMessageMedia(target) } }
+            assertOk("repeat download ${round + 1}", repeatOutcome)
             emit("HARNESS repeat round=${round + 1} bytes=$size ms=$millis mib_s=${mibPerSecond(size, millis)}")
         }
 
         PerfLog.dump("perf:harness")
         emit("PERF-SUMMARY ${samples.filter { it.startsWith("HARNESS") }.joinToString(" | ")}")
         client.close()
+    }
+
+    private fun assertOk(label: String, outcome: Outcome<*>?) {
+        assertTrue("$label failed or timed out: $outcome", outcome is Outcome.Ok)
     }
 
     private suspend fun collectMedia(

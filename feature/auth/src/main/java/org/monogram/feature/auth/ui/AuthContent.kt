@@ -23,6 +23,7 @@ object AuthTestTags {
     const val TITLE = "auth_title"
     const val STEP_INDICATOR = "auth_step_indicator"
     const val CODE_FIELD = "auth_code_field"
+    const val PASTE_CODE = "auth_paste_code"
     const val PASSWORD_FIELD = "auth_password_field"
     const val PASTE_PASSWORD = "auth_paste_password"
     const val TOGGLE_PASSWORD = "auth_toggle_password"
@@ -38,7 +39,7 @@ fun AuthContent(component: AuthComponent, modifier: Modifier = Modifier) {
     val focusManager = LocalFocusManager.current
     LaunchedEffect(state.phase) {
         if (state.phase is AuthStore.Phase.Authorized) {
-            focusManager.clearFocus()
+            focusManager.clearFocus(force = true)
             keyboard?.hide()
         }
         component.consumeAuthorized()

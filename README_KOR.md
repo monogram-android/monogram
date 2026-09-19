@@ -1,39 +1,23 @@
 <h1 align="center">
-  <br>
-  <a href="https://github.com/monogram-android/monogram"><img width="130" height="130" alt="MonoGram" src="./documents/monogram.png" />
-</a>
-  <br>
-  <b>MonoGram</b>
-  <br>
+  <a href="https://github.com/monogram-android/monogram"><img width="130" height="130" alt="Monogram" src="./documents/monogram.png" /></a>
+  <br />Monogram
 </h1>
 
-<h1 align="center">
-  <a href="https://github.com/monogram-android/monogram/blob/develop/LICENSE">
-    <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" width="120">
-  </a>
-  <a href="https://github.com/monogram-android/monogram/stargazers">
-    <img src="https://img.shields.io/github/stars/monogram-android/monogram" width="120">
-  </a>
-  <img src="https://img.shields.io/badge/Kotlin-2.0+-blue.svg?logo=kotlin" width="130">
-  <img src="https://img.shields.io/badge/TDLib-1.8.66-blue" width="120">
-  <img src="https://img.shields.io/badge/Status-Active_Development-orange" width="170">
-  <a href="https://boosty.to/monogram">
-    <img src="https://img.shields.io/badge/Boosty-Support_the_project-ff6f61?logo=boosty&logoColor=white" width="200">
-  </a>
-</h1>
+<p align="center">
+  <a href="./LICENSE"><img alt="GPLv3" src="https://img.shields.io/badge/License-GPLv3-blue.svg" /></a>
+  <a href="https://github.com/monogram-android/monogram/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/monogram-android/monogram" /></a>
+  <img alt="Kotlin + Rust" src="https://img.shields.io/badge/Kotlin_+_Rust-MTProto-blue" />
+  <a href="https://boosty.to/monogram"><img alt="Boosty" src="https://img.shields.io/badge/Boosty-Support-ff6f61" /></a>
+</p>
 
-**다른 언어로 읽기:** [English](README.md), [Русский](README_RU.md), [Türkçe](README_TR.md), [Español](README_ES.md)
+[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)
 
----
-
-**MonoGram**은 빠르고 우아한 최신 비공식 안드로이드용 텔레그램 클라이언트입니다. **Jetpack Compose**와 **Material Design 3**로 제작되었으며, 공식 **TDLib**을 기반으로 네이티브하고 부드러운 사용자 경험을 제공합니다.
+**Monogram**은 Android 7.0 이상을 위한 매우 빠른 완전 네이티브 Telegram 클라이언트입니다. **Kotlin**, **Jetpack Compose**, **Material 3**로 만든 현대적인 Android 인터페이스와 **Rust로 직접 구현한 MTProto**를 결합했습니다
 
 > [!IMPORTANT]
-> MonoGram은 현재 **활발히 개발 중**입니다. 잦은 업데이트, 아키텍처 변경 및 간헐적인 버그가 발생할 수 있습니다.
+> Monogram은 **활발히 개발 중**입니다. 기능과 아키텍처가 계속 바뀌고 있으며, 버그나 미완성 기능이 있을 수 있습니다.
 
-[**Boosty**](https://boosty.to/monogram)에서 프로젝트를 후원해 주세요.
-
----
+[Boosty](https://boosty.to/monogram)에서 프로젝트를 후원할 수 있습니다.
 
 ## 스크린샷
 
@@ -41,57 +25,62 @@
 
 | | | | |
 |:---:|:---:|:---:|:---:|
-| <img src="./documents/1.png" width="180" alt="Screenshot 1" /> | <img src="./documents/2.png" width="180" alt="Screenshot 2" /> | <img src="./documents/3.png" width="180" alt="Screenshot 3" /> | <img src="./documents/4.png" width="180" alt="Screenshot 4" /> |
+| <img src="./documents/1.png" width="180" alt="Monogram 1" /> | <img src="./documents/2.png" width="180" alt="Monogram 2" /> | <img src="./documents/3.png" width="180" alt="Monogram 3" /> | <img src="./documents/4.png" width="180" alt="Monogram 4" /> |
 
 </div>
 
----
+## 프로젝트 특징
 
-## 주요 기능
+- **완전 네이티브** — Kotlin과 Jetpack Compose로 Android에 맞게 개발
+- **화면에 맞는 디자인** — 휴대전화, 태블릿, 큰 화면에 맞춰 조정되는 Material 3 레이아웃
+- **채팅 속 미디어** — 대화에서 즐기는 사진, 동영상, 움직이는 스티커
+- **Rust로 구현한 놀라운 속도** — Telegram의 MTProto 프로토콜을 자체 네이티브 코드로 구현 🚀
+- **NFT 및 암호화폐 제외** — Monogram에는 NFT 홍보, 선물 및 메시징 앱의 범위를 벗어난다고 판단하는 Telegram 기능을 포함하지 않습니다
 
-- **독립 클라이언트** — Telegram for Android의 포크가 아닙니다. MonoGram은 독립 프로젝트로서 처음부터 완전히 새롭게 구축되었습니다.
-- **Material Design 3** — 스마트폰, 태블릿, 폴더블 기기에서 모두 멋지게 보이는 아름답고 적응형인 UI입니다.
-- **보안** — 생체 인식 잠금 및 암호화된 로컬 저장소가 내장되어 있습니다.
-- **풍부한 미디어** — ExoPlayer와 Coil 3를 사용한 고성능 미디어 재생을 지원합니다.
-- **빠르고 효율적임** — Kotlin Coroutines를 기반으로 성능이 최적화되었습니다.
-- **클린 아키텍처** — 도메인(Domain), 데이터(Data), 프레젠테이션(Presentation) 계층으로 관심사를 명확히 분리했습니다.
-- **MVI 패턴** — MVIKotlin을 사용한 예측 가능한 상태 관리를 제공합니다.
-- **NFT 및 암호화폐 없음** — MonoGram은 메시징 앱의 범위를 벗어난다고 판단되는 NFT 프로모션, 선물 등 텔레그램에서 추진하는 기능을 절대 포함하지 않습니다.
+## 소스에서 빌드하기
 
----
+### 1. 요구 사항
 
-## 시작하기
+- **JDK 17** 및 프로젝트의 Android Gradle Plugin과 호환되는 Android Studio 버전([버전 카탈로그](gradle/libs.versions.toml) 참고)
+- **Android SDK Platform 37**, platform tools, **Android NDK**. CI는 **NDK r28c**를 사용합니다. NDK를 직접 선택하려면 `ANDROID_NDK_HOME`을 설정하세요. 설정하지 않으면 Gradle이 SDK의 `ndk` 디렉터리에서 찾습니다.
+- **Rust 1.98 이상**, Cargo, 네이티브 의존성 빌드와 UniFFI 생성을 위한 호스트 시스템의 C/C++ 빌드 도구
+- **Git**, 아래 Android Rust 타깃 및 **cargo-ndk**:
 
-로컬 환경에서 프로젝트를 설정하려면 다음 단계를 따르세요.
+```console
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+cargo install cargo-ndk --locked
+```
 
-### 사전 요구 사항
+### 2. 저장소 복제
 
-- **Android Studio**: Ladybug 이상 (권장).
-- **JDK**: Java 17 이상.
-
-### 1. 저장소 클론
-
-```bash
+```console
 git clone --recurse-submodules https://github.com/monogram-android/monogram.git
+git clone --recurse-submodules https://github.com/gdlbo/telers-mtproto-impl.git
 cd monogram
+git submodule update --init --recursive
 ```
 
-### 2. 텔레그램 API 키 설정
+같은 상위 디렉터리에서 두 clone 명령을 실행하세요. 현재 Cargo 매니페스트는 Monogram 디렉터리 옆의 `../telers-mtproto-impl`을 요구합니다. `vendor`의 서브모듈은 이 별도 체크아웃을 대체하지 않습니다. CI도 같은 디렉터리 구성을 사용합니다.
 
-텔레그램 서버에 연결하려면 고유한 API 자격 증명이 필요합니다.
+### 3. 로컬 설정
 
-1. [my.telegram.org](https://my.telegram.org/)에 로그인합니다.
-2. **API development tools**로 이동합니다.
-3. 새 애플리케이션을 생성하여 `App api_id`와 `App api_hash`를 얻습니다.
-4. 프로젝트 루트 디렉터리에 `local.properties` 파일을 생성합니다(없는 경우).
-5. 다음 내용을 추가합니다:
+[local.properties.example](local.properties.example)을 `local.properties`로 복사한 뒤 `sdk.dir`, `API_ID`, `API_HASH`를 설정하세요.
 
-```properties
-API_ID=12345678
-API_HASH=your_api_hash_here
+Unix 계열 시스템:
+
+```sh
+cp local.properties.example local.properties
 ```
 
-Gradle에서 서명된 release 빌드를 만들려면 다음 값도 추가하세요:
+Windows (PowerShell):
+
+```powershell
+Copy-Item local.properties.example local.properties
+```
+
+API 자격 증명은 [my.telegram.org/apps](https://my.telegram.org/apps)에서 발급받으세요. 자격 증명 없이도 빌드는 가능하지만 Telegram 로그인에는 유효한 값이 필요합니다. `local.properties`, 서명 키, 서비스 계정 자격 증명은 버전 관리 대상에서 제외하고 로그나 커밋에 포함하지 마세요.
+
+릴리스에 자체 서명 키를 사용하려면 다음 값도 설정하세요:
 
 ```properties
 RELEASE_STORE_FILE=keystore/release.jks
@@ -100,187 +89,98 @@ RELEASE_KEY_ALIAS=your_key_alias
 RELEASE_KEY_PASSWORD=your_key_password
 ```
 
-### 3. 푸시 알림 설정
+`RELEASE_STORE_FILE`이 없으면 release와 beta 빌드는 기본적으로 디버그 키로 서명됩니다. 릴리스 키가 설정되지 않은 상태에서 `-Punsigned=true`를 사용하면 이 대체 서명을 비활성화합니다. 디버그 서명 빌드는 개발용이며 실제 배포용 서명을 대신하지 않습니다.
 
-이 단계는 `firebase` 빌드 variants에 필요합니다. `libre` variants만 빌드할 계획이라면
-건너뛰어도 됩니다.
+### 4. 푸시 알림 설정 (선택 사항)
 
-1. [Firebase Console](https://console.firebase.google.com)에 로그인합니다.
-2. 새 프로젝트를 생성합니다.
-3. Firebase에 Android 앱 두 개를 추가합니다:
-
-    - `org.monogram` for release builds
-    - `org.monogram.debug` for debug builds
-
-4. `google-services.json` 파일을 다운로드하여 **app** 모듈의 루트(`monogram/app/google-services.json`)에 복사합니다. 파일
-   안에 두 package name 모두에 대한 client가 들어 있어야 합니다.
-5. **Cloud Messaging** 섹션으로 이동합니다.
-6. **서비스 계정 관리(Manage service accounts)**를 클릭합니다.
-7. 열린 창 상단에서 **키(Keys)** 섹션을 선택합니다.
-8. **키 추가(Add key)**를 클릭하고 **JSON** 옵션을 선택합니다. 파일이 다운로드될 때까지 기다립니다.
-9. App ID를 받았던 텔레그램 API 페이지로 돌아갑니다.
-10. FCM 자격 증명 섹션 옆의 **Update**를 클릭합니다.
-11. 열린 페이지에서 다운로드한 서비스 계정 JSON 파일을 업로드합니다.
-
-### 4. 최초 설정: libvpx 빌드
-
-애니메이션을 사용하려면 libvpx를 먼저 컴파일해야 합니다. Gradle 빌드를 시작하기 전에 이 작업을 하지 않으면 빌드가 실패할 수 있습니다.
-
-1. 작업 디렉터리를 `presentation/src/main/cpp`로 이동합니다.
-2. `build.sh`에 `ANDROID_NDK_HOME`을 추가합니다.
-3. `build.sh`를 실행하고 완료될 때까지 기다립니다.
+- **FCM:** Firebase에 `org.monogram`을 사용하는 Android 앱을 등록하세요(debug, release, beta 모두 같은 애플리케이션 ID 사용). 설정 파일을 `app/google-services.json`에 넣으세요. Gradle은 이 파일이 있을 때만 Google Services 플러그인을 적용합니다. 설정 파일이 없어도 Firebase 의존성은 앱에 포함됩니다.
+- [my.telegram.org/apps](https://my.telegram.org/apps)에서 Telegram API ID에 해당 FCM 자격 증명을 등록하세요. `google-services.json`과 모든 `firebase-adminsdk` JSON 파일은 버전 관리에서 제외하고, 서비스 계정 키를 APK에 절대 포함하지 마세요.
+- FCM 테스트에는 Google Play 서비스가 필요합니다. 에뮬레이터에서는 Google Play 이미지를 사용하세요.
+- **UnifiedPush:** 기기에 호환되는 배포자 앱을 설치하고 설정하세요. 앱은 UnifiedPush 등록을 지원합니다.
 
 ### 5. 빌드 및 실행
 
-1. **Android Studio**에서 프로젝트를 엽니다.
-2. `TdApi.java`(TDLib 래퍼)가 올바르게 인덱싱되도록 IDE 인덱싱 제한을 늘립니다. **Android Studio** 또는 **IntelliJ IDEA**에서 **Help → Edit Custom Properties...**를 열고 아래 줄을 붙여넣은 후, 메시지가 나타나면 IDE를 다시 시작합니다:
+Android Studio에서 저장소를 열고 Gradle을 동기화한 뒤 `app` 실행 구성을 선택하거나, 저장소 루트에서 아래 명령을 실행하세요. `installDebug`에는 연결된 기기 또는 실행 중인 에뮬레이터가 필요합니다.
 
-```properties
-# size in Kb
-idea.max.intellisense.filesize=20480
-# size in Kb
-idea.max.content.load.filesize=20480
+Unix 계열 시스템:
+
+```sh
+./gradlew :app:assembleDebug
+./gradlew :app:installDebug
+./gradlew :app:assembleRelease
+./gradlew :app:assembleBeta
 ```
 
-3. Gradle을 동기화합니다.
-4. `app` 실행 구성을 선택합니다.
-5. 기기를 연결하거나 에뮬레이터를 시작합니다.
-6. **Run**(실행)을 클릭합니다.
+Windows (PowerShell):
 
----
-
-## TDLib 빌드하기
-
-소스에서 TDLib을 직접 빌드해야 하는 경우 먼저 필요한 종속성을 설치하세요. Debian/Ubuntu 기반 배포판의 경우 다음과 같습니다:
-
-```bash
-sudo apt-get update
-sudo apt-get install build-essential git curl wget php perl gperf unzip zip default-jdk cmake
+```powershell
+./gradlew.bat :app:assembleDebug
+./gradlew.bat :app:installDebug
+./gradlew.bat :app:assembleRelease
+./gradlew.bat :app:assembleBeta
 ```
 
-그런 다음 프로젝트 루트에서 빌드 스크립트를 실행합니다:
+- `debug`: 개발용 빌드
+- `release`: R8으로 최적화한 빌드
+- `beta`: 디버깅을 쉽게 하도록 R8을 비활성화한 release 기반 빌드
 
-```bash
-./build-tdlib.sh
+APK는 `app/build/outputs/apk/debug/`, `app/build/outputs/apk/release/`, `app/build/outputs/apk/beta/`에 생성됩니다. [Android CI 워크플로](.github/workflows/android.yml)는 `monogram-debug.apk`와 `monogram-release.apk`가 들어 있는 `monogram-debug`, `monogram-release` 아티팩트를 업로드합니다. 릴리스 키 저장소가 없으면 두 빌드 모두 디버그 서명을 사용합니다.
+
+### 네이티브 컴파일
+
+일반 빌드 과정에서 Gradle은 `armeabi-v7a`, `arm64-v8a`, `x86_64`용 Rust 라이브러리를 빌드하고 호스트 디버그 라이브러리에서 UniFFI Kotlin 바인딩을 다시 생성합니다. 비디오 스티커용 사전 빌드 libvpx 라이브러리는 `native/vpx/prebuilt`에 포함되어 있습니다. Android 네이티브 컴파일 작업을 직접 실행하려면:
+
+```sh
+./gradlew :native:mtproto:buildNativeMtproto :native:markup:buildNativeMarkup
 ```
 
-스크립트는 다음 모드를 지원합니다:
-
-- `./build-tdlib.sh official`
-- `./build-tdlib.sh telemt`
-- `./build-tdlib.sh both`
-
-스크립트가 사용하는 업스트림 저장소:
-
-- `official`: [tdlib/td](https://github.com/tdlib/td)
-- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
-
-인자 없이 실행하면 선택 메뉴가 표시됩니다.
-
-### Build Variants 및 Gradle 작업
-
-Android Studio에서는 다음 variants를 사용하세요:
-
-- `officialFirebaseDebug`
-- `officialFirebaseRelease`
-- `officialLibreDebug`
-- `officialLibreRelease`
-- `telemtFirebaseDebug`
-- `telemtFirebaseRelease`
-- `telemtLibreDebug`
-- `telemtLibreRelease`
-
-Variant 이름:
-
-- `official` / `telemt`는 TDLib 소스를 선택합니다
-- `firebase`는 FCM / Firebase 기반 푸시를 활성화합니다
-- `libre`는 Firebase 의존성 없이 빌드합니다
-
-유용한 Gradle 작업:
-
-```bash
-./gradlew :app:assembleOfficialFirebaseRelease
-./gradlew :app:assembleTelemtFirebaseRelease
-./gradlew :app:assembleOfficialFirebaseDebug
-./gradlew :app:assembleTelemtFirebaseDebug
-./gradlew :app:assembleOfficialLibreRelease
-./gradlew :app:assembleTelemtLibreRelease
-./gradlew :app:assembleOfficialLibreDebug
-./gradlew :app:assembleTelemtLibreDebug
-```
-
-APK 이름:
-
-- official Firebase: `monogram-arm64-v8a-<version>-release.apk`
-- official libre: `monogram-libre-arm64-v8a-<version>-release.apk`
-- Telemt Firebase: `monogram-telemt-arm64-v8a-<version>-release.apk`
-- Telemt libre: `monogram-telemt-libre-arm64-v8a-<version>-release.apk`
-
----
-
-## 기여하기
-
-우리는 여러분의 기여를 환영합니다! 버그 수정, 문서 개선, 새로운 기능 제안 등 무엇이든 좋습니다.
-
-1. **이슈 확인** — 열려 있는 이슈를 찾아보거나 새로운 이슈를 생성하여 아이디어를 논의하세요.
-2. **`develop` 브랜치에서 작업** — `develop` 브랜치에서 새 브랜치를 생성하고 해당 브랜치를 기반으로 작업하세요.
-3. **포크 및 브랜치** — 저장소를 포크하고 기능 브랜치를 생성하세요.
-4. **코드 스타일** — 기존 Kotlin 코딩 스타일과 클린 아키텍처 가이드라인을 준수하세요.
-5. **PR 제출** — 변경 사항에 대한 명확한 설명과 함께 `develop` 브랜치로 Pull Request를 여세요.
-
-> [!IMPORTANT]
-> - [텔레그램 API 서비스 약관](https://core.telegram.org/api/terms)을 준수하세요.
-> - 작성한 코드가 모든 검사와 테스트를 통과하는지 확인하세요.
-
-### 버그 신고 및 기능 제안
-
-- **버그** — 이슈를 열고 제목에 `[Bug]` 태그를 사용하세요(예: `[Bug] 앱 시작 시 크래시 발생`). 또한 [**버그 트래커**](https://github.com/orgs/monogram-android/projects/3/views/1)에서 알려진 모든 버그를 확인할 수 있습니다.
-- **기능 요청** — `[Feature]` 태그를 사용하여 이슈를 여세요(예: `[Feature] 예약 메시지 지원`). 기존 기능 요청은 [**기능 보드**](https://github.com/orgs/monogram-android/projects/5/views/1)에서 확인할 수 있습니다.
-
----
-
-## 번역
-
-MonoGram은 커뮤니티 번역을 환영합니다! 문자열 리소스 파일을 수정하여 원하는 언어 번역에 기여할 수 있습니다.
-
-원본 문자열은 [`presentation/src/main/res/values/string.xml`](https://github.com/monogram-android/monogram/blob/develop/presentation/src/main/res/values/string.xml)에 있습니다. 새로운 언어를 추가하려면 해당하는 `values-<locale>/string.xml` 파일(예: 독일어의 경우 `values-de/string.xml`)을 만들고 해당 파일에서 문자열을 번역하세요. 번역이 포함된 PR을 열어주시면 병합하겠습니다.
-
----
+Windows에서는 `./gradlew` 대신 `./gradlew.bat`를 사용하세요. `-PskipNativeBuild=true`는 호환되는 네이티브 라이브러리와 생성된 바인딩이 이미 있는 상태에서 Kotlin만 변경할 때 사용하세요. 네이티브 컴파일과 바인딩 재생성을 모두 건너뛰지만 SDK/NDK 설정은 여전히 필요합니다.
 
 ## 기술 스택
 
-MonoGram은 최신 안드로이드 개발 도구와 라이브러리를 활용합니다:
-
-| 카테고리 | 라이브러리 |
-|:---|:---|
-| **언어** | [Kotlin](https://kotlinlang.org/) |
-| **UI 툴킷** | [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material 3) |
-| **아키텍처** | [Decompose](https://github.com/arkivanov/Decompose) (Navigation), [MVIKotlin](https://github.com/arkivanov/MVIKotlin) |
-| **의존성 주입 (DI)** | [Koin](https://insert-koin.io/) |
-| **비동기** | Coroutines & Flow |
-| **텔레그램 코어** | [TDLib](https://core.telegram.org/tdlib) (Telegram Database Library) |
-| **이미지 로딩** | [Coil 3](https://coil-kt.github.io/coil/) |
-| **미디어** | Media3 (ExoPlayer) |
-| **지도** | [MapLibre](https://maplibre.org/) |
-| **로컬 DB** | Room |
-
----
+- **언어 및 프로토콜:** Kotlin, Rust, MTProto, UniFFI
+- **UI 및 상태:** Jetpack Compose, Material 3, Decompose, MVIKotlin
+- **공통 서비스:** Koin, Coroutines, Flow, Room
+- **미디어 및 푸시:** Media3, Coil, libvpx, tlottie, Firebase Cloud Messaging, UnifiedPush
 
 ## 프로젝트 구조
 
-이 프로젝트는 관심사 분리와 확장성을 보장하기 위해 멀티 모듈 구조를 따릅니다:
-
-| 모듈 | 설명 |
+| 경로 | 역할 |
 |:---|:---|
-| **:app** | 메인 안드로이드 애플리케이션 모듈입니다. |
-| **:domain** | 비즈니스 로직, 유스케이스(Use cases), 리포지토리 인터페이스를 포함하는 순수 Kotlin 모듈입니다. |
-| **:data** | 리포지토리, 데이터 소스, TDLib 통합의 구현체입니다. |
-| **:presentation** | UI 컴포넌트, 화면(Screens), 뷰모델(MVI 스토어)입니다. |
-| **:core** | 여러 모듈에서 공통으로 사용되는 유틸리티 클래스와 확장 함수(Extensions)입니다. |
-| **:baselineprofile** | 앱 시작 시간 및 성능 최적화를 위한 베이스라인 프로파일(Baseline Profiles)입니다. |
+| `app` | 앱 진입점, 의존성 주입, 탐색 및 푸시 통합 |
+| `core/*` | 공통 모델, 데이터베이스, UI, 유틸리티 및 마크업 처리 접근 |
+| `feature/*` | 인증, 채팅 목록, 대화, 폴더, 프로필 및 설정 |
+| `network/bridge` | Kotlin 클라이언트 API, 도메인 매핑 및 오류 처리 |
+| `network/http` | HTTP 미디어 다운로드, 캐시 및 대기열 |
+| `native/mtproto-rs` | Rust 프로토콜 클라이언트 및 UniFFI 내보내기 |
+| `native/markup-rs` | Rust 기반 Markdown 처리, 구문 강조 및 수식 파싱 |
+| `native/mtproto`, `native/markup` | Kotlin 파사드, 생성된 바인딩 및 네이티브 라이브러리 |
+| `native/vpx` | 비디오 스티커용 사전 빌드 VP9 디코더 |
+| `vendor` | 외부 소스 코드 및 서브모듈 |
 
----
+feature 모듈은 `network/bridge`를 호출하며, 네이티브 프로토콜 로직은 Rust에 있습니다. feature 모듈은 생성된 UniFFI 타입을 직접 가져오거나 다른 feature 모듈에 의존하면 안 됩니다. 개발 규칙과 프로토콜 불변 조건은 [AGENTS.md](AGENTS.md)를 참고하세요.
+
+## 기여하기
+
+`develop`에서 브랜치를 만들고 `develop`을 대상으로 pull request를 제출하세요. 기존 아키텍처와 코드 스타일을 따르고, 변경 범위를 작업에 한정하며, 명확한 설명과 관련 검증 결과를 포함하세요. [Telegram API 이용 약관](https://core.telegram.org/api/terms)을 준수하세요.
+
+변경한 모듈에 적합한 검사를 실행하세요. 예:
+
+```sh
+./gradlew :network:bridge:test
+cargo test --manifest-path native/mtproto-rs/Cargo.toml
+cargo test --manifest-path native/markup-rs/Cargo.toml
+git diff --check
+```
+
+Windows에서는 `./gradlew.bat`를 사용하세요. 변경 사항과 관련된 검사만 실행하세요. 실제 Telegram 연동과 기기 동작은 본인의 자격 증명으로 별도 검증해야 합니다.
+
+버그 신고는 이슈 제목에 `[Bug]`, 기능 제안은 `[Feature]`를 사용하세요. [버그 추적 보드](https://github.com/orgs/monogram-android/projects/3/views/1)와 [기능 보드](https://github.com/orgs/monogram-android/projects/5/views/1)를 참고하세요.
+
+## 번역
+
+UI 문자열은 `core/ui/src/main/res/values/strings.xml` 및 `feature/*/src/main/res/values/strings.xml` 파일에 있습니다. 관련 모듈마다 `values-<locale>/strings.xml`을 추가하거나 수정하세요(예: `values-de/strings.xml`). 리소스 이름, 서식 자리표시자, 복수형을 유지하세요. 번역은 pull request로 제출하고, 번역된 README는 영어 버전과 일치하도록 유지하세요.
 
 ## 라이선스
 
-이 프로젝트는 [**GNU General Public License v3.0**](LICENSE) 라이선스에 따라 배포됩니다.
+Monogram은 [GNU General Public License v3.0](LICENSE)으로 배포됩니다. 외부 구성 요소와 네이티브 크레이트에는 각 소스 디렉터리에 명시된 라이선스가 적용됩니다.

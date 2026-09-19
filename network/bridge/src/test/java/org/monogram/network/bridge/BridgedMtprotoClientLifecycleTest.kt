@@ -30,6 +30,82 @@ import org.monogram.network.bridge.session.nativeFailureLogLine
 @OptIn(ExperimentalCoroutinesApi::class)
 class BridgedMtprotoClientLifecycleTest {
     @Test
+    fun localAuthorizationRestoresSessionWithoutConnecting() = runTest {
+        for (authorized in listOf(true, false)) {
+            val native = object : RecordingNative() {
+                override fun connect(handle: Long): Unit = error("Startup must not connect")
+                override fun isAuthorized(handle: Long): Boolean {
+                    assertEquals(1L, handle)
+                    return authorized
+                }
+            }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertEquals(Outcome.Ok(authorized), client.isLocallyAuthorized())
+                assertEquals(1, native.created)
+            } finally {
+                client.close()
+            }
+        }
+    }
+
+    @Test
+    fun localAuthorizationPreservesCancellation() = runTest {
+        val native = object : RecordingNative() {
+            override fun isAuthorized(handle: Long): Boolean = throw CancellationException("cancelled")
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        try {
+            client.isLocallyAuthorized()
+            error("Expected cancellation")
+        } catch (e: CancellationException) {
+            assertEquals("cancelled", e.message)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun restoredAccountSendsOnlineOfflineAndOnlineAgain() = runTest {
+        val statuses = mutableListOf<Boolean>()
+        var connects = 0
+        val native = object : RecordingNative() {
+            override fun isAuthorized(handle: Long) = true
+            override fun connect(handle: Long) { connects++ }
+            override fun updateStatus(handle: Long, offline: Boolean) {
+                statuses += offline
+            }
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        try {
+            assertEquals(Outcome.Ok(true), client.isLocallyAuthorized())
+            assertEquals(0, connects)
+            for (offline in listOf(false, true, false)) {
+                assertEquals(Outcome.Ok(Unit), client.updateStatus(offline))
+            }
+            assertEquals(listOf(false, true, false), statuses)
+            assertEquals(1, connects)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun unauthenticatedAccountDoesNotSendStatus() = runTest {
+        val native = object : RecordingNative() {
+            override fun updateStatus(handle: Long, offline: Boolean): Unit =
+                error("Unauthenticated status must not reach native")
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        try {
+            assertEquals(Outcome.Ok(Unit), client.updateStatus(offline = false))
+            assertEquals(Outcome.Ok(Unit), client.updateStatus(offline = true))
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
     fun signInPreservesCancellation() = runTest {
         val cancelled = CancellationException("cancelled")
         val native = object : RecordingNative() {

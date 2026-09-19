@@ -11,10 +11,10 @@ const val ARCHIVE_FOLDER_ID = -1
 fun Folder.contains(chat: Chat): Boolean {
     if (id == ARCHIVE_FOLDER_ID) return chat.archived
     if (excludeChatIds.contains(chat.id)) return false
-    if (excludeArchived && chat.archived) return false
-    if (excludeMuted && chat.muted) return false
-    if (excludeRead && chat.unreadCount <= 0) return false
     if (chatIds.contains(chat.id)) return true
+    if (excludeArchived && chat.archived) return false
+    if (excludeMuted && chat.muted && chat.unreadMentionsCount == 0 && chat.unreadReactionsCount == 0) return false
+    if (excludeRead && chat.unreadCount <= 0 && !chat.unreadMark && chat.unreadMentionsCount == 0 && chat.unreadReactionsCount == 0) return false
     if (chatIds.isEmpty() &&
         !includeContacts &&
         !includeNonContacts &&

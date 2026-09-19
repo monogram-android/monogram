@@ -41,14 +41,17 @@ class BridgedMtprotoClientHistoryTest {
             native = native, nativeDispatcher = StandardTestDispatcher(testScheduler), refreshDcSidecar = {},
         )
         try {
-            client.connect()
             val events = mutableListOf<MtprotoUpdate>()
             backgroundScope.async { client.updates().toList(events) }
             runCurrent()
+            client.connect()
             advanceTimeBy(1_600)
             runCurrent()
             assertEquals(emptyList<org.monogram.core.models.Folder>(), events.filterIsInstance<MtprotoUpdate.FoldersChanged>().first().folders)
-            assertEquals(PeerId(42), events.filterIsInstance<MtprotoUpdate.ChatsChanged>().first().chats.single().id)
+            val refreshed = events.filterIsInstance<MtprotoUpdate.ChatsChanged>().first().chats.single()
+            assertEquals(PeerId(42), refreshed.id)
+            assertEquals(2, refreshed.unreadMentionsCount)
+            assertEquals(1, refreshed.unreadReactionsCount)
         } finally { client.close() }
     }
 
@@ -139,12 +142,12 @@ class BridgedMtprotoClientHistoryTest {
             refreshDcSidecar = {},
         )
         try {
-            client.getHistory(PeerId(42))
             val premiums = mutableListOf<MtprotoUpdate.AccountPremium>()
             val collector = backgroundScope.async {
                 client.updates().filterIsInstance<MtprotoUpdate.AccountPremium>().toList(premiums)
             }
             runCurrent()
+            client.getHistory(PeerId(42))
             advanceTimeBy(2_000)
             runCurrent()
             assertTrue(native.drainCalls > 1)
@@ -645,6 +648,8 @@ class BridgedMtprotoClientHistoryTest {
         var lastPinnedChatId: Long? = null
         var lastForumChatId: Long? = null
 
+        override fun createClient(apiId: Int, apiHash: String, sessionPath: String): Long = 1L
+
         override fun connect(handle: Long) = Unit
 
         override fun isAuthorized(handle: Long): Boolean = true
@@ -801,6 +806,7 @@ class BridgedMtprotoClientHistoryTest {
                         date = 1,
                         unreadCount = 3,
                         unreadMentionsCount = 0,
+                        unreadReactionsCount = 0,
                         readInboxMaxId = 8,
                         pinned = true,
                         closed = false,
@@ -818,6 +824,7 @@ class BridgedMtprotoClientHistoryTest {
                         date = 0,
                         unreadCount = 0,
                         unreadMentionsCount = 0,
+                        unreadReactionsCount = 0,
                         readInboxMaxId = 0,
                         pinned = false,
                         closed = false,

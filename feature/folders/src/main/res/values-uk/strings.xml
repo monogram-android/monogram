@@ -32,4 +32,6 @@
     <string name="folders_exclude_archived">В архіві</string>
     <string name="folders_include_chats">Включені чати</string>
     <string name="folders_exclude_chats">Виключені чати</string>
+    <string name="folders_show_all_chats">Показувати папку «Усі чати»</string>
+    <string name="folders_show_all_chats_sub">Відображати вкладку «Усі чати» в списку папок</string>
 </resources>

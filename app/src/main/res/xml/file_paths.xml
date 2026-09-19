@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <files-path name="media" path="media/" />
+    <files-path name="open" path="open/" />
+    <files-path name="files" path="." />
     <cache-path name="media-cache" path="media/" />
+    <cache-path name="open-cache" path="open/" />
     <cache-path name="cache" path="." />
     <external-cache-path name="ext-cache" path="." />
+    <external-files-path name="ext-files" path="." />
 </paths>

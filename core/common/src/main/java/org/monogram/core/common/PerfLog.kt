@@ -1,6 +1,7 @@
 package org.monogram.core.common
 
 import android.util.Log
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * Opt-in netcode timing spans; off by default, switchable from adb:
@@ -24,6 +25,8 @@ object PerfLog {
 
     @Volatile
     private var nativeSnapshot: (() -> String)? = null
+
+    private val pendingUpdateAtMs = ConcurrentLinkedQueue<Long>()
 
     fun isEnabled(): Boolean {
         val now = nowMs()
@@ -96,6 +99,18 @@ object PerfLog {
                 part++
             }
         }
+    }
+
+    /** Records the point at which an inbound update batch became available to UI observers. */
+    fun noteUpdateDrain(count: Int) {
+        if (!isEnabled() || count <= 0) return
+        pendingUpdateAtMs.offer(nowMs())
+    }
+
+    /** Called after the affected content is drawn; report every queued update batch in order. */
+    fun noteUpdateFrame() {
+        val drainedAt = pendingUpdateAtMs.poll() ?: return
+        mark("updates_to_compose", nowMs() - drainedAt, "result=ok")
     }
 
     fun flush() {

@@ -30,6 +30,12 @@ open class OfflineWarmup(
 ) {
     private val cleanupMutex = Mutex()
 
+    /** Callers use this to skip redundant dispatcher hops for in-memory cache adapters. */
+    open val usesIoDispatcher: Boolean get() = db != null
+
+    private suspend inline fun <T> roomIo(crossinline block: suspend () -> T): T =
+        if (db == null) block() else withContext(Dispatchers.IO) { block() }
+
     @Volatile
     private var startupCleanupDone = false
 
@@ -54,11 +60,12 @@ open class OfflineWarmup(
     open fun observeReadStates(): Flow<List<ChatReadState>> =
         db?.chatDao()?.observeReadStates() ?: emptyFlow()
 
-    open suspend fun draft(chatId: PeerId, threadId: Int = 0): String =
+    open suspend fun draft(chatId: PeerId, threadId: Int = 0): String = roomIo {
         db?.metaDao()?.get(draftMetaKey(chatId.value, threadId))?.value.orEmpty()
+    }
 
-    open suspend fun setDraft(chatId: PeerId, threadId: Int = 0, text: String) {
-        val database = db ?: return
+    open suspend fun setDraft(chatId: PeerId, threadId: Int = 0, text: String) = roomIo {
+        val database = db ?: return@roomIo
         val key = draftMetaKey(chatId.value, threadId)
         if (text.isEmpty()) {
             database.metaDao().delete(key)
@@ -69,13 +76,20 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun discussionReadMax(chatId: PeerId, topId: Int): Int =
+    open suspend fun discussionReadMax(chatId: PeerId, topId: Int): Int = roomIo {
         db?.metaDao()?.get("discussion_read:${chatId.value}:$topId")?.value?.toIntOrNull() ?: 0
+    }
 
-    open suspend fun applyDiscussionRead(chatId: PeerId, topId: Int, maxId: Int) {
-        val database = db ?: return
+    open suspend fun applyDiscussionRead(chatId: PeerId, topId: Int, maxId: Int) = roomIo {
+        val database = db ?: return@roomIo
         database.withTransaction {
-            val confirmed = maxOf(discussionReadMax(chatId, topId), maxId)
+            val confirmed = maxOf(
+                database.metaDao()
+                    .get("discussion_read:${chatId.value}:$topId")
+                    ?.value
+                    ?.toIntOrNull() ?: 0,
+                maxId,
+            )
             database.metaDao().upsert(
                 org.monogram.core.database.entity.MetaEntity(
                     "discussion_read:${chatId.value}:$topId",
@@ -85,34 +99,34 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun applyOutboxRead(chatId: PeerId, maxId: Int) {
+    open suspend fun applyOutboxRead(chatId: PeerId, maxId: Int) = roomIo {
         db?.chatDao()?.updateOutboxRead(chatId.value, maxId)
     }
 
-    open suspend fun applyReactions(chatId: PeerId, messageId: Int, json: String) {
+    open suspend fun applyReactions(chatId: PeerId, messageId: Int, json: String) = roomIo {
         db?.messageDao()?.updateReactions(chatId.value, messageId, json)
     }
 
-    open suspend fun applyUnreadMentions(chatId: PeerId, stillUnread: Int) {
+    open suspend fun applyUnreadMentions(chatId: PeerId, stillUnread: Int) = roomIo {
         db?.chatDao()?.updateUnreadMentions(chatId.value, stillUnread.coerceAtLeast(0))
     }
 
-    open suspend fun applyUnreadReactions(chatId: PeerId, stillUnread: Int) {
+    open suspend fun applyUnreadReactions(chatId: PeerId, stillUnread: Int) = roomIo {
         db?.chatDao()?.updateUnreadReactions(chatId.value, stillUnread.coerceAtLeast(0))
     }
 
-    open suspend fun addUnreadMentions(chatId: PeerId, delta: Int) {
+    open suspend fun addUnreadMentions(chatId: PeerId, delta: Int) = roomIo {
         db?.chatDao()?.addUnreadMentions(chatId.value, delta)
     }
 
-    open suspend fun addUnreadReactions(chatId: PeerId, delta: Int) {
+    open suspend fun addUnreadReactions(chatId: PeerId, delta: Int) = roomIo {
         db?.chatDao()?.addUnreadReactions(chatId.value, delta)
     }
 
-    open suspend fun applyMessageEdit(message: Message) {
-        val database = db ?: return
+    open suspend fun applyMessageEdit(message: Message) = roomIo {
+        val database = db ?: return@roomIo
         database.withTransaction {
-            upsertMessages(listOf(message))
+            database.messageDao().upsertAll(listOf(message.toEntity()))
             refreshPreview(message.id.chatId, message.id.id)
         }
     }
@@ -144,7 +158,10 @@ open class OfflineWarmup(
     }
 
     open suspend fun chats(): List<Chat> {
-        val database = db ?: return emptyList()
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
         return withContext(Dispatchers.IO) {
             ensureStartupCleanup()
             database.chatDao().observeAll().map { it.toModel() }
@@ -152,7 +169,10 @@ open class OfflineWarmup(
     }
 
     open suspend fun chatsWindow(limit: Int, archiveLimit: Int = 3): List<Chat> {
-        val database = db ?: return chats()
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return chats()
+        }
         return withContext(Dispatchers.IO) {
             ensureStartupCleanup()
             val main = database.chatDao().mainListPage(limit, 0)
@@ -162,38 +182,55 @@ open class OfflineWarmup(
     }
 
     open suspend fun chatsPage(offset: Int, limit: Int): List<Chat> {
-        val database = db ?: return emptyList()
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
         return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
             database.chatDao().mainListPage(limit, offset).map { it.toModel() }
         }
     }
 
     open suspend fun chatsExcluding(excludeIds: List<Long>, limit: Int): List<Chat> {
-        val database = db ?: return emptyList()
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
         if (excludeIds.isEmpty()) return chatsWindow(limit, archiveLimit = 0)
         return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
             database.chatDao().mainListExcluding(excludeIds, limit).map { it.toModel() }
         }
     }
 
     open suspend fun mainListCount(): Int {
-        val database = db ?: return 0
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return 0
+        }
         return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
             database.chatDao().mainListCount()
         }
     }
 
     open suspend fun chat(chatId: PeerId): Chat? {
-        val database = db
-        if (database != null) {
+        val database = db ?: run {
             ensureStartupCleanup()
-            return database.chatDao().get(chatId.value)?.toModel()
+            return chats().firstOrNull { it.id == chatId }
         }
-        return chats().firstOrNull { it.id == chatId }
+        return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
+            database.chatDao().get(chatId.value)?.toModel()
+        }
     }
 
     open suspend fun folders(): List<Folder> {
-        val database = db ?: return emptyList()
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
         return withContext(Dispatchers.IO) {
             ensureStartupCleanup()
             database.folderDao().observeAll().map { it.toModel() }
@@ -203,39 +240,56 @@ open class OfflineWarmup(
     /** Drops stuck unsent/failed local rows left after process death. */
     open suspend fun dropUnsentAfterRestart() {
         val database = db ?: return
-        database.withTransaction {
-            val chatIds = database.messageDao().unsentChatIds()
-            if (chatIds.isEmpty()) return@withTransaction
-            database.messageDao().deleteUnsent()
-            chatIds.forEach { refreshLatestPreview(PeerId(it)) }
+        roomIo {
+            database.withTransaction {
+                val chatIds = database.messageDao().unsentChatIds()
+                if (chatIds.isEmpty()) return@withTransaction
+                database.messageDao().deleteUnsent()
+                chatIds.forEach { refreshLatestPreview(PeerId(it)) }
+            }
         }
     }
 
     open suspend fun messages(chatId: PeerId, limit: Int = 200): List<Message> {
-        ensureStartupCleanup()
-        val dao = db?.messageDao() ?: return emptyList()
-        val pending = dao.pendingForChat(chatId.value).map { it.toModel() }
-        val latest = dao.latestForChat(chatId.value, limit).map { it.toModel() }
-        return pending + latest
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
+        return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
+            val pending = database.messageDao().pendingForChat(chatId.value).map { it.toModel() }
+            val latest = database.messageDao().latestForChat(chatId.value, limit).map { it.toModel() }
+            pending + latest
+        }
     }
 
     open suspend fun messagesByIds(chatId: PeerId, ids: List<Int>): List<Message> {
         if (ids.isEmpty()) return emptyList()
-        val rows = db?.messageDao()?.byIds(chatId.value, ids).orEmpty().map { it.toModel() }
-        val byId = rows.associateBy { it.id.id }
-        return ids.mapNotNull { byId[it] }
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
+        return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
+            val rows = database.messageDao().byIds(chatId.value, ids).map { it.toModel() }
+            val byId = rows.associateBy { it.id.id }
+            ids.mapNotNull { byId[it] }
+        }
     }
 
     open suspend fun olderMessages(chatId: PeerId, beforeId: Int, limit: Int = 40): List<Message> {
-        ensureStartupCleanup()
-        return db?.messageDao()
-            ?.olderThan(chatId.value, beforeId, limit)
-            ?.map { it.toModel() }
-            .orEmpty()
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
+        return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
+            database.messageDao().olderThan(chatId.value, beforeId, limit).map { it.toModel() }
+        }
     }
 
-    open suspend fun replaceChats(chats: List<Chat>) {
-        val database = db ?: return
+    open suspend fun replaceChats(chats: List<Chat>) = roomIo {
+        val database = db ?: return@roomIo
         database.withTransaction {
             val stored = database.chatDao().observeAll().associateBy { it.id }
             database.chatDao().clear()
@@ -249,7 +303,7 @@ open class OfflineWarmup(
     }
 
     open suspend fun applyProfileToChat(profile: Profile) {
-        val stored = db?.chatDao()?.get(profile.id.value)?.toModel() ?: return
+        val stored = roomIo { db?.chatDao()?.get(profile.id.value)?.toModel() } ?: return
         val title = profile.title.takeIf { !isPlaceholderPeerTitle(it, profile.id.value) }
             ?: stored.title
         val updated = stored.copy(
@@ -279,8 +333,8 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun replaceFolders(folders: List<Folder>) {
-        val database = db ?: return
+    open suspend fun replaceFolders(folders: List<Folder>) = roomIo {
+        val database = db ?: return@roomIo
         // List order is the folder order, so the index has to land in the row.
         val rows = folders.mapIndexed { index, folder -> folder.toEntity(position = index) }
         database.withTransaction {
@@ -289,24 +343,27 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun replaceMessages(chatId: PeerId, messages: List<Message>) {
-        db?.messageDao()?.clearChat(chatId.value)
-        upsertMessages(messages)
+    open suspend fun replaceMessages(chatId: PeerId, messages: List<Message>) = roomIo {
+        val database = db ?: return@roomIo
+        database.messageDao().clearChat(chatId.value)
+        if (messages.isNotEmpty()) {
+            database.messageDao().upsertAll(messages.map { it.toEntity() })
+        }
     }
 
-    open suspend fun upsertMessages(messages: List<Message>) {
-        if (messages.isEmpty()) return
+    open suspend fun upsertMessages(messages: List<Message>) = roomIo {
+        if (messages.isEmpty()) return@roomIo
         db?.messageDao()?.upsertAll(messages.map { it.toEntity() })
     }
 
-    open suspend fun deleteMessage(chatId: PeerId, messageId: Int) {
+    open suspend fun deleteMessage(chatId: PeerId, messageId: Int) = roomIo {
         db?.messageDao()?.delete(chatId.value, messageId)
     }
 
-    open suspend fun deleteMessages(chatId: PeerId?, messageIds: Collection<Int>) {
-        val database = db ?: return
+    open suspend fun deleteMessages(chatId: PeerId?, messageIds: Collection<Int>) = roomIo {
+        val database = db ?: return@roomIo
         val ids = messageIds.toList()
-        if (ids.isEmpty()) return
+        if (ids.isEmpty()) return@roomIo
         database.withTransaction {
             // DAO read, not `chats()`: a gated read here would wait on the startup-cleanup mutex
             // while this transaction is open and then open a nested one.
@@ -344,11 +401,11 @@ open class OfflineWarmup(
     }
 
     /** Drops cached rows in the latest window that the server no longer returns. */
-    open suspend fun pruneMissingLatest(chatId: PeerId, fetched: List<Message>) {
-        val database = db ?: return
-        if (fetched.isEmpty()) return
+    open suspend fun pruneMissingLatest(chatId: PeerId, fetched: List<Message>) = roomIo {
+        val database = db ?: return@roomIo
+        if (fetched.isEmpty()) return@roomIo
         val keep = fetched.mapTo(mutableSetOf()) { it.id.id }
-        val minId = keep.minOrNull() ?: return
+        val minId = keep.minOrNull() ?: return@roomIo
         val stale = database.messageDao()
             .idsAtOrAfter(chatId.value, minId)
             .filterNot(keep::contains)
@@ -357,10 +414,10 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun applyIncomingMessage(message: Message) {
-        val database = db ?: return
+    open suspend fun applyIncomingMessage(message: Message) = roomIo {
+        val database = db ?: return@roomIo
         database.withTransaction {
-            upsertMessages(listOf(message))
+            database.messageDao().upsertAll(listOf(message.toEntity()))
             val stored = database.chatDao().get(message.id.chatId.value)?.toModel()
             val unread =
                 if (message.outgoing || message.id.id <= (stored?.readInboxMaxId ?: 0) ||
@@ -380,13 +437,13 @@ open class OfflineWarmup(
                 lastMessageId = message.id.id,
                 lastMediaThumbCacheKey = message.thumbCacheKey ?: stored?.lastMediaThumbCacheKey,
             )
-            upsertChats(listOf(chat))
+            database.chatDao().upsertAll(listOf(chat.toEntity()))
         }
     }
 
     /** Drops cached chats/history/peers/folders. Auth flags are [SessionMetadataStore.clearSession]. */
-    open suspend fun clearAccountCache() {
-        val database = db ?: return
+    open suspend fun clearAccountCache() = roomIo {
+        val database = db ?: return@roomIo
         database.messageDao().clearAll()
         database.chatDao().clear()
         database.folderDao().clear()
@@ -399,12 +456,12 @@ open class OfflineWarmup(
         database.metaDao().deleteLike("${DRAFT_META_PREFIX}%")
     }
 
-    open suspend fun setDialogScroll(chatId: PeerId, messageId: Int) {
+    open suspend fun setDialogScroll(chatId: PeerId, messageId: Int) = roomIo {
         db?.chatDao()?.updateDialogScroll(chatId.value, messageId)
     }
 
-    open suspend fun markChatRead(chatId: PeerId, maxId: Int) {
-        val database = db ?: return
+    open suspend fun markChatRead(chatId: PeerId, maxId: Int) = roomIo {
+        val database = db ?: return@roomIo
         database.withTransaction {
             val stored = database.chatDao().get(chatId.value) ?: return@withTransaction
             if (maxId <= stored.readInboxMaxId) return@withTransaction
@@ -413,8 +470,8 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun applyInboxRead(chatId: PeerId, maxId: Int, stillUnread: Int) {
-        val database = db ?: return
+    open suspend fun applyInboxRead(chatId: PeerId, maxId: Int, stillUnread: Int) = roomIo {
+        val database = db ?: return@roomIo
         database.withTransaction {
             if (database.chatDao().get(chatId.value) == null) {
                 database.chatDao().upsertAll(listOf(Chat(chatId, "").toEntity()))

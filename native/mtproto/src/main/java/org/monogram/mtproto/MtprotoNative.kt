@@ -309,6 +309,11 @@ interface MtprotoNative {
     @Throws(MtprotoException::class)
     fun readHistory(handle: Long, chatId: Long, maxId: Int)
 
+    /** Acknowledges the supplied mention/reaction message ids without clearing the dialog. */
+    @Throws(MtprotoException::class)
+    fun readMessageContents(handle: Long, chatId: Long, messageIds: List<Int>): Unit =
+        throw MtprotoException.Message("message contents require native rebuild")
+
     /** `messages.markDialogUnread`: toggles the manual unread mark on a dialog. */
     @Throws(MtprotoException::class)
     fun markDialogUnread(handle: Long, chatId: Long, unread: Boolean)

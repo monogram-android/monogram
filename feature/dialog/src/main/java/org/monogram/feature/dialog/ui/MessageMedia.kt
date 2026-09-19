@@ -363,7 +363,7 @@ fun MessageMedia(
                     wantFull = false
                     mediaRepository?.cancel(fullKey)
                 },
-                modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
+                modifier = modifier.fillMaxWidth().padding(vertical = 2.dp),
             )
         }
         kind == "video" || kind == "gif" -> {

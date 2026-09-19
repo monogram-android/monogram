@@ -117,13 +117,6 @@ private val ChatRowThumbSize = ChatRowMetrics.ThumbSize
 private val ChatRowSideInset = ChatRowMetrics.SideInset
 private val ChatRowCorner = ChatRowMetrics.Corner
 
-/** Chat rows as one immutable value so the list can skip when the instance is unchanged. */
-@Immutable
-internal data class ChatRows(val items: List<Chat>) {
-    val size: Int get() = items.size
-    val isEmpty: Boolean get() = items.isEmpty()
-}
-
 /** Localized labels for the chat-list rows, resolved once per screen. */
 @Immutable
 internal data class ChatListTexts(
@@ -439,6 +432,12 @@ internal fun ChatRow(
                         description = stringResource(R.string.chats_unread_mentions),
                     )
                 }
+                if (showsReactionBadge(chat)) {
+                    ReactionBadge(
+                        muted = chat.muted,
+                        description = stringResource(R.string.chats_unread_reactions),
+                    )
+                }
                 UnreadBadge(
                     count = unread,
                     muted = chat.muted,
@@ -451,7 +450,9 @@ internal fun ChatRow(
                     },
                 )
             }
-            if (chat.unreadMark && unread == 0 && !showsMentionBadge(chat)) {
+            if (chat.unreadMark && unread == 0 &&
+                !showsMentionBadge(chat) && !showsReactionBadge(chat)
+            ) {
                 UnreadMarkDot(
                     muted = chat.muted,
                     description = stringResource(R.string.chats_marked_unread),
@@ -462,6 +463,8 @@ internal fun ChatRow(
 }
 
 internal fun showsMentionBadge(chat: Chat): Boolean = chat.unreadMentionsCount > 0
+
+internal fun showsReactionBadge(chat: Chat): Boolean = chat.unreadReactionsCount > 0
 
 @Composable
 private fun MentionBadge(muted: Boolean, description: String) {
@@ -481,6 +484,29 @@ private fun MentionBadge(muted: Boolean, description: String) {
             text = "@",
             style = MaterialTheme.typography.labelMedium,
             color = content,
+        )
+    }
+}
+
+@Composable
+private fun ReactionBadge(muted: Boolean, description: String) {
+    val scheme = MaterialTheme.colorScheme
+    val container = if (muted) scheme.secondary else scheme.error
+    val content = contentColorFor(container).takeIf { it != Color.Unspecified }
+        ?: if (muted) scheme.surface else scheme.onError
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(container)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.EmojiEmotions,
+            contentDescription = null,
+            tint = content,
+            modifier = Modifier.size(16.dp),
         )
     }
 }

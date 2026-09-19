@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -42,19 +41,23 @@ class ChatsLazyListRecompositionTest {
 
     private fun count(text: String, needle: String) = text.lineSequence().count { it.contains(needle) }
 
-    private fun rows(title: String) = ChatRows(
-        listOf(Chat(id = PeerId(1), title = title, lastMessageDate = 1)),
+    private fun list(
+        firstTitle: String,
+        secondTitle: String = "Other",
+    ) = listOf(
+        Chat(id = PeerId(1), title = firstTitle, lastMessageDate = 1),
+        Chat(id = PeerId(2), title = secondTitle, lastMessageDate = 1),
     )
 
     @Test
-    fun equalRowsSkipTheListWhenParentTicks() {
+    fun equalIdsSkipTheListAndUnchangedRows() {
         shell("setprop log.tag.monogram.perf DEBUG")
         Log.i(MARKER, "list:start")
         Thread.sleep(1_500)
 
         val contentPasses = AtomicInteger(0)
         var tick by mutableIntStateOf(0)
-        var chats by mutableStateOf(rows("Perf"))
+        val chats = ChatListSnapshot().also { it.replace(list("Perf")) }
         rule.setContent {
             MaterialTheme {
                 Column {
@@ -119,12 +122,16 @@ class ChatsLazyListRecompositionTest {
         val afterTicks = contentPasses.get()
         val afterTicksLog = window(shell("logcat -d -s monogram.perf:I $MARKER:I"))
         val listTicks = count(afterTicksLog, "recomp ChatsLazyList")
+        val itemOneTicks = count(afterTicksLog, "recomp ChatListItem 1")
+        val itemTwoTicks = count(afterTicksLog, "recomp ChatListItem 2")
 
-        rule.runOnIdle { chats = rows("Changed") }
+        rule.runOnIdle { chats.replace(list("Changed")) }
         rule.waitForIdle()
         Thread.sleep(400)
         val log = window(shell("logcat -d -s monogram.perf:I $MARKER:I"))
         val listDelta = count(log, "recomp ChatsLazyList") - listTicks
+        val itemOneDelta = count(log, "recomp ChatListItem 1") - itemOneTicks
+        val itemTwoDelta = count(log, "recomp ChatListItem 2") - itemTwoTicks
 
         shell("setprop log.tag.monogram.perf SILENT")
 
@@ -134,6 +141,8 @@ class ChatsLazyListRecompositionTest {
             "list restarted $listTicks times across $tickDelta equal-content parent passes",
             listTicks <= 3,
         )
-        assertTrue("a chat title change did not restart the list (delta $listDelta)", listDelta >= 1)
+        assertTrue("a same-id title change restarted the list (delta $listDelta)", listDelta <= 1)
+        assertTrue("changed row did not restart (delta $itemOneDelta)", itemOneDelta >= 1)
+        assertTrue("unchanged row restarted (delta $itemTwoDelta)", itemTwoDelta <= 1)
     }
 }

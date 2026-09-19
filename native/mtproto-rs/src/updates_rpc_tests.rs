@@ -4,8 +4,11 @@ use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::codec::{Encoder, TlEncode};
 use tellers_mtproto::latest::api::{
-    Update, UpdateBotStoppedConstructor, UpdateChannelTooLongConstructor,
+    MessageReactions, MessageReactionsConstructor, Peer, PeerUserConstructor, Update,
+    UpdateBotStoppedConstructor, UpdateChannelReadMessagesContentsConstructor,
+    UpdateChannelTooLongConstructor,
     UpdateDeleteChannelMessagesConstructor, UpdateDeleteMessagesConstructor,
+    UpdateMessageReactionsConstructor, UpdateReadMessagesContentsConstructor,
     UpdatePtsChangedConstructor, UpdateReadChannelDiscussionInboxConstructor,
     UpdateShortConstructor, Updates, UpdatesConstructor, Vector, VectorConstructor,
 };
@@ -39,11 +42,95 @@ fn discussion_receipt_preserves_thread_and_read_boundary() {
         &mut Vec::new(),
         &mut events,
     );
-    assert!(
-        matches!(events.as_slice(), [UpdateEventDto::DiscussionInbox {
-        channel_id, top_message_id: 100, read_max_id: 120,
-    }] if *channel_id == chat_id_for_channel(42))
+    assert!(matches!(
+        events.first(),
+        Some(UpdateEventDto::DiscussionInbox {
+            channel_id, top_message_id: 100, read_max_id: 120,
+        }) if *channel_id == chat_id_for_channel(42)
+    ));
+    assert!(matches!(events.get(1), Some(UpdateEventDto::ChatsChanged)));
+}
+
+#[test]
+fn reaction_snapshot_requests_one_authoritative_dialog_refresh_even_when_empty() {
+    let reactions = MessageReactions::MessageReactions(MessageReactionsConstructor {
+        flags: 0,
+        min: None,
+        can_see_list: None,
+        reactions_as_tags: None,
+        results: Box::new(Vector::Vector(VectorConstructor {
+            field_0: 0,
+            field_1: Vec::new(),
+        })),
+        recent_reactions: None,
+        top_reactors: None,
+    });
+    let update = Update::UpdateMessageReactions(UpdateMessageReactionsConstructor {
+        flags: 0,
+        peer: Box::new(Peer::PeerUser(PeerUserConstructor { user_id: 42 })),
+        msg_id: 9,
+        top_msg_id: None,
+        saved_peer_id: None,
+        reactions: Box::new(reactions),
+    });
+    let mut events = Vec::new();
+    collect_other_updates(
+        std::iter::repeat(&update).take(2),
+        &mut MediaIndex::new(),
+        &mut Vec::new(),
+        &mut events,
     );
+    assert_eq!(
+        events.iter().filter(|event| matches!(event, UpdateEventDto::ChatsChanged)).count(),
+        1,
+    );
+    assert!(events.iter().all(|event| !matches!(
+        event,
+        UpdateEventDto::Ignored { kind } if kind.starts_with("unread_reactions_delta:")
+    )));
+}
+
+#[test]
+fn remote_message_contents_reads_request_authoritative_dialog_refresh() {
+    let regular = Update::UpdateReadMessagesContents(UpdateReadMessagesContentsConstructor {
+        flags: 0,
+        messages: Box::new(Vector::Vector(VectorConstructor {
+            field_0: 1,
+            field_1: vec![9],
+        })),
+        pts: 11,
+        pts_count: 1,
+        date: None,
+    });
+    let channel = Update::UpdateChannelReadMessagesContents(
+        UpdateChannelReadMessagesContentsConstructor {
+            flags: 0,
+            channel_id: 42,
+            top_msg_id: None,
+            saved_peer_id: None,
+            messages: Box::new(Vector::Vector(VectorConstructor {
+                field_0: 1,
+                field_1: vec![9],
+            })),
+        },
+    );
+    assert!(advance_push_update(
+        &channel,
+        &mut cursor(),
+        &mut HashMap::new(),
+        true,
+        &mut Vec::new(),
+    )
+    .unwrap());
+    let mut events = Vec::new();
+    collect_other_updates(
+        [&regular, &channel].into_iter(),
+        &mut MediaIndex::new(),
+        &mut Vec::new(),
+        &mut events,
+    );
+    assert_eq!(events.len(), 1);
+    assert!(matches!(events.first(), Some(UpdateEventDto::ChatsChanged)));
 }
 
 #[test]

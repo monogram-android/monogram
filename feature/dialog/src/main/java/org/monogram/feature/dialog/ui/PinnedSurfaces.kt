@@ -40,6 +40,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -92,19 +93,24 @@ internal fun PinnedMessageBar(
     mediaRepository: MediaRepository?,
     onJump: () -> Unit,
     onOpenList: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier
+    Surface(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clip(MaterialTheme.shapes.large)
-            // Pinned banner: tonal card on `surface-container-high`, above the thread.
-            .background(scheme.surfaceContainerHigh)
-            .clickable(onClick = onJump)
-            .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        shape = MaterialTheme.shapes.large,
+        color = scheme.surfaceContainerHigh,
+        shadowElevation = 2.dp,
+        tonalElevation = 2.dp,
+        onClick = onJump,
     ) {
+        Row(
+            modifier = Modifier
+                .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
         PinnedLeadingThumb(
             message = pinned,
             size = 40.dp,
@@ -148,6 +154,7 @@ internal fun PinnedMessageBar(
                 )
             }
         }
+    }
     }
 }
 

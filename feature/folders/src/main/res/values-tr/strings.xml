@@ -32,4 +32,6 @@
     <string name="folders_exclude_archived">Arşivlenenler</string>
     <string name="folders_include_chats">Dahil edilen sohbetler</string>
     <string name="folders_exclude_chats">Hariç tutulan sohbetler</string>
+    <string name="folders_show_all_chats">\"Tüm sohbetler\" klasörünü göster</string>
+    <string name="folders_show_all_chats_sub">Klasör çubuğunda \"Tüm sohbetler\" sekmesini göster</string>
 </resources>

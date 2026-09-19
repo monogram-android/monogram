@@ -6,6 +6,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
@@ -196,29 +197,46 @@ internal fun DialogExecutor.markRead() {
  */
 
 internal fun DialogExecutor.visibleRead(messageId: Int, atLiveEdge: Boolean) {
-    val newestLoaded = newestLoadedIncomingId() ?: return
-    if (
-        suppressLiveEdgeRead(
-            anchoringUnread = anchorToUnread,
-            pendingUnreadAnchorId = pendingUnreadAnchorId,
-            newestLoadedId = newestLoaded,
-            atLiveEdge = atLiveEdge,
-        )
-    ) {
+    if (atLiveEdge) {
+        // New-message updates and the viewport callback can arrive in the same main-loop turn.
+        // Let pending updates reduce before selecting the bottom of the live window.
+        work.launch {
+            yield()
+            val newestLoaded = newestLoadedIncomingId() ?: return@launch
+            if (suppressLiveEdgeRead(
+                    anchoringUnread = anchorToUnread,
+                    pendingUnreadAnchorId = pendingUnreadAnchorId,
+                    newestLoadedId = newestLoaded,
+                    atLiveEdge = true,
+                )
+            ) return@launch
+            pendingUnreadAnchorId = null
+            val current = snapshot()
+            val target = readReceiptTarget(
+                newestVisibleId = newestLoaded,
+                newestLoadedId = newestLoaded,
+                readInboxMaxId = current.readInboxMaxId,
+                hasNewer = current.hasNewer,
+                searching = current.searchQuery.isNotBlank(),
+            ) ?: return@launch
+            acknowledgeRead(target, immediate = true)
+        }
         return
     }
-    if (pendingUnreadAnchorId != null && (!atLiveEdge || messageId <= pendingUnreadAnchorId!!)) {
+
+    val newestLoaded = newestLoadedIncomingId() ?: return
+    if (pendingUnreadAnchorId != null && messageId <= pendingUnreadAnchorId!!) {
         pendingUnreadAnchorId = null
     }
     val current = snapshot()
     val target = readReceiptTarget(
-        newestVisibleId = if (atLiveEdge) newestLoaded else messageId,
+        newestVisibleId = messageId,
         newestLoadedId = newestLoaded,
         readInboxMaxId = current.readInboxMaxId,
         hasNewer = current.hasNewer,
         searching = current.searchQuery.isNotBlank(),
     ) ?: return
-    acknowledgeRead(target, immediate = atLiveEdge || target >= newestLoaded)
+    acknowledgeRead(target, immediate = false)
 }
 
 internal fun DialogExecutor.newestLoadedIncomingId(): Int? =

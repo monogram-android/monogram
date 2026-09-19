@@ -93,6 +93,7 @@ import uniffi.monogram_mtproto.loadMoreChats as nativeLoadMoreChats
 import uniffi.monogram_mtproto.logout as nativeLogout
 import uniffi.monogram_mtproto.readDiscussion as nativeReadDiscussion
 import uniffi.monogram_mtproto.readHistory as nativeReadHistory
+import uniffi.monogram_mtproto.readMessageContents as nativeReadMessageContents
 import uniffi.monogram_mtproto.readMentions as nativeReadMentions
 import uniffi.monogram_mtproto.readReactions as nativeReadReactions
 import uniffi.monogram_mtproto.markDialogUnread as nativeMarkDialogUnread
@@ -445,6 +446,10 @@ object MtprotoNativeUniFfi : MtprotoNative {
 
     override fun readHistory(handle: Long, chatId: Long, maxId: Int) {
         nativeReadHistory(handle.toULong(), chatId, maxId)
+    }
+
+    override fun readMessageContents(handle: Long, chatId: Long, messageIds: List<Int>) {
+        nativeReadMessageContents(handle.toULong(), chatId, messageIds)
     }
 
     override fun markDialogUnread(handle: Long, chatId: Long, unread: Boolean) {

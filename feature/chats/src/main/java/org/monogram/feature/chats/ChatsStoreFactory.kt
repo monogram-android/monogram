@@ -20,6 +20,8 @@ internal class ChatsStoreFactory(
     private val warmup: OfflineWarmup?,
     private val sessionStore: SessionMetadataStore?,
     private val notifications: NotificationLocalStore? = null,
+    private val refreshMergeHook: (suspend () -> Unit)? = null,
+    private val readStateHook: (suspend () -> Unit)? = null,
 ) {
     fun create(): ChatsStore =
         object :
@@ -29,7 +31,14 @@ internal class ChatsStoreFactory(
                 initialState = ChatsStore.State(loading = true),
                 bootstrapper = SimpleBootstrapper(Unit),
                 executorFactory = {
-                    ChatsExecutor(client, warmup, sessionStore, notifications)
+                    ChatsExecutor(
+                        client,
+                        warmup,
+                        sessionStore,
+                        notifications,
+                        refreshMergeHook,
+                        readStateHook,
+                    )
                 },
                 reducer = ChatsReducer,
             ) {}

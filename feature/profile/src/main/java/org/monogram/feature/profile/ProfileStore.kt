@@ -5,6 +5,7 @@ import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,6 +71,7 @@ internal class ProfileStoreFactory(
     private val client: MtprotoClient,
     private val sessionStore: SessionMetadataStore?,
     private val peerId: PeerId,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     fun create(): ProfileStore =
         object :
@@ -175,7 +177,7 @@ internal class ProfileStoreFactory(
                 }
                 if (result is Outcome.Ok) {
                     dispatch(Msg.ProfileLoaded(result.value))
-                    withContext(Dispatchers.IO) { sessionStore?.upsertProfile(result.value) }
+                    withContext(ioDispatcher) { sessionStore?.upsertProfile(result.value) }
                 }
                 // Carry values locally: the reducer has not necessarily applied the
                 // dispatches above by the time follow-up work starts.
@@ -190,7 +192,7 @@ internal class ProfileStoreFactory(
             return when (result) {
                 is Outcome.Ok -> {
                     dispatch(Msg.TabCounts(result.value))
-                    withContext(Dispatchers.IO) {
+                    withContext(ioDispatcher) {
                         sessionStore?.saveProfileTabCounts(peerId.value, result.value)
                     }
                     result.value
@@ -266,7 +268,7 @@ internal class ProfileStoreFactory(
                             ),
                         )
                         if (reset) {
-                            withContext(Dispatchers.IO) {
+                            withContext(ioDispatcher) {
                                 sessionStore?.saveProfileMedia(peerId.value, tab, page)
                             }
                         }
@@ -295,7 +297,7 @@ internal class ProfileStoreFactory(
                         )
                         dispatch(Msg.MembersUnavailable(false))
                         if (reset) {
-                            withContext(Dispatchers.IO) {
+                            withContext(ioDispatcher) {
                                 sessionStore?.saveProfileMembers(peerId.value, page)
                             }
                         }
@@ -324,7 +326,7 @@ internal class ProfileStoreFactory(
                                 total = state().profile?.commonChatsCount ?: result.value.size,
                             ),
                         )
-                        withContext(Dispatchers.IO) {
+                        withContext(ioDispatcher) {
                             sessionStore?.saveProfileCommonChats(peerId.value, result.value)
                         }
                     }

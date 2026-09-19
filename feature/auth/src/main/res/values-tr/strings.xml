@@ -41,4 +41,5 @@
     <string name="auth_resend_in">%1$d sn sonra yeniden gönder</string>
     <string name="auth_paste_password">Şifreyi yapıştır</string>
     <string name="auth_paste_empty">Pano boş</string>
+    <string name="auth_paste_code">Kodu yapıştır</string>
 </resources>

@@ -84,7 +84,18 @@ fun FolderChipRow(
     val listState = rememberLazyListState()
     LaunchedEffect(selectedId, folders.size) {
         val index = folders.indexOfFirst { it.id == selectedId }
-        if (index >= 0) listState.animateScrollToItem(index)
+        if (index >= 0) {
+            val layoutInfo = listState.layoutInfo
+            val visibleItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+            val itemWidth = visibleItem?.size ?: 0
+            val viewportWidth = layoutInfo.viewportSize.width
+            val centeredOffset = if (viewportWidth > 0 && itemWidth > 0) {
+                -((viewportWidth - itemWidth) / 2)
+            } else {
+                0
+            }
+            listState.animateScrollToItem(index, centeredOffset)
+        }
     }
     Box(modifier = modifier.fillMaxWidth()) {
         LazyRow(

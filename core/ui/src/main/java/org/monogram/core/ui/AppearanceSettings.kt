@@ -29,6 +29,7 @@ data class AppearanceState(
     val accentPreset: AccentPreset = AccentPreset.Monogram,
     val showMutedCounter: Boolean = false,
     val foldersAtBottom: Boolean = false,
+    val showAllChats: Boolean = true,
     val previewLines: Int = 2,
     val showChatAvatars: Boolean = true,
     val openProfileOnAvatarTap: Boolean = true,
@@ -75,6 +76,7 @@ object AppearanceSettings {
     private const val KEY_DYNAMIC = "dynamic_color"
     private const val KEY_MUTED_COUNTER = "show_muted_counter"
     private const val KEY_FOLDERS_AT_BOTTOM = "folders_at_bottom"
+    private const val KEY_SHOW_ALL_CHATS = "show_all_chats"
     private const val KEY_MESSAGE_TEXT_SIZE = "message_text_size"
     private const val KEY_LINE_SPACING = "line_spacing"
     private const val KEY_LETTER_SPACING = "letter_spacing"
@@ -105,6 +107,7 @@ object AppearanceSettings {
             accentPreset = parseAccent(prefs.getString("accent_preset", null)),
             showMutedCounter = prefs.getBoolean(KEY_MUTED_COUNTER, false),
             foldersAtBottom = prefs.getBoolean(KEY_FOLDERS_AT_BOTTOM, false),
+            showAllChats = prefs.getBoolean(KEY_SHOW_ALL_CHATS, true),
             previewLines = parsePreviewLines(prefs.getInt(KEY_PREVIEW_LINES, DEFAULT_PREVIEW_LINES)),
             showChatAvatars = prefs.getBoolean(KEY_CHAT_AVATARS, true),
             openProfileOnAvatarTap = prefs.getBoolean(KEY_PROFILE_ON_AVATAR_TAP, true),
@@ -161,6 +164,11 @@ object AppearanceSettings {
 
     fun setFoldersAtBottom(enabled: Boolean) {
         mutable.update { it.copy(foldersAtBottom = enabled) }
+        persist()
+    }
+
+    fun setShowAllChats(enabled: Boolean) {
+        mutable.update { it.copy(showAllChats = enabled) }
         persist()
     }
 
@@ -233,6 +241,7 @@ object AppearanceSettings {
                 .putString("accent_preset", current.accentPreset.name)
                 .putBoolean(KEY_MUTED_COUNTER, current.showMutedCounter)
                 .putBoolean(KEY_FOLDERS_AT_BOTTOM, current.foldersAtBottom)
+                .putBoolean(KEY_SHOW_ALL_CHATS, current.showAllChats)
                 .putInt(KEY_PREVIEW_LINES, current.previewLines)
                 .putBoolean(KEY_CHAT_AVATARS, current.showChatAvatars)
                 .putBoolean(KEY_PROFILE_ON_AVATAR_TAP, current.openProfileOnAvatarTap)

@@ -25,11 +25,13 @@ fun rememberIsSponsor(peerId: Long?): Boolean {
 fun SponsorBadge(
     peerId: Long?,
     size: Dp = 20.dp,
-    gap: Dp = 4.dp,
+    gap: Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     if (!rememberIsSponsor(peerId)) return
-    Spacer(Modifier.width(gap))
+    if (gap > 0.dp) {
+        Spacer(Modifier.width(gap))
+    }
     Icon(
         imageVector = Icons.Outlined.WorkspacePremium,
         contentDescription = null,

@@ -76,6 +76,19 @@ class MonogramApp : Application() {
                 sessionPath = sessionFile.absolutePath,
             )
         }
+        if (BuildConfig.STARTUP_PREWARM) {
+            settingsScope.launch(Dispatchers.IO) {
+                val started = PerfLog.nowMs()
+                when (val result = runCatching { client.connect() }.getOrNull()) {
+                    is org.monogram.core.common.Outcome.Ok ->
+                        PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=ok")
+                    is org.monogram.core.common.Outcome.Err ->
+                        PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=err")
+                    null ->
+                        PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=throw")
+                }
+            }
+        }
         val durableMedia = File(filesDir, "media")
         val cacheMedia = File(cacheDir, "media")
         if (!durableMedia.exists() && cacheMedia.exists()) {

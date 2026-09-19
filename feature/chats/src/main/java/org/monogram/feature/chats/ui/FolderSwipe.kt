@@ -1,5 +1,6 @@
 package org.monogram.feature.chats.ui
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -31,8 +32,15 @@ internal fun folderSwipeModifier(
     var drag by remember { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
     val translation by animateFloatAsState(
-        targetValue = drag * 0.15f,
-        animationSpec = if (dragging) snap() else spring(),
+        targetValue = drag * 0.22f,
+        animationSpec = if (dragging) {
+            snap()
+        } else {
+            spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            )
+        },
         label = "folderSwipe",
     )
     return Modifier.pointerInput(folderIds.size, selectedId, enabled, rtl) {

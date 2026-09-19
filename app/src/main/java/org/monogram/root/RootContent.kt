@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.State
 import org.monogram.core.ui.AppearanceSettings
+import org.monogram.core.ui.collectWhenActive
 import kotlin.math.roundToInt
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -78,6 +79,7 @@ import com.arkivanov.decompose.extensions.compose.stack.animation.slide
 import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.R
+import org.monogram.core.common.PerfLog
 import org.monogram.core.ui.perf.RecompositionProbe
 import org.monogram.feature.auth.ui.AuthContent
 import org.monogram.feature.chats.ui.ChatsContent
@@ -90,6 +92,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.runtime.rememberUpdatedState
 
 @Composable
@@ -114,9 +117,9 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
     }
     val homeState = rememberSaveableStateHolder()
     val homeContent = remember {
-        movableContentOf<HomeComponent, Long?> { homeComponent, selected ->
+        movableContentOf<HomeComponent, Long?, Boolean> { homeComponent, selected, listActive ->
             homeState.SaveableStateProvider("home") {
-                HomeContent(homeComponent, selected)
+                HomeContent(homeComponent, selected, listActive)
             }
         }
     }
@@ -172,7 +175,12 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
         }
     }
     CompositionLocalProvider(LocalUriHandler provides telegramUriHandler) {
-    BoxWithConstraints(modifier.fillMaxSize()) {
+    BoxWithConstraints(
+        modifier.fillMaxSize().drawWithContent {
+            drawContent()
+            PerfLog.noteUpdateFrame()
+        },
+    ) {
         val expanded = maxWidth >= 840.dp && home != null
         val appearance by AppearanceSettings.state.collectAsState()
         val density = LocalDensity.current
@@ -207,7 +215,7 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
                         .clip(MaterialTheme.shapes.extraLarge)
                         .background(MaterialTheme.colorScheme.surfaceContainerLow),
                 ) {
-                    key(home) { homeContent(home, selectedChatId) }
+                    key(home) { homeContent(home, selectedChatId, true) }
                 }
                 Box(
                     modifier = Modifier
@@ -273,7 +281,7 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
                             .semantics { hideFromAccessibility() },
                     ) {
                         CompositionLocalProvider(LocalMediaAnimationEnabled provides false) {
-                            homeContent(home, selectedChatId)
+                            homeContent(home, selectedChatId, false)
                         }
                     }
                 }
@@ -308,7 +316,7 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
                         } else if (compactHome) {
                             Box(Modifier.fillMaxSize())
                         } else {
-                            homeContent(instance.component, selectedChatId)
+                            homeContent(instance.component, selectedChatId, true)
                         }
                         is RootComponent.Child.Dialog -> if (dialogCovered) {
                             Box(Modifier.fillMaxSize())
@@ -325,7 +333,7 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
                 }
                 if (compactHome && !homeCovered) {
                     Box(Modifier.fillMaxSize()) {
-                        homeContent(home, selectedChatId)
+                        homeContent(home, selectedChatId, true)
                     }
                 }
                 var restoreMiniPlayer by remember { mutableStateOf(false) }
@@ -379,12 +387,17 @@ private fun EmptyDetailContent() {
 }
 
 @Composable
-private fun HomeContent(component: HomeComponent, selectedChatId: Long?) {
-    val foldersState by component.folders.state.collectAsState()
+private fun HomeContent(
+    component: HomeComponent,
+    selectedChatId: Long?,
+    listActive: Boolean,
+) {
+    val foldersState = collectWhenActive(component.folders.state, listActive)
     ChatsContent(
         component = component.chats,
         folders = foldersState.folders,
         selectedChatId = selectedChatId,
+        listActive = listActive,
         modifier = Modifier.fillMaxSize(),
     )
 }

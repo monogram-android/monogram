@@ -29,6 +29,21 @@ fn unread_mention_and_reaction_methods_match_layer() {
 }
 
 #[test]
+fn read_message_contents_methods_match_layer() {
+    use tellers_mtproto::latest::api::{
+        ChannelsReadMessageContentsRequest, MessagesReadMessageContentsRequest,
+    };
+    assert_eq!(
+        MessagesReadMessageContentsRequest::NAME,
+        "messages.readMessageContents"
+    );
+    assert_eq!(
+        ChannelsReadMessageContentsRequest::NAME,
+        "channels.readMessageContents"
+    );
+}
+
+#[test]
 fn entities_json_maps_bold() {
     let json = r#"[{"kind":"bold","offset":0,"length":4}]"#;
     let (flag, entities) = super::entities_from_json(Some(json)).unwrap();

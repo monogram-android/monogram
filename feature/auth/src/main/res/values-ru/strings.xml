@@ -41,4 +41,5 @@
     <string name="auth_resend_in">Повторить через %1$d с</string>
     <string name="auth_paste_password">Вставить пароль</string>
     <string name="auth_paste_empty">Буфер обмена пуст</string>
+    <string name="auth_paste_code">Вставить код</string>
 </resources>

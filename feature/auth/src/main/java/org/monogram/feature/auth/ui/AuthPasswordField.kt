@@ -30,17 +30,10 @@ import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.feature.auth.AuthStore
 import org.monogram.feature.auth.R
 
-internal fun pastedPassword(raw: String): String {
-    if (raw.isBlank()) return ""
-    val trimmed = raw.trim()
-    return if (trimmed.all(Char::isDigit)) trimmed else raw
-}
-
 @Composable
 internal fun AuthPasswordField(
     value: String,
     visible: Boolean,
-    otpStyle: Boolean,
     enabled: Boolean,
     isError: Boolean,
     focus: FocusRequester,
@@ -100,7 +93,7 @@ internal fun AuthPasswordField(
             }
         },
         keyboardOptions = KeyboardOptions(
-            keyboardType = if (otpStyle) KeyboardType.NumberPassword else KeyboardType.Password,
+            keyboardType = KeyboardType.Password,
             imeAction = ImeAction.Done,
         ),
         keyboardActions = KeyboardActions(onDone = { onImeAction() }),

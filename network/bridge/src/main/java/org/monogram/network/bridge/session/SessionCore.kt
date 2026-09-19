@@ -307,6 +307,10 @@ internal class SessionCore(
         }
     }
 
+    /** Reads the restored native session without waiting for a network connection. */
+    suspend fun isLocallyAuthorized(): Outcome<Boolean> =
+        rpc("isLocallyAuthorized failed") { activeHandle -> native.isAuthorized(activeHandle) }
+
     suspend fun isAuthorized(): Outcome<Boolean> {
         when (val connected = ensureConnected()) {
             is Outcome.Err -> return connected

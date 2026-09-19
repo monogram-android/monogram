@@ -19,6 +19,7 @@ fun folderChipItems(
     folders: List<Folder>,
     allChatsLabel: String,
     showMutedCounter: Boolean,
+    showAllChats: Boolean = true,
 ): List<FolderChipItem> {
     val all = FolderChipItem(id = null, label = allChatsLabel, isAll = true)
     val available = chats.filterNot {
@@ -28,8 +29,9 @@ fun folderChipItems(
         var unmuted = 0
         var muted = 0
         for (chat in available) {
-            if (chat.unreadCount <= 0 || !folder.contains(chat)) continue
-            if (chat.muted) muted++ else unmuted++
+            val hasUnread = chat.unreadCount > 0 || chat.unreadMark || chat.unreadMentionsCount > 0 || chat.unreadReactionsCount > 0
+            if (!hasUnread || !folder.contains(chat)) continue
+            if (chat.muted && chat.unreadMentionsCount <= 0 && chat.unreadReactionsCount <= 0) muted++ else unmuted++
         }
         return FolderChipItem(
             id = folder.id,
@@ -42,9 +44,13 @@ fun folderChipItems(
     val chips = folders.mapNotNull { folder ->
         when (folder.id) {
             ARCHIVE_FOLDER_ID -> null
-            0 -> all
+            0 -> if (showAllChats) all else null
             else -> chip(folder)
         }
     }
-    return if (chips.any { it.isAll }) chips else listOf(all) + chips
+    return when {
+        !showAllChats -> chips
+        chips.any { it.isAll } -> chips
+        else -> listOf(all) + chips
+    }
 }

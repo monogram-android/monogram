@@ -7,13 +7,21 @@ import androidx.room.Query
 import org.monogram.core.database.entity.ChatEntity
 import kotlinx.coroutines.flow.Flow
 
-data class ChatReadState(val id: Long, val readInboxMaxId: Int, val unreadCount: Int)
+data class ChatReadState(
+    val id: Long,
+    val readInboxMaxId: Int,
+    val unreadCount: Int,
+    val unreadMentionsCount: Int? = null,
+    val unreadReactionsCount: Int? = null,
+)
 
 @Dao
 interface ChatDao {
     @Query("UPDATE chats SET readOutboxMaxId = MAX(readOutboxMaxId, :maxId) WHERE id = :chatId")
     suspend fun updateOutboxRead(chatId: Long, maxId: Int)
-    @Query("SELECT id, readInboxMaxId, unreadCount FROM chats")
+    @Query(
+        "SELECT id, readInboxMaxId, unreadCount, unreadMentionsCount, unreadReactionsCount FROM chats",
+    )
     fun observeReadStates(): Flow<List<ChatReadState>>
 
     @Query("UPDATE chats SET readInboxMaxId = :maxId, unreadCount = :unread WHERE id = :chatId AND readInboxMaxId <= :maxId")

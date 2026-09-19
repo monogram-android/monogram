@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -78,6 +79,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -203,6 +205,13 @@ internal fun ColumnScope.DialogHistoryPane(
     val menuMessage = state.messages.firstOrNull { it.id.id == menuMessageId }
     val selectingMessage = state.messages.firstOrNull { it.id.id == selectingMessageId }
     val appearance by AppearanceSettings.state.collectAsState()
+    val pinned = state.pinnedMessages.getOrNull(state.pinnedIndex)
+        ?: state.pinnedMessages.firstOrNull()
+    val showPinned = !state.isCommentThread && pinned != null
+    val topPadding by animateDpAsState(
+        targetValue = if (showPinned) 68.dp else 8.dp,
+        label = "pinned-top-padding",
+    )
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -211,7 +220,11 @@ internal fun ColumnScope.DialogHistoryPane(
                     composer.value = collapseComposerSelection(composer.value)
                 },
         ) {
-        if (state.messages.isEmpty()) {
+            ChatWallpaper(
+                appearance.wallpaperPath, appearance.wallpaperDim,
+                appearance.wallpaperMode, Modifier.fillMaxSize(),
+            )
+            if (state.messages.isEmpty()) {
                 if (state.loading) {
                     MessageListSkeleton(modifier = Modifier.fillMaxSize())
                 } else {
@@ -228,10 +241,6 @@ internal fun ColumnScope.DialogHistoryPane(
                     LocalDialogMedia provides component.mediaRepository,
                 ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                ChatWallpaper(
-                    appearance.wallpaperPath, appearance.wallpaperDim,
-                    appearance.wallpaperMode, Modifier.fillMaxSize(),
-                )
                 val listScope = rememberCoroutineScope()
                 LaunchedEffect(listState) {
                     snapshotFlow {
@@ -373,9 +382,14 @@ internal fun ColumnScope.DialogHistoryPane(
                     }
                 }
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().clipToBounds(),
                     state = listState,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(
+                        start = 10.dp,
+                        end = 10.dp,
+                        top = topPadding,
+                        bottom = 8.dp,
+                    ),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     reverseLayout = true,
                 ) {
@@ -732,6 +746,22 @@ internal fun ColumnScope.DialogHistoryPane(
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showPinned,
+            enter = fadeIn() + slideInVertically { -it },
+            exit = fadeOut() + slideOutVertically { -it },
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            if (pinned != null) {
+                PinnedMessageBar(
+                    pinned = pinned,
+                    total = state.pinnedMessages.size,
+                    mediaRepository = component.mediaRepository,
+                    onJump = component::onNextPinned,
+                    onOpenList = component::onOpenPinnedList,
+                )
+            }
         }
         }
+    }
 }

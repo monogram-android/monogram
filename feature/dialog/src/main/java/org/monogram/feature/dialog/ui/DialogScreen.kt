@@ -442,17 +442,6 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
             error = state.error,
             onRetry = component::onRefresh,
         )
-        val pinned = state.pinnedMessages.getOrNull(state.pinnedIndex)
-            ?: state.pinnedMessages.firstOrNull()
-        if (!state.isCommentThread && pinned != null) {
-            PinnedMessageBar(
-                pinned = pinned,
-                total = state.pinnedMessages.size,
-                mediaRepository = component.mediaRepository,
-                onJump = component::onNextPinned,
-                onOpenList = component::onOpenPinnedList,
-            )
-        }
         CompositionLocalProvider(LocalDialogMedia provides component.mediaRepository) {
         if (state.composerPanel == ComposerPanels.ATTACH) {
             AttachSheet(

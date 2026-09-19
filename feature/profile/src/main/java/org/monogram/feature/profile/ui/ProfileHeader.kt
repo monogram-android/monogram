@@ -1,5 +1,6 @@
 package org.monogram.feature.profile.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -74,11 +75,14 @@ internal fun ProfileHeader(
     snackbar: SnackbarHostState,
     clipboard: Clipboard,
     scope: CoroutineScope,
+    modifier: Modifier = Modifier,
 ) {
     val copied = stringResource(R.string.profile_copied)
     val copiedValue = stringResource(R.string.profile_copied_value)
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -116,7 +120,7 @@ internal fun ProfileHeader(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = profile.title,
@@ -135,7 +139,7 @@ internal fun ProfileHeader(
                         modifier = Modifier.size(20.dp),
                     )
                 }
-                SponsorBadge(peerId = profile.id.value, size = 20.dp)
+                SponsorBadge(peerId = profile.id.value, size = 20.dp, gap = 0.dp)
             }
             if (profile.isSelf) {
                 Surface(
@@ -147,7 +151,7 @@ internal fun ProfileHeader(
                     Text(
                         text = stringResource(R.string.profile_self_badge),
                         style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }
             } else {
@@ -178,7 +182,6 @@ internal fun ProfileHeader(
         }
         Spacer(Modifier.height(16.dp))
         ProfileStats(profile)
-        Spacer(Modifier.height(12.dp))
         if (!profile.isSelf) {
             ProfileActions(
                 profile = profile,
@@ -235,13 +238,13 @@ private fun ProfileStats(profile: Profile) {
                 }
             }
         }
-        profile.commonChatsCount?.takeIf { !profile.isSelf }?.let {
-            add(it.toString() to stringResource(R.string.profile_common_chats_label))
-        }
     }
     if (items.isEmpty()) return
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+            .animateContentSize(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items.forEach { (value, label) ->

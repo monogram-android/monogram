@@ -34,14 +34,14 @@ import org.monogram.network.http.MediaRepository
 
 @Composable
 internal fun ChatsLazyList(
-    chats: ChatRows,
+    chats: ChatListSnapshot,
     listState: LazyListState,
     archive: Boolean,
     searchOpen: Boolean,
     query: String,
     homeFolderId: Int?,
     chips: FolderChips,
-    allChats: ChatRows,
+    allChats: ChatListSnapshot,
     folders: List<Folder>,
     archivedTitles: String?,
     archivedUnmuted: Int,
@@ -83,8 +83,8 @@ internal fun ChatsLazyList(
     RecompositionProbe("ChatsLazyList")
     val context = LocalContext.current
     val miniPlayerPad = if (MediaPlaybackHolder.session(context).showsMiniPlayer()) 72.dp else 0.dp
-    val paneChats = chats.items
-    LaunchedEffect(listState, paneChats.size, hasMore, loadingMore, archive, searchOpen, showArchiveRow, foldersAtBottom) {
+    val paneIds = chats.ids
+    LaunchedEffect(listState, paneIds.size, hasMore, loadingMore, archive, searchOpen, showArchiveRow, foldersAtBottom) {
         snapshotFlow {
             listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
         }.collect { last ->
@@ -95,7 +95,7 @@ internal fun ChatsLazyList(
                 last != null &&
                 shouldPageChats(
                     lastVisibleIndex = last,
-                    size = paneChats.size,
+                    size = paneIds.size,
                     hasMore = hasMore,
                     loadingMore = loadingMore,
                     leadingItems = leading,
@@ -131,7 +131,7 @@ internal fun ChatsLazyList(
                         onDismiss = onDismissFolderMenu,
                     ) {
                         FolderChipMenu(
-                            chats = allChats.items,
+                            chats = allChats.items(),
                             folders = folders,
                             folderId = folderMenu?.id,
                             markReadLabel = markReadLabel,
@@ -154,7 +154,7 @@ internal fun ChatsLazyList(
                 )
             }
         }
-        if (!loading && paneChats.isEmpty() && error == null) {
+        if (!loading && paneIds.isEmpty() && error == null) {
             item(key = "empty-state") {
                 FolderEmptyState(
                     archive = archive,
@@ -166,59 +166,102 @@ internal fun ChatsLazyList(
             }
         }
         items(
-            items = paneChats,
-            key = { it.id.value },
+            items = paneIds,
+            key = { it },
             contentType = { "chat-row" },
-        ) { chat ->
-            RecompositionProbe("ChatListItem", chat.id.value)
-            val listMotion = remember { chatListItemMotion() }
-            val latestChat = rememberUpdatedState(chat)
-            val onOpenThisChat = remember(onOpenChat, chat.id) {
-                { onOpenChat(latestChat.value.id) }
-            }
-            val onOpenThisAvatar = remember(onOpenAvatar, chat.id, openAvatarsInProfile) {
-                avatarTapHandler(
-                    openProfileOnAvatarTap = openAvatarsInProfile,
-                    onOpenProfile = { onOpenAvatar(latestChat.value.id) },
-                )
-            }
-            val onThisRowMenu = remember(onRowMenu, chat.id) {
-                { onRowMenu(latestChat.value) }
-            }
-            Box {
-                ChatRow(
-                    chat = chat,
-                    selected = chat.id.value == selectedChatId,
-                    savedMessages = chat.id == selfPeerId,
-                    mediaRepository = mediaRepository,
-                    showAvatar = showAvatar,
-                    showReadStatus = showReadStatus,
-                    texts = texts,
-                    onClick = onOpenThisChat,
-                    onAvatarClick = onOpenThisAvatar,
-                    modifier = listMotion,
-                    onLongClick = onThisRowMenu,
-                )
-                AppMenuPopup(
-                    expanded = rowMenuId == chat.id.value,
-                    onDismiss = onDismissRowMenu,
-                    scrim = true,
-                ) {
-                    ChatRowMenu(
-                        unread = chat.unreadCount > 0 || chat.unreadMark,
-                        markReadLabel = markReadLabel,
-                        markUnreadLabel = markUnreadLabel,
-                        onMarkRead = {
-                            onDismissRowMenu()
-                            onMarkRead(chat.id)
-                        },
-                        onMarkUnread = {
-                            onDismissRowMenu()
-                            onMarkUnread(chat.id)
-                        },
-                    )
-                }
-            }
+        ) { id ->
+            val chat = chats.chat(id) ?: return@items
+            ChatListItem(
+                chat = chat,
+                selected = id == selectedChatId,
+                savedMessages = chat.id == selfPeerId,
+                mediaRepository = mediaRepository,
+                showAvatar = showAvatar,
+                showReadStatus = showReadStatus,
+                openAvatarsInProfile = openAvatarsInProfile,
+                texts = texts,
+                rowMenuOpen = rowMenuId == id,
+                onOpenChat = onOpenChat,
+                onOpenAvatar = onOpenAvatar,
+                onRowMenu = onRowMenu,
+                onDismissRowMenu = onDismissRowMenu,
+                onMarkRead = onMarkRead,
+                onMarkUnread = onMarkUnread,
+                markReadLabel = markReadLabel,
+                markUnreadLabel = markUnreadLabel,
+                modifier = remember { chatListItemMotion() },
+            )
+        }
+    }
+}
+
+@Composable
+internal fun ChatListItem(
+    chat: Chat,
+    selected: Boolean,
+    savedMessages: Boolean,
+    mediaRepository: MediaRepository?,
+    showAvatar: Boolean,
+    showReadStatus: Boolean,
+    openAvatarsInProfile: Boolean,
+    texts: ChatListTexts,
+    rowMenuOpen: Boolean,
+    onOpenChat: (PeerId) -> Unit,
+    onOpenAvatar: (PeerId) -> Unit,
+    onRowMenu: (Chat) -> Unit,
+    onDismissRowMenu: () -> Unit,
+    onMarkRead: (PeerId) -> Unit,
+    onMarkUnread: (PeerId) -> Unit,
+    markReadLabel: String,
+    markUnreadLabel: String,
+    modifier: Modifier = Modifier,
+) {
+    RecompositionProbe("ChatListItem", chat.id.value)
+    val latestChat = rememberUpdatedState(chat)
+    val onOpenThisChat = remember(onOpenChat, chat.id) {
+        { onOpenChat(latestChat.value.id) }
+    }
+    val onOpenThisAvatar = remember(onOpenAvatar, chat.id, openAvatarsInProfile) {
+        avatarTapHandler(
+            openProfileOnAvatarTap = openAvatarsInProfile,
+            onOpenProfile = { onOpenAvatar(latestChat.value.id) },
+        )
+    }
+    val onThisRowMenu = remember(onRowMenu, chat.id) {
+        { onRowMenu(latestChat.value) }
+    }
+    Box {
+        ChatRow(
+            chat = chat,
+            selected = selected,
+            savedMessages = savedMessages,
+            mediaRepository = mediaRepository,
+            showAvatar = showAvatar,
+            showReadStatus = showReadStatus,
+            texts = texts,
+            onClick = onOpenThisChat,
+            onAvatarClick = onOpenThisAvatar,
+            modifier = modifier,
+            onLongClick = onThisRowMenu,
+        )
+        AppMenuPopup(
+            expanded = rowMenuOpen,
+            onDismiss = onDismissRowMenu,
+            scrim = true,
+        ) {
+            ChatRowMenu(
+                unread = chat.unreadCount > 0 || chat.unreadMark,
+                markReadLabel = markReadLabel,
+                markUnreadLabel = markUnreadLabel,
+                onMarkRead = {
+                    onDismissRowMenu()
+                    onMarkRead(chat.id)
+                },
+                onMarkUnread = {
+                    onDismissRowMenu()
+                    onMarkUnread(chat.id)
+                },
+            )
         }
     }
 }

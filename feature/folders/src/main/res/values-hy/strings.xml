@@ -32,4 +32,6 @@
     <string name="folders_exclude_archived">Արխիվում</string>
     <string name="folders_include_chats">Ներառված զրույցներ</string>
     <string name="folders_exclude_chats">Բացառված զրույցներ</string>
+    <string name="folders_show_all_chats">Ցուցադրել «Բոլոր զրույցները» թղթապանակը</string>
+    <string name="folders_show_all_chats_sub">Ցուցադրել «Բոլոր զրույցները» ներդիրը թղթապանակների շարքում</string>
 </resources>

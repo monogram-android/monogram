@@ -60,4 +60,5 @@
     </plurals>
     <string name="chats_verified">Overené</string>
     <string name="chats_unread_mentions">Neprečítané zmienky</string>
+    <string name="chats_unread_reactions">Neprečítané reakcie</string>
 </resources>

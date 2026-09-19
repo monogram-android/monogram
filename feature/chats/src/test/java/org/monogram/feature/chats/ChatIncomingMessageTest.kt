@@ -2,12 +2,14 @@ package org.monogram.feature.chats
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.monogram.core.database.dao.ChatReadState
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.displayPreview
 import org.monogram.feature.chats.ui.showsMentionBadge
+import org.monogram.feature.chats.ui.showsReactionBadge
 
 class ChatIncomingMessageTest {
     @Test
@@ -72,6 +74,55 @@ class ChatIncomingMessageTest {
         val next = applyUnreadMentions(listOf(mentions), PeerId(1), 0)
         assertEquals(false, showsMentionBadge(next.single()))
         assertEquals(0, next.single().unreadMentionsCount)
+    }
+
+    @Test
+    fun reactionBadgeIsDistinctFromUnreadCountAndUnreadMark() {
+        val reactions = chat(1, unread = 0).copy(unreadReactionsCount = 2)
+        val unread = chat(1, unread = 3)
+        val marked = chat(1, unread = 0).copy(unreadMark = true)
+        assertEquals(true, showsReactionBadge(reactions))
+        assertEquals(false, showsReactionBadge(unread))
+        assertEquals(false, showsReactionBadge(marked))
+    }
+
+    @Test
+    fun roomCounterProjectionUpdatesSpecialBadgesWithoutAReadCursorChange() {
+        val listed = chat(1, unread = 0, readInbox = 20).copy(
+            unreadMentionsCount = 2,
+            unreadReactionsCount = 3,
+        )
+        val next = applyReadStates(
+            listOf(listed),
+            mapOf(
+                1L to ChatReadState(
+                    id = 1,
+                    readInboxMaxId = 20,
+                    unreadCount = 0,
+                    unreadMentionsCount = 0,
+                    unreadReactionsCount = 0,
+                ),
+            ),
+        ).single()
+        assertEquals(20, next.readInboxMaxId)
+        assertEquals(0, next.unreadMentionsCount)
+        assertEquals(0, next.unreadReactionsCount)
+    }
+
+    @Test
+    fun syntheticReadStateKeepsSpecialBadgeCounts() {
+        val listed = chat(1, unread = 2, readInbox = 10).copy(
+            unreadMentionsCount = 2,
+            unreadReactionsCount = 3,
+        )
+        val next = applyReadStates(
+            listOf(listed),
+            mapOf(1L to ChatReadState(id = 1, readInboxMaxId = 20, unreadCount = 0)),
+        ).single()
+        assertEquals(20, next.readInboxMaxId)
+        assertEquals(0, next.unreadCount)
+        assertEquals(2, next.unreadMentionsCount)
+        assertEquals(3, next.unreadReactionsCount)
     }
 
     @Test

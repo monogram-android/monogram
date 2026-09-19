@@ -191,6 +191,10 @@ interface MessageOps {
     suspend fun readMentions(chatId: PeerId, topMsgId: Int = 0): Outcome<Unit> =
         Outcome.Err("unsupported")
 
+    /** Acknowledges only the supplied mention/reaction messages. */
+    suspend fun readMessageContents(chatId: PeerId, messageIds: List<Int>): Outcome<Unit> =
+        Outcome.Err("unsupported")
+
     /** https://core.telegram.org/method/messages.getUnreadReactions */
     suspend fun getUnreadReactions(
         chatId: PeerId,

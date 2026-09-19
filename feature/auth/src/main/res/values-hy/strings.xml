@@ -41,4 +41,5 @@
     <string name="auth_resend_in">Կրկին ուղարկել %1$d վրկ հետո</string>
     <string name="auth_paste_password">Տեղադրել գաղտնաբառը</string>
     <string name="auth_paste_empty">Սեղմատախտակը դատարկ է</string>
+    <string name="auth_paste_code">Տեղադրել կոդը</string>
 </resources>

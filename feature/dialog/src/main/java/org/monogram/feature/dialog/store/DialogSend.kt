@@ -328,8 +328,36 @@ internal fun DialogExecutor.serializeSendEntities(
     return TextEntities.serialize((styled.entities + extra).sortedBy { it.offset })
 }
 
-internal suspend fun DialogExecutor.styleForSend(parsed: StyledText): StyledText =
-    parsed.forSend(isPremium = isPremium())
+internal suspend fun DialogExecutor.styleForSend(parsed: StyledText): StyledText {
+    val documentIds = parsed.entities
+        .asSequence()
+        .filter { it.kind == "custom_emoji" }
+        .mapNotNull { it.url?.toLongOrNull()?.takeIf { id -> id > 0 } }
+        .distinct()
+        .toList()
+    if (documentIds.isEmpty()) return parsed.forSend(isPremium = isPremium())
+
+    val premium = isPremium()
+    val maxCustomEmoji = when (val result = client.animatedEmojiMax()) {
+        is Outcome.Ok -> result.value.coerceAtLeast(0)
+        is Outcome.Err -> null
+    }
+    val freeUrls = if (premium) {
+        emptySet()
+    } else {
+        documentIds.filter { id ->
+            when (val result = client.customEmojiIsFree(id)) {
+                is Outcome.Ok -> result.value
+                is Outcome.Err -> false
+            }
+        }.mapTo(linkedSetOf()) { it.toString() }
+    }
+    return parsed.forSend(
+        isPremium = premium,
+        maxCustomEmoji = maxCustomEmoji,
+        freeCustomEmojiUrls = freeUrls,
+    )
+}
 
 internal fun DialogExecutor.send(overrideText: String? = null) {
     val current = snapshot()

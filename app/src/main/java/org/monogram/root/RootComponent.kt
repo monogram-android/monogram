@@ -173,6 +173,9 @@ class RootComponent(
     }
 
     init {
+        if (startOnHome && stack.value.active.configuration is Config.Auth) {
+            navigation.replaceAll(Config.Home)
+        }
         stack.subscribe { childStack ->
             val chatId = (childStack.active.configuration as? Config.Dialog)?.chatId
             pushRegistration?.onVisibleChat(chatId)
@@ -252,8 +255,10 @@ class RootComponent(
             val bridged = client as? BridgedMtprotoClient ?: return@launch
             val result = withContext(Dispatchers.IO) { bridged.isAuthorized() }
             if (result is Outcome.Ok && result.value) {
+                if (!expiringSession && stack.value.active.configuration is Config.Auth) {
+                    navigation.replaceAll(Config.Home)
+                }
                 refreshAccountFlags()
-                if (!startOnHome && !expiringSession) navigation.replaceAll(Config.Home)
             } else if (requiresSessionReset(result)) {
                 expireSession()
             }

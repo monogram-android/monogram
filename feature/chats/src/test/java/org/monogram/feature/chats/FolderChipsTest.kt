@@ -118,4 +118,17 @@ class FolderChipsTest {
         assertEquals(build(secondChatUnread = true), build(secondChatUnread = true))
         assertNotEquals(build(secondChatUnread = true), build(secondChatUnread = false))
     }
+
+    @Test
+    fun hidingAllChatsExcludesAllChip() {
+        val chips = folderChipItems(
+            chats = emptyList(),
+            folders = listOf(Folder(id = 7, title = "Work")),
+            allChatsLabel = "All chats",
+            showMutedCounter = false,
+            showAllChats = false,
+        )
+        assertEquals(listOf("Work"), chips.map { it.label })
+        assertFalse(chips.any { it.isAll })
+    }
 }

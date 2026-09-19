@@ -56,4 +56,5 @@
     </plurals>
     <string name="chats_verified">Onaylı</string>
     <string name="chats_unread_mentions">Okunmamış bahsetmeler</string>
+    <string name="chats_unread_reactions">Okunmamış tepkiler</string>
 </resources>

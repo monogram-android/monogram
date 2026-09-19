@@ -54,4 +54,5 @@
     </plurals>
     <string name="chats_verified">認証済み</string>
     <string name="chats_unread_mentions">未読のメンション</string>
+    <string name="chats_unread_reactions">未読のリアクション</string>
 </resources>

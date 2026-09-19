@@ -10,15 +10,27 @@ import org.monogram.core.models.preferredPeerTitle
 
 internal fun applyReadStates(chats: List<Chat>, rows: Map<Long, ChatReadState>): List<Chat> {
     // Room invalidates the whole table; apply its snapshot once, copying only on change.
+    // A dialog can clear mentions/reactions while its normal read cursor stays unchanged.
     var updated: MutableList<Chat>? = null
     chats.forEachIndexed { index, chat ->
         val row = rows[chat.id.value] ?: return@forEachIndexed
-        val unread = row.unreadCount.coerceAtLeast(0)
-        if (row.readInboxMaxId < chat.readInboxMaxId ||
-            (row.readInboxMaxId == chat.readInboxMaxId && unread == chat.unreadCount)
+        val acceptsReadState = row.readInboxMaxId >= chat.readInboxMaxId
+        val unread = if (acceptsReadState) row.unreadCount.coerceAtLeast(0) else chat.unreadCount
+        val mentions = row.unreadMentionsCount?.coerceAtLeast(0) ?: chat.unreadMentionsCount
+        val reactions = row.unreadReactionsCount?.coerceAtLeast(0) ?: chat.unreadReactionsCount
+        val readInboxMaxId = if (acceptsReadState) row.readInboxMaxId else chat.readInboxMaxId
+        if (readInboxMaxId == chat.readInboxMaxId &&
+            unread == chat.unreadCount &&
+            mentions == chat.unreadMentionsCount &&
+            reactions == chat.unreadReactionsCount
         ) return@forEachIndexed
         val target = updated ?: chats.toMutableList().also { updated = it }
-        target[index] = chat.copy(readInboxMaxId = row.readInboxMaxId, unreadCount = unread)
+        target[index] = chat.copy(
+            readInboxMaxId = readInboxMaxId,
+            unreadCount = unread,
+            unreadMentionsCount = mentions,
+            unreadReactionsCount = reactions,
+        )
     }
     return updated ?: chats
 }

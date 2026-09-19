@@ -145,6 +145,7 @@ pub struct ForumTopicDto {
     pub date: i32,
     pub unread_count: i32,
     pub unread_mentions_count: i32,
+    pub unread_reactions_count: i32,
     pub read_inbox_max_id: i32,
     pub pinned: bool,
     pub closed: bool,

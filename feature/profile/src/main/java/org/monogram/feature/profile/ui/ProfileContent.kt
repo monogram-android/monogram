@@ -1,6 +1,12 @@
 package org.monogram.feature.profile.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -135,50 +141,61 @@ fun ProfileContent(component: ProfileComponent, modifier: Modifier = Modifier) {
                 },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                when {
-                    profile != null -> LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 8.dp,
-                            bottom = 24.dp,
-                        ),
-                    ) {
-                        item(key = "header") {
-                            ProfileHeader(
-                                profile = profile,
-                                avatarFile = avatarFile,
-                                avatarState = avatar,
-                                avatarGeneration = avatarAttempt,
-                                avatarScale = avatarScale,
-                                mediaRepository = component.mediaRepository,
-                                onOpenAvatar = { showAvatar = true },
-                                onRetryAvatar = { avatarAttempt++ },
-                                onMessage = component::onMessage,
-                                onCopyUsername = profile.username?.takeIf { it.isNotBlank() }?.let { handle ->
-                                    { scope.launch { clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("text", "@$handle"))) } }
-                                },
-                                snackbar = snackbar,
-                                clipboard = clipboard,
-                                scope = scope,
-                            )
-                        }
-                        item(key = "panels") {
-                            ProfilePanelStrip(
+                AnimatedContent(
+                    targetState = profile != null,
+                    transitionSpec = {
+                        fadeIn(tween(200)) togetherWith fadeOut(tween(150))
+                    },
+                    label = "profileContentTransition",
+                ) { hasProfile ->
+                    if (hasProfile && profile != null) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 8.dp,
+                                bottom = 24.dp,
+                            ),
+                        ) {
+                            item(key = "header") {
+                                ProfileHeader(
+                                    profile = profile,
+                                    avatarFile = avatarFile,
+                                    avatarState = avatar,
+                                    avatarGeneration = avatarAttempt,
+                                    avatarScale = avatarScale,
+                                    mediaRepository = component.mediaRepository,
+                                    onOpenAvatar = { showAvatar = true },
+                                    onRetryAvatar = { avatarAttempt++ },
+                                    onMessage = component::onMessage,
+                                    onCopyUsername = profile.username?.takeIf { it.isNotBlank() }?.let { handle ->
+                                        { scope.launch { clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("text", "@$handle"))) } }
+                                    },
+                                    snackbar = snackbar,
+                                    clipboard = clipboard,
+                                    scope = scope,
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
+                            item(key = "panels") {
+                                Box(modifier = Modifier.animateItem()) {
+                                    ProfilePanelStrip(
+                                        state = state,
+                                        onSelect = component::onSelectPanel,
+                                    )
+                                }
+                            }
+                            profilePanelContent(
                                 state = state,
-                                onSelect = component::onSelectPanel,
+                                component = component,
+                                onOpenMedia = { selectedMedia = it },
                             )
                         }
-                        profilePanelContent(
-                            state = state,
-                            component = component,
-                            onOpenMedia = { selectedMedia = it },
-                        )
+                    } else if (state.loading) {
+                        ProfileSkeleton()
                     }
-                    state.loading -> ProfileSkeleton()
-                    else -> Unit
                 }
             }
         }

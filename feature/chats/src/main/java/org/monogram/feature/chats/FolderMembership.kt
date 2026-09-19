@@ -22,7 +22,7 @@ fun visibleChats(
         else -> {
             val folder = folders.find { it.id == selectedFolderId } ?: return available.filter { !it.archived }
             orderedFolderChats(
-                available.filter { !it.archived && folder.contains(it) },
+                available.filter { folder.contains(it) },
                 folder,
             )
         }
@@ -42,25 +42,23 @@ fun folderUnreadBadge(chats: List<Chat>): FolderUnreadBadge {
     var unmuted = 0
     var muted = 0
     for (chat in chats) {
-        if (chat.unreadCount <= 0) continue
-        if (chat.muted) muted++ else unmuted++
+        if (chat.unreadCount <= 0 && !chat.unreadMark && chat.unreadMentionsCount <= 0 && chat.unreadReactionsCount <= 0) continue
+        if (chat.muted && chat.unreadMentionsCount <= 0 && chat.unreadReactionsCount <= 0) muted++ else unmuted++
     }
     return FolderUnreadBadge(unmuted = unmuted, muted = muted)
 }
 
 fun orderedFolderChats(chats: List<Chat>, folder: Folder): List<Chat> {
     val pinOrder = folderPinOrder(folder)
-    val rows = if (pinOrder.isEmpty()) {
-        chats
-    } else {
-        chats.map { chat ->
-            val order = pinOrder[chat.id.value]
-            val pinned = order != null
-            if (chat.pinned == pinned && (order == null || chat.pinnedOrder == order)) {
-                chat
-            } else {
-                chat.copy(pinned = pinned, pinnedOrder = order ?: Int.MAX_VALUE)
-            }
+    // Main-list pin state is not part of a custom folder. Rebuild it even when
+    // the folder has no pins so a folder is ordered only by its own pins and dates.
+    val rows = chats.map { chat ->
+        val order = pinOrder[chat.id.value]
+        val pinned = order != null
+        if (chat.pinned == pinned && (order == null || chat.pinnedOrder == order)) {
+            chat
+        } else {
+            chat.copy(pinned = pinned, pinnedOrder = order ?: Int.MAX_VALUE)
         }
     }
     return rows.sortedWith(
@@ -155,8 +153,12 @@ fun archiveFolder(title: String): Folder = Folder(
 fun chatListTabFolders(folders: List<Folder>): List<Folder> =
     folders.filter { it.id != 0 && it.id != ARCHIVE_FOLDER_ID }
 
-fun defaultFolderId(folders: List<Folder>): Int? {
+fun defaultFolderId(folders: List<Folder>, showAllChats: Boolean = true): Int? {
     val tabs = folders.filter { it.id != ARCHIVE_FOLDER_ID }
+    if (!showAllChats) {
+        val nonAll = tabs.filter { it.id != 0 }
+        return nonAll.firstOrNull()?.id
+    }
     val first = tabs.firstOrNull() ?: return null
     if (tabs.none { it.id == 0 }) return null
     return first.id.takeUnless { it == 0 }

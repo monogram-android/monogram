@@ -32,6 +32,14 @@
             <data android:mimeType="*/*" />
         </intent>
         <intent>
+            <action android:name="android.intent.action.INSTALL_PACKAGE" />
+            <data android:mimeType="application/vnd.android.package-archive" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.android.package-archive" />
+        </intent>
+        <intent>
             <action android:name="org.unifiedpush.android.distributor.REGISTER" />
         </intent>
         <!-- Map apps for a shared location; API 30+ package visibility hides them otherwise. -->

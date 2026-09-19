@@ -41,4 +41,5 @@
     <string name="auth_resend_in">Reenviar en %1$d s</string>
     <string name="auth_paste_password">Pegar contraseña</string>
     <string name="auth_paste_empty">El portapapeles está vacío</string>
+    <string name="auth_paste_code">Pegar código</string>
 </resources>

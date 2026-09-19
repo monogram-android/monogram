@@ -26,9 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.arkivanov.decompose.defaultComponentContext
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.monogram.core.common.Outcome
+import org.monogram.core.common.PerfLog
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.ThemePreference
 import org.monogram.core.ui.media.LocalPictureInPictureActive
@@ -37,7 +42,6 @@ import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.MediaSurface
 import org.monogram.core.ui.media.MediaViewerPipStage
 import org.monogram.core.ui.media.PictureInPictureController
-import org.monogram.core.ui.perf.perfSpan
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.core.common.AppLog
 import org.monogram.push.NotificationPresenter
@@ -47,6 +51,7 @@ import android.graphics.Color as AndroidColor
 
 class MainActivity : ComponentActivity() {
     private lateinit var root: RootComponent
+    private val startupReady = CompletableDeferred<Unit>()
     private var idleJob: Job? = null
     private var inPictureInPicture by mutableStateOf(false)
 
@@ -91,7 +96,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition { !startupReady.isCompleted }
         super.onCreate(savedInstanceState)
         val crashLog = AppLog.readCrashLog()
         if (crashLog != null) {
@@ -111,64 +117,73 @@ class MainActivity : ComponentActivity() {
             ),
         )
         val app = application as MonogramApp
-        val startOnHome = perfSpan("main:isAuthorized") { app.sessionStore.isAuthorizedBlocking() }
         val componentContext = defaultComponentContext()
-        root = RootComponent(
-            componentContext = componentContext,
-            storeFactory = DefaultStoreFactory(),
-            client = app.client,
-            warmup = app.warmup,
-            sessionStore = app.sessionStore,
-            mediaRepository = app.mediaRepository,
-            startOnHome = startOnHome,
-            pushRegistration = app.push,
-            notificationLocal = app.notifications,
-        )
-        handleIncomingIntent(intent)
-        setContent {
-            val appearance by AppearanceSettings.state.collectAsState()
-            val systemDark = isSystemInDarkTheme()
-            val darkTheme = when (appearance.theme) {
-                ThemePreference.Light -> false
-                ThemePreference.Dark -> true
-                ThemePreference.System -> systemDark
+        lifecycleScope.launch {
+            val startOnHome = withContext(Dispatchers.IO) {
+                when (val result = app.client.isLocallyAuthorized()) {
+                    is Outcome.Ok -> result.value
+                    is Outcome.Err -> app.sessionStore.isAuthorized()
+                }
             }
-            MonogramTheme(
-                darkTheme = darkTheme,
-                dynamicColor = appearance.dynamicColor,
-                accentPreset = appearance.accentPreset,
-            ) {
-                val pip = remember { pictureInPicture }
-                CompositionLocalProvider(
-                    LocalPictureInPictureController provides pip,
-                    LocalPictureInPictureActive provides inPictureInPicture,
+            root = RootComponent(
+                componentContext = componentContext,
+                storeFactory = DefaultStoreFactory(),
+                client = app.client,
+                warmup = app.warmup,
+                sessionStore = app.sessionStore,
+                mediaRepository = app.mediaRepository,
+                startOnHome = startOnHome,
+                pushRegistration = app.push,
+                notificationLocal = app.notifications,
+            )
+            handleIncomingIntent(intent)
+            setContent {
+                val appearance by AppearanceSettings.state.collectAsState()
+                val systemDark = isSystemInDarkTheme()
+                val darkTheme = when (appearance.theme) {
+                    ThemePreference.Light -> false
+                    ThemePreference.Dark -> true
+                    ThemePreference.System -> systemDark
+                }
+                MonogramTheme(
+                    darkTheme = darkTheme,
+                    dynamicColor = appearance.dynamicColor,
+                    accentPreset = appearance.accentPreset,
                 ) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.surface,
+                    val pip = remember { pictureInPicture }
+                    CompositionLocalProvider(
+                        LocalPictureInPictureController provides pip,
+                        LocalPictureInPictureActive provides inPictureInPicture,
                     ) {
-                        if (inPictureInPicture) {
-                            val session = MediaPlaybackHolder.peek()
-                            if (session?.current != null) {
-                                MediaViewerPipStage(session = session, modifier = Modifier.fillMaxSize())
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.surface,
+                        ) {
+                            if (inPictureInPicture) {
+                                val session = MediaPlaybackHolder.peek()
+                                if (session?.current != null) {
+                                    MediaViewerPipStage(session = session, modifier = Modifier.fillMaxSize())
+                                } else {
+                                    RootContent(component = root, modifier = Modifier.fillMaxSize())
+                                }
                             } else {
-                                RootContent(component = root, modifier = Modifier.fillMaxSize())
+                                RootContent(
+                                    component = root,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
                             }
-                        } else {
-                            RootContent(
-                                component = root,
-                                modifier = Modifier.fillMaxSize(),
-                            )
                         }
                     }
                 }
             }
+            startupReady.complete(Unit)
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleIncomingIntent(intent)
+        setIntent(intent)
+        if (startupReady.isCompleted) handleIncomingIntent(intent)
     }
 
     override fun onStart() {
@@ -177,7 +192,15 @@ class MainActivity : ComponentActivity() {
         val app = application as MonogramApp
         app.push.setForeground(true)
         app.push.requestPermission(this)
-        lifecycleScope.launch { runCatching { app.client.connect() } }
+        lifecycleScope.launch {
+            startupReady.await()
+            val started = PerfLog.nowMs()
+            when (val result = runCatching { app.client.connect() }.getOrNull()) {
+                is Outcome.Ok -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=ok")
+                is Outcome.Err -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=err")
+                null -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=throw")
+            }
+        }
     }
 
     override fun onStop() {

@@ -408,7 +408,7 @@ mod forum_topic_tests {
             read_outbox_max_id: 90,
             unread_count: unread,
             unread_mentions_count: 1,
-            unread_reactions_count: 0,
+            unread_reactions_count: 3,
             unread_poll_votes_count: 0,
             from_id: Box::new(Peer::PeerUser(PeerUserConstructor { user_id: 7 })),
             notify_settings: Box::new(PeerNotifySettings::PeerNotifySettings(
@@ -439,6 +439,7 @@ mod forum_topic_tests {
         assert!(mapped.pinned);
         assert!(!mapped.deleted);
         assert_eq!(mapped.unread_count, 2);
+        assert_eq!(mapped.unread_reactions_count, 3);
         assert_eq!(mapped.last_message_preview.as_deref(), Some("hi"));
         assert_eq!(mapped.icon_color, 0x6FB9F0);
     }

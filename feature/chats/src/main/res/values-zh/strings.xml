@@ -54,4 +54,5 @@
     </plurals>
     <string name="chats_verified">已认证</string>
     <string name="chats_unread_mentions">未读提及</string>
+    <string name="chats_unread_reactions">未读表情回应</string>
 </resources>

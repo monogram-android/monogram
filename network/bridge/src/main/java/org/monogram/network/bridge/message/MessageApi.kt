@@ -601,9 +601,24 @@ internal class MessageApi(
         return core.rpc("readMentions failed") { activeHandle ->
             core.native.readMentions(activeHandle, chatId.value, topMsgId)
         }.also { result ->
-            if (result is Outcome.Ok) {
+            if (result is Outcome.Ok && topMsgId <= 0) {
                 core.localUpdates.emit(MtprotoUpdate.UnreadMentions(chatId, stillUnread = 0))
             }
+        }
+    }
+
+    override suspend fun readMessageContents(
+        chatId: PeerId,
+        messageIds: List<Int>,
+    ): Outcome<Unit> {
+        val ids = messageIds.filter { it > 0 }.distinct()
+        if (ids.isEmpty()) return Outcome.Ok(Unit)
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpc("readMessageContents failed") { activeHandle ->
+            core.native.readMessageContents(activeHandle, chatId.value, ids)
         }
     }
 
@@ -638,7 +653,7 @@ internal class MessageApi(
         return core.rpc("readReactions failed") { activeHandle ->
             core.native.readReactions(activeHandle, chatId.value, topMsgId)
         }.also { result ->
-            if (result is Outcome.Ok) {
+            if (result is Outcome.Ok && topMsgId <= 0) {
                 core.localUpdates.emit(MtprotoUpdate.UnreadReactions(chatId, stillUnread = 0))
             }
         }

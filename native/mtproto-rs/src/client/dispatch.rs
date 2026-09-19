@@ -803,6 +803,28 @@ pub fn read_history(handle: u64, chat_id: i64, max_id: i32) -> Result<(), Mtprot
     })
 }
 
+pub fn read_message_contents(
+    handle: u64,
+    chat_id: i64,
+    message_ids: Vec<i32>,
+) -> Result<(), MtprotoError> {
+    with_client_mut(handle, |state| {
+        call_with_migrate(state, |state| {
+            with_peer_refresh(state, chat_id, |state| {
+                crate::messages::read_message_contents(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    chat_id,
+                    message_ids.clone(),
+                )
+            })
+        })?;
+        persist(state)?;
+        Ok(())
+    })
+}
+
 pub fn mark_dialog_unread(handle: u64, chat_id: i64, unread: bool) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {

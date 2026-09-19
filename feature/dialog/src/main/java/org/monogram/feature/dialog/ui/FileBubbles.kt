@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import org.monogram.core.common.AppLog
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
@@ -87,6 +89,7 @@ internal fun DocumentBubble(
     }
     Row(
         modifier = modifier
+            .widthIn(min = 220.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .then(
@@ -104,7 +107,12 @@ internal fun DocumentBubble(
                         openFailed = false
                         val mime = mimeFromName(name)
                         if (needsUnknownSources(context, mime)) {
-                            unknownSources.launch(unknownSourcesIntent(context.packageName))
+                            try {
+                                unknownSources.launch(unknownSourcesIntent(context.packageName))
+                            } catch (e: Exception) {
+                                AppLog.warn("file", "failed to launch unknown sources settings: ${e.message}")
+                                scope.launch { openFailed = !openDownloadedFile(context, file, name) }
+                            }
                             return@MediaTapModifier
                         }
                         scope.launch { openFailed = !openDownloadedFile(context, file, name) }
@@ -250,6 +258,7 @@ internal fun AudioBubble(
     }
     Row(
         modifier = modifier
+            .widthIn(min = 220.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .then(

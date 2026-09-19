@@ -32,4 +32,6 @@
     <string name="folders_exclude_archived">В архиве</string>
     <string name="folders_include_chats">Включённые чаты</string>
     <string name="folders_exclude_chats">Исключённые чаты</string>
+    <string name="folders_show_all_chats">Показывать папку «Все чаты»</string>
+    <string name="folders_show_all_chats_sub">Отображать вкладку «Все чаты» в списке папок</string>
 </resources>

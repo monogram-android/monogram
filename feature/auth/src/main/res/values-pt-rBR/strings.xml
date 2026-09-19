@@ -41,4 +41,5 @@
     <string name="auth_resend_in">Reenviar em %1$d s</string>
     <string name="auth_paste_password">Colar senha</string>
     <string name="auth_paste_empty">A área de transferência está vazia</string>
+    <string name="auth_paste_code">Colar código</string>
 </resources>

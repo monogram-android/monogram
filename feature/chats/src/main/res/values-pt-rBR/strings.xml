@@ -56,4 +56,5 @@
     </plurals>
     <string name="chats_verified">Verificado</string>
     <string name="chats_unread_mentions">Menções não lidas</string>
+    <string name="chats_unread_reactions">Reações não lidas</string>
 </resources>

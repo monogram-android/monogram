@@ -32,4 +32,6 @@
     <string name="folders_exclude_archived">Arquivadas</string>
     <string name="folders_include_chats">Conversas incluídas</string>
     <string name="folders_exclude_chats">Conversas excluídas</string>
+    <string name="folders_show_all_chats">Mostrar pasta \"Todas as conversas\"</string>
+    <string name="folders_show_all_chats_sub">Exibir a aba \"Todas as conversas\" na barra de pastas</string>
 </resources>

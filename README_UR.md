@@ -10,9 +10,9 @@
   <a href="https://boosty.to/monogram"><img alt="Boosty" src="https://img.shields.io/badge/Boosty-Support-ff6f61" /></a>
 </p>
 
-<p align="center">[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)</p>
+<p align="center"><a href="README.md">English</a> · <a href="README_RU.md">Русский</a> · <a href="README_TR.md">Türkçe</a> · <a href="README_KOR.md">한국어</a> · <a href="README_UR.md">اُردو</a> · <a href="README_ES.md">Español</a></p>
 
-<p align="center">**Monogram**، Android 7.0 اور اس سے نئے ورژنز کے لیے بجلی کی طرح تیز، مکمل طور پر نیٹو Telegram کلائنٹ ہے۔ **Kotlin**، **Jetpack Compose** اور **Material 3** سے بنایا گیا جدید Android انٹرفیس، **Rust میں ہماری اپنی MTProto implementation** کے ساتھ کام کرتا ہے</p>
+<p align="center"><strong>Monogram</strong>، Android 7.0 اور اس سے نئے ورژنز کے لیے بجلی کی طرح تیز، مکمل طور پر نیٹو Telegram کلائنٹ ہے۔ <strong>Kotlin</strong>، <strong>Jetpack Compose</strong> اور <strong>Material 3</strong> سے بنایا گیا جدید Android انٹرفیس، <strong>Rust میں ہماری اپنی MTProto implementation</strong> کے ساتھ کام کرتا ہے</p>
 
 > [!IMPORTANT]
 > Monogram کی **فعال ترقی جاری ہے**۔ خصوصیات اور ساخت میں تبدیلیاں ہو رہی ہیں؛ خرابیاں اور نامکمل خصوصیات موجود ہو سکتی ہیں۔

@@ -10,9 +10,9 @@
   <a href="https://boosty.to/monogram"><img alt="Boosty" src="https://img.shields.io/badge/Boosty-Support-ff6f61" /></a>
 </p>
 
-<p align="center">[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)</p>
+<p align="center"><a href="README.md">English</a> · <a href="README_RU.md">Русский</a> · <a href="README_TR.md">Türkçe</a> · <a href="README_KOR.md">한국어</a> · <a href="README_UR.md">اُردو</a> · <a href="README_ES.md">Español</a></p>
 
-<p align="center">**Monogram** es un cliente de Telegram rapidísimo y completamente nativo para Android 7.0 y versiones posteriores. Desarrollado con **Kotlin**, **Jetpack Compose** y **Material 3**, combina una interfaz Android moderna con **nuestra propia implementación de MTProto en Rust**</p>
+<p align="center"><strong>Monogram</strong> es un cliente de Telegram rapidísimo y completamente nativo para Android 7.0 y versiones posteriores. Desarrollado con <strong>Kotlin</strong>, <strong>Jetpack Compose</strong> y <strong>Material 3</strong>, combina una interfaz Android moderna con <strong>nuestra propia implementación de MTProto en Rust</strong></p>
 
 > [!IMPORTANT]
 > Monogram está en **desarrollo activo**. Las funciones y la arquitectura siguen evolucionando; puede haber errores y funciones incompletas.

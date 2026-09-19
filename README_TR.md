@@ -10,9 +10,9 @@
   <a href="https://boosty.to/monogram"><img alt="Boosty" src="https://img.shields.io/badge/Boosty-Support-ff6f61" /></a>
 </p>
 
-[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)
+<p align="center">[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)</p>
 
-**Monogram**, Android 7.0 ve üzeri için yıldırım hızında, tamamen yerel bir Telegram istemcisidir. **Kotlin**, **Jetpack Compose** ve **Material 3** ile geliştirilen modern Android arayüzünü **Rust ile yazdığımız kendi MTProto uygulamamızla** bir araya getirir
+<p align="center">**Monogram**, Android 7.0 ve üzeri için yıldırım hızında, tamamen yerel bir Telegram istemcisidir. **Kotlin**, **Jetpack Compose** ve **Material 3** ile geliştirilen modern Android arayüzünü **Rust ile yazdığımız kendi MTProto uygulamamızla** bir araya getirir</p>
 
 > [!IMPORTANT]
 > Monogram **aktif geliştirme** aşamasındadır. Özellikler ve mimari gelişmeye devam etmektedir; hatalar ve eksik işlevler olabilir.
@@ -124,7 +124,6 @@ Windows (PowerShell):
 - `release`: R8 ile optimize edilmiş derleme
 - `beta`: hata ayıklamayı kolaylaştırmak için R8'in devre dışı bırakıldığı, release tabanlı derleme
 
-APK'lar `app/build/outputs/apk/debug/`, `app/build/outputs/apk/release/` ve `app/build/outputs/apk/beta/` altında oluşturulur. [Android CI iş akışı](.github/workflows/android.yml), `monogram-debug.apk` ve `monogram-release.apk` dosyalarını içeren `monogram-debug` ve `monogram-release` çıktıları yükler; dağıtım anahtar deposu yoksa ikisi de hata ayıklama imzası kullanır.
 
 ### Yerel derleme
 

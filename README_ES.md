@@ -10,9 +10,9 @@
   <a href="https://boosty.to/monogram"><img alt="Boosty" src="https://img.shields.io/badge/Boosty-Support-ff6f61" /></a>
 </p>
 
-[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)
+<p align="center">[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)</p>
 
-**Monogram** es un cliente de Telegram rapidísimo y completamente nativo para Android 7.0 y versiones posteriores. Desarrollado con **Kotlin**, **Jetpack Compose** y **Material 3**, combina una interfaz Android moderna con **nuestra propia implementación de MTProto en Rust**
+<p align="center">**Monogram** es un cliente de Telegram rapidísimo y completamente nativo para Android 7.0 y versiones posteriores. Desarrollado con **Kotlin**, **Jetpack Compose** y **Material 3**, combina una interfaz Android moderna con **nuestra propia implementación de MTProto en Rust**</p>
 
 > [!IMPORTANT]
 > Monogram está en **desarrollo activo**. Las funciones y la arquitectura siguen evolucionando; puede haber errores y funciones incompletas.
@@ -124,7 +124,6 @@ Windows (PowerShell):
 - `release`: compilación optimizada con R8
 - `beta`: compilación basada en release con R8 desactivado para facilitar la depuración
 
-Los APK se generan en `app/build/outputs/apk/debug/`, `app/build/outputs/apk/release/` y `app/build/outputs/apk/beta/`. El [flujo de CI de Android](.github/workflows/android.yml) publica los artefactos `monogram-debug` y `monogram-release` con `monogram-debug.apk` y `monogram-release.apk`; sin un almacén de claves de distribución, ambos usan firma de depuración.
 
 ### Compilación nativa
 

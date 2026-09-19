@@ -10,9 +10,9 @@
   <a href="https://boosty.to/monogram"><img alt="Boosty" src="https://img.shields.io/badge/Boosty-Support-ff6f61" /></a>
 </p>
 
-[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)
+<p align="center">[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)</p>
 
-**Monogram**은 Android 7.0 이상을 위한 매우 빠른 완전 네이티브 Telegram 클라이언트입니다. **Kotlin**, **Jetpack Compose**, **Material 3**로 만든 현대적인 Android 인터페이스와 **Rust로 직접 구현한 MTProto**를 결합했습니다
+<p align="center">**Monogram**은 Android 7.0 이상을 위한 매우 빠른 완전 네이티브 Telegram 클라이언트입니다. **Kotlin**, **Jetpack Compose**, **Material 3**로 만든 현대적인 Android 인터페이스와 **Rust로 직접 구현한 MTProto**를 결합했습니다</p>
 
 > [!IMPORTANT]
 > Monogram은 **활발히 개발 중**입니다. 기능과 아키텍처가 계속 바뀌고 있으며, 버그나 미완성 기능이 있을 수 있습니다.
@@ -124,7 +124,6 @@ Windows (PowerShell):
 - `release`: R8으로 최적화한 빌드
 - `beta`: 디버깅을 쉽게 하도록 R8을 비활성화한 release 기반 빌드
 
-APK는 `app/build/outputs/apk/debug/`, `app/build/outputs/apk/release/`, `app/build/outputs/apk/beta/`에 생성됩니다. [Android CI 워크플로](.github/workflows/android.yml)는 `monogram-debug.apk`와 `monogram-release.apk`가 들어 있는 `monogram-debug`, `monogram-release` 아티팩트를 업로드합니다. 릴리스 키 저장소가 없으면 두 빌드 모두 디버그 서명을 사용합니다.
 
 ### 네이티브 컴파일
 

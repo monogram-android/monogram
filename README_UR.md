@@ -10,9 +10,9 @@
   <a href="https://boosty.to/monogram"><img alt="Boosty" src="https://img.shields.io/badge/Boosty-Support-ff6f61" /></a>
 </p>
 
-[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)
+<p align="center">[English](README.md) · [Русский](README_RU.md) · [Türkçe](README_TR.md) · [한국어](README_KOR.md) · [اُردو](README_UR.md) · [Español](README_ES.md)</p>
 
-**Monogram**، Android 7.0 اور اس سے نئے ورژنز کے لیے بجلی کی طرح تیز، مکمل طور پر نیٹو Telegram کلائنٹ ہے۔ **Kotlin**، **Jetpack Compose** اور **Material 3** سے بنایا گیا جدید Android انٹرفیس، **Rust میں ہماری اپنی MTProto implementation** کے ساتھ کام کرتا ہے
+<p align="center">**Monogram**، Android 7.0 اور اس سے نئے ورژنز کے لیے بجلی کی طرح تیز، مکمل طور پر نیٹو Telegram کلائنٹ ہے۔ **Kotlin**، **Jetpack Compose** اور **Material 3** سے بنایا گیا جدید Android انٹرفیس، **Rust میں ہماری اپنی MTProto implementation** کے ساتھ کام کرتا ہے</p>
 
 > [!IMPORTANT]
 > Monogram کی **فعال ترقی جاری ہے**۔ خصوصیات اور ساخت میں تبدیلیاں ہو رہی ہیں؛ خرابیاں اور نامکمل خصوصیات موجود ہو سکتی ہیں۔
@@ -124,7 +124,6 @@ Windows (PowerShell):
 - `release`: R8 کے ساتھ بہتر بنایا گیا بلڈ
 - `beta`: release پر مبنی بلڈ جس میں آسان debugging کے لیے R8 بند ہے
 
-APK فائلیں `app/build/outputs/apk/debug/`، `app/build/outputs/apk/release/` اور `app/build/outputs/apk/beta/` میں بنتی ہیں۔ [Android CI workflow](.github/workflows/android.yml)، `monogram-debug` اور `monogram-release` artifacts اپ لوڈ کرتا ہے جن میں `monogram-debug.apk` اور `monogram-release.apk` ہوتے ہیں؛ ریلیز keystore کے بغیر دونوں debug دستخط استعمال کرتے ہیں۔
 
 ### مقامی کوڈ کی کمپائلیشن
 

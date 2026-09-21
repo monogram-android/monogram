@@ -1619,6 +1619,38 @@ class DialogForumStoreTest {
     }
 
     @Test
+    fun cachedHistoryPaintsBeforeNetwork() = runBlocking {
+        Dispatchers.setMain(Dispatchers.Unconfined)
+        val cached = Message(
+            id = MessageId(PeerId(5), 4),
+            senderId = PeerId(1),
+            text = "cached",
+            date = 1L,
+            outgoing = false,
+        )
+        val warmup = FakeWarmup().apply { storedMessages[5L] = listOf(cached) }
+        val gate = CompletableDeferred<Unit>()
+        val client = FakeClient().apply {
+            historyGate = gate
+            history = listOf(cached.copy(text = "network"))
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = Dispatchers.Unconfined, markupContext = Dispatchers.Unconfined,
+        ).create()
+        try {
+            assertEquals("cached", store.state.messages.single().text)
+            assertTrue(store.state.fromCache)
+            assertFalse(store.state.loading)
+        } finally {
+            gate.complete(Unit)
+            store.dispose()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun cachedHistoryStaysWhenNetworkFails() = runBlocking {
         Dispatchers.setMain(Dispatchers.Unconfined)
         val cached = Message(
@@ -2806,8 +2838,10 @@ class DialogForumStoreTest {
         var jumpPageGate: CompletableDeferred<Unit>? = null
         var lastHistoryOffsetId = 0
         var lastHistoryOffsetDate = 0
+        var historyGate: CompletableDeferred<Unit>? = null
         override suspend fun getHistory(chatId: PeerId, limit: Int): Outcome<List<Message>> {
             historyCalls++
+            historyGate?.await()
             historyError?.let { return Outcome.Err(it) }
             return Outcome.Ok(history)
         }

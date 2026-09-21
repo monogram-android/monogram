@@ -24,7 +24,6 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.ui.components.FolderChipItem
 import org.monogram.core.ui.components.FolderChipRow
 import org.monogram.core.ui.components.FolderChips
-import org.monogram.core.ui.components.chatListItemMotion
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.showsMiniPlayer
 import org.monogram.core.ui.menu.AppMenuPopup
@@ -157,7 +156,7 @@ internal fun ChatsLazyList(
                     unmuted = archivedUnmuted,
                     mutedUnread = archivedMuted,
                     onClick = onOpenArchive,
-                    modifier = remember { chatListItemMotion() },
+                    modifier = Modifier,
                 )
             }
         }
@@ -201,7 +200,7 @@ internal fun ChatsLazyList(
                 onMarkUnread = onMarkUnread,
                 markReadLabel = markReadLabel,
                 markUnreadLabel = markUnreadLabel,
-                modifier = remember { chatListItemMotion() },
+                modifier = Modifier,
             )
         }
     }

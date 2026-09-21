@@ -189,6 +189,21 @@ data class Message(
     val checklist: Checklist? = null,
 )
 
+/** Last dialog row, so opening a listed chat can paint before history returns. */
+fun Chat.historySeed(): Message? {
+    if (lastMessageId <= 0) return null
+    return Message(
+        id = MessageId(id, lastMessageId),
+        senderId = null,
+        text = lastMessagePreview,
+        date = lastMessageDate ?: 0L,
+        outgoing = lastMessageOutgoing,
+        mediaKind = lastMessageMediaKind,
+        thumbCacheKey = lastMediaThumbCacheKey,
+        senderName = lastMessageSenderName,
+    )
+}
+
 data class Folder(
     val id: Int,
     val title: String,

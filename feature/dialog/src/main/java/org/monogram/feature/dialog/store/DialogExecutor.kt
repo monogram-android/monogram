@@ -510,7 +510,6 @@ internal class DialogExecutor(
         dispatch(Msg.LoadingOlder(false))
         dispatch(Msg.LoadingNewer(false))
         val hasMemory = state().messages.isNotEmpty()
-        if (!hasMemory) dispatch(Msg.Loading(true))
         dispatch(Msg.Error(null))
         scope.launch {
             client.setDialogForeground(true)

@@ -21,13 +21,34 @@ fun unreadDividerIndex(
     readInboxMaxId: Int,
     hasNewer: Boolean = false,
 ): Int? {
-    if (readInboxMaxId > 0) {
-        val byInbox = messages.indexOfLast { !it.outgoing && it.id.id > readInboxMaxId }
-        if (byInbox >= 0) return byInbox
-        return null
+    val raw = if (readInboxMaxId > 0) {
+        messages.indexOfLast { !it.outgoing && it.id.id > readInboxMaxId }.takeIf { it >= 0 }
+    } else {
+        oldestUnreadIndex(messages, unreadCount, hasNewer)
+    } ?: return null
+    return albumHeadIndex(messages, raw)
+}
+
+/** Newest-first: the oldest of the [unreadCount] newest incoming rows. */
+private fun oldestUnreadIndex(messages: List<Message>, unreadCount: Int, hasNewer: Boolean): Int? {
+    if (hasNewer || unreadCount <= 0) return null
+    var remaining = unreadCount
+    var index = -1
+    for (i in messages.indices) {
+        if (messages[i].outgoing) continue
+        remaining--
+        index = i
+        if (remaining == 0) break
     }
-    if (!hasNewer && unreadCount in 1 until messages.size) return unreadCount
-    return null
+    return index.takeIf { remaining == 0 }
+}
+
+/** Don't split an album: the divider sits on the newest member. */
+private fun albumHeadIndex(messages: List<Message>, index: Int): Int {
+    val group = messages.getOrNull(index)?.groupedId ?: return index
+    var head = index
+    while (head > 0 && messages[head - 1].groupedId == group) head--
+    return head
 }
 
 /**
@@ -52,9 +73,8 @@ fun unreadAnchorId(
         if (!boundaryLoaded && hasOlder) return null
         return messages[index].id.id
     }
-    if (hasNewer || unreadCount <= 0) return null
-    if (unreadCount >= messages.size) return null
-    return messages[unreadCount].id.id
+    val index = oldestUnreadIndex(messages, unreadCount, hasNewer) ?: return null
+    return messages[index].id.id
 }
 
 /**

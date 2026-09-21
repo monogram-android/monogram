@@ -136,7 +136,6 @@ import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.components.SearchField
 import org.monogram.core.ui.components.TypingDots
 import org.monogram.core.ui.components.UnreadBadge
-import org.monogram.core.ui.components.listItemMotion
 import org.monogram.core.ui.components.liveActionTransition
 import org.monogram.core.ui.components.peerStatusLabel
 import org.monogram.core.ui.components.rememberPeerStatusNow
@@ -378,25 +377,35 @@ internal fun ColumnScope.DialogHistoryPane(
                 }
                 LaunchedEffect(listState, state.chatId, messageHeads) {
                     snapshotFlow {
+                        val scrolling = listState.isScrollInProgress
                         val index = listState.layoutInfo.visibleItemsInfo.minByOrNull { it.index }?.index
                         // reverseLayout: index 0 / no forward scroll means the newest row is on screen.
                         val atLiveEdge = listState.firstVisibleItemIndex == 0 || !listState.canScrollForward
-                        (index?.let { messageHeads.getOrNull(it)?.second?.id?.id }) to atLiveEdge
-                    }.collect { (id, atLiveEdge) ->
-                        if (id != null) {
-                            component.onSaveScroll(id)
-                            component.onVisibleNewest(id, atLiveEdge)
-                        }
+                        Triple(
+                            scrolling,
+                            index?.let { messageHeads.getOrNull(it)?.second?.id?.id },
+                            atLiveEdge,
+                        )
+                    }.collect { (scrolling, id, atLiveEdge) ->
+                        if (scrolling || id == null) return@collect
+                        component.onSaveScroll(id)
+                        component.onVisibleNewest(id, atLiveEdge)
                     }
                 }
                 LaunchedEffect(listState, state.chatId, messageHeads) {
                     snapshotFlow {
-                        visibleAlbumMessageIds(
-                            state.messages,
-                            listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.index },
-                        )
-                    }.collect { ids ->
-                        component.onVisibleWindow(ids)
+                        val scrolling = listState.isScrollInProgress
+                        val ids = if (scrolling) {
+                            null
+                        } else {
+                            visibleAlbumMessageIds(
+                                state.messages,
+                                listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.index },
+                            )
+                        }
+                        scrolling to ids
+                    }.collect { (scrolling, ids) ->
+                        if (!scrolling && ids != null) component.onVisibleWindow(ids)
                     }
                 }
                 LazyColumn(
@@ -434,7 +443,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
-                        Column(modifier = listItemMotion(animateAppearance = true, animatePlacement = false)) {
+                        Column {
                             if (newDay) {
                                 DialogDateSeparator(epochSeconds = message.date, zone = zone)
                             }

@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
@@ -50,12 +52,17 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         var premiumRefreshPending = false
         var chatsRefreshPending = false
         var foldersRefreshPending = false
-        // Keep refresh coalescing on the poller's coroutine clock. Wall-clock gates make
-        // update turnaround depend on scheduler timing and cannot be verified with virtual time.
-        var elapsedPollMs = 0L
-        var lastMetadataRefreshMs: Long? = null
-        var lastChatsRefreshMs: Long? = null
-        var lastPremiumRefreshMs: Long? = null
+        val lastMetadataRefreshMs = AtomicLong(-1L)
+        val lastChatsRefreshMs = AtomicLong(-1L)
+        val lastPremiumRefreshMs = AtomicLong(-1L)
+        val foldersInFlight = AtomicBoolean(false)
+        val chatsInFlight = AtomicBoolean(false)
+        val premiumInFlight = AtomicBoolean(false)
+        var cooldownHandle = 0L
+        fun cooldownDue(last: AtomicLong, windowMs: Long, now: Long): Boolean {
+            val value = last.get()
+            return value < 0L || now - value >= windowMs
+        }
         while (true) {
             val activeHandle = core.activeHandleOrZero()
             // A network failure clears connectedHandle while the native handle
@@ -73,12 +80,18 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 }
                 continue
             }
+            if (activeHandle != cooldownHandle) {
+                cooldownHandle = activeHandle
+                lastMetadataRefreshMs.set(-1L)
+                lastChatsRefreshMs.set(-1L)
+                lastPremiumRefreshMs.set(-1L)
+            }
             val events = try {
                 val drainAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
                 val drained = nativeRequest(
                     core.native,
                     core.nativeDispatcher,
-                    DispatchClass.INTERACTIVE_READ
+                    DispatchClass.BACKGROUND_READ
                 ) {
                     core.native.drainUpdates(activeHandle)
                 }
@@ -91,9 +104,9 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                         phase = "drain",
                         elapsedMs = (System.nanoTime() - drainAt) / 1_000_000,
                         handle = activeHandle,
-                        dispatchClass = DispatchClass.INTERACTIVE_READ,
+                        dispatchClass = DispatchClass.BACKGROUND_READ,
                         result = "ok",
-                        detail = "count=${drained.size} lane=${dispatchClassName(DispatchClass.INTERACTIVE_READ)}",
+                        detail = "count=${drained.size} lane=${dispatchClassName(DispatchClass.BACKGROUND_READ)}",
                     )
                 }
                 drainDelayMs = 25L
@@ -266,80 +279,98 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             }
             // Chat metadata events carry no self-user flags. Coalesce the fallback
             // lookup after delivering messages and bound it during busy updates.
-            val now = elapsedPollMs
+            val now = core.clock.elapsedMs()
+            val refreshHandle = activeHandle
             if (foldersRefreshPending &&
-                (lastMetadataRefreshMs?.let { now - it >= 2_000L } != false)
+                cooldownDue(lastMetadataRefreshMs, 2_000L, now) &&
+                foldersInFlight.compareAndSet(false, true)
             ) {
-                lastMetadataRefreshMs = now
-                try {
-                    val folders = core.onNativeIfFree {
-                        core.native.getFolders(it).map { dto -> dto.toFolderModel() }
+                core.scope.launch {
+                    try {
+                        val folders = core.onNativeIfFree {
+                            core.native.getFolders(it).map { dto -> dto.toFolderModel() }
+                        }
+                        if (folders != null && core.isCurrentHandle(refreshHandle)) {
+                            lastMetadataRefreshMs.set(core.clock.elapsedMs())
+                            foldersRefreshPending = false
+                            core.updatesEvents.emit(MtprotoUpdate.FoldersChanged(folders))
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        val raw = when (e) {
+                            is uniffi.monogram_mtproto.MtprotoException.Message -> e.v1
+                            else -> e.message
+                        }?.removePrefix("v1=")?.trim().orEmpty()
+                        val telegram = TelegramError.parse(
+                            raw.ifBlank { "refresh folders failed" },
+                            "refresh folders failed",
+                        )
+                        val waitSec = if (telegram.kind == TelegramError.Kind.Flood) {
+                            (telegram.retryAfterSeconds ?: telegram.argument ?: 3).coerceIn(3, 60)
+                        } else {
+                            core.fail(e, "refresh folders failed", degradeHome = false)
+                            15
+                        }
+                        lastMetadataRefreshMs.set(
+                            core.clock.elapsedMs() + (waitSec - 2).toLong() * 1_000L,
+                        )
+                    } finally {
+                        foldersInFlight.set(false)
                     }
-                    if (folders != null && core.isCurrentHandle(activeHandle)) {
-                        foldersRefreshPending = false
-                        core.updatesEvents.emit(MtprotoUpdate.FoldersChanged(folders))
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    val raw = when (e) {
-                        is uniffi.monogram_mtproto.MtprotoException.Message -> e.v1
-                        else -> e.message
-                    }?.removePrefix("v1=")?.trim().orEmpty()
-                    val telegram = TelegramError.parse(
-                        raw.ifBlank { "refresh folders failed" },
-                        "refresh folders failed",
-                    )
-                    val waitSec = if (telegram.kind == TelegramError.Kind.Flood) {
-                        (telegram.retryAfterSeconds ?: telegram.argument ?: 3).coerceIn(3, 60)
-                    } else {
-                        core.fail(e, "refresh folders failed", degradeHome = false)
-                        15
-                    }
-                    lastMetadataRefreshMs = now + (waitSec - 2).toLong() * 1_000L
                 }
             }
             if (chatsRefreshPending && core.isCurrentHandle(activeHandle) &&
-                (lastChatsRefreshMs?.let { now - it >= 2_000L } != false)
+                cooldownDue(lastChatsRefreshMs, 2_000L, now) &&
+                chatsInFlight.compareAndSet(false, true)
             ) {
-                lastChatsRefreshMs = now
-                try {
-                    val chats = core.onNativeIfFree { handle ->
-                        core.native.getChats(handle).map { dto -> dto.toFolderModel() }
+                core.scope.launch {
+                    try {
+                        val chats = core.onNativeIfFree { handle ->
+                            core.native.getChats(handle).map { dto -> dto.toFolderModel() }
+                        }
+                        if (chats != null && core.isCurrentHandle(refreshHandle)) {
+                            lastChatsRefreshMs.set(core.clock.elapsedMs())
+                            chatsRefreshPending = false
+                            core.updatesEvents.emit(MtprotoUpdate.ChatsChanged(chats))
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        core.fail(e, "refresh chats failed", degradeHome = false)
+                        lastChatsRefreshMs.set(core.clock.elapsedMs() + 13_000L)
+                    } finally {
+                        chatsInFlight.set(false)
                     }
-                    if (chats != null && core.isCurrentHandle(activeHandle)) {
-                        chatsRefreshPending = false
-                        core.updatesEvents.emit(MtprotoUpdate.ChatsChanged(chats))
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    core.fail(e, "refresh chats failed", degradeHome = false)
-                    lastChatsRefreshMs = now + 13_000L
                 }
             }
             if (premiumRefreshPending && core.isCurrentHandle(activeHandle) &&
-                (lastPremiumRefreshMs?.let { now - it >= 60_000L } != false)
+                cooldownDue(lastPremiumRefreshMs, 60_000L, now) &&
+                premiumInFlight.compareAndSet(false, true)
             ) {
-                lastPremiumRefreshMs = now
-                val profile = try {
-                    core.onNativeIfFree { handle ->
-                        core.native.getProfile(handle, 0L).toProfileModel()
+                core.scope.launch {
+                    val profile = try {
+                        core.onNativeIfFree { handle ->
+                            core.native.getProfile(handle, 0L).toProfileModel()
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        lastPremiumRefreshMs.set(core.clock.elapsedMs())
+                        core.fail(e, "refresh account failed", degradeHome = false)
+                        null
+                    } finally {
+                        premiumInFlight.set(false)
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    core.fail(e, "refresh account failed", degradeHome = false)
-                    null
-                }
-                if (profile != null && core.isCurrentHandle(activeHandle)) {
-                    premiumRefreshPending = false
-                    core.updatesEvents.emit(MtprotoUpdate.AccountPremium(profile.isPremium))
+                    if (profile != null && core.isCurrentHandle(refreshHandle)) {
+                        lastPremiumRefreshMs.set(core.clock.elapsedMs())
+                        premiumRefreshPending = false
+                        core.updatesEvents.emit(MtprotoUpdate.AccountPremium(profile.isPremium))
+                    }
                 }
             }
             if (core.isCurrentHandle(activeHandle)) {
                 delay(drainDelayMs)
-                elapsedPollMs += drainDelayMs
             }
         }
     }

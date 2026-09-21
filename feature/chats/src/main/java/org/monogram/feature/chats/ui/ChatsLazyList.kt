@@ -79,6 +79,11 @@ internal fun ChatsLazyList(
     markUnreadLabel: String,
     manageFoldersLabel: String,
     foldersAtBottom: Boolean = false,
+    selectingRecipient: Boolean = false,
+    recipientIds: Set<Long> = emptySet(),
+    recipientSelectionEnabled: Boolean = true,
+    canSelectRecipient: (Chat) -> Boolean = { true },
+    onToggleRecipient: (Long) -> Unit = {},
 ) {
     RecompositionProbe("ChatsLazyList")
     val context = LocalContext.current
@@ -122,23 +127,25 @@ internal fun ChatsLazyList(
                         chips = chips,
                         selectedId = homeFolderId,
                         onSelect = onSelectFolder,
-                        onManage = onManageFolders,
-                        manageContentDescription = manageFoldersLabel,
-                        onLongPress = onFolderLongPress,
+                        onManage = if (selectingRecipient) null else onManageFolders,
+                        manageContentDescription = if (selectingRecipient) null else manageFoldersLabel,
+                        onLongPress = if (selectingRecipient) null else onFolderLongPress,
                     )
-                    AppMenuPopup(
-                        expanded = folderMenu != null,
-                        onDismiss = onDismissFolderMenu,
-                    ) {
-                        FolderChipMenu(
-                            chats = allChats.items(),
-                            folders = folders,
-                            folderId = folderMenu?.id,
-                            markReadLabel = markReadLabel,
-                            editLabel = manageFoldersLabel,
-                            onMarkRead = onMarkFolderRead,
-                            onEditFolders = onEditFolders,
-                        )
+                    if (!selectingRecipient) {
+                        AppMenuPopup(
+                            expanded = folderMenu != null,
+                            onDismiss = onDismissFolderMenu,
+                        ) {
+                            FolderChipMenu(
+                                chats = allChats.items(),
+                                folders = folders,
+                                folderId = folderMenu?.id,
+                                markReadLabel = markReadLabel,
+                                editLabel = manageFoldersLabel,
+                                onMarkRead = onMarkFolderRead,
+                                onEditFolders = onEditFolders,
+                            )
+                        }
                     }
                 }
             }
@@ -174,6 +181,11 @@ internal fun ChatsLazyList(
             ChatListItem(
                 chat = chat,
                 selected = id == selectedChatId,
+                selectingRecipient = selectingRecipient,
+                recipientSelected = id in recipientIds,
+                recipientSelectionEnabled = recipientSelectionEnabled,
+                canSelectRecipient = canSelectRecipient(chat),
+                onToggleRecipient = onToggleRecipient,
                 savedMessages = chat.id == selfPeerId,
                 mediaRepository = mediaRepository,
                 showAvatar = showAvatar,
@@ -199,6 +211,11 @@ internal fun ChatsLazyList(
 internal fun ChatListItem(
     chat: Chat,
     selected: Boolean,
+    selectingRecipient: Boolean = false,
+    recipientSelected: Boolean = false,
+    recipientSelectionEnabled: Boolean = true,
+    canSelectRecipient: Boolean = true,
+    onToggleRecipient: (Long) -> Unit = {},
     savedMessages: Boolean,
     mediaRepository: MediaRepository?,
     showAvatar: Boolean,
@@ -230,38 +247,46 @@ internal fun ChatListItem(
     val onThisRowMenu = remember(onRowMenu, chat.id) {
         { onRowMenu(latestChat.value) }
     }
+    val onToggleThisRecipient = remember(onToggleRecipient, chat.id) {
+        { onToggleRecipient(latestChat.value.id.value) }
+    }
+    val recipientSelectable = recipientSelectionEnabled && canSelectRecipient
     Box {
         ChatRow(
             chat = chat,
-            selected = selected,
+            selected = if (selectingRecipient) recipientSelected else selected,
+            selectingRecipient = selectingRecipient,
+            recipientSelectable = recipientSelectable,
             savedMessages = savedMessages,
             mediaRepository = mediaRepository,
             showAvatar = showAvatar,
             showReadStatus = showReadStatus,
             texts = texts,
-            onClick = onOpenThisChat,
-            onAvatarClick = onOpenThisAvatar,
+            onClick = if (selectingRecipient) onToggleThisRecipient else onOpenThisChat,
+            onAvatarClick = if (selectingRecipient) null else onOpenThisAvatar,
             modifier = modifier,
-            onLongClick = onThisRowMenu,
+            onLongClick = if (selectingRecipient) null else onThisRowMenu,
         )
-        AppMenuPopup(
-            expanded = rowMenuOpen,
-            onDismiss = onDismissRowMenu,
-            scrim = true,
-        ) {
-            ChatRowMenu(
-                unread = chat.unreadCount > 0 || chat.unreadMark,
-                markReadLabel = markReadLabel,
-                markUnreadLabel = markUnreadLabel,
-                onMarkRead = {
-                    onDismissRowMenu()
-                    onMarkRead(chat.id)
-                },
-                onMarkUnread = {
-                    onDismissRowMenu()
-                    onMarkUnread(chat.id)
-                },
-            )
+        if (!selectingRecipient) {
+            AppMenuPopup(
+                expanded = rowMenuOpen,
+                onDismiss = onDismissRowMenu,
+                scrim = true,
+            ) {
+                ChatRowMenu(
+                    unread = chat.unreadCount > 0 || chat.unreadMark,
+                    markReadLabel = markReadLabel,
+                    markUnreadLabel = markUnreadLabel,
+                    onMarkRead = {
+                        onDismissRowMenu()
+                        onMarkRead(chat.id)
+                    },
+                    onMarkUnread = {
+                        onDismissRowMenu()
+                        onMarkUnread(chat.id)
+                    },
+                )
+            }
         }
     }
 }

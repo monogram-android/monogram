@@ -196,8 +196,9 @@ object MtprotoNativeStub : MtprotoNative {
     override fun forwardMessages(
         handle: Long,
         fromChatId: Long,
-        messageId: Int,
+        messageIds: List<Int>,
         toChatId: Long,
+        dropAuthor: Boolean,
     ): List<MessageDto> {
         throw MtprotoException.Message("native library failed to load")
     }

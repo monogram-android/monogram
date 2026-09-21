@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recipient_messages">Mensajes: %1$d</string>
+    <string name="recipient_files">Archivos adjuntos: %1$d</string>
+    <string name="recipient_hide_author">Ocultar nombres de remitentes</string>
+    <string name="recipient_comment">Añadir un comentario</string>
+    <string name="recipient_send">Enviar (%1$d)</string>
+    <string name="recipient_sending">Enviando: %1$d de %2$d</string>
+    <string name="recipient_error">No se pudo completar. Inténtalo de nuevo para continuar</string>
+    <string name="recipient_retry">Reintentar</string>
+    <string name="recipient_interrupted">El envío se interrumpió. Comprueba los chats de destino antes de volver a enviar</string>
     <string name="app_name">Monogram</string>
     <string name="app_description">Cliente no oficial de Telegram</string>
     <string name="home_tab_chats">Chats</string>

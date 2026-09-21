@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recipient_messages">Mesajlar: %1$d</string>
+    <string name="recipient_files">Ekler: %1$d</string>
+    <string name="recipient_hide_author">Gönderen adlarını gizle</string>
+    <string name="recipient_comment">Yorum ekle</string>
+    <string name="recipient_send">Gönder (%1$d)</string>
+    <string name="recipient_sending">Gönderiliyor: %1$d / %2$d</string>
+    <string name="recipient_error">Tamamlanamadı. Devam etmek için tekrar deneyin</string>
+    <string name="recipient_retry">Tekrar dene</string>
+    <string name="recipient_interrupted">Gönderme işlemi kesildi. Tekrar göndermeden önce hedef sohbetleri kontrol edin</string>
     <string name="app_name">Monogram</string>
     <string name="app_description">Resmi olmayan Telegram istemcisi</string>
     <string name="home_tab_chats">Sohbetler</string>

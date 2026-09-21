@@ -3,12 +3,12 @@ package org.monogram.core.ui.menu
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -80,8 +80,12 @@ object AppMenuDefaults {
 object AppMenuMotion {
     private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
     val OpenSpec: FiniteAnimationSpec<Float> = tween(220, easing = EmphasizedDecelerate)
-    val CloseSpec: FiniteAnimationSpec<Float> = tween(120, easing = EmphasizedDecelerate)
-    const val InitialScale = 0.8f
+    val CloseSpec: FiniteAnimationSpec<Float> = tween(120, easing = LinearEasing)
+    val ResizeSpec: FiniteAnimationSpec<androidx.compose.ui.unit.IntSize> =
+        tween(240, easing = EmphasizedDecelerate)
+    val ContentEnterSpec: FiniteAnimationSpec<Float> = tween(160, delayMillis = 80, easing = EmphasizedDecelerate)
+    val ContentExitSpec: FiniteAnimationSpec<Float> = tween(80)
+    const val InitialScale = 0.94f
 }
 
 internal fun appMenuStateLayerAlpha(
@@ -310,7 +314,7 @@ fun AppMenuScrim(modifier: Modifier = Modifier, onClick: () -> Unit) {
 fun AppMenuScrimPopup(visible: Boolean, onDismiss: () -> Unit) {
     val transition = remember { MutableTransitionState(false) }
     transition.targetState = visible
-    if (!transition.currentState && !transition.targetState) return
+    if (transition.isIdle && !transition.currentState && !transition.targetState) return
     androidx.compose.ui.window.Popup(
         popupPositionProvider = remember {
             object : PopupPositionProvider {
@@ -354,7 +358,7 @@ fun AppMenuPopup(
 ) {
     val transition = remember { MutableTransitionState(false) }
     transition.targetState = expanded
-    if (!transition.currentState && !transition.targetState) return
+    if (transition.isIdle && !transition.currentState && !transition.targetState) return
     val placement = remember { AppMenuPlacementState() }
     if (scrim) AppMenuScrimPopup(visible = expanded, onDismiss = onDismiss)
     androidx.compose.ui.window.Popup(
@@ -379,8 +383,7 @@ fun AppMenuPopup(
             visibleState = transition,
             enter = fadeIn(AppMenuMotion.OpenSpec) +
                 scaleIn(AppMenuMotion.OpenSpec, initialScale = AppMenuMotion.InitialScale, transformOrigin = origin),
-            exit = fadeOut(AppMenuMotion.CloseSpec) +
-                scaleOut(AppMenuMotion.CloseSpec, targetScale = AppMenuMotion.InitialScale, transformOrigin = origin),
+            exit = fadeOut(AppMenuMotion.CloseSpec),
             modifier = modifier,
         ) {
             content()

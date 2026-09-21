@@ -432,10 +432,11 @@ pub fn delete_message(
 pub fn forward_messages(
     handle: u64,
     from_chat_id: i64,
-    message_id: i32,
+    message_ids: Vec<i32>,
     to_chat_id: i64,
+    drop_author: bool,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::forward_messages(handle, from_chat_id, message_id, to_chat_id)
+    client_mgr::forward_messages(handle, from_chat_id, message_ids, to_chat_id, drop_author)
 }
 
 #[uniffi::export]

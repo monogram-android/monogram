@@ -5,6 +5,8 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -25,6 +27,41 @@ class ChatBackTouchTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private var backs = 0
     private var childDrags = 0
+
+    @Test
+    fun diagonalTextSelectionDoesNotNavigateBack() {
+        val dispatcher = BackDispatcher().apply { register(BackCallback(onBack = { backs++ })) }
+        compose.setContent {
+            Box(Modifier.fillMaxSize().chatBackGesture(dispatcher, LayoutDirection.Ltr, { true }) { true }) {
+                SelectionContainer {
+                    BasicText(
+                        "First line with several words to select.\nSecond line with several more words.\nThird line of text.",
+                        modifier = Modifier.testTag("selectable"),
+                    )
+                }
+            }
+        }
+        compose.onNodeWithTag("selectable").performTouchInput {
+            down(Offset(width * 0.1f, height * 0.15f))
+            advanceEventTime(700)
+            moveTo(Offset(width * 0.7f, height * 0.65f), 300)
+            up()
+        }
+        compose.runOnIdle { assertEquals(0, backs) }
+    }
+
+    @Test
+    fun unconsumedChatSwipeStillNavigatesBackWithChildPriority() {
+        val dispatcher = BackDispatcher().apply { register(BackCallback(onBack = { backs++ })) }
+        compose.setContent {
+            Box(Modifier.fillMaxSize().chatBackGesture(dispatcher, LayoutDirection.Ltr, { true }) { true }
+                .testTag("content"))
+        }
+        compose.onNodeWithTag("content").performTouchInput {
+            swipe(Offset(width * 0.25f, center.y), Offset(width * 0.8f, center.y), 600)
+        }
+        compose.runOnIdle { assertEquals(1, backs) }
+    }
 
     @Test
     fun settingsHorizontalControlKeepsItsGesture() {

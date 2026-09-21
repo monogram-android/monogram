@@ -24,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -32,6 +33,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.monogram.core.common.Outcome
+import org.monogram.core.models.PeerId
+import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.components.ItemPosition
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.components.SectionHeader
@@ -39,9 +43,13 @@ import org.monogram.core.ui.components.SettingsGroupCorner
 import org.monogram.core.ui.components.SettingsTile
 import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.loading.MonogramLoadingInlineSize
+import org.monogram.core.ui.rememberCacheGeneration
+import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.feature.settings.R
 import org.monogram.feature.settings.SettingsStore
 import org.monogram.network.http.FileCache
+import org.monogram.network.http.MediaPriority
+import org.monogram.network.http.MediaRepository
 import java.util.Locale
 
 @Composable
@@ -65,10 +73,31 @@ private fun storageCategoryColor(kind: String): androidx.compose.ui.graphics.Col
 @Composable
 private fun ChatStorageRow(
     row: org.monogram.feature.settings.SettingsStore.CacheChatRow,
+    mediaRepository: MediaRepository?,
     position: ItemPosition,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
+    val peerId = remember(row.chatId) { PeerId(row.chatId) }
+    val cacheKey = peerAvatarCacheKey(peerId, row.photoCacheKey)
+    val avatarFile = rememberEnsuredFile(
+        generation = rememberCacheGeneration(
+            remember(mediaRepository, peerId, cacheKey) {
+                mediaRepository?.cacheGeneration(cacheKey)
+            },
+        ),
+        identity = row.chatId to cacheKey,
+        resolve = {
+            mediaRepository?.cachedFile(cacheKey) ?: mediaRepository?.cachedAvatar(peerId)
+        },
+        ensure = {
+            val repo = mediaRepository ?: return@rememberEnsuredFile null
+            when (val result = repo.ensureLocalAvatar(peerId, cacheKey, MediaPriority.THUMB)) {
+                is Outcome.Ok -> result.value
+                is Outcome.Err -> repo.cachedAvatar(peerId)
+            }
+        },
+    )
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         shape = when (position) {
@@ -93,7 +122,7 @@ private fun ChatStorageRow(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PeerAvatar(title = row.title, size = 40.dp)
+            PeerAvatar(title = row.title, size = 40.dp, imageFile = avatarFile)
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = row.title, style = MaterialTheme.typography.bodyLarge)
@@ -118,6 +147,7 @@ internal fun LazyListScope.dataItems(
     onClear: () -> Unit,
     onClearChat: (Long) -> Unit,
     onClearKind: (String) -> Unit,
+    mediaRepository: MediaRepository? = null,
 ) {
     item { Spacer(Modifier.height(8.dp)) }
     item { SectionHeader(stringResource(R.string.settings_data_transfers)) }
@@ -242,6 +272,7 @@ internal fun LazyListScope.dataItems(
             item {
                 ChatStorageRow(
                     row = row,
+                    mediaRepository = mediaRepository,
                     position = when {
                         sortedChats.size == 1 -> ItemPosition.STANDALONE
                         index == 0 -> ItemPosition.TOP

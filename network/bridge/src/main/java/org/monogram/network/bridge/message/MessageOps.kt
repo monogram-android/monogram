@@ -113,6 +113,13 @@ interface MessageOps {
         toChatId: PeerId,
     ): Outcome<List<Message>>
 
+    suspend fun forwardMessages(
+        fromChatId: PeerId,
+        messageIds: List<Int>,
+        toChatId: PeerId,
+        dropAuthor: Boolean,
+    ): Outcome<List<Message>> = Outcome.Err("unsupported")
+
     suspend fun toggleTodoCompleted(
         chatId: PeerId,
         messageId: Int,

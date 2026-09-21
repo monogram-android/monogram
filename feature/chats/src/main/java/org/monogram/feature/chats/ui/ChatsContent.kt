@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MarkChatRead
 import androidx.compose.material.icons.outlined.MarkChatUnread
@@ -100,6 +101,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Surface
@@ -126,10 +128,23 @@ fun ChatsContent(
     modifier: Modifier = Modifier,
     selectedChatId: Long? = null,
     listActive: Boolean = true,
+    selectingRecipient: Boolean = false,
+    onCancelSelection: () -> Unit = {},
+    recipientIds: Set<Long> = emptySet(),
+    recipientSelectionEnabled: Boolean = true,
+    canSelectRecipient: (Chat) -> Boolean = { true },
+    onToggleRecipient: (Long) -> Unit = {},
+    selectionBottomBar: @Composable () -> Unit = {},
 ) {
     val state = collectWhenActive(component.state, listActive)
     val appearance by AppearanceSettings.state.collectAsState()
-    if (state.chats.isEmpty() && state.loading && state.error == null) {
+    val cancelSelection by rememberUpdatedState(onCancelSelection)
+    DisposableEffect(component, selectingRecipient, listActive) {
+        val callback = BackCallback(isEnabled = selectingRecipient && listActive) { cancelSelection() }
+        component.backHandler.register(callback)
+        onDispose { component.backHandler.unregister(callback) }
+    }
+    if (!selectingRecipient && state.chats.isEmpty() && state.loading && state.error == null) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
@@ -149,6 +164,12 @@ fun ChatsContent(
     val searchFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val texts = chatListTexts()
+    LaunchedEffect(selectingRecipient) {
+        if (selectingRecipient) {
+            folderMenu = null
+            rowMenu = null
+        }
+    }
     var folderScroll by rememberSaveable(stateSaver = FolderScrollSaver) {
         mutableStateOf(emptyMap<Int, FolderListScroll>())
     }
@@ -381,6 +402,39 @@ fun ChatsContent(
             containerColor = MaterialTheme.colorScheme.surface,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
+                if (selectingRecipient) {
+                    androidx.compose.material3.TopAppBar(
+                        title = {
+                            Text(
+                                text = stringResource(R.string.chats_share_recipient),
+                                maxLines = 1,
+                            )
+                        },
+                        navigationIcon = {
+                            androidx.compose.material3.IconButton(onClick = onCancelSelection) {
+                                androidx.compose.material3.Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = stringResource(R.string.chats_share_cancel),
+                                )
+                            }
+                        },
+                        actions = {
+                            androidx.compose.material3.IconButton(
+                                onClick = {
+                                    searchOpen = !searchOpen
+                                    if (searchOpen) searchFocusRequest += 1
+                                },
+                            ) {
+                                androidx.compose.material3.Icon(
+                                    imageVector = if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search,
+                                    contentDescription = stringResource(
+                                        if (searchOpen) R.string.chats_search_close else R.string.chats_search,
+                                    ),
+                                )
+                            }
+                        },
+                    )
+                } else {
                 ChatsTopBar(
                     atTop = atTop,
                     brandTitle = if (archive) archiveLabel else brandLabel,
@@ -409,12 +463,19 @@ fun ChatsContent(
                     markAllReadLabel = markAllReadLabel,
                     markAllReadEnabled = markAllIds.isNotEmpty(),
                 )
+                }
+            },
+            bottomBar = {
+                if (selectingRecipient) selectionBottomBar()
             },
         ) { inner ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = inner.calculateTopPadding()),
+                    .padding(
+                        top = inner.calculateTopPadding(),
+                        bottom = inner.calculateBottomPadding(),
+                    ),
             ) {
                 AnimatedVisibility(
                     visible = searchOpen,
@@ -474,6 +535,11 @@ fun ChatsContent(
                         hasMore = state.hasMore,
                         loadingMore = state.loadingMore,
                         selectedChatId = selectedChatId,
+                        selectingRecipient = selectingRecipient,
+                        recipientIds = recipientIds,
+                        recipientSelectionEnabled = recipientSelectionEnabled,
+                        canSelectRecipient = canSelectRecipient,
+                        onToggleRecipient = onToggleRecipient,
                         selfPeerId = selfPeerId,
                         showAvatar = showChatAvatars,
                         showReadStatus = showReadStatus,
@@ -517,6 +583,7 @@ fun ChatsContent(
                             onDismissFolderMenu = stableDismissFolderMenu,
                             onMarkFolderRead = stableMarkFolderRead,
                             onEditFolders = stableEditFolders,
+                            folderManagementEnabled = !selectingRecipient,
                             modifier = Modifier.align(Alignment.BottomCenter),
                         )
                     }
@@ -569,6 +636,7 @@ private fun FloatingFolderBar(
     onDismissFolderMenu: () -> Unit,
     onMarkFolderRead: (List<PeerId>) -> Unit,
     onEditFolders: () -> Unit,
+    folderManagementEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -590,24 +658,26 @@ private fun FloatingFolderBar(
                 chips = chips,
                 selectedId = selectedId,
                 onSelect = onSelectFolder,
-                onManage = onManageFolders,
-                manageContentDescription = manageFoldersLabel,
-                onLongPress = onFolderLongPress,
+                onManage = if (folderManagementEnabled) onManageFolders else null,
+                manageContentDescription = if (folderManagementEnabled) manageFoldersLabel else null,
+                onLongPress = if (folderManagementEnabled) onFolderLongPress else null,
                 edgeFadeColor = barColor,
             )
-            AppMenuPopup(
-                expanded = folderMenu != null,
-                onDismiss = onDismissFolderMenu,
-            ) {
-                FolderChipMenu(
-                    chats = allChats.items(),
-                    folders = folders,
-                    folderId = folderMenu?.id,
-                    markReadLabel = markReadLabel,
-                    editLabel = manageFoldersLabel,
-                    onMarkRead = onMarkFolderRead,
-                    onEditFolders = onEditFolders,
-                )
+            if (folderManagementEnabled) {
+                AppMenuPopup(
+                    expanded = folderMenu != null,
+                    onDismiss = onDismissFolderMenu,
+                ) {
+                    FolderChipMenu(
+                        chats = allChats.items(),
+                        folders = folders,
+                        folderId = folderMenu?.id,
+                        markReadLabel = markReadLabel,
+                        editLabel = manageFoldersLabel,
+                        onMarkRead = onMarkFolderRead,
+                        onEditFolders = onEditFolders,
+                    )
+                }
             }
         }
     }

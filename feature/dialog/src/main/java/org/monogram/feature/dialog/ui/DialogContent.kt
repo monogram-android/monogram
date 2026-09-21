@@ -162,7 +162,7 @@ fun DialogContent(component: DialogComponent, modifier: Modifier = Modifier) {
     CompositionLocalProvider(LocalMarkupParser provides component.markup, LocalReadReceiptHolder provides receiptHolder) {
         MessageMediaViewerScope(
             repository = component.mediaRepository,
-            onForward = { messages -> messages.lastOrNull()?.let(component::onForwardPick) },
+            onForward = component::onForwardMessages,
             onDelete = { messages -> messages.forEach { component.onDelete(it.id.id, revoke = true) } },
             onShowInChat = { message -> component.onJumpToMessage(message.id.id) },
             onEnsureReceipts = { message -> component.onLoadReadReceipts(message.id.id) },

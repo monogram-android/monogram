@@ -34,7 +34,7 @@ use tellers_mtproto_session::{OsRandom, Snapshot};
 use crate::media::MediaIndex;
 use crate::peers::CachedPeer;
 use crate::scheduler;
-use crate::session_file::{ChannelRecovery, FileSessionStore, media_to_index};
+use crate::session_file::{media_to_index, ChannelRecovery, FileSessionStore};
 use crate::tcp;
 use crate::{MtprotoError, UpdatesStateDto};
 
@@ -70,6 +70,8 @@ pub(crate) struct ClientData {
     pub(crate) home_time_offset: i64,
     pub(crate) test_dc: bool,
     pub(crate) last_inline: Option<LastInlineQuery>,
+    pub(crate) persist_epoch: u64,
+    pub(crate) persisted_epoch: u64,
 }
 
 #[derive(Clone)]
@@ -141,13 +143,22 @@ pub(crate) fn merge_changed_entries<K: Eq + std::hash::Hash, V: PartialEq>(
     current: &mut HashMap<K, V>,
     before: &HashMap<K, V>,
     incoming: HashMap<K, V>,
-) {
-    current.retain(|key, value| incoming.contains_key(key) || before.get(key) != Some(value));
+) -> bool {
+    let mut changed = false;
+    current.retain(|key, value| {
+        let keep = incoming.contains_key(key) || before.get(key) != Some(value);
+        if !keep {
+            changed = true;
+        }
+        keep
+    });
     for (key, value) in incoming {
         if before.get(&key) != Some(&value) && current.get(&key) == before.get(&key) {
             current.insert(key, value);
+            changed = true;
         }
     }
+    changed
 }
 
 pub(crate) fn get_client(handle: u64) -> Result<Arc<Client>, MtprotoError> {
@@ -253,6 +264,8 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                 home_time_offset: snapshot.time_offset_micros,
                 test_dc,
                 last_inline: None,
+                persist_epoch: 0,
+                persisted_epoch: 0,
             }),
             main_gate: scheduler::LaneGate::new(),
             main: Mutex::new(SessionIo {
@@ -316,6 +329,7 @@ pub(crate) fn with_interactive_client_mut<T>(
 pub fn destroy_client(handle: u64) {
     let client = CLIENTS.lock().remove(&handle);
     if let Some(client) = client {
+        flush_persist(&client);
         client.connections.close();
     }
 }
@@ -429,8 +443,8 @@ pub(crate) fn with_client_mut<T>(
             d.seen_messages = state.seen_messages;
             d.updates_started = state.updates_started;
         } else {
-            merge_changed_entries(&mut d.peers, &before_peers, state.peers);
-            merge_changed_entries(&mut d.media, &before_media, state.media);
+            let _ = merge_changed_entries(&mut d.peers, &before_peers, state.peers);
+            let _ = merge_changed_entries(&mut d.media, &before_media, state.media);
             d.updates = prefer_newer_cursor(d.updates.clone(), state.updates);
             d.updates_started |= state.updates_started;
         }
@@ -449,6 +463,9 @@ pub(crate) fn with_client_mut<T>(
         d.home_time_offset = state.snapshot.time_offset_micros;
         d.test_dc = state.test_dc;
         d.last_inline = state.last_inline;
+        if result.is_ok() {
+            d.persist_epoch = d.persist_epoch.saturating_add(1);
+        }
     }
     if identity_changed {
         for lane in client.rpc.iter() {
@@ -459,6 +476,10 @@ pub(crate) fn with_client_mut<T>(
                 rpc.last_difference = None;
             }
         }
+    }
+    if result.is_ok() {
+        let persist_id = client.data.lock().home_session_id;
+        schedule_persist(&client, persist_id);
     }
     result
 }
@@ -587,9 +608,10 @@ pub(crate) fn with_read_lane<T>(
     {
         let mut d = client.data.lock();
         if d.home_session_id == home_session_id && !d.session_dead {
-            merge_changed_entries(&mut d.peers, &before_peers, state.peers);
-            merge_changed_entries(&mut d.media, &before_media, state.media);
-            merge_changed_entries(&mut d.channel_pts, &before_channel_pts, state.channel_pts);
+            let _ = merge_changed_entries(&mut d.peers, &before_peers, state.peers);
+            let _ = merge_changed_entries(&mut d.media, &before_media, state.media);
+            let _ =
+                merge_changed_entries(&mut d.channel_pts, &before_channel_pts, state.channel_pts);
             d.seen_messages.extend(state.seen_messages);
             d.updates = prefer_newer_cursor(d.updates.clone(), state.updates);
             d.updates_started |= state.updates_started;
@@ -604,6 +626,9 @@ pub(crate) fn with_read_lane<T>(
             d.last_inline = state.last_inline;
             d.home_salt = state.snapshot.server_salt;
             d.home_time_offset = state.snapshot.time_offset_micros;
+            if result.is_ok() {
+                d.persist_epoch = d.persist_epoch.saturating_add(1);
+            }
         }
     }
     drop(io);

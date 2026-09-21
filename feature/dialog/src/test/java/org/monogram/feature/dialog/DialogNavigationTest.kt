@@ -92,7 +92,7 @@ class DialogNavigationTest {
     fun unreadAnchorUsesCountOnlyInsideLiveEdgeWindow() {
         val messages = listOf(msg(30), msg(29), msg(28), msg(27), msg(26))
         assertEquals(
-            28,
+            29,
             unreadAnchorId(
                 messages = messages,
                 unreadCount = 2,
@@ -105,7 +105,7 @@ class DialogNavigationTest {
         assertNull(
             unreadAnchorId(
                 messages = messages,
-                unreadCount = 5,
+                unreadCount = 6,
                 readInboxMaxId = 0,
                 hasOlder = true,
                 hasNewer = false,
@@ -120,6 +120,13 @@ class DialogNavigationTest {
                 hasNewer = true,
             ),
         )
+    }
+
+    @Test
+    fun unreadCountAnchorSkipsOutgoingAndUsesTheWholeLoadedCluster() {
+        val messages = listOf(msg(30, outgoing = true), msg(29), msg(28), msg(27))
+        assertEquals(29, unreadAnchorId(messages, 1, 0, true, false))
+        assertEquals(27, unreadAnchorId(messages, 3, 0, true, false))
     }
 
     @Test
@@ -250,13 +257,77 @@ class DialogNavigationTest {
         assertEquals(0, unreadJumpAddOffset(0))
         assertEquals(0, unreadJumpAddOffset(1))
         assertEquals(2, unreadJumpAddOffset(3))
-        assertEquals(2, unreadDividerIndex(messages, unreadCount = 2, readInboxMaxId = 0))
+        assertEquals(1, unreadDividerIndex(messages, unreadCount = 2, readInboxMaxId = 0))
     }
 
     @Test
     fun unreadDividerUsesInboxMaxId() {
         val messages = listOf(msg(30), msg(20), msg(10), msg(5))
         assertEquals(1, unreadDividerIndex(messages, unreadCount = 9, readInboxMaxId = 10))
+    }
+
+    @Test
+    fun unreadDividerUsesAlbumHeadWhenReadBoundaryFallsInsideAlbum() {
+        val messages = listOf(
+            msg(30),
+            msg(29).copy(groupedId = 1L),
+            msg(28).copy(groupedId = 1L),
+            msg(27).copy(groupedId = 1L),
+            msg(26),
+        )
+
+        assertEquals(1, unreadDividerIndex(messages, unreadCount = 0, readInboxMaxId = 27))
+    }
+
+    @Test
+    fun unreadDividerUsesAlbumHeadWhenWholeAlbumIsUnread() {
+        val messages = listOf(
+            msg(30).copy(groupedId = 1L),
+            msg(29).copy(groupedId = 1L),
+            msg(28).copy(groupedId = 1L),
+            msg(27),
+        )
+
+        assertEquals(0, unreadDividerIndex(messages, unreadCount = 0, readInboxMaxId = 27))
+    }
+
+    @Test
+    fun unreadDividerCountSkipsOutgoingMessages() {
+        val messages = listOf(msg(30, outgoing = true), msg(29), msg(28), msg(27))
+
+        assertEquals(2, unreadDividerIndex(messages, unreadCount = 2, readInboxMaxId = 0))
+    }
+
+    @Test
+    fun unreadDividerCountUsesEveryIncomingAlbumMember() {
+        val messages = listOf(
+            msg(30),
+            msg(29).copy(groupedId = 1L),
+            msg(28).copy(groupedId = 1L),
+            msg(27).copy(groupedId = 1L),
+            msg(26),
+        )
+
+        assertEquals(1, unreadDividerIndex(messages, unreadCount = 4, readInboxMaxId = 0))
+    }
+
+    @Test
+    fun visibleAlbumMessageIdsExpandsVisibleAlbumRowsAndSkipsInvalidRows() {
+        val messages = listOf(
+            msg(10),
+            msg(9).copy(groupedId = 1L),
+            msg(8).copy(groupedId = 1L),
+            msg(7),
+            msg(6).copy(groupedId = 2L),
+            msg(5).copy(groupedId = 2L),
+            msg(4).copy(groupedId = 2L),
+            msg(3),
+        )
+
+        assertEquals(
+            setOf(10, 9, 8, 6, 5, 4),
+            visibleAlbumMessageIds(messages, visibleRowIndices = setOf(0, 1, 3, -1, 99)),
+        )
     }
 
     @Test

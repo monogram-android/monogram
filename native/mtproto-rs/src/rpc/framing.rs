@@ -6,16 +6,16 @@ use tellers_mtproto_engine::{Engine, OutboundMessage};
 use tellers_mtproto_session::{Clock, OsRandom, Snapshot};
 use tellers_mtproto_transport::{Connection, Framing, PaddedIntermediate};
 
-use crate::MtprotoError;
 use crate::tcp::{self, ObfuscatedTcp};
+use crate::MtprotoError;
 
 use super::dc::{rotated_endpoints, rotated_same_ip};
-use super::inbound::{MAX_UNPACKED_BYTES, encode_boxed_bytes};
+use super::inbound::{encode_boxed_bytes, MAX_UNPACKED_BYTES};
 use super::live::LiveTransport;
 use super::supervisor::is_waitable_io;
 use super::timeout::{
-    LAST_INBOUND_CTOR, fail_fast_idle, idle_empty_first_byte, idle_needs_liveness_probe,
-    is_mid_frame, recv_wait_deadline, rpc_timeout_message,
+    fail_fast_idle, idle_empty_first_byte, idle_needs_liveness_probe, is_mid_frame,
+    recv_wait_deadline, rpc_timeout_message, LAST_INBOUND_CTOR,
 };
 
 pub struct SystemClock;
@@ -49,6 +49,22 @@ pub(crate) fn send_framed(
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
     conn.send(&packet)
         .map_err(|e| MtprotoError::Message(e.to_string()))
+}
+
+pub(crate) fn try_decode_complete(
+    framing: &mut PaddedIntermediate,
+    input: &mut Vec<u8>,
+) -> Result<Option<Vec<u8>>, MtprotoError> {
+    match framing.decode(input) {
+        Ok(packet) => {
+            let consumed = packet.consumed;
+            let payload = packet.payload;
+            input.drain(..consumed);
+            Ok(Some(payload))
+        }
+        Err(tellers_mtproto_transport::Error::Incomplete { .. }) => Ok(None),
+        Err(e) => Err(MtprotoError::Message(e.to_string())),
+    }
 }
 
 pub(crate) fn recv_framed(

@@ -430,10 +430,11 @@ object MtprotoNativeUniFfi : MtprotoNative {
     override fun forwardMessages(
         handle: Long,
         fromChatId: Long,
-        messageId: Int,
+        messageIds: List<Int>,
         toChatId: Long,
+        dropAuthor: Boolean,
     ): List<MessageDto> =
-        nativeForwardMessages(handle.toULong(), fromChatId, messageId, toChatId)
+        nativeForwardMessages(handle.toULong(), fromChatId, messageIds, toChatId, dropAuthor)
 
     override fun deleteMessage(
         handle: Long,

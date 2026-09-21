@@ -12,6 +12,7 @@ import org.monogram.network.bridge.message.MessageOps
 import org.monogram.network.bridge.notify.NotifyOps
 import org.monogram.network.bridge.profile.ProfileOps
 import org.monogram.network.bridge.session.DcTxtBootstrap
+import org.monogram.network.bridge.session.MonotonicClock
 import org.monogram.network.bridge.session.SessionCore
 import org.monogram.network.bridge.session.SessionOps
 import org.monogram.network.bridge.updates.UpdatesOps
@@ -43,7 +44,29 @@ class BridgedMtprotoClient internal constructor(
                 native,
                 historyTimeoutMs,
                 nativeDispatcher,
-                refreshDcSidecar
+                refreshDcSidecar,
+            )
+        ),
+    )
+
+    internal constructor(
+        credentials: TelegramCredentials,
+        sessionPath: String,
+        native: MtprotoNative,
+        nativeDispatcher: CoroutineDispatcher,
+        refreshDcSidecar: (String) -> Unit,
+        clock: MonotonicClock,
+        historyTimeoutMs: Long = 20_000,
+    ) : this(
+        ClientApis(
+            SessionCore(
+                credentials,
+                sessionPath,
+                native,
+                historyTimeoutMs,
+                nativeDispatcher,
+                refreshDcSidecar,
+                clock,
             )
         ),
     )

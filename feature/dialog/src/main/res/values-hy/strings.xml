@@ -133,6 +133,11 @@
     <string name="dialog_paste">Տեղադրել</string>
     <string name="dialog_copy_selected">Պատճենել ընտրվածը</string>
     <string name="dialog_select_text">Ընտրել</string>
+    <string name="dialog_select_message">Ընտրել հաղորդագրություններ</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="one">Ընտրված է %1$d հաղորդագրություն</item>
+        <item quantity="other">Ընտրված է %1$d հաղորդագրություն</item>
+    </plurals>
     <string name="dialog_select_all">Ընտրել բոլորը</string>
     <string name="dialog_select_done">Պատրաստ է</string>
     <string name="dialog_format">Ձևաչափ</string>

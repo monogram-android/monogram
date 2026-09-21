@@ -133,6 +133,10 @@
     <string name="dialog_paste">粘贴</string>
     <string name="dialog_copy_selected">复制所选</string>
     <string name="dialog_select_text">选择</string>
+    <string name="dialog_select_message">选择消息</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="other">已选择 %1$d 条消息</item>
+    </plurals>
     <string name="dialog_select_all">全选</string>
     <string name="dialog_select_done">完成</string>
     <string name="dialog_format">格式</string>

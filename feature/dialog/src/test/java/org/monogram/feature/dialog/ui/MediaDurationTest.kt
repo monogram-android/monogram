@@ -86,6 +86,78 @@ class MediaDurationTest {
     }
 
     @Test
+    fun captionlessVisualMediaKeepsClockOnThePicture() {
+        assertEquals(
+            true,
+            shouldOverlayMediaMeta(
+                stickerOnly = false,
+                edgeVisualMedia = true,
+                mediaCaption = false,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldOverlayMediaMeta(
+                stickerOnly = false,
+                edgeVisualMedia = true,
+                mediaCaption = true,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldOverlayMediaMeta(
+                stickerOnly = true,
+                edgeVisualMedia = false,
+                mediaCaption = false,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldOverlayMediaMeta(
+                stickerOnly = false,
+                edgeVisualMedia = false,
+                mediaCaption = false,
+            ),
+        )
+    }
+
+    @Test
+    fun mediaCoversBottomInsetWhenItIsTheLastBubbleChild() {
+        assertEquals(
+            true,
+            shouldBleedMediaBottom(
+                edgeMedia = true,
+                mediaCaption = false,
+                hasComments = false,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldBleedMediaBottom(
+                edgeMedia = true,
+                mediaCaption = true,
+                hasComments = false,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldBleedMediaBottom(
+                edgeMedia = true,
+                mediaCaption = false,
+                hasComments = true,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldBleedMediaBottom(
+                edgeMedia = false,
+                mediaCaption = false,
+                hasComments = false,
+            ),
+        )
+    }
+
+    @Test
     fun fileSizeFormats() {
         assertEquals("512 B", formatFileSize(512))
         assertEquals("2 KB", formatFileSize(2048))

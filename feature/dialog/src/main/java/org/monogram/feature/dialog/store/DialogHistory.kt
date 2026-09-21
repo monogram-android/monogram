@@ -297,6 +297,10 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
         cachedOlderTail = emptyList()
         emit(Msg.AppendOlder(cached))
         emit(Msg.HasOlder(true))
+        if (prefetch && anchorToUnread && anchorUnreadIfNeeded()) {
+            emit(Msg.LoadingOlder(false))
+            return
+        }
     }
     val oldest = snapshot().messages.minByOrNull { it.id.id } ?: run {
         emit(Msg.LoadingOlder(false))
@@ -304,6 +308,7 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
     }
     if (!snapshot().hasOlder) {
         emit(Msg.LoadingOlder(false))
+        continueUnreadPaging()
         return
     }
     if (snapshot().error?.requiresReauth == true) {
@@ -315,6 +320,7 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
     if (serverHistoryBoundaryId?.let(::atHistoryOldest) == true) {
         emit(Msg.HasOlder(false))
         emit(Msg.LoadingOlder(false))
+        continueUnreadPaging()
         AppLog.api("dialog", "older end chat=${chatId.value}")
         return
     }
@@ -395,6 +401,7 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
                 // optional sender enrichment and cache persistence complete.
                 emit(Msg.LoadingOlder(false))
                 activeOlderRequestId = null
+                continueUnreadPaging()
                 resolveSenders(result.value)
                 if (warmup?.usesIoDispatcher == true || sessionStore != null) {
                     withContext(Dispatchers.IO) {
@@ -419,7 +426,7 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
 }
 
 /**
- * Anchor a freshly opened history at the first unread message. [firstUnreadAnchorId]
+ * Anchor a freshly opened history at the first unread message. [unreadAnchorId]
  * only answers once the boundary is provably inside the loaded window, so the caller can
  * keep paging older history until it is.
  */
@@ -445,7 +452,13 @@ internal fun DialogExecutor.anchorUnreadIfNeeded(): Boolean {
 
 internal fun DialogExecutor.rememberUnreadAnchor(id: Int) {
     anchorToUnread = false
-    pendingUnreadAnchorId = id
+    val messages = snapshot().messages
+    val group = messages.firstOrNull { it.id.id == id }?.groupedId
+    pendingUnreadAnchorId = if (group != null) {
+        messages.firstOrNull { it.groupedId == group }?.id?.id ?: id
+    } else {
+        id
+    }
 }
 
 /** Pull older pages until the unread boundary is loaded, then anchor there. */

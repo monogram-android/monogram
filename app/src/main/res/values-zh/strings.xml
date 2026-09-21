@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recipient_messages">消息：%1$d</string>
+    <string name="recipient_files">附件：%1$d</string>
+    <string name="recipient_hide_author">隐藏发送者姓名</string>
+    <string name="recipient_comment">添加评论</string>
+    <string name="recipient_send">发送 (%1$d)</string>
+    <string name="recipient_sending">正在发送：%1$d / %2$d</string>
+    <string name="recipient_error">无法完成。请重试以继续</string>
+    <string name="recipient_retry">重试</string>
+    <string name="recipient_interrupted">发送已中断。再次发送前请检查目标聊天</string>
     <string name="app_name">Monogram</string>
     <string name="app_description">非官方 Telegram 客户端</string>
     <string name="home_tab_chats">聊天</string>

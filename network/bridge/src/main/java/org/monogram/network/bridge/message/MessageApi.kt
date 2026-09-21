@@ -365,20 +365,33 @@ internal class MessageApi(
         fromChatId: PeerId,
         messageId: Int,
         toChatId: PeerId,
+    ): Outcome<List<Message>> = forwardMessages(
+        fromChatId = fromChatId,
+        messageIds = listOf(messageId),
+        toChatId = toChatId,
+        dropAuthor = false,
+    )
+
+    override suspend fun forwardMessages(
+        fromChatId: PeerId,
+        messageIds: List<Int>,
+        toChatId: PeerId,
+        dropAuthor: Boolean,
     ): Outcome<List<Message>> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        AppLog.api("forwardMessage", "start")
-        return core.rpcWrite("forwardMessage failed") { activeHandle ->
+        AppLog.api("forwardMessages", "start count=${messageIds.size} dropAuthor=$dropAuthor")
+        return core.rpcWrite("forwardMessages failed") { activeHandle ->
             val sent = core.native.forwardMessages(
                 activeHandle,
                 fromChatId.value,
-                messageId,
+                messageIds,
                 toChatId.value,
+                dropAuthor,
             ).map { it.toModel() }
-            AppLog.api("forwardMessage", "ok count=${sent.size}")
+            AppLog.api("forwardMessages", "ok count=${sent.size}")
             sent
         }
     }

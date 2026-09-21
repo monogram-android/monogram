@@ -133,6 +133,11 @@
     <string name="dialog_paste">Yapıştır</string>
     <string name="dialog_copy_selected">Seçileni kopyala</string>
     <string name="dialog_select_text">Seç</string>
+    <string name="dialog_select_message">Mesajları seç</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="one">%1$d mesaj seçildi</item>
+        <item quantity="other">%1$d mesaj seçildi</item>
+    </plurals>
     <string name="dialog_select_all">Tümünü seç</string>
     <string name="dialog_select_done">Tamam</string>
     <string name="dialog_format">Biçim</string>

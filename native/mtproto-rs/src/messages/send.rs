@@ -424,28 +424,34 @@ pub fn forward_messages(
     peers: &HashMap<i64, CachedPeer>,
     media_index: &mut MediaIndex,
     from_chat_id: i64,
-    message_id: i32,
+    message_ids: Vec<i32>,
     to_chat_id: i64,
+    drop_author: bool,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    if message_id <= 0 {
-        return Err(MtprotoError::Message("message id required".into()));
+    if message_ids.is_empty() || message_ids.iter().any(|&message_id| message_id <= 0) {
+        return Err(MtprotoError::Message("valid message ids required".into()));
     }
     let from = peers::require_usable_peer(peers, from_chat_id)?;
     let to = peers::require_usable_peer(peers, to_chat_id)?;
+    let message_count = message_ids.len() as u32;
     let ids = Box::new(Vector::Vector(VectorConstructor {
-        field_0: 1,
-        field_1: vec![message_id],
+        field_0: message_count,
+        field_1: message_ids,
     }));
     let random_ids = Box::new(Vector::Vector(VectorConstructor {
-        field_0: 1,
-        field_1: vec![random_id()],
+        field_0: message_count,
+        field_1: (0..message_count).map(|_| random_id()).collect(),
     }));
     let request = MessagesForwardMessagesRequest {
-        flags: 0,
+        flags: if drop_author {
+            MessagesForwardMessagesRequest::DROP_AUTHOR_FLAG
+        } else {
+            0
+        },
         silent: None,
         background: None,
         with_my_score: None,
-        drop_author: None,
+        drop_author: drop_author.then(|| Box::new(True::True(TrueConstructor {}))),
         drop_media_captions: None,
         noforwards: None,
         allow_paid_floodskip: None,

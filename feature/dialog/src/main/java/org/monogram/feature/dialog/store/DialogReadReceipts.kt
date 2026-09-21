@@ -197,6 +197,7 @@ internal fun DialogExecutor.markRead() {
  */
 
 internal fun DialogExecutor.visibleRead(messageId: Int, atLiveEdge: Boolean) {
+    if (anchorToUnread) return
     if (atLiveEdge) {
         // New-message updates and the viewport callback can arrive in the same main-loop turn.
         // Let pending updates reduce before selecting the bottom of the live window.

@@ -68,24 +68,47 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import kotlinx.coroutines.awaitCancellation
 import org.monogram.core.ui.menu.AppMenuDefaults
 import org.monogram.core.ui.menu.AppMenuItem
 import org.monogram.feature.dialog.R
 
-internal object HiddenTextToolbar : TextToolbar {
-    override val status: TextToolbarStatus = TextToolbarStatus.Hidden
-    override fun hide() = Unit
+internal class ComposerTextToolbar(
+    private val onVisibilityChange: (Boolean) -> Unit,
+) : TextToolbar {
+    private var shown = false
+
+    override val status: TextToolbarStatus
+        get() = if (shown) TextToolbarStatus.Shown else TextToolbarStatus.Hidden
+
+    override fun hide() {
+        shown = false
+        onVisibilityChange(false)
+    }
+
     override fun showMenu(
         rect: Rect,
         onCopyRequested: (() -> Unit)?,
         onPasteRequested: (() -> Unit)?,
         onCutRequested: (() -> Unit)?,
         onSelectAllRequested: (() -> Unit)?,
-    ) = Unit
+    ) {
+        shown = true
+        onVisibilityChange(true)
+    }
 }
 
-internal object HiddenTextContextMenu : TextContextMenuProvider {
-    override suspend fun showTextContextMenu(dataProvider: TextContextMenuDataProvider) = Unit
+internal class ComposerTextContextMenu(
+    private val onVisibilityChange: (Boolean) -> Unit,
+) : TextContextMenuProvider {
+    override suspend fun showTextContextMenu(dataProvider: TextContextMenuDataProvider) {
+        onVisibilityChange(true)
+        try {
+            awaitCancellation()
+        } finally {
+            onVisibilityChange(false)
+        }
+    }
 }
 
 private enum class ComposerMenuPage { Actions, Format }

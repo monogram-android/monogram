@@ -194,10 +194,32 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
     val peerListKind = rememberSaveable { mutableStateOf<String?>(null) }
     val packDocumentId = rememberSaveable { mutableStateOf<Long?>(null) }
     val selectingMessageId = rememberSaveable { mutableStateOf<Int?>(null) }
+    val selectedMessageIds = rememberSaveable(state.chatId.value) { mutableStateOf<List<Int>>(emptyList()) }
     val taskDraftFor = remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val taskDraft = remember { mutableStateOf("") }
-    androidx.activity.compose.BackHandler(enabled = selectingMessageId.value != null) {
-        selectingMessageId.value = null
+    LaunchedEffect(state.messages) {
+        val pruned = pruneForwardSelection(selectedMessageIds.value, state.messages)
+        if (pruned != selectedMessageIds.value) selectedMessageIds.value = pruned
+    }
+    val forwardableSelectedMessages = remember(
+        state.messages,
+        selectedMessageIds.value,
+        state.canForward,
+    ) {
+        selectedForwardableMessages(
+            messages = state.messages,
+            selectedIds = selectedMessageIds.value,
+            canForward = { message -> messageMenuActions(state, message).canForward },
+        )
+    }
+    androidx.activity.compose.BackHandler(
+        enabled = selectedMessageIds.value.isNotEmpty() || selectingMessageId.value != null,
+    ) {
+        if (selectedMessageIds.value.isNotEmpty()) {
+            selectedMessageIds.value = emptyList()
+        } else {
+            selectingMessageId.value = null
+        }
     }
     val composer = rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(state.draft))
@@ -409,6 +431,14 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                     }
                 },
                 onOpenEmojiStatus = { packDocumentId.value = it },
+                selectedMessageCount = selectedMessageIds.value.size,
+                canForwardSelected = forwardableSelectedMessages.isNotEmpty() &&
+                    forwardableSelectedMessages.size == selectedMessageIds.value.size,
+                onClearSelectedMessages = { selectedMessageIds.value = emptyList() },
+                onForwardSelectedMessages = {
+                    component.onForwardMessages(forwardableSelectedMessages)
+                    selectedMessageIds.value = emptyList()
+                },
             )
         },
     ) { inner ->
@@ -593,6 +623,7 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
             state = state,
             composer = composer,
             selectingMessageId = selectingMessageId,
+            selectedMessageIds = selectedMessageIds,
             packDocumentId = packDocumentId,
             instantViewUrl = instantViewUrl,
             instantViewHash = instantViewHash,

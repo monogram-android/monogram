@@ -80,17 +80,19 @@ private fun folderPinOrder(folder: Folder): Map<Long, Int> {
 
 const val DIALOGS_NETWORK_PAGE = 40
 const val DIALOGS_PAINT_LIMIT = 12
+const val ARCHIVE_PAINT_LIMIT = 3
 
 fun paintDialogsWindow(
     chats: List<Chat>,
     limit: Int = DIALOGS_PAINT_LIMIT,
+    archiveLimit: Int = ARCHIVE_PAINT_LIMIT,
 ): Pair<List<Chat>, List<Chat>> {
     val shownMain = sortChats(chats).filter { it.isMainListRow() }
-    val archived = chats.filter { it.archived && it.isShownInChatList() }
+    val archived = chats.filter { it.isArchiveListRow() }
         .sortedWith(compareByDescending { it.lastMessageDate ?: 0L })
     val left = chats.filter { !it.isShownInChatList() }
     val paintMain = shownMain.take(limit)
-    val paintArchived = archived.take(3)
+    val paintArchived = archived.take(archiveLimit.coerceAtLeast(0))
     val tail = shownMain.drop(paintMain.size) + archived.drop(paintArchived.size) + left
     return (paintMain + paintArchived) to tail
 }

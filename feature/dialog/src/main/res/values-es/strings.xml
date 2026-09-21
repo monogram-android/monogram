@@ -133,6 +133,11 @@
     <string name="dialog_paste">Pegar</string>
     <string name="dialog_copy_selected">Copiar selección</string>
     <string name="dialog_select_text">Seleccionar</string>
+    <string name="dialog_select_message">Seleccionar mensajes</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="one">%1$d mensaje seleccionado</item>
+        <item quantity="other">%1$d mensajes seleccionados</item>
+    </plurals>
     <string name="dialog_select_all">Seleccionar todo</string>
     <string name="dialog_select_done">Listo</string>
     <string name="dialog_format">Formato</string>

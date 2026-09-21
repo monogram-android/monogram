@@ -7,7 +7,6 @@ pub fn get_wallpapers(handle: u64, hash: i64) -> Result<crate::WallpaperCatalogD
         let catalog = call_with_migrate(state, |state| {
             crate::wallpaper_rpc::get_wallpapers(&mut state.snapshot, state.api_id, hash)
         })?;
-        persist(state)?;
         Ok(catalog)
     })
 }
@@ -29,7 +28,6 @@ pub fn get_web_page(
                 hash,
             )
         })?;
-        persist(state)?;
         Ok(page)
     })
 }
@@ -169,7 +167,6 @@ pub fn toggle_todo_completed(
                 )
             })
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -193,7 +190,6 @@ pub fn get_bot_callback_answer(
                 )
             })
         })?;
-        persist(state)?;
         Ok(dto)
     })
 }
@@ -208,7 +204,6 @@ pub fn get_saved_gifs(handle: u64) -> Result<Vec<crate::SavedGifDto>, MtprotoErr
                 0,
             )
         })?;
-        persist(state)?;
         Ok(list)
     })
 }
@@ -227,7 +222,6 @@ pub fn resolve_username(
                 &username,
             )
         })?;
-        persist(state)?;
         Ok(dto)
     })
 }
@@ -259,7 +253,6 @@ pub fn get_inline_bot_results(
             offset: crate::CompactString::from(offset),
             last_refresh: None,
         });
-        persist(state)?;
         Ok(dto)
     })
 }
@@ -288,7 +281,6 @@ pub fn send_inline_bot_result(
                 )
             })
         })?;
-        persist(state)?;
         Ok(dto)
     })
 }
@@ -315,7 +307,6 @@ pub fn send_saved_gif(
                 )
             })
         })?;
-        persist(state)?;
         Ok(dto)
     })
 }
@@ -402,7 +393,6 @@ pub fn get_sticker_pack(
                 document_id,
             )
         })?;
-        persist(state)?;
         Ok(dto)
     })
 }
@@ -422,7 +412,6 @@ pub fn get_sticker_set(
                 access_hash,
             )
         })?;
-        persist(state)?;
         Ok(dto)
     })
 }
@@ -461,7 +450,6 @@ pub fn get_stickers(
                 hash,
             )
         })?;
-        persist(state)?;
         Ok(dto)
     })
 }

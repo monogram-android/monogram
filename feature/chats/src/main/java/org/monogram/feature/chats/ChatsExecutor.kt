@@ -324,14 +324,26 @@ internal class ChatsExecutor(
                 // request is still active, defer this initial load until that request releases
                 // the shared loading gate.
                 val wire = wireFolderId(intent.folderId)
-                if (changed && isFolderScopedStream(intent.folderId) &&
+                val needsInitial = changed && isFolderScopedStream(intent.folderId) &&
                     folderPaging[wire]?.started != true
-                ) {
+                if (needsInitial) {
                     dispatch(Msg.HasMore(true))
                     if (state().loadingMore) {
                         pendingFolderInitialLoad = intent.folderId
                     } else {
                         loadMore()
+                    }
+                }
+                if (changed) {
+                    scope.launch {
+                        listPublicationMutex.withLock {
+                            republishListedLocked(
+                                allListed(),
+                                fromCache = state().fromCache,
+                                hasMore = hasMoreFor(intent.folderId),
+                                keep = paintKeep(),
+                            )
+                        }
                     }
                 }
             }
@@ -431,7 +443,11 @@ internal class ChatsExecutor(
         return when {
             archiveFallback != null ->
                 mainNetworkHasMore || (folderArchivePaging[archiveFallback]?.hasMore ?: true)
-            folderId == null || folderId == MAIN_FOLDER_WIRE_ID -> mainNetworkHasMore
+            folderId == null || folderId == MAIN_FOLDER_WIRE_ID ->
+                cachedTail.any { it.isMainListRow() } || mainNetworkHasMore
+            folderId == ARCHIVE_FOLDER_ID ->
+                cachedTail.any { it.isArchiveListRow() } ||
+                    (folderPaging[wire]?.hasMore ?: true)
             else -> folderPaging[wire]?.hasMore ?: true
         }
     }
@@ -533,7 +549,11 @@ internal class ChatsExecutor(
                             cachedTail.any { it.isMainListRow() } || loadedMain < roomMainCount,
                         ),
                     )
-                    if (cachedTail.any { it.isMainListRow() }) loadMore()
+                    if (!isFolderScopedStream(activeFolderId) &&
+                        cachedTail.any { it.isMainListRow() }
+                    ) {
+                        loadMore()
+                    }
                     pendingReadStates?.let { rows ->
                         pendingReadStates = null
                         dispatch(Msg.ReadStates(rows))
@@ -572,13 +592,21 @@ internal class ChatsExecutor(
                             republishListedLocked(
                                 merged,
                                 fromCache = false,
-                                hasMore = dialogsHasMore(result.value.size),
+                                hasMore = if (activeFolderId == ARCHIVE_FOLDER_ID) {
+                                    null
+                                } else {
+                                    dialogsHasMore(result.value.size)
+                                },
                                 keep = paintKeep(),
                             )
                         }
                         warmup?.upsertChats(mapped)
                         sessionStore?.upsertPeersFromChats(mapped)
-                        if (cachedTail.any { it.isMainListRow() }) loadMore()
+                        if (!isFolderScopedStream(activeFolderId) &&
+                            cachedTail.any { it.isMainListRow() }
+                        ) {
+                            loadMore()
+                        }
                         val pruned = warmup?.pruneAheadOfLastMessage(mapped).orEmpty()
                         if (pruned.isNotEmpty()) {
                             val dropped = pruned.sumOf { it.droppedIds.size }
@@ -621,6 +649,53 @@ internal class ChatsExecutor(
         // satisfy an archive/custom-folder selection.
         if (isFolderScopedStream(activeFolderId)) {
             if (state().loadingMore) return
+            if (activeFolderId == ARCHIVE_FOLDER_ID) {
+                val tailArchived = cachedTail.filter { it.isArchiveListRow() }
+                if (tailArchived.isNotEmpty()) {
+                    dispatch(Msg.LoadingMore(true))
+                    val next = tailArchived.take(DIALOGS_NETWORK_PAGE)
+                    cachedTail = cachedTail.filter { chat -> next.none { it.id == chat.id } }
+                    dispatch(Msg.Append(next))
+                    dispatch(
+                        Msg.HasMore(
+                            cachedTail.any { it.isArchiveListRow() } ||
+                                (folderPaging[ARCHIVE_FOLDER_WIRE_ID]?.hasMore ?: true),
+                        ),
+                    )
+                    scope.launch {
+                        delay(100)
+                        finishCachedPaging()
+                    }
+                    return
+                }
+                if (warmup != null) {
+                    dispatch(Msg.LoadingMore(true))
+                    scope.launch {
+                        try {
+                            val loadedIds = state().chats.map { it.id.value } +
+                                cachedTail.map { it.id.value }
+                            val roomPage = warmup.chatsArchiveExcluding(
+                                loadedIds,
+                                DIALOGS_NETWORK_PAGE,
+                            ).filter { it.isArchiveListRow() }
+                            AppLog.api("chats", "loadMore archive room count=${roomPage.size}")
+                            if (roomPage.isNotEmpty()) {
+                                dispatch(Msg.Append(roomPage))
+                                dispatch(
+                                    Msg.HasMore(
+                                        folderPaging[ARCHIVE_FOLDER_WIRE_ID]?.hasMore ?: true,
+                                    ),
+                                )
+                                delay(100)
+                                return@launch
+                            }
+                        } finally {
+                            finishCachedPaging()
+                        }
+                    }
+                    return
+                }
+            }
             loadMoreFromNetwork()
             return
         }
@@ -899,6 +974,13 @@ internal class ChatsExecutor(
         ) {
             dispatch(Msg.HasMore(true))
             loadMore()
+            return
+        }
+        if (activeFolderId == ARCHIVE_FOLDER_ID &&
+            folderPaging[ARCHIVE_FOLDER_WIRE_ID]?.started != true &&
+            !state().loadingMore
+        ) {
+            loadMoreFromNetwork()
         }
     }
 
@@ -957,6 +1039,16 @@ internal class ChatsExecutor(
     private fun paintKeep(): Int =
         state().chats.count { it.isMainListRow() }.coerceAtLeast(DIALOGS_PAINT_LIMIT)
 
+    private fun archiveKeep(merged: List<Chat>): Int {
+        val known = merged.count { it.isArchiveListRow() }
+        return when {
+            activeFolderId == ARCHIVE_FOLDER_ID -> known.coerceAtLeast(ARCHIVE_PAINT_LIMIT)
+            activeFolderId != null && activeFolderId != MAIN_FOLDER_WIRE_ID ->
+                known.coerceAtLeast(ARCHIVE_PAINT_LIMIT)
+            else -> ARCHIVE_PAINT_LIMIT
+        }
+    }
+
     private suspend fun republishListed(
         merged: List<Chat>,
         fromCache: Boolean,
@@ -972,10 +1064,11 @@ internal class ChatsExecutor(
         hasMore: Boolean?,
         keep: Int,
     ) {
+        val archiveLimit = archiveKeep(merged)
         val (first, tail) = if (merged.size > 64) {
-            withContext(Dispatchers.IO) { paintDialogsWindow(merged, keep) }
+            withContext(Dispatchers.IO) { paintDialogsWindow(merged, keep, archiveLimit) }
         } else {
-            paintDialogsWindow(merged, keep)
+            paintDialogsWindow(merged, keep, archiveLimit)
         }
         cachedTail = tail
         val painted = state().chats
@@ -983,17 +1076,30 @@ internal class ChatsExecutor(
         if (!sameWindow) {
             dispatch(Msg.Chats(first, fromCache = fromCache, replace = true))
         }
-        val loadedMain = first.count { it.isMainListRow() } + tail.count { it.isMainListRow() }
-        // An incoming update does not carry pagination metadata. Preserve the active
-        // network stream's state instead of turning an unfinished stream off.
-        val streamHasMore = hasMore ?: state().hasMore
-        val nextHasMore = tail.any { it.isMainListRow() } ||
-            streamHasMore ||
-            loadedMain < roomMainCount
+        val nextHasMore = publishedHasMore(first, tail, hasMore)
         if (state().hasMore != nextHasMore) {
             dispatch(Msg.HasMore(nextHasMore))
         }
         recoverMissingTitles()
+    }
+
+    private fun publishedHasMore(
+        first: List<Chat>,
+        tail: List<Chat>,
+        hasMoreOverride: Boolean?,
+    ): Boolean {
+        if (activeFolderId == ARCHIVE_FOLDER_ID) {
+            val archiveHasMore = hasMoreOverride
+                ?: (folderPaging[ARCHIVE_FOLDER_WIRE_ID]?.hasMore ?: true)
+            return tail.any { it.isArchiveListRow() } || archiveHasMore
+        }
+        val loadedMain = first.count { it.isMainListRow() } + tail.count { it.isMainListRow() }
+        // An incoming update does not carry pagination metadata. Preserve the active
+        // network stream's state instead of turning an unfinished stream off.
+        val streamHasMore = hasMoreOverride ?: state().hasMore
+        return tail.any { it.isMainListRow() } ||
+            streamHasMore ||
+            loadedMain < roomMainCount
     }
 
     private fun recoverMissingTitles() {

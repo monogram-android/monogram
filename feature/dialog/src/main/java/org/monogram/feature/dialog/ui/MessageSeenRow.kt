@@ -1,5 +1,9 @@
 package org.monogram.feature.dialog.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Schedule
@@ -39,6 +44,7 @@ import org.monogram.core.ui.menu.AppMenuAvatarStack
 import org.monogram.core.ui.menu.AppMenuDivider
 import org.monogram.core.ui.menu.AppMenuGroup
 import org.monogram.core.ui.menu.AppMenuItem
+import org.monogram.core.ui.menu.AppMenuMotion
 import org.monogram.core.ui.menu.AppMenuSurface
 import org.monogram.feature.dialog.DialogTime
 import org.monogram.feature.dialog.R
@@ -55,40 +61,57 @@ fun MessageSeenByRow(
     modifier: Modifier = Modifier,
     startExpanded: Boolean = false,
 ) {
-    when (viewers) {
-        null -> Unit
-        MessageViewers.Loading -> AppMenuSurface(modifier = modifier) {
-            AppMenuItem(
-                text = stringResource(R.string.dialog_seen_loading),
-                onClick = {},
-                leadingSpinner = true,
-                enabled = false,
-            )
-        }
+    var expanded by rememberSaveable { mutableStateOf(startExpanded) }
+    if (viewers !is MessageViewers.Ready && viewers != MessageViewers.Loading) return
+    AppMenuSurface(modifier = modifier) {
+        AnimatedContent(
+            targetState = viewers to expanded,
+            contentAlignment = Alignment.TopStart,
+            contentKey = { (state, open) ->
+                when (state) {
+                    MessageViewers.Loading -> "loading"
+                    is MessageViewers.Ready -> if (open && state.viewers.isNotEmpty()) "people" else "summary"
+                    else -> "hidden"
+                }
+            },
+            transitionSpec = {
+                fadeIn(AppMenuMotion.ContentEnterSpec) togetherWith fadeOut(AppMenuMotion.ContentExitSpec)
+            },
+            label = "messageViewers",
+        ) { (viewers, open) ->
+            when (viewers) {
+                null -> Unit
+                MessageViewers.Loading -> {
+                    AppMenuItem(
+                        text = stringResource(R.string.dialog_seen_loading),
+                        onClick = {},
+                        leadingSpinner = true,
+                        enabled = false,
+                    )
+                }
 
-        is MessageViewers.Ready -> {
-            var expanded by rememberSaveable { mutableStateOf(startExpanded) }
-            val list = viewers.viewers
-            if (expanded && list.isNotEmpty()) {
-                ExpandedViewerList(
-                    viewers = list,
-                    viewerAvatar = viewerAvatar,
-                    onBack = { expanded = false },
-                    onOpenProfile = onOpenProfile,
-                    modifier = modifier,
-                )
-            } else {
-                CollapsedViewerRow(
-                    viewers = viewers,
-                    viewerAvatar = viewerAvatar,
-                    onOpenProfile = onOpenProfile,
-                    onExpand = { expanded = true },
-                    modifier = modifier,
-                )
+                is MessageViewers.Ready -> {
+                    val list = viewers.viewers
+                    if (open && list.isNotEmpty()) {
+                        ExpandedViewerList(
+                            viewers = list,
+                            viewerAvatar = viewerAvatar,
+                            onBack = { expanded = false },
+                            onOpenProfile = onOpenProfile,
+                        )
+                    } else {
+                        CollapsedViewerRow(
+                            viewers = viewers,
+                            viewerAvatar = viewerAvatar,
+                            onOpenProfile = onOpenProfile,
+                            onExpand = { expanded = true },
+                        )
+                    }
+                }
+
+                MessageViewers.Expired, MessageViewers.TooBig, MessageViewers.Unavailable -> Unit
             }
         }
-
-        MessageViewers.Expired, MessageViewers.TooBig, MessageViewers.Unavailable -> Unit
     }
 }
 
@@ -212,29 +235,28 @@ private fun CollapsedViewerRow(
     ).orEmpty()
 
     val opensProfile = single != null && single.date <= 0
-    AppMenuSurface(modifier = modifier) {
-        AppMenuItem(
-            text = label,
-            icon = if (list.isEmpty()) Icons.Outlined.Visibility else null,
-            leading = if (list.isEmpty()) {
-                null
-            } else {
-                {
-                    AppMenuAvatarStack(
-                        avatars = list.map { AppMenuAvatar(it.title.orEmpty(), viewerAvatar(it)) },
-                    )
-                }
-            },
-            trailingText = single?.takeIf { it.date > 0 }?.let { formatSeenDate(it.date, yesterdayLabel = yesterday) },
-            enabled = list.isNotEmpty(),
-            contentDescription = single?.title?.let {
-                stringResource(R.string.dialog_seen_accessibility, it)
-            },
-            onClick = {
-                if (opensProfile) onOpenProfile(single.peerId.value) else onExpand()
-            },
-        )
-    }
+    AppMenuItem(
+        modifier = modifier,
+        text = label,
+        icon = if (list.isEmpty()) Icons.Outlined.Visibility else null,
+        leading = if (list.isEmpty()) {
+            null
+        } else {
+            {
+                AppMenuAvatarStack(
+                    avatars = list.map { AppMenuAvatar(it.title.orEmpty(), viewerAvatar(it)) },
+                )
+            }
+        },
+        trailingText = single?.takeIf { it.date > 0 }?.let { formatSeenDate(it.date, yesterdayLabel = yesterday) },
+        enabled = list.isNotEmpty(),
+        contentDescription = single?.title?.let {
+            stringResource(R.string.dialog_seen_accessibility, it)
+        },
+        onClick = {
+            if (opensProfile) onOpenProfile(single.peerId.value) else onExpand()
+        },
+    )
 }
 
 @Composable
@@ -246,9 +268,8 @@ private fun ExpandedViewerList(
     modifier: Modifier = Modifier,
 ) {
     val yesterday = stringResource(R.string.dialog_yesterday)
-    AppMenuSurface(
-        modifier = modifier.heightIn(max = 328.dp),
-        scrollState = rememberScrollState(),
+    Column(
+        modifier = modifier.heightIn(max = 312.dp).verticalScroll(rememberScrollState()),
     ) {
         AppMenuGroup {
             AppMenuItem(

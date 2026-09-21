@@ -133,6 +133,13 @@
     <string name="dialog_paste">Вставити</string>
     <string name="dialog_copy_selected">Копіювати виділене</string>
     <string name="dialog_select_text">Вибрати</string>
+    <string name="dialog_select_message">Вибрати повідомлення</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="one">Вибрано %1$d повідомлення</item>
+        <item quantity="few">Вибрано %1$d повідомлення</item>
+        <item quantity="many">Вибрано %1$d повідомлень</item>
+        <item quantity="other">Вибрано %1$d повідомлення</item>
+    </plurals>
     <string name="dialog_select_all">Вибрати все</string>
     <string name="dialog_select_done">Готово</string>
     <string name="dialog_format">Форматування</string>

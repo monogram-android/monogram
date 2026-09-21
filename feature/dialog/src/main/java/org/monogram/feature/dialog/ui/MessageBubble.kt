@@ -2,8 +2,7 @@ package org.monogram.feature.dialog.ui
 
 import android.text.format.DateFormat.getTimeFormat
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,7 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.IntrinsicMeasurable
@@ -118,6 +116,7 @@ fun MessageBubble(
 ) {
     val outgoing = message.outgoing
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
+    var rowPosition by remember { mutableStateOf(Offset.Zero) }
     if (message.mediaKind == "service") {
         Box(
             modifier = modifier.fillMaxWidth(),
@@ -156,14 +155,7 @@ fun MessageBubble(
         if (appear.value < 1f) {
             appear.animateTo(
                 1f,
-                animationSpec = spring(
-                    dampingRatio = if (outgoing || message.pending) 0.68f else Spring.DampingRatioNoBouncy,
-                    stiffness = if (outgoing || message.pending) {
-                        Spring.StiffnessMedium
-                    } else {
-                        Spring.StiffnessMediumLow
-                    },
-                ),
+                animationSpec = tween(durationMillis = 180),
             )
         }
     }
@@ -197,14 +189,21 @@ fun MessageBubble(
     val singleVisualMedia = album.size <= 1 && isEdgeMediaKind(message.mediaKind)
     val edgeVisualMedia = singleVisualMedia || groupedAlbum
     // A picture, video, GIF or album alone in its bubble drops the bubble fill entirely.
+    val hasComments = onComments != null && message.discussionPeerId != null
     val mediaOnlyBubble = edgeVisualMedia &&
         !mediaCaption &&
         !bubbleHeader &&
         !showReplyQuote &&
-        !(onComments != null && message.discussionPeerId != null)
+        !hasComments
     // Captioned or chromed media still reaches the bubble edge, over the content inset.
     val edgeMedia = edgeVisualMedia && !mediaOnlyBubble
     val mediaBleedTop = edgeMedia && !bubbleHeader && !showReplyQuote
+    val mediaBleedBottom = shouldBleedMediaBottom(edgeMedia, mediaCaption, hasComments)
+    val mediaOverlayMeta = shouldOverlayMediaMeta(
+        stickerOnly = stickerOnly,
+        edgeVisualMedia = edgeVisualMedia,
+        mediaCaption = mediaCaption,
+    )
     // Picture bubbles let the media own the horizontal edges, so the text around it is
     // padded on its own instead of the whole bubble.
     val edgeContentPad = if (edgeVisualMedia) BUBBLE_CONTENT_PAD else 0.dp
@@ -249,7 +248,17 @@ fun MessageBubble(
         },
     )
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(
+            if (!selectable && onOpenMenu != null) {
+                Modifier
+                    .onGloballyPositioned { rowPosition = it.positionInWindow() }
+                    .pointerInput(onOpenMenu) {
+                        detectTapGestures(onTap = { onOpenMenu(rowPosition + it) })
+                    }
+            } else {
+                Modifier
+            },
+        ),
         horizontalArrangement = if (outgoing) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -284,15 +293,7 @@ fun MessageBubble(
                 .width(IntrinsicSize.Max)
                 .graphicsLayer {
                     val t = appear.value
-                    val start = if (outgoing) 0.82f else 0.92f
-                    val scale = start + (1f - start) * t
-                    scaleX = scale
-                    scaleY = scale
-                    alpha = t
-                    transformOrigin = TransformOrigin(
-                        pivotFractionX = if (outgoing) 1f else 0f,
-                        pivotFractionY = 1f,
-                    )
+                    translationY = (1f - t) * (if (outgoing) 6f else 10f)
                 },
             horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
         ) {
@@ -319,6 +320,7 @@ fun MessageBubble(
                                     )
                                 } else {
                                     detectTapGestures(
+                                        onTap = { onOpenMenu(bubblePosition + it) },
                                         onLongPress = { onOpenMenu(bubblePosition) },
                                     )
                                 }
@@ -448,8 +450,6 @@ fun MessageBubble(
                     modifier = Modifier.padding(horizontal = edgeContentPad),
                 )
             }
-            val mediaOverlayMeta = stickerOnly || mediaOnlyBubble ||
-                (isVisual && !mediaCaption)
             Box(
                 modifier = if (centerMedia || isVisual || isNonVisual) Modifier.fillMaxWidthInBubble() else Modifier,
                 contentAlignment = Alignment.Center,
@@ -466,6 +466,7 @@ fun MessageBubble(
                             Modifier.bleedBubbleMedia(
                                 horizontal = 0.dp,
                                 bleedTop = mediaBleedTop,
+                                bleedBottom = mediaBleedBottom,
                             )
                         },
                     )
@@ -509,7 +510,11 @@ fun MessageBubble(
                         onInstantView = onInstantView,
                         onLongPress = onOpenMenu?.let { open -> { open(bubblePosition) } },
                         modifier = if (singleVisualMedia) {
-                            Modifier.bleedBubbleMedia(horizontal = 0.dp, bleedTop = mediaBleedTop)
+                            Modifier.bleedBubbleMedia(
+                                horizontal = 0.dp,
+                                bleedTop = mediaBleedTop,
+                                bleedBottom = mediaBleedBottom,
+                            )
                         } else {
                             Modifier
                         },
@@ -523,10 +528,10 @@ fun MessageBubble(
                         showReadStatus = showReadStatus,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(6.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.45f))
-                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.Black.copy(alpha = 0.5f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
             }
@@ -718,6 +723,7 @@ internal fun Modifier.bleedBubbleMedia(
     horizontal: Dp = BUBBLE_CONTENT_PAD,
     vertical: Dp = BUBBLE_CONTENT_VPAD,
     bleedTop: Boolean = false,
+    bleedBottom: Boolean = false,
 ): Modifier = layout { measurable, constraints ->
     val hInset = horizontal.roundToPx()
     val vInset = vertical.roundToPx()
@@ -731,7 +737,11 @@ internal fun Modifier.bleedBubbleMedia(
     )
     val x = -hInset + (slot - placeable.width) / 2
     val y = if (bleedTop) -vInset else 0
-    val height = (placeable.height - (if (bleedTop) vInset else 0)).coerceAtLeast(0)
+    val height = (
+        placeable.height -
+            (if (bleedTop) vInset else 0) -
+            (if (bleedBottom) vInset else 0)
+        ).coerceAtLeast(0)
     layout(constraints.maxWidth, height) {
         placeable.place(x, y)
     }

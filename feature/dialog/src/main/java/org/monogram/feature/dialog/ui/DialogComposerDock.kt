@@ -1,6 +1,7 @@
 package org.monogram.feature.dialog.ui
 
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,12 +19,14 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.content.TransferableContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -95,6 +98,7 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.core.content.ContextCompat
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -155,6 +159,7 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 import org.monogram.core.ui.components.SponsorBadge
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun DialogComposerDock(
     component: DialogComponent,
@@ -175,6 +180,7 @@ internal fun DialogComposerDock(
     botPlaceholder: String? = null,
 ) {
     var value by composer
+    val context = LocalContext.current
     val editorSlot by component.editorSlot.subscribeAsState()
     var editorValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue())
@@ -182,10 +188,50 @@ internal fun DialogComposerDock(
     var autoEditorPending by remember { mutableStateOf(false) }
     val clipboard = LocalClipboard.current
     val clipboardScope = rememberCoroutineScope()
+    var selectionMenuRequested by remember { mutableStateOf(false) }
     var pasteText by remember { mutableStateOf("") }
-    LaunchedEffect(clipboard) {
-        pasteText = clipboard.getClipEntry()?.clipData?.takeIf { it.itemCount > 0 }
-            ?.getItemAt(0)?.text?.toString().orEmpty()
+    var pasteMedia by remember { mutableStateOf(emptyList<Uri>()) }
+    LaunchedEffect(clipboard, selectionMenuRequested) {
+        val clip = clipboard.getClipEntry()?.clipData
+        pasteText = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString().orEmpty()
+        pasteMedia = buildList {
+            if (clip == null) return@buildList
+            for (index in 0 until clip.itemCount) clip.getItemAt(index).uri?.let(::add)
+        }.distinct()
+    }
+    val receiveMedia: (List<Uri>, TransferableContent?) -> Unit = { uris, transferableContent ->
+        val imageUris = uris.asSequence()
+            .distinct()
+            .filter { uri ->
+                runCatching {
+                    context.contentResolver.getType(uri)?.startsWith("image/") == true
+                }.getOrDefault(false)
+            }
+            .take(10)
+            .toList()
+        if (!editing && canSendPhotos && imageUris.isNotEmpty()) {
+            clipboardScope.launch {
+                try {
+                    val picked = imageUris.mapNotNull { uri ->
+                        try {
+                            copyPickedMedia(
+                                context = context,
+                                uri = uri,
+                                kind = "photo",
+                                fallbackExt = "jpg",
+                            )
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                    if (picked.isNotEmpty()) component.onAppendMedia(picked.map(PickedMedia::toUploadItem))
+                } finally {
+                    transferableContent?.toString()
+                }
+            }
+        }
     }
     val hasComposerSelection = value.selection.length > 0
     LaunchedEffect(value.text, value.composition, autoEditorPending) {
@@ -226,9 +272,12 @@ internal fun DialogComposerDock(
         }
         Box(modifier = Modifier.fillMaxWidth()) {
         ComposerSelectionMenu(
-            visible = hasComposerSelection,
-            onDismiss = { value = collapseComposerSelection(value) },
-            canPaste = pasteText.isNotEmpty(),
+            visible = hasComposerSelection && selectionMenuRequested,
+            onDismiss = {
+                selectionMenuRequested = false
+                value = collapseComposerSelection(value)
+            },
+            canPaste = pasteText.isNotEmpty() || pasteMedia.isNotEmpty(),
             onCopy = {
                 val slice = selectedComposerPlain(value)
                 if (slice.isNotBlank()) clipboardScope.launch {
@@ -244,16 +293,18 @@ internal fun DialogComposerDock(
                 component.onDraftChanged(value.text)
             },
             onPaste = {
-                if (pasteText.isEmpty()) return@ComposerSelectionMenu
-                val lo = value.selection.min
-                val hi = value.selection.max
-                val next = value.text.substring(0, lo) + pasteText +
-                    value.text.substring(hi)
-                value = TextFieldValue(
-                    text = next,
-                    selection = TextRange(lo + pasteText.length),
-                )
-                component.onDraftChanged(value.text)
+                if (pasteText.isNotEmpty()) {
+                    val lo = value.selection.min
+                    val hi = value.selection.max
+                    val next = value.text.substring(0, lo) + pasteText +
+                        value.text.substring(hi)
+                    value = TextFieldValue(
+                        text = next,
+                        selection = TextRange(lo + pasteText.length),
+                    )
+                    component.onDraftChanged(value.text)
+                }
+                receiveMedia(pasteMedia, null)
             },
             onSelectAll = {
                 value = selectAllComposer(value)
@@ -303,12 +354,14 @@ internal fun DialogComposerDock(
             onCancelEdit = component::onCancelEdit,
             onClearReply = component::onClearReply,
             onClearAttach = component::onClearAttach,
+            onReceiveMedia = receiveMedia,
             hint = botPlaceholder,
             onOpenEditor = {
                 autoEditorPending = false
                 editorValue = value.copy(composition = null)
                 component.openMarkdownEditor()
             },
+            onSelectionMenuVisibilityChange = { selectionMenuRequested = it },
         )
         }
     }

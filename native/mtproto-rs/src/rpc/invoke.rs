@@ -9,20 +9,20 @@ use crate::MtprotoError;
 
 use super::dc::{extra_reconnect_same_host, reconnect_backoff, same_ip_endpoints};
 use super::framing::{
-    SystemClock, bad_msg_should_reconnect, flush_acks, make_padding, open_live, open_live_addr,
-    queue_update, recover_detailed_answer, recreate_session_after_bad_message, recv_framed,
-    repair_clock_from_server_msg_id, send_framed, send_ping,
+    bad_msg_should_reconnect, flush_acks, make_padding, open_live, open_live_addr, queue_update,
+    recover_detailed_answer, recreate_session_after_bad_message, recv_framed,
+    repair_clock_from_server_msg_id, send_framed, send_ping, try_decode_complete, SystemClock,
 };
 use super::inbound::{
-    BAD_MSG_NOTIFICATION, InboundEvent, MAX_UNPACKED_BYTES, apply_new_session_salt, map_rpc_error,
-    parse_authenticated, should_process_inbound,
+    apply_new_session_salt, map_rpc_error, parse_authenticated, should_process_inbound,
+    InboundEvent, BAD_MSG_NOTIFICATION, MAX_UNPACKED_BYTES,
 };
 use super::live::LiveTransport;
-use super::supervisor::{ConnectionSupervisor, FailureClass, failure_class, is_transport_error};
+use super::supervisor::{failure_class, is_transport_error, ConnectionSupervisor, FailureClass};
 use super::timeout::{
-    LAST_INBOUND_CTOR, keepalive_probe_failed, leftover_frame_grace, live_transport_stale,
-    note_inbound_liveness, rpc_attempt_budget, rpc_timeout_message, rpc_timeout_secs,
-    subscribed_read_deadline, timeout_idle_needs_probe, trim_padded_mtproto_packet,
+    keepalive_probe_failed, leftover_frame_grace, live_transport_stale, note_inbound_liveness,
+    rpc_attempt_budget, rpc_timeout_message, rpc_timeout_secs, subscribed_read_deadline,
+    timeout_idle_needs_probe, trim_padded_mtproto_packet, LAST_INBOUND_CTOR,
 };
 
 pub(crate) struct RawMethod {
@@ -625,6 +625,54 @@ pub(crate) fn invoke_batch_until_results<P: tellers_mtproto_engine::RetryPolicy>
     }
 }
 
+fn ingest_update_packet<P: tellers_mtproto_engine::RetryPolicy>(
+    engine: &mut Engine<P>,
+    transport: &mut LiveTransport,
+    packet: Vec<u8>,
+    clock: &SystemClock,
+) -> Result<(), MtprotoError> {
+    let inbound = engine
+        .open_inbound(
+            trim_padded_mtproto_packet(&packet),
+            clock,
+            true,
+            MAX_UNPACKED_BYTES,
+        )
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    if inbound.disposition == ReceivedMessageResult::InvalidTime {
+        return Err(MtprotoError::Message("invalid inbound message time".into()));
+    }
+    if !should_process_inbound(inbound.disposition) {
+        return Ok(());
+    }
+    transport.ping_sent = None;
+    transport.last_io = std::time::Instant::now();
+    for event in parse_authenticated(
+        &inbound.message.body,
+        inbound.message.message_id,
+        &mut engine.session,
+        clock,
+    )? {
+        match event {
+            InboundEvent::Updates(body) => queue_update(transport, body)?,
+            InboundEvent::AnswerAvailable { answer_msg_id } => {
+                recover_detailed_answer(engine, transport, answer_msg_id, clock)?;
+            }
+            InboundEvent::SaltUpdated { body } => {
+                apply_new_session_salt(&mut engine.session, &body)?
+            }
+            InboundEvent::BadMessage { .. } | InboundEvent::RetryableFailure { .. } => {
+                return Err(MtprotoError::Message(
+                    "updates session rejected; recovery required".into(),
+                ));
+            }
+            InboundEvent::RpcResult { .. } | InboundEvent::Pong { .. } | InboundEvent::Ignored => {}
+        }
+    }
+    flush_acks(engine, &mut transport.conn, &mut transport.framing, clock)?;
+    Ok(())
+}
+
 pub(crate) fn receive_updates(snapshot: &mut Snapshot) -> Result<Vec<Vec<u8>>, MtprotoError> {
     let mut owner = ConnectionSupervisor::acquire(snapshot.dc_id)?;
     let transport = owner
@@ -685,53 +733,14 @@ pub(crate) fn receive_updates(snapshot: &mut Snapshot) -> Result<Vec<Vec<u8>>, M
             Err(MtprotoError::Message(message)) if message.starts_with("RPC timeout") => break,
             Err(error) => return Err(error),
         };
-        let inbound = engine
-            .open_inbound(
-                trim_padded_mtproto_packet(&packet),
-                &clock,
-                true,
-                MAX_UNPACKED_BYTES,
-            )
-            .map_err(|e| MtprotoError::Message(e.to_string()))?;
-        if inbound.disposition == ReceivedMessageResult::InvalidTime {
-            return Err(MtprotoError::Message("invalid inbound message time".into()));
+        ingest_update_packet(&mut engine, transport, packet, &clock)?;
+        if std::time::Instant::now() >= deadline {
+            break;
         }
-        if !should_process_inbound(inbound.disposition) {
-            continue;
-        }
-        transport.ping_sent = None;
-        transport.last_io = std::time::Instant::now();
-        for event in parse_authenticated(
-            &inbound.message.body,
-            inbound.message.message_id,
-            &mut engine.session,
-            &clock,
-        )? {
-            match event {
-                InboundEvent::Updates(body) => queue_update(transport, body)?,
-                InboundEvent::AnswerAvailable { answer_msg_id } => {
-                    recover_detailed_answer(&mut engine, transport, answer_msg_id, &clock)?;
-                }
-                InboundEvent::SaltUpdated { body } => {
-                    apply_new_session_salt(&mut engine.session, &body)?
-                }
-                InboundEvent::BadMessage { .. } | InboundEvent::RetryableFailure { .. } => {
-                    return Err(MtprotoError::Message(
-                        "updates session rejected; recovery required".into(),
-                    ));
-                }
-                // Late RPC results have no pending request in this reader.
-                InboundEvent::RpcResult { .. }
-                | InboundEvent::Pong { .. }
-                | InboundEvent::Ignored => {}
-            }
-        }
-        flush_acks(
-            &mut engine,
-            &mut transport.conn,
-            &mut transport.framing,
-            &clock,
-        )?;
+    }
+    // Decode additional complete frames already in `input` without another socket wait.
+    while let Some(packet) = try_decode_complete(&mut transport.framing, &mut transport.input)? {
+        ingest_update_packet(&mut engine, transport, packet, &clock)?;
         if std::time::Instant::now() >= deadline {
             break;
         }

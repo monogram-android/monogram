@@ -50,8 +50,10 @@ class MonogramApp : Application() {
         client.setFilePartKib(state.filePartKib)
     }
 
+    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     override fun onCreate() {
         super.onCreate()
+        androidx.compose.material3.ComposeMaterial3Flags.isCheckboxStylingFixEnabled = true
         val startedAt = PerfLog.nowMs()
         perfSpan("app:settings") {
             AppLog.init(cacheDir)

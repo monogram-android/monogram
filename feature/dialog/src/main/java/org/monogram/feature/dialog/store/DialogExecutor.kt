@@ -314,6 +314,13 @@ internal class DialogExecutor(
             is DialogStore.Intent.AttachMedia -> dispatch(
                 Msg.PendingAttach(intent.items.take(10)),
             )
+            is DialogStore.Intent.AppendMedia -> dispatch(
+                Msg.PendingAttach(
+                    (state().pendingAttach + intent.items)
+                        .distinctBy(UploadItem::path)
+                        .take(10),
+                ),
+            )
             DialogStore.Intent.ClearAttach -> dispatch(Msg.PendingAttach(emptyList()))
             is DialogStore.Intent.ReplyTo -> {
                 dispatch(Msg.Editing(null))
@@ -368,7 +375,7 @@ internal class DialogExecutor(
                     current.hasNewer,
                 )
                 val id = index?.let { current.messages.getOrNull(it)?.id?.id }
-                if (id != null) dispatch(Msg.Anchor(id))
+                if (id != null) dispatch(Msg.Anchor(id, atTop = true))
             }
             DialogStore.Intent.JumpLatest -> {
                 val searching = state().searchQuery.isNotBlank()
@@ -521,7 +528,8 @@ internal class DialogExecutor(
             val unread = cachedChat?.unreadCount ?: 0
             // Unread work outranks the remembered position: opening a dialog with unread
             // messages must land on the first unread one, like Telegram does.
-            anchorToUnread = unread > 0 && threadTopMsgId <= 0
+            anchorToUnread = unread > 0 && threadTopMsgId <= 0 &&
+                pendingJump <= 0 && state().anchorMessageId == null
             if (!chatTitle.isNullOrBlank() && threadTopMsgId <= 0) {
                 dispatch(Msg.Title(chatTitle))
             }
@@ -689,6 +697,8 @@ internal class DialogExecutor(
             if (jump > 0) {
                 pendingJump = 0
                 jumpToMessageId(jump)
+            } else {
+                continueUnreadPaging()
             }
         }
     }

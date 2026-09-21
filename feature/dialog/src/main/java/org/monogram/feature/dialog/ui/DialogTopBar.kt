@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Forward
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Search
@@ -82,6 +83,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
@@ -168,7 +170,50 @@ internal fun DialogTopBar(
     showSearch: Boolean,
     onToggleSearch: () -> Unit,
     onOpenEmojiStatus: (Long) -> Unit,
+    selectedMessageCount: Int,
+    canForwardSelected: Boolean,
+    onClearSelectedMessages: () -> Unit,
+    onForwardSelectedMessages: () -> Unit,
 ) {
+    if (selectedMessageCount > 0) {
+        TopAppBar(
+            windowInsets = WindowInsets.statusBars,
+            title = {
+                Text(
+                    text = pluralStringResource(
+                        R.plurals.dialog_messages_selected,
+                        selectedMessageCount,
+                        selectedMessageCount,
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onClearSelectedMessages) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = stringResource(R.string.dialog_cancel),
+                    )
+                }
+            },
+            actions = {
+                IconButton(
+                    enabled = canForwardSelected,
+                    onClick = onForwardSelectedMessages,
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Forward,
+                        contentDescription = stringResource(R.string.dialog_forward),
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
+        )
+        return
+    }
     CompositionLocalProvider(
         LocalDialogMedia provides component.mediaRepository,
     ) {

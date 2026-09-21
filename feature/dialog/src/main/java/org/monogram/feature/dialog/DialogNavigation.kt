@@ -457,6 +457,16 @@ fun messageRowIndex(messages: List<Message>, messageId: Int): Int {
     return (0..index).count { isAlbumHead(messages, it) } - 1
 }
 
+fun visibleAlbumMessageIds(messages: List<Message>, visibleRowIndices: Set<Int>): Set<Int> = buildSet {
+    var row = 0
+    messages.indices.forEach { index ->
+        if (isAlbumHead(messages, index)) {
+            if (row in visibleRowIndices) albumSlice(messages, index).forEach { add(it.id.id) }
+            row++
+        }
+    }
+}
+
 private val ALBUM_VISUAL_KINDS = setOf("photo", "video", "gif")
 
 fun isVisualAlbum(album: List<Message>): Boolean =

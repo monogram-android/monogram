@@ -47,6 +47,8 @@ import org.monogram.core.common.AppLog
 import org.monogram.push.NotificationPresenter
 import org.monogram.root.RootComponent
 import org.monogram.root.RootContent
+import org.monogram.root.IncomingShare
+import org.monogram.root.IncomingShareStager
 import android.graphics.Color as AndroidColor
 
 class MainActivity : ComponentActivity() {
@@ -54,6 +56,13 @@ class MainActivity : ComponentActivity() {
     private val startupReady = CompletableDeferred<Unit>()
     private var idleJob: Job? = null
     private var inPictureInPicture by mutableStateOf(false)
+    private var pendingIncomingShare: IncomingShare? = null
+    private var shareIntentHandled = false
+
+    companion object {
+        private const val STATE_INCOMING_SHARE = "main.incoming_share"
+        private const val STATE_SHARE_INTENT_HANDLED = "main.share_intent_handled"
+    }
 
     /** Only this activity owns the PiP window; the media viewer stays in its dialog. */
     private val pictureInPicture = object : PictureInPictureController {
@@ -99,6 +108,10 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition { !startupReady.isCompleted }
         super.onCreate(savedInstanceState)
+        pendingIncomingShare = IncomingShare.fromBundle(
+            savedInstanceState?.getBundle(STATE_INCOMING_SHARE),
+        )
+        shareIntentHandled = savedInstanceState?.getBoolean(STATE_SHARE_INTENT_HANDLED) == true
         val crashLog = AppLog.readCrashLog()
         if (crashLog != null) {
             AppLog.clearCrashLog()
@@ -135,8 +148,13 @@ class MainActivity : ComponentActivity() {
                 startOnHome = startOnHome,
                 pushRegistration = app.push,
                 notificationLocal = app.notifications,
+                onIncomingShareConsumed = { pendingIncomingShare = null },
             )
-            handleIncomingIntent(intent)
+            if (pendingIncomingShare != null) {
+                root.openIncomingShare(pendingIncomingShare!!)
+            } else if (!shareIntentHandled) {
+                handleIncomingIntent(intent)
+            }
             setContent {
                 val appearance by AppearanceSettings.state.collectAsState()
                 val systemDark = isSystemInDarkTheme()
@@ -183,7 +201,19 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE) {
+            shareIntentHandled = false
+        }
         if (startupReady.isCompleted) handleIncomingIntent(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        pendingIncomingShare?.toBundle()?.let { outState.putBundle(STATE_INCOMING_SHARE, it) }
+        outState.putBoolean(
+            STATE_SHARE_INTENT_HANDLED,
+            shareIntentHandled || runCatching { root.hasIncomingShare() }.getOrDefault(false),
+        )
+        super.onSaveInstanceState(outState)
     }
 
     override fun onStart() {
@@ -218,6 +248,17 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIncomingIntent(intent: Intent?) {
         if (intent == null) return
+        if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE) {
+            lifecycleScope.launch {
+                val share = withContext(Dispatchers.IO) {
+                    IncomingShareStager.stage(this@MainActivity, intent)
+                } ?: return@launch
+                pendingIncomingShare = share
+                shareIntentHandled = true
+                root.openIncomingShare(share)
+            }
+            return
+        }
         if (intent.action == NotificationPresenter.ACTION_OPEN_CHAT) {
             val chatId = intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L)
             val messageId = intent.getIntExtra(NotificationPresenter.EXTRA_MESSAGE_ID, 0)

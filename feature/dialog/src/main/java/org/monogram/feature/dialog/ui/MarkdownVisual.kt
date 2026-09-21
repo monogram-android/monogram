@@ -1,6 +1,7 @@
 package org.monogram.feature.dialog.ui
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -8,6 +9,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.em
 import org.monogram.core.models.parseMarkdownMapped
 
 internal val CustomEmojiMarkdown = Regex("""!\[([^]]*)]\(tg://emoji\?id=(\d+)\)""")
@@ -70,6 +72,74 @@ internal class MarkdownVisualTransformation(
             }
         }
         return TransformedText(styled, OffsetMapping.Identity)
+    }
+}
+
+internal fun markdownOutputTransformation(linkColor: Color): OutputTransformation = OutputTransformation {
+    val raw = toString()
+    val customEmoji = CustomEmojiMarkdown.findAll(raw).toList()
+    if (customEmoji.isNotEmpty()) {
+        val ranges = buildList {
+            var source = 0
+            var display = 0
+            customEmoji.forEach { match ->
+                display += match.range.first - source
+                val alt = match.groupValues[1].ifEmpty { "🙂" }
+                add(display until display + alt.length)
+                display += alt.length
+                source = match.range.last + 1
+            }
+        }
+        customEmoji.asReversed().forEach { match ->
+            replace(match.range.first, match.range.last + 1, match.groupValues[1].ifEmpty { "🙂" })
+        }
+        ranges.forEach { range ->
+            if (!range.isEmpty()) addStyle(SpanStyle(color = Color.Transparent), range.first, range.last + 1)
+        }
+        return@OutputTransformation
+    }
+    val mapped = parseMarkdownMapped(raw)
+    val entities = mapped.styled.entities.mapNotNull { entity ->
+        val range = originalRange(mapped.origToDisp, entity.offset, entity.offset + entity.length)
+        val start = range.first.coerceIn(0, raw.length)
+        val end = (range.last + 1).coerceIn(start, raw.length)
+        entity.copy(offset = start, length = end - start).takeIf { start < end }
+    }
+    entities.forEach { entity ->
+        val start = entity.offset
+        val end = start + entity.length
+        when (entity.kind) {
+            "bold", "heading" -> addStyle(SpanStyle(fontWeight = FontWeight.Bold), start, end)
+            "italic" -> addStyle(SpanStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic), start, end)
+            "underline" -> addStyle(SpanStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline), start, end)
+            "strike" -> addStyle(SpanStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough), start, end)
+            "code", "pre", "bank_card" -> addStyle(
+                SpanStyle(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    background = Color.Black.copy(alpha = 0.08f),
+                ),
+                start,
+                end,
+            )
+            "spoiler" -> addStyle(SpanStyle(background = Color.Black.copy(alpha = 0.12f)), start, end)
+            "blockquote" -> addStyle(
+                SpanStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, color = linkColor.copy(alpha = 0.92f)),
+                start,
+                end,
+            )
+            "superscript" -> addStyle(
+                SpanStyle(fontSize = 0.75.em, baselineShift = androidx.compose.ui.text.style.BaselineShift.Superscript),
+                start,
+                end,
+            )
+            "subscript" -> addStyle(
+                SpanStyle(fontSize = 0.75.em, baselineShift = androidx.compose.ui.text.style.BaselineShift.Subscript),
+                start,
+                end,
+            )
+            "hashtag", "bot_command", "cashtag", "mention", "url", "email", "phone", "text_url", "mention_name", "text_mention" ->
+                addStyle(SpanStyle(color = linkColor, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline), start, end)
+        }
     }
 }
 

@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recipient_messages">Сообщений: %1$d</string>
+    <string name="recipient_files">Вложений: %1$d</string>
+    <string name="recipient_hide_author">Скрыть имена отправителей</string>
+    <string name="recipient_comment">Добавить комментарий</string>
+    <string name="recipient_send">Отправить (%1$d)</string>
+    <string name="recipient_sending">Отправка: %1$d из %2$d</string>
+    <string name="recipient_error">Не удалось завершить. Повторите, чтобы продолжить</string>
+    <string name="recipient_retry">Повторить</string>
+    <string name="recipient_interrupted">Отправка прервана. Проверьте выбранные чаты перед повторной отправкой</string>
     <string name="app_name">Monogram</string>
     <string name="app_description">Неофициальный клиент Telegram</string>
     <string name="home_tab_chats">Чаты</string>

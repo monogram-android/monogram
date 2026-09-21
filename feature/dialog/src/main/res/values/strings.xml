@@ -150,6 +150,11 @@
     <string name="dialog_paste">Paste</string>
     <string name="dialog_copy_selected">Copy selected</string>
     <string name="dialog_select_text">Select</string>
+    <string name="dialog_select_message">Select message</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="one">%1$d message selected</item>
+        <item quantity="other">%1$d messages selected</item>
+    </plurals>
     <string name="dialog_select_all">Select all</string>
     <string name="dialog_select_done">Done</string>
     <string name="dialog_format">Format</string>

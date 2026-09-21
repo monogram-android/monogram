@@ -204,6 +204,21 @@ open class OfflineWarmup(
         }
     }
 
+    open suspend fun chatsArchiveExcluding(excludeIds: List<Long>, limit: Int): List<Chat> {
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
+        return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
+            if (excludeIds.isEmpty()) {
+                database.chatDao().archivePreview(limit).map { it.toModel() }
+            } else {
+                database.chatDao().archiveExcluding(excludeIds, limit).map { it.toModel() }
+            }
+        }
+    }
+
     open suspend fun mainListCount(): Int {
         val database = db ?: run {
             ensureStartupCleanup()

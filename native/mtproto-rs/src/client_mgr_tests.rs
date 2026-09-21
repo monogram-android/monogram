@@ -801,6 +801,61 @@ fn idle_work_still_reaches_the_read_lane_family() {
 }
 
 #[test]
+fn merge_changed_entries_reports_no_change() {
+    let before = HashMap::from_iter([(1, 10)]);
+    let mut current = before.clone();
+    let incoming = before.clone();
+    assert!(!merge_changed_entries(&mut current, &before, incoming));
+    assert_eq!(current, before);
+}
+
+#[test]
+fn empty_update_poll_skips_cache_clone() {
+    let path =
+        std::env::temp_dir().join(format!("monogram-empty-poll-{}.json", std::process::id()));
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let client = get_client(handle).expect("client");
+    authorize_test_client(handle);
+    {
+        let mut data = client.data.lock();
+        data.updates_started = true;
+        data.updates = Some(UpdatesStateDto {
+            pts: 1,
+            qts: 1,
+            date: 1,
+            seq: 1,
+        });
+        for i in 0..2_000 {
+            data.peers.insert(
+                i,
+                peers::CachedPeer {
+                    kind: peers::PeerKind::User,
+                    id: i,
+                    access_hash: i,
+                    min_hash: false,
+                },
+            );
+        }
+    }
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let transport =
+        crate::rpc::open_live_addr(2, &listener.local_addr().unwrap().to_string(), None, 1)
+            .unwrap();
+    let (_peer, _) = listener.accept().unwrap();
+    {
+        let mut main = client.main.lock();
+        main.transport = Some(transport);
+        main.last_difference = Some(std::time::Instant::now());
+    }
+    let _ = take_update_cache_clones();
+    let events = drain_updates(handle).unwrap();
+    assert!(events.is_empty());
+    assert_eq!(take_update_cache_clones(), 0);
+    destroy_client(handle);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn extra_lane_persist_is_coalesced_onto_one_worker() {
     let path =
         std::env::temp_dir().join(format!("monogram-persist-{}.session", std::process::id()));
@@ -824,6 +879,32 @@ fn extra_lane_persist_is_coalesced_onto_one_worker() {
     let _ = std::fs::remove_file(format!("{}.tmp", path.display()));
     assert!(!client.persist_running.load(Ordering::Acquire));
     assert!(!client.persist_queued.load(Ordering::Acquire));
+}
+
+#[test]
+fn main_lane_schedules_persist_and_flush_on_destroy() {
+    let path = std::env::temp_dir().join(format!(
+        "monogram-main-persist-{}.session",
+        std::process::id()
+    ));
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let client = get_client(handle).expect("client");
+    with_client_mut(handle, |_state| Ok(())).unwrap();
+    with_client_mut(handle, |_state| Ok(())).unwrap();
+    with_client_mut(handle, |_state| Ok(())).unwrap();
+    let started = std::time::Instant::now();
+    while client.persist_running.load(Ordering::Acquire)
+        || client.persist_queued.load(Ordering::Acquire)
+    {
+        if started.elapsed() > std::time::Duration::from_secs(2) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(client.data.lock().persist_epoch >= 3);
+    destroy_client(handle);
+    assert!(!client.persist_running.load(Ordering::Acquire));
+    let _ = std::fs::remove_file(&path);
 }
 
 #[test]

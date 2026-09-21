@@ -371,6 +371,7 @@ fun SettingsContent(
                             onClear = { confirmClear = true },
                             onClearChat = component::onClearChatCache,
                             onClearKind = component::onClearKindCache,
+                            mediaRepository = component.mediaRepository,
                         )
                     }
                     SettingsPage.Appearance -> SettingsPageList(innerPadding) {

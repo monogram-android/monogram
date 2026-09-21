@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,6 +60,9 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.ExperimentalDecomposeApi
@@ -116,10 +121,11 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
         }
     }
     val homeState = rememberSaveableStateHolder()
+    val recipient by rememberUpdatedState((currentStack.active.instance as? RootComponent.Child.Recipients)?.component)
     val homeContent = remember {
         movableContentOf<HomeComponent, Long?, Boolean> { homeComponent, selected, listActive ->
             homeState.SaveableStateProvider("home") {
-                HomeContent(homeComponent, selected, listActive)
+                HomeContent(homeComponent, selected, listActive, recipient)
             }
         }
     }
@@ -200,7 +206,7 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
         SideEffect { component.setListDetailVisible(expanded) }
         // Compact chat list stays composed under overlays so Coil thumbs don't restart on back.
         val compactHome = !expanded && home != null
-        val homeCovered = compactHome && currentStack.active.instance !is RootComponent.Child.Home
+        val homeCovered = compactHome && currentStack.active.instance !is RootComponent.Child.Home && recipient == null
         val dialogCovered = dialog != null && currentStack.active.instance !is RootComponent.Child.Dialog
         Row(
             Modifier
@@ -286,7 +292,7 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
                     }
                 }
                 val coveredDialog = dialog
-                if (coveredDialog != null && dialogCovered) {
+                if (coveredDialog != null && dialogCovered && !(recipient != null && expanded)) {
                     Box(
                         Modifier
                             .fillMaxSize()
@@ -299,7 +305,7 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
                     stack = component.stack,
                     modifier = Modifier.fillMaxSize()
                         .chatBackGesture(gestureDispatcher, layoutDirection,
-                            prioritizeChildren = { component.stack.value.active.instance !is RootComponent.Child.Dialog },
+                            prioritizeChildren = { true },
                         ) {
                             !expanded && when (component.stack.value.active.instance) {
                                 is RootComponent.Child.Dialog, is RootComponent.Child.Profile,
@@ -310,6 +316,23 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
                     animation = animation,
                 ) { child ->
                     when (val instance = child.instance) {
+                        is RootComponent.Child.Recipients -> if (expanded && recipient != null) {
+                            val sourceDialog = dialog
+                            if (sourceDialog == null) {
+                                EmptyDetailContent()
+                            } else {
+                                Box(Modifier.fillMaxSize().clearAndSetSemantics { }) {
+                                    key(sourceDialog) { dialogContent(sourceDialog) }
+                                    Box(Modifier.fillMaxSize().pointerInput(Unit) {
+                                        awaitPointerEventScope {
+                                            while (true) {
+                                                awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                                            }
+                                        }
+                                    })
+                                }
+                            }
+                        } else Box(Modifier.fillMaxSize())
                         is RootComponent.Child.Auth -> AuthContent(instance.component)
                         is RootComponent.Child.Home -> if (expanded) {
                             EmptyDetailContent()
@@ -346,7 +369,7 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
                     )
                 }
                 PlaybackBar(
-                    visible = currentStack.active.instance !is RootComponent.Child.Dialog &&
+                    visible = recipient == null && currentStack.active.instance !is RootComponent.Child.Dialog &&
                         !restoreMiniPlayer,
                     onExpand = { restoreMiniPlayer = true },
                     modifier = Modifier.align(Alignment.BottomCenter),
@@ -391,14 +414,33 @@ private fun HomeContent(
     component: HomeComponent,
     selectedChatId: Long?,
     listActive: Boolean,
+    recipient: RecipientPickerComponent?,
 ) {
     val foldersState = collectWhenActive(component.folders.state, listActive)
+    val selection = recipient?.state?.collectAsStateWithLifecycle()?.value
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(recipient) { focusManager.clearFocus() }
+    LaunchedEffect(recipient, selection?.done) {
+        if (selection?.done == true) recipient.onClose()
+    }
     ChatsContent(
         component = component.chats,
         folders = foldersState.folders,
         selectedChatId = selectedChatId,
         listActive = listActive,
-        modifier = Modifier.fillMaxSize(),
+        selectingRecipient = recipient != null,
+        onCancelSelection = { recipient?.onClose() },
+        recipientIds = selection?.selected.orEmpty(),
+        recipientSelectionEnabled = selection?.started != true,
+        canSelectRecipient = { chat ->
+            chat.canView && !chat.left && chat.canSendPlain &&
+                (recipient?.request?.share?.attachments.isNullOrEmpty() || chat.canSendPhotos)
+        },
+        onToggleRecipient = { id -> recipient?.onToggle(id) },
+        selectionBottomBar = {
+            if (recipient != null && selection != null) RecipientSelectionBar(recipient, selection)
+        },
+        modifier = Modifier.fillMaxSize().then(if (recipient != null) Modifier.imePadding() else Modifier),
     )
 }
 

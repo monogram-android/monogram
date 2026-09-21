@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,8 @@ import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,6 +57,8 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -260,6 +265,8 @@ internal fun ArchiveRow(
 internal fun ChatRow(
     chat: Chat,
     selected: Boolean,
+    selectingRecipient: Boolean = false,
+    recipientSelectable: Boolean = true,
     savedMessages: Boolean,
     mediaRepository: MediaRepository?,
     showAvatar: Boolean,
@@ -306,15 +313,22 @@ internal fun ChatRow(
     val loud = unread > 0 && !chat.muted
     ChatRowContainer(
         selected = selected,
+        selectingRecipient = selectingRecipient,
+        enabled = !selectingRecipient || recipientSelectable,
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier,
     ) {
         if (showAvatar) {
+            val avatarClick = if (selectingRecipient) {
+                null
+            } else {
+                onAvatarClick ?: onClick
+            }
             Box(
                 modifier = Modifier
                     .size(ChatRowAvatarSize)
-                    .clickable(onClick = onAvatarClick ?: onClick),
+                    .then(if (avatarClick != null) Modifier.clickable(onClick = avatarClick) else Modifier),
             ) {
                 if (savedMessages) {
                     ServiceAvatar(
@@ -459,6 +473,19 @@ internal fun ChatRow(
                 )
             }
         }
+        if (selectingRecipient) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = null,
+                enabled = recipientSelectable,
+                modifier = Modifier.size(48.dp).clearAndSetSemantics { },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    checkmarkColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            )
+        }
     }
 }
 
@@ -532,11 +559,26 @@ private fun UnreadMarkDot(muted: Boolean, description: String) {
 @Composable
 private fun ChatRowContainer(
     selected: Boolean,
+    selectingRecipient: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val clickModifier = if (selectingRecipient) {
+        Modifier.toggleable(
+            value = selected,
+            enabled = enabled,
+            role = Role.Checkbox,
+            onValueChange = { onClick() },
+        )
+    } else {
+        Modifier.combinedClickable(
+            onClick = onClick,
+            onLongClick = onLongClick,
+        )
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -548,15 +590,13 @@ private fun ChatRowContainer(
             .clip(RoundedCornerShape(ChatRowCorner))
             .background(
                 if (selected) {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
+                    if (selectingRecipient) MaterialTheme.colorScheme.secondaryContainer
+                    else MaterialTheme.colorScheme.surfaceContainerHighest
                 } else {
                     Color.Transparent
                 },
             )
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
-            )
+            .then(clickModifier)
             .padding(
                 horizontal = ChatRowMetrics.ContentPaddingH,
                 vertical = ChatRowMetrics.ContentPaddingV,

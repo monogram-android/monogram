@@ -5,7 +5,6 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,6 +39,7 @@ data class MessageMenuActions(
     val canDelete: Boolean,
     val canForward: Boolean,
     val forwardRestricted: Boolean,
+    val canSelectForForwarding: Boolean = canForward,
 )
 
 @Composable
@@ -50,7 +50,8 @@ fun MessageActionMenu(
     onDismiss: () -> Unit,
     onReply: (Message) -> Unit,
     onCopy: (Message) -> Unit,
-    onSelect: (Message) -> Unit = {},
+    onSelectText: (Message) -> Unit = {},
+    onSelectForForwarding: (Message) -> Unit = {},
     onEdit: (Message) -> Unit,
     onDelete: (Message) -> Unit,
     onForward: (Message) -> Unit,
@@ -61,10 +62,11 @@ fun MessageActionMenu(
     growth: AppMenuGrowth? = null,
     seenByRow: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
+    visibilityState: MutableTransitionState<Boolean>? = null,
 ) {
-    val visible = remember { MutableTransitionState(false) }
+    val visible = visibilityState ?: remember { MutableTransitionState(false) }
     visible.targetState = expanded && message != null
-    if (!visible.currentState && !visible.targetState) return
+    if (visible.isIdle && !visible.currentState && !visible.targetState) return
     val target = message ?: return
     val origin = TransformOrigin(
         pivotFractionX = if (alignToAnchorEnd) 1f else 0f,
@@ -74,8 +76,7 @@ fun MessageActionMenu(
         visibleState = visible,
         enter = fadeIn(AppMenuMotion.OpenSpec) +
             scaleIn(AppMenuMotion.OpenSpec, initialScale = AppMenuMotion.InitialScale, transformOrigin = origin),
-        exit = fadeOut(AppMenuMotion.CloseSpec) +
-            scaleOut(AppMenuMotion.CloseSpec, targetScale = AppMenuMotion.InitialScale, transformOrigin = origin),
+        exit = fadeOut(AppMenuMotion.CloseSpec),
         modifier = modifier,
     ) {
         Column(
@@ -122,6 +123,16 @@ fun MessageActionMenu(
                             },
                         )
                     }
+                    if (actions.canSelectForForwarding) {
+                        AppMenuItem(
+                            text = stringResource(R.string.dialog_select_message),
+                            icon = Icons.Outlined.Checklist,
+                            onClick = {
+                                onSelectForForwarding(target)
+                                onDismiss()
+                            },
+                        )
+                    }
                 }
                 if (actions.canCopy || actions.canEdit) {
                     AppMenuGroup {
@@ -138,7 +149,7 @@ fun MessageActionMenu(
                                 text = stringResource(R.string.dialog_select_text),
                                 icon = Icons.Outlined.Checklist,
                                 onClick = {
-                                    onSelect(target)
+                                    onSelectText(target)
                                     onDismiss()
                                 },
                             )

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="chats_share_recipient">Komu odoslať</string>
+    <string name="chats_share_cancel">Zrušiť</string>
     <string name="chats_settings">Nastavenia</string>
     <string name="chats_profile">Ja</string>
     <string name="chats_my_profile">Môj profil</string>

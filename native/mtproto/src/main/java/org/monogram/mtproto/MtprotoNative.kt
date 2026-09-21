@@ -302,8 +302,9 @@ interface MtprotoNative {
     fun forwardMessages(
         handle: Long,
         fromChatId: Long,
-        messageId: Int,
+        messageIds: List<Int>,
         toChatId: Long,
+        dropAuthor: Boolean,
     ): List<MessageDto>
 
     @Throws(MtprotoException::class)

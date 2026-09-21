@@ -175,6 +175,7 @@ internal fun messageMenuActions(
             (message.outgoing || state.canDeleteOthers),
         canForward = !protected,
         forwardRestricted = protected,
+        canSelectForForwarding = isForwardSelectionCandidate(message),
     )
 }
 
@@ -286,8 +287,9 @@ internal suspend fun copyPickedMedia(
     uri: android.net.Uri,
     kind: String,
     fallbackExt: String,
+    fallbackMime: String = "",
 ): PickedMedia? = withContext(Dispatchers.IO) {
-    val mime = context.contentResolver.getType(uri).orEmpty()
+    val mime = context.contentResolver.getType(uri).orEmpty().ifBlank { fallbackMime }
     val resolvedKind = when {
         kind == "document" -> "document"
         mime.startsWith("video/") -> "video"

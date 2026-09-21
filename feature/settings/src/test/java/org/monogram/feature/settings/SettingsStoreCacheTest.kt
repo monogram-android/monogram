@@ -40,6 +40,24 @@ class SettingsStoreCacheTest {
     }
 
     @Test
+    fun cacheChatRowsKeepAvatarKeysFromWarmup() {
+        val rows = cacheChatRows(
+            usageByChat = mapOf(7L to 40L, 3L to 90L, 9L to 10L),
+            chats = listOf(
+                Chat(id = PeerId(3), title = "Photos", photoCacheKey = "avatar:3:video"),
+                Chat(id = PeerId(7), title = "Docs", photoCacheKey = "photo:7"),
+            ),
+        )
+        assertEquals(listOf(3L, 7L, 9L), rows.map { it.chatId })
+        assertEquals("Photos", rows[0].title)
+        assertEquals("avatar:3:video", rows[0].photoCacheKey)
+        assertEquals("Docs", rows[1].title)
+        assertEquals("photo:7", rows[1].photoCacheKey)
+        assertEquals("9", rows[2].title)
+        assertNull(rows[2].photoCacheKey)
+    }
+
+    @Test
     fun cachedSelfProfileStaysWhenNetworkFails() {
         val self = Profile(
             id = PeerId(42),

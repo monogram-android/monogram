@@ -39,6 +39,8 @@ internal fun Chat.isShownInChatList(): Boolean = !left
 
 internal fun Chat.isMainListRow(): Boolean = isShownInChatList() && !archived
 
+internal fun Chat.isArchiveListRow(): Boolean = isShownInChatList() && archived
+
 internal fun sortChats(chats: Collection<Chat>): List<Chat> =
     chats.filter { it.isShownInChatList() }.sortedWith(
         compareByDescending<Chat> { it.pinned }

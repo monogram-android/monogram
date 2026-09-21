@@ -262,6 +262,203 @@ class ChatsStoreCacheTest {
     }
 
     @Test
+    fun archivePageSurvivesChatsChanged() = runTest {
+        val archived = archiveChats(20)
+        val client = StubClient(
+            chats = Outcome.Ok(listOf(Chat(PeerId(100), "Main", lastMessageDate = 100, lastMessageId = 1))),
+        ).apply {
+            archivePages.addLast(archived)
+        }
+        val store = ChatsStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(ChatsStore.Intent.FolderSelected(ARCHIVE_FOLDER_ID))
+            advanceUntilIdle()
+            assertEquals(20, visibleArchive(store).size)
+            client.events.emit(
+                MtprotoUpdate.ChatsChanged(listOf(archived.last().copy(title = "Updated"))),
+            )
+            advanceUntilIdle()
+            val visible = visibleArchive(store)
+            assertEquals(20, visible.size)
+            assertEquals("Updated", visible.first { it.id.value == 20L }.title)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun delayedMainRefreshDoesNotCollapseArchiveOrResetPaging() = runTest {
+        val archived = archiveChats(20)
+        val client = StubClient(
+            chats = Outcome.Ok(listOf(Chat(PeerId(100), "Main", lastMessageDate = 100, lastMessageId = 1))),
+        ).apply {
+            archivePages.addLast(archived)
+            chatResponses.addLast(
+                Outcome.Ok(
+                    (200L..239L).map { id ->
+                        Chat(PeerId(id), "Main $id", lastMessageDate = id, lastMessageId = 1)
+                    },
+                ),
+            )
+        }
+        val mergeEntered = CompletableDeferred<Unit>()
+        val releaseMerge = CompletableDeferred<Unit>()
+        var hookArmed = false
+        val store = ChatsStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup = null,
+            sessionStore = null,
+            refreshMergeHook = {
+                if (hookArmed) {
+                    mergeEntered.complete(Unit)
+                    releaseMerge.await()
+                }
+            },
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(ChatsStore.Intent.FolderSelected(ARCHIVE_FOLDER_ID))
+            advanceUntilIdle()
+            assertEquals(20, visibleArchive(store).size)
+            assertFalse(store.state.hasMore)
+            val archiveCalls = client.folderCalls.count { it == ARCHIVE_FOLDER_WIRE_ID }
+            hookArmed = true
+            store.accept(ChatsStore.Intent.Refresh)
+            mergeEntered.await()
+            releaseMerge.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(20, visibleArchive(store).size)
+            assertFalse(store.state.hasMore)
+            assertEquals(
+                archiveCalls,
+                client.folderCalls.count { it == ARCHIVE_FOLDER_WIRE_ID },
+            )
+        } finally {
+            releaseMerge.complete(Unit)
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun openingArchiveExposesCachedArchivedRowsWithoutWaitingForServer() = runTest {
+        val archived = archiveChats(8)
+        val warmup = object : OfflineWarmup() {
+            override suspend fun chats() =
+                listOf(Chat(PeerId(100), "Main", lastMessageDate = 100, lastMessageId = 1)) +
+                    archived
+        }
+        val client = StubClient(
+            chats = Outcome.Ok(listOf(Chat(PeerId(100), "Main", lastMessageDate = 100, lastMessageId = 1))),
+        )
+        val store = ChatsStoreFactory(
+            DefaultStoreFactory(), client, warmup, sessionStore = null,
+        ).create()
+        try {
+            advanceUntilIdle()
+            assertEquals(3, visibleArchive(store).size)
+            store.accept(ChatsStore.Intent.FolderSelected(ARCHIVE_FOLDER_ID))
+            advanceUntilIdle()
+            assertEquals((8L downTo 1L).toList(), visibleArchive(store).map { it.id.value })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun exhaustedArchiveRepublishDoesNotHideRowsOrRequestAgain() = runTest {
+        val archived = archiveChats(20)
+        val client = StubClient(
+            chats = Outcome.Ok(listOf(Chat(PeerId(100), "Main", lastMessageDate = 100, lastMessageId = 1))),
+        ).apply {
+            archivePages.addLast(archived)
+        }
+        val store = ChatsStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(ChatsStore.Intent.FolderSelected(ARCHIVE_FOLDER_ID))
+            advanceUntilIdle()
+            assertEquals(20, visibleArchive(store).size)
+            assertFalse(store.state.hasMore)
+            val archiveCalls = client.folderCalls.count { it == ARCHIVE_FOLDER_WIRE_ID }
+            client.events.emit(
+                MtprotoUpdate.ChatsChanged(listOf(archived.last().copy(title = "Updated"))),
+            )
+            advanceUntilIdle()
+            store.accept(ChatsStore.Intent.LoadMore)
+            advanceUntilIdle()
+            assertEquals(20, visibleArchive(store).size)
+            assertFalse(store.state.hasMore)
+            assertEquals(
+                archiveCalls,
+                client.folderCalls.count { it == ARCHIVE_FOLDER_WIRE_ID },
+            )
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun customFolderKeepsArchivedMembersAfterChatsChanged() = runTest {
+        val archived = Chat(
+            PeerId(99),
+            "Archived late member",
+            archived = true,
+            unreadCount = 2,
+            lastMessageDate = 99,
+            lastMessageId = 1,
+        )
+        val client = StubClient(
+            chats = Outcome.Ok(
+                (1L..40L).map { id ->
+                    Chat(
+                        PeerId(id),
+                        "Initial archive $id",
+                        archived = true,
+                        lastMessageDate = id,
+                        lastMessageId = 1,
+                    )
+                },
+            ),
+        ).apply {
+            archivePages.addLast((100L..139L).map { id ->
+                Chat(PeerId(id), "Archive $id", archived = true, lastMessageDate = id, lastMessageId = 1)
+            })
+            archivePages.addLast(listOf(archived))
+        }
+        val store = ChatsStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+        ).create()
+        try {
+            store.accept(ChatsStore.Intent.FolderSelected(7))
+            advanceUntilIdle()
+            val folder = Folder(
+                id = 7,
+                title = "Work",
+                chatIds = listOf(archived.id),
+                excludeArchived = true,
+            )
+            assertEquals(
+                listOf(99L),
+                visibleChats(store.state.chats, listOf(folder), 7).map { it.id.value },
+            )
+            client.events.emit(MtprotoUpdate.ChatsChanged(listOf(archived.copy(title = "Renamed"))))
+            advanceUntilIdle()
+            assertEquals(
+                listOf(99L),
+                visibleChats(store.state.chats, listOf(folder), 7).map { it.id.value },
+            )
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
     fun incomingChatUpdatePreservesUnfinishedNetworkPagination() = runTest {
         val initial = (1L..40L).map { id ->
             Chat(
@@ -611,6 +808,20 @@ class ChatsStoreCacheTest {
             store.dispose()
         }
     }
+
+    private fun archiveChats(count: Int): List<Chat> =
+        (1L..count.toLong()).map { id ->
+            Chat(
+                PeerId(id),
+                "Archived $id",
+                archived = true,
+                lastMessageDate = id,
+                lastMessageId = 1,
+            )
+        }
+
+    private fun visibleArchive(store: ChatsStore): List<Chat> =
+        visibleChats(store.state.chats, emptyList(), ARCHIVE_FOLDER_ID)
 
     private class StubClient(
         private val chats: Outcome<List<Chat>>,

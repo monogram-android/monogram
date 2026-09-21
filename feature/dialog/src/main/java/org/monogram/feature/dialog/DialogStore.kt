@@ -39,6 +39,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data class DraftChanged(val value: String) : Intent
         data class AttachPhoto(val path: String) : Intent
         data class AttachMedia(val items: List<UploadItem>) : Intent
+        data class AppendMedia(val items: List<UploadItem>) : Intent
         data object ClearAttach : Intent
         data class ReplyTo(val message: Message) : Intent
         data object ClearReply : Intent

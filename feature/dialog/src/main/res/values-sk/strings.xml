@@ -133,6 +133,13 @@
     <string name="dialog_paste">Prilepiť</string>
     <string name="dialog_copy_selected">Kopírovať výber</string>
     <string name="dialog_select_text">Vybrať</string>
+    <string name="dialog_select_message">Vybrať správy</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="one">Vybraná %1$d správa</item>
+        <item quantity="few">Vybrané %1$d správy</item>
+        <item quantity="many">Vybraných %1$d správ</item>
+        <item quantity="other">Vybraných %1$d správ</item>
+    </plurals>
     <string name="dialog_select_all">Vybrať všetko</string>
     <string name="dialog_select_done">Hotovo</string>
     <string name="dialog_format">Formát</string>

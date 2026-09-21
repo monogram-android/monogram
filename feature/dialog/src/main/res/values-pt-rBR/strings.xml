@@ -133,6 +133,11 @@
     <string name="dialog_paste">Colar</string>
     <string name="dialog_copy_selected">Copiar selecionado</string>
     <string name="dialog_select_text">Selecionar</string>
+    <string name="dialog_select_message">Selecionar mensagens</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="one">%1$d mensagem selecionada</item>
+        <item quantity="other">%1$d mensagens selecionadas</item>
+    </plurals>
     <string name="dialog_select_all">Selecionar tudo</string>
     <string name="dialog_select_done">Concluir</string>
     <string name="dialog_format">Formatação</string>

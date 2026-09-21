@@ -32,6 +32,7 @@ internal class SessionCore(
     internal val historyTimeoutMs: Long,
     internal val nativeDispatcher: CoroutineDispatcher,
     internal val refreshDcSidecar: (String) -> Unit,
+    internal val clock: MonotonicClock = NanoTimeClock,
 ) : SessionOps {
     @Volatile
     internal var handle: Long = 0L

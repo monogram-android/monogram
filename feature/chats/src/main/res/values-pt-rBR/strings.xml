@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="chats_share_recipient">Enviar para</string>
+    <string name="chats_share_cancel">Cancelar</string>
     <string name="chats_settings">Configurações</string>
     <string name="chats_profile">Eu</string>
     <string name="chats_my_profile">Meu perfil</string>

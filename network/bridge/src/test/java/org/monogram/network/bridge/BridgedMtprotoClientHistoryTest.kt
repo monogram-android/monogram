@@ -159,6 +159,140 @@ class BridgedMtprotoClientHistoryTest {
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun slowDrainCountsTowardRefreshCooldown() = runTest {
+        val extra = ExtraClock(testScheduler)
+        var chatsCalls = 0
+        val native = object : RecordingNative() {
+            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                extra.extraMs += 1_000L
+                drainCalls++
+                return listOf(UpdateEventDto.ChatsChanged)
+            }
+            override fun getChats(handle: Long): List<ChatDto> {
+                chatsCalls++
+                return super.getChats(handle)
+            }
+        }
+        val client = BridgedMtprotoClient(
+            credentials = TelegramCredentials(1, "hash"),
+            sessionPath = "slow-drain.session",
+            native = native,
+            nativeDispatcher = StandardTestDispatcher(testScheduler),
+            refreshDcSidecar = {},
+            clock = extra,
+        )
+        try {
+            backgroundScope.async { client.updates().toList() }
+            runCurrent()
+            client.connect()
+            advanceTimeBy(100)
+            runCurrent()
+            assertTrue("chatsCalls=$chatsCalls drains=${native.drainCalls}", chatsCalls >= 2)
+            assertTrue("drain loops should stay far below the old 80-sleep cooldown, drains=${native.drainCalls}", native.drainCalls < 20)
+        } finally {
+            client.close()
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun folderFloodRetryUsesMonotonicClock() = runTest {
+        val extra = ExtraClock(testScheduler)
+        var folderCalls = 0
+        val native = object : RecordingNative() {
+            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                drainCalls++
+                return listOf(UpdateEventDto.FoldersChanged)
+            }
+            override fun getFolders(handle: Long): List<uniffi.monogram_mtproto.FolderDto> {
+                folderCalls++
+                if (folderCalls == 1) {
+                    throw uniffi.monogram_mtproto.MtprotoException.Message("FLOOD_WAIT_5")
+                }
+                return emptyList()
+            }
+        }
+        val client = BridgedMtprotoClient(
+            credentials = TelegramCredentials(1, "hash"),
+            sessionPath = "flood-refresh.session",
+            native = native,
+            nativeDispatcher = StandardTestDispatcher(testScheduler),
+            refreshDcSidecar = {},
+            clock = extra,
+        )
+        try {
+            backgroundScope.async { client.updates().toList() }
+            runCurrent()
+            client.connect()
+            advanceTimeBy(50)
+            runCurrent()
+            assertEquals(1, folderCalls)
+            extra.extraMs += 4_000L
+            advanceTimeBy(50)
+            runCurrent()
+            assertEquals(1, folderCalls)
+            extra.extraMs += 1_000L
+            advanceTimeBy(50)
+            runCurrent()
+            assertEquals(2, folderCalls)
+        } finally {
+            client.close()
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun handleChangeResetsRefreshCooldown() = runTest {
+        val extra = ExtraClock(testScheduler)
+        var chatsCalls = 0
+        var nextHandle = 0L
+        val native = object : RecordingNative() {
+            override fun createClient(apiId: Int, apiHash: String, sessionPath: String): Long = ++nextHandle
+            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                drainCalls++
+                return listOf(UpdateEventDto.ChatsChanged)
+            }
+            override fun getChats(handle: Long): List<ChatDto> {
+                chatsCalls++
+                return super.getChats(handle)
+            }
+        }
+        val client = BridgedMtprotoClient(
+            credentials = TelegramCredentials(1, "hash"),
+            sessionPath = "handle-refresh.session",
+            native = native,
+            nativeDispatcher = StandardTestDispatcher(testScheduler),
+            refreshDcSidecar = {},
+            clock = extra,
+        )
+        try {
+            backgroundScope.async { client.updates().toList() }
+            runCurrent()
+            client.connect()
+            advanceTimeBy(50)
+            runCurrent()
+            assertEquals(1, chatsCalls)
+            client.hibernate()
+            runCurrent()
+            client.connect()
+            advanceTimeBy(50)
+            runCurrent()
+            assertEquals(2, chatsCalls)
+        } finally {
+            client.close()
+        }
+    }
+
+    private class ExtraClock(
+        private val scheduler: kotlinx.coroutines.test.TestCoroutineScheduler,
+    ) : org.monogram.network.bridge.session.MonotonicClock {
+        @Volatile
+        var extraMs = 0L
+        override fun elapsedMs(): Long = scheduler.currentTime + extraMs
+    }
+
     @Test
     fun streamingChunkPreservesOffsetAndMapsMediaErrors() = runBlocking {
         var observedOffset = -1L
@@ -580,6 +714,22 @@ class BridgedMtprotoClientHistoryTest {
     }
 
     @Test
+    fun forwardMessagesUsesNativeIdsAndDropAuthor() = runBlocking {
+        val native = RecordingNative()
+        val client = BridgedMtprotoClient(
+            credentials = TelegramCredentials(1, "hash"),
+            sessionPath = "slice-forward-batch.session",
+            native = native,
+            refreshDcSidecar = {},
+        )
+        val sent = client.forwardMessages(PeerId(42), listOf(7, 8), PeerId(99), dropAuthor = true)
+        assertTrue(sent is Outcome.Ok)
+        assertEquals(listOf(7, 8), native.lastForwardMessageIds)
+        assertTrue(native.lastForwardDropAuthor)
+        client.close()
+    }
+
+    @Test
     fun getPinnedMessagesUsesNativeChatId() = runBlocking {
         val native = RecordingNative()
         val client = BridgedMtprotoClient(
@@ -645,6 +795,8 @@ class BridgedMtprotoClientHistoryTest {
         var lastForwardFrom: Long? = null
         var lastForwardTo: Long? = null
         var lastForwardMessageId: Int? = null
+        var lastForwardMessageIds: List<Int>? = null
+        var lastForwardDropAuthor = false
         var lastPinnedChatId: Long? = null
         var lastForumChatId: Long? = null
 
@@ -940,12 +1092,15 @@ class BridgedMtprotoClientHistoryTest {
         override fun forwardMessages(
             handle: Long,
             fromChatId: Long,
-            messageId: Int,
+            messageIds: List<Int>,
             toChatId: Long,
+            dropAuthor: Boolean,
         ): List<MessageDto> {
             lastForwardFrom = fromChatId
             lastForwardTo = toChatId
-            lastForwardMessageId = messageId
+            lastForwardMessageIds = messageIds
+            lastForwardMessageId = messageIds.singleOrNull()
+            lastForwardDropAuthor = dropAuthor
             return listOf(
                 MessageDto(
                     chatId = toChatId,

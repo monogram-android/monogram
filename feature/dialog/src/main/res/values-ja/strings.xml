@@ -133,6 +133,10 @@
     <string name="dialog_paste">貼り付け</string>
     <string name="dialog_copy_selected">選択をコピー</string>
     <string name="dialog_select_text">選択</string>
+    <string name="dialog_select_message">メッセージを選択</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="other">%1$d件のメッセージを選択中</item>
+    </plurals>
     <string name="dialog_select_all">すべて選択</string>
     <string name="dialog_select_done">完了</string>
     <string name="dialog_format">書式</string>

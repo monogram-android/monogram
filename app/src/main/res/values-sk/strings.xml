@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recipient_messages">Správy: %1$d</string>
+    <string name="recipient_files">Prílohy: %1$d</string>
+    <string name="recipient_hide_author">Skryť mená odosielateľov</string>
+    <string name="recipient_comment">Pridať komentár</string>
+    <string name="recipient_send">Odoslať (%1$d)</string>
+    <string name="recipient_sending">Odosiela sa: %1$d z %2$d</string>
+    <string name="recipient_error">Nepodarilo sa dokončiť. Skúste to znova pre pokračovanie</string>
+    <string name="recipient_retry">Skúsiť znova</string>
+    <string name="recipient_interrupted">Odosielanie bolo prerušené. Pred opätovným odoslaním skontrolujte cieľové chaty</string>
     <string name="app_name">Monogram</string>
     <string name="app_description">Neoficiálny klient Telegram</string>
     <string name="home_tab_chats">Chaty</string>

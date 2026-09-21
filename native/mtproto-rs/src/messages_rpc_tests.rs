@@ -200,7 +200,7 @@ fn forward_requires_known_peers() {
     let mut snapshot = Snapshot::new(2, &mut OsRandom).expect("snapshot");
     let peers = HashMap::new();
     let mut media = crate::media_rpc::MediaIndex::new();
-    let err = super::forward_messages(&mut snapshot, 1, &peers, &mut media, 1, 7, 2)
+    let err = super::forward_messages(&mut snapshot, 1, &peers, &mut media, 1, vec![7], 2, false)
         .expect_err("unknown from peer");
     match err {
         crate::MtprotoError::Message(message) => {

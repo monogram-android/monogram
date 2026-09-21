@@ -49,6 +49,7 @@ class DialogComponent(
     private val onBack: () -> Unit,
     private val onOpenProfile: (PeerId) -> Unit = {},
     private val onOpenChat: (PeerId, Int, Int) -> Unit = { _, _, _ -> },
+    private val onRequestForward: ((List<org.monogram.core.models.Message>) -> Unit)? = null,
 ) : ComponentContext by componentContext {
 
     /** Dialog identity for saveable state. */
@@ -116,6 +117,7 @@ class DialogComponent(
     fun onDraftChanged(value: String) = store.accept(DialogStore.Intent.DraftChanged(value))
     fun onAttachPhoto(path: String) = store.accept(DialogStore.Intent.AttachPhoto(path))
     fun onAttachMedia(items: List<UploadItem>) = store.accept(DialogStore.Intent.AttachMedia(items))
+    fun onAppendMedia(items: List<UploadItem>) = store.accept(DialogStore.Intent.AppendMedia(items))
     fun onClearAttach() = store.accept(DialogStore.Intent.ClearAttach)
     fun onToggleAttachSheet() = store.accept(DialogStore.Intent.ToggleAttachSheet)
     fun onCloseAttachSheet() = store.accept(DialogStore.Intent.CloseAttachSheet)
@@ -146,8 +148,17 @@ class DialogComponent(
     fun onCancelEdit() = store.accept(DialogStore.Intent.CancelEdit)
     fun onDelete(messageId: Int, revoke: Boolean) =
         store.accept(DialogStore.Intent.Delete(messageId, revoke))
-    fun onForwardPick(message: org.monogram.core.models.Message) =
-        store.accept(DialogStore.Intent.ForwardPick(message))
+    fun onForwardPick(message: org.monogram.core.models.Message) = onForwardMessages(listOf(message))
+    fun onForwardMessages(messages: List<org.monogram.core.models.Message>) {
+        if (!state.value.canForward) return
+        if (messages.any {
+            it.id.chatId != chatId || it.id.id <= 0 || it.pending || it.noforwards || it.mediaKind == "service"
+        }) return
+        val selected = messages.distinctBy { it.id }.sortedBy { it.id.id }
+        if (selected.isEmpty()) return
+        if (onRequestForward != null) onRequestForward.invoke(selected)
+        else store.accept(DialogStore.Intent.ForwardPick(selected.first()))
+    }
     fun onClearForward() = store.accept(DialogStore.Intent.ClearForward)
     fun onForwardQuery(value: String) = store.accept(DialogStore.Intent.ForwardQuery(value))
     fun onForwardTo(peerId: PeerId) = store.accept(DialogStore.Intent.ForwardTo(peerId))

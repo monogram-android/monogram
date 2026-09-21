@@ -8,6 +8,33 @@ use crate::{MtprotoError, UpdateEventDto, UpdatesStateDto};
 
 use super::*;
 
+#[cfg(test)]
+std::thread_local! {
+    static UPDATE_CACHE_CLONES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn take_update_cache_clones() -> u64 {
+    UPDATE_CACHE_CLONES.with(|cell| cell.replace(0))
+}
+
+fn note_update_cache_clone() {
+    crate::perf::count("updates.cache_clone");
+    #[cfg(test)]
+    UPDATE_CACHE_CLONES.with(|cell| cell.set(cell.get() + 1));
+}
+
+struct AppliedDrain {
+    peers: crate::HashMap<i64, crate::peers::CachedPeer>,
+    before_peers: crate::HashMap<i64, crate::peers::CachedPeer>,
+    media: crate::media::MediaIndex,
+    before_media: crate::media::MediaIndex,
+    channel_pts: crate::HashMap<i64, i32>,
+    recovery: VecDeque<ChannelRecovery>,
+    seen_messages: crate::HashSet<(i64, i32)>,
+    cursor: Option<UpdatesStateDto>,
+}
+
 pub fn start_updates(handle: u64) -> Result<(), MtprotoError> {
     let client = get_client(handle)?;
     {
@@ -68,20 +95,17 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
     let Some((_gate, mut io)) = lock_updates_lane(&client)? else {
         return Ok(Vec::new());
     };
-    let mut recovery = client.data.lock().channel_recovery.clone();
+    let now = recovery_now();
     let (
         api_id,
-        mut peers,
-        mut media,
         previous,
         home_dc,
         home_auth,
         home_salt,
         home_off,
         open_chat,
-        mut channel_pts,
-        mut seen_messages,
         session_id,
+        due_recovery,
     ) = {
         let d = client.data.lock();
         if d.session_dead {
@@ -95,17 +119,14 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         }
         (
             d.api_id,
-            d.peers.clone(),
-            d.media.clone(),
             d.updates.clone(),
             d.home_dc,
             d.home_auth_key.clone(),
             d.home_salt,
             d.home_time_offset,
             d.last_history_chat_id,
-            d.channel_pts.clone(),
-            d.seen_messages.clone(),
             d.home_session_id,
+            d.channel_recovery.iter().any(|entry| entry.due_at <= now),
         )
     };
     apply_home_auth(
@@ -115,194 +136,230 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         home_salt,
         home_off,
     );
-    let before_peers = peers.clone();
-    let before_media = media.clone();
-    let mut cursor = previous.clone();
     let mut needs_difference = io.transport.is_none()
         || io
             .last_difference
             .map(|last| last.elapsed() >= std::time::Duration::from_secs(60))
             .unwrap_or(true);
-    let mut changed = needs_difference;
     let mut slot = io.transport.take();
     crate::rpc::clear_new_session_metadata();
     let drained = with_client_transport(&client, &mut slot, || {
-        // 4s sat on the successful-empty edge (4157ms) and on
-        // `drain updates` RPC timeout recv=0 / last_ctor=msg_container.
-        crate::rpc::with_rpc_timeout_secs(8, || {
-            ensure_auth_key_on(&mut io.snapshot)?;
-            if cursor.is_none() {
-                cursor = Some(updates_rpc::get_updates_state(&mut io.snapshot, api_id)?);
+        // Receive stays on the idle budget; recovery RPCs use their own 8s scope
+        // so a waiting interactive caller can take the lane between pages.
+        ensure_auth_key_on(&mut io.snapshot)?;
+        let mut cursor = previous.clone();
+        if cursor.is_none() {
+            cursor = Some(updates_rpc::get_updates_state(&mut io.snapshot, api_id)?);
+        }
+        if !needs_difference {
+            let _span = crate::perf::span("updates.receive");
+            let pushes = crate::rpc::receive_updates(&mut io.snapshot)?;
+            io.pending_push.append(pushes);
+        }
+        let has_work = needs_difference || !io.pending_push.is_empty() || due_recovery;
+        if !has_work {
+            crate::perf::count("updates.empty_fast_path");
+            return Ok((Vec::new(), None));
+        }
+        note_update_cache_clone();
+        let mut recovery;
+        let mut peers;
+        let mut media;
+        let mut channel_pts;
+        let mut seen_messages;
+        {
+            let d = client.data.lock();
+            if d.session_dead {
+                return Err(MtprotoError::Message(format!(
+                    "session invalidated: {}",
+                    d.session_dead_reason.as_deref().unwrap_or("UNKNOWN")
+                )));
             }
-            let mut live = cursor.clone().unwrap();
-            let mut pending_channels = Vec::new();
-            let mut events = Vec::new();
-            if !needs_difference {
-                let pushes = crate::rpc::receive_updates(&mut io.snapshot)?;
-                io.pending_push.append(pushes);
-                let resolve = io.pending_push.resolve(std::time::Instant::now(), |push| {
-                    match updates_rpc::apply_push(
-                        push,
-                        &mut peers,
-                        &mut media,
-                        &mut live,
-                        &mut channel_pts,
-                        &mut pending_channels,
-                    ) {
-                        Ok(applied) => {
-                            // A packet can advance pts/qts/seq without producing
-                            // a UI event, so persist every successfully validated
-                            // packet, including duplicates.
-                            changed = true;
-                            events.extend(applied);
-                            Ok(true)
-                        }
-                        Err(MtprotoError::Message(message)) if message == "updates gap" => {
-                            Ok(false)
-                        }
-                        Err(error) => Err(error),
+            if d.home_dc != home_dc
+                || d.home_auth_key != home_auth
+                || !session_lease_valid(&d, session_id)
+            {
+                return Err(expired_session_lease());
+            }
+            recovery = d.channel_recovery.clone();
+            peers = d.peers.clone();
+            media = d.media.clone();
+            channel_pts = d.channel_pts.clone();
+            seen_messages = d.seen_messages.clone();
+        }
+        let before_peers = peers.clone();
+        let before_media = media.clone();
+        let mut live = cursor.clone().unwrap();
+        let mut pending_channels = Vec::new();
+        let mut events = Vec::new();
+        if !needs_difference {
+            let _span = crate::perf::span("updates.apply");
+            let resolve = io.pending_push.resolve(std::time::Instant::now(), |push| {
+                match updates_rpc::apply_push(
+                    push,
+                    &mut peers,
+                    &mut media,
+                    &mut live,
+                    &mut channel_pts,
+                    &mut pending_channels,
+                ) {
+                    Ok(applied) => {
+                        events.extend(applied);
+                        Ok(true)
                     }
-                });
-                match resolve {
-                    Ok(recovery_required) => {
-                        needs_difference = recovery_required;
-                        if recovery_required {
-                            changed = true;
-                        }
-                    }
-                    Err(error) => {
-                        // An invalid constructor or malformed packet cannot be
-                        // retried from the reordering queue. Drop it and recover
-                        // from the last committed cursor on a fresh connection.
-                        io.pending_push = Default::default();
-                        crate::rpc::drop_live_transport();
-                        needs_difference = true;
-                        changed = true;
-                        tcp::wait_reconnect(std::time::Duration::from_millis(50))
-                            .map_err(|e| MtprotoError::Message(e.to_string()))?;
-                        let _ = error;
-                    }
+                    Err(MtprotoError::Message(message)) if message == "updates gap" => Ok(false),
+                    Err(error) => Err(error),
+                }
+            });
+            match resolve {
+                Ok(recovery_required) => {
+                    needs_difference = recovery_required;
+                }
+                Err(error) => {
+                    // An invalid constructor or malformed packet cannot be
+                    // retried from the reordering queue. Drop it and recover
+                    // from the last committed cursor on a fresh connection.
+                    io.pending_push = Default::default();
+                    crate::rpc::drop_live_transport();
+                    needs_difference = true;
+                    tcp::wait_reconnect(std::time::Duration::from_millis(50))
+                        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+                    let _ = error;
                 }
             }
-            if needs_difference {
-                // Let a waiting interactive RPC take the home lane between
-                // update recovery requests. Keep the cursor unchanged so the
-                // next drain resumes recovery safely.
-                if interactive_request_pending(&client) {
-                    needs_difference = false;
-                }
+        }
+        let defer_recovery = !events.is_empty();
+        if needs_difference {
+            // Let a waiting interactive RPC take the home lane between
+            // update recovery requests. Keep the cursor unchanged so the
+            // next drain resumes recovery safely. Deliver already-applied
+            // pushes this poll instead of holding the lane for getDifference.
+            if interactive_request_pending(&client) || defer_recovery {
+                crate::perf::count("updates.defer_difference");
+                needs_difference = false;
             }
-            if needs_difference {
-                let (page, has_more) = updates_rpc::drain_difference(
+        }
+        if needs_difference {
+            let _span = crate::perf::span("updates.difference");
+            let (page, has_more) = crate::rpc::with_rpc_timeout_secs(8, || {
+                updates_rpc::drain_difference(
                     &mut io.snapshot,
                     api_id,
                     &mut peers,
                     &mut media,
                     &mut live,
                     &mut pending_channels,
-                )?;
-                // The difference is authoritative for the cursor. Discard
-                // packets retained behind the gap before using the new state.
-                io.pending_push = Default::default();
-                events.extend(page);
-                io.last_difference = (!has_more).then(std::time::Instant::now);
+                )
+            })?;
+            // The difference is authoritative for the cursor. Discard
+            // packets retained behind the gap before using the new state.
+            io.pending_push = Default::default();
+            events.extend(page);
+            io.last_difference = (!has_more).then(std::time::Instant::now);
+        }
+        let now = recovery_now();
+        prepare_channel_recovery(&mut recovery, pending_channels, open_chat, now);
+        // Round robin pages, bounded per poll; a failed channel cannot
+        // prevent the common cursor or another channel from progressing.
+        let recovery_budget = std::time::Instant::now() + std::time::Duration::from_secs(8);
+        for _ in 0..1 {
+            if interactive_request_pending(&client)
+                || defer_recovery
+                || std::time::Instant::now() >= recovery_budget
+            {
+                break;
             }
-            let now = recovery_now();
-            prepare_channel_recovery(&mut recovery, pending_channels, open_chat, now);
-            // Round robin pages, bounded per poll; a failed channel cannot
-            // prevent the common cursor or another channel from progressing.
-            let recovery_budget = std::time::Instant::now() + std::time::Duration::from_secs(8);
-            for _ in 0..1 {
-                if interactive_request_pending(&client)
-                    || std::time::Instant::now() >= recovery_budget
-                {
-                    break;
-                }
-                let Some(index) = recovery.iter().position(|entry| entry.due_at <= now) else {
-                    break;
-                };
-                let entry = recovery.remove(index).unwrap();
-                let chat_id = entry.chat_id;
-                let pts = channel_pts.get(&chat_id).copied().unwrap_or(1);
-                match updates_rpc::drain_channel_difference(
+            let Some(index) = recovery.iter().position(|entry| entry.due_at <= now) else {
+                break;
+            };
+            let entry = recovery.remove(index).unwrap();
+            let chat_id = entry.chat_id;
+            let pts = channel_pts.get(&chat_id).copied().unwrap_or(1);
+            let _span = crate::perf::span("updates.channel_diff");
+            match crate::rpc::with_rpc_timeout_secs(8, || {
+                updates_rpc::drain_channel_difference(
                     &mut io.snapshot,
                     api_id,
                     &mut peers,
                     &mut media,
                     chat_id,
                     pts,
-                ) {
-                    Ok(page) => {
-                        changed = true;
-                        channel_pts.insert(chat_id, page.pts.max(pts));
-                        events.extend(page.events);
-                        finish_channel_recovery(
-                            &mut recovery,
-                            entry,
-                            page.final_page,
-                            page.timeout,
-                            open_chat,
-                            now,
-                        );
-                        prepare_channel_recovery(
-                            &mut recovery,
-                            page.pending_channels,
-                            open_chat,
-                            now,
-                        );
+                )
+            }) {
+                Ok(page) => {
+                    channel_pts.insert(chat_id, page.pts.max(pts));
+                    events.extend(page.events);
+                    finish_channel_recovery(
+                        &mut recovery,
+                        entry,
+                        page.final_page,
+                        page.timeout,
+                        open_chat,
+                        now,
+                    );
+                    prepare_channel_recovery(&mut recovery, page.pending_channels, open_chat, now);
+                }
+                Err(err) => {
+                    if is_unrecoverable_session(&err) {
+                        return Err(err);
                     }
-                    Err(err) => {
-                        if is_unrecoverable_session(&err) {
-                            return Err(err);
-                        }
-                        changed = true;
-                        defer_channel_recovery(&mut recovery, entry, &err, recovery_now());
-                        crate::rpc::drop_live_transport();
-                        break;
-                    }
+                    defer_channel_recovery(&mut recovery, entry, &err, recovery_now());
+                    crate::rpc::drop_live_transport();
+                    break;
                 }
             }
-            cursor = Some(live);
-            let mut saw_chats = false;
-            if seen_messages.len() > 4_000 {
-                seen_messages.clear();
+        }
+        let mut saw_chats = false;
+        if seen_messages.len() > 4_000 {
+            seen_messages.clear();
+        }
+        events.retain(|event| match event {
+            UpdateEventDto::ChatsChanged if saw_chats => false,
+            UpdateEventDto::ChatsChanged => {
+                saw_chats = true;
+                true
             }
-            events.retain(|event| match event {
-                UpdateEventDto::ChatsChanged if saw_chats => false,
-                UpdateEventDto::ChatsChanged => {
-                    saw_chats = true;
-                    true
-                }
-                UpdateEventDto::NewMessage { message } => {
-                    seen_messages.insert((message.chat_id, message.id))
-                }
-                UpdateEventDto::MessageEdited { message } => {
-                    seen_messages.insert((message.chat_id, message.id));
-                    true
-                }
-                UpdateEventDto::MessagesDeleted {
-                    chat_id,
-                    message_ids,
-                } => {
-                    let inferred_chat = *chat_id;
-                    for message_id in message_ids {
-                        if let Some(chat) = inferred_chat {
-                            seen_messages.remove(&(chat, *message_id));
-                        } else {
-                            seen_messages.retain(|(_, id)| id != message_id);
-                        }
+            UpdateEventDto::NewMessage { message } => {
+                seen_messages.insert((message.chat_id, message.id))
+            }
+            UpdateEventDto::MessageEdited { message } => {
+                seen_messages.insert((message.chat_id, message.id));
+                true
+            }
+            UpdateEventDto::MessagesDeleted {
+                chat_id,
+                message_ids,
+            } => {
+                let inferred_chat = *chat_id;
+                for message_id in message_ids {
+                    if let Some(chat) = inferred_chat {
+                        seen_messages.remove(&(chat, *message_id));
+                    } else {
+                        seen_messages.retain(|(_, id)| id != message_id);
                     }
-                    true
                 }
-                _ => true,
-            });
-            Ok(events)
-        })
+                true
+            }
+            _ => true,
+        });
+        Ok((
+            events,
+            Some(AppliedDrain {
+                peers,
+                before_peers,
+                media,
+                before_media,
+                channel_pts,
+                recovery,
+                seen_messages,
+                cursor: Some(live),
+            }),
+        ))
     });
-    let events = match drained {
-        Ok(events) => {
+    let (events, applied) = match drained {
+        Ok(pair) => {
             io.transport = slot;
-            events
+            pair
         }
         Err(err) => {
             io.transport = None;
@@ -319,9 +376,22 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         }
     };
     let new_session = crate::rpc::take_new_session_metadata();
-    if !changed && new_session.is_none() {
+    let Some(applied) = applied else {
+        if let Some(metadata) = new_session {
+            {
+                let mut d = client.data.lock();
+                if d.home_dc == home_dc
+                    && d.home_auth_key == home_auth
+                    && session_lease_valid(&d, session_id)
+                {
+                    d.new_session = Some(metadata);
+                }
+            }
+            persist_updates_data(&client, session_id)?;
+        }
         return Ok(events);
-    }
+    };
+    let persist_needed;
     {
         let mut d = client.data.lock();
         // A completed old-account poll must not repopulate state after logout
@@ -333,12 +403,22 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             io.transport = None;
             return Err(expired_session_lease());
         }
-        merge_changed_entries(&mut d.peers, &before_peers, peers);
-        merge_changed_entries(&mut d.media, &before_media, media);
-        d.updates = prefer_newer_cursor(d.updates.clone(), cursor);
-        d.channel_pts = channel_pts;
-        d.channel_recovery = recovery;
-        d.seen_messages = seen_messages;
+        let peers_changed =
+            merge_changed_entries(&mut d.peers, &applied.before_peers, applied.peers);
+        let media_changed =
+            merge_changed_entries(&mut d.media, &applied.before_media, applied.media);
+        let next_cursor = prefer_newer_cursor(d.updates.clone(), applied.cursor);
+        persist_needed = new_session.is_some()
+            || peers_changed
+            || media_changed
+            || d.channel_pts != applied.channel_pts
+            || d.channel_recovery != applied.recovery
+            || d.seen_messages != applied.seen_messages
+            || next_cursor != d.updates;
+        d.updates = next_cursor;
+        d.channel_pts = applied.channel_pts;
+        d.channel_recovery = applied.recovery;
+        d.seen_messages = applied.seen_messages;
         if new_session.is_some() {
             d.new_session = new_session.clone();
         }
@@ -352,7 +432,15 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         }
     }
     drop(io);
-    persist_updates_data(&client, session_id)?;
+    if persist_needed {
+        crate::perf::count("updates.persist");
+        {
+            let mut d = client.data.lock();
+            d.persist_epoch = d.persist_epoch.saturating_add(1);
+        }
+        let _span = crate::perf::span("updates.persist");
+        persist_updates_data(&client, session_id)?;
+    }
     Ok(events)
 }
 

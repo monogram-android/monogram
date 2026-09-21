@@ -1,7 +1,17 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package org.monogram.feature.dialog.ui
 
 import android.content.res.Configuration
+import android.net.Uri
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.content.MediaType
+import androidx.compose.foundation.content.ReceiveContentListener
+import androidx.compose.foundation.content.TransferableContent
+import androidx.compose.foundation.content.contentReceiver
+import androidx.compose.foundation.content.consume
+import androidx.compose.foundation.content.hasMediaType
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +23,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMenuDropdownProvider
 import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMenuToolbarProvider
@@ -36,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.components.ChatComposerLayout
@@ -43,12 +55,15 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
@@ -70,7 +85,7 @@ import org.monogram.core.ui.ExpressiveDefaults
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.feature.dialog.R
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun DialogWriteBar(
     composer: TextFieldValue,
@@ -91,10 +106,13 @@ internal fun DialogWriteBar(
     onCancelEdit: () -> Unit,
     onClearReply: () -> Unit,
     onClearAttach: () -> Unit,
+    onReceiveMedia: (List<Uri>, TransferableContent?) -> Unit = { _, _ -> },
     onOpenEditor: () -> Unit = {},
+    onSelectionMenuVisibilityChange: (Boolean) -> Unit = {},
     hint: String? = null,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val appearance by AppearanceSettings.state.collectAsStateWithLifecycle()
     val canCompose = canSendPlain || canSendPhotos
     if (!canCompose) {
@@ -220,16 +238,72 @@ internal fun DialogWriteBar(
                             )
                         }
                         val markdownPreview = remember(scheme.primary) {
-                            MarkdownVisualTransformation(scheme.primary)
+                            markdownOutputTransformation(scheme.primary)
+                        }
+                        val textFieldState = rememberTextFieldState(
+                            initialText = composer.text,
+                            initialSelection = composer.selection,
+                        )
+                        val latestComposer by rememberUpdatedState(composer)
+                        val latestComposerChange by rememberUpdatedState(onComposerChange)
+                        val latestReceiveMedia by rememberUpdatedState(onReceiveMedia)
+                        LaunchedEffect(textFieldState) {
+                            snapshotFlow {
+                                TextFieldValue(
+                                    text = textFieldState.text.toString(),
+                                    selection = textFieldState.selection,
+                                    composition = textFieldState.composition,
+                                )
+                            }.collect { updated ->
+                                if (updated != latestComposer) latestComposerChange(updated)
+                            }
+                        }
+                        LaunchedEffect(composer.text, composer.selection) {
+                            if (
+                                textFieldState.text.toString() != composer.text ||
+                                textFieldState.selection != composer.selection
+                            ) {
+                                textFieldState.edit {
+                                    replace(0, length, composer.text)
+                                    selection = composer.selection
+                                }
+                            }
+                        }
+                        val receiveMedia = remember(canSendPhotos, editing) {
+                            ReceiveContentListener { content ->
+                                if (!canSendPhotos || editing || !content.hasMediaType(MediaType.Image)) {
+                                    content
+                                } else {
+                                    val uris = buildList {
+                                        val clip = content.clipEntry.clipData
+                                        for (index in 0 until clip.itemCount) {
+                                            clip.getItemAt(index).uri?.let(::add)
+                                        }
+                                    }.distinct().filter { uri ->
+                                        runCatching {
+                                            context.contentResolver.getType(uri)?.startsWith("image/") == true
+                                        }.getOrDefault(false)
+                                    }
+                                    if (uris.isNotEmpty()) latestReceiveMedia(uris, content)
+                                    content.consume { it.uri in uris }
+                                }
+                            }
                         }
                         val emojiSpans = remember(composer.text) { composerEmojiSpans(composer.text) }
                         val measurer = rememberTextMeasurer()
                         val fieldStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface)
                         var fieldWidth by remember { mutableIntStateOf(0) }
+                        val latestSelectionMenuVisibilityChange by rememberUpdatedState(onSelectionMenuVisibilityChange)
+                        val textToolbar = remember {
+                            ComposerTextToolbar { latestSelectionMenuVisibilityChange(it) }
+                        }
+                        val textContextMenu = remember {
+                            ComposerTextContextMenu { latestSelectionMenuVisibilityChange(it) }
+                        }
                         CompositionLocalProvider(
-                            LocalTextToolbar provides HiddenTextToolbar,
-                            LocalTextContextMenuToolbarProvider provides HiddenTextContextMenu,
-                            LocalTextContextMenuDropdownProvider provides HiddenTextContextMenu,
+                            LocalTextToolbar provides textToolbar,
+                            LocalTextContextMenuToolbarProvider provides textContextMenu,
+                            LocalTextContextMenuDropdownProvider provides textContextMenu,
                         ) {
                             Box(
                                 modifier = Modifier
@@ -237,24 +311,24 @@ internal fun DialogWriteBar(
                                     .padding(start = 2.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
                             ) {
                                 BasicTextField(
-                                    value = composer,
-                                    onValueChange = onComposerChange,
+                                    state = textFieldState,
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .contentReceiver(receiveMedia)
                                         .onSizeChanged { fieldWidth = it.width },
                                     enabled = editing || canSendPlain,
-                                    visualTransformation = markdownPreview,
+                                    outputTransformation = markdownPreview,
                                     textStyle = fieldStyle,
                                     cursorBrush = SolidColor(scheme.primary),
-                                    maxLines = 4,
+                                    lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 4),
                                     keyboardOptions = KeyboardOptions(
                                         capitalization = KeyboardCapitalization.Sentences,
                                         keyboardType = KeyboardType.Text,
                                         imeAction = if (appearance.sendByEnter) ImeAction.Send else ImeAction.Default,
                                     ),
-                                    keyboardActions = KeyboardActions(
-                                        onSend = { if (appearance.sendByEnter && sendEnabled) onSend() },
-                                    ),
+                                    onKeyboardAction = {
+                                        if (appearance.sendByEnter && sendEnabled) onSend()
+                                    },
                                 )
                                 if (emojiSpans.isNotEmpty() && fieldWidth > 0) {
                                     val collapsed = collapseCustomEmojiMarkdown(composer.text)?.text?.text

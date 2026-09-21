@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="chats_share_recipient">Ում ուղարկել</string>
+    <string name="chats_share_cancel">Չեղարկել</string>
     <string name="chats_settings">Կարգավորումներ</string>
     <string name="chats_profile">Ես</string>
     <string name="chats_my_profile">Իմ պրոֆիլը</string>

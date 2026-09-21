@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recipient_messages">Հաղորդագրություններ՝ %1$d</string>
+    <string name="recipient_files">Կցորդներ՝ %1$d</string>
+    <string name="recipient_hide_author">Թաքցնել ուղարկողների անունները</string>
+    <string name="recipient_comment">Ավելացնել մեկնաբանություն</string>
+    <string name="recipient_send">Ուղարկել (%1$d)</string>
+    <string name="recipient_sending">Ուղարկվում է՝ %1$d-ը %2$d-ից</string>
+    <string name="recipient_error">Չհաջողվեց ավարտել: Փորձեք նորից՝ շարունակելու համար</string>
+    <string name="recipient_retry">Կրկնել</string>
+    <string name="recipient_interrupted">Ուղարկումն ընդհատվել է: Կրկին ուղարկելուց առաջ ստուգեք նպատակային չաթերը</string>
     <string name="app_name">Monogram</string>
     <string name="app_description">Telegram-ի ոչ պաշտոնական հավելված</string>
     <string name="home_tab_chats">Զրույցներ</string>

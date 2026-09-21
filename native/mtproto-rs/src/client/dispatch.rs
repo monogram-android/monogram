@@ -26,7 +26,6 @@ pub fn get_chats(handle: u64) -> Result<Vec<ChatDto>, MtprotoError> {
                 )
             })
         })?;
-        persist(state)?;
         remember_dialogs(handle, &chats);
         Ok(chats)
     })
@@ -37,7 +36,6 @@ pub fn update_folder(handle: u64, folder: FolderDto) -> Result<(), MtprotoError>
         call_with_migrate(state, |state| {
             dialogs::update_folder(&mut state.snapshot, state.api_id, &state.peers, &folder)
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -47,7 +45,6 @@ pub fn delete_folder(handle: u64, id: i32) -> Result<(), MtprotoError> {
         call_with_migrate(state, |state| {
             dialogs::delete_folder(&mut state.snapshot, state.api_id, id)
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -57,7 +54,6 @@ pub fn update_folder_order(handle: u64, order: Vec<i32>) -> Result<(), MtprotoEr
         call_with_migrate(state, |state| {
             dialogs::update_folder_order(&mut state.snapshot, state.api_id, &order)
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -69,7 +65,6 @@ pub fn get_folders(handle: u64) -> Result<Vec<FolderDto>, MtprotoError> {
                 dialogs::get_folders(&mut state.snapshot, state.api_id, &state.peers)
             })
         })?;
-        persist(state)?;
         Ok(folders)
     })
 }
@@ -88,7 +83,6 @@ pub fn get_group_admin_tags(handle: u64, chat_id: i64) -> Result<String, Mtproto
                 })
             })
         })?;
-        persist(state)?;
         Ok(tags)
     })
 }
@@ -110,7 +104,6 @@ pub fn get_profile(handle: u64, peer_id: i64) -> Result<ProfileDto, MtprotoError
                 })
             })
         })?;
-        persist(state)?;
         Ok(profile)
     })
 }
@@ -135,7 +128,6 @@ pub fn get_search_counters(
                 })
             })
         })?;
-        persist(state)?;
         Ok(json)
     })
 }
@@ -167,7 +159,6 @@ pub fn get_participants(
                 })
             })
         })?;
-        persist(state)?;
         Ok(json)
     })
 }
@@ -195,7 +186,6 @@ pub fn get_common_chats(
                 })
             })
         })?;
-        persist(state)?;
         Ok(json)
     })
 }
@@ -224,7 +214,6 @@ pub fn load_more_chats(
                 )
             })
         })?;
-        persist(state)?;
         remember_dialogs(handle, &chats);
         Ok(chats)
     })
@@ -302,7 +291,6 @@ pub fn get_history(
                 history_with_peer_refresh(state, chat_id, limit, offset_id, offset_date, add_offset)
             })
         })?;
-        persist(state)?;
         Ok(messages)
     })
 }
@@ -408,7 +396,6 @@ pub fn search_messages(
                 limit,
             )
         })?;
-        persist(state)?;
         Ok(messages)
     })
 }
@@ -439,7 +426,6 @@ pub fn search_messages_filtered(
                 )
             })
         })?;
-        persist(state)?;
         Ok(messages)
     })
 }
@@ -460,7 +446,6 @@ pub fn contacts_search(
                 limit,
             )
         })?;
-        persist(state)?;
         Ok(dto)
     })
 }
@@ -487,7 +472,6 @@ pub fn search_global(
                 limit,
             )
         })?;
-        persist(state)?;
         Ok(dto)
     })
 }
@@ -510,7 +494,6 @@ pub fn get_pinned_messages(
                 )
             })
         })?;
-        persist(state)?;
         Ok(messages)
     })
 }
@@ -539,7 +522,6 @@ pub fn send_text_message(
                 )
             })
         })?;
-        persist(state)?;
         Ok(sent)
     })
 }
@@ -636,7 +618,6 @@ pub fn send_photo_message(
                 },
             )
         })?;
-        persist(state)?;
         Ok(sent)
     })
 }
@@ -671,7 +652,6 @@ pub fn send_uploaded_media(
                 },
             )
         })?;
-        persist(state)?;
         Ok(sent)
     })
 }
@@ -704,7 +684,6 @@ pub fn send_uploaded_album(
                 )
             })
         })?;
-        persist(state)?;
         Ok(sent)
     })
 }
@@ -712,8 +691,9 @@ pub fn send_uploaded_album(
 pub fn forward_messages(
     handle: u64,
     from_chat_id: i64,
-    message_id: i32,
+    message_ids: Vec<i32>,
     to_chat_id: i64,
+    drop_author: bool,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
     with_client_mut(handle, |state| {
         let sent = crate::rpc::with_rpc_timeout_secs(15, || {
@@ -724,12 +704,12 @@ pub fn forward_messages(
                     &state.peers,
                     &mut state.media,
                     from_chat_id,
-                    message_id,
+                    message_ids.clone(),
                     to_chat_id,
+                    drop_author,
                 )
             })
         })?;
-        persist(state)?;
         Ok(sent)
     })
 }
@@ -756,7 +736,6 @@ pub fn edit_text_message(
                 )
             })
         })?;
-        persist(state)?;
         Ok(sent)
     })
 }
@@ -780,7 +759,6 @@ pub fn delete_message(
                 )
             })
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -798,7 +776,6 @@ pub fn read_history(handle: u64, chat_id: i64, max_id: i32) -> Result<(), Mtprot
                 )
             })
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -820,7 +797,6 @@ pub fn read_message_contents(
                 )
             })
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -838,7 +814,6 @@ pub fn mark_dialog_unread(handle: u64, chat_id: i64, unread: bool) -> Result<(),
                 )
             })
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -871,7 +846,6 @@ pub fn get_unread_mentions(
                 })
             })
         })?;
-        persist(state)?;
         Ok(messages)
     })
 }
@@ -889,7 +863,6 @@ pub fn read_mentions(handle: u64, chat_id: i64, top_msg_id: i32) -> Result<(), M
                 )
             })
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -922,7 +895,6 @@ pub fn get_unread_reactions(
                 })
             })
         })?;
-        persist(state)?;
         Ok(messages)
     })
 }
@@ -940,7 +912,6 @@ pub fn read_reactions(handle: u64, chat_id: i64, top_msg_id: i32) -> Result<(), 
                 )
             })
         })?;
-        persist(state)?;
         Ok(())
     })
 }
@@ -964,7 +935,6 @@ pub fn read_discussion(
                 )
             })
         })?;
-        persist(state)?;
         Ok(())
     })
 }

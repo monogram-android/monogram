@@ -18,7 +18,10 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
@@ -76,8 +79,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
@@ -151,11 +159,12 @@ import org.monogram.feature.dialog.dialogSyncStatus
 import org.monogram.feature.dialog.followBottomFromScroll
 import org.monogram.feature.dialog.historyPagingAllowed
 import org.monogram.feature.dialog.isAlbumHead
-import org.monogram.feature.dialog.liftAnchorTarget
+import org.monogram.feature.dialog.messageRowIndex
 import org.monogram.feature.dialog.shouldFollowIncomingNewest
 import org.monogram.feature.dialog.shouldPageNewer
 import org.monogram.feature.dialog.shouldPageOlder
 import org.monogram.feature.dialog.unreadDividerIndex
+import org.monogram.feature.dialog.visibleAlbumMessageIds
 import org.monogram.network.http.MediaPriority
 import java.io.File
 import java.time.ZoneId
@@ -170,6 +179,7 @@ internal fun ColumnScope.DialogHistoryPane(
     state: DialogStore.State,
     composer: androidx.compose.runtime.MutableState<TextFieldValue>,
     selectingMessageId: androidx.compose.runtime.MutableState<Int?>,
+    selectedMessageIds: androidx.compose.runtime.MutableState<List<Int>>,
     packDocumentId: androidx.compose.runtime.MutableState<Long?>,
     instantViewUrl: androidx.compose.runtime.MutableState<String?>,
     instantViewHash: androidx.compose.runtime.MutableIntState,
@@ -187,8 +197,11 @@ internal fun ColumnScope.DialogHistoryPane(
     var previousNewestId by rememberSaveable(state.chatId.value) { mutableStateOf<Int?>(null) }
     var menuMessageId by rememberSaveable { mutableStateOf<Int?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
+    val menuVisibility = remember { MutableTransitionState(false) }
+    menuVisibility.targetState = menuExpanded
     var menuTouch by remember { mutableStateOf<Offset?>(null) }
     var selectingMessageId by selectingMessageId
+    var selectedIds by selectedMessageIds
     var packDocumentId by packDocumentId
     var instantViewUrl by instantViewUrl
     var instantViewHash by instantViewHash
@@ -196,14 +209,14 @@ internal fun ColumnScope.DialogHistoryPane(
     var taskDraftFor by taskDraftFor
     var peerListId by peerListId
     var peerListKind by peerListKind
-    LaunchedEffect(menuExpanded, menuMessageId) {
-        if (!menuExpanded) {
-            delay(160)
+    LaunchedEffect(menuExpanded, menuVisibility.isIdle, menuVisibility.currentState) {
+        if (!menuExpanded && menuVisibility.isIdle && !menuVisibility.currentState) {
             menuMessageId = null
         }
     }
     val menuMessage = state.messages.firstOrNull { it.id.id == menuMessageId }
     val selectingMessage = state.messages.firstOrNull { it.id.id == selectingMessageId }
+    val multiSelecting = selectedIds.isNotEmpty()
     val appearance by AppearanceSettings.state.collectAsState()
     val pinned = state.pinnedMessages.getOrNull(state.pinnedIndex)
         ?: state.pinnedMessages.firstOrNull()
@@ -298,30 +311,34 @@ internal fun ColumnScope.DialogHistoryPane(
                         state.hasNewer,
                     )
                 }
+                val unreadRow = unreadAt?.let { messageRowIndex(state.messages, state.messages[it].id.id) }
                 LaunchedEffect(state.anchorMessageId, state.messages.size, state.anchorAtTop) {
                     val anchor = state.anchorMessageId ?: return@LaunchedEffect
                     if (anchor == lastScrolledAnchor) return@LaunchedEffect
-                    val alreadyVisible = listState.firstVisibleItemIndex == 0 &&
+                    val alreadyVisible = !state.anchorAtTop && listState.firstVisibleItemIndex == 0 &&
                         state.messages.firstOrNull()?.id?.id == anchor
                     if (alreadyVisible) {
                         lastScrolledAnchor = anchor
                         return@LaunchedEffect
                     }
-                    val index = messageHeads.indexOfFirst { it.second.id.id == anchor }
+                    val index = messageRowIndex(state.messages, anchor)
                     if (index >= 0) {
-                        if (index > 1) followBottom = false
+                        if (state.anchorAtTop || index > 1) followBottom = false
                         listState.scrollToItem(index)
-                        lastScrolledAnchor = anchor
                         if (state.anchorAtTop) {
                             // A reversed list aligns the row to the bottom edge; the first unread
                             // belongs at the top edge with the unread messages below it.
                             repeat(3) {
                                 withFrameNanos { }
-                                val visible = listState.layoutInfo.visibleItemsInfo.map { it.index }
-                                val target = liftAnchorTarget(visible, index) ?: return@repeat
-                                listState.scrollToItem(target)
+                                val layout = listState.layoutInfo
+                                val row = layout.visibleItemsInfo.firstOrNull { it.index == index }
+                                    ?: return@repeat
+                                val height = layout.viewportSize.height -
+                                    layout.beforeContentPadding - layout.afterContentPadding
+                                listState.scrollToItem(index, row.size - height)
                             }
                         }
+                        lastScrolledAnchor = anchor
                     }
                 }
                 LaunchedEffect(listState, state.messages.size, state.hasOlder, state.loadingOlder) {
@@ -374,9 +391,10 @@ internal fun ColumnScope.DialogHistoryPane(
                 }
                 LaunchedEffect(listState, state.chatId, messageHeads) {
                     snapshotFlow {
-                        listState.layoutInfo.visibleItemsInfo.mapNotNull { info ->
-                            messageHeads.getOrNull(info.index)?.second?.id?.id
-                        }.toSet()
+                        visibleAlbumMessageIds(
+                            state.messages,
+                            listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.index },
+                        )
                     }.collect { ids ->
                         component.onVisibleWindow(ids)
                     }
@@ -416,15 +434,32 @@ internal fun ColumnScope.DialogHistoryPane(
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
-                        Column(modifier = listItemMotion(animateAppearance = message.pending)) {
+                        Column(modifier = listItemMotion(animateAppearance = true, animatePlacement = false)) {
                             if (newDay) {
                                 DialogDateSeparator(epochSeconds = message.date, zone = zone)
                             }
-                            Box(modifier = Modifier.fillMaxWidth()) {
+                            val selectableForForwarding = album.all(::isForwardSelectionCandidate)
+                            val selectedForForwarding = album.any { it.id.id in selectedIds }
+                            val rowModifier = if (multiSelecting && selectableForForwarding) {
+                                (if (selectedForForwarding) {
+                                    Modifier.background(MaterialTheme.colorScheme.secondaryContainer)
+                                } else {
+                                    Modifier
+                                })
+                                    .forwardSelectionTap(
+                                        selected = selectedForForwarding,
+                                        onToggle = {
+                                            selectedIds = toggleForwardSelection(selectedIds, album)
+                                        },
+                                    )
+                            } else {
+                                Modifier
+                            }
+                            Box(modifier = Modifier.fillMaxWidth().then(rowModifier)) {
                             val quoted = message.replyToMsgId?.let(messageById::get)
                             val caption = album.firstOrNull { !it.text.isNullOrBlank() }
                             SwipeToReply(
-                                enabled = menuMessage == null && selectingMessage == null &&
+                                enabled = menuMessage == null && selectingMessage == null && !multiSelecting &&
                                     message.mediaKind != "service" && !message.pending && message.id.id > 0 &&
                                     (state.canSendPlain || state.canSendPhotos),
                                 onReply = { component.onReply(message) },
@@ -462,7 +497,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                 onOpenForwardSource = message.fwdFromId?.let { id ->
                                     { component.onOpenPeer(PeerId(id)) }
                                 },
-                                onOpenMenu = { position ->
+                                onOpenMenu = if (multiSelecting) null else { position ->
                                     selectingMessageId = null
                                     menuTouch = position
                                     menuMessageId = message.id.id
@@ -509,7 +544,9 @@ internal fun ColumnScope.DialogHistoryPane(
                                 modifier = Modifier.padding(top = if (joinsOlder) 0.dp else 6.dp),
                             )
                             }
-                            if (menuMessage?.id == message.id) {
+                            if (menuMessage?.id == message.id &&
+                                (!menuVisibility.isIdle || menuVisibility.currentState || menuVisibility.targetState)
+                            ) {
                             val menuPlacement = remember { AppMenuPlacementState() }
                             AppMenuScrimPopup(
                                 visible = menuExpanded,
@@ -529,6 +566,7 @@ internal fun ColumnScope.DialogHistoryPane(
                             ) {
                             MessageActionMenu(
                                 expanded = menuExpanded,
+                                visibilityState = menuVisibility,
                                 message = menuMessage,
                                 actions = messageMenuActions(state, message),
                                 outgoing = message.outgoing,
@@ -566,7 +604,10 @@ internal fun ColumnScope.DialogHistoryPane(
                                         }
                                     }
                                 },
-                                onSelect = { selectingMessageId = it.id.id },
+                                onSelectText = { selectingMessageId = it.id.id },
+                                onSelectForForwarding = {
+                                    selectedIds = toggleForwardSelection(selectedIds, album)
+                                },
                                 onEdit = component::onEdit,
                                 onDelete = { pendingDeleteId = it.id.id },
                                 onForward = component::onForwardPick,
@@ -676,7 +717,7 @@ internal fun ColumnScope.DialogHistoryPane(
                         Box {
                             SmallFloatingActionButton(
                                 onClick = {
-                                    if (unreadAt != null && firstVisible > unreadAt) {
+                                    if (unreadRow != null && firstVisible > unreadRow) {
                                         // Re-arm the anchor: the same unread message may be tapped twice.
                                         lastScrolledAnchor = null
                                         component.onJumpUnread()
@@ -693,7 +734,7 @@ internal fun ColumnScope.DialogHistoryPane(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.KeyboardArrowDown,
-                                    contentDescription = if (unreadAt != null && firstVisible > unreadAt) {
+                                    contentDescription = if (unreadRow != null && firstVisible > unreadRow) {
                                         stringResource(R.string.dialog_jump_unread)
                                     } else {
                                         stringResource(R.string.dialog_jump_latest)
@@ -763,5 +804,33 @@ internal fun ColumnScope.DialogHistoryPane(
             }
         }
         }
+    }
+}
+
+private fun Modifier.forwardSelectionTap(
+    selected: Boolean,
+    onToggle: () -> Unit,
+): Modifier = semantics(mergeDescendants = true) {
+    role = Role.Checkbox
+    toggleableState = if (selected) ToggleableState.On else ToggleableState.Off
+    onClick {
+        onToggle()
+        true
+    }
+}.pointerInput(onToggle) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        var moved = false
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop || change.isConsumed) {
+                moved = true
+            }
+            if (!change.pressed && !moved) {
+                change.consume()
+                onToggle()
+            }
+        } while (event.changes.any { it.pressed })
     }
 }

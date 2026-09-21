@@ -50,7 +50,7 @@ fn detailed_info_resends_missing_answer_and_acknowledges_received_answer() {
 #[test]
 fn push_reader_authenticates_buffered_frame_and_parks_socket() {
     use tellers_mtproto::latest::api::UpdatesTooLongConstructor;
-    use tellers_mtproto_crypto::{Direction, MessageToEncrypt, encrypt_message};
+    use tellers_mtproto_crypto::{encrypt_message, Direction, MessageToEncrypt};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let mut transport =
         open_live_addr(2, &listener.local_addr().unwrap().to_string(), None, 1).unwrap();
@@ -81,6 +81,46 @@ fn push_reader_authenticates_buffered_frame_and_parks_socket() {
     assert_eq!(updates, vec![body]);
     assert!(slot.is_some());
     assert!(snapshot.received_message_ids.contains_key(&message_id));
+}
+
+#[test]
+fn push_reader_drains_already_complete_buffered_frames() {
+    use tellers_mtproto::latest::api::UpdatesTooLongConstructor;
+    use tellers_mtproto_crypto::{encrypt_message, Direction, MessageToEncrypt};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut transport =
+        open_live_addr(2, &listener.local_addr().unwrap().to_string(), None, 1).unwrap();
+    let (_peer, _) = listener.accept().unwrap();
+    let mut snapshot = Snapshot::new(2, &mut OsRandom).unwrap();
+    snapshot.auth_key = Some(vec![7; 256]);
+    let body = UpdatesTooLongConstructor::ID.to_le_bytes().to_vec();
+    let base_id = ((SystemClock.unix_micros() / 1_000_000) << 32) | 1;
+    for (offset, message_id) in [base_id, base_id + 4].into_iter().enumerate() {
+        let packet = encrypt_message(
+            snapshot.auth_key.as_ref().unwrap(),
+            MessageToEncrypt {
+                server_salt: 0,
+                session_id: snapshot.session_id,
+                message_id,
+                sequence: 1 + offset as i32,
+                body: &body,
+                padding: &[3; 12],
+            },
+            Direction::ServerToClient,
+        )
+        .unwrap();
+        transport
+            .input
+            .extend_from_slice(&(packet.len() as u32).to_le_bytes());
+        transport.input.extend_from_slice(&packet);
+    }
+    let mut slot = Some(transport);
+    let updates = with_live_transport(&mut slot, || receive_updates(&mut snapshot)).unwrap();
+    assert_eq!(updates, vec![body.clone(), body]);
+    assert!(slot.is_some());
+    assert!(snapshot.received_message_ids.contains_key(&base_id));
+    assert!(snapshot.received_message_ids.contains_key(&(base_id + 4)));
+    assert!(slot.as_ref().unwrap().input.is_empty());
 }
 
 #[test]
@@ -144,17 +184,13 @@ fn supervisor_cancellation_does_not_open_or_retry_socket() {
     control.close();
     tcp::with_connection_control(&control, || {
         let mut supervisor = ConnectionSupervisor::acquire(2).unwrap();
-        assert!(
-            supervisor
-                .backoff(std::time::Duration::from_secs(60))
-                .is_err()
-        );
+        assert!(supervisor
+            .backoff(std::time::Duration::from_secs(60))
+            .is_err());
         assert_eq!(supervisor.state, ConnectionState::Disconnected);
-        assert!(
-            supervisor
-                .connect(|| panic!("cancelled connection opened"))
-                .is_err()
-        );
+        assert!(supervisor
+            .connect(|| panic!("cancelled connection opened"))
+            .is_err());
     });
 }
 
@@ -166,11 +202,9 @@ fn supervisor_closes_failed_socket_before_replacement_and_parks_ready_socket() {
     let mut slot = None;
     with_live_transport(&mut slot, || {
         let mut supervisor = ConnectionSupervisor::acquire(2).unwrap();
-        assert!(
-            !supervisor
-                .connect(|| open_live_addr(2, &addr, None, 1))
-                .unwrap()
-        );
+        assert!(!supervisor
+            .connect(|| open_live_addr(2, &addr, None, 1))
+            .unwrap());
         assert_eq!(supervisor.state, ConnectionState::Handshaking);
         let (mut peer, _) = listener.accept().unwrap();
         peer.set_read_timeout(Some(std::time::Duration::from_secs(1)))
@@ -178,22 +212,18 @@ fn supervisor_closes_failed_socket_before_replacement_and_parks_ready_socket() {
         peer.read_exact(&mut [0; 64]).unwrap();
         supervisor.backoff(std::time::Duration::ZERO).unwrap();
         assert_eq!(peer.read(&mut [0; 1]).unwrap(), 0);
-        assert!(
-            !supervisor
-                .connect(|| open_live_addr(2, &addr, None, 1))
-                .unwrap()
-        );
+        assert!(!supervisor
+            .connect(|| open_live_addr(2, &addr, None, 1))
+            .unwrap());
         supervisor.park_ready();
         assert_eq!(supervisor.state, ConnectionState::Ready);
     });
     assert!(slot.is_some());
     with_live_transport(&mut slot, || {
         let mut supervisor = ConnectionSupervisor::acquire(2).unwrap();
-        assert!(
-            supervisor
-                .connect(|| panic!("healthy connection replaced"))
-                .unwrap()
-        );
+        assert!(supervisor
+            .connect(|| panic!("healthy connection replaced"))
+            .unwrap());
         // Error/unwind drops the unparked transport and releases the lane.
     });
     assert!(slot.is_none());
@@ -203,13 +233,11 @@ fn supervisor_closes_failed_socket_before_replacement_and_parks_ready_socket() {
 fn supervisor_unwind_releases_retry_owner() {
     let mut slot = None;
     with_live_transport(&mut slot, || {
-        assert!(
-            std::panic::catch_unwind(|| {
-                let _owner = ConnectionSupervisor::acquire(2).unwrap();
-                panic!("test unwind");
-            })
-            .is_err()
-        );
+        assert!(std::panic::catch_unwind(|| {
+            let _owner = ConnectionSupervisor::acquire(2).unwrap();
+            panic!("test unwind");
+        })
+        .is_err());
         assert!(ConnectionSupervisor::acquire(2).is_ok());
     });
 }
@@ -367,11 +395,9 @@ fn container_with_vector_ctor_still_finds_rpc_result() {
     body.extend_from_slice(&1_i32.to_le_bytes());
     body.extend(pack_container_message(9, 1, &rpc));
     let events = parse_service_or_result(&body).expect("vector ctor container");
-    assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, InboundEvent::RpcResult { req_msg_id: 7, .. }))
-    );
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, InboundEvent::RpcResult { req_msg_id: 7, .. })));
 }
 
 #[test]
@@ -541,11 +567,9 @@ fn msg_copy_extracts_inner_rpc_result() {
     let mut body = MSG_COPY.to_le_bytes().to_vec();
     body.extend(pack_container_message(8, 1, &rpc));
     let events = parse_service_or_result(&body).expect("msg_copy");
-    assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, InboundEvent::RpcResult { req_msg_id: 5, .. }))
-    );
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, InboundEvent::RpcResult { req_msg_id: 5, .. })));
 }
 
 #[test]
@@ -684,19 +708,15 @@ fn uncertain_mutations_are_not_replayed() {
         message_id: outbound.message_id,
         attempts: 1,
     };
-    assert!(
-        engine
-            .fail_request(outbound.message_id, 0, &timeout)
-            .is_err()
-    );
+    assert!(engine
+        .fail_request(outbound.message_id, 0, &timeout)
+        .is_err());
     assert_eq!(engine.pending_count(), 0);
     assert!(engine.next_outbound().is_none());
-    assert!(
-        engine
-            .take_response::<RawMethod>(&handle)
-            .unwrap()
-            .is_none()
-    );
+    assert!(engine
+        .take_response::<RawMethod>(&handle)
+        .unwrap()
+        .is_none());
 }
 
 #[test]
@@ -756,17 +776,13 @@ fn late_rpc_error_does_not_complete_current_request() {
         error_message: "SESSION_EXPIRED".into(),
     })
     .unwrap();
-    assert!(
-        engine
-            .receive_result(outbound.message_id - 4, error, 3)
-            .is_err()
-    );
-    assert!(
-        engine
-            .take_response::<RawMethod>(&handle)
-            .unwrap()
-            .is_none()
-    );
+    assert!(engine
+        .receive_result(outbound.message_id - 4, error, 3)
+        .is_err());
+    assert!(engine
+        .take_response::<RawMethod>(&handle)
+        .unwrap()
+        .is_none());
     engine
         .receive_result(outbound.message_id, vec![7; 4], 5)
         .unwrap();
@@ -778,7 +794,7 @@ fn late_rpc_error_does_not_complete_current_request() {
 
 #[test]
 fn inbound_envelopes_enforce_authentication_session_replay_and_time() {
-    use tellers_mtproto_crypto::{Direction, MessageToEncrypt, encrypt_message};
+    use tellers_mtproto_crypto::{encrypt_message, Direction, MessageToEncrypt};
     struct FixedClock;
     impl Clock for FixedClock {
         fn unix_micros(&self) -> i64 {
@@ -826,23 +842,17 @@ fn inbound_envelopes_enforce_authentication_session_replay_and_time() {
     ));
     let mut tampered = packet;
     tampered[8] ^= 1;
-    assert!(
-        engine
-            .open_inbound(&tampered, &FixedClock, true, 1024)
-            .is_err()
-    );
+    assert!(engine
+        .open_inbound(&tampered, &FixedClock, true, 1024)
+        .is_err());
     let wrong_session = seal(snapshot.session_id ^ 1, server_id + 4, &[3; 12]).unwrap();
-    assert!(
-        engine
-            .open_inbound(&wrong_session, &FixedClock, true, 1024)
-            .is_err()
-    );
+    assert!(engine
+        .open_inbound(&wrong_session, &FixedClock, true, 1024)
+        .is_err());
     let even_id = seal(snapshot.session_id, server_id + 1, &[3; 12]).unwrap();
-    assert!(
-        engine
-            .open_inbound(&even_id, &FixedClock, true, 1024)
-            .is_err()
-    );
+    assert!(engine
+        .open_inbound(&even_id, &FixedClock, true, 1024)
+        .is_err());
     for seconds in [-301_i64, 31] {
         let packet = seal(
             snapshot.session_id,
@@ -960,11 +970,9 @@ fn pong_is_liveness_not_ignored() {
     body.extend_from_slice(&11_i64.to_le_bytes());
     body.extend_from_slice(&99_i64.to_le_bytes());
     let events = parse_service_or_result(&body).expect("pong");
-    assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, InboundEvent::Pong { ping_id: 99 }))
-    );
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, InboundEvent::Pong { ping_id: 99 })));
 }
 
 #[test]
@@ -1035,6 +1043,9 @@ fn clock_delta_repairs_300s_skew() {
 #[test]
 fn eagain_is_waitable_not_dead_transport() {
     assert!(is_waitable_io("connection error: Try again (os error 11)"));
+    assert!(is_waitable_io(
+        "connection error: connection timed out (os error 10060)"
+    ));
     assert!(!is_transport_error(&MtprotoError::Message(
         "connection error: Try again (os error 11)".into(),
     )));

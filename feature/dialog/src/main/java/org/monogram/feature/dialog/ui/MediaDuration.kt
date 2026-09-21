@@ -98,6 +98,18 @@ internal fun isEdgeMediaKind(kind: String?): Boolean = when (kind) {
     else -> false
 }
 
+internal fun shouldOverlayMediaMeta(
+    stickerOnly: Boolean,
+    edgeVisualMedia: Boolean,
+    mediaCaption: Boolean,
+): Boolean = stickerOnly || (edgeVisualMedia && !mediaCaption)
+
+internal fun shouldBleedMediaBottom(
+    edgeMedia: Boolean,
+    mediaCaption: Boolean,
+    hasComments: Boolean,
+): Boolean = edgeMedia && !mediaCaption && !hasComments
+
 private fun mediaFallbackAspect(kind: String?): Float = when (kind) {
     "video", "gif" -> VIDEO_DEFAULT_ASPECT
     else -> PHOTO_DEFAULT_ASPECT

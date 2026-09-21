@@ -282,6 +282,16 @@ class FolderMembershipTest {
     }
 
     @Test
+    fun paintDialogsWindowCanKeepTheFullArchive() {
+        val chats = (1..10).map { chat(it.toLong(), date = it.toLong(), archived = true) } +
+            chat(100, date = 100)
+        val (paint, tail) = paintDialogsWindow(chats, limit = 12, archiveLimit = 10)
+        assertEquals(10, paint.count { it.archived })
+        assertTrue(tail.none { it.archived })
+        assertEquals(listOf(100L), paint.filter { !it.archived }.map { it.id.value })
+    }
+
+    @Test
     fun paintDialogsWindowKeepsArchivedAndLeftOutOfTheMainWindow() {
         val chats = listOf(
             chat(1, date = 10),

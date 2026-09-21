@@ -8,14 +8,17 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 
-fun LazyItemScope.listItemMotion(animateAppearance: Boolean = true): Modifier = Modifier.animateItem(
+fun LazyItemScope.listItemMotion(
+    animateAppearance: Boolean = true,
+    animatePlacement: Boolean = true,
+): Modifier = Modifier.animateItem(
     fadeInSpec = if (animateAppearance) tween(durationMillis = 220) else null,
     fadeOutSpec = if (animateAppearance) tween(durationMillis = 160) else null,
-    placementSpec = spring(
+    placementSpec = if (animatePlacement) spring(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessMediumLow,
         visibilityThreshold = IntOffset.VisibilityThreshold,
-    ),
+    ) else null,
 )
 
 /** Chat list: fade new rows, never slide existing ones when order updates. */

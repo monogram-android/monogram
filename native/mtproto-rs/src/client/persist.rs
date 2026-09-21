@@ -1,10 +1,10 @@
 use std::cell::Cell;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
-use crate::MtprotoError;
-use crate::session_file::{ClientSession, FileSessionStore, media_from_index};
+use crate::session_file::{media_from_index, ClientSession, FileSessionStore};
 use crate::tcp;
+use crate::MtprotoError;
 
 use super::*;
 
@@ -97,7 +97,14 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(
         test_dc,
     };
     tcp::with_connection_control(&client.connections, || store.save(&session))
-        .map_err(|e| MtprotoError::Message(e.to_string()))
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    {
+        let mut d = client.data.lock();
+        if session_lease_valid(&d, session_id) {
+            d.persisted_epoch = d.persist_epoch;
+        }
+    }
+    Ok(())
 }
 
 /// Coalesce session writes so getHistory/getChats can return before disk I/O.
@@ -110,22 +117,38 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
     let client = Arc::clone(client);
     let _ = std::thread::Builder::new()
         .name("mtproto-persist".into())
-        .spawn(move || {
-            loop {
-                client.persist_queued.store(false, Ordering::Release);
+        .spawn(move || loop {
+            client.persist_queued.store(false, Ordering::Release);
+            let skip = {
+                let d = client.data.lock();
+                d.persist_epoch == d.persisted_epoch
+            };
+            if !skip {
                 let span = crate::perf::span("persist_session");
                 let _ = persist_updates_data(&client, session_id);
                 drop(span);
-                if client.persist_queued.load(Ordering::Acquire) {
-                    continue;
-                }
-                client.persist_running.store(false, Ordering::Release);
-                if client.persist_queued.load(Ordering::Acquire)
-                    && !client.persist_running.swap(true, Ordering::AcqRel)
-                {
-                    continue;
-                }
-                break;
             }
+            if client.persist_queued.load(Ordering::Acquire) {
+                continue;
+            }
+            client.persist_running.store(false, Ordering::Release);
+            if client.persist_queued.load(Ordering::Acquire)
+                && !client.persist_running.swap(true, Ordering::AcqRel)
+            {
+                continue;
+            }
+            break;
         });
+}
+
+pub(crate) fn flush_persist(client: &Arc<Client>) {
+    let session_id = client.data.lock().home_session_id;
+    schedule_persist(client, session_id);
+    let started = std::time::Instant::now();
+    while (client.persist_running.load(Ordering::Acquire)
+        || client.persist_queued.load(Ordering::Acquire))
+        && started.elapsed() < std::time::Duration::from_secs(2)
+    {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
 }

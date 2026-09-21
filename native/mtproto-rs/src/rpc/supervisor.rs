@@ -1,7 +1,7 @@
-use crate::MtprotoError;
 use crate::tcp;
+use crate::MtprotoError;
 
-use super::live::{LiveTransport, SUPERVISING, put_live, take_live};
+use super::live::{put_live, take_live, LiveTransport, SUPERVISING};
 
 pub(crate) fn is_waitable_io(message: &str) -> bool {
     let lower = message.to_ascii_lowercase();
@@ -12,6 +12,8 @@ pub(crate) fn is_waitable_io(message: &str) -> bool {
         || lower.contains("os error 11")
         || lower.contains("os error 35")
         || lower.contains("os error 60")
+        || lower.contains("os error 10060")
+        || lower.contains("wsaetimedout")
         || lower.contains("resource temporarily unavailable")
 }
 

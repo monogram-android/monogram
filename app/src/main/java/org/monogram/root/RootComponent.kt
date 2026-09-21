@@ -58,6 +58,7 @@ class RootComponent(
     private val accountState: AccountState = AccountState(),
     private val pushRegistration: PushRegistration? = null,
     private val notificationLocal: NotificationLocalStore? = null,
+    private val onIncomingShareConsumed: () -> Unit = {},
 ) : ComponentContext by componentContext {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -65,6 +66,11 @@ class RootComponent(
     private var expiringSession = false
     private var accountFlagsVersion = 0L
     private var listDetailVisible = false
+    private val incomingShareState = kotlinx.coroutines.flow.MutableStateFlow<IncomingShare?>(null)
+    val incomingShare: kotlinx.coroutines.flow.StateFlow<IncomingShare?> = incomingShareState
+    private var pendingIncomingShare: IncomingShare?
+        get() = incomingShareState.value
+        set(value) { incomingShareState.value = value }
 
     fun setListDetailVisible(visible: Boolean) {
         listDetailVisible = visible
@@ -94,8 +100,38 @@ class RootComponent(
         }
     }
 
+    fun openIncomingShare(share: IncomingShare) {
+        if (share.isEmpty()) return
+        pendingIncomingShare = share
+        if (stack.value.active.configuration !is Config.Auth) {
+            openRecipientPicker(RecipientRequest(share = share))
+            pendingIncomingShare = null
+            onIncomingShareConsumed()
+        }
+    }
+
+    private fun openRecipientPicker(request: RecipientRequest) {
+        navigation.navigate { configurations ->
+            configurations.filterNot { it is Config.Recipients } + Config.Recipients(request)
+        }
+    }
+
+    fun hasIncomingShare(): Boolean = pendingIncomingShare != null ||
+        stack.value.items.any { item ->
+            (item.configuration as? Config.Dialog)?.incomingShare != null ||
+                (item.configuration as? Config.Recipients)?.request?.share != null
+        }
+
+    fun cancelIncomingShare() {
+        pendingIncomingShare = null
+        onIncomingShareConsumed()
+    }
+
     private fun openChatFromList(peer: PeerId, forum: Boolean) {
-        val destination = Config.Dialog(peer.value, isForum = forum)
+        val destination = Config.Dialog(
+            chatId = peer.value,
+            isForum = forum,
+        )
         navigation.navigate { configurations ->
             chatSelectionStack(configurations, destination, listDetailVisible)
         }
@@ -257,6 +293,7 @@ class RootComponent(
             if (result is Outcome.Ok && result.value) {
                 if (!expiringSession && stack.value.active.configuration is Config.Auth) {
                     navigation.replaceAll(Config.Home)
+                    pendingIncomingShare?.let(::openIncomingShare)
                 }
                 refreshAccountFlags()
             } else if (requiresSessionReset(result)) {
@@ -304,6 +341,11 @@ class RootComponent(
     }
 
     private fun child(config: Config, context: ComponentContext): Child = when (config) {
+        is Config.Recipients -> Child.Recipients(
+            RecipientPickerComponent(context, config.request, client, warmup, mediaRepository) {
+                navigation.pop()
+            },
+        )
         Config.Auth -> Child.Auth(
             AuthComponent(
                 componentContext = context,
@@ -317,6 +359,7 @@ class RootComponent(
                         runCatching { pushRegistration?.reregister() }
                     }
                     navigation.replaceAll(Config.Home)
+                    pendingIncomingShare?.let(::openIncomingShare)
                 },
             ),
         )
@@ -335,8 +378,8 @@ class RootComponent(
                 onOpenFolders = { openSettings(openFolders = true) },
             ),
         )
-        is Config.Dialog -> Child.Dialog(
-            DialogComponent(
+        is Config.Dialog -> {
+            val component = DialogComponent(
                 componentContext = context,
                 storeFactory = storeFactory,
                 client = client,
@@ -364,8 +407,20 @@ class RootComponent(
                         )
                     }
                 },
-            ),
-        )
+                onRequestForward = { messages ->
+                    openRecipientPicker(RecipientRequest(
+                        fromChatId = config.chatId,
+                        messageIds = messages.map { it.id.id },
+                    ))
+                },
+            )
+            config.incomingShare?.let { share ->
+                if (share.text.isNotBlank()) component.onDraftChanged(share.text)
+                val items = share.attachments.map(IncomingShareAttachment::toUploadItem)
+                if (items.isNotEmpty()) component.onAttachMedia(items)
+            }
+            Child.Dialog(component)
+        }
         is Config.Profile -> Child.Profile(
             ProfileComponent(
                 componentContext = context,
@@ -407,6 +462,7 @@ class RootComponent(
     }
 
     sealed class Child {
+        class Recipients(val component: RecipientPickerComponent) : Child()
         class Auth(val component: AuthComponent) : Child()
         class Home(val component: HomeComponent) : Child()
         class Dialog(val component: DialogComponent) : Child()
@@ -420,6 +476,8 @@ class RootComponent(
     @Serializable
     sealed interface Config {
         @Serializable
+        data class Recipients(val request: RecipientRequest) : Config
+        @Serializable
         data object Auth : Config
 
         @Serializable
@@ -431,6 +489,8 @@ class RootComponent(
             val jumpToMessageId: Int = 0,
             val threadTopMsgId: Int = 0,
             val isForum: Boolean? = null,
+            val incomingShareId: Long = 0L,
+            val incomingShare: IncomingShare? = null,
         ) : Config
 
         @Serializable

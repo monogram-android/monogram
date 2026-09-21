@@ -39,6 +39,7 @@ fun appMenuPlacement(
     gap: Int,
     topInset: Int,
     bottomInset: Int,
+    preferredGrowth: AppMenuGrowth? = null,
 ): AppMenuPlacement {
     val maxX = (windowWidth - popupWidth - margin).coerceAtLeast(margin)
     val x = if (alignToAnchorEnd) {
@@ -50,6 +51,13 @@ fun appMenuPlacement(
     val bottomLimit = (windowHeight - bottomInset - margin).coerceAtLeast(topGuard)
     val below = anchorBottom + gap
     val above = anchorTop - popupHeight - gap
+    if (preferredGrowth != null) {
+        val y = if (preferredGrowth == AppMenuGrowth.Below) below else above
+        return AppMenuPlacement(
+            IntOffset(x, y.coerceIn(topGuard, (bottomLimit - popupHeight).coerceAtLeast(topGuard))),
+            preferredGrowth,
+        )
+    }
     return when {
         below + popupHeight <= bottomLimit -> AppMenuPlacement(IntOffset(x, below), AppMenuGrowth.Below)
         above >= topGuard -> AppMenuPlacement(IntOffset(x, above), AppMenuGrowth.Above)
@@ -107,12 +115,19 @@ fun rememberAppMenuPositionProvider(
     val alignEnd = alignToAnchorEnd xor rtl
     return remember(alignEnd, marginPx, gapPx, topPx, bottomPx, touch, placementState) {
         object : PopupPositionProvider {
+            private var growth: AppMenuGrowth? = null
+            private var previousWindowSize: androidx.compose.ui.unit.IntSize? = null
+
             override fun calculatePosition(
                 anchorBounds: androidx.compose.ui.unit.IntRect,
                 windowSize: androidx.compose.ui.unit.IntSize,
                 layoutDirection: LayoutDirection,
                 popupContentSize: androidx.compose.ui.unit.IntSize,
             ): IntOffset {
+                if (previousWindowSize != windowSize) {
+                    growth = null
+                    previousWindowSize = windowSize
+                }
                 val placement = appMenuPlacement(
                     anchorLeft = touch?.x?.toInt() ?: anchorBounds.left,
                     anchorTop = touch?.y?.toInt() ?: anchorBounds.top,
@@ -127,7 +142,9 @@ fun rememberAppMenuPositionProvider(
                     gap = gapPx,
                     topInset = topPx,
                     bottomInset = bottomPx,
+                    preferredGrowth = growth,
                 )
+                if (popupContentSize.height > 0) growth = placement.growth
                 placementState?.let { state ->
                     if (state.lastPlacement != placement) state.lastPlacement = placement
                 }

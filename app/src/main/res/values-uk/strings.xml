@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recipient_messages">Повідомлень: %1$d</string>
+    <string name="recipient_files">Вкладень: %1$d</string>
+    <string name="recipient_hide_author">Приховати імена відправників</string>
+    <string name="recipient_comment">Додати коментар</string>
+    <string name="recipient_send">Надіслати (%1$d)</string>
+    <string name="recipient_sending">Надсилання: %1$d з %2$d</string>
+    <string name="recipient_error">Не вдалося завершити. Спробуйте ще раз, щоб продовжити</string>
+    <string name="recipient_retry">Повторити</string>
+    <string name="recipient_interrupted">Надсилання перервано. Перевірте чати призначення перед повторним надсиланням</string>
     <string name="app_name">Monogram</string>
     <string name="app_description">Неофіційний клієнт Telegram</string>
     <string name="home_tab_chats">Чати</string>

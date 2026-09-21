@@ -680,11 +680,9 @@ class DialogForumStoreTest {
             mainContext = dispatcher, markupContext = dispatcher,
         ).create()
         try {
-            client.events.emit(MtprotoUpdate.NewMessage(client.topicMessage(10)))
-            client.events.emit(MtprotoUpdate.NewMessage(client.topicMessage(11)))
-            client.events.emit(MtprotoUpdate.NewMessage(client.topicMessage(12)))
-            // The newest row can be clipped by the composer, so the layout reports 11 while the
-            // user is at the bottom: the whole page must still be acknowledged.
+            client.events.emit(MtprotoUpdate.NewMessage(client.topicMessage(10).copy(senderId = null)))
+            client.events.emit(MtprotoUpdate.NewMessage(client.topicMessage(11).copy(senderId = null)))
+            client.events.emit(MtprotoUpdate.NewMessage(client.topicMessage(12).copy(senderId = null)))
             store.accept(DialogStore.Intent.VisibleRead(11, atLiveEdge = true))
             advanceUntilIdle()
             assertEquals("reads=${client.readIds} messages=${store.state.messages.map { it.id.id }}", listOf(12), client.readIds)
@@ -2443,6 +2441,159 @@ class DialogForumStoreTest {
     }
 
     @Test
+    fun openingUnreadDialogAnchorsAtFirstUnreadWithKnownReadBoundary() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        listOf(1, 20, 80).forEach { unread ->
+            val chatId = PeerId(5)
+            val warmup = FakeWarmup().apply {
+                storedChats[chatId.value] = Chat(
+                    id = chatId,
+                    title = "Dialog",
+                    lastMessageId = 100,
+                    unreadCount = unread,
+                    readInboxMaxId = 100 - unread,
+                )
+            }
+            val client = FakeClient().apply { configureUnreadHistory() }
+            val store = DialogStoreFactory(
+                DefaultStoreFactory(), client, warmup, sessionStore = null,
+                chatId = chatId, seedIsForum = false,
+                mainContext = dispatcher, markupContext = dispatcher,
+            ).create()
+            try {
+                advanceUntilIdle()
+                assertEquals(101 - unread, store.state.anchorMessageId)
+                assertTrue(store.state.anchorAtTop)
+                assertEquals(if (unread <= 20) 1 else 3, client.historyCalls)
+            } finally {
+                store.dispose()
+            }
+        }
+    }
+
+    @Test
+    fun openingUnreadDialogAnchorsAtFirstUnreadWithoutReadBoundary() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        listOf(1, 20, 80).forEach { unread ->
+            val chatId = PeerId(5)
+            val warmup = FakeWarmup().apply {
+                storedChats[chatId.value] = Chat(
+                    id = chatId,
+                    title = "Dialog",
+                    lastMessageId = 100,
+                    unreadCount = unread,
+                )
+            }
+            val client = FakeClient().apply { configureUnreadHistory() }
+            val store = DialogStoreFactory(
+                DefaultStoreFactory(), client, warmup, sessionStore = null,
+                chatId = chatId, seedIsForum = false,
+                mainContext = dispatcher, markupContext = dispatcher,
+            ).create()
+            try {
+                advanceUntilIdle()
+                assertEquals(101 - unread, store.state.anchorMessageId)
+                assertTrue(store.state.anchorAtTop)
+                assertEquals(if (unread <= 20) 1 else 3, client.historyCalls)
+            } finally {
+                store.dispose()
+            }
+        }
+    }
+
+    @Test
+    fun explicitInitialJumpOutranksUnreadAnchor() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val chatId = PeerId(5)
+        val warmup = FakeWarmup().apply {
+            storedChats[chatId.value] = Chat(
+                id = chatId,
+                title = "Dialog",
+                lastMessageId = 100,
+                unreadCount = 20,
+            )
+        }
+        val client = FakeClient().apply { configureUnreadHistory() }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup, sessionStore = null,
+            chatId = chatId, jumpToMessageId = 90, seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            assertEquals(90, store.state.anchorMessageId)
+            assertFalse(store.state.anchorAtTop)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun openingReadDialogKeepsSavedScrollAnchor() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val chatId = PeerId(5)
+        val warmup = FakeWarmup().apply {
+            storedChats[chatId.value] = Chat(
+                id = chatId,
+                title = "Dialog",
+                lastMessageId = 100,
+                dialogScrollMessageId = 90,
+                unreadCount = 0,
+                readInboxMaxId = 100,
+            )
+        }
+        val client = FakeClient().apply { configureUnreadHistory() }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup, sessionStore = null,
+            chatId = chatId, seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            assertEquals(90, store.state.anchorMessageId)
+            assertFalse(store.state.anchorAtTop)
+            assertEquals(1, client.historyCalls)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun unreadAlbumCanBeAcknowledgedWhenItsHeadIsVisible() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val chatId = PeerId(5)
+        val warmup = FakeWarmup().apply {
+            storedChats[chatId.value] = Chat(
+                id = chatId, title = "Channel", lastMessageId = 100,
+                unreadCount = 2, readInboxMaxId = 98,
+            )
+        }
+        val client = FakeClient().apply {
+            history = listOf(
+                topicMessage(100).copy(groupedId = 7),
+                topicMessage(99).copy(groupedId = 7),
+                topicMessage(98),
+            )
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup, sessionStore = null,
+            chatId = chatId, seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            assertEquals(99, store.state.anchorMessageId)
+            assertTrue(store.state.anchorAtTop)
+            store.accept(DialogStore.Intent.VisibleRead(100, atLiveEdge = true))
+            advanceUntilIdle()
+            assertEquals(100, store.state.readInboxMaxId)
+            assertEquals(0, store.state.unreadCount)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
     fun serverCountersDuringContentReceiptAreNotDecrementedTwice() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val gate = CompletableDeferred<Unit>()
@@ -2646,6 +2797,7 @@ class DialogForumStoreTest {
         override suspend fun getFolders(): Outcome<List<Folder>> = Outcome.Ok(emptyList())
         var historyError: String? = null
         var historyPage: List<Message>? = null
+        var historyPagesByOffset: Map<Int, List<Message>> = emptyMap()
         var historyPageError: String? = null
         var historyPageGate: CompletableDeferred<Unit>? = null
         var searchGate: CompletableDeferred<Unit>? = null
@@ -2676,7 +2828,15 @@ class DialogForumStoreTest {
             if (offsetId != 0) historyPageGate?.await()
             historyPageError?.let { return Outcome.Err(it) }
             historyError?.let { return Outcome.Err(it) }
-            return Outcome.Ok(historyPage ?: history)
+            return Outcome.Ok(historyPagesByOffset[offsetId] ?: historyPage ?: history)
+        }
+
+        fun configureUnreadHistory() {
+            history = (69..100).reversed().map(::topicMessage)
+            historyPagesByOffset = mapOf(
+                69 to (29..68).reversed().map(::topicMessage),
+                29 to (1..28).reversed().map(::topicMessage),
+            )
         }
         override suspend fun searchMessages(chatId: PeerId, query: String, limit: Int): Outcome<List<Message>> {
             searchGate?.await()

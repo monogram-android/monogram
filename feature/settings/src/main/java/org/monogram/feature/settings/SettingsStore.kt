@@ -12,6 +12,7 @@ import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
+import org.monogram.core.models.Chat
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
 import org.monogram.network.bridge.MtprotoClient
@@ -31,6 +32,7 @@ interface SettingsStore : Store<SettingsStore.Intent, SettingsStore.State, Setti
         val chatId: Long,
         val title: String,
         val bytes: Long,
+        val photoCacheKey: String? = null,
     )
 
     data class State(
@@ -141,17 +143,14 @@ internal class SettingsStoreFactory(
             dispatch(Msg.CacheBytes(mediaRepository?.cacheSizeBytes() ?: 0L))
             dispatch(Msg.CacheByKind(mediaRepository?.cacheByKind().orEmpty()))
             scope.launch {
-                val titles = warmup?.chats()?.associate { it.id.value to it.title }.orEmpty()
-                val chats = mediaRepository?.cacheByChat().orEmpty()
-                    .map { (id, bytes) ->
-                        SettingsStore.CacheChatRow(
-                            chatId = id,
-                            title = titles[id] ?: id.toString(),
-                            bytes = bytes,
-                        )
-                    }
-                    .sortedByDescending { it.bytes }
-                dispatch(Msg.CacheChats(chats))
+                dispatch(
+                    Msg.CacheChats(
+                        cacheChatRows(
+                            usageByChat = mediaRepository?.cacheByChat().orEmpty(),
+                            chats = warmup?.chats().orEmpty(),
+                        ),
+                    ),
+                )
             }
         }
 
@@ -201,4 +200,20 @@ internal class SettingsStoreFactory(
             is Msg.NativeVersion -> copy(nativeVersion = msg.value)
         }
     }
+}
+
+internal fun cacheChatRows(
+    usageByChat: Map<Long, Long>,
+    chats: List<Chat>,
+): List<SettingsStore.CacheChatRow> {
+    val byId = chats.associateBy { it.id.value }
+    return usageByChat.map { (id, bytes) ->
+        val chat = byId[id]
+        SettingsStore.CacheChatRow(
+            chatId = id,
+            title = chat?.title ?: id.toString(),
+            bytes = bytes,
+            photoCacheKey = chat?.photoCacheKey,
+        )
+    }.sortedByDescending { it.bytes }
 }

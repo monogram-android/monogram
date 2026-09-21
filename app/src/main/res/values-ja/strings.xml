@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recipient_messages">メッセージ: %1$d</string>
+    <string name="recipient_files">添付ファイル: %1$d</string>
+    <string name="recipient_hide_author">送信者名を非表示</string>
+    <string name="recipient_comment">コメントを追加</string>
+    <string name="recipient_send">送信 (%1$d)</string>
+    <string name="recipient_sending">送信中: %1$d / %2$d</string>
+    <string name="recipient_error">完了できませんでした。続行するにはもう一度お試しください</string>
+    <string name="recipient_retry">再試行</string>
+    <string name="recipient_interrupted">送信が中断されました。再度送信する前に宛先チャットを確認してください</string>
     <string name="app_name">Monogram</string>
     <string name="app_description">非公式の Telegram クライアント</string>
     <string name="home_tab_chats">チャット</string>

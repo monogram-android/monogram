@@ -183,6 +183,13 @@
     <string name="dialog_paste">Вставить</string>
     <string name="dialog_copy_selected">Копировать выделенное</string>
     <string name="dialog_select_text">Выбрать</string>
+    <string name="dialog_select_message">Выбрать сообщения</string>
+    <plurals name="dialog_messages_selected">
+        <item quantity="one">Выбрано %1$d сообщение</item>
+        <item quantity="few">Выбрано %1$d сообщения</item>
+        <item quantity="many">Выбрано %1$d сообщений</item>
+        <item quantity="other">Выбрано %1$d сообщения</item>
+    </plurals>
     <string name="dialog_select_all">Выбрать всё</string>
     <string name="dialog_select_done">Готово</string>
     <string name="dialog_format">Форматирование</string>

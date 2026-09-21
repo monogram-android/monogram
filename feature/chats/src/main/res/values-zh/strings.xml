@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="chats_share_recipient">发送给</string>
+    <string name="chats_share_cancel">取消</string>
     <string name="chats_settings">设置</string>
     <string name="chats_profile">我</string>
     <string name="chats_my_profile">我的资料</string>

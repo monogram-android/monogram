@@ -2,6 +2,8 @@
 <resources>
     <string name="chats_share_recipient">Enviar a</string>
     <string name="chats_share_cancel">Cancelar</string>
+    <string name="chats_share_empty">No hay chats a los que enviar</string>
+    <string name="chats_share_empty_body">Solo puedes enviar mensajes en los chats donde esto esté permitido</string>
     <string name="chats_settings">Ajustes</string>
     <string name="chats_profile">Yo</string>
     <string name="chats_my_profile">Mi perfil</string>

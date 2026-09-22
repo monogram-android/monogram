@@ -58,6 +58,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -107,6 +108,8 @@ import org.monogram.core.models.GeoPlace
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.UploadItem
+import org.monogram.core.models.canForwardFrom
+import org.monogram.core.models.isForwardSourceShape
 import org.monogram.core.models.displayedChatAction
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.AppearanceSettings
@@ -155,6 +158,7 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 import org.monogram.core.ui.components.SponsorBadge
 import org.monogram.core.ui.media.showsMiniPlayer
+import androidx.compose.ui.platform.LocalResources
 
 
 internal fun messageMenuActions(
@@ -162,7 +166,8 @@ internal fun messageMenuActions(
     message: Message,
 ): MessageMenuActions {
     val canSend = state.canSendPlain || state.canSendPhotos
-    val protected = !state.canForward || message.noforwards
+    val sourceShape = message.isForwardSourceShape()
+    val canForward = message.canForwardFrom(state.canForward)
     return MessageMenuActions(
         canReply = canSend && !message.pending && message.id.id > 0,
         canCopy = !message.text.isNullOrBlank(),
@@ -173,9 +178,9 @@ internal fun messageMenuActions(
         canDelete = !message.pending &&
             message.id.id > 0 &&
             (message.outgoing || state.canDeleteOthers),
-        canForward = !protected,
-        forwardRestricted = protected,
-        canSelectForForwarding = isForwardSelectionCandidate(message),
+        canForward = canForward,
+        forwardRestricted = sourceShape && state.canForward && message.noforwards,
+        canSelectForForwarding = canForward,
     )
 }
 
@@ -188,7 +193,7 @@ internal fun chatStatsSubtitle(
 ): String? {
     val count = members?.takeIf { it > 0 } ?: return null
     if (!isChannel && !isGroup) return null
-    val res = LocalContext.current.resources
+    val res = LocalResources.current
     if (isChannel) {
         return res.getQuantityString(
             R.plurals.dialog_subscribers_count,
@@ -202,7 +207,7 @@ internal fun chatStatsSubtitle(
         formatCount(count),
     )
     val onlineCount = online?.takeIf { it > 0 } ?: return text
-    return text + ", " + res.getQuantityString(
+    return "$text, " + res.getQuantityString(
         R.plurals.dialog_online_count,
         onlineCount,
         formatCount(onlineCount),
@@ -269,7 +274,7 @@ internal data class PickedMedia(
 
 internal fun sendPickedMedia(
     component: DialogComponent,
-    composer: androidx.compose.runtime.MutableState<TextFieldValue>,
+    composer: MutableState<TextFieldValue>,
     picked: List<PickedMedia>,
     attachSingle: Boolean,
 ) {

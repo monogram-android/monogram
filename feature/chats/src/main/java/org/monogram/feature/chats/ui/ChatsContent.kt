@@ -798,6 +798,7 @@ internal fun FolderEmptyState(
     archive: Boolean,
     filtered: Boolean,
     query: String,
+    selectingRecipient: Boolean = false,
     onShowAll: () -> Unit,
     onClearSearch: (String) -> Unit,
 ) {
@@ -832,12 +833,14 @@ internal fun FolderEmptyState(
         else -> Icons.Outlined.Forum
     }
     val title = when {
+        selectingRecipient && query.isBlank() -> stringResource(R.string.chats_share_empty)
         archive -> stringResource(R.string.chats_archive_empty)
         query.isNotBlank() -> stringResource(R.string.chats_search_empty)
         filtered -> stringResource(R.string.chats_folder_empty)
         else -> stringResource(R.string.chats_empty)
     }
     val body = when {
+        selectingRecipient && query.isBlank() -> stringResource(R.string.chats_share_empty_body)
         archive -> stringResource(R.string.chats_archive_empty_body)
         query.isNotBlank() -> stringResource(R.string.chats_search_empty_body, query)
         filtered -> stringResource(R.string.chats_folder_empty_body)

@@ -275,7 +275,6 @@ internal fun DialogComposerDock(
             visible = hasComposerSelection && selectionMenuRequested,
             onDismiss = {
                 selectionMenuRequested = false
-                value = collapseComposerSelection(value)
             },
             canPaste = pasteText.isNotEmpty() || pasteMedia.isNotEmpty(),
             onCopy = {

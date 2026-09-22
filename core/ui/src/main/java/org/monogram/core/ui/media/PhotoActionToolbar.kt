@@ -72,7 +72,7 @@ internal fun PhotoActionToolbar(
                 ) {
                     Icon(Icons.Default.Download, stringResource(R.string.media_action_save))
                 }
-                Box {
+                if (actions.canForward && !item.protectedContent) Box {
                     IconButton(
                         onClick = { if (albumSize > 1) forwardMenu = true else actions.onForward(item, false) },
                         modifier = Modifier.size(48.dp),

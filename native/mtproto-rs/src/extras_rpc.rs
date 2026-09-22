@@ -27,7 +27,7 @@ use tellers_mtproto_session::Snapshot;
 use crate::api_invoke;
 use crate::media::{self, MediaIndex, MediaLocation};
 use crate::messages;
-use crate::peers::{self, CachedPeer, input_peer_from_cached, peer_chat_id, vector_boxed_items};
+use crate::peers::{self, CachedPeer, input_peer_from_cached, peer_chat_id, vector_boxed_items, vector_items};
 use crate::{
     BotCallbackAnswerDto, DiscussionDto, MessageDto, MtprotoError, ReactionChoiceDto, SavedGifDto,
 };
@@ -635,6 +635,7 @@ pub struct PollVoterDto {
     pub peer_id: i64,
     pub title: String,
     pub date: i32,
+    pub options: Vec<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -727,6 +728,14 @@ pub fn get_message_reactions_list(
     })
 }
 
+pub(crate) fn poll_vote_options(row: &MessagePeerVote) -> Vec<Vec<u8>> {
+    match row {
+        MessagePeerVote::MessagePeerVote(v) => vec![v.option.clone()],
+        MessagePeerVote::MessagePeerVoteInputOption(_) => Vec::new(),
+        MessagePeerVote::MessagePeerVoteMultiple(v) => vector_items(v.options.as_ref()).to_vec(),
+    }
+}
+
 pub fn get_poll_votes(
     snapshot: &mut Snapshot,
     api_id: i32,
@@ -763,6 +772,7 @@ pub fn get_poll_votes(
             MessagePeerVote::MessagePeerVoteInputOption(v) => (*v.peer.clone(), v.date),
             MessagePeerVote::MessagePeerVoteMultiple(v) => (*v.peer.clone(), v.date),
         };
+        let options = poll_vote_options(row);
         let peer_id = peers::peer_chat_id(&peer);
         voters.push(PollVoterDto {
             peer_id,
@@ -771,10 +781,58 @@ pub fn get_poll_votes(
                 .map(|name| name.to_string())
                 .unwrap_or_default(),
             date,
+            options,
         });
     }
     Ok(PollVotersDto {
         voters,
         count: body.count,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tellers_mtproto::latest::api::{
+        MessagePeerVoteConstructor, MessagePeerVoteInputOptionConstructor,
+        MessagePeerVoteMultipleConstructor, Peer, PeerUserConstructor,
+    };
+
+    fn user_peer(id: i64) -> Box<Peer> {
+        Box::new(Peer::PeerUser(PeerUserConstructor { user_id: id }))
+    }
+
+    #[test]
+    fn single_vote_keeps_option_bytes() {
+        let row = MessagePeerVote::MessagePeerVote(MessagePeerVoteConstructor {
+            peer: user_peer(7),
+            option: vec![0x01, 0xa0],
+            date: 11,
+        });
+        assert_eq!(poll_vote_options(&row), vec![vec![0x01, 0xa0]]);
+    }
+
+    #[test]
+    fn input_option_vote_has_no_bytes() {
+        let row = MessagePeerVote::MessagePeerVoteInputOption(
+            MessagePeerVoteInputOptionConstructor {
+                peer: user_peer(7),
+                date: 11,
+            },
+        );
+        assert!(poll_vote_options(&row).is_empty());
+    }
+
+    #[test]
+    fn multiple_vote_keeps_every_option() {
+        let row = MessagePeerVote::MessagePeerVoteMultiple(MessagePeerVoteMultipleConstructor {
+            peer: user_peer(7),
+            options: Box::new(Vector::Vector(VectorConstructor {
+                field_0: 2,
+                field_1: vec![b"a".to_vec(), b"b".to_vec()],
+            })),
+            date: 11,
+        });
+        assert_eq!(poll_vote_options(&row), vec![b"a".to_vec(), b"b".to_vec()]);
+    }
 }

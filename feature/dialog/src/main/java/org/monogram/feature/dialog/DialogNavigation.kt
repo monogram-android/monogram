@@ -15,6 +15,18 @@ fun unreadJumpAddOffset(count: Int): Int = (count - 1).coerceAtLeast(0)
  * (jumped to pinned/date, newer messages not loaded) the count would point at an
  * arbitrary old row, so no divider is shown until the latest page loads. */
 
+fun visibleUnreadBadgeCount(
+    messages: List<Message>,
+    unreadCount: Int,
+    readInboxMaxId: Int,
+    hasNewer: Boolean = false,
+): Int =
+    if (unreadDividerIndex(messages, unreadCount, readInboxMaxId, hasNewer) != null) {
+        unreadCount
+    } else {
+        0
+    }
+
 fun unreadDividerIndex(
     messages: List<Message>,
     unreadCount: Int,

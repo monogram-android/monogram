@@ -28,6 +28,7 @@
     <string name="dialog_poll_voters_title">Oy verenler</string>
     <string name="dialog_reaction_users_title">Tepkiler</string>
     <string name="dialog_peer_list_empty">Kimse yok</string>
+    <string name="dialog_peer_list_all">Tümü</string>
     <string name="dialog_poll_anonymous">Anonim anket</string>
     <string name="dialog_poll_solution">Cevap: %1$s</string>
     <string name="dialog_location_live">Canlı konum</string>
@@ -49,8 +50,11 @@
     <string name="dialog_media_photo">Fotoğraf</string>
     <string name="dialog_media_sticker">Sticker</string>
     <string name="dialog_sticker_pack_close">Paketi kapat</string>
-    <string name="dialog_comments">%1$d yorum</string>
-    <string name="dialog_leave_comment">Yorum yaz</string>
+    <plurals name="dialog_comments_count">
+        <item quantity="one">%d yorum</item>
+        <item quantity="other">%d yorum</item>
+    </plurals>
+    <string name="dialog_leave_comment">Yorum yap</string>
     <string name="dialog_add_reaction">Tepki ekle</string>
     <string name="dialog_comments_title">Yorumlar</string>
     <string name="dialog_saved_gifs">Kayıtlı GIF\'ler</string>

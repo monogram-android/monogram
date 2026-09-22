@@ -47,12 +47,12 @@ internal fun ReactionBar(
     onReact: (emoticon: String, documentId: Long) -> Unit,
     modifier: Modifier = Modifier,
     onAddReaction: (() -> Unit)? = null,
-    onShowUsers: (() -> Unit)? = null,
+    onShowUsers: ((MessageReaction) -> Unit)? = null,
 ) {
     val reactions = remember(message.reactionsJson) { parseReactionsJson(message.reactionsJson) }
     if (reactions.isEmpty()) return
     Row(
-        modifier = modifier.wrapContentWidth(),
+        modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -62,7 +62,7 @@ internal fun ReactionBar(
                 onClick = {
                     onReact(reaction.emoticon.orEmpty(), reaction.documentId ?: 0L)
                 },
-                onLongClick = onShowUsers,
+                onLongClick = onShowUsers?.let { show -> { show(reaction) } },
             )
         }
         if (onAddReaction != null) {

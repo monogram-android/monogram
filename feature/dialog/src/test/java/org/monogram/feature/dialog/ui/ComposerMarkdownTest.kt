@@ -39,6 +39,9 @@ class ComposerMarkdownTest {
         val next = deleteComposerSelection(value)
         assertEquals("world", next.text)
         assertEquals(TextRange(0), next.selection)
+        assertEquals("", deleteComposerSelection(selectAllComposer(value)).text)
+        assertEquals(true, composerDeleteRemovesSelection(TextRange(0, value.text.length)))
+        assertEquals(false, composerDeleteRemovesSelection(TextRange(value.text.length)))
     }
 
     @Test

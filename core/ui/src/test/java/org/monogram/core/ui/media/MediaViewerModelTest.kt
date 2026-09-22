@@ -30,6 +30,12 @@ class MediaViewerModelTest {
     }
 
     @Test
+    fun forwardFlagIsExplicitNotHardcodedTrue() {
+        assertTrue(MediaViewerActions().canForward)
+        assertFalse(MediaViewerActions(canForward = false).canForward)
+    }
+
+    @Test
     fun photosNeverLoopAndAreNotVideo() {
         assertFalse(photo().loops)
         assertFalse(photo().isVideo)

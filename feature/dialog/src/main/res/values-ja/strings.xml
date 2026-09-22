@@ -28,6 +28,7 @@
     <string name="dialog_poll_voters_title">投票者</string>
     <string name="dialog_reaction_users_title">リアクション</string>
     <string name="dialog_peer_list_empty">だれもいません</string>
+    <string name="dialog_peer_list_all">すべて</string>
     <string name="dialog_poll_anonymous">匿名投票</string>
     <string name="dialog_poll_solution">答え: %1$s</string>
     <string name="dialog_location_live">ライブ位置情報</string>
@@ -49,7 +50,9 @@
     <string name="dialog_media_photo">写真</string>
     <string name="dialog_media_sticker">スタンプ</string>
     <string name="dialog_sticker_pack_close">パックを閉じる</string>
-    <string name="dialog_comments">コメント %1$d</string>
+    <plurals name="dialog_comments_count">
+        <item quantity="other">%d 件のコメント</item>
+    </plurals>
     <string name="dialog_leave_comment">コメントする</string>
     <string name="dialog_add_reaction">リアクションを追加</string>
     <string name="dialog_comments_title">コメント</string>

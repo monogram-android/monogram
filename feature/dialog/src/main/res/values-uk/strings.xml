@@ -28,6 +28,7 @@
     <string name="dialog_poll_voters_title">Проголосували</string>
     <string name="dialog_reaction_users_title">Реакції</string>
     <string name="dialog_peer_list_empty">Нікого</string>
+    <string name="dialog_peer_list_all">Усі</string>
     <string name="dialog_poll_anonymous">Анонімне опитування</string>
     <string name="dialog_poll_solution">Пояснення: %1$s</string>
     <string name="dialog_location_live">Трансляція геопозиції</string>
@@ -49,8 +50,13 @@
     <string name="dialog_media_photo">Фото</string>
     <string name="dialog_media_sticker">Стікер</string>
     <string name="dialog_sticker_pack_close">Закрити набір</string>
-    <string name="dialog_comments">Коментарі: %1$d</string>
-    <string name="dialog_leave_comment">Залишити коментар</string>
+    <plurals name="dialog_comments_count">
+        <item quantity="one">%d коментар</item>
+        <item quantity="few">%d коментарі</item>
+        <item quantity="many">%d коментарів</item>
+        <item quantity="other">%d коментаря</item>
+    </plurals>
+    <string name="dialog_leave_comment">Прокоментувати</string>
     <string name="dialog_add_reaction">Додати реакцію</string>
     <string name="dialog_comments_title">Коментарі</string>
     <string name="dialog_saved_gifs">GIF</string>

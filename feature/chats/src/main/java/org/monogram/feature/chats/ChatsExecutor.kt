@@ -25,7 +25,6 @@ import org.monogram.core.database.dao.ChatReadState
 import org.monogram.core.models.ARCHIVE_FOLDER_ID
 import org.monogram.core.models.Chat
 import org.monogram.core.models.ChatActionKind
-import org.monogram.core.models.historySeed
 import org.monogram.core.models.LastSeen
 import org.monogram.core.models.Message
 import org.monogram.core.models.NotifyDefaults
@@ -396,17 +395,6 @@ internal class ChatsExecutor(
         }
     }
 
-    /** Keeps each dialog's latest row so the next open paints before getHistory. */
-    private suspend fun rememberDialogTails(chats: List<Chat>) {
-        val cache = warmup ?: return
-        val seeds = chats.mapNotNull { it.historySeed() }
-        if (seeds.isEmpty()) return
-        val missing = seeds.filter { seed ->
-            cache.messagesByIds(seed.id.chatId, listOf(seed.id.id)).isEmpty()
-        }
-        if (missing.isNotEmpty()) cache.upsertMessages(missing)
-    }
-
     private suspend fun notifySettingsFor(kind: String): NotifySettings? =
         when (val result = client.getNotifySettings(kind)) {
             is Outcome.Ok -> result.value
@@ -609,10 +597,10 @@ internal class ChatsExecutor(
                             refreshMergeHook?.invoke()
                             val merged = if (source.size > 64) {
                                 withContext(Dispatchers.IO) {
-                                    mergeChats(source, mapped)
+                                    withNetworkPinOrder(mergeChats(source, mapped), mapped)
                                 }
                             } else {
-                                mergeChats(source, mapped)
+                                withNetworkPinOrder(mergeChats(source, mapped), mapped)
                             }
                             persisted = merged
                             pruneRows = mapped.filter { net ->
@@ -631,7 +619,6 @@ internal class ChatsExecutor(
                             )
                         }
                         warmup?.upsertChats(persisted)
-                        rememberDialogTails(persisted)
                         sessionStore?.upsertPeersFromChats(persisted)
                         if (!isFolderScopedStream(activeFolderId) &&
                             cachedTail.any { it.isMainListRow() }
@@ -921,7 +908,6 @@ internal class ChatsExecutor(
                             dispatch(Msg.Append(mapped))
                             if (mapped.isNotEmpty()) {
                                 warmup?.upsertChats(mapped)
-                                rememberDialogTails(mapped)
                                 sessionStore?.upsertPeersFromChats(mapped)
                             }
                             fetched += 1

@@ -60,6 +60,7 @@
     <string name="dialog_poll_voters_title">Проголосовавшие</string>
     <string name="dialog_reaction_users_title">Реакции</string>
     <string name="dialog_peer_list_empty">Никого</string>
+    <string name="dialog_peer_list_all">Все</string>
     <string name="dialog_poll_anonymous">Анонимный опрос</string>
     <string name="dialog_poll_solution">Объяснение: %1$s</string>
     <string name="dialog_location_live">Трансляция геопозиции</string>
@@ -93,8 +94,13 @@
         <item quantity="many">%d эмодзи</item>
         <item quantity="other">%d эмодзи</item>
     </plurals>
-    <string name="dialog_comments">Комментарии: %1$d</string>
-    <string name="dialog_leave_comment">Оставить комментарий</string>
+    <plurals name="dialog_comments_count">
+        <item quantity="one">%d комментарий</item>
+        <item quantity="few">%d комментария</item>
+        <item quantity="many">%d комментариев</item>
+        <item quantity="other">%d комментария</item>
+    </plurals>
+    <string name="dialog_leave_comment">Прокомментировать</string>
     <string name="dialog_add_reaction">Добавить реакцию</string>
     <string name="dialog_comments_title">Комментарии</string>
     <string name="dialog_saved_gifs">GIF</string>

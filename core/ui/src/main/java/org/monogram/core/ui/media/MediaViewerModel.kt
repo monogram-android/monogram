@@ -83,9 +83,8 @@ data class MediaViewerActions(
     val canEdit: Boolean = false,
     val canPictureInPicture: Boolean = false,
     val canRetry: Boolean = false,
-) {
-    val canForward: Boolean get() = true
-}
+    val canForward: Boolean = true,
+)
 
 /** Which of the four playback surfaces currently owns the session. */
 enum class MediaSurface { VIEWER, PIP, MINI_PLAYER, AUDIO_ONLY, STOPPED }

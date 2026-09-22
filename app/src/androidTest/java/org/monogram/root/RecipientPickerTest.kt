@@ -38,7 +38,7 @@ class RecipientPickerTest {
                 picker.onComment("Comment"); picker.onDropAuthor(true); picker.onSend()
             }
             withTimeout(5_000) { picker.state.first { it.done } }
-            assertEquals(listOf("text:1:Comment", "forward:1:[3, 5]:true", "text:2:Comment", "forward:2:[3, 5]:true"), calls)
+            assertEquals(listOf("forward:1:[3, 5]:true", "text:1:Comment", "forward:2:[3, 5]:true", "text:2:Comment"), calls)
         } finally { withContext(Dispatchers.Main) { lifecycle.destroy() } }
     }
 

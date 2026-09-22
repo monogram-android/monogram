@@ -48,6 +48,9 @@ internal fun deleteComposerSelection(value: TextFieldValue): TextFieldValue {
     return TextFieldValue(text = value.text.removeRange(lo, hi), selection = TextRange(lo))
 }
 
+/** True when Backspace/Delete must cut the range instead of one glyph. */
+internal fun composerDeleteRemovesSelection(selection: TextRange): Boolean = !selection.collapsed
+
 internal fun insertComposerText(value: TextFieldValue, text: String): TextFieldValue {
     val lo = value.selection.min.coerceIn(0, value.text.length)
     val hi = value.selection.max.coerceIn(lo, value.text.length)

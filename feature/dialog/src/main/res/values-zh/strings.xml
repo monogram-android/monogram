@@ -28,6 +28,7 @@
     <string name="dialog_poll_voters_title">投票者</string>
     <string name="dialog_reaction_users_title">表情回应</string>
     <string name="dialog_peer_list_empty">没有人</string>
+    <string name="dialog_peer_list_all">全部</string>
     <string name="dialog_poll_anonymous">匿名投票</string>
     <string name="dialog_poll_solution">答案：%1$s</string>
     <string name="dialog_location_live">实时位置</string>
@@ -49,8 +50,10 @@
     <string name="dialog_media_photo">图片</string>
     <string name="dialog_media_sticker">贴纸</string>
     <string name="dialog_sticker_pack_close">关闭贴纸包</string>
-    <string name="dialog_comments">%1$d 条评论</string>
-    <string name="dialog_leave_comment">发表评论</string>
+    <plurals name="dialog_comments_count">
+        <item quantity="other">%d 条评论</item>
+    </plurals>
+    <string name="dialog_leave_comment">评论</string>
     <string name="dialog_add_reaction">添加表情回应</string>
     <string name="dialog_comments_title">评论</string>
     <string name="dialog_saved_gifs">已保存的 GIF</string>

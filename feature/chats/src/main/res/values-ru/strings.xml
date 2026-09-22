@@ -2,6 +2,8 @@
 <resources>
     <string name="chats_share_recipient">Кому отправить</string>
     <string name="chats_share_cancel">Отмена</string>
+    <string name="chats_share_empty">Нет чатов для отправки</string>
+    <string name="chats_share_empty_body">Отправлять сообщения можно только в чаты, где это разрешено</string>
     <string name="chats_settings">Настройки</string>
     <string name="chats_profile">Я</string>
     <string name="chats_my_profile">Мой профиль</string>

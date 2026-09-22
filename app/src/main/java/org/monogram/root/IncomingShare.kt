@@ -12,6 +12,7 @@ import java.io.FileInputStream
 import java.io.InputStream
 import kotlinx.serialization.Serializable
 import org.monogram.core.models.UploadItem
+import org.monogram.core.models.userFacingShareText
 
 @Serializable
 data class IncomingShare(
@@ -36,7 +37,7 @@ data class IncomingShare(
             val attachments = bundle.getParcelableArrayList<Bundle>(KEY_ATTACHMENTS)
                 .orEmpty()
                 .mapNotNull(IncomingShareAttachment::fromBundle)
-            return IncomingShare(text, attachments).takeUnless { it.isEmpty() }
+            return IncomingShare(userFacingShareText(text), attachments).takeUnless { it.isEmpty() }
         }
     }
 }
@@ -86,7 +87,7 @@ object IncomingShareStager {
     private const val BUFFER_SIZE = 64 * 1024
 
     fun stage(context: Context, intent: Intent): IncomingShare? {
-        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty()
+        val text = userFacingShareText(intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty())
         val uris = streamUris(intent)
         if (uris.size > MAX_ATTACHMENTS) return null
         val attachments = uris.mapNotNullIndexed { index, uri ->

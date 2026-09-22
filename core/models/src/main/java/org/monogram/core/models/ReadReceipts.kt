@@ -20,6 +20,9 @@ data class MessageViewer(
     val date: Long,
     val title: String? = null,
     val avatarCacheKey: String? = null,
+    val emoticon: String? = null,
+    val documentId: Long? = null,
+    val pollOptionHex: List<String> = emptyList(),
 )
 
 sealed interface MessageViewers {

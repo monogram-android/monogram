@@ -32,6 +32,7 @@
     <string name="dialog_poll_voters_title">Voters</string>
     <string name="dialog_reaction_users_title">Reactions</string>
     <string name="dialog_peer_list_empty">Nobody</string>
+    <string name="dialog_peer_list_all">All</string>
     <string name="dialog_poll_anonymous">Anonymous poll</string>
     <string name="dialog_poll_solution">Answer: %1$s</string>
     <string name="dialog_location_live">Live location</string>
@@ -62,7 +63,10 @@
         <item quantity="one">%d emoji</item>
         <item quantity="other">%d emoji</item>
     </plurals>
-    <string name="dialog_comments">%1$d comments</string>
+    <plurals name="dialog_comments_count">
+        <item quantity="one">%d comment</item>
+        <item quantity="other">%d comments</item>
+    </plurals>
     <string name="dialog_leave_comment">Leave a comment</string>
     <string name="dialog_add_reaction">Add reaction</string>
     <string name="dialog_comments_title">Comments</string>

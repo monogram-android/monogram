@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
@@ -63,6 +64,28 @@ class MessageBubbleTapTest {
         compose.runOnIdle { assertEquals(0, menus) }
     }
 
+    @Test
+    fun commentsFooterOpensCommentsInsteadOfMenu() {
+        var comments = 0
+        show(outgoing = false, discussionPeerId = 1L, onComments = { comments++ })
+        compose.onNodeWithTag("message-comments").performTouchInput { click() }
+        compose.runOnIdle {
+            assertEquals(1, comments)
+            assertEquals(0, menus)
+        }
+    }
+
+    @Test
+    fun commentsFooterShowsCount() {
+        show(outgoing = false, discussionPeerId = 1L, repliesCount = 1, onComments = {})
+        val label = compose.activity.resources.getQuantityString(
+            org.monogram.feature.dialog.R.plurals.dialog_comments_count,
+            1,
+            1,
+        )
+        compose.onNodeWithText(label).assertIsDisplayed()
+    }
+
     private fun verifyTaps(outgoing: Boolean) {
         show(outgoing)
         compose.onNodeWithText("Hello world").performTouchInput { click() }
@@ -75,7 +98,15 @@ class MessageBubbleTapTest {
         compose.runOnIdle { assertEquals(3, menus) }
     }
 
-    private fun show(outgoing: Boolean, showSender: Boolean = false, selectable: Boolean = false, linked: Boolean = false) {
+    private fun show(
+        outgoing: Boolean,
+        showSender: Boolean = false,
+        selectable: Boolean = false,
+        linked: Boolean = false,
+        discussionPeerId: Long? = null,
+        repliesCount: Int = 0,
+        onComments: (() -> Unit)? = null,
+    ) {
         compose.setContent {
             MonogramTheme {
                 CompositionLocalProvider(LocalUriHandler provides object : UriHandler {
@@ -87,6 +118,8 @@ class MessageBubbleTapTest {
                             id = MessageId(PeerId(1), 1), senderId = PeerId(2),
                             text = "Hello world", date = 1L, outgoing = outgoing,
                             entities = if (linked) listOf(TextEntity("text_url", 0, 11, "https://example.com")) else emptyList(),
+                            repliesCount = repliesCount,
+                            discussionPeerId = discussionPeerId,
                         ),
                         sender = Profile(PeerId(2), "user", "Alice"),
                         showSender = showSender,
@@ -95,6 +128,7 @@ class MessageBubbleTapTest {
                         mediaRepository = null,
                         onOpenSender = { profiles++ },
                         onOpenMenu = { menus++ },
+                        onComments = onComments,
                         selectable = selectable,
                         modifier = Modifier.testTag("message-row"),
                     )

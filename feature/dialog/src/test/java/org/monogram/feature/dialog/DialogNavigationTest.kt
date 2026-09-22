@@ -89,6 +89,20 @@ class DialogNavigationTest {
     }
 
     @Test
+    fun unreadBadgeHidesUntilARealUnreadMessageIsLoaded() {
+        val cached = listOf(msg(10))
+        assertEquals(0, visibleUnreadBadgeCount(cached, unreadCount = 4, readInboxMaxId = 10))
+        assertEquals(
+            4,
+            visibleUnreadBadgeCount(
+                listOf(msg(14), msg(13), msg(12), msg(11), msg(10)),
+                unreadCount = 4,
+                readInboxMaxId = 10,
+            ),
+        )
+    }
+
+    @Test
     fun unreadAnchorUsesCountOnlyInsideLiveEdgeWindow() {
         val messages = listOf(msg(30), msg(29), msg(28), msg(27), msg(26))
         assertEquals(

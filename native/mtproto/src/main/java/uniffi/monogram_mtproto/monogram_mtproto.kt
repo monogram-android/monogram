@@ -3272,7 +3272,8 @@ data class PollVoterDto (
     , 
     var `title`: kotlin.String
     , 
-    var `date`: kotlin.Int
+    var `date`: kotlin.Int,
+    var `options`: List<kotlin.ByteArray>
     
 ){
     
@@ -3292,19 +3293,22 @@ public object FfiConverterTypePollVoterDto: FfiConverterRustBuffer<PollVoterDto>
             FfiConverterLong.read(buf),
             FfiConverterString.read(buf),
             FfiConverterInt.read(buf),
+            FfiConverterSequenceByteArray.read(buf),
         )
     }
 
     override fun allocationSize(value: PollVoterDto) = (
             FfiConverterLong.allocationSize(value.`peerId`) +
             FfiConverterString.allocationSize(value.`title`) +
-            FfiConverterInt.allocationSize(value.`date`)
+            FfiConverterInt.allocationSize(value.`date`) +
+            FfiConverterSequenceByteArray.allocationSize(value.`options`)
     )
 
     override fun write(value: PollVoterDto, buf: ByteBuffer) {
             FfiConverterLong.write(value.`peerId`, buf)
             FfiConverterString.write(value.`title`, buf)
             FfiConverterInt.write(value.`date`, buf)
+            FfiConverterSequenceByteArray.write(value.`options`, buf)
     }
 }
 

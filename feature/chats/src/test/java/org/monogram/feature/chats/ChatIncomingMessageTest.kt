@@ -188,6 +188,24 @@ class ChatIncomingMessageTest {
     }
 
     @Test
+    fun dialogsPageRestoresPinOrderOverCachedDateOrder() {
+        val cached = listOf(
+            chat(1, pinned = true, date = 30),
+            chat(2, pinned = true, date = 20),
+            chat(3, pinned = false, date = 40),
+        )
+        val page = listOf(
+            chat(2, pinned = true, pinnedOrder = 0, date = 20),
+            chat(1, pinned = true, pinnedOrder = 1, date = 30),
+            chat(3, pinned = false, date = 40),
+        )
+        val next = withNetworkPinOrder(mergeChats(cached, page), page)
+        assertEquals(listOf(2L, 1L, 3L), next.map { it.id.value })
+        assertEquals(0, next[0].pinnedOrder)
+        assertEquals(1, next[1].pinnedOrder)
+    }
+
+    @Test
     fun pinnedStayInPinOrderWhenMiddleGetsNewerMessage() {
         val chats = listOf(
             chat(1, pinned = true, pinnedOrder = 0, date = 10),

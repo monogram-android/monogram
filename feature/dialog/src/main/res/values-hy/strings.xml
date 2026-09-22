@@ -28,6 +28,7 @@
     <string name="dialog_poll_voters_title">Քվեարկողներ</string>
     <string name="dialog_reaction_users_title">Ռեակցիաներ</string>
     <string name="dialog_peer_list_empty">Ոչ ոք</string>
+    <string name="dialog_peer_list_all">Բոլորը</string>
     <string name="dialog_poll_anonymous">Անանուն հարցում</string>
     <string name="dialog_poll_solution">Պատասխան՝ %1$s</string>
     <string name="dialog_location_live">Ուղիղ գտնվելու վայր</string>
@@ -49,7 +50,10 @@
     <string name="dialog_media_photo">Լուսանկար</string>
     <string name="dialog_media_sticker">Կպչուն պիտակ</string>
     <string name="dialog_sticker_pack_close">Փակել փաթեթը</string>
-    <string name="dialog_comments">%1$d մեկնաբանություն</string>
+    <plurals name="dialog_comments_count">
+        <item quantity="one">%d մեկնաբանություն</item>
+        <item quantity="other">%d մեկնաբանություն</item>
+    </plurals>
     <string name="dialog_leave_comment">Մեկնաբանել</string>
     <string name="dialog_add_reaction">Ավելացնել ռեակցիա</string>
     <string name="dialog_comments_title">Մեկնաբանություններ</string>

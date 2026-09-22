@@ -2,6 +2,8 @@
 <resources>
     <string name="chats_share_recipient">Кому надіслати</string>
     <string name="chats_share_cancel">Скасувати</string>
+    <string name="chats_share_empty">Немає чатів для надсилання</string>
+    <string name="chats_share_empty_body">Надсилати повідомлення можна лише в чати, де це дозволено</string>
     <string name="chats_settings">Налаштування</string>
     <string name="chats_profile">Я</string>
     <string name="chats_my_profile">Мій профіль</string>

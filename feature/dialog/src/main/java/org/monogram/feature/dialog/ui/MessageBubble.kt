@@ -65,6 +65,7 @@ import java.text.DateFormat.getDateInstance
 import java.util.Locale
 import org.monogram.core.common.Outcome
 import org.monogram.core.models.Message
+import org.monogram.core.models.MessageReaction
 import org.monogram.core.models.Profile
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.components.PeerAvatar
@@ -98,7 +99,7 @@ fun MessageBubble(
     album: List<Message> = emptyList(),
     onReact: ((emoticon: String, documentId: Long) -> Unit)? = null,
     onAddReaction: (() -> Unit)? = null,
-    onShowReactionUsers: (() -> Unit)? = null,
+    onShowReactionUsers: ((MessageReaction) -> Unit)? = null,
     onShowPollVoters: (() -> Unit)? = null,
     onComments: (() -> Unit)? = null,
     onQuoteClick: (() -> Unit)? = null,
@@ -595,19 +596,13 @@ fun MessageBubble(
                 )
             }
             if (onComments != null && message.discussionPeerId != null) {
-                Text(
-                    text = if (message.repliesCount > 0) {
-                        stringResource(R.string.dialog_comments, message.repliesCount)
-                    } else {
-                        stringResource(R.string.dialog_leave_comment)
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                CommentFooter(
+                    repliesCount = message.repliesCount,
+                    onClick = onComments,
+                    contentColor = onContainer,
                     modifier = Modifier
-                        .padding(horizontal = edgeContentPad)
                         .fillMaxWidthInBubble()
-                        .clickable(onClick = onComments)
-                        .padding(top = 4.dp, bottom = 2.dp),
+                        .bleedCommentFooter(edgeVisualMedia),
                 )
             }
         }
@@ -695,8 +690,16 @@ fun MessageBubble(
                     onAddReaction = onAddReaction,
                     onShowUsers = onShowReactionUsers,
                     modifier = Modifier
-                        .offset(y = (-4).dp)
-                        .padding(start = 2.dp, end = 2.dp, top = 6.dp),
+                        .fillMaxWidthInBubble()
+                        .then(
+                            if (hasComments) {
+                                Modifier.padding(start = 2.dp, end = 2.dp, top = 4.dp)
+                            } else {
+                                Modifier
+                                    .offset(y = (-4).dp)
+                                    .padding(start = 2.dp, end = 2.dp, top = 6.dp)
+                            },
+                        ),
                 )
             }
         }

@@ -216,6 +216,20 @@ internal fun composedMediaPreview(
     return if (visible != null) "$head, $visible" else head
 }
 
+/** Sender prefix Rust already composed into `lastMessagePreview` (`"Danil: hello"`). */
+internal fun composedPreviewSender(preview: String?): String? {
+    val text = preview?.trim().orEmpty()
+    if (text.isEmpty()) return null
+    val sep = text.indexOf(": ")
+    val name = when {
+        sep > 0 -> text.substring(0, sep).trim()
+        text.endsWith(':') -> text.dropLast(1).trim()
+        else -> return null
+    }
+    if (name.isEmpty() || name.length > 64 || name.contains('\n')) return null
+    return name
+}
+
 internal fun unwrapChatListCaption(
     preview: String?,
     mediaKind: String?,

@@ -28,6 +28,7 @@
     <string name="dialog_poll_voters_title">Hlasujúci</string>
     <string name="dialog_reaction_users_title">Reakcie</string>
     <string name="dialog_peer_list_empty">Nikto</string>
+    <string name="dialog_peer_list_all">Všetci</string>
     <string name="dialog_poll_anonymous">Anonymná anketa</string>
     <string name="dialog_poll_solution">Odpoveď: %1$s</string>
     <string name="dialog_location_live">Živá poloha</string>
@@ -49,8 +50,13 @@
     <string name="dialog_media_photo">Fotka</string>
     <string name="dialog_media_sticker">Nálepka</string>
     <string name="dialog_sticker_pack_close">Zavrieť balík</string>
-    <string name="dialog_comments">%1$d komentárov</string>
-    <string name="dialog_leave_comment">Pridať komentár</string>
+    <plurals name="dialog_comments_count">
+        <item quantity="one">%d komentár</item>
+        <item quantity="few">%d komentáre</item>
+        <item quantity="many">%d komentárov</item>
+        <item quantity="other">%d komentárov</item>
+    </plurals>
+    <string name="dialog_leave_comment">Komentovať</string>
     <string name="dialog_add_reaction">Pridať reakciu</string>
     <string name="dialog_comments_title">Komentáre</string>
     <string name="dialog_saved_gifs">Uložené GIF</string>

@@ -157,11 +157,13 @@ import org.monogram.core.ui.components.SponsorBadge
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DialogContent(component: DialogComponent, modifier: Modifier = Modifier) {
+    val state by component.state.collectAsState()
     var mediaViewerSeenBy by remember { mutableStateOf<Message?>(null) }
     val receiptHolder = remember { ReadReceiptHolder() }
     CompositionLocalProvider(LocalMarkupParser provides component.markup, LocalReadReceiptHolder provides receiptHolder) {
         MessageMediaViewerScope(
             repository = component.mediaRepository,
+            chatCanForward = state.canForward,
             onForward = component::onForwardMessages,
             onDelete = { messages -> messages.forEach { component.onDelete(it.id.id, revoke = true) } },
             onShowInChat = { message -> component.onJumpToMessage(message.id.id) },

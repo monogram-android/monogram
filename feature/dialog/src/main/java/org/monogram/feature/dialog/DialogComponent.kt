@@ -28,6 +28,7 @@ import org.monogram.core.models.ForumIo
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.UploadItem
+import org.monogram.core.models.canForwardFrom
 import org.monogram.feature.dialog.ui.InstantViewController
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
@@ -150,11 +151,11 @@ class DialogComponent(
         store.accept(DialogStore.Intent.Delete(messageId, revoke))
     fun onForwardPick(message: org.monogram.core.models.Message) = onForwardMessages(listOf(message))
     fun onForwardMessages(messages: List<org.monogram.core.models.Message>) {
-        if (!state.value.canForward) return
-        if (messages.any {
-            it.id.chatId != chatId || it.id.id <= 0 || it.pending || it.noforwards || it.mediaKind == "service"
-        }) return
-        val selected = messages.distinctBy { it.id }.sortedBy { it.id.id }
+        val chatCanForward = state.value.canForward
+        val selected = messages
+            .filter { it.id.chatId == chatId && it.canForwardFrom(chatCanForward) }
+            .distinctBy { it.id }
+            .sortedBy { it.id.id }
         if (selected.isEmpty()) return
         if (onRequestForward != null) onRequestForward.invoke(selected)
         else store.accept(DialogStore.Intent.ForwardPick(selected.first()))

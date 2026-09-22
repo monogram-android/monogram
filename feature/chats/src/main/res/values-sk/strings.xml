@@ -2,6 +2,8 @@
 <resources>
     <string name="chats_share_recipient">Komu odoslať</string>
     <string name="chats_share_cancel">Zrušiť</string>
+    <string name="chats_share_empty">Žiadne chaty na odoslanie</string>
+    <string name="chats_share_empty_body">Správy môžete posielať len do chatov, kde je to povolené</string>
     <string name="chats_settings">Nastavenia</string>
     <string name="chats_profile">Ja</string>
     <string name="chats_my_profile">Môj profil</string>

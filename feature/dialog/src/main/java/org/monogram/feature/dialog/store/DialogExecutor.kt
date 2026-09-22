@@ -22,6 +22,8 @@ import org.monogram.core.models.Profile
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.preferredPeerTitle
+import org.monogram.core.models.replaceComposedDialogSeed
+import org.monogram.core.models.replaceComposedDialogSeed
 import org.monogram.core.models.toggleChosenReaction
 import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.DialogStore
@@ -620,7 +622,7 @@ internal class DialogExecutor(
                 } else {
                     cache.messages(chatId, HISTORY_FIRST_LIMIT)
                 }
-            }.orEmpty()
+            }.orEmpty().replaceComposedDialogSeed(cachedChat)
             val lastId = cachedChat?.lastMessageId ?: 0
             val newestCachedId = cached.maxOfOrNull { it.id.id } ?: 0
             if (cached.isNotEmpty()) {

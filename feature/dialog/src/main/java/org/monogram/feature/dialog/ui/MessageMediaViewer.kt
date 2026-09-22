@@ -31,6 +31,7 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.canForwardFrom
 import org.monogram.core.ui.media.MediaAlbumState
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.MediaSource
@@ -155,6 +156,7 @@ private class Resolved(
 @Composable
 internal fun MessageMediaViewerScope(
     repository: MediaRepository?,
+    chatCanForward: Boolean = true,
     onForward: (List<Message>) -> Unit = {},
     onDelete: (List<Message>) -> Unit = {},
     onShowInChat: (Message) -> Unit = {},
@@ -199,6 +201,7 @@ internal fun MessageMediaViewerScope(
                 startIndex = startIndex,
                 repository = repository,
                 chatTitle = titleHolder.value,
+                chatCanForward = chatCanForward,
                 onForward = onForward,
                 onDelete = onDelete,
                 onShowInChat = onShowInChat,
@@ -217,6 +220,7 @@ private fun MessageMediaViewer(
     startIndex: Int,
     repository: MediaRepository?,
     chatTitle: String?,
+    chatCanForward: Boolean,
     onForward: (List<Message>) -> Unit,
     onDelete: (List<Message>) -> Unit,
     onShowInChat: (Message) -> Unit,
@@ -294,7 +298,7 @@ private fun MessageMediaViewer(
             senderName = chatTitle ?: message.senderName,
             dateLabel = relativeDateLabel(message.date),
             dateMillis = message.date * 1000L,
-            protectedContent = message.noforwards,
+            protectedContent = !chatCanForward || message.noforwards,
             loading = state?.loading ?: !video,
             failed = state?.failed == true,
             fileSize = message.fileSize,
@@ -384,9 +388,9 @@ private fun MessageMediaViewer(
             }
         },
         onForward = { item, wholeAlbum ->
-            val messages = if (wholeAlbum) album else {
+            val messages = (if (wholeAlbum) album else {
                 album.filter { messageKey(it) == item.id }
-            }
+            }).filter { it.canForwardFrom(chatCanForward) }
             if (messages.isNotEmpty()) {
                 onForward(messages)
                 onDismiss()
@@ -416,6 +420,7 @@ private fun MessageMediaViewer(
         },
         canRetry = true,
         canDelete = true,
+        canForward = chatCanForward,
         canPictureInPicture = pictureInPicture?.supported == true,
         onEnterPictureInPicture = { pictureInPicture?.enter() },
         onListenInBackground = {

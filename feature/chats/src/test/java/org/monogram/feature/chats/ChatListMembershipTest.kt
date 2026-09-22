@@ -55,6 +55,17 @@ class ChatListMembershipTest {
     }
 
     @Test
+    fun migratedPlaceholderIsDroppedFromANetworkPage() {
+        val listed = listOf(chat(id = 1, title = "Anna"))
+        val migrated = chat(id = 8, title = "Old group", isGroup = true).copy(
+            lastMessagePreview = "migrate_to\u001F\u001F",
+            lastMessageMediaKind = "service",
+        )
+        val merged = mergeChats(listed, listOf(migrated, chat(id = 3, title = "Work", isGroup = true)))
+        assertEquals(listOf(1L, 3L), merged.map { it.id.value }.sorted())
+    }
+
+    @Test
     fun incomingMessageDoesNotPromoteAnArchivedOrLeftDialog() {
         val archived = chat(id = 8, title = "Old", lastMessageDate = 1).copy(archived = true)
         val comments = chat(id = 9, title = "Comments", isGroup = true, left = true)

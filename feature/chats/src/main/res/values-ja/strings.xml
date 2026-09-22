@@ -2,6 +2,8 @@
 <resources>
     <string name="chats_share_recipient">送信先</string>
     <string name="chats_share_cancel">キャンセル</string>
+    <string name="chats_share_empty">送信できるチャットがありません</string>
+    <string name="chats_share_empty_body">メッセージを送れるチャットにだけ送信できます</string>
     <string name="chats_settings">設定</string>
     <string name="chats_profile">自分</string>
     <string name="chats_my_profile">マイプロフィール</string>

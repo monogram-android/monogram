@@ -16,6 +16,8 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.UploadItem
+import org.monogram.core.models.userFacingShareText
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
 
@@ -24,8 +26,11 @@ data class RecipientRequest(
     val share: IncomingShare? = null,
     val fromChatId: Long? = null,
     val messageIds: List<Int> = emptyList(),
+    val requiresPhotos: Boolean = false,
 ) {
     val forwarding: Boolean get() = fromChatId != null && messageIds.isNotEmpty()
+    val needsPhotoSendRight: Boolean
+        get() = requiresPhotos || share?.attachments.orEmpty().any { it.kind == "photo" || it.kind == "video" }
 }
 
 data class RecipientPickerState(
@@ -35,6 +40,7 @@ data class RecipientPickerState(
     val dropAuthor: Boolean = false,
     val sending: Boolean = false,
     val error: Boolean = false,
+    val errorMessage: String? = null,
     val done: Boolean = false,
     val started: Boolean = false,
     val interrupted: Boolean = false,
@@ -87,7 +93,7 @@ private class RecipientSender(
 ) : InstanceKeeper.Instance {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val state = MutableStateFlow(RecipientPickerState(
-        comment = restored?.comment ?: request.share?.text.orEmpty(),
+        comment = restored?.comment ?: userFacingShareText(request.share?.text.orEmpty()),
         selected = restored?.selected.orEmpty(), completed = restored?.completed.orEmpty(),
         dropAuthor = restored?.dropAuthor ?: false, started = restored?.started ?: false,
         interrupted = restored?.inFlight ?: false, done = restored?.done ?: false,
@@ -104,7 +110,7 @@ private class RecipientSender(
     fun send() {
         val snapshot = state.value
         if (snapshot.sending || snapshot.done || snapshot.interrupted || snapshot.selected.isEmpty()) return
-        update { copy(sending = true, error = false, started = true) }
+        update { copy(sending = true, error = false, errorMessage = null, started = true) }
         scope.launch {
             try {
                 for (id in snapshot.selected - snapshot.completed) {
@@ -113,7 +119,8 @@ private class RecipientSender(
                     while (step < operations.size) {
                         when (val result = operations[step]()) {
                             is Outcome.Err -> {
-                                update { copy(sending = false, error = true) }
+                                val mapped = mappedRecipientError(result)
+                                update { copy(sending = false, error = true, errorMessage = mapped) }
                                 return@launch
                             }
                             is Outcome.Ok -> {
@@ -127,24 +134,70 @@ private class RecipientSender(
                 }
                 update { copy(sending = false, done = true) }
             } catch (e: CancellationException) { throw e
-            } catch (_: Exception) { update { copy(sending = false, error = true) } }
+            } catch (_: Exception) {
+                update { copy(sending = false, error = true, errorMessage = null) }
+            }
         }
     }
 
-    private fun operations(peer: PeerId, snapshot: RecipientPickerState): List<suspend () -> Outcome<List<Message>>> = buildList {
-        val comment = snapshot.comment.trim()
-        if (request.forwarding) {
-            if (comment.isNotEmpty()) add { client.sendText(peer, comment).asMessages() }
-            request.messageIds.distinct().sorted().chunked(100).forEach { ids ->
-                add { client.forwardMessages(PeerId(requireNotNull(request.fromChatId)), ids, peer, snapshot.dropAuthor) }
+    private fun operations(peer: PeerId, snapshot: RecipientPickerState): List<suspend () -> Outcome<List<Message>>> =
+        recipientSendSteps(request, snapshot.comment, snapshot.dropAuthor).map { step ->
+            when (step) {
+                is RecipientSendStep.Forward -> {
+                    { client.forwardMessages(PeerId(step.fromChatId), step.messageIds, peer, step.dropAuthor) }
+                }
+                is RecipientSendStep.Text -> {
+                    { client.sendText(peer, step.text).asMessages() }
+                }
+                is RecipientSendStep.Upload -> {
+                    { client.sendUploadedMedia(peer, step.item).asMessages() }
+                }
             }
+        }
+}
+
+internal fun mappedRecipientError(result: Outcome.Err): String =
+    result.telegramError.message.ifBlank { result.message }
+
+internal sealed interface RecipientSendStep {
+    data class Forward(
+        val fromChatId: Long,
+        val messageIds: List<Int>,
+        val dropAuthor: Boolean,
+    ) : RecipientSendStep
+    data class Text(val text: String) : RecipientSendStep
+    data class Upload(val item: UploadItem) : RecipientSendStep
+}
+
+internal fun recipientSendSteps(
+    request: RecipientRequest,
+    comment: String,
+    dropAuthor: Boolean,
+): List<RecipientSendStep> {
+    val note = userFacingShareText(comment)
+    return buildList {
+        if (request.forwarding) {
+            request.messageIds.distinct().sorted().chunked(100).forEach { ids ->
+                add(
+                    RecipientSendStep.Forward(
+                        fromChatId = requireNotNull(request.fromChatId),
+                        messageIds = ids,
+                        dropAuthor = dropAuthor,
+                    ),
+                )
+            }
+            if (note.isNotEmpty()) add(RecipientSendStep.Text(note))
         } else {
             val attachments = request.share?.attachments.orEmpty()
             if (attachments.isEmpty()) {
-                if (comment.isNotEmpty()) add { client.sendText(peer, comment).asMessages() }
+                if (note.isNotEmpty()) add(RecipientSendStep.Text(note))
             } else {
                 attachments.forEachIndexed { index, item ->
-                    add { client.sendUploadedMedia(peer, item.toUploadItem().copy(caption = if (index == 0) comment else "")).asMessages() }
+                    add(
+                        RecipientSendStep.Upload(
+                            item.toUploadItem().copy(caption = if (index == 0) note else ""),
+                        ),
+                    )
                 }
             }
         }

@@ -163,6 +163,7 @@ import org.monogram.feature.dialog.shouldFollowIncomingNewest
 import org.monogram.feature.dialog.shouldPageNewer
 import org.monogram.feature.dialog.shouldPageOlder
 import org.monogram.feature.dialog.unreadDividerIndex
+import org.monogram.feature.dialog.visibleUnreadBadgeCount
 import org.monogram.feature.dialog.visibleAlbumMessageIds
 import org.monogram.network.http.MediaPriority
 import java.io.File
@@ -186,6 +187,7 @@ internal fun ColumnScope.DialogHistoryPane(
     taskDraftFor: androidx.compose.runtime.MutableState<Pair<Int, Int>?>,
     peerListId: androidx.compose.runtime.MutableState<Int?>,
     peerListKind: androidx.compose.runtime.MutableState<String?>,
+    peerListFilter: androidx.compose.runtime.MutableState<String?>,
     clipboard: androidx.compose.ui.platform.Clipboard,
     attachScope: kotlinx.coroutines.CoroutineScope,
 ) {
@@ -208,6 +210,7 @@ internal fun ColumnScope.DialogHistoryPane(
     var taskDraftFor by taskDraftFor
     var peerListId by peerListId
     var peerListKind by peerListKind
+    var peerListFilter by peerListFilter
     LaunchedEffect(menuExpanded, menuVisibility.isIdle, menuVisibility.currentState) {
         if (!menuExpanded && menuVisibility.isIdle && !menuVisibility.currentState) {
             menuMessageId = null
@@ -443,7 +446,8 @@ internal fun ColumnScope.DialogHistoryPane(
                             if (newDay) {
                                 DialogDateSeparator(epochSeconds = message.date, zone = zone)
                             }
-                            val selectableForForwarding = album.all(::isForwardSelectionCandidate)
+                            val selectableForForwarding =
+                                album.all { isForwardSelectionCandidate(it, state.canForward) }
                             val selectedForForwarding = album.any { it.id.id in selectedIds }
                             val rowModifier = if (multiSelecting && selectableForForwarding) {
                                 (if (selectedForForwarding) {
@@ -454,7 +458,11 @@ internal fun ColumnScope.DialogHistoryPane(
                                     .forwardSelectionTap(
                                         selected = selectedForForwarding,
                                         onToggle = {
-                                            selectedIds = toggleForwardSelection(selectedIds, album)
+                                            selectedIds = toggleForwardSelection(
+                                                selectedIds,
+                                                album,
+                                                state.canForward,
+                                            )
                                         },
                                     )
                             } else {
@@ -524,16 +532,18 @@ internal fun ColumnScope.DialogHistoryPane(
                                 onShowReactionUsers = if (state.isChannel) {
                                     null
                                 } else {
-                                    {
+                                    { reaction ->
                                         component.onLoadReactionUsers(message.id.id)
                                         peerListId = message.id.id
                                         peerListKind = "reactions"
+                                        peerListFilter = peerListInitialFilter("reactions", reaction)
                                     }
                                 },
                                 onShowPollVoters = {
                                     component.onLoadPollVoters(message.id.id)
                                     peerListId = message.id.id
                                     peerListKind = "poll"
+                                    peerListFilter = peerListInitialFilter("poll")
                                 },
                                 onAddReaction = {
                                     menuTouch = null
@@ -611,7 +621,11 @@ internal fun ColumnScope.DialogHistoryPane(
                                 },
                                 onSelectText = { selectingMessageId = it.id.id },
                                 onSelectForForwarding = {
-                                    selectedIds = toggleForwardSelection(selectedIds, album)
+                                    selectedIds = toggleForwardSelection(
+                                        selectedIds,
+                                        album,
+                                        state.canForward,
+                                    )
                                 },
                                 onEdit = component::onEdit,
                                 onDelete = { pendingDeleteId = it.id.id },
@@ -747,7 +761,12 @@ internal fun ColumnScope.DialogHistoryPane(
                                 )
                             }
                             UnreadBadge(
-                                count = state.unreadCount,
+                                count = visibleUnreadBadgeCount(
+                                    state.messages,
+                                    state.unreadCount,
+                                    state.readInboxMaxId,
+                                    state.hasNewer,
+                                ),
                                 muted = false,
                                 compact = true,
                                 modifier = Modifier

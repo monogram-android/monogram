@@ -157,10 +157,12 @@ fun Chat.mergeLocalCache(stored: Chat?): Chat {
         } else {
             archived
         },
-        left = if (stored != null && isPlaceholderPeerTitle(title, id.value)) {
-            stored.left
-        } else {
-            left
+        left = when {
+            left -> true
+            stored?.left != true -> false
+            // A min peer without `left` must not resurrect a dialog the user already left.
+            isPlaceholderPeerTitle(title, id.value) -> true
+            else -> false
         },
     )
 }
@@ -216,16 +218,56 @@ data class Message(
 /** Last dialog row, so opening a listed chat can paint before history returns. */
 fun Chat.historySeed(): Message? {
     if (lastMessageId <= 0) return null
+    val group = isGroup && !isChannel
+    val sender = when {
+        lastMessageOutgoing -> null
+        !lastMessageSenderName.isNullOrBlank() -> lastMessageSenderName
+        group -> composedPreviewSender(lastMessagePreview)
+        else -> null
+    }
+    val text = unwrapChatListCaption(
+        preview = lastMessagePreview,
+        mediaKind = lastMessageMediaKind,
+        outgoing = lastMessageOutgoing,
+        senderName = sender ?: lastMessageSenderName,
+    )
+    // A group chat-list line we could not unwrap is not a real message body.
+    if (group &&
+        sender == null &&
+        text == lastMessagePreview &&
+        lastMessagePreview.orEmpty().contains(':')
+    ) {
+        return null
+    }
     return Message(
         id = MessageId(id, lastMessageId),
         senderId = null,
-        text = lastMessagePreview,
+        text = text,
         date = lastMessageDate ?: 0L,
         outgoing = lastMessageOutgoing,
         mediaKind = lastMessageMediaKind,
         thumbCacheKey = lastMediaThumbCacheKey,
-        senderName = lastMessageSenderName,
+        senderName = sender,
     )
+}
+
+/** Replaces a stored chat-list preview that was written as if it were history. */
+fun List<Message>.replaceComposedDialogSeed(chat: Chat?): List<Message> {
+    val target = chat ?: return this
+    val preview = target.lastMessagePreview ?: return this
+    var changed = false
+    val out = mapNotNull { message ->
+        if (message.id.id != target.lastMessageId ||
+            message.senderId != null ||
+            message.entities.isNotEmpty() ||
+            message.text != preview
+        ) {
+            return@mapNotNull message
+        }
+        changed = true
+        target.historySeed()
+    }
+    return if (changed) out else this
 }
 
 data class Folder(

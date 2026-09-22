@@ -2,6 +2,8 @@
 <resources>
     <string name="chats_share_recipient">Şuraya gönder</string>
     <string name="chats_share_cancel">İptal</string>
+    <string name="chats_share_empty">Gönderilebilecek sohbet yok</string>
+    <string name="chats_share_empty_body">Yalnızca buna izin verilen sohbetlere ileti gönderebilirsin</string>
     <string name="chats_settings">Ayarlar</string>
     <string name="chats_profile">Ben</string>
     <string name="chats_my_profile">Profilim</string>

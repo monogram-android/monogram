@@ -62,6 +62,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -70,6 +75,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -259,14 +265,18 @@ internal fun DialogWriteBar(
                             }
                         }
                         LaunchedEffect(composer.text, composer.selection) {
-                            if (
-                                textFieldState.text.toString() != composer.text ||
-                                textFieldState.selection != composer.selection
-                            ) {
-                                textFieldState.edit {
+                            val fieldText = textFieldState.text.toString()
+                            val fieldSelection = textFieldState.selection
+                            if (fieldText == composer.text && fieldSelection == composer.selection) {
+                                return@LaunchedEffect
+                            }
+                            textFieldState.edit {
+                                // Replacing an unchanged buffer collapses IME selection, so
+                                // the next Delete only removes the last glyph.
+                                if (fieldText != composer.text) {
                                     replace(0, length, composer.text)
-                                    selection = composer.selection
                                 }
+                                selection = composer.selection
                             }
                         }
                         val receiveMedia = remember(canSendPhotos, editing) {
@@ -315,6 +325,19 @@ internal fun DialogWriteBar(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .contentReceiver(receiveMedia)
+                                        .onPreviewKeyEvent { event ->
+                                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                            if (event.key != Key.Backspace && event.key != Key.Delete) {
+                                                return@onPreviewKeyEvent false
+                                            }
+                                            val range = textFieldState.selection
+                                            if (!composerDeleteRemovesSelection(range)) return@onPreviewKeyEvent false
+                                            textFieldState.edit {
+                                                replace(range.min, range.max, "")
+                                                selection = TextRange(range.min)
+                                            }
+                                            true
+                                        }
                                         .onSizeChanged { fieldWidth = it.width },
                                     enabled = editing || canSendPlain,
                                     outputTransformation = markdownPreview,

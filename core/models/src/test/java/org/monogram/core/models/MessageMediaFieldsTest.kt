@@ -91,4 +91,16 @@ class MessageMediaFieldsTest {
         val empty = same.copy(lastMessageId = 0)
         assertFalse(empty.mergeLocalCache(stored).lastMessageOutgoing)
     }
+
+    @Test
+    fun mergeLocalCacheKeepsLeftOnPlaceholderNetworkRow() {
+        val stored = Chat(id = PeerId(-100), title = "Team", isGroup = true, left = true)
+        val incoming = Chat(id = PeerId(-100), title = "Chat -100", isGroup = true, left = false)
+        assertTrue(incoming.mergeLocalCache(stored).left)
+        assertFalse(
+            Chat(id = PeerId(-100), title = "Team", isGroup = true, left = false)
+                .mergeLocalCache(stored)
+                .left,
+        )
+    }
 }

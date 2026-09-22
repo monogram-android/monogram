@@ -28,6 +28,7 @@
     <string name="dialog_poll_voters_title">Votantes</string>
     <string name="dialog_reaction_users_title">Reacciones</string>
     <string name="dialog_peer_list_empty">Nadie</string>
+    <string name="dialog_peer_list_all">Todos</string>
     <string name="dialog_poll_anonymous">Encuesta anónima</string>
     <string name="dialog_poll_solution">Respuesta: %1$s</string>
     <string name="dialog_location_live">Ubicación en tiempo real</string>
@@ -49,8 +50,11 @@
     <string name="dialog_media_photo">Foto</string>
     <string name="dialog_media_sticker">Sticker</string>
     <string name="dialog_sticker_pack_close">Cerrar pack</string>
-    <string name="dialog_comments">%1$d comentarios</string>
-    <string name="dialog_leave_comment">Dejar un comentario</string>
+    <plurals name="dialog_comments_count">
+        <item quantity="one">%d comentario</item>
+        <item quantity="other">%d comentarios</item>
+    </plurals>
+    <string name="dialog_leave_comment">Comentar</string>
     <string name="dialog_add_reaction">Añadir reacción</string>
     <string name="dialog_comments_title">Comentarios</string>
     <string name="dialog_saved_gifs">GIF guardados</string>

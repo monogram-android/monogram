@@ -41,6 +41,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.State
+import org.monogram.core.models.canSelectAsForwardRecipient
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.collectWhenActive
 import kotlin.math.roundToInt
@@ -417,6 +418,7 @@ private fun HomeContent(
     recipient: RecipientPickerComponent?,
 ) {
     val foldersState = collectWhenActive(component.folders.state, listActive)
+    val chatsState = collectWhenActive(component.chats.state, listActive)
     val selection = recipient?.state?.collectAsStateWithLifecycle()?.value
     val focusManager = LocalFocusManager.current
     LaunchedEffect(recipient) { focusManager.clearFocus() }
@@ -433,8 +435,10 @@ private fun HomeContent(
         recipientIds = selection?.selected.orEmpty(),
         recipientSelectionEnabled = selection?.started != true,
         canSelectRecipient = { chat ->
-            chat.canView && !chat.left && chat.canSendPlain &&
-                (recipient?.request?.share?.attachments.isNullOrEmpty() || chat.canSendPhotos)
+            chat.canSelectAsForwardRecipient(
+                requiresPhotos = recipient?.request?.needsPhotoSendRight == true,
+                selfPeerId = chatsState.self?.id,
+            )
         },
         onToggleRecipient = { id -> recipient?.onToggle(id) },
         selectionBottomBar = {

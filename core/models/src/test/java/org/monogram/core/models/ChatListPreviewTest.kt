@@ -338,4 +338,31 @@ class ChatListPreviewTest {
             ).isMigratedServicePlaceholder(),
         )
     }
+
+    @Test
+    fun historySeedUnwrapsGroupChatListPreview() {
+        val chat = Chat(
+            id = PeerId(9),
+            title = "Friends",
+            isGroup = true,
+            lastMessageId = 12,
+            lastMessagePreview = "Danil: hello",
+            lastMessageDate = 4L,
+        )
+        val seed = chat.historySeed()
+        assertEquals("hello", seed?.text)
+        assertEquals("Danil", seed?.senderName)
+        assertEquals(
+            "hello",
+            listOf(
+                Message(
+                    id = MessageId(PeerId(9), 12),
+                    senderId = null,
+                    text = "Danil: hello",
+                    date = 4L,
+                    outgoing = false,
+                ),
+            ).replaceComposedDialogSeed(chat).single().text,
+        )
+    }
 }

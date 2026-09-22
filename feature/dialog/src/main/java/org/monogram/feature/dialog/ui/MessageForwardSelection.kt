@@ -1,22 +1,26 @@
 package org.monogram.feature.dialog.ui
 
 import org.monogram.core.models.Message
+import org.monogram.core.models.canForwardFrom
 
 internal const val MaxForwardSelection = 100
 
-internal fun isForwardSelectionCandidate(message: Message): Boolean =
-    message.id.id > 0 && !message.pending && message.mediaKind != "service"
+internal fun isForwardSelectionCandidate(
+    message: Message,
+    chatCanForward: Boolean = true,
+): Boolean = message.canForwardFrom(chatCanForward)
 
 internal fun toggleForwardSelection(
     selectedIds: Collection<Int>,
     rowMessages: List<Message>,
+    chatCanForward: Boolean = true,
 ): List<Int> {
-    if (rowMessages.any { !isForwardSelectionCandidate(it) }) {
+    if (rowMessages.any { !isForwardSelectionCandidate(it, chatCanForward) }) {
         return selectedIds.distinct().sorted()
     }
     val rowIds = rowMessages
         .asSequence()
-        .filter(::isForwardSelectionCandidate)
+        .filter { isForwardSelectionCandidate(it, chatCanForward) }
         .map { it.id.id }
         .distinct()
         .sorted()

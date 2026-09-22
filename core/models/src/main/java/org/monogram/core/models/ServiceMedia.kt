@@ -188,6 +188,18 @@ object ServiceMedia {
     }
 }
 
+fun pollOptionHex(bytes: ByteArray): String {
+    if (bytes.isEmpty()) return ""
+    val digits = "0123456789abcdef"
+    val out = CharArray(bytes.size * 2)
+    bytes.forEachIndexed { index, byte ->
+        val value = byte.toInt() and 0xFF
+        out[index * 2] = digits[value ushr 4]
+        out[index * 2 + 1] = digits[value and 0x0F]
+    }
+    return String(out)
+}
+
 /** Typed payloads for [mediaKind]; null when the message is not that kind. */
 val Message.poll: Poll?
     get() = if (mediaKind == "poll") ServiceMedia.poll(fileName) else null

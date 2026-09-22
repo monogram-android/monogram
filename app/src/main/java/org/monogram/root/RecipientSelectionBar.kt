@@ -81,7 +81,11 @@ internal fun RecipientSelectionBar(component: RecipientPickerComponent, state: R
             )
             if (state.interrupted || state.error) {
                 Text(
-                    stringResource(if (state.interrupted) R.string.recipient_interrupted else R.string.recipient_error),
+                    when {
+                        state.interrupted -> stringResource(R.string.recipient_interrupted)
+                        !state.errorMessage.isNullOrBlank() -> state.errorMessage
+                        else -> stringResource(R.string.recipient_error)
+                    },
                     color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
                 )
             }

@@ -106,6 +106,7 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.models.GeoPlace
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.poll
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.displayedChatAction
 import org.monogram.core.models.peerAvatarCacheKey
@@ -192,6 +193,7 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
     }
     val peerListId = rememberSaveable { mutableStateOf<Int?>(null) }
     val peerListKind = rememberSaveable { mutableStateOf<String?>(null) }
+    val peerListFilter = rememberSaveable { mutableStateOf<String?>(null) }
     val packDocumentId = rememberSaveable { mutableStateOf<Long?>(null) }
     val selectingMessageId = rememberSaveable { mutableStateOf<Int?>(null) }
     val selectedMessageIds = rememberSaveable(state.chatId.value) { mutableStateOf<List<Int>>(emptyList()) }
@@ -604,6 +606,12 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
             PeerListSheet(
                 kind = peerListKind.value,
                 users = users,
+                poll = if (peerListKind.value == "poll") {
+                    state.messages.firstOrNull { it.id.id == listId }?.poll
+                } else {
+                    null
+                },
+                initialFilter = peerListFilter.value,
                 viewerAvatar = { viewer ->
                     viewer.avatarCacheKey?.let { component.mediaRepository?.cachedFile(it) }
                         ?: component.mediaRepository?.cachedAvatar(
@@ -613,9 +621,14 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                 onOpenProfile = { id ->
                     peerListId.value = null
                     peerListKind.value = null
+                    peerListFilter.value = null
                     component.onOpenPeer(PeerId(id))
                 },
-                onDismiss = { peerListId.value = null; peerListKind.value = null },
+                onDismiss = {
+                    peerListId.value = null
+                    peerListKind.value = null
+                    peerListFilter.value = null
+                },
             )
         }
         DialogHistoryPane(
@@ -631,6 +644,7 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
             taskDraftFor = taskDraftFor,
             peerListId = peerListId,
             peerListKind = peerListKind,
+            peerListFilter = peerListFilter,
             clipboard = clipboard,
             attachScope = attachScope,
         )

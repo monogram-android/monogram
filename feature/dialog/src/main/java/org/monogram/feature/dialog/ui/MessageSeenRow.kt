@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +23,9 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,10 +37,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import org.monogram.core.models.MessageReaction
 import org.monogram.core.models.MessageViewer
 import org.monogram.core.models.MessageViewers
 import org.monogram.core.models.OutboxReadState
+import org.monogram.core.models.PEER_LIST_FILTER_ALL
+import org.monogram.core.models.PeerListFilterChip
+import org.monogram.core.models.Poll
+import org.monogram.core.models.filterPeerList
+import org.monogram.core.models.peerListFilterChips
+import org.monogram.core.models.pollAnswersLabel
+import org.monogram.core.models.reactionChoiceKey
 import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.menu.AppMenuAvatar
@@ -80,7 +94,6 @@ fun MessageSeenByRow(
             label = "messageViewers",
         ) { (viewers, open) ->
             when (viewers) {
-                null -> Unit
                 MessageViewers.Loading -> {
                     AppMenuItem(
                         text = stringResource(R.string.dialog_seen_loading),
@@ -115,6 +128,15 @@ fun MessageSeenByRow(
     }
 }
 
+internal fun peerListInitialFilter(
+    kind: String?,
+    reaction: MessageReaction? = null,
+): String {
+    if (kind == "poll" || reaction == null) return PEER_LIST_FILTER_ALL
+    return reactionChoiceKey(reaction.emoticon, reaction.documentId)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PeerListSheet(
     kind: String?,
@@ -122,17 +144,52 @@ internal fun PeerListSheet(
     viewerAvatar: (MessageViewer) -> File?,
     onOpenProfile: (Long) -> Unit,
     onDismiss: () -> Unit,
+    poll: Poll? = null,
+    initialFilter: String? = null,
 ) {
     val title = stringResource(
         if (kind == "poll") R.string.dialog_poll_voters_title else R.string.dialog_reaction_users_title,
     )
     val yesterday = stringResource(R.string.dialog_yesterday)
+    val allLabel = stringResource(R.string.dialog_peer_list_all)
+    val chips = peerListFilterChips(users.orEmpty(), kind, poll)
+    var selectedKey by rememberSaveable(kind, initialFilter) {
+        mutableStateOf(initialFilter?.takeIf { it.isNotBlank() } ?: PEER_LIST_FILTER_ALL)
+    }
+    val visible = filterPeerList(users.orEmpty(), selectedKey)
     AppModalSheet(onDismissRequest = onDismiss) {
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmallEmphasized,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
         )
+        if (chips.size > 1) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(chips, key = { it.key }) { chip ->
+                    FilterChip(
+                        selected = selectedKey == chip.key,
+                        onClick = { selectedKey = chip.key },
+                        label = {
+                            Text(
+                                text = chipLabel(chip, allLabel),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        leadingIcon = chipLeading(chip),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    )
+                }
+            }
+        }
         when {
             users == null -> {
                 Box(
@@ -144,7 +201,7 @@ internal fun PeerListSheet(
                     CircularProgressIndicator()
                 }
             }
-            users.isEmpty() -> {
+            users.isEmpty() || visible.isEmpty() -> {
                 Text(
                     text = stringResource(R.string.dialog_peer_list_empty),
                     style = MaterialTheme.typography.bodyMedium,
@@ -159,37 +216,113 @@ internal fun PeerListSheet(
                         .heightIn(max = 560.dp),
                     contentPadding = PaddingValues(bottom = 24.dp),
                 ) {
-                    items(users, key = { "${it.peerId.value}:${it.date}" }) { viewer ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 64.dp)
-                                .clickable { onOpenProfile(viewer.peerId.value) }
-                                .padding(horizontal = 20.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            PeerAvatar(
-                                title = viewer.title.orEmpty(),
-                                size = 40.dp,
-                                imageFile = viewerAvatar(viewer),
-                            )
-                            Text(
-                                text = viewer.title ?: stringResource(R.string.dialog_seen_unknown_member),
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f),
-                            )
-                            viewer.date.takeIf { it > 0 }?.let { date ->
-                                Text(
-                                    text = formatSeenDate(date, yesterdayLabel = yesterday),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
+                    items(
+                        visible,
+                        key = {
+                            "${it.peerId.value}:${it.date}:${it.emoticon}:${it.documentId}:" +
+                                it.pollOptionHex.joinToString()
+                        },
+                    ) { viewer ->
+                        PeerChoiceRow(
+                            viewer = viewer,
+                            kind = kind,
+                            poll = poll,
+                            yesterday = yesterday,
+                            viewerAvatar = viewerAvatar,
+                            onOpenProfile = onOpenProfile,
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+private fun chipLabel(chip: PeerListFilterChip, allLabel: String): String {
+    val name = when {
+        chip.key == PEER_LIST_FILTER_ALL -> allLabel
+        !chip.label.isNullOrBlank() -> chip.label.orEmpty()
+        else -> ""
+    }
+    return if (name.isBlank()) chip.count.toString() else "$name ${chip.count}"
+}
+
+@Composable
+private fun chipLeading(chip: PeerListFilterChip): (@Composable () -> Unit)? {
+    val documentId = chip.documentId ?: 0L
+    if (documentId == 0L && chip.emoticon.isNullOrBlank()) return null
+    return {
+        if (documentId != 0L) {
+            CustomEmojiGlyph(documentId = documentId, size = 18.dp)
+        } else {
+            Text(
+                text = chip.emoticon.orEmpty(),
+                fontSize = 16.sp,
+                lineHeight = 16.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PeerChoiceRow(
+    viewer: MessageViewer,
+    kind: String?,
+    poll: Poll?,
+    yesterday: String,
+    viewerAvatar: (MessageViewer) -> File?,
+    onOpenProfile: (Long) -> Unit,
+) {
+    val pollLabel = if (kind == "poll") pollAnswersLabel(viewer, poll) else null
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clickable { onOpenProfile(viewer.peerId.value) }
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        PeerAvatar(
+            title = viewer.title.orEmpty(),
+            size = 40.dp,
+            imageFile = viewerAvatar(viewer),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = viewer.title ?: stringResource(R.string.dialog_seen_unknown_member),
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!pollLabel.isNullOrBlank()) {
+                Text(
+                    text = pollLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (kind != "poll") {
+            val documentId = viewer.documentId ?: 0L
+            if (documentId != 0L) {
+                CustomEmojiGlyph(documentId = documentId, size = 22.dp)
+            } else if (!viewer.emoticon.isNullOrBlank()) {
+                Text(
+                    text = viewer.emoticon.orEmpty(),
+                    fontSize = 22.sp,
+                    lineHeight = 22.sp,
+                )
+            }
+        }
+        viewer.date.takeIf { it > 0 }?.let { date ->
+            Text(
+                text = formatSeenDate(date, yesterdayLabel = yesterday),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

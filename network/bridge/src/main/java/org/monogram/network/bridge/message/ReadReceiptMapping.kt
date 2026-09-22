@@ -6,7 +6,11 @@ import org.monogram.core.models.OutboxReadState
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.ProfileMember
 import org.monogram.core.models.ReadReceiptConfig
+import org.monogram.core.models.peerAvatarCacheKey
+import org.monogram.core.models.pollOptionHex
 import uniffi.monogram_mtproto.OutboxReadDto
+import uniffi.monogram_mtproto.PollVoterDto
+import uniffi.monogram_mtproto.ReactionPeerDto
 import uniffi.monogram_mtproto.ReadParticipantsDto
 import uniffi.monogram_mtproto.ReadReceiptConfigDto
 
@@ -41,6 +45,23 @@ internal fun ReadReceiptConfigDto.toModel(): ReadReceiptConfig = ReadReceiptConf
     chatReadMarkExpirePeriod = chatReadMarkExpirePeriod,
     pmReadDateExpirePeriod = pmReadDateExpirePeriod,
     fromServer = fromServer,
+)
+
+internal fun ReactionPeerDto.toViewer(): MessageViewer = MessageViewer(
+    peerId = PeerId(peerId),
+    date = date.toLong(),
+    title = title.ifBlank { null },
+    avatarCacheKey = peerAvatarCacheKey(PeerId(peerId)),
+    emoticon = emoticon.ifBlank { null },
+    documentId = documentId.takeIf { it != 0L },
+)
+
+internal fun PollVoterDto.toViewer(): MessageViewer = MessageViewer(
+    peerId = PeerId(peerId),
+    date = date.toLong(),
+    title = title.ifBlank { null },
+    avatarCacheKey = peerAvatarCacheKey(PeerId(peerId)),
+    pollOptionHex = options.map(::pollOptionHex).filter { it.isNotEmpty() },
 )
 
 internal fun attachViewerProfiles(

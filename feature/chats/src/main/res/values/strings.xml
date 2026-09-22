@@ -2,6 +2,8 @@
 <resources>
     <string name="chats_share_recipient">Send to</string>
     <string name="chats_share_cancel">Cancel</string>
+    <string name="chats_share_empty">No chats you can send to</string>
+    <string name="chats_share_empty_body">You can send messages only in chats where this is allowed</string>
     <string name="chats_settings">Settings</string>
     <string name="chats_profile">Me</string>
     <string name="chats_my_profile">My profile</string>

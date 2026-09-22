@@ -18,6 +18,21 @@ class TelegramErrorTest {
         assertTrue(types.contains("SESSION_REVOKED"))
         assertTrue(types.contains("FILE_REFERENCE_EXPIRED"))
         assertTrue(types.contains("PHONE_CODE_INVALID"))
+        assertTrue(types.contains("CHAT_FORWARDS_RESTRICTED"))
+        assertTrue(types.contains("SLOWMODE_MULTI_MSGS_DISABLED"))
+    }
+
+    @Test
+    fun forwardRestrictionsAreMappedAndNotAutoRetried() {
+        val protectedChat = TelegramError.parse("RPC 400: CHAT_FORWARDS_RESTRICTED")
+        assertTrue(protectedChat.recognized)
+        assertFalse(protectedChat.canAutoRetry)
+        assertTrue(protectedChat.message.isNotBlank())
+
+        val slowmode = TelegramError.parse("RPC 400: SLOWMODE_MULTI_MSGS_DISABLED")
+        assertTrue(slowmode.recognized)
+        assertFalse(slowmode.canAutoRetry)
+        assertEquals(400, slowmode.httpCode)
     }
 
     @Test

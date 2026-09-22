@@ -2,6 +2,8 @@
 <resources>
     <string name="chats_share_recipient">Ում ուղարկել</string>
     <string name="chats_share_cancel">Չեղարկել</string>
+    <string name="chats_share_empty">Ուղարկելու զրույցներ չկան</string>
+    <string name="chats_share_empty_body">Հաղորդագրություն կարող եք ուղարկել միայն այն զրույցներ, որտեղ դա թույլատրված է</string>
     <string name="chats_settings">Կարգավորումներ</string>
     <string name="chats_profile">Ես</string>
     <string name="chats_my_profile">Իմ պրոֆիլը</string>

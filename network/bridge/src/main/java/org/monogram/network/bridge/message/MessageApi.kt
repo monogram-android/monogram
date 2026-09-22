@@ -14,7 +14,6 @@ import org.monogram.core.models.ReactionChoice
 import org.monogram.core.models.ReadReceiptConfig
 import org.monogram.core.models.SavedGif
 import org.monogram.core.models.UploadItem
-import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.profile.ProfileOps
 import org.monogram.network.bridge.session.DispatchClass
@@ -166,14 +165,7 @@ internal class MessageApi(
                 activeHandle,
                 chatId.value,
                 messageId
-            ).peers.map { row ->
-                MessageViewer(
-                    peerId = PeerId(row.peerId),
-                    date = row.date.toLong(),
-                    title = row.title.ifBlank { null },
-                    avatarCacheKey = peerAvatarCacheKey(PeerId(row.peerId)),
-                )
-            }
+            ).peers.map { row -> row.toViewer() }
         }
     }
 
@@ -187,12 +179,7 @@ internal class MessageApi(
         }
         return core.rpc("getPollVotes failed") { activeHandle ->
             core.native.getPollVotes(activeHandle, chatId.value, messageId).voters.map { row ->
-                MessageViewer(
-                    peerId = PeerId(row.peerId),
-                    date = row.date.toLong(),
-                    title = row.title.ifBlank { null },
-                    avatarCacheKey = peerAvatarCacheKey(PeerId(row.peerId)),
-                )
+                row.toViewer()
             }
         }
     }

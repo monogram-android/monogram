@@ -5,6 +5,7 @@ import org.monogram.core.models.Chat
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.chatListPreviewSource
+import org.monogram.core.models.isMigratedServicePlaceholder
 import org.monogram.core.models.mergeLocalCache
 import org.monogram.core.models.preferredPeerTitle
 
@@ -35,7 +36,7 @@ internal fun applyReadStates(chats: List<Chat>, rows: Map<Long, ChatReadState>):
     return updated ?: chats
 }
 
-internal fun Chat.isShownInChatList(): Boolean = !left
+internal fun Chat.isShownInChatList(): Boolean = !left && !isMigratedServicePlaceholder()
 
 internal fun Chat.isMainListRow(): Boolean = isShownInChatList() && !archived
 
@@ -52,7 +53,7 @@ internal fun mergeChats(current: List<Chat>, extra: List<Chat>): List<Chat> {
     val typing = current.filter { it.typing }.associateBy { it.id.value }
     val byId = LinkedHashMap<Long, Chat>()
     current.forEach { byId[it.id.value] = it }
-    val extraPinned = extra.count { it.pinned && it.isShownInChatList() }
+    val dialogsPage = extra.size > 1
     extra.forEach { incoming ->
         if (!incoming.isShownInChatList()) {
             byId.remove(incoming.id.value)
@@ -60,9 +61,10 @@ internal fun mergeChats(current: List<Chat>, extra: List<Chat>): List<Chat> {
         }
         val prev = byId[incoming.id.value]
         val pinnedOrder = when {
-            incoming.pinned && extraPinned > 1 && incoming.pinnedOrder != Int.MAX_VALUE ->
-                incoming.pinnedOrder
-            else -> prev?.pinnedOrder ?: incoming.pinnedOrder
+            incoming.pinned && incoming.pinnedOrder != Int.MAX_VALUE -> incoming.pinnedOrder
+            dialogsPage -> Int.MAX_VALUE
+            incoming.pinned -> prev?.pinnedOrder ?: incoming.pinnedOrder
+            else -> Int.MAX_VALUE
         }
         val live = typing[incoming.id.value]
         byId[incoming.id.value] = incoming.mergeLocalCache(prev).copy(
@@ -70,12 +72,28 @@ internal fun mergeChats(current: List<Chat>, extra: List<Chat>): List<Chat> {
             typing = live != null,
             typingName = live?.typingName,
             typingAction = live?.typingAction,
+            pinned = incoming.pinned,
             pinnedOrder = pinnedOrder,
             photoCacheKey = incoming.photoCacheKey ?: prev?.photoCacheKey,
             dialogScrollMessageId = incoming.dialogScrollMessageId ?: prev?.dialogScrollMessageId,
         )
     }
     return sortChats(byId.values)
+}
+
+/** Network `getDialogs` pin++ wins over a Room row that only had date order. */
+internal fun withNetworkPinOrder(merged: List<Chat>, network: List<Chat>): List<Chat> {
+    if (network.isEmpty() || merged.isEmpty()) return merged
+    val pins = HashMap<Long, Pair<Boolean, Int>>(network.size)
+    network.forEach { pins[it.id.value] = it.pinned to it.pinnedOrder }
+    var changed: MutableList<Chat>? = null
+    merged.forEachIndexed { index, chat ->
+        val pin = pins[chat.id.value] ?: return@forEachIndexed
+        if (chat.pinned == pin.first && chat.pinnedOrder == pin.second) return@forEachIndexed
+        val target = changed ?: merged.toMutableList().also { changed = it }
+        target[index] = chat.copy(pinned = pin.first, pinnedOrder = pin.second)
+    }
+    return changed ?: merged
 }
 
 internal fun applyEditedMessage(chats: List<Chat>, message: Message): List<Chat> =

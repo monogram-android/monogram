@@ -30,6 +30,7 @@ import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.markup.NativeMarkupParser
 import org.monogram.core.models.AccountState
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.requiresForwardPhotoRight
 import org.monogram.feature.auth.AuthComponent
 import org.monogram.feature.chats.ChatsComponent
 import org.monogram.feature.dialog.DialogComponent
@@ -411,6 +412,7 @@ class RootComponent(
                     openRecipientPicker(RecipientRequest(
                         fromChatId = config.chatId,
                         messageIds = messages.map { it.id.id },
+                        requiresPhotos = messages.any { it.requiresForwardPhotoRight() },
                     ))
                 },
             )

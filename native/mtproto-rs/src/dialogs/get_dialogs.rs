@@ -5,8 +5,8 @@ use crate::{HashMap, HashMapExt, HashSet, HashSetExt};
 
 use tellers_mtproto::latest::api::{
     Chat as TlChat, ChatPhoto, Dialog, InputPeer, InputPeerEmptyConstructor, Message,
-    MessagesDialogs, MessagesGetDialogsRequest, PeerNotifySettings, True, TrueConstructor, User,
-    UserProfilePhoto,
+    MessagesDialogs, MessagesGetDialogsRequest, Peer, PeerNotifySettings, True, TrueConstructor,
+    User, UserProfilePhoto,
 };
 use tellers_mtproto_session::Snapshot;
 
@@ -232,6 +232,15 @@ pub fn get_dialogs(
         };
         let chat_id = peer_chat_id(&d.peer);
         let meta = title_for_peer(&d.peer, &user_names, &chat_meta);
+        let known_peer = match d.peer.as_ref() {
+            Peer::PeerChat(c) => chat_meta.contains_key(&c.chat_id),
+            Peer::PeerChannel(c) => chat_meta.contains_key(&c.channel_id),
+            _ => true,
+        };
+        // Left, kicked, and chats Telegram omitted from the payload stay out of the list.
+        if meta.left || !known_peer {
+            continue;
+        }
         let title = meta.title.clone();
         let is_channel = meta.is_channel;
         let is_group = meta.is_group;

@@ -28,6 +28,7 @@ import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.showsMiniPlayer
 import org.monogram.core.ui.menu.AppMenuPopup
 import org.monogram.core.ui.perf.RecompositionProbe
+import org.monogram.feature.chats.recipientPaneIds
 import org.monogram.feature.chats.shouldPageChats
 import org.monogram.network.http.MediaRepository
 
@@ -87,7 +88,12 @@ internal fun ChatsLazyList(
     RecompositionProbe("ChatsLazyList")
     val context = LocalContext.current
     val miniPlayerPad = if (MediaPlaybackHolder.session(context).showsMiniPlayer()) 72.dp else 0.dp
-    val paneIds = chats.ids
+    val paneIds = recipientPaneIds(
+        paneIds = chats.ids,
+        chat = chats::chat,
+        selectingRecipient = selectingRecipient,
+        canSelectRecipient = canSelectRecipient,
+    )
     LaunchedEffect(listState, paneIds.size, hasMore, loadingMore, archive, searchOpen, showArchiveRow, foldersAtBottom) {
         snapshotFlow {
             listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
@@ -166,6 +172,7 @@ internal fun ChatsLazyList(
                     archive = archive,
                     filtered = homeFolderId != null && !archive,
                     query = query,
+                    selectingRecipient = selectingRecipient,
                     onShowAll = { onSelectFolder(null) },
                     onClearSearch = onClearSearch,
                 )
@@ -183,7 +190,7 @@ internal fun ChatsLazyList(
                 selectingRecipient = selectingRecipient,
                 recipientSelected = id in recipientIds,
                 recipientSelectionEnabled = recipientSelectionEnabled,
-                canSelectRecipient = canSelectRecipient(chat),
+                canSelectRecipient = true,
                 onToggleRecipient = onToggleRecipient,
                 savedMessages = chat.id == selfPeerId,
                 mediaRepository = mediaRepository,

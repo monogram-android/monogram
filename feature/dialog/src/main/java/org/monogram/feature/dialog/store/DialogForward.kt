@@ -35,9 +35,12 @@ import org.monogram.core.models.TextEntities
 import org.monogram.core.models.TextEntity
 import org.monogram.core.models.TypingPresence
 import org.monogram.core.models.UploadItem
+import org.monogram.core.models.canForwardFrom
+import org.monogram.core.models.canSelectAsForwardRecipient
 import org.monogram.core.models.canShowMessageViewers
 import org.monogram.core.models.canShowOutboxReadDate
 import org.monogram.core.models.geoPlace
+import org.monogram.core.models.requiresForwardPhotoRight
 import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.models.playedMediaKind
@@ -68,18 +71,27 @@ import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
 import kotlin.time.Duration.Companion.milliseconds
 
+internal fun eligibleForwardTargets(
+    chats: List<Chat>,
+    requiresPhotos: Boolean,
+    selfPeerId: PeerId?,
+): List<Chat> = chats.filter {
+    it.canSelectAsForwardRecipient(requiresPhotos, selfPeerId)
+}
+
 internal fun DialogExecutor.openForward(message: Message) {
     emit(Msg.ForwardHint(null))
     emit(Msg.ForwardMessage(message))
     emit(Msg.ForwardQuery(""))
+    val needsPhotos = message.requiresForwardPhotoRight()
     work.launch {
-        var targets = warmup?.chats().orEmpty()
-            .filter { it.canView && it.canSendPlain }
+        val selfId = sessionStore?.readAuthorizedUserId()
+        var targets = eligibleForwardTargets(warmup?.chats().orEmpty(), needsPhotos, selfId)
         if (targets.isEmpty()) {
             when (val result = client.getChats()) {
                 is Outcome.Ok -> {
                     warmup?.upsertChats(result.value)
-                    targets = result.value.filter { it.canView && it.canSendPlain }
+                    targets = eligibleForwardTargets(result.value, needsPhotos, selfId)
                 }
                 is Outcome.Err -> handleError(result.telegramError, false)
             }
@@ -89,15 +101,18 @@ internal fun DialogExecutor.openForward(message: Message) {
 }
 
 internal fun DialogExecutor.forwardTo(toChatId: PeerId) {
-    val message = snapshot().forwardMessage ?: return
-    if (snapshot().forwarding || message.id.id <= 0) return
+    val current = snapshot()
+    val message = current.forwardMessage ?: return
+    if (current.forwarding || !message.canForwardFrom(current.canForward)) return
+    val dest = current.forwardTargets.firstOrNull { it.id == toChatId } ?: return
     emit(Msg.Forwarding(true))
     work.launch {
         when (
-            val result = client.forwardMessage(
+            val result = client.forwardMessages(
                 fromChatId = chatId,
-                messageId = message.id.id,
-                toChatId = toChatId,
+                messageIds = listOf(message.id.id),
+                toChatId = dest.id,
+                dropAuthor = false,
             )
         ) {
             is Outcome.Ok -> {

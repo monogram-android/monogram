@@ -82,6 +82,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             signingConfig = signingConfigs.findByName("release")
                 ?: if (unsignedBuild) null else signingConfigs.getByName("debug")

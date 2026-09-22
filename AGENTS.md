@@ -2,7 +2,10 @@
 
 Monogram is an Android Telegram client. The application uses Kotlin and Jetpack
 Compose for its UI and Rust with UniFFI for MTProto. The minimum Android SDK is
-24 (Android 7.0) with core-library desugaring enabled, and the application id is `org.monogram`.
+24 (Android 7.0) with core-library desugaring enabled. Release and beta use
+application id `org.monogram`. Debug builds and instrumented tests use
+`org.monogram.debug`, so installing them does not replace a logged-in
+`org.monogram` app.
 
 ## Repository layout
 

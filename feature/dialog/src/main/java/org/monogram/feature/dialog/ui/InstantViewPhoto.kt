@@ -158,7 +158,14 @@ internal fun rememberIvMedia(
                 )
             ) {
                 is Outcome.Ok -> thumb = fetched.value
-                is Outcome.Err -> if (fetched.message == "cancelled") return@LaunchedEffect
+                is Outcome.Err -> when (fetched.message) {
+                    "cancelled" -> return@LaunchedEffect
+                    "no avatar" -> {
+                        fetchDone = true
+                        failed = false
+                        return@LaunchedEffect
+                    }
+                }
             }
         }
         if (image == null && wantFull) {

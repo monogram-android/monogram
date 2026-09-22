@@ -226,6 +226,9 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
                     throw e
                 } catch (e: Exception) {
                     val raw = nativeExceptionMessage(e)
+                    if (messageId == 0 && raw.contains("no media for chat")) {
+                        return@retryShortFlood Outcome.Err("no avatar")
+                    }
                     if (kind == TelegramFileKind.Thumb && isMissingThumbError(raw)) {
                         return@retryShortFlood Outcome.Err("no downloadable thumb")
                     }

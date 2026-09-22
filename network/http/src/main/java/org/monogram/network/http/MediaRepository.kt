@@ -36,6 +36,7 @@ import org.monogram.core.common.telegram.TelegramError
 import org.monogram.network.http.internal.nativeStagingFiles
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.perfOp
+import org.monogram.core.models.INSTANT_VIEW_MEDIA_MSG_ID
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import java.io.File
@@ -354,7 +355,9 @@ class MediaRepository(
             )
             return Outcome.Ok(it)
         }
-        if (messageId < 0) {
+        // Negative ids other than instant-view media are not Telegram file slots.
+        // Page photos and documents are indexed as (id, -1) and must still download.
+        if (messageId < 0 && messageId != INSTANT_VIEW_MEDIA_MSG_ID) {
             AppLog.api("media", "skip local kind=${kind.name} key=$key id=$messageId")
             return Outcome.Err("local media")
         }

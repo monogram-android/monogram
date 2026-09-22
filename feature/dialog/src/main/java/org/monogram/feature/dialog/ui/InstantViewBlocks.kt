@@ -273,9 +273,8 @@ internal fun InstantViewBlockContent(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val photo = block.photoCacheKey ?: "avatar:${block.peerId}"
             Box(Modifier.size(40.dp).clip(CircleShape)) {
-                InstantViewPhoto(photo, 40, 40, mediaRepository, hero = true)
+                block.photoCacheKey?.let { InstantViewPhoto(it, 40, 40, mediaRepository, hero = true) }
             }
             Column {
                 Text(block.title, style = MaterialTheme.typography.titleMedium)

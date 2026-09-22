@@ -32,6 +32,7 @@ interface AuthStore : Store<AuthStore.Intent, AuthStore.State, AuthStore.Label> 
             val phone: String,
             val phoneCodeHash: String,
             val codeType: String = "",
+            val codeLength: Int = 5,
         ) : Phase
         data object PasswordEntry : Phase
         data class Authorized(val session: AuthSession) : Phase
@@ -148,6 +149,7 @@ internal class AuthStoreFactory(
                                     phone = result.value.phone,
                                     phoneCodeHash = result.value.phoneCodeHash,
                                     codeType = result.value.codeType,
+                                    codeLength = result.value.codeLength,
                                 ),
                             ),
                         )
@@ -189,6 +191,7 @@ internal class AuthStoreFactory(
                                     phone = result.value.phone,
                                     phoneCodeHash = result.value.phoneCodeHash,
                                     codeType = result.value.codeType,
+                                    codeLength = result.value.codeLength,
                                 ),
                             ),
                         )

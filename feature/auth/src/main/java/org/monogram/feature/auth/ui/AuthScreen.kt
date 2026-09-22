@@ -99,16 +99,17 @@ fun AuthScreen(
     var pasteEmpty by rememberSaveable(state.phase) { mutableStateOf(false) }
     var submittedCode by rememberSaveable { mutableStateOf("") }
     var resendSeconds by rememberSaveable(step) { mutableStateOf(0) }
+    val expectedCodeLength = (state.phase as? AuthStore.Phase.CodeEntry)?.codeLength ?: AuthCodeLength
     val floodSeconds = floodWaitSeconds(state.error)
     LaunchedEffect(state.phase) {
         if (state.phase !is AuthStore.Phase.CodeEntry) {
             submittedCode = ""
         }
     }
-    LaunchedEffect(state.code, state.loading, state.phase) {
+    LaunchedEffect(state.code, state.loading, state.phase, expectedCodeLength) {
         val inCode = state.phase is AuthStore.Phase.CodeEntry
         if (inCode &&
-            state.code.length == AuthCodeLength &&
+            state.code.length == expectedCodeLength &&
             !state.loading &&
             state.code != submittedCode
         ) {
@@ -136,7 +137,7 @@ fun AuthScreen(
     val errorMessage = state.error?.let { errorText(it) }
     val pasteMessage = if (pasteEmpty) stringResource(R.string.auth_paste_empty) else null
     val primaryEnabled = !state.loading && when (step) {
-        1 -> state.code.length == AuthCodeLength
+        1 -> state.code.length == expectedCodeLength
         2 -> localPassword.isNotEmpty()
         else -> normalizePhone(state.phone).isNotEmpty()
     }
@@ -245,11 +246,12 @@ fun AuthScreen(
                         when (active) {
                             1 -> AuthOtpField(
                                 value = state.code,
+                                codeLength = expectedCodeLength,
                                 onValueChange = { raw ->
                                     pasteEmpty = false
                                     onIntent(
                                         AuthStore.Intent.CodeChanged(
-                                            raw.filter(Char::isDigit).take(AuthCodeLength),
+                                            raw.filter(Char::isDigit).take(expectedCodeLength),
                                         ),
                                     )
                                 },
@@ -312,7 +314,7 @@ fun AuthScreen(
                                             ?.toString()
                                             .orEmpty()
                                         pasteEmpty = text.isEmpty()
-                                        val code = text.filter(Char::isDigit).take(AuthCodeLength)
+                                        val code = text.filter(Char::isDigit).take(expectedCodeLength)
                                         if (code.isNotEmpty()) {
                                             onIntent(AuthStore.Intent.CodeChanged(code))
                                         }

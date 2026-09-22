@@ -118,8 +118,12 @@ pub fn resend_code(
 }
 
 fn sent_code_to_dto(phone: String, sent: AuthSentCode) -> Result<AuthCodeSent, MtprotoError> {
-    let (hash, code_type) = match sent {
-        AuthSentCode::AuthSentCode(s) => (s.phone_code_hash, sent_code_type_name(s.type_.as_ref())),
+    let (hash, code_type, code_length) = match sent {
+        AuthSentCode::AuthSentCode(s) => (
+            s.phone_code_hash,
+            sent_code_type_name(s.type_.as_ref()),
+            sent_code_type_length(s.type_.as_ref()),
+        ),
         AuthSentCode::AuthSentCodeSuccess(_) => {
             return Err(MtprotoError::Message(
                 "auth.sentCodeSuccess not supported in thin slice".into(),
@@ -131,7 +135,23 @@ fn sent_code_to_dto(phone: String, sent: AuthSentCode) -> Result<AuthCodeSent, M
         phone,
         phone_code_hash: hash,
         code_type: code_type.into(),
+        code_length,
     })
+}
+
+fn sent_code_type_length(sent: &AuthSentCodeType) -> i32 {
+    let len = match sent {
+        AuthSentCodeType::AuthSentCodeTypeApp(x) => x.length,
+        AuthSentCodeType::AuthSentCodeTypeSms(x) => x.length,
+        AuthSentCodeType::AuthSentCodeTypeCall(x) => x.length,
+        AuthSentCodeType::AuthSentCodeTypeMissedCall(x) => x.length,
+        AuthSentCodeType::AuthSentCodeTypeEmailCode(x) => x.length,
+        AuthSentCodeType::AuthSentCodeTypeFragmentSms(x) => x.length,
+        AuthSentCodeType::AuthSentCodeTypeFirebaseSms(x) => x.length,
+        AuthSentCodeType::AuthSentCodeTypeFlashCall(x) => x.pattern.len() as i32,
+        _ => 5,
+    };
+    if len > 0 { len } else { 5 }
 }
 
 fn sent_code_type_name(sent: &AuthSentCodeType) -> &'static str {
@@ -287,5 +307,37 @@ mod tests {
         let Vector::Vector(tokens) = *tokens;
         assert_eq!(tokens.field_0, 1);
         assert_eq!(tokens.field_1, vec![vec![1, 2, 3]]);
+    }
+
+    #[test]
+    fn sent_code_to_dto_extracts_code_length() {
+        use super::{sent_code_to_dto, sent_code_type_length};
+        use tellers_mtproto::latest::api::{
+            AuthSentCode, AuthSentCodeConstructor, AuthSentCodeType,
+            AuthSentCodeTypeAppConstructor, AuthSentCodeTypeSmsConstructor,
+        };
+
+        let app_type = AuthSentCodeType::AuthSentCodeTypeApp(AuthSentCodeTypeAppConstructor {
+            length: 6,
+        });
+        assert_eq!(sent_code_type_length(&app_type), 6);
+
+        let sent = AuthSentCode::AuthSentCode(AuthSentCodeConstructor {
+            flags: 0,
+            type_: Box::new(app_type),
+            phone_code_hash: "hash123".into(),
+            next_type: None,
+            timeout: None,
+        });
+        let dto = sent_code_to_dto("+123456789".into(), sent).expect("dto");
+        assert_eq!(dto.phone, "+123456789");
+        assert_eq!(dto.phone_code_hash, "hash123");
+        assert_eq!(dto.code_type, "app");
+        assert_eq!(dto.code_length, 6);
+
+        let sms_type = AuthSentCodeType::AuthSentCodeTypeSms(AuthSentCodeTypeSmsConstructor {
+            length: 5,
+        });
+        assert_eq!(sent_code_type_length(&sms_type), 5);
     }
 }

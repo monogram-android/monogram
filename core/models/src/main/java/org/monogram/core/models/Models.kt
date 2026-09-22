@@ -348,6 +348,7 @@ sealed class AuthState {
         val phone: String,
         val phoneCodeHash: String,
         val codeType: String = "",
+        val codeLength: Int = 5,
     ) : AuthState()
     data object AwaitingPassword : AuthState()
     data class Authorized(val session: AuthSession) : AuthState()

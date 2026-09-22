@@ -1954,6 +1954,8 @@ data class AuthCodeSent (
     var `phoneCodeHash`: kotlin.String
     , 
     var `codeType`: kotlin.String
+    ,
+    var `codeLength`: kotlin.Int
     
 ){
     
@@ -1973,19 +1975,22 @@ public object FfiConverterTypeAuthCodeSent: FfiConverterRustBuffer<AuthCodeSent>
             FfiConverterString.read(buf),
             FfiConverterString.read(buf),
             FfiConverterString.read(buf),
+            FfiConverterInt.read(buf),
         )
     }
 
     override fun allocationSize(value: AuthCodeSent) = (
             FfiConverterString.allocationSize(value.`phone`) +
             FfiConverterString.allocationSize(value.`phoneCodeHash`) +
-            FfiConverterString.allocationSize(value.`codeType`)
+            FfiConverterString.allocationSize(value.`codeType`) +
+            FfiConverterInt.allocationSize(value.`codeLength`)
     )
 
     override fun write(value: AuthCodeSent, buf: ByteBuffer) {
             FfiConverterString.write(value.`phone`, buf)
             FfiConverterString.write(value.`phoneCodeHash`, buf)
             FfiConverterString.write(value.`codeType`, buf)
+            FfiConverterInt.write(value.`codeLength`, buf)
     }
 }
 

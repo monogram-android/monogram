@@ -333,10 +333,11 @@ internal class SessionCore(
                 phone = sent.phone,
                 phoneCodeHash = sent.phoneCodeHash,
                 codeType = sent.codeType,
+                codeLength = if (sent.codeLength > 0) sent.codeLength else 5,
             )
         }
         if (result is Outcome.Ok) {
-            AppLog.api("auth.sendCode", "ok type=${result.value.codeType}")
+            AppLog.api("auth.sendCode", "ok type=${result.value.codeType} length=${result.value.codeLength}")
         }
         return result
     }
@@ -352,10 +353,11 @@ internal class SessionCore(
                 phone = sent.phone,
                 phoneCodeHash = sent.phoneCodeHash,
                 codeType = sent.codeType,
+                codeLength = if (sent.codeLength > 0) sent.codeLength else 5,
             )
         }
         if (result is Outcome.Ok) {
-            AppLog.api("auth.resendCode", "ok type=${result.value.codeType}")
+            AppLog.api("auth.resendCode", "ok type=${result.value.codeType} length=${result.value.codeLength}")
         }
         return result
     }

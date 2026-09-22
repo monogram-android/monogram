@@ -40,6 +40,7 @@ internal fun AuthOtpField(
     enabled: Boolean,
     isError: Boolean,
     modifier: Modifier = Modifier,
+    codeLength: Int = AuthCodeLength,
 ) {
     val focus = remember { FocusRequester() }
     val label = stringResource(R.string.auth_code_label)
@@ -64,10 +65,10 @@ internal fun AuthOtpField(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                repeat(AuthCodeLength) { index ->
+                repeat(codeLength) { index ->
                     val digit = value.getOrNull(index)?.toString().orEmpty()
                     val focused = value.length == index ||
-                        (value.length == AuthCodeLength && index == AuthCodeLength - 1)
+                        (value.length == codeLength && index == codeLength - 1)
                     Surface(
                         modifier = Modifier
                             .weight(1f)
@@ -109,6 +110,21 @@ private fun AuthCodePreview() {
                 phone = "+49151",
                 code = "12",
                 phase = AuthStore.Phase.CodeEntry("+49151", "hash", "app"),
+            ),
+            onIntent = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Code 6 digits")
+@Composable
+private fun AuthCode6Preview() {
+    MonogramTheme(dynamicColor = false) {
+        AuthScreen(
+            state = AuthStore.State(
+                phone = "+49151",
+                code = "17209",
+                phase = AuthStore.Phase.CodeEntry("+49151", "hash", "app", codeLength = 6),
             ),
             onIntent = {},
         )

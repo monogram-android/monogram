@@ -3,6 +3,7 @@ pub struct AuthCodeSent {
     pub phone: String,
     pub phone_code_hash: String,
     pub code_type: String,
+    pub code_length: i32,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]

@@ -71,12 +71,22 @@ class DialogMediaPreloadTest {
     }
 
     @Test
-    fun documentsAndStickersAreNotPreloaded() {
+    fun visibleStickersAndDocumentThumbsArePreloadedWithoutFullDocuments() {
         val messages = listOf(
+            Message(
+                id = MessageId(PeerId(1), 3),
+                senderId = null,
+                text = "file.pdf",
+                date = 0L,
+                outgoing = false,
+                mediaKind = "document",
+                mediaCacheKey = "doc:3",
+                thumbCacheKey = "doc:3:thumb",
+            ),
             Message(
                 id = MessageId(PeerId(1), 2),
                 senderId = null,
-                text = "file.pdf",
+                text = "plain.bin",
                 date = 0L,
                 outgoing = false,
                 mediaKind = "document",
@@ -90,10 +100,25 @@ class DialogMediaPreloadTest {
                 outgoing = false,
                 mediaKind = "sticker",
                 mediaCacheKey = "sticker:1",
+                thumbCacheKey = "sticker:1:thumb",
             ),
         )
-        val plan = DialogMediaPreload.plan(messages, visibleIds = setOf(2, 1), radius = 20)
-        assertTrue(plan.media.isEmpty())
+        val plan = DialogMediaPreload.plan(messages, visibleIds = setOf(3, 1), radius = 20)
+        assertTrue(plan.media.any {
+            it.message.id.id == 3 &&
+                it.fetch == DialogMediaPreload.Fetch.Thumb &&
+                it.cacheKey == "doc:3:thumb"
+        })
+        assertFalse(plan.media.any { it.message.id.id == 3 && it.fetch != DialogMediaPreload.Fetch.Thumb })
+        assertFalse(plan.media.any { it.message.id.id == 2 })
+        assertTrue(plan.media.any {
+            it.message.id.id == 1 &&
+                it.fetch == DialogMediaPreload.Fetch.Full &&
+                it.cacheKey == "sticker:1"
+        })
+        assertTrue(plan.media.any {
+            it.message.id.id == 1 && it.fetch == DialogMediaPreload.Fetch.Thumb
+        })
         assertTrue(plan.instantViews.isEmpty())
     }
 

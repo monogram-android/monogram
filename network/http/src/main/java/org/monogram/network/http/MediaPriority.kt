@@ -11,7 +11,8 @@ object MediaPriority {
     const val IDLE = 0
     const val DEFAULT = 10
     const val VISIBLE = 20
-    const val THUMB = 25
+    const val DISPLAY = 25
+    const val THUMB = 26
     const val USER = 30
 
     fun isBackground(priority: Int): Boolean = priority <= IDLE

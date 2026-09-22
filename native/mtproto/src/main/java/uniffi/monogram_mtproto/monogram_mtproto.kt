@@ -1954,7 +1954,7 @@ data class AuthCodeSent (
     var `phoneCodeHash`: kotlin.String
     , 
     var `codeType`: kotlin.String
-    ,
+    , 
     var `codeLength`: kotlin.Int
     
 ){

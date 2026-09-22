@@ -34,8 +34,8 @@ impl RequestClass {
         match self {
             RequestClass::InteractiveWrite => 0,
             RequestClass::InteractiveRead => 1,
-            RequestClass::BackgroundRead => 2,
-            RequestClass::InteractiveMedia => 3,
+            RequestClass::InteractiveMedia => 2,
+            RequestClass::BackgroundRead => 3,
             RequestClass::BackgroundMedia => 4,
         }
     }
@@ -138,9 +138,11 @@ pub fn main_session_allowance_known() -> bool {
     MAIN_SESSION_ALLOWANCE.load(std::sync::atomic::Ordering::Relaxed) >= 1
 }
 
-/// Main sessions the client may open beside the single home session.
+/// Extra main sessions remain disabled until each has a bound temporary PFS key.
+/// A server allowance alone does not authorize reusing the permanent key across
+/// parallel main sessions: https://core.telegram.org/api/datacenter#parallel-sessions
 pub fn extra_main_sessions() -> usize {
-    (main_session_allowance() - 1) as usize
+    0
 }
 
 /// Home-DC read lanes the current allowance pays for.
@@ -388,10 +390,10 @@ mod tests {
         assert_eq!(set_main_session_allowance(Some(0)), 1);
         assert_eq!(set_main_session_allowance(Some(99)), MAX_MAIN_SESSIONS);
         assert_eq!(set_main_session_allowance(Some(3)), 3);
-        assert_eq!(extra_main_sessions(), 2);
-        assert_eq!(read_lanes(), READ_LANES);
+        assert_eq!(extra_main_sessions(), 0);
+        assert_eq!(read_lanes(), 0);
         assert_eq!(set_main_session_allowance(Some(2)), 2);
-        assert_eq!(read_lanes(), 1);
+        assert_eq!(read_lanes(), 0);
         MAIN_SESSION_ALLOWANCE.store(original, std::sync::atomic::Ordering::Relaxed);
     }
 
@@ -471,6 +473,39 @@ mod tests {
             "background work was admitted before an interactive read"
         );
         assert_eq!(second, "background");
+    }
+
+    #[test]
+    fn visible_media_precedes_queued_background_reads() {
+        let gate = std::sync::Arc::new(LaneGate::new());
+        let held = gate.acquire(RequestClass::InteractiveRead).unwrap();
+        let (tx, rx) = mpsc::channel();
+        let background = {
+            let gate = gate.clone();
+            let tx = tx.clone();
+            std::thread::spawn(move || {
+                let _guard = gate.acquire(RequestClass::BackgroundRead).unwrap();
+                tx.send("background").unwrap();
+            })
+        };
+        let media = {
+            let gate = gate.clone();
+            std::thread::spawn(move || {
+                let _guard = gate.acquire(RequestClass::InteractiveMedia).unwrap();
+                tx.send("media").unwrap();
+            })
+        };
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while gate.state.lock().waiters.len() != 2 {
+            assert!(std::time::Instant::now() < deadline, "waiters did not register");
+            std::thread::yield_now();
+        }
+        drop(held);
+        let first = rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        let second = rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        background.join().unwrap();
+        media.join().unwrap();
+        assert_eq!((first, second), ("media", "background"));
     }
 
     #[test]

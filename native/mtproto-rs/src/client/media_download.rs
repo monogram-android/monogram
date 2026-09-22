@@ -234,6 +234,28 @@ pub fn download_message_media(
     download_message_media_range(handle, chat_id, message_id, dest_path, kind, None)
 }
 
+pub(crate) fn indexed_media_for_download(
+    data: &ClientData,
+    chat_id: i64,
+    message_id: i32,
+    kind: media::MediaDownloadKind,
+) -> Option<Result<(i32, Snapshot, media::MediaRef), MtprotoError>> {
+    let indexed = data.media.get(&(chat_id, message_id))?;
+    if data.session_dead
+        || data.user_id.is_none()
+        || media::peer_photo_needs_hash(indexed)
+        || (message_id == 0
+            && kind == media::MediaDownloadKind::Full
+            && data.peers.contains_key(&chat_id)
+            && media::needs_video_avatar_upgrade(indexed))
+    {
+        return None;
+    }
+    let home = home_fork_source(data)?;
+    Some(media::media_for_download(indexed, kind)
+        .map(|media| (data.api_id, home, media)))
+}
+
 pub fn download_message_media_range(
     handle: u64,
     chat_id: i64,
@@ -243,7 +265,18 @@ pub fn download_message_media_range(
     offset: Option<i64>,
 ) -> Result<String, MtprotoError> {
     let client = get_client(handle)?;
-    let (api_id, home, media) = with_client_mut(handle, |state| {
+    let cached = {
+        let _span = crate::perf::span("media_lookup_shared_index");
+        let data = client.data.lock();
+        indexed_media_for_download(&data, chat_id, message_id, kind)
+    };
+    let (api_id, home, media) = if let Some(cached) = cached {
+        crate::perf::count("media.lookup.shared_index");
+        cached?
+    } else {
+        let _span = crate::perf::span("media_lookup_main_fallback");
+        crate::perf::count("media.lookup.main_fallback");
+        with_client_mut(handle, |state| {
         ensure_ready(state)?;
         if !state.media.contains_key(&(chat_id, message_id)) {
             if message_id == crate::instant_view_rpc::INSTANT_VIEW_MEDIA_MSG {
@@ -318,7 +351,8 @@ pub fn download_message_media_range(
             state.snapshot.clone(),
             media::media_for_download(&indexed, kind)?,
         ))
-    })?;
+        })?
+    };
     let dest = Path::new(&dest_path);
     let first = download_media_range_on_lane(handle, &client, &home, api_id, &media, dest, offset);
     match first {
@@ -613,7 +647,7 @@ pub(crate) fn download_media_range_on_lane(
         // File transfer sessions are exempt from the parallel-session rule only on
         // *media* DCs. A file stored on the home DC rides the single main session,
         // otherwise the extra home-DC session kills the authorization (406).
-        match download_media_range_on_home_session(handle, client, api_id, media, dest, offset) {
+        match download_media_range_on_home_session(handle, client, home.session_id, api_id, media, dest, offset) {
             Err(err) => match api_invoke::migrate_dc(&err) {
                 Some(dc) => download_media_range_on_lane_dc(
                     handle, client, home, api_id, media, dest, offset, dc,
@@ -636,7 +670,7 @@ pub(crate) fn download_media_range_on_lane(
                 Err(_) => media::with_cdn_supported(false, || {
                     if target_dc == home.dc_id {
                         download_media_range_on_home_session(
-                            handle, client, api_id, media, dest, offset,
+                            handle, client, home.session_id, api_id, media, dest, offset,
                         )
                     } else {
                         download_media_range_on_lane_dc(
@@ -657,6 +691,7 @@ pub(crate) fn download_media_range_on_lane(
 pub(crate) fn download_media_range_on_home_session(
     handle: u64,
     client: &Client,
+    expected_session_id: i64,
     api_id: i32,
     media: &media::MediaRef,
     dest: &Path,
@@ -665,10 +700,10 @@ pub(crate) fn download_media_range_on_home_session(
     let _span = crate::perf::span("media_file_home");
     let (session_id, dc) = {
         let data = client.data.lock();
-        if !session_lease_valid(&data, data.home_session_id) {
+        if !session_lease_valid(&data, expected_session_id) {
             return Err(expired_session_lease());
         }
-        (data.home_session_id, data.home_dc)
+        (expected_session_id, data.home_dc)
     };
     let staged = media::StagedDownload::new(dest)?;
     // `download_media_range_batched` invokes its callback once per pipelined

@@ -630,8 +630,8 @@ fn foreign_dc_media_reuses_exported_auth() {
     assert_eq!(lane.dc_id, 4);
 }
 
-/// Read lanes are extra *home-DC main sessions*: they only exist when the server
-/// grants parallel main sessions, and learning that needs a live `help.getConfig`.
+/// Advertise server permission to verify that permission alone cannot enable
+/// permanent-key parallel sessions before PFS is implemented.
 fn allow_read_lanes() -> std::sync::MutexGuard<'static, ()> {
     let guard = crate::scheduler::ALLOWANCE_TEST_LOCK
         .lock()
@@ -641,14 +641,14 @@ fn allow_read_lanes() -> std::sync::MutexGuard<'static, ()> {
 }
 
 #[test]
-fn read_uses_a_sibling_lane_when_one_is_busy() {
+fn read_keeps_home_session_when_a_secondary_lane_is_busy() {
     let _allowance = allow_read_lanes();
     let path =
         std::env::temp_dir().join(format!("monogram-read-lane-{}.session", std::process::id()));
     let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
     authorize_test_client(handle);
     let client = get_client(handle).expect("client");
-    // Hold one read lane only: the read must use the sibling, not the updates lane.
+    // A busy unused secondary lane must not affect the single home session.
     let _held = client.rpc[0]
         .gate
         .acquire(crate::scheduler::RequestClass::InteractiveRead)
@@ -663,22 +663,22 @@ fn read_uses_a_sibling_lane_when_one_is_busy() {
     let elapsed = started.elapsed();
     destroy_client(handle);
     let _ = std::fs::remove_file(path);
-    assert!(used_read_lane, "read fell back to the updates lane");
+    assert!(!used_read_lane, "permanent-key read opened a parallel session");
     assert!(
         elapsed < std::time::Duration::from_millis(150),
-        "read waited for the busy lane instead of using the sibling ({elapsed:?})"
+        "read waited for an unused secondary lane ({elapsed:?})"
     );
 }
 
 #[test]
-fn read_waits_for_its_own_lane_and_never_collapses_onto_updates() {
+fn read_does_not_wait_for_unused_secondary_lanes_without_pfs() {
     let _allowance = allow_read_lanes();
     let path =
         std::env::temp_dir().join(format!("monogram-read-wait-{}.session", std::process::id()));
     let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
     authorize_test_client(handle);
     let client = get_client(handle).expect("client");
-    // Hold both lanes until told; the caller must block, not use the updates lane.
+    // Hold both secondary lanes: the caller must still use the home session.
     let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
     let (held_tx, held_rx) = std::sync::mpsc::channel::<()>();
     let holder = {
@@ -706,21 +706,14 @@ fn read_waits_for_its_own_lane_and_never_collapses_onto_updates() {
         });
         let _ = done_tx.send(result.expect("read lane call"));
     });
-    assert!(
-        done_rx
-            .recv_timeout(std::time::Duration::from_millis(250))
-            .is_err(),
-        "read did not wait for a read lane"
-    );
-    release_tx.send(()).expect("release lanes");
     let used_read_lane = done_rx
-        .recv_timeout(std::time::Duration::from_secs(5))
-        .expect("read completed after a lane freed");
+        .recv_timeout(std::time::Duration::from_secs(5));
+    release_tx.send(()).expect("release lanes");
     holder.join().expect("holder thread");
     caller.join().expect("caller thread");
     destroy_client(handle);
     let _ = std::fs::remove_file(path);
-    assert!(used_read_lane, "read collapsed onto the updates lane");
+    assert!(!used_read_lane.expect("home read completed while secondary lanes held"));
 }
 
 fn authorize_test_client(handle: u64) -> (i64, Vec<u8>) {
@@ -755,7 +748,7 @@ fn extra_read_lane_reuses_home_auth_without_export() {
 }
 
 #[test]
-fn extra_read_lane_does_not_replace_home_session_id() {
+fn server_allowance_without_pfs_preserves_home_identity() {
     let _allowance = allow_read_lanes();
     let path =
         std::env::temp_dir().join(format!("monogram-extra-rpc-{}.session", std::process::id()));
@@ -764,24 +757,26 @@ fn extra_read_lane_does_not_replace_home_session_id() {
     let mut seen_session = 0_i64;
     with_read_lane(handle, |state| {
         seen_session = state.snapshot.session_id;
-        assert_ne!(state.snapshot.session_id, home_id);
+        assert_eq!(state.snapshot.session_id, home_id);
         assert_eq!(state.snapshot.auth_key.as_deref(), Some(auth.as_slice()));
-        assert!(crate::api_invoke::invoking_without_updates());
+        assert!(!crate::api_invoke::invoking_without_updates());
         Ok(())
     })
     .expect("extra lane");
     let client = get_client(handle).expect("client");
-    let data = client.data.lock();
-    assert_eq!(data.home_session_id, home_id);
-    assert_eq!(data.home_auth_key.as_deref(), Some(auth.as_slice()));
-    assert_ne!(seen_session, home_id);
+    {
+        let data = client.data.lock();
+        assert_eq!(data.home_session_id, home_id);
+        assert_eq!(data.home_auth_key.as_deref(), Some(auth.as_slice()));
+    }
+    assert_eq!(seen_session, home_id);
     assert!(!crate::api_invoke::invoking_without_updates());
     destroy_client(handle);
     let _ = std::fs::remove_file(path);
 }
 
 #[test]
-fn idle_work_still_reaches_the_read_lane_family() {
+fn idle_work_uses_home_session_without_pfs() {
     let _allowance = allow_read_lanes();
     let path = std::env::temp_dir().join(format!(
         "monogram-extra-busy-{}.session",
@@ -797,7 +792,7 @@ fn idle_work_still_reaches_the_read_lane_family() {
     .expect("read lane");
     destroy_client(handle);
     let _ = std::fs::remove_file(path);
-    assert!(used_read_lane);
+    assert!(!used_read_lane);
 }
 
 #[test]

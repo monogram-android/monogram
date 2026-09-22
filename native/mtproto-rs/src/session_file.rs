@@ -148,12 +148,18 @@ impl FileSessionStore {
         if let Some(parent) = self.path.parent().filter(|p| !p.as_os_str().is_empty()) {
             fs::create_dir_all(parent).map_err(|e| SessionError::Persistence(e.to_string()))?;
         }
-        let plaintext = zeroize::Zeroizing::new(
-            serde_json::to_vec(session)
-                .map_err(|_| SessionError::Persistence("session encoding failed".into()))?,
-        );
+        let plaintext = {
+            let _span = crate::perf::span("session_save.encode");
+            zeroize::Zeroizing::new(
+                serde_json::to_vec(session)
+                    .map_err(|_| SessionError::Persistence("session encoding failed".into()))?,
+            )
+        };
         let bytes = match crate::session_crypto::key_for(&self.path) {
-            Some(key) => zeroize::Zeroizing::new(crate::session_crypto::encrypt(&plaintext, &key)?),
+            Some(key) => {
+                let _span = crate::perf::span("session_save.encrypt");
+                zeroize::Zeroizing::new(crate::session_crypto::encrypt(&plaintext, &key)?)
+            },
             None => plaintext,
         };
         // Each writer owns its temporary file. Never truncate another writer's
@@ -174,8 +180,14 @@ impl FileSessionStore {
             .open(&tmp)
             .map_err(|e| SessionError::Persistence(e.to_string()))?;
         let result = (|| {
-            file.write_all(&bytes)?;
-            file.sync_all()?;
+            {
+                let _span = crate::perf::span("session_save.write");
+                file.write_all(&bytes)?;
+            }
+            {
+                let _span = crate::perf::span("session_save.fsync");
+                file.sync_all()?;
+            }
             drop(file);
             fs::rename(&tmp, &self.path)?;
             #[cfg(unix)]
@@ -185,6 +197,7 @@ impl FileSessionStore {
                     .parent()
                     .filter(|p| !p.as_os_str().is_empty())
                     .unwrap_or_else(|| std::path::Path::new("."));
+                let _span = crate::perf::span("session_save.directory_sync");
                 fs::File::open(parent)?.sync_all()?;
             }
             Ok::<_, std::io::Error>(())

@@ -8,7 +8,17 @@ import org.monogram.network.http.photoDisplayCacheKey
 object DialogMediaPreload {
     const val WINDOW_RADIUS = 4
 
-    private val PRELOAD_KINDS = setOf("photo", "webpage", "video", "gif")
+    private val PRELOAD_KINDS = setOf(
+        "photo",
+        "webpage",
+        "video",
+        "gif",
+        "sticker",
+        "sticker_animated",
+        "sticker_video",
+        "document",
+    )
+    private val STICKER_KINDS = setOf("sticker", "sticker_animated", "sticker_video")
 
     enum class Fetch { Thumb, Display, Full }
 
@@ -87,17 +97,25 @@ object DialogMediaPreload {
             val visible = index in visibleRange
             val priority = if (visible) MediaPriority.VISIBLE else MediaPriority.DEFAULT
             if (kind in PRELOAD_KINDS) {
-                val thumbKey = message.thumbCacheKey
+                val distinctThumb = message.thumbCacheKey
                     ?.takeUnless { it == message.mediaCacheKey }
-                    ?: message.mediaCacheKey?.let { "$it:thumb" }
+                // Documents have no synthetic thumb. Prefetch only a real preview.
+                val thumbKey = when {
+                    kind == "document" -> distinctThumb
+                    distinctThumb != null -> distinctThumb
+                    else -> message.mediaCacheKey?.let { "$it:thumb" }
+                }
                 if (!thumbKey.isNullOrBlank()) {
                     val thumbPriority = if (visible) MediaPriority.THUMB else MediaPriority.IDLE
                     media += MediaTask(message, Fetch.Thumb, thumbPriority, thumbKey)
                 }
                 val fullKey = message.mediaCacheKey
+                val sticker = kind in STICKER_KINDS
                 if (!fullKey.isNullOrBlank() && kind == "gif") {
                     media += MediaTask(message, Fetch.Full, priority, fullKey)
-                } else if (visible && !fullKey.isNullOrBlank() && kind != "gif") {
+                } else if (visible && sticker && !fullKey.isNullOrBlank()) {
+                    media += MediaTask(message, Fetch.Full, priority, fullKey)
+                } else if (visible && !fullKey.isNullOrBlank() && kind != "gif" && !sticker && kind != "document") {
                     media += MediaTask(
                         message,
                         Fetch.Display,

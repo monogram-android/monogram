@@ -378,12 +378,15 @@ fun ChatsContent(
         }
         val syncStatus = rememberDebouncedSync(
             status = rawSync,
-            immediate = paneEmpty && rawSync == AppSyncStatus.Connecting,
+            immediate = rawSync == AppSyncStatus.Connecting || rawSync == AppSyncStatus.Syncing,
         )
         val unreadChats = paneChats.unmutedUnread
+        val overlayTitle = when (syncStatus) {
+            AppSyncStatus.Connecting, AppSyncStatus.Syncing -> syncStatus.uiLabel()
+            else -> null
+        }
         val subtitle = when {
-            syncStatus == AppSyncStatus.Connecting -> syncStatus.uiLabel()
-            syncStatus == AppSyncStatus.Syncing -> syncStatus.uiLabel()
+            overlayTitle != null -> null
             state.error?.kind == TelegramError.Kind.Network ->
                 stringResource(R.string.chats_waiting_network)
             unreadChats > 0 ->
@@ -441,6 +444,7 @@ fun ChatsContent(
                     brandEmojiDocumentId = if (archive) null else state.self?.emojiStatusDocumentId,
                     folderTitle = folderTitle,
                     folderSubtitle = subtitle,
+                    overlayTitle = overlayTitle,
                     archive = archive,
                     selfTitle = state.self?.title ?: stringResource(R.string.chats_profile),
                     selfAvatar = rememberSelfAvatar(

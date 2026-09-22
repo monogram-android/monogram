@@ -91,44 +91,67 @@ fun preferredPeerTitle(incoming: String, previous: String?, peerId: Long): Strin
 }
 
 /** Keeps locally owned fields (scroll, real titles) when a network chat row replaces the Room row. */
-fun Chat.mergeLocalCache(stored: Chat?): Chat =
-    copy(
+fun Chat.mergeLocalCache(stored: Chat?): Chat {
+    // A live NewMessage or a fresher Room row must not lose its tail when an
+    // older getDialogs snapshot arrives after cache paint.
+    val newerStored = stored?.takeIf { lastMessageId > 0 && it.lastMessageId > lastMessageId }
+    return copy(
         title = preferredPeerTitle(title, stored?.title, id.value),
         dialogScrollMessageId = dialogScrollMessageId ?: stored?.dialogScrollMessageId,
         photoCacheKey = photoCacheKey ?: stored?.photoCacheKey,
         emojiStatusDocumentId = emojiStatusDocumentId ?: stored?.emojiStatusDocumentId,
         readInboxMaxId = maxOf(readInboxMaxId, stored?.readInboxMaxId ?: 0),
         readOutboxMaxId = maxOf(readOutboxMaxId, stored?.readOutboxMaxId ?: 0),
-        unreadCount = if (stored != null && readInboxMaxId < stored.readInboxMaxId) {
-            stored.unreadCount
-        } else {
-            unreadCount
+        unreadCount = when {
+            newerStored != null -> newerStored.unreadCount
+            stored != null && readInboxMaxId < stored.readInboxMaxId -> stored.unreadCount
+            else -> unreadCount
         },
-        unreadMentionsCount = if (stored != null && readInboxMaxId < stored.readInboxMaxId) {
-            stored.unreadMentionsCount
-        } else {
-            unreadMentionsCount
+        unreadMentionsCount = when {
+            newerStored != null -> newerStored.unreadMentionsCount
+            stored != null && readInboxMaxId < stored.readInboxMaxId -> stored.unreadMentionsCount
+            else -> unreadMentionsCount
         },
-        unreadReactionsCount = if (stored != null && readInboxMaxId < stored.readInboxMaxId) {
-            stored.unreadReactionsCount
-        } else {
-            unreadReactionsCount
+        unreadReactionsCount = when {
+            newerStored != null -> newerStored.unreadReactionsCount
+            stored != null && readInboxMaxId < stored.readInboxMaxId -> stored.unreadReactionsCount
+            else -> unreadReactionsCount
         },
         lastMessageOutgoing = when {
+            newerStored != null -> newerStored.lastMessageOutgoing
             lastMessageOutgoing -> true
             stored != null && lastMessageId != 0 && lastMessageId == stored.lastMessageId ->
                 stored.lastMessageOutgoing
             else -> false
         },
-        lastMessageMediaKind = lastMessageMediaKind ?: stored?.takeIf {
-            lastMessageId != 0 && lastMessageId == it.lastMessageId
-        }?.lastMessageMediaKind,
-        lastMessageSenderName = lastMessageSenderName ?: stored?.takeIf {
-            lastMessageId != 0 && lastMessageId == it.lastMessageId
-        }?.lastMessageSenderName,
-        lastMessagePreview = lastMessagePreview ?: stored?.takeIf {
-            lastMessageId != 0 && lastMessageId == it.lastMessageId
-        }?.lastMessagePreview,
+        lastMessageMediaKind = if (newerStored != null) {
+            newerStored.lastMessageMediaKind
+        } else {
+            lastMessageMediaKind ?: stored?.takeIf {
+                lastMessageId != 0 && lastMessageId == it.lastMessageId
+            }?.lastMessageMediaKind
+        },
+        lastMessageSenderName = if (newerStored != null) {
+            newerStored.lastMessageSenderName
+        } else {
+            lastMessageSenderName ?: stored?.takeIf {
+                lastMessageId != 0 && lastMessageId == it.lastMessageId
+            }?.lastMessageSenderName
+        },
+        lastMessagePreview = if (newerStored != null) {
+            newerStored.lastMessagePreview
+        } else {
+            lastMessagePreview ?: stored?.takeIf {
+                lastMessageId != 0 && lastMessageId == it.lastMessageId
+            }?.lastMessagePreview
+        },
+        lastMessageId = newerStored?.lastMessageId ?: lastMessageId,
+        lastMessageDate = if (newerStored != null) newerStored.lastMessageDate else lastMessageDate,
+        lastMediaThumbCacheKey = if (newerStored != null) {
+            newerStored.lastMediaThumbCacheKey
+        } else {
+            lastMediaThumbCacheKey
+        },
         archived = if (stored != null && isPlaceholderPeerTitle(title, id.value)) {
             stored.archived
         } else {
@@ -140,6 +163,7 @@ fun Chat.mergeLocalCache(stored: Chat?): Chat =
             left
         },
     )
+}
 
 data class MessageId(val chatId: PeerId, val id: Int)
 

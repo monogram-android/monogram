@@ -62,7 +62,7 @@ internal class ProfileApi(private val core: SessionCore) : ProfileOps {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpcBackground("getProfile failed") { activeHandle ->
+        return core.rpc("getProfile failed") { activeHandle ->
             core.native.getProfile(
                 activeHandle,
                 peerId.value

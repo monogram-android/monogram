@@ -80,7 +80,7 @@ fn config_cache_roundtrip_and_freshness() {
         hex_encode(&secret)
     );
     let cached = parse_config_cache(&text).expect("cache");
-    assert_eq!(cached.expires, 2000);
+    assert_eq!(cached.tmp_sessions, None);
     assert_eq!(cached.endpoints.len(), 1);
     assert_eq!(cached.endpoints[0].addr, "149.154.167.51:443");
     assert_eq!(cached.endpoints[0].secret, Some(secret));
@@ -144,11 +144,11 @@ fn pick_backup_prefers_other_addr_then_secret() {
 #[test]
 fn clamp_expires_uses_server_then_bounds() {
     let now = 1_700_000_000;
-    assert_eq!(clamp_expires(0, now), now + CONFIG_TTL_DEFAULT_SECS);
-    assert_eq!(
-        clamp_expires(now as i32 - 10, now),
-        now + CONFIG_TTL_MIN_SECS
-    );
+    assert_eq!(clamp_expires(0, now), now);
+    assert_eq!(clamp_expires(-1, now), now);
+    assert_eq!(clamp_expires(now as i32 - 10, now), now);
+    assert_eq!(clamp_expires(now as i32, now), now);
+    assert_eq!(clamp_expires(now as i32 + 10, now), now + 10);
     assert_eq!(
         clamp_expires(now as i32 + 100_000, now),
         now + CONFIG_TTL_MAX_SECS

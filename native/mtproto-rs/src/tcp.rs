@@ -26,6 +26,8 @@ struct ControlState {
 #[derive(Default)]
 pub(crate) struct ConnectionControl {
     state: Mutex<ControlState>,
+    // Saves serialize with shutdown, but never monopolize socket-state checks.
+    persistence: Mutex<()>,
     wake: Condvar,
 }
 
@@ -34,13 +36,11 @@ impl ConnectionControl {
         self.state.lock().streams.clear();
     }
     pub(crate) fn while_open<T>(&self, operation: impl FnOnce() -> T) -> Result<T, TransportError> {
-        let state = self.state.lock();
-        if state.closed {
+        let _commit = self.persistence.lock();
+        if self.state.lock().closed {
             return Err(closed_error());
         }
-        let result = operation();
-        drop(state);
-        Ok(result)
+        Ok(operation())
     }
     pub(crate) fn close(&self) {
         let mut state = self.state.lock();
@@ -49,6 +49,11 @@ impl ConnectionControl {
             let _ = stream.shutdown(std::net::Shutdown::Both);
         }
         self.wake.notify_all();
+        drop(state);
+        // Wait for any already-started commit, after closing sockets promptly.
+        // Never hold state while joining persistence: saves check state under
+        // the persistence lock, and socket I/O must observe closure immediately.
+        let _commit = self.persistence.lock();
     }
 
     pub(crate) fn register(&self, stream: &Arc<TcpStream>) -> Result<(), TransportError> {
@@ -307,6 +312,44 @@ impl Connection for ObfuscatedTcp {
 mod tests {
     use super::*;
     use std::net::TcpListener;
+
+    #[test]
+    fn persistence_does_not_block_io_and_close_joins_active_save() {
+        let control = Arc::new(ConnectionControl::default());
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let saving = control.clone();
+        let saver = std::thread::spawn(move || saving.while_open(|| {
+            entered_tx.send(()).unwrap();
+            release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        }).unwrap());
+        entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        let checking = control.clone();
+        let (checked_tx, checked_rx) = std::sync::mpsc::channel();
+        let checker = std::thread::spawn(move || {
+            checked_tx.send(checking.wait(Duration::ZERO).is_ok()).unwrap();
+        });
+        let checked = checked_rx.recv_timeout(Duration::from_millis(500));
+        let closing = control.clone();
+        let (closed_tx, closed_rx) = std::sync::mpsc::channel();
+        let closer = std::thread::spawn(move || { closing.close(); closed_tx.send(()).unwrap(); });
+        let observing = control.clone();
+        let (observed_tx, observed_rx) = std::sync::mpsc::channel();
+        let observer = std::thread::spawn(move || {
+            observed_tx.send(observing.wait(Duration::from_secs(3)).is_err()).unwrap();
+        });
+        let observed = observed_rx.recv_timeout(Duration::from_millis(500));
+        let closed_early = closed_rx.try_recv().is_ok();
+        release_tx.send(()).unwrap();
+        saver.join().unwrap();
+        checker.join().unwrap();
+        closer.join().unwrap();
+        observer.join().unwrap();
+        assert_eq!(checked.ok(), Some(true), "save blocked socket state checks");
+        assert_eq!(observed.ok(), Some(true), "save delayed I/O shutdown");
+        assert!(!closed_early, "close returned before persistence completed");
+        assert!(control.while_open(|| panic!("save after close")).is_err());
+    }
 
     #[test]
     fn close_wakes_receive_and_prevents_new_connections() {

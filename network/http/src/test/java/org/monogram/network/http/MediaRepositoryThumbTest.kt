@@ -79,10 +79,12 @@ class MediaRepositoryThumbTest {
     @Test
     fun ensureLocalMessageDisplayRequestsDisplayKind() = runBlocking {
         var lastKind: MediaFetchKind? = null
+        var lastPriority: Int? = null
         val repo = MediaRepository(
             cacheRoot = tmp.newFolder("cache-display"),
             telegramFetcher = TelegramMediaFetcher { _, _, destPath, kind, _ ->
                 lastKind = kind
+                lastPriority = priority
                 File(destPath).writeBytes(byteArrayOf(8, 8, 8))
                 Outcome.Ok(destPath)
             },
@@ -100,6 +102,7 @@ class MediaRepositoryThumbTest {
         val result = repo.ensureLocalMessageDisplay(message)
         assertTrue(result is Outcome.Ok)
         assertEquals(MediaFetchKind.Display, lastKind)
+        assertEquals(MediaPriority.DISPLAY, lastPriority)
         assertEquals("photo:9:display", photoDisplayCacheKey("photo:9"))
     }
 

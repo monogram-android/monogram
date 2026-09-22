@@ -622,8 +622,7 @@ internal class DialogExecutor(
                 }
             }.orEmpty()
             val lastId = cachedChat?.lastMessageId ?: 0
-            hydratePinned()
-            hydrateSenderTags()
+            val newestCachedId = cached.maxOfOrNull { it.id.id } ?: 0
             if (cached.isNotEmpty()) {
                 AppLog.api(
                     "dialog",
@@ -636,7 +635,14 @@ internal class DialogExecutor(
             } else if (!hasMemory) {
                 dispatch(Msg.Loading(true))
             }
-            AppLog.api("dialog", "getHistory start chat=${chatId.value}")
+            hydratePinned()
+            hydrateSenderTags()
+            // Paint cache first, then always fetch. Skipping getHistory when a
+            // stale Room lastMessageId matched the cached tail hid new messages.
+            AppLog.api(
+                "dialog",
+                "getHistory start chat=${chatId.value} lastId=$lastId newest=$newestCachedId",
+            )
             val historyAt = PerfLog.nowMs()
             PerfLog.event("history", "phase=start")
             when (val result = client.getHistory(chatId, HISTORY_FIRST_LIMIT)) {

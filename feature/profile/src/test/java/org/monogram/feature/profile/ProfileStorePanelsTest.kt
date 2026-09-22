@@ -1,11 +1,14 @@
 package org.monogram.feature.profile
 
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -44,6 +47,24 @@ class ProfileStorePanelsTest {
         Dispatchers.resetMain()
     }
 
+    @Test
+    fun profileRendersBeforeDelayedTabCounts() = runBlocking {
+        val countsGate = CompletableDeferred<Outcome<ProfileTabCounts>>()
+        val store = store(
+            profile = profile(kind = "user"),
+            counts = onlyMedia(),
+            members = null,
+            countsGate = countsGate,
+        )
+        try {
+            yield()
+            assertEquals("Peer", store.state.profile?.title)
+            assertTrue(store.state.loading)
+        } finally {
+            countsGate.complete(Outcome.Ok(onlyMedia()))
+            store.dispose()
+        }
+    }
     @Test
     fun emptyTabsAreHiddenAndUnknownTabsStayVisible() {
         val store = store(
@@ -187,9 +208,16 @@ class ProfileStorePanelsTest {
         counts: ProfileTabCounts,
         members: ProfileMemberPage?,
         commonChats: List<Chat> = emptyList(),
+        countsGate: CompletableDeferred<Outcome<ProfileTabCounts>>? = null,
     ): ProfileStore = ProfileStoreFactory(
         DefaultStoreFactory(),
-        StubClient(profile = profile, counts = counts, members = members, commonChats = commonChats),
+        StubClient(
+            profile = profile,
+            counts = counts,
+            members = members,
+            commonChats = commonChats,
+            countsGate = countsGate,
+        ),
         sessionStore = null,
         peerId = PeerId(-100L),
         ioDispatcher = Dispatchers.Main,
@@ -200,6 +228,7 @@ class ProfileStorePanelsTest {
         private val counts: ProfileTabCounts,
         private val members: ProfileMemberPage?,
         private val commonChats: List<Chat>,
+        private val countsGate: CompletableDeferred<Outcome<ProfileTabCounts>>?,
     ) : MtprotoClient {
         override suspend fun connect() = Outcome.Ok(Unit)
         override suspend fun sendAuthCode(phone: String) = unused<AuthState.AwaitingCode>()
@@ -246,7 +275,7 @@ class ProfileStorePanelsTest {
         override suspend fun getProfileTabCounts(
             peerId: PeerId,
             tabs: List<ProfileTab>,
-        ) = Outcome.Ok(counts)
+        ) = countsGate?.await() ?: Outcome.Ok(counts)
         override suspend fun getProfileMembers(
             peerId: PeerId,
             filter: String,

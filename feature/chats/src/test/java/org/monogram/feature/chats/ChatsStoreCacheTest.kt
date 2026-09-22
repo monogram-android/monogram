@@ -823,7 +823,7 @@ class ChatsStoreCacheTest {
     private fun visibleArchive(store: ChatsStore): List<Chat> =
         visibleChats(store.state.chats, emptyList(), ARCHIVE_FOLDER_ID)
 
-    private class StubClient(
+    private open class StubClient(
         private val chats: Outcome<List<Chat>>,
         private val defaults: NotifySettings = NotifySettings(),
         private val failNotifySettings: Boolean = false,

@@ -72,6 +72,7 @@ internal fun ChatsTopBar(
     brandEmojiDocumentId: Long?,
     folderTitle: String,
     folderSubtitle: String?,
+    overlayTitle: String? = null,
     archive: Boolean,
     selfTitle: String,
     selfAvatar: File?,
@@ -113,6 +114,7 @@ internal fun ChatsTopBar(
                 brandEmojiDocumentId = brandEmojiDocumentId,
                 folderTitle = folderTitle,
                 atTop = atTop,
+                overlayTitle = overlayTitle,
                 mediaRepository = mediaRepository,
             )
         },
@@ -176,6 +178,7 @@ private fun AppBarTitle(
     brandEmojiDocumentId: Long?,
     folderTitle: String,
     atTop: Boolean,
+    overlayTitle: String?,
     mediaRepository: MediaRepository?,
 ) {
     val enterFade = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -183,11 +186,19 @@ private fun AppBarTitle(
     val exitFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     val exitScale = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     AnimatedContent(
-        targetState = atTop,
+        targetState = overlayTitle ?: if (atTop) "brand" else "folder",
         transitionSpec = { barSwap(enterFade, enterScale, exitFade, exitScale) },
         label = "appBarTitle",
-    ) { brand ->
-        if (brand) {
+    ) { key ->
+        if (overlayTitle != null) {
+            Text(
+                text = overlayTitle,
+                style = MaterialTheme.typography.titleLargeEmphasized,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else if (key == "brand") {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),

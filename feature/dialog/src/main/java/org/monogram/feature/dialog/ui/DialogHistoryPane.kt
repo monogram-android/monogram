@@ -394,18 +394,14 @@ internal fun ColumnScope.DialogHistoryPane(
                 }
                 LaunchedEffect(listState, state.chatId, messageHeads) {
                     snapshotFlow {
-                        val scrolling = listState.isScrollInProgress
-                        val ids = if (scrolling) {
-                            null
-                        } else {
-                            visibleAlbumMessageIds(
-                                state.messages,
-                                listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.index },
-                            )
-                        }
-                        scrolling to ids
-                    }.collect { (scrolling, ids) ->
-                        if (!scrolling && ids != null) component.onVisibleWindow(ids)
+                        visibleAlbumMessageIds(
+                            state.messages,
+                            listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.index },
+                        )
+                    }.collect { ids ->
+                        // Start the viewport prefetch during a fling. Waiting for
+                        // isScrollInProgress to clear is what made media pop in late.
+                        if (ids.isNotEmpty()) component.onVisibleWindow(ids)
                     }
                 }
                 LazyColumn(

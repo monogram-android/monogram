@@ -22,6 +22,7 @@ import org.monogram.core.common.PerfLog
 import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Message
+import org.monogram.core.models.PeerId
 import org.monogram.network.bridge.BridgedMtprotoClient
 
 /**
@@ -77,7 +78,11 @@ class NetcodePerfHarnessTest {
         assertOk("first history page", historyOutcome)
         emit("HARNESS history_first_page chat_ms=$historyMs")
 
-        val thumbTarget = media.first()
+        val thumbTarget = media.firstOrNull { it.thumbCacheKey != null }
+            ?: run {
+                assumeTrue("no downloadable thumbnail on this account", false)
+                return@runBlocking
+            }
         thumbTarget.thumbCacheKey?.let { repository.removeCachedFile(it) }
         var thumbOutcome: Outcome<File>? = null
         val thumbMs = measure { thumbOutcome = withTimeoutOrNull(60_000) { repository.ensureLocalMessageThumb(thumbTarget) } }
@@ -222,8 +227,151 @@ class NetcodePerfHarnessTest {
         client.close()
     }
 
+    /**
+     * Open-path baseline: history, photo thumb, document, and profile.
+     * Durations, kinds, and sizes only. Does not send, delete, or log message text.
+     */
+    @Test
+    fun measureOpenPaths() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as MonogramApp
+        val client = app.client
+        val repository = app.mediaRepository
+        val samples = mutableListOf<String>()
+
+        fun emit(line: String) {
+            Log.i(tag, line)
+            samples += line
+        }
+
+        emit("HARNESS open start perf_enabled=${PerfLog.isEnabled()}")
+
+        var connected: Outcome<Unit>? = null
+        val connectMs = measure { connected = withTimeoutOrNull(60_000) { client.connect() } }
+        assertOk("connect", connected)
+        emit("HARNESS connect ms=$connectMs")
+
+        val chatsOutcome = withTimeoutOrNull(60_000) { client.getChats() }
+        assertOk("get chats", chatsOutcome)
+        val chats = (chatsOutcome as Outcome.Ok).value
+        assumeTrue("no chats on this account", chats.isNotEmpty())
+        val chatId = chats.first().id
+
+        var roomHistory: List<Message> = emptyList()
+        val roomHistoryMs = measure { roomHistory = app.warmup.messages(chatId, 50) }
+        emit("HARNESS history_room ms=$roomHistoryMs count=${roomHistory.size}")
+
+        var historyOutcome: Outcome<List<Message>>? = null
+        val historyMs = measure { historyOutcome = withTimeoutOrNull(60_000) { client.getHistory(chatId, 50) } }
+        assertOk("first history page", historyOutcome)
+        val history = (historyOutcome as Outcome.Ok).value
+        emit("HARNESS history_first_page ms=$historyMs count=${history.size}")
+
+        var historyRepeat: Outcome<List<Message>>? = null
+        val historyRepeatMs = measure {
+            historyRepeat = withTimeoutOrNull(60_000) { client.getHistory(chatId, 50) }
+        }
+        assertOk("repeat history page", historyRepeat)
+        emit("HARNESS history_repeat ms=$historyRepeatMs")
+
+        val roomProfileHit = measureProfileHit(app, chatId)
+        emit("HARNESS profile_room ms=${roomProfileHit.first} hit=${roomProfileHit.second}")
+
+        var profileOutcome: Outcome<*>? = null
+        val profileMs = measure { profileOutcome = withTimeoutOrNull(60_000) { client.getProfile(chatId) } }
+        assertOk("profile", profileOutcome)
+        emit("HARNESS profile_first ms=$profileMs")
+
+        var profileRepeat: Outcome<*>? = null
+        val profileRepeatMs = measure {
+            profileRepeat = withTimeoutOrNull(60_000) { client.getProfile(chatId) }
+        }
+        assertOk("repeat profile", profileRepeat)
+        emit("HARNESS profile_repeat ms=$profileRepeatMs")
+
+        val media = history + collectKinds(client, chats.drop(1), 24)
+        val kindCounts = media.groupingBy { it.mediaKind ?: "none" }.eachCount()
+        emit("HARNESS media_kinds ${kindCounts.entries.joinToString(",") { "${it.key}=${it.value}" }}")
+        val photo = media.firstOrNull { it.mediaKind == "photo" && it.thumbCacheKey != null }
+        if (photo != null) {
+            photo.thumbCacheKey?.let { repository.removeCachedFile(it) }
+            var thumbOutcome: Outcome<File>? = null
+            val thumbMs = measure {
+                thumbOutcome = withTimeoutOrNull(60_000) { repository.ensureLocalMessageThumb(photo) }
+            }
+            assertOk("photo thumb", thumbOutcome)
+            emit("HARNESS photo_thumb ms=$thumbMs")
+            var thumbCached: Outcome<File>? = null
+            val thumbCachedMs = measure {
+                thumbCached = withTimeoutOrNull(10_000) { repository.ensureLocalMessageThumb(photo) }
+            }
+            assertOk("photo thumb cache", thumbCached)
+            emit("HARNESS photo_cache_hit ms=$thumbCachedMs")
+        } else {
+            emit("HARNESS photo_thumb skipped=none")
+            emit("HARNESS photo_cache_hit skipped=none")
+        }
+
+        val document = media
+            .filter {
+                it.mediaKind == "document" &&
+                    it.mediaCacheKey != null &&
+                    (it.fileSize ?: 0L) in 1..(8L * 1024 * 1024)
+            }
+            .minByOrNull { it.fileSize ?: Long.MAX_VALUE }
+        if (document != null) {
+            document.mediaCacheKey?.let { repository.removeCachedFile(it) }
+            val size = document.fileSize ?: 0L
+            var documentOutcome: Outcome<File>? = null
+            val documentMs = measure {
+                documentOutcome = withTimeoutOrNull(120_000) { repository.ensureLocalMessageMedia(document) }
+            }
+            assertOk("document", documentOutcome)
+            emit("HARNESS document_fetch bytes=$size ms=$documentMs")
+            var documentCached: Outcome<File>? = null
+            val documentCachedMs = measure {
+                documentCached = withTimeoutOrNull(10_000) { repository.ensureLocalMessageMedia(document) }
+            }
+            assertOk("document cache", documentCached)
+            emit("HARNESS document_cache_hit ms=$documentCachedMs")
+        } else {
+            emit("HARNESS document_fetch skipped=none")
+            emit("HARNESS document_cache_hit skipped=none")
+        }
+
+        emit("PERF-SUMMARY ${samples.filter { it.startsWith("HARNESS") }.joinToString(" | ")}")
+    }
+
+    private suspend fun measureProfileHit(app: MonogramApp, chatId: PeerId): Pair<Long, Boolean> {
+        var hit = false
+        val millis = measure { hit = app.sessionStore.readProfile(chatId.value) != null }
+        return millis to hit
+    }
+
     private fun assertOk(label: String, outcome: Outcome<*>?) {
         assertTrue("$label failed or timed out: $outcome", outcome is Outcome.Ok)
+    }
+
+    private suspend fun collectKinds(
+        client: BridgedMtprotoClient,
+        chats: List<Chat>,
+        limit: Int,
+    ): List<Message> {
+        val found = mutableListOf<Message>()
+        for (chat in chats.take(limit)) {
+            val page = withTimeoutOrNull(30_000) {
+                when (val outcome = client.getHistory(chat.id, 40)) {
+                    is Outcome.Ok -> outcome.value
+                    is Outcome.Err -> emptyList()
+                }
+            } ?: continue
+            found += page.filter { it.mediaKind != null }
+            if (found.count { it.mediaKind == "document" && it.mediaCacheKey != null } >= 3 &&
+                found.any { it.mediaKind == "photo" && it.thumbCacheKey != null }
+            ) {
+                break
+            }
+        }
+        return found
     }
 
     private suspend fun collectMedia(

@@ -545,6 +545,7 @@ internal class ChatsExecutor(
                         ),
                     )
                     dispatch(Msg.Loading(false))
+                    dispatch(Msg.Syncing(true))
                     cachedTail = tail
                     recoverMissingTitles()
                     if (cachedTail.none { it.isMainListRow() }) {
@@ -572,11 +573,21 @@ internal class ChatsExecutor(
                     }
                 } else if (!hasMemory && cached.isEmpty() && !state().loading) {
                     dispatch(Msg.Loading(true))
+                } else if (hasMemory || cached.isNotEmpty()) {
+                    dispatch(Msg.Syncing(true))
                 }
                 // The first network page must already carry inherited mutes; a failure here is
                 // retried on the next refresh so a slow RPC never blocks the list.
                 if (!notifyDefaultsLoaded) loadNotifyDefaults()
-                when (val result = client.getChats()) {
+                var result = client.getChats()
+                if (result is Outcome.Err &&
+                    state().chats.isNotEmpty() &&
+                    !result.telegramError.requiresReauth
+                ) {
+                    delay(400)
+                    result = client.getChats()
+                }
+                when (result) {
                     is Outcome.Ok -> {
                         AppLog.api("chats", "network count=${result.value.size} merge=${hasMemory || cached.isNotEmpty()}")
                         lastNetworkPage = result.value
@@ -591,6 +602,8 @@ internal class ChatsExecutor(
                         // Keep the live-list snapshot, expensive merge, and replace publication
                         // under one lock. A read/update completion cannot land between the
                         // snapshot and a stale large-list refresh publication.
+                        var persisted = mapped
+                        var pruneRows = mapped
                         listPublicationMutex.withLock {
                             val source = allListed()
                             refreshMergeHook?.invoke()
@@ -600,6 +613,11 @@ internal class ChatsExecutor(
                                 }
                             } else {
                                 mergeChats(source, mapped)
+                            }
+                            persisted = merged
+                            pruneRows = mapped.filter { net ->
+                                val local = merged.firstOrNull { it.id == net.id }
+                                local == null || net.lastMessageId >= local.lastMessageId
                             }
                             republishListedLocked(
                                 merged,
@@ -612,15 +630,15 @@ internal class ChatsExecutor(
                                 keep = paintKeep(),
                             )
                         }
-                        warmup?.upsertChats(mapped)
-                        rememberDialogTails(mapped)
-                        sessionStore?.upsertPeersFromChats(mapped)
+                        warmup?.upsertChats(persisted)
+                        rememberDialogTails(persisted)
+                        sessionStore?.upsertPeersFromChats(persisted)
                         if (!isFolderScopedStream(activeFolderId) &&
                             cachedTail.any { it.isMainListRow() }
                         ) {
                             loadMore()
                         }
-                        val pruned = warmup?.pruneAheadOfLastMessage(mapped).orEmpty()
+                        val pruned = warmup?.pruneAheadOfLastMessage(pruneRows).orEmpty()
                         if (pruned.isNotEmpty()) {
                             val dropped = pruned.sumOf { it.droppedIds.size }
                             AppLog.api(
@@ -1087,7 +1105,7 @@ internal class ChatsExecutor(
         cachedTail = tail
         val painted = state().chats
         val sameWindow = painted == first
-        if (!sameWindow) {
+        if (!sameWindow || state().fromCache != fromCache) {
             dispatch(Msg.Chats(first, fromCache = fromCache, replace = true))
         }
         val nextHasMore = publishedHasMore(first, tail, hasMore)

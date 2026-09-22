@@ -92,7 +92,7 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
     if interactive_request_pending(&client) {
         return Ok(Vec::new());
     }
-    let Some((_gate, mut io)) = lock_updates_lane(&client)? else {
+    let Some((gate, mut io)) = lock_updates_lane(&client)? else {
         return Ok(Vec::new());
     };
     let now = recovery_now();
@@ -364,6 +364,7 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         Err(err) => {
             io.transport = None;
             drop(io);
+            drop(gate);
             if is_unrecoverable_session(&err) {
                 with_client_mut(handle, |state| {
                     if state.snapshot.session_id == session_id {
@@ -377,6 +378,8 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
     };
     let new_session = crate::rpc::take_new_session_metadata();
     let Some(applied) = applied else {
+        drop(io);
+        drop(gate);
         if let Some(metadata) = new_session {
             {
                 let mut d = client.data.lock();
@@ -385,9 +388,10 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
                     && session_lease_valid(&d, session_id)
                 {
                     d.new_session = Some(metadata);
+                    d.persist_epoch = d.persist_epoch.saturating_add(1);
                 }
             }
-            persist_updates_data(&client, session_id)?;
+            schedule_persist(&client, session_id);
         }
         return Ok(events);
     };
@@ -415,6 +419,9 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             || d.channel_recovery != applied.recovery
             || d.seen_messages != applied.seen_messages
             || next_cursor != d.updates;
+        if persist_needed {
+            d.persist_epoch = d.persist_epoch.saturating_add(1);
+        }
         d.updates = next_cursor;
         d.channel_pts = applied.channel_pts;
         d.channel_recovery = applied.recovery;
@@ -432,14 +439,10 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         }
     }
     drop(io);
+    drop(gate);
     if persist_needed {
         crate::perf::count("updates.persist");
-        {
-            let mut d = client.data.lock();
-            d.persist_epoch = d.persist_epoch.saturating_add(1);
-        }
-        let _span = crate::perf::span("updates.persist");
-        persist_updates_data(&client, session_id)?;
+        schedule_persist(&client, session_id);
     }
     Ok(events)
 }

@@ -377,7 +377,10 @@ pub(crate) fn with_client_mut<T>(
         }
         _ => None,
     };
-    let _gate = client.main_gate.acquire(class)?;
+    let _gate = {
+        let _wait = crate::perf::span("gate_wait.main");
+        client.main_gate.acquire(class)?
+    };
     let mut io = lock_request_lane(&client.main, "lane_wait.main")?;
     let mut state = {
         let d = client.data.lock();

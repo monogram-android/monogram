@@ -91,9 +91,7 @@ pub(crate) fn pick_backup_endpoint(
         .cloned()
 }
 
-const CONFIG_TTL_MIN_SECS: i64 = 15 * 60;
 const CONFIG_TTL_MAX_SECS: i64 = 24 * 3600;
-const CONFIG_TTL_DEFAULT_SECS: i64 = 60 * 60;
 
 pub fn load_sidecar(session_path: &Path) {
     let path = sidecar_path(session_path);
@@ -127,6 +125,9 @@ pub fn apply_fresh_cache(session_path: &Path, home_dc: i32) -> bool {
         return false;
     }
     merge_home(home_dc, cached.endpoints.clone());
+    if let Some(tmp_sessions) = cached.tmp_sessions {
+        crate::scheduler::set_main_session_allowance(Some(tmp_sessions));
+    }
     write_status(
         session_path,
         &format!(
@@ -376,16 +377,19 @@ fn unix_now() -> i64 {
 }
 
 pub(crate) fn clamp_expires(server_expires: i32, now: i64) -> i64 {
+    // No valid server deadline means no reusable permission.
     let ttl = if server_expires <= 0 {
-        CONFIG_TTL_DEFAULT_SECS
+        0
     } else {
-        (i64::from(server_expires) - now).clamp(CONFIG_TTL_MIN_SECS, CONFIG_TTL_MAX_SECS)
+        // Cached session permission must never outlive the server config.
+        (i64::from(server_expires) - now).clamp(0, CONFIG_TTL_MAX_SECS)
     };
     now + ttl
 }
 
 pub(crate) struct CachedConfig {
     expires: i64,
+    tmp_sessions: Option<i32>,
     endpoints: Vec<TxtEndpoint>,
 }
 
@@ -396,6 +400,7 @@ fn load_config_cache(session_path: &Path) -> Option<CachedConfig> {
 
 pub(crate) fn parse_config_cache(text: &str) -> Option<CachedConfig> {
     let mut expires = 0_i64;
+    let mut tmp_sessions = None;
     let mut endpoints = Vec::new();
     for raw in text.lines() {
         let line = raw.trim();
@@ -404,6 +409,10 @@ pub(crate) fn parse_config_cache(text: &str) -> Option<CachedConfig> {
         }
         if let Some(rest) = line.strip_prefix("expires ") {
             expires = rest.trim().parse().ok()?;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("tmp_sessions ") {
+            tmp_sessions = Some(rest.trim().parse().ok()?);
             continue;
         }
         let mut bits = line.split_whitespace();
@@ -422,14 +431,21 @@ pub(crate) fn parse_config_cache(text: &str) -> Option<CachedConfig> {
     if expires <= 0 || endpoints.is_empty() {
         return None;
     }
-    Some(CachedConfig { expires, endpoints })
+    Some(CachedConfig {
+        expires,
+        tmp_sessions,
+        endpoints,
+    })
 }
 
 fn save_config_cache(session_path: &Path, expires: i64, endpoints: &[TxtEndpoint]) {
     if endpoints.is_empty() {
         return;
     }
-    let mut body = format!("# dc_txt.config v1\nexpires {expires}\n");
+    let tmp_sessions = crate::scheduler::main_session_allowance();
+    let mut body = format!(
+        "# dc_txt.config v2\nexpires {expires}\ntmp_sessions {tmp_sessions}\n"
+    );
     for e in endpoints {
         match e.secret {
             Some(secret) => {

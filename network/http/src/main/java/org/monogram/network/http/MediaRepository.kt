@@ -228,7 +228,7 @@ class MediaRepository(
             messageId = message.id.id,
             kind = MediaFetchKind.Display,
             mediaKind = message.mediaKind,
-            priority = priority,
+            priority = maxOf(priority, MediaPriority.DISPLAY),
         )
     }
 
@@ -515,7 +515,14 @@ class MediaRepository(
     }
 
     private fun hasInteractivePendingLocked(): Boolean =
-        telegramJobs.values.any { !it.deferred.isCompleted && it.priority > MediaPriority.IDLE }
+        telegramPending.any { queued ->
+            val job = queued.job
+            queued.generation == job.generation &&
+                !job.running &&
+                !job.cancelled &&
+                !job.deferred.isCompleted &&
+                job.priority > MediaPriority.IDLE
+        }
 
     private suspend fun enqueueTelegram(
         key: String,

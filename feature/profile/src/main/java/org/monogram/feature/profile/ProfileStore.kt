@@ -7,6 +7,8 @@ import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.Outcome
@@ -168,9 +170,12 @@ internal class ProfileStoreFactory(
                     }
                 }
                 if (cachedProfile == null) dispatch(Msg.Loading(true))
-                val result = client.getProfile(peerId)
+                val profileRequest = async { client.getProfile(peerId) }
+                val countsRequest = async { loadTabCounts() }
+                val result = profileRequest.await()
                 val profile = (result as? Outcome.Ok)?.value ?: cachedProfile
                 if (profile == null) {
+                    countsRequest.cancel()
                     if (result is Outcome.Err) dispatch(Msg.Error(result.telegramError))
                     dispatch(Msg.Loading(false))
                     return@launch
@@ -181,7 +186,8 @@ internal class ProfileStoreFactory(
                 }
                 // Carry values locally: the reducer has not necessarily applied the
                 // dispatches above by the time follow-up work starts.
-                val counts = loadTabCounts()
+                // Counts run concurrently but only affect automatic panel selection.
+                val counts = countsRequest.await()
                 loadPanelsForPeer(profile, counts)
                 dispatch(Msg.Loading(false))
             }

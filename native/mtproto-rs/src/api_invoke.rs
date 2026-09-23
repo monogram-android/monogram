@@ -191,26 +191,50 @@ where
     Req: TlEncode + Boxed + Clone,
     Res: BoxedDecode,
 {
+    invoke_api_batch_without_updates_streaming(snapshot, api_id, requests, &mut |_, _| {})
+}
+
+pub fn invoke_api_batch_without_updates_streaming<Req, Res>(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    requests: Vec<Req>,
+    on_chunk: &mut dyn FnMut(usize, Result<Res, MtprotoError>),
+) -> Result<Vec<Result<Res, MtprotoError>>, MtprotoError>
+where
+    Req: TlEncode + Boxed + Clone,
+    Res: BoxedDecode,
+{
     if requests.is_empty() {
         return Ok(Vec::new());
     }
     let replay_safe = replay_safe_method(Req::CONSTRUCTOR_ID);
     let span = crate::perf::span("rpc:pipeline");
-    let raw = rpc::invoke_batch_raw_with_retry(snapshot, replay_safe, |reused| {
-        let mut bodies = Vec::with_capacity(requests.len());
-        for (index, request) in requests.iter().enumerate() {
-            let encoded = if !reused && index == 0 {
-                rpc::encode_boxed_bytes(&wrap_init_connection_without_updates(
-                    api_id,
-                    request.clone(),
-                ))?
-            } else {
-                rpc::encode_boxed_bytes(&wrap_without_updates(request.clone()))?
+    let raw = rpc::invoke_batch_raw_with_retry_streaming(
+        snapshot,
+        replay_safe,
+        |reused| {
+            let mut bodies = Vec::with_capacity(requests.len());
+            for (index, request) in requests.iter().enumerate() {
+                let encoded = if !reused && index == 0 {
+                    rpc::encode_boxed_bytes(&wrap_init_connection_without_updates(
+                        api_id,
+                        request.clone(),
+                    ))?
+                } else {
+                    rpc::encode_boxed_bytes(&wrap_without_updates(request.clone()))?
+                };
+                bodies.push(encoded);
+            }
+            Ok(bodies)
+        },
+        &mut |index, raw_res| {
+            let res = match raw_res {
+                Ok(bytes) => decode_response::<Res>(bytes),
+                Err(err) => Err((*err).clone()),
             };
-            bodies.push(encoded);
-        }
-        Ok(bodies)
-    });
+            on_chunk(index, res);
+        },
+    );
     drop(span);
     Ok(raw?
         .into_iter()

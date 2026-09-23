@@ -242,7 +242,19 @@ where
 pub(crate) fn invoke_batch_raw_with_retry<F>(
     snapshot: &mut Snapshot,
     replay_safe: bool,
+    make_bodies: F,
+) -> Result<Vec<Result<Vec<u8>, MtprotoError>>, MtprotoError>
+where
+    F: FnMut(bool) -> Result<Vec<Vec<u8>>, MtprotoError>,
+{
+    invoke_batch_raw_with_retry_streaming(snapshot, replay_safe, make_bodies, &mut |_, _| {})
+}
+
+pub(crate) fn invoke_batch_raw_with_retry_streaming<F>(
+    snapshot: &mut Snapshot,
+    replay_safe: bool,
     mut make_bodies: F,
+    on_chunk: &mut dyn FnMut(usize, Result<&[u8], &MtprotoError>),
 ) -> Result<Vec<Result<Vec<u8>, MtprotoError>>, MtprotoError>
 where
     F: FnMut(bool) -> Result<Vec<Vec<u8>>, MtprotoError>,
@@ -339,7 +351,7 @@ where
         if bodies.is_empty() {
             return Ok(Vec::new());
         }
-        let result = invoke_batch_until_results(
+        let result = invoke_batch_until_results_streaming(
             &mut engine,
             transport,
             &bodies,
@@ -349,6 +361,7 @@ where
             hard_cap,
             reused,
             &mut send_started,
+            &mut *on_chunk,
         );
         match result {
             Ok(values) => {
@@ -386,6 +399,33 @@ pub(crate) fn invoke_batch_until_results<P: tellers_mtproto_engine::RetryPolicy>
     hard_cap: std::time::Instant,
     reused: bool,
     send_started: &mut bool,
+) -> Result<Vec<Result<Vec<u8>, MtprotoError>>, MtprotoError> {
+    invoke_batch_until_results_streaming(
+        engine,
+        transport,
+        bodies,
+        clock,
+        attempt_deadline,
+        overall_deadline,
+        hard_cap,
+        reused,
+        send_started,
+        |_, _| {},
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::RetryPolicy>(
+    engine: &mut Engine<P>,
+    transport: &mut LiveTransport,
+    bodies: &[Vec<u8>],
+    clock: &SystemClock,
+    attempt_deadline: std::time::Instant,
+    overall_deadline: std::time::Instant,
+    hard_cap: std::time::Instant,
+    reused: bool,
+    send_started: &mut bool,
+    mut on_chunk: impl FnMut(usize, Result<&[u8], &MtprotoError>),
 ) -> Result<Vec<Result<Vec<u8>, MtprotoError>>, MtprotoError> {
     LAST_INBOUND_CTOR.with(|c| c.set(0));
     let mut pending: Vec<Option<RequestHandle<Vec<u8>>>> = Vec::with_capacity(bodies.len());
@@ -473,10 +513,17 @@ pub(crate) fn invoke_batch_until_results<P: tellers_mtproto_engine::RetryPolicy>
                     .take_response::<RawMethod>(handle)
                     .map_err(|e| MtprotoError::Message(e.to_string()))?
                 {
-                    results[index] = Some(match map_rpc_error(&response) {
-                        Some(err) => Err(err),
-                        None => Ok(response),
-                    });
+                    let mapped = match map_rpc_error(&response) {
+                        Some(err) => {
+                            on_chunk(index, Err(&err));
+                            Err(err)
+                        }
+                        None => {
+                            on_chunk(index, Ok(&response));
+                            Ok(response)
+                        }
+                    };
+                    results[index] = Some(mapped);
                     *slot = None;
                 } else {
                     complete = false;

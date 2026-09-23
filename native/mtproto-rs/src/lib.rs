@@ -26,7 +26,7 @@ mod inline_rpc;
 mod instant_view;
 mod instant_view_rpc;
 mod lottie;
-mod media;
+pub mod media;
 mod media_rpc;
 mod messages;
 mod messages_rpc;
@@ -63,6 +63,7 @@ pub use dto::*;
 pub use error::*;
 pub use ffi::*;
 pub use instant_view_rpc::InstantViewDto;
+pub use media::{ProgressCallback, notify_progress, set_progress_callback};
 pub use wallpaper_rpc::{WallpaperCatalogDto, WallpaperDto};
 
 uniffi::setup_scaffolding!();

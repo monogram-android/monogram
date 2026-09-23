@@ -718,6 +718,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_destroy_vpx_decoder(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_download_chunk_kib(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_download_concurrency(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_download_custom_emoji(
@@ -882,6 +884,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_dispatch_class(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_set_download_chunk_kib(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_download_concurrency(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_file_part_kib(
@@ -963,6 +967,8 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_destroy_vpx_decoder(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_download_chunk_kib(uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
     external fun uniffi_monogram_mtproto_fn_func_download_concurrency(uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_download_custom_emoji(`handle`: Long,`documentId`: Long,`destPath`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -1126,6 +1132,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_set_contact_joined_silent(`handle`: Long,`silent`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_set_dispatch_class(`class`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_set_download_chunk_kib(`kib`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_set_download_concurrency(`lanes`: Int,`parts`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1335,6 +1343,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_destroy_vpx_decoder() and 0xFFFF) != 65432) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_download_chunk_kib() and 0xFFFF) != 41354) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_download_concurrency() and 0xFFFF) != 62399) {
@@ -1581,6 +1592,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_set_dispatch_class() and 0xFFFF) != 55728) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_download_chunk_kib() and 0xFFFF) != 26348) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_set_download_concurrency() and 0xFFFF) != 39908) {
@@ -5763,6 +5777,16 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 }
     
     
+ fun `downloadChunkKib`(): kotlin.Int {
+            return FfiConverterInt.lift(
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_download_chunk_kib(
+    
+        _status)
+}
+    )
+    }
+    
  fun `downloadConcurrency`(): List<kotlin.Int> {
             return FfiConverterSequenceInt.lift(
     uniffiRustCall() { _status ->
@@ -6944,6 +6968,16 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     
         
         FfiConverterInt.lower(`class`),_status)
+}
+    
+    
+ fun `setDownloadChunkKib`(`kib`: kotlin.Int)
+        = 
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_set_download_chunk_kib(
+    
+        
+        FfiConverterInt.lower(`kib`),_status)
 }
     
     

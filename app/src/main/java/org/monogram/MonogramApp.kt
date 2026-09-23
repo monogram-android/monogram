@@ -49,6 +49,7 @@ class MonogramApp : Application() {
     private fun applyDownloadSettings(state: DownloadState) {
         client.applyDownloadConcurrency(state.lanes, state.parts)
         client.setFilePartKib(state.filePartKib)
+        client.setDownloadChunkKib(state.downloadChunkKib)
     }
 
     @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)

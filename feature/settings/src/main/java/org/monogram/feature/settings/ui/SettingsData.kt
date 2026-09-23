@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.CellTower
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.EmojiEmotions
@@ -157,6 +158,7 @@ internal fun LazyListScope.dataItems(
     loading: Boolean,
     download: DownloadState,
     onSpeedUpUploads: (Boolean) -> Unit,
+    onSpeedUpDownloads: (Boolean) -> Unit,
     onOpenAutoDownload: (AutoDownloadNetwork) -> Unit,
     onClear: () -> Unit,
     onClearChat: (Long) -> Unit,
@@ -278,11 +280,27 @@ internal fun LazyListScope.dataItems(
     item { SectionHeader(stringResource(R.string.settings_data_transfers)) }
     item {
         SettingsTile(
+            icon = Icons.Outlined.CloudDownload,
+            title = stringResource(R.string.settings_speed_up_downloads),
+            subtitle = stringResource(R.string.settings_speed_up_downloads_sub),
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = ItemPosition.TOP,
+            onClick = { onSpeedUpDownloads(!download.speedUpDownloads) },
+            trailingContent = {
+                Switch(
+                    checked = download.speedUpDownloads,
+                    onCheckedChange = onSpeedUpDownloads,
+                )
+            },
+        )
+    }
+    item {
+        SettingsTile(
             icon = Icons.Outlined.CloudUpload,
             title = stringResource(R.string.settings_speed_up_uploads),
             subtitle = stringResource(R.string.settings_speed_up_uploads_sub),
             iconColor = MaterialTheme.colorScheme.primary,
-            position = ItemPosition.STANDALONE,
+            position = ItemPosition.BOTTOM,
             onClick = { onSpeedUpUploads(!download.speedUpUploads) },
             trailingContent = {
                 Switch(

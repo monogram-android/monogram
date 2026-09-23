@@ -110,6 +110,8 @@
     <string name="settings_data_transfers">Transferencias</string>
     <string name="settings_speed_up_uploads">Acelerar subidas</string>
     <string name="settings_speed_up_uploads_sub">Enviar fotos y archivos más rápido con buena conexión</string>
+    <string name="settings_speed_up_downloads">Acelerar descargas</string>
+    <string name="settings_speed_up_downloads_sub">Usar bloques de 512 KiB para descargar contenido más rápido</string>
     <string name="settings_autodownload">Descarga automática de medios</string>
     <string name="settings_autodownload_wifi">Con Wi-Fi</string>
     <string name="settings_autodownload_mobile">Con datos móviles</string>

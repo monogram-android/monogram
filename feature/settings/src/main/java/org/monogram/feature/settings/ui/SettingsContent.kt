@@ -377,6 +377,7 @@ fun SettingsContent(
                             loading = state.loading || state.loggingOut,
                             download = download,
                             onSpeedUpUploads = org.monogram.core.ui.DownloadSettings::setSpeedUpUploads,
+                            onSpeedUpDownloads = org.monogram.core.ui.DownloadSettings::setSpeedUpDownloads,
                             onOpenAutoDownload = { network ->
                                 component.openPage(
                                     SettingsPage.AutoDownload(autoDownloadNetworkKey(network)),

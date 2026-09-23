@@ -49,8 +49,15 @@ interface MtprotoNative {
     /** Effective `[lanes, parts]` after native clamping. */
     fun downloadConcurrency(): List<Int> = listOf(0, 0)
 
-    /** Upload/download part size in KiB. 32 is default; 512 speeds up large sends. */
+    /** Upload part size in KiB. 32 is default; 512 speeds up large sends. */
     fun setFilePartKib(kib: Int) = Unit
+
+    /** Download chunk size in KiB. 128 is default; 512 speeds up downloads. */
+    fun setDownloadChunkKib(kib: Int) = Unit
+
+    /** Current download chunk size in KiB. */
+    fun downloadChunkKib(): Int = 0
+
     fun libraryVersion(): String
 
     /** Switches Rust netcode timing spans on or off (off by default). */

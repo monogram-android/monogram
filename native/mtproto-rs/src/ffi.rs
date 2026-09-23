@@ -82,6 +82,16 @@ pub fn set_file_part_kib(kib: i32) {
 }
 
 #[uniffi::export]
+pub fn set_download_chunk_kib(kib: i32) {
+    crate::media::set_chunk_size(kib * 1024);
+}
+
+#[uniffi::export]
+pub fn download_chunk_kib() -> i32 {
+    crate::media::chunk_size() / 1024
+}
+
+#[uniffi::export]
 pub fn download_concurrency() -> Vec<i32> {
     vec![
         scheduler::active_media_lanes() as i32,

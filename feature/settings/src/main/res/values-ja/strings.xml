@@ -110,6 +110,8 @@
     <string name="settings_data_transfers">転送</string>
     <string name="settings_speed_up_uploads">アップロードを高速化</string>
     <string name="settings_speed_up_uploads_sub">良好な接続時に写真やファイルをより速く送信します</string>
+    <string name="settings_speed_up_downloads">ダウンロードを高速化</string>
+    <string name="settings_speed_up_downloads_sub">メディアを高速にダウンロードするために512 KiBチャンクを使用します</string>
     <string name="settings_autodownload">メディアの自動ダウンロード</string>
     <string name="settings_autodownload_wifi">Wi-Fi接続時</string>
     <string name="settings_autodownload_mobile">モバイル通信時</string>

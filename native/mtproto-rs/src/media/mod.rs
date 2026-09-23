@@ -12,6 +12,7 @@ mod thumbs;
 
 pub(crate) use cdn::*;
 pub(crate) use download::*;
+pub use download::{ProgressCallback, notify_progress, set_progress_callback};
 pub use index::*;
 pub use location::*;
 pub(crate) use page_plain::*;

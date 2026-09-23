@@ -1,4 +1,4 @@
-#[derive(Debug, thiserror::Error, uniffi::Error)]
+#[derive(Clone, Debug, thiserror::Error, uniffi::Error)]
 pub enum MtprotoError {
     #[error("unknown client handle")]
     UnknownClient,

@@ -148,6 +148,7 @@ data class DownloadState(
     val lanes: Int = 8,
     val parts: Int = 6,
     val speedUpUploads: Boolean = false,
+    val speedUpDownloads: Boolean = true,
     val wifi: AutoDownloadPreset = AutoDownloadPreset.WIFI,
     val mobile: AutoDownloadPreset = AutoDownloadPreset.MOBILE,
     val roaming: AutoDownloadPreset = AutoDownloadPreset.ROAMING,
@@ -157,6 +158,7 @@ data class DownloadState(
 ) {
     val concurrency: DownloadConcurrency get() = DownloadConcurrency(lanes = lanes, parts = parts)
     val filePartKib: Int get() = if (speedUpUploads) 512 else 32
+    val downloadChunkKib: Int get() = if (speedUpDownloads) 512 else 128
 
     fun presetFor(network: AutoDownloadNetwork): AutoDownloadPreset = when (network) {
         AutoDownloadNetwork.Wifi -> wifi
@@ -168,6 +170,7 @@ data class DownloadState(
 object DownloadSettings {
     private const val PREFS = "monogram_download"
     private const val KEY_SPEED_UP_UPLOADS = "speed_up_uploads"
+    private const val KEY_SPEED_UP_DOWNLOADS = "speed_up_downloads"
     private const val KEY_WIFI = "autodownload_wifi"
     private const val KEY_MOBILE = "autodownload_mobile"
     private const val KEY_ROAMING = "autodownload_roaming"
@@ -197,6 +200,7 @@ object DownloadSettings {
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         mutable.value = DownloadState(
             speedUpUploads = prefs.getBoolean(KEY_SPEED_UP_UPLOADS, false),
+            speedUpDownloads = prefs.getBoolean(KEY_SPEED_UP_DOWNLOADS, true),
             wifi = AutoDownloadPreset.decode(prefs.getString(KEY_WIFI, null), AutoDownloadPreset.WIFI),
             mobile = AutoDownloadPreset.decode(prefs.getString(KEY_MOBILE, null), AutoDownloadPreset.MOBILE),
             roaming = AutoDownloadPreset.decode(prefs.getString(KEY_ROAMING, null), AutoDownloadPreset.ROAMING),
@@ -214,6 +218,12 @@ object DownloadSettings {
 
     fun setSpeedUpUploads(enabled: Boolean) {
         mutable.update { it.copy(speedUpUploads = enabled) }
+        persist()
+        apply?.invoke(mutable.value)
+    }
+
+    fun setSpeedUpDownloads(enabled: Boolean) {
+        mutable.update { it.copy(speedUpDownloads = enabled) }
         persist()
         apply?.invoke(mutable.value)
     }
@@ -290,6 +300,7 @@ object DownloadSettings {
         val value = mutable.value
         prefs.edit {
             putBoolean(KEY_SPEED_UP_UPLOADS, value.speedUpUploads)
+            putBoolean(KEY_SPEED_UP_DOWNLOADS, value.speedUpDownloads)
             putString(KEY_WIFI, value.wifi.encode())
             putString(KEY_MOBILE, value.mobile.encode())
             putString(KEY_ROAMING, value.roaming.encode())

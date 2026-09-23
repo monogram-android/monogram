@@ -58,6 +58,41 @@ class MediaRepositoryPriorityTest {
     }
 
     @Test
+    fun displayPreemptsRunningDefault(): Unit = runBlocking {
+        val started = Collections.synchronizedList(mutableListOf<Long>())
+        val blockerStarted = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val repo = MediaRepository(
+            cacheRoot = tmp.newFolder("cache"),
+            telegramFetcher = TelegramMediaFetcher { chatId, _, destPath, _, _ ->
+                started += chatId.value
+                if (chatId.value == 1L && started.count { it == 1L } == 1) {
+                    blockerStarted.complete(Unit)
+                    release.await()
+                }
+                File(destPath).writeBytes(byteArrayOf(1))
+                Outcome.Ok(destPath)
+            },
+            maxConcurrentTelegram = 1,
+        )
+        val full = async(Dispatchers.IO) {
+            repo.ensureLocalAvatar(PeerId(1), "photo:1", MediaPriority.DEFAULT)
+        }
+        blockerStarted.await()
+        val display = async(Dispatchers.IO) {
+            repo.ensureLocalAvatar(PeerId(2), "photo:2", MediaPriority.DISPLAY)
+        }
+        delay(80)
+        assertEquals(1L, started.first())
+        assertTrue(started.contains(2L))
+        assertTrue(started.count { it == 1L } >= 2)
+        release.complete(Unit)
+        assertTrue(display.await() is Outcome.Ok)
+        assertTrue(full.await() is Outcome.Ok)
+        repo.shutdown()
+    }
+
+    @Test
     fun equalPriorityStaysFifo(): Unit = runBlocking {
         val order = Collections.synchronizedList(mutableListOf<Long>())
         val blockerStarted = CompletableDeferred<Unit>()

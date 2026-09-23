@@ -30,6 +30,8 @@ import org.monogram.core.common.push.PushAction
 import org.monogram.core.common.push.PushPayload
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.push.PushWakeGate
+import org.monogram.core.common.push.shouldRefreshDialogsOnWake
+import org.monogram.core.common.push.shouldSyncOnWake
 import org.monogram.core.common.push.decideNotification
 import org.monogram.core.common.push.folderMemberIds
 import org.monogram.core.common.push.parsePushPayload
@@ -480,6 +482,7 @@ class PushCoordinator(
     }
 
     private fun wakeFetch() {
+        if (!shouldSyncOnWake(appForeground)) return
         val generation = wakeGate.tryStart(System.currentTimeMillis()) ?: return
         wakeJob?.cancel()
         wakeJob = scope.launch {
@@ -488,7 +491,7 @@ class PushCoordinator(
                 is Outcome.Err -> AppLog.warn("push", "wake connect failed")
                 is Outcome.Ok -> {
                     if (!wakeGate.isCurrent(generation)) return@launch
-                    client.getUpdatesState()
+                    if (!shouldRefreshDialogsOnWake(chatPhotos.size)) return@launch
                     when (val result = client.getChats()) {
                         is Outcome.Ok -> rememberChatPhotos(result.value)
                         is Outcome.Err -> Unit

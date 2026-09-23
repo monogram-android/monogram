@@ -176,14 +176,22 @@ class MediaDurationTest {
 
     @Test
     fun documentsDoNotAutoFetchFullFile() {
-        assertEquals(true, shouldAutoFetchFullMedia("gif", false))
-        assertEquals(false, shouldAutoFetchFullMedia("video", false))
-        assertEquals(false, shouldAutoFetchFullMedia("document", false))
-        assertEquals(true, shouldAutoFetchFullMedia("document", true))
+        val wifi = org.monogram.core.ui.AutoDownloadPreset.WIFI
+        val roaming = org.monogram.core.ui.AutoDownloadPreset.ROAMING
+        assertEquals(true, shouldAutoFetchFullMedia("gif", false, 200_000, wifi))
+        assertEquals(false, shouldAutoFetchFullMedia("gif", false, null, wifi))
+        assertEquals(true, shouldAutoFetchFullMedia("video", false, 200_000, wifi))
+        assertEquals(false, shouldAutoFetchFullMedia("video", false, 20L * org.monogram.core.ui.AutoDownloadPreset.MB, wifi))
+        assertEquals(false, shouldAutoFetchFullMedia("video", false, 200_000, roaming))
+        assertEquals(false, shouldAutoFetchFullMedia("document", false, 200_000, roaming))
+        assertEquals(true, shouldAutoFetchFullMedia("document", false, 200_000, wifi))
+        assertEquals(false, shouldAutoFetchFullMedia("document", false, 4L * org.monogram.core.ui.AutoDownloadPreset.MB, wifi))
+        assertEquals(true, shouldAutoFetchFullMedia("document", true, 200_000, roaming))
         assertEquals(true, shouldAutoFetchFullMedia("sticker", false))
         assertEquals(false, shouldAutoFetchFullMedia("photo", false))
         assertEquals(true, shouldAutoFetchFullMedia("photo", true))
-        assertEquals(true, shouldAutoFetchDisplayMedia("photo"))
+        assertEquals(true, shouldAutoFetchDisplayMedia("photo", preset = wifi))
+        assertEquals(false, shouldAutoFetchDisplayMedia("document", 200_000, wifi))
         assertEquals(true, shouldAutoFetchDisplayMedia("webpage"))
         assertEquals(true, shouldAutoFetchDisplayMedia("video"))
         assertEquals(true, shouldAutoFetchDisplayMedia("gif"))
@@ -192,6 +200,19 @@ class MediaDurationTest {
         assertEquals(false, shouldAutoFetchFullMedia("voice", false))
         assertEquals(org.monogram.network.http.MediaPriority.VISIBLE, mediaFullPriority(false))
         assertEquals(org.monogram.network.http.MediaPriority.USER, mediaFullPriority(true))
+    }
+
+    @Test
+    fun streamableVisibleVideosAutoplayOnWifiOnly() {
+        val wifi = org.monogram.core.ui.AutoDownloadPreset.WIFI
+        val roaming = org.monogram.core.ui.AutoDownloadPreset.ROAMING
+        assertEquals(true, shouldAutoplayChatVideo("video", true, 8_000_000, true, true, wifi))
+        assertEquals(true, shouldAutoplayChatVideo("video", true, 20L * org.monogram.core.ui.AutoDownloadPreset.MB, true, true, wifi))
+        assertEquals(false, shouldAutoplayChatVideo("video", false, 8_000_000, true, true, wifi))
+        assertEquals(false, shouldAutoplayChatVideo("video", true, 8_000_000, false, true, wifi))
+        assertEquals(false, shouldAutoplayChatVideo("video", true, 8_000_000, true, false, wifi))
+        assertEquals(false, shouldAutoplayChatVideo("gif", true, 8_000_000, true, true, wifi))
+        assertEquals(false, shouldAutoplayChatVideo("video", true, 8_000_000, true, true, roaming))
     }
 
     @Test

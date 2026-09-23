@@ -26,6 +26,7 @@ pub struct MediaMetrics {
     pub height: Option<i32>,
     pub file_name: Option<String>,
     pub file_size: Option<i64>,
+    pub supports_streaming: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -38,6 +39,7 @@ pub struct IndexedMessageMedia {
     pub height: Option<i32>,
     pub file_name: Option<String>,
     pub file_size: Option<i64>,
+    pub supports_streaming: bool,
 }
 
 pub(crate) fn classify_document(
@@ -59,9 +61,8 @@ pub(crate) fn classify_document(
         "video"
     } else if mime_type == "image/gif" {
         "gif"
-    } else if mime_type.starts_with("image/") {
-        "photo"
     } else {
+        // Image MIME without photo/sticker/GIF/video attrs is a file, not a compressed photo.
         "document"
     }
 }
@@ -108,6 +109,7 @@ pub(crate) fn document_metrics(
                 metrics.duration = Some(duration_secs(v.duration));
                 metrics.width = Some(v.w);
                 metrics.height = Some(v.h);
+                metrics.supports_streaming = v.supports_streaming.is_some();
             }
             DocumentAttribute::DocumentAttributeImageSize(s) if metrics.width.is_none() => {
                 metrics.width = Some(s.w);
@@ -140,6 +142,7 @@ pub(crate) fn photo_metrics(sizes: &[PhotoSize]) -> MediaMetrics {
         height: best.map(|(_, _, h)| h),
         file_name: None,
         file_size: None,
+        supports_streaming: false,
     }
 }
 
@@ -408,6 +411,7 @@ pub(crate) fn webpage_media(
         height: page.embed_height,
         file_name: Some(meta),
         file_size: None,
+        supports_streaming: false,
     };
     if let Some(photo) = page.photo.as_ref() {
         if let Photo::Photo(ph) = photo.as_ref() {
@@ -697,6 +701,7 @@ pub fn index_message_media(msg: &Message, index: &mut MediaIndex) -> IndexedMess
         height: metrics.height,
         file_name: metrics.file_name,
         file_size: metrics.file_size,
+        supports_streaming: metrics.supports_streaming,
     };
     index.insert((chat_id, m.id), media_ref);
     indexed
@@ -734,6 +739,7 @@ pub(crate) fn index_first_rich_photo(
             height: metrics.height,
             file_name: None,
             file_size: metrics.file_size,
+            supports_streaming: false,
         };
         index.insert((chat_id, message_id), media_ref);
         return indexed;

@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.monogram.core.common.AppLog
+import org.monogram.core.common.DebugStats
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.TelegramCredentials
 import org.monogram.core.common.push.NotificationLocalStore
@@ -57,6 +58,7 @@ class MonogramApp : Application() {
         val startedAt = PerfLog.nowMs()
         perfSpan("app:settings") {
             AppLog.init(cacheDir)
+            DebugStats.install(BuildConfig.DEBUG, cacheDir)
             ImageCache.install(this)
             AppearanceSettings.install(this)
         }

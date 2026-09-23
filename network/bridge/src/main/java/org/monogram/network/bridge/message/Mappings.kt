@@ -25,6 +25,7 @@ internal fun MessageDto.toModel(): Message = Message(
     groupedId = groupedId,
     fileName = if (mediaKind == "todo") null else fileName,
     fileSize = fileSize,
+    supportsStreaming = supportsStreaming,
     reactionsJson = reactionsJson,
     repliesCount = repliesCount,
     discussionPeerId = discussionPeerId,

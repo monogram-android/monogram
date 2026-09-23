@@ -110,6 +110,10 @@ internal suspend fun DialogExecutor.hydratePinned() {
 
 internal fun DialogExecutor.loadPinned() {
     if (pinnedRequested) return
+    if (snapshot().pinnedMessages.isNotEmpty()) {
+        pinnedRequested = true
+        return
+    }
     pinnedRequested = true
     work.launch {
         when (val result = client.getPinnedMessages(chatId)) {

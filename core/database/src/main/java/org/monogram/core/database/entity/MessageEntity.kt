@@ -25,6 +25,7 @@ data class MessageEntity(
     val groupedId: Long? = null,
     val fileName: String? = null,
     val fileSize: Long? = null,
+    val supportsStreaming: Boolean = false,
     val reactionsJson: String? = null,
     val repliesCount: Int = 0,
     val discussionPeerId: Long? = null,

@@ -7,6 +7,7 @@ import org.junit.Test
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
+import org.monogram.core.ui.AutoDownloadPreset
 import org.monogram.network.http.MediaPriority
 
 class DialogMediaPreloadTest {
@@ -122,6 +123,50 @@ class DialogMediaPreloadTest {
         assertTrue(plan.instantViews.isEmpty())
     }
 
+    @Test
+    fun imageDocumentsFollowFilesPolicyNotPhotos() {
+        val messages = listOf(
+            imageFile(3, size = 200_000),
+            imageFile(2, size = 4L * AutoDownloadPreset.MB),
+        )
+        val wifi = DialogMediaPreload.plan(
+            messages,
+            visibleIds = setOf(3, 2),
+            radius = 20,
+            preset = AutoDownloadPreset.WIFI,
+        )
+        assertTrue(wifi.media.any {
+            it.message.id.id == 3 &&
+                it.fetch == DialogMediaPreload.Fetch.Thumb &&
+                it.cacheKey == "doc:3:thumb"
+        })
+        assertTrue(wifi.media.any {
+            it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Full
+        })
+        assertFalse(wifi.media.any {
+            it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Display
+        })
+        assertTrue(wifi.media.any {
+            it.message.id.id == 2 && it.fetch == DialogMediaPreload.Fetch.Thumb
+        })
+        assertFalse(wifi.media.any {
+            it.message.id.id == 2 && it.fetch == DialogMediaPreload.Fetch.Full
+        })
+
+        val roaming = DialogMediaPreload.plan(
+            messages,
+            visibleIds = setOf(3),
+            radius = 20,
+            preset = AutoDownloadPreset.ROAMING,
+        )
+        assertTrue(roaming.media.any {
+            it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Thumb
+        })
+        assertFalse(roaming.media.any {
+            it.message.id.id == 3 && it.fetch != DialogMediaPreload.Fetch.Thumb
+        })
+    }
+
     private fun photo(id: Int) = Message(
         id = MessageId(PeerId(1), id),
         senderId = null,
@@ -142,6 +187,20 @@ class DialogMediaPreloadTest {
         mediaKind = "gif",
         mediaCacheKey = "gif:$id",
         thumbCacheKey = "thumb:$id",
+        fileSize = 200_000,
+    )
+
+    private fun imageFile(id: Int, size: Long) = Message(
+        id = MessageId(PeerId(1), id),
+        senderId = null,
+        text = "pic.jpg",
+        date = id.toLong(),
+        outgoing = false,
+        mediaKind = "document",
+        mediaCacheKey = "doc:$id",
+        thumbCacheKey = "doc:$id:thumb",
+        fileName = "pic.jpg",
+        fileSize = size,
     )
 
     private fun webpage(id: Int, json: String) = Message(

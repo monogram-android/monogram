@@ -1,0 +1,948 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "2a19b32e9150df38f6406e87d18d1c86",
+    "entities": [
+      {
+        "tableName": "meta",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `value` TEXT NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "chats",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `title` TEXT NOT NULL, `isChannel` INTEGER NOT NULL, `isGroup` INTEGER NOT NULL, `isForum` INTEGER NOT NULL, `left` INTEGER NOT NULL, `unreadCount` INTEGER NOT NULL, `lastMessagePreview` TEXT, `lastMessageOutgoing` INTEGER NOT NULL, `lastMessageSenderName` TEXT, `lastMessageMediaKind` TEXT, `lastMessageDate` INTEGER, `photoCacheKey` TEXT, `archived` INTEGER NOT NULL, `muted` INTEGER NOT NULL, `muteOverride` INTEGER NOT NULL, `unreadMark` INTEGER NOT NULL, `unreadMentionsCount` INTEGER NOT NULL, `unreadReactionsCount` INTEGER NOT NULL, `isContact` INTEGER NOT NULL, `isBot` INTEGER NOT NULL, `isVerified` INTEGER NOT NULL, `pinned` INTEGER NOT NULL, `pinnedOrder` INTEGER NOT NULL, `readInboxMaxId` INTEGER NOT NULL, `readOutboxMaxId` INTEGER NOT NULL, `peerStatus` TEXT, `peerStatusAt` INTEGER, `lastMediaThumbCacheKey` TEXT, `lastMessageId` INTEGER NOT NULL, `dialogScrollMessageId` INTEGER, `canView` INTEGER NOT NULL, `canSendPlain` INTEGER NOT NULL, `canSendPhotos` INTEGER NOT NULL, `canForward` INTEGER NOT NULL, `canDeleteOthers` INTEGER NOT NULL, `emojiStatusDocumentId` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isChannel",
+            "columnName": "isChannel",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isGroup",
+            "columnName": "isGroup",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isForum",
+            "columnName": "isForum",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "left",
+            "columnName": "left",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadCount",
+            "columnName": "unreadCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessagePreview",
+            "columnName": "lastMessagePreview",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastMessageOutgoing",
+            "columnName": "lastMessageOutgoing",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastMessageSenderName",
+            "columnName": "lastMessageSenderName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastMessageMediaKind",
+            "columnName": "lastMessageMediaKind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastMessageDate",
+            "columnName": "lastMessageDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "photoCacheKey",
+            "columnName": "photoCacheKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "archived",
+            "columnName": "archived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "muted",
+            "columnName": "muted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "muteOverride",
+            "columnName": "muteOverride",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadMark",
+            "columnName": "unreadMark",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadMentionsCount",
+            "columnName": "unreadMentionsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unreadReactionsCount",
+            "columnName": "unreadReactionsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isContact",
+            "columnName": "isContact",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBot",
+            "columnName": "isBot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isVerified",
+            "columnName": "isVerified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinned",
+            "columnName": "pinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinnedOrder",
+            "columnName": "pinnedOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "readInboxMaxId",
+            "columnName": "readInboxMaxId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "readOutboxMaxId",
+            "columnName": "readOutboxMaxId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "peerStatus",
+            "columnName": "peerStatus",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "peerStatusAt",
+            "columnName": "peerStatusAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastMediaThumbCacheKey",
+            "columnName": "lastMediaThumbCacheKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastMessageId",
+            "columnName": "lastMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dialogScrollMessageId",
+            "columnName": "dialogScrollMessageId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "canView",
+            "columnName": "canView",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canSendPlain",
+            "columnName": "canSendPlain",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canSendPhotos",
+            "columnName": "canSendPhotos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canForward",
+            "columnName": "canForward",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canDeleteOthers",
+            "columnName": "canDeleteOthers",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "emojiStatusDocumentId",
+            "columnName": "emojiStatusDocumentId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "folders",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `title` TEXT NOT NULL, `emoticon` TEXT NOT NULL, `chatIdsCsv` TEXT NOT NULL, `pinnedChatIdsCsv` TEXT NOT NULL, `includeContacts` INTEGER NOT NULL, `includeNonContacts` INTEGER NOT NULL, `includeGroups` INTEGER NOT NULL, `includeChannels` INTEGER NOT NULL, `includeBots` INTEGER NOT NULL, `excludeChatIdsCsv` TEXT NOT NULL, `excludeMuted` INTEGER NOT NULL, `excludeRead` INTEGER NOT NULL, `excludeArchived` INTEGER NOT NULL, `position` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "emoticon",
+            "columnName": "emoticon",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chatIdsCsv",
+            "columnName": "chatIdsCsv",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinnedChatIdsCsv",
+            "columnName": "pinnedChatIdsCsv",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "includeContacts",
+            "columnName": "includeContacts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "includeNonContacts",
+            "columnName": "includeNonContacts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "includeGroups",
+            "columnName": "includeGroups",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "includeChannels",
+            "columnName": "includeChannels",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "includeBots",
+            "columnName": "includeBots",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "excludeChatIdsCsv",
+            "columnName": "excludeChatIdsCsv",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "excludeMuted",
+            "columnName": "excludeMuted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "excludeRead",
+            "columnName": "excludeRead",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "excludeArchived",
+            "columnName": "excludeArchived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "messages",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`chatId` INTEGER NOT NULL, `id` INTEGER NOT NULL, `senderId` INTEGER, `text` TEXT, `date` INTEGER NOT NULL, `editDate` INTEGER, `outgoing` INTEGER NOT NULL, `mediaCacheKey` TEXT, `mediaKind` TEXT, `thumbCacheKey` TEXT, `mediaDuration` INTEGER, `mediaWidth` INTEGER, `mediaHeight` INTEGER, `groupedId` INTEGER, `fileName` TEXT, `fileSize` INTEGER, `supportsStreaming` INTEGER NOT NULL, `reactionsJson` TEXT, `repliesCount` INTEGER NOT NULL, `discussionPeerId` INTEGER, `replyQuote` TEXT, `entitiesJson` TEXT, `replyToMsgId` INTEGER, `fwdFrom` TEXT, `fwdFromId` INTEGER, `fwdDate` INTEGER, `viaBot` TEXT, `senderName` TEXT, `replyMarkupJson` TEXT, `pending` INTEGER NOT NULL, `randomId` INTEGER, `checklistJson` TEXT, PRIMARY KEY(`chatId`, `id`))",
+        "fields": [
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "senderId",
+            "columnName": "senderId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "editDate",
+            "columnName": "editDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "outgoing",
+            "columnName": "outgoing",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaCacheKey",
+            "columnName": "mediaCacheKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaKind",
+            "columnName": "mediaKind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "thumbCacheKey",
+            "columnName": "thumbCacheKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaDuration",
+            "columnName": "mediaDuration",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mediaWidth",
+            "columnName": "mediaWidth",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mediaHeight",
+            "columnName": "mediaHeight",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "groupedId",
+            "columnName": "groupedId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "fileName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fileSize",
+            "columnName": "fileSize",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "supportsStreaming",
+            "columnName": "supportsStreaming",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reactionsJson",
+            "columnName": "reactionsJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "repliesCount",
+            "columnName": "repliesCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "discussionPeerId",
+            "columnName": "discussionPeerId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "replyQuote",
+            "columnName": "replyQuote",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "entitiesJson",
+            "columnName": "entitiesJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "replyToMsgId",
+            "columnName": "replyToMsgId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fwdFrom",
+            "columnName": "fwdFrom",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fwdFromId",
+            "columnName": "fwdFromId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fwdDate",
+            "columnName": "fwdDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "viaBot",
+            "columnName": "viaBot",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "senderName",
+            "columnName": "senderName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "replyMarkupJson",
+            "columnName": "replyMarkupJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pending",
+            "columnName": "pending",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "randomId",
+            "columnName": "randomId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "checklistJson",
+            "columnName": "checklistJson",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chatId",
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_messages_chatId_date",
+            "unique": false,
+            "columnNames": [
+              "chatId",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_messages_chatId_date` ON `${TABLE_NAME}` (`chatId`, `date`)"
+          }
+        ]
+      },
+      {
+        "tableName": "update_cursors",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `pts` INTEGER NOT NULL, `qts` INTEGER NOT NULL, `date` INTEGER NOT NULL, `seq` INTEGER NOT NULL, `channelPts` INTEGER NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pts",
+            "columnName": "pts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qts",
+            "columnName": "qts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seq",
+            "columnName": "seq",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "channelPts",
+            "columnName": "channelPts",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "peers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `kind` TEXT NOT NULL, `title` TEXT NOT NULL, `username` TEXT, `about` TEXT, `avatarCacheKey` TEXT, `status` TEXT, `statusAt` INTEGER, `emojiStatusDocumentId` INTEGER, `extraJson` TEXT, `isSelf` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "about",
+            "columnName": "about",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "avatarCacheKey",
+            "columnName": "avatarCacheKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "statusAt",
+            "columnName": "statusAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "emojiStatusDocumentId",
+            "columnName": "emojiStatusDocumentId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "extraJson",
+            "columnName": "extraJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isSelf",
+            "columnName": "isSelf",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "profile_tabs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`peerId` INTEGER NOT NULL, `tabsJson` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`peerId`))",
+        "fields": [
+          {
+            "fieldPath": "peerId",
+            "columnName": "peerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tabsJson",
+            "columnName": "tabsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "peerId"
+          ]
+        }
+      },
+      {
+        "tableName": "profile_members",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`peerId` INTEGER NOT NULL, `userId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `title` TEXT NOT NULL, `username` TEXT, `avatarCacheKey` TEXT, `status` TEXT, `statusAt` INTEGER, `role` TEXT NOT NULL, `rank` TEXT, `totalCount` INTEGER NOT NULL, PRIMARY KEY(`peerId`, `userId`))",
+        "fields": [
+          {
+            "fieldPath": "peerId",
+            "columnName": "peerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "avatarCacheKey",
+            "columnName": "avatarCacheKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "statusAt",
+            "columnName": "statusAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "role",
+            "columnName": "role",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rank",
+            "columnName": "rank",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "totalCount",
+            "columnName": "totalCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "peerId",
+            "userId"
+          ]
+        }
+      },
+      {
+        "tableName": "profile_media",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`peerId` INTEGER NOT NULL, `tab` TEXT NOT NULL, `messageId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `chatId` INTEGER NOT NULL, `text` TEXT, `date` INTEGER NOT NULL, `outgoing` INTEGER NOT NULL, `mediaCacheKey` TEXT, `mediaKind` TEXT, `thumbCacheKey` TEXT, `fileName` TEXT, `fileSize` INTEGER, PRIMARY KEY(`peerId`, `tab`, `messageId`))",
+        "fields": [
+          {
+            "fieldPath": "peerId",
+            "columnName": "peerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tab",
+            "columnName": "tab",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "messageId",
+            "columnName": "messageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outgoing",
+            "columnName": "outgoing",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaCacheKey",
+            "columnName": "mediaCacheKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaKind",
+            "columnName": "mediaKind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "thumbCacheKey",
+            "columnName": "thumbCacheKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "fileName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fileSize",
+            "columnName": "fileSize",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "peerId",
+            "tab",
+            "messageId"
+          ]
+        }
+      },
+      {
+        "tableName": "profile_common",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`peerId` INTEGER NOT NULL, `chatId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `title` TEXT NOT NULL, `isChannel` INTEGER NOT NULL, `isGroup` INTEGER NOT NULL, `photoCacheKey` TEXT, PRIMARY KEY(`peerId`, `chatId`))",
+        "fields": [
+          {
+            "fieldPath": "peerId",
+            "columnName": "peerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isChannel",
+            "columnName": "isChannel",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isGroup",
+            "columnName": "isGroup",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "photoCacheKey",
+            "columnName": "photoCacheKey",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "peerId",
+            "chatId"
+          ]
+        }
+      },
+      {
+        "tableName": "sponsors",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` INTEGER NOT NULL, `sourceChannelId` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`userId`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceChannelId",
+            "columnName": "sourceChannelId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "userId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2a19b32e9150df38f6406e87d18d1c86')"
+    ]
+  }
+}

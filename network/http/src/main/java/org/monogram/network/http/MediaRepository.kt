@@ -520,6 +520,18 @@ class MediaRepository(
     private fun hasDisplayPendingLocked(): Boolean =
         hasPendingAtLeastLocked(MediaPriority.DISPLAY)
 
+    /** Free a worker for display/thumb/user by cancelling the lowest-priority running job. */
+    private fun maybePreemptForLocked(priority: Int) {
+        if (priority < MediaPriority.DISPLAY) return
+        val running = telegramJobs.values.filter { it.running && !it.cancelled && !it.preempted }
+        if (running.size < maxConcurrentTelegram) return
+        val victim = running
+            .filter { it.priority < MediaPriority.DISPLAY }
+            .minByOrNull { it.priority } ?: return
+        victim.preempted = true
+        victim.runner?.cancel()
+    }
+
     private fun hasPendingAtLeastLocked(minPriority: Int): Boolean =
         telegramPending.any { queued ->
             val job = queued.job
@@ -562,6 +574,7 @@ class MediaRepository(
                 telegramPending += QueuedTelegram(created)
                 created
             }.also {
+                maybePreemptForLocked(it.priority)
                 ensureTelegramWorkerLocked()
             }
         }
@@ -629,7 +642,7 @@ class MediaRepository(
             }
             return
         }
-        val result = perfOp("http_job") {
+        val result = perfOp("telegram_job") {
             try {
                 coroutineScope {
                     val runner = async(start = CoroutineStart.LAZY) { job.work() }

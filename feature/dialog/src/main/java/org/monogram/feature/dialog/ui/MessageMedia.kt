@@ -39,6 +39,7 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.Message
 import org.monogram.core.models.WebpagePreview
+import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
 import org.monogram.core.ui.components.MediaPlaceholder
 import org.monogram.feature.dialog.R
@@ -77,9 +78,15 @@ fun MessageMedia(
         )
         return
     }
+    val downloadState by DownloadSettings.state.collectAsStateWithLifecycle()
+    val preset = downloadState.presetFor(DownloadSettings.activeNetwork())
     val fullKey = message.mediaCacheKey ?: return
     val thumbKey = message.thumbCacheKey ?: fullKey
-    val displayKey = if (shouldAutoFetchDisplayMedia(kind)) photoDisplayCacheKey(fullKey) else null
+    val displayKey = if (shouldAutoFetchDisplayMedia(kind, message.fileSize, preset)) {
+        photoDisplayCacheKey(fullKey)
+    } else {
+        null
+    }
     val sticker = isStickerMedia(kind, message.text ?: message.fileName)
     val stickerSize = stickerDisplaySize(message.mediaWidth, message.mediaHeight)
     val stickerDp = maxOf(stickerSize.first, stickerSize.second)
@@ -129,7 +136,13 @@ fun MessageMedia(
     var fullFailed by remember(fullKey) { mutableStateOf(false) }
     val openMedia = LocalOpenMessageMedia.current
     val albumMessages = LocalAlbumMessages.current
-    var playing by remember(fullKey) { mutableStateOf(kind == "gif") }
+    var playing by remember(fullKey) {
+        mutableStateOf(
+            kind == "gif" &&
+                downloadState.autoplayGifs &&
+                preset.allowsFull("gif", message.fileSize),
+        )
+    }
     val mediaScope = rememberCoroutineScope()
     var wantFull by remember(fullKey) { mutableStateOf(false) }
     var downloadAttempt by remember(fullKey) { mutableStateOf(0) }
@@ -156,6 +169,8 @@ fun MessageMedia(
         downloadAttempt,
         previewOnly,
         mediaVisible,
+        preset,
+        downloadState.autoplayGifs,
     ) {
         val repo = mediaRepository ?: run {
             previewFetchDone = true
@@ -204,21 +219,32 @@ fun MessageMedia(
             }
             null
         }
+        val userRequested = wantFull || (playing && kind != "gif")
         val waitingForSharp = displayFile == null && fullFile == null && (
-            shouldAutoFetchDisplayMedia(kind) ||
-                shouldAutoFetchFullMedia(kind, playing || wantFull)
+            shouldAutoFetchDisplayMedia(kind, message.fileSize, preset) ||
+                shouldAutoFetchFullMedia(kind, userRequested, message.fileSize, preset)
             )
         if (!waitingForSharp) previewFetchDone = true
         coroutineScope {
-            if (thumbFile == null && kind != "document" && kind != "audio" && kind != "voice") {
-                launch {
-                    thumbFile = fetch(MediaFetchKind.Thumb) ?: thumbFile
+            if (thumbFile == null && kind != "audio" && kind != "voice") {
+                if (kind != "document" || hasDistinctMediaThumb(thumbKey, fullKey)) {
+                    launch {
+                        thumbFile = fetch(MediaFetchKind.Thumb) ?: thumbFile
+                    }
                 }
             }
-            if (shouldAutoFetchDisplayMedia(kind) && displayFile == null && fullFile == null) {
+            if (shouldAutoFetchDisplayMedia(kind, message.fileSize, preset) &&
+                displayFile == null &&
+                fullFile == null
+            ) {
                 displayFile = fetch(MediaFetchKind.Display)
             }
-            val needFull = shouldAutoFetchFullMedia(kind, playing || wantFull)
+            val needFull = shouldAutoFetchFullMedia(
+                kind,
+                userRequested,
+                message.fileSize,
+                preset,
+            )
             if (needFull && fullFile == null) {
                 fullFailed = false
                 fullFile = fetch(MediaFetchKind.Full)
@@ -371,35 +397,68 @@ fun MessageMedia(
             val stillThumb = thumbFile?.takeIf { stillImageFile(it) }
             val sharpStill = (displayFile ?: fullFile)?.takeIf { stillImageFile(it) }
             val placeholder = shouldBlurMediaPreview(thumbKey, fullKey, sharpStill != null)
-            VideoThumb(
-                thumb = stillThumb,
-                image = sharpStill,
-                durationSeconds = if (kind == "video") message.mediaDuration else null,
-                failed = failed || (playing && fullFailed),
-                loading = loadingFull,
-                previewLoading = shouldShowMediaPreviewSpinner(
-                    placeholder,
-                    previewFetchDone,
-                    failed || (playing && fullFailed),
-                ),
-                downloadedBytes = downloadedBytes,
-                fileSize = message.fileSize,
-                onPlay = {
-                    if (kind == "video") {
-                        openMedia(message, albumMessages)
-                    } else if (loadingFull) {
-                        playing = false
-                        mediaRepository?.cancel(fullKey)
-                    } else {
-                        fullFailed = false
-                        playing = true
-                    }
-                },
-                compact = fillBounds,
-                durationAtStart = durationAtStart,
-                onLongPress = onLongPress,
-                modifier = mediaModifier,
+            val autoplayVideo = shouldAutoplayChatVideo(
+                kind = kind,
+                supportsStreaming = message.supportsStreaming,
+                sizeBytes = message.fileSize,
+                visible = mediaVisible,
+                autoplayVideos = downloadState.autoplayVideos,
+                preset = preset,
             )
+            LaunchedEffect(message.id, message.supportsStreaming, autoplayVideo, mediaVisible) {
+                if (kind != "video") return@LaunchedEffect
+                val name = message.fileName?.replace(Regex("[^A-Za-z0-9._-]"), "_")?.take(40).orEmpty()
+                org.monogram.core.common.PerfLog.mark(
+                    "stream:autoplay:$name:streaming=${message.supportsStreaming}:start=$autoplayVideo",
+                    0L,
+                    "result=ok bytes=${message.fileSize ?: 0L}",
+                )
+            }
+            if (kind == "video" && autoplayVideo && mediaRepository != null) {
+                ChatInlineVideo(
+                    message = message,
+                    repository = mediaRepository,
+                    visible = mediaVisible,
+                    autoplay = true,
+                    poster = sharpStill ?: stillThumb,
+                    durationSeconds = message.mediaDuration,
+                    onOpen = { openMedia(message, albumMessages) },
+                    onLongPress = onLongPress,
+                    compact = fillBounds,
+                    durationAtStart = durationAtStart,
+                    modifier = mediaModifier,
+                )
+            } else {
+                VideoThumb(
+                    thumb = stillThumb,
+                    image = sharpStill,
+                    durationSeconds = if (kind == "video") message.mediaDuration else null,
+                    failed = failed || (playing && fullFailed),
+                    loading = loadingFull,
+                    previewLoading = shouldShowMediaPreviewSpinner(
+                        placeholder,
+                        previewFetchDone,
+                        failed || (playing && fullFailed),
+                    ),
+                    downloadedBytes = downloadedBytes,
+                    fileSize = message.fileSize,
+                    onPlay = {
+                        if (kind == "video") {
+                            openMedia(message, albumMessages)
+                        } else if (loadingFull) {
+                            playing = false
+                            mediaRepository?.cancel(fullKey)
+                        } else {
+                            fullFailed = false
+                            playing = true
+                        }
+                    },
+                    compact = fillBounds,
+                    durationAtStart = durationAtStart,
+                    onLongPress = onLongPress,
+                    modifier = mediaModifier,
+                )
+            }
         }
         sticker || kind == "photo" -> {
             val description = stringResource(

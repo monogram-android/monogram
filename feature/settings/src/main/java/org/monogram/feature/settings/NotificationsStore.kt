@@ -305,9 +305,13 @@ internal class NotificationsStoreFactory(
                     is Outcome.Ok -> result.value
                     is Outcome.Err -> cachedFolders
                 }
-                val dialogs = when (val result = client.getChats()) {
-                    is Outcome.Ok -> result.value
-                    is Outcome.Err -> cachedChats
+                val dialogs = if (cachedChats.isNotEmpty()) {
+                    cachedChats
+                } else {
+                    when (val result = client.getChats()) {
+                        is Outcome.Ok -> result.value
+                        is Outcome.Err -> cachedChats
+                    }
                 }
                 val titles = dialogs.associate { it.id.value to it.title }
                 val exceptIds = exceptions.map { it.chatId.value }.toSet()

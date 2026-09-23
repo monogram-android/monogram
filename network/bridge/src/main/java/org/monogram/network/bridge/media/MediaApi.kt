@@ -3,6 +3,7 @@ package org.monogram.network.bridge.media
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import org.monogram.core.common.AppLog
+import org.monogram.core.common.DebugStats
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.perfOp
 import org.monogram.core.common.telegram.retryShortFlood
@@ -221,6 +222,8 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
                         }
                     }
                     AppLog.api("download media", "ok")
+                    val size = java.io.File(downloaded).length()
+                    DebugStats.attachBytes("download:${kind.name.lowercase()}", size)
                     Outcome.Ok(downloaded)
                 } catch (e: CancellationException) {
                     throw e

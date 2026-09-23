@@ -95,6 +95,7 @@ mod header_tests {
             grouped_id: None,
             file_name: None,
             file_size: None,
+            supports_streaming: false,
             reactions_json: None,
             replies_count: 0,
             discussion_peer_id: None,

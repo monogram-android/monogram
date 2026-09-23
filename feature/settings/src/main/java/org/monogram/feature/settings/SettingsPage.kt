@@ -11,6 +11,10 @@ sealed interface SettingsPage {
     @Serializable
     data object Data : SettingsPage
 
+    /** Auto-download rules for `wifi`, `mobile`, or `roaming`. */
+    @Serializable
+    data class AutoDownload(val network: String) : SettingsPage
+
     @Serializable
     data object Appearance : SettingsPage
 
@@ -32,4 +36,7 @@ sealed interface SettingsPage {
 
     @Serializable
     data object NotificationDebug : SettingsPage
+
+    @Serializable
+    data object DebugStats : SettingsPage
 }

@@ -47,6 +47,7 @@ object PerfLog {
     }
 
     fun mark(op: String, millis: Long, detail: String = "") {
+        DebugStats.ingestPerfMark(op, millis, detail)
         if (!isEnabled()) return
         runCatching { Log.i(TAG, if (detail.isEmpty()) "$op ${millis}ms" else "$op ${millis}ms $detail") }
     }
@@ -119,12 +120,16 @@ object PerfLog {
 }
 
 inline fun <T> perfOp(op: String, block: () -> T): T {
-    if (!PerfLog.isEnabled()) return block()
+    if (!PerfLog.isEnabled() && !DebugStats.enabled) return block()
     val start = System.nanoTime()
+    var result = "ok"
     try {
         return block()
+    } catch (error: Throwable) {
+        result = if (error is kotlinx.coroutines.CancellationException) "cancel" else "err"
+        throw error
     } finally {
-        PerfLog.mark(op, (System.nanoTime() - start) / 1_000_000)
-        PerfLog.dump("perf:$op")
+        PerfLog.mark(op, (System.nanoTime() - start) / 1_000_000, "result=$result")
+        if (PerfLog.isEnabled()) PerfLog.dump("perf:$op")
     }
 }

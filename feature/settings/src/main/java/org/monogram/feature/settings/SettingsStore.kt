@@ -26,6 +26,8 @@ interface SettingsStore : Store<SettingsStore.Intent, SettingsStore.State, Setti
         data class ClearChatCache(val chatId: Long) : Intent
         data class ClearKindCache(val kind: String) : Intent
         data object Logout : Intent
+        data object ExportDebugStats : Intent
+        data object ClearDebugStats : Intent
     }
 
     data class CacheChatRow(
@@ -47,6 +49,7 @@ interface SettingsStore : Store<SettingsStore.Intent, SettingsStore.State, Setti
         val loading: Boolean = false,
         val loggingOut: Boolean = false,
         val error: TelegramError? = null,
+        val debugExportMessage: String? = null,
     )
 
     sealed interface Label {
@@ -90,6 +93,7 @@ internal class SettingsStoreFactory(
         data class CacheMessage(val value: String?) : Msg
         data class Error(val value: TelegramError?) : Msg
         data class NativeVersion(val value: String) : Msg
+        data class DebugExportMessage(val value: String?) : Msg
     }
 
     private inner class ExecutorImpl :
@@ -111,6 +115,11 @@ internal class SettingsStoreFactory(
                     refreshCache()
                 }
                 SettingsStore.Intent.Logout -> logout()
+                SettingsStore.Intent.ExportDebugStats -> exportDebugStats()
+                SettingsStore.Intent.ClearDebugStats -> {
+                    org.monogram.core.common.DebugStats.clear()
+                    dispatch(Msg.DebugExportMessage(null))
+                }
             }
         }
 
@@ -185,6 +194,32 @@ internal class SettingsStoreFactory(
                 dispatch(Msg.LoggingOut(false))
             }
         }
+
+        private fun exportDebugStats() {
+            val self = state().profile?.id ?: return
+            scope.launch {
+                val report = org.monogram.core.common.DebugStats.reportText()
+                val file = java.io.File.createTempFile("monogram-stats", ".txt")
+                file.writeText(report)
+                val item = org.monogram.core.models.UploadItem(
+                    path = file.absolutePath,
+                    kind = "document",
+                    mimeType = "text/plain",
+                    fileName = "monogram-debug-stats.txt",
+                    caption = "Monogram debug stats",
+                )
+                val result = client.sendUploadedMedia(self, item)
+                file.delete()
+                dispatch(
+                    Msg.DebugExportMessage(
+                        when (result) {
+                            is Outcome.Ok -> "ok"
+                            is Outcome.Err -> "err"
+                        },
+                    ),
+                )
+            }
+        }
     }
 
     private object ReducerImpl : Reducer<SettingsStore.State, Msg> {
@@ -198,6 +233,7 @@ internal class SettingsStoreFactory(
             is Msg.CacheMessage -> copy(cacheMessage = msg.value)
             is Msg.Error -> copy(error = msg.value)
             is Msg.NativeVersion -> copy(nativeVersion = msg.value)
+            is Msg.DebugExportMessage -> copy(debugExportMessage = msg.value)
         }
     }
 }

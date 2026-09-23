@@ -10,23 +10,21 @@ import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.session.SessionCore
 
 internal class ChatApi(private val core: SessionCore) : ChatOps {
-    override suspend fun getChats(): Outcome<List<Chat>> {
+    override suspend fun getChats(): Outcome<List<Chat>> = core.coalesce("getChats") {
         when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> return connected
-            is Outcome.Ok -> Unit
-        }
-        return core.rpc("getChats failed") { activeHandle ->
-            core.native.getChats(activeHandle).toChatModels()
+            is Outcome.Err -> connected
+            is Outcome.Ok -> core.rpc("getChats failed") { activeHandle ->
+                core.native.getChats(activeHandle).toChatModels()
+            }
         }
     }
 
-    override suspend fun getFolders(): Outcome<List<Folder>> {
+    override suspend fun getFolders(): Outcome<List<Folder>> = core.coalesce("getFolders") {
         when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> return connected
-            is Outcome.Ok -> Unit
-        }
-        return core.rpcBackground("getFolders failed") { activeHandle ->
-            core.native.getFolders(activeHandle).map { it.toModel() }
+            is Outcome.Err -> connected
+            is Outcome.Ok -> core.rpcBackground("getFolders failed") { activeHandle ->
+                core.native.getFolders(activeHandle).map { it.toModel() }
+            }
         }
     }
 

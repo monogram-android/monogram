@@ -29,6 +29,14 @@ class PushWakePolicyTest {
     }
 
     @Test
+    fun foregroundWakeSkipsDialogSync() {
+        assertFalse(shouldSyncOnWake(appForeground = true))
+        assertTrue(shouldSyncOnWake(appForeground = false))
+        assertFalse(shouldRefreshDialogsOnWake(knownChatPhotos = 3))
+        assertTrue(shouldRefreshDialogsOnWake(knownChatPhotos = 0))
+    }
+
+    @Test
     fun wakeGateCoalescesAndCancelInvalidatesInFlight() {
         val gate = PushWakeGate(minGapMs = 1_500L)
         val first = gate.tryStart(0L)

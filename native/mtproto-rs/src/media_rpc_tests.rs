@@ -228,7 +228,15 @@ fn classify_document_kinds() {
     assert_eq!(classify_document("image/gif", false, false, false), "gif");
     assert_eq!(
         classify_document("image/jpeg", false, false, false),
-        "photo"
+        "document"
+    );
+    assert_eq!(
+        classify_document("image/png", false, false, false),
+        "document"
+    );
+    assert_eq!(
+        classify_document("image/webp", false, false, false),
+        "document"
     );
     assert_eq!(
         classify_document("application/pdf", false, false, false),

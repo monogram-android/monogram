@@ -31,19 +31,18 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         core.scope.launch { drainUpdatesLoop() }
     }
 
-    override suspend fun getUpdatesState(): Outcome<UpdatesCursor> {
+    override suspend fun getUpdatesState(): Outcome<UpdatesCursor> = core.coalesce("getUpdatesState") {
         when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> return connected
-            is Outcome.Ok -> Unit
-        }
-        return core.rpc("getUpdatesState failed") { activeHandle ->
-            val state = core.native.getUpdatesState(activeHandle)
-            UpdatesCursor(
-                pts = state.pts,
-                qts = state.qts,
-                date = state.date,
-                seq = state.seq,
-            )
+            is Outcome.Err -> connected
+            is Outcome.Ok -> core.rpc("getUpdatesState failed") { activeHandle ->
+                val state = core.native.getUpdatesState(activeHandle)
+                UpdatesCursor(
+                    pts = state.pts,
+                    qts = state.qts,
+                    date = state.date,
+                    seq = state.seq,
+                )
+            }
         }
     }
 

@@ -2972,6 +2972,8 @@ data class MessageDto (
     , 
     var `fileSize`: kotlin.Long?
     , 
+    var `supportsStreaming`: kotlin.Boolean
+    , 
     var `reactionsJson`: kotlin.String?
     , 
     var `repliesCount`: kotlin.Int
@@ -3025,6 +3027,7 @@ public object FfiConverterTypeMessageDto: FfiConverterRustBuffer<MessageDto> {
             FfiConverterOptionalLong.read(buf),
             FfiConverterOptionalString.read(buf),
             FfiConverterOptionalLong.read(buf),
+            FfiConverterBoolean.read(buf),
             FfiConverterOptionalString.read(buf),
             FfiConverterInt.read(buf),
             FfiConverterOptionalLong.read(buf),
@@ -3060,6 +3063,7 @@ public object FfiConverterTypeMessageDto: FfiConverterRustBuffer<MessageDto> {
             FfiConverterOptionalLong.allocationSize(value.`groupedId`) +
             FfiConverterOptionalString.allocationSize(value.`fileName`) +
             FfiConverterOptionalLong.allocationSize(value.`fileSize`) +
+            FfiConverterBoolean.allocationSize(value.`supportsStreaming`) +
             FfiConverterOptionalString.allocationSize(value.`reactionsJson`) +
             FfiConverterInt.allocationSize(value.`repliesCount`) +
             FfiConverterOptionalLong.allocationSize(value.`discussionPeerId`) +
@@ -3094,6 +3098,7 @@ public object FfiConverterTypeMessageDto: FfiConverterRustBuffer<MessageDto> {
             FfiConverterOptionalLong.write(value.`groupedId`, buf)
             FfiConverterOptionalString.write(value.`fileName`, buf)
             FfiConverterOptionalLong.write(value.`fileSize`, buf)
+            FfiConverterBoolean.write(value.`supportsStreaming`, buf)
             FfiConverterOptionalString.write(value.`reactionsJson`, buf)
             FfiConverterInt.write(value.`repliesCount`, buf)
             FfiConverterOptionalLong.write(value.`discussionPeerId`, buf)

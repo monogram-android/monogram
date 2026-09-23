@@ -118,6 +118,8 @@ class SettingsComponent(
     fun onClearChatCache(chatId: Long) = store.accept(SettingsStore.Intent.ClearChatCache(chatId))
     fun onClearKindCache(kind: String) = store.accept(SettingsStore.Intent.ClearKindCache(kind))
     fun onLogout() = store.accept(SettingsStore.Intent.Logout)
+    fun onExportDebugStats() = store.accept(SettingsStore.Intent.ExportDebugStats)
+    fun onClearDebugStats() = store.accept(SettingsStore.Intent.ClearDebugStats)
     fun openPage(page: SettingsPage) = pageNavigation.pushNew(page)
     fun popPage() {
         if (pageBackHandler?.invoke() == true) return

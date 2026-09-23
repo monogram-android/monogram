@@ -16,15 +16,16 @@ import org.monogram.core.models.ReplyMarkupKind
 class MessageMediaFieldsTest {
     @Test
     fun schemaVersionIsCurrent() {
-        assertEquals(1, DatabaseProvider.SCHEMA_VERSION)
+        assertEquals(2, DatabaseProvider.SCHEMA_VERSION)
     }
 
     @Test
     fun onlyCurrentSchemaIsCompatible() {
         assertTrue(DatabaseProvider.hasMigrationPath(1))
         assertTrue(DatabaseProvider.hasMigrationPath(0, 1))
+        assertTrue(DatabaseProvider.hasMigrationPath(1, 2))
         assertFalse(DatabaseProvider.hasMigrationPath(32))
-        assertFalse(DatabaseProvider.hasMigrationPath(2, 1))
+        assertFalse(DatabaseProvider.hasMigrationPath(3, 2))
     }
 
     @Test
@@ -44,6 +45,8 @@ class MessageMediaFieldsTest {
             mediaDuration = 12,
             mediaWidth = 1280,
             mediaHeight = 720,
+            fileSize = 8_000_000,
+            supportsStreaming = true,
             replyToMsgId = 3,
             fwdFrom = "Alice",
             fwdFromId = 100L,
@@ -78,6 +81,8 @@ class MessageMediaFieldsTest {
         assertEquals("https://t.me", back.replyMarkup?.rows?.single()?.single()?.url)
         assertEquals(true, back.pending)
         assertEquals(55L, back.randomId)
+        assertEquals(true, back.supportsStreaming)
+        assertEquals(8_000_000L, back.fileSize)
     }
 
     @Test
@@ -109,5 +114,6 @@ class MessageMediaFieldsTest {
         assertEquals(null, model.mediaDuration)
         assertEquals(null, model.mediaWidth)
         assertEquals(null, model.mediaHeight)
+        assertEquals(false, model.supportsStreaming)
     }
 }

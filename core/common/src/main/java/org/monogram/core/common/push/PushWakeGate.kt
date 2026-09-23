@@ -18,3 +18,9 @@ class PushWakeGate(private val minGapMs: Long = 1_500L) {
 
     fun isCurrent(id: Int): Boolean = id == generation
 }
+
+/** Foreground sessions already drain updates; skip getState + getDialogs. */
+fun shouldSyncOnWake(appForeground: Boolean): Boolean = !appForeground
+
+/** Avatar keys from a previous dialog page are enough; skip another getDialogs. */
+fun shouldRefreshDialogsOnWake(knownChatPhotos: Int): Boolean = knownChatPhotos <= 0

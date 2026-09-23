@@ -87,7 +87,7 @@ data class MediaViewerActions(
 )
 
 /** Which of the four playback surfaces currently owns the session. */
-enum class MediaSurface { VIEWER, PIP, MINI_PLAYER, AUDIO_ONLY, STOPPED }
+enum class MediaSurface { VIEWER, PIP, MINI_PLAYER, CHAT, AUDIO_ONLY, STOPPED }
 
 /** Pager state for the album, hoisted so the caller can keep it across process death. */
 @Stable

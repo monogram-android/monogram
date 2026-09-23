@@ -2,6 +2,8 @@ package org.monogram.feature.dialog
 
 import org.monogram.core.models.Message
 import org.monogram.core.models.WebpagePreviews
+import org.monogram.core.ui.AutoDownloadPreset
+import org.monogram.core.ui.DownloadSettings
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.photoDisplayCacheKey
 
@@ -73,6 +75,7 @@ object DialogMediaPreload {
         messages: List<Message>,
         visibleIds: Set<Int>,
         radius: Int = WINDOW_RADIUS,
+        preset: AutoDownloadPreset = DownloadSettings.activePreset(),
     ): Plan {
         if (messages.isEmpty()) {
             return Plan(IntRange.EMPTY, IntRange.EMPTY, emptyList(), emptyList())
@@ -111,11 +114,14 @@ object DialogMediaPreload {
                 }
                 val fullKey = message.mediaCacheKey
                 val sticker = kind in STICKER_KINDS
-                if (!fullKey.isNullOrBlank() && kind == "gif") {
+                val size = message.fileSize
+                val wantFull = when {
+                    sticker -> visible
+                    else -> preset.allowsFull(kind, size)
+                }
+                if (!fullKey.isNullOrBlank() && wantFull) {
                     media += MediaTask(message, Fetch.Full, priority, fullKey)
-                } else if (visible && sticker && !fullKey.isNullOrBlank()) {
-                    media += MediaTask(message, Fetch.Full, priority, fullKey)
-                } else if (visible && !fullKey.isNullOrBlank() && kind != "gif" && !sticker && kind != "document") {
+                } else if (visible && !fullKey.isNullOrBlank() && preset.allowsDisplay(kind, size)) {
                     media += MediaTask(
                         message,
                         Fetch.Display,

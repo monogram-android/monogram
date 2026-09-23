@@ -2,6 +2,8 @@ package org.monogram.feature.dialog.ui
 
 import org.monogram.network.http.MediaPriority
 import org.monogram.core.models.isStickerFileName
+import org.monogram.core.ui.AutoDownloadPreset
+import org.monogram.core.ui.DownloadSettings
 
 internal fun formatFileSize(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
@@ -136,15 +138,29 @@ internal fun mediaFullPriority(userRequested: Boolean): Int =
     if (userRequested) MediaPriority.USER
     else MediaPriority.VISIBLE
 
-internal fun shouldAutoFetchFullMedia(kind: String?, userRequested: Boolean): Boolean = when (kind) {
-    "sticker", "sticker_animated", "sticker_video", "gif" -> true
-    "photo", "video", "document", "audio", "voice" -> userRequested
-    else -> false
-}
+internal fun shouldAutoFetchFullMedia(
+    kind: String?,
+    userRequested: Boolean,
+    sizeBytes: Long? = null,
+    preset: AutoDownloadPreset = DownloadSettings.activePreset(),
+): Boolean = preset.allowsFull(kind, sizeBytes, userRequested)
 
-internal fun shouldAutoFetchDisplayMedia(kind: String?): Boolean = when (kind) {
-    "photo", "webpage", "video", "gif" -> true
-    else -> false
+internal fun shouldAutoFetchDisplayMedia(
+    kind: String?,
+    sizeBytes: Long? = null,
+    preset: AutoDownloadPreset = DownloadSettings.activePreset(),
+): Boolean = preset.allowsDisplay(kind, sizeBytes)
+
+internal fun shouldAutoplayChatVideo(
+    kind: String?,
+    supportsStreaming: Boolean,
+    sizeBytes: Long?,
+    visible: Boolean,
+    autoplayVideos: Boolean,
+    preset: AutoDownloadPreset,
+): Boolean {
+    if (!visible || !autoplayVideos || kind != "video" || !supportsStreaming) return false
+    return preset.allowsStream(kind, sizeBytes)
 }
 
 /** Stripped/inline thumbs live on a different cache key than the original. */

@@ -52,13 +52,12 @@ internal class NotifyApi(private val core: SessionCore) : NotifyOps {
     override suspend fun getNotifySettings(
         peerKind: String,
         chatId: PeerId
-    ): Outcome<NotifySettings> {
+    ): Outcome<NotifySettings> = core.coalesce("getNotifySettings:$peerKind:${chatId.value}") {
         when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> return connected
-            is Outcome.Ok -> Unit
-        }
-        return core.rpcBackground("account.getNotifySettings failed") { activeHandle ->
-            core.native.getNotifySettings(activeHandle, peerKind, chatId.value).toModel()
+            is Outcome.Err -> connected
+            is Outcome.Ok -> core.rpcBackground("account.getNotifySettings failed") { activeHandle ->
+                core.native.getNotifySettings(activeHandle, peerKind, chatId.value).toModel()
+            }
         }
     }
 
@@ -117,15 +116,15 @@ internal class NotifyApi(private val core: SessionCore) : NotifyOps {
         }
     }
 
-    override suspend fun getNotifyExceptions(compareSound: Boolean): Outcome<List<NotifyException>> {
-        when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> return connected
-            is Outcome.Ok -> Unit
+    override suspend fun getNotifyExceptions(compareSound: Boolean): Outcome<List<NotifyException>> =
+        core.coalesce("getNotifyExceptions:$compareSound") {
+            when (val connected = core.ensureConnected()) {
+                is Outcome.Err -> connected
+                is Outcome.Ok -> core.rpcBackground("account.getNotifyExceptions failed") { activeHandle ->
+                    core.native.getNotifyExceptions(activeHandle, compareSound).map { it.toModel() }
+                }
+            }
         }
-        return core.rpcBackground("account.getNotifyExceptions failed") { activeHandle ->
-            core.native.getNotifyExceptions(activeHandle, compareSound).map { it.toModel() }
-        }
-    }
 
     override fun decryptPushPayload(secret: ByteArray, payload: String): Outcome<String> =
         try {

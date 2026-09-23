@@ -124,6 +124,7 @@ pub(crate) fn message_to_dto_named(
                 grouped_id: m.grouped_id,
                 file_name: indexed.file_name,
                 file_size: indexed.file_size,
+                supports_streaming: indexed.supports_streaming,
                 reactions_json: crate::extras_rpc::reactions_to_json(
                     m.reactions.as_ref().map(|r| r.as_ref()),
                 ),
@@ -176,6 +177,7 @@ pub(crate) fn message_to_dto_named(
                 grouped_id: None,
                 file_name: None,
                 file_size: None,
+                supports_streaming: false,
                 reactions_json: None,
                 replies_count: 0,
                 discussion_peer_id: None,

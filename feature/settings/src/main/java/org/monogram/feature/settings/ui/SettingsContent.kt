@@ -165,6 +165,7 @@ fun SettingsContent(
     val download by org.monogram.core.ui.DownloadSettings.state.collectAsStateWithLifecycle()
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
     var confirmClear by rememberSaveable { mutableStateOf(false) }
+    var debugStatsExpanded by rememberSaveable { mutableStateOf("") }
     val pages by component.pages.subscribeAsState()
     val page = pages.active.instance
     val layoutDirection = LocalLayoutDirection.current
@@ -222,6 +223,14 @@ fun SettingsContent(
     val title = when (page) {
         SettingsPage.Home -> stringResource(R.string.settings_title)
         SettingsPage.Data -> stringResource(R.string.settings_data)
+        SettingsPage.DebugStats -> stringResource(R.string.settings_debug_stats)
+        is SettingsPage.AutoDownload -> stringResource(
+            when (page.network) {
+                "mobile" -> R.string.settings_autodownload_mobile
+                "roaming" -> R.string.settings_autodownload_roaming
+                else -> R.string.settings_autodownload_wifi
+            },
+        )
         SettingsPage.Appearance -> stringResource(R.string.settings_chat)
         SettingsPage.Notifications -> stringResource(R.string.settings_notifications)
         is SettingsPage.NotificationCategory -> stringResource(
@@ -366,12 +375,44 @@ fun SettingsContent(
                             cacheChats = state.cacheChats,
                             cacheMessage = state.cacheMessage,
                             loading = state.loading || state.loggingOut,
-                            speedUpUploads = download.speedUpUploads,
+                            download = download,
                             onSpeedUpUploads = org.monogram.core.ui.DownloadSettings::setSpeedUpUploads,
+                            onOpenAutoDownload = { network ->
+                                component.openPage(
+                                    SettingsPage.AutoDownload(autoDownloadNetworkKey(network)),
+                                )
+                            },
                             onClear = { confirmClear = true },
                             onClearChat = component::onClearChatCache,
                             onClearKind = component::onClearKindCache,
+                            onOpenDebugStats = if (org.monogram.core.common.DebugStats.enabled) {
+                                { component.openPage(SettingsPage.DebugStats) }
+                            } else {
+                                null
+                            },
                             mediaRepository = component.mediaRepository,
+                        )
+                    }
+                    SettingsPage.DebugStats -> SettingsPageList(innerPadding) {
+                        val expanded = debugStatsExpanded.split(',').filter { it.isNotEmpty() }.toSet()
+                        debugStatsItems(
+                            exportMessage = state.debugExportMessage,
+                            expanded = expanded,
+                            onToggleSection = { key ->
+                                debugStatsExpanded = if (key in expanded) {
+                                    expanded.minus(key).joinToString(",")
+                                } else {
+                                    expanded.plus(key).joinToString(",")
+                                }
+                            },
+                            onExport = component::onExportDebugStats,
+                            onClear = component::onClearDebugStats,
+                        )
+                    }
+                    is SettingsPage.AutoDownload -> SettingsPageList(innerPadding) {
+                        autoDownloadItems(
+                            network = parseAutoDownloadNetwork(visiblePage.network),
+                            preset = download.presetFor(parseAutoDownloadNetwork(visiblePage.network)),
                         )
                     }
                     SettingsPage.Appearance -> SettingsPageList(innerPadding) {
@@ -533,6 +574,8 @@ private fun settingsPageKey(page: SettingsPage): String = when (page) {
     SettingsPage.Home -> "home"
     SettingsPage.Folders -> "folders"
     SettingsPage.Data -> "data"
+    SettingsPage.DebugStats -> "debug-stats"
+    is SettingsPage.AutoDownload -> "autodownload:${page.network}"
     SettingsPage.Appearance -> "appearance"
     SettingsPage.Wallpaper -> "wallpaper"
     SettingsPage.Notifications -> "notifications"

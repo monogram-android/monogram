@@ -19,6 +19,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.serializer
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
@@ -29,6 +31,7 @@ import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.canForwardFrom
+import org.monogram.core.ui.DownloadSettings
 import org.monogram.feature.dialog.ui.InstantViewController
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
@@ -57,6 +60,7 @@ class DialogComponent(
     val stateKey: String get() = dialogStateKey(chatId.value, threadTopMsgId, jumpToMessageId)
 
     private val preloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var lastVisibleIds: Set<Int> = emptySet()
     private val mediaPreloader = DialogMediaPreloader(
         chatId = chatId,
         mediaRepository = mediaRepository,
@@ -108,6 +112,11 @@ class DialogComponent(
         lifecycle.doOnStart {
             if (started) onRefreshPresence()
             started = true
+        }
+        preloadScope.launch {
+            DownloadSettings.state.drop(1).collect {
+                mediaPreloader.onVisible(store.state.messages, lastVisibleIds)
+            }
         }
     }
 
@@ -188,6 +197,7 @@ class DialogComponent(
     fun onVisibleNewest(messageId: Int, atLiveEdge: Boolean = false) =
         store.accept(DialogStore.Intent.VisibleRead(messageId, atLiveEdge))
     fun onVisibleWindow(visibleIds: Set<Int>) {
+        lastVisibleIds = visibleIds
         mediaPreloader.onVisible(store.state.messages, visibleIds)
         store.accept(DialogStore.Intent.VisibleWindow(visibleIds))
     }

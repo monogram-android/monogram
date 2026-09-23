@@ -3,7 +3,9 @@ package org.monogram.network.bridge.session
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -12,6 +14,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
+import org.monogram.core.common.DebugStatKind
+import org.monogram.core.common.DebugStats
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.TelegramCredentials
@@ -44,6 +48,8 @@ internal class SessionCore(
     private var updatesStartedHandle: Long = 0L
     private val updatesStartMutex = Mutex()
     internal val connectMutex = Mutex()
+    private val inflightMutex = Mutex()
+    private val inflight = HashMap<String, Deferred<*>>()
     @Volatile
     internal var sessionDead: Boolean = false
     @Volatile
@@ -147,6 +153,13 @@ internal class SessionCore(
             AppLog.api("rpc raw", "op=$fallback exc=${e.javaClass.simpleName} text=$raw")
         }
         AppLog.warn(fallback, nativeFailureLogLine(telegram, raw))
+        DebugStats.record(
+            kind = DebugStatKind.ERROR,
+            op = fallback.removeSuffix(" failed"),
+            durationMs = 0L,
+            result = "err",
+            errorKind = telegram.kind.name,
+        )
         if (degradeHome) {
             if (telegram.kind == TelegramError.Kind.Network ||
                 telegram.kind == TelegramError.Kind.Internal
@@ -176,6 +189,21 @@ internal class SessionCore(
 
     internal suspend fun <T> rpcWrite(fallback: String, block: suspend (Long) -> T): Outcome<T> =
         rpc(fallback, DispatchClass.INTERACTIVE_WRITE, block)
+
+    /** One native call per key while identical reads overlap. */
+    internal suspend fun <T> coalesce(key: String, block: suspend () -> T): T {
+        val deferred = inflightMutex.withLock {
+            @Suppress("UNCHECKED_CAST")
+            (inflight[key] as Deferred<T>?) ?: scope.async {
+                try {
+                    block()
+                } finally {
+                    inflightMutex.withLock { inflight.remove(key) }
+                }
+            }.also { inflight[key] = it }
+        }
+        return deferred.await()
+    }
 
     internal suspend fun <T> rpc(
         fallback: String,
@@ -285,25 +313,23 @@ internal class SessionCore(
                 return Outcome.Ok(Unit)
             }
             AppLog.api("connect", "start handle=$locked")
-            return perfOp("bridge:connect") {
-                val connected = rpc("connect failed") { activeHandle ->
-                    refreshDcSidecar(sessionPath)
-                    try {
-                        native.connect(activeHandle)
-                        if (isCurrentHandle(activeHandle)) connectedHandle = activeHandle
-                    } catch (e: Exception) {
-                        connectedHandle = 0L
-                        throw e
-                    } finally {
-                        DcTxtBootstrap.logNativeStatus(sessionPath)
-                    }
-                    activeHandle
+            val connected = rpc("connect failed") { activeHandle ->
+                refreshDcSidecar(sessionPath)
+                try {
+                    native.connect(activeHandle)
+                    if (isCurrentHandle(activeHandle)) connectedHandle = activeHandle
+                } catch (e: Exception) {
+                    connectedHandle = 0L
+                    throw e
+                } finally {
+                    DcTxtBootstrap.logNativeStatus(sessionPath)
                 }
-                if (connected is Outcome.Ok) maybeStartUpdates(connected.value)
-                when (connected) {
-                    is Outcome.Ok -> Outcome.Ok(Unit)
-                    is Outcome.Err -> connected
-                }
+                activeHandle
+            }
+            if (connected is Outcome.Ok) maybeStartUpdates(connected.value)
+            return when (connected) {
+                is Outcome.Ok -> Outcome.Ok(Unit)
+                is Outcome.Err -> connected
             }
         }
     }

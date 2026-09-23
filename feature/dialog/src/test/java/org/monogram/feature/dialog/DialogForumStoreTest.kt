@@ -243,7 +243,9 @@ class DialogForumStoreTest {
             markupContext = dispatcher,
         ).create()
         try {
+            advanceUntilIdle()
             assertEquals("pin", store.state.pinnedMessages.single().text)
+            assertEquals(0, client.pinnedCalls)
         } finally {
             store.dispose()
         }

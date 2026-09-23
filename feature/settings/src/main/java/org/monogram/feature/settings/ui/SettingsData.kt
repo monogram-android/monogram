@@ -8,17 +8,26 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.CellTower
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.EmojiEmotions
+import androidx.compose.material.icons.outlined.Gif
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
+import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.SignalCellularAlt
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -36,6 +45,10 @@ import androidx.compose.ui.unit.dp
 import org.monogram.core.common.Outcome
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.peerAvatarCacheKey
+import org.monogram.core.ui.AutoDownloadNetwork
+import org.monogram.core.ui.AutoDownloadPreset
+import org.monogram.core.ui.DownloadSettings
+import org.monogram.core.ui.DownloadState
 import org.monogram.core.ui.components.ItemPosition
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.components.SectionHeader
@@ -142,13 +155,125 @@ internal fun LazyListScope.dataItems(
     cacheChats: List<org.monogram.feature.settings.SettingsStore.CacheChatRow>,
     cacheMessage: String?,
     loading: Boolean,
-    speedUpUploads: Boolean,
+    download: DownloadState,
     onSpeedUpUploads: (Boolean) -> Unit,
+    onOpenAutoDownload: (AutoDownloadNetwork) -> Unit,
     onClear: () -> Unit,
     onClearChat: (Long) -> Unit,
     onClearKind: (String) -> Unit,
+    onOpenDebugStats: (() -> Unit)? = null,
     mediaRepository: MediaRepository? = null,
 ) {
+    item { Spacer(Modifier.height(8.dp)) }
+    item { SectionHeader(stringResource(R.string.settings_autodownload)) }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.Wifi,
+            title = stringResource(R.string.settings_autodownload_wifi),
+            subtitle = autoDownloadPresetSummary(download.wifi),
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = ItemPosition.TOP,
+            onClick = { onOpenAutoDownload(AutoDownloadNetwork.Wifi) },
+            trailingContent = { DataChevron() },
+        )
+    }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.SignalCellularAlt,
+            title = stringResource(R.string.settings_autodownload_mobile),
+            subtitle = autoDownloadPresetSummary(download.mobile),
+            iconColor = MaterialTheme.colorScheme.secondary,
+            position = ItemPosition.MIDDLE,
+            onClick = { onOpenAutoDownload(AutoDownloadNetwork.Mobile) },
+            trailingContent = { DataChevron() },
+        )
+    }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.CellTower,
+            title = stringResource(R.string.settings_autodownload_roaming),
+            subtitle = autoDownloadPresetSummary(download.roaming),
+            iconColor = MaterialTheme.colorScheme.tertiary,
+            position = ItemPosition.BOTTOM,
+            onClick = { onOpenAutoDownload(AutoDownloadNetwork.Roaming) },
+            trailingContent = { DataChevron() },
+        )
+    }
+    item { Spacer(Modifier.height(8.dp)) }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.RestartAlt,
+            title = stringResource(R.string.settings_autodownload_reset),
+            subtitle = stringResource(R.string.settings_autodownload_reset_sub),
+            iconColor = MaterialTheme.colorScheme.error,
+            position = ItemPosition.STANDALONE,
+            onClick = DownloadSettings::resetAutoDownload,
+        )
+    }
+    if (onOpenDebugStats != null) {
+        item { Spacer(Modifier.height(8.dp)) }
+        item {
+            SettingsTile(
+                icon = Icons.Outlined.BugReport,
+                title = stringResource(R.string.settings_debug_stats),
+                subtitle = stringResource(R.string.settings_debug_stats_sub),
+                iconColor = MaterialTheme.colorScheme.tertiary,
+                position = ItemPosition.STANDALONE,
+                onClick = onOpenDebugStats,
+                trailingContent = { DataChevron() },
+            )
+        }
+        item {
+            val network = download.activeNetwork
+            SettingsTile(
+                icon = Icons.Outlined.CellTower,
+                title = stringResource(R.string.settings_debug_simulate_network),
+                subtitle = stringResource(
+                    when (network) {
+                        AutoDownloadNetwork.Wifi -> R.string.settings_debug_simulate_wifi
+                        AutoDownloadNetwork.Mobile -> R.string.settings_debug_simulate_mobile
+                        AutoDownloadNetwork.Roaming -> R.string.settings_debug_simulate_roaming
+                    },
+                ),
+                iconColor = MaterialTheme.colorScheme.secondary,
+                position = ItemPosition.STANDALONE,
+                onClick = org.monogram.core.ui.DownloadSettings::cycleDebugNetwork,
+            )
+        }
+    }
+    item { Spacer(Modifier.height(8.dp)) }
+    item { SectionHeader(stringResource(R.string.settings_autoplay)) }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.Gif,
+            title = stringResource(R.string.settings_autoplay_gifs),
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = ItemPosition.TOP,
+            onClick = { DownloadSettings.setAutoplayGifs(!download.autoplayGifs) },
+            trailingContent = {
+                Switch(
+                    checked = download.autoplayGifs,
+                    onCheckedChange = DownloadSettings::setAutoplayGifs,
+                )
+            },
+        )
+    }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.Videocam,
+            title = stringResource(R.string.settings_autoplay_videos),
+            subtitle = stringResource(R.string.settings_autoplay_videos_sub),
+            iconColor = MaterialTheme.colorScheme.secondary,
+            position = ItemPosition.BOTTOM,
+            onClick = { DownloadSettings.setAutoplayVideos(!download.autoplayVideos) },
+            trailingContent = {
+                Switch(
+                    checked = download.autoplayVideos,
+                    onCheckedChange = DownloadSettings::setAutoplayVideos,
+                )
+            },
+        )
+    }
     item { Spacer(Modifier.height(8.dp)) }
     item { SectionHeader(stringResource(R.string.settings_data_transfers)) }
     item {
@@ -158,10 +283,10 @@ internal fun LazyListScope.dataItems(
             subtitle = stringResource(R.string.settings_speed_up_uploads_sub),
             iconColor = MaterialTheme.colorScheme.primary,
             position = ItemPosition.STANDALONE,
-            onClick = { onSpeedUpUploads(!speedUpUploads) },
+            onClick = { onSpeedUpUploads(!download.speedUpUploads) },
             trailingContent = {
                 Switch(
-                    checked = speedUpUploads,
+                    checked = download.speedUpUploads,
                     onCheckedChange = onSpeedUpUploads,
                 )
             },
@@ -293,4 +418,47 @@ internal fun formatBytes(bytes: Long): String {
     if (kb < 1024) return String.format(Locale.US, "%.1f KB", kb)
     val mb = kb / 1024.0
     return String.format(Locale.US, "%.1f MB", mb)
+}
+
+@Composable
+internal fun autoDownloadPresetSummary(preset: AutoDownloadPreset): String {
+    if (!preset.enabled) return stringResource(R.string.settings_autodownload_off)
+    val parts = buildList {
+        if (preset.photos) add(stringResource(R.string.settings_autodownload_summary_photos))
+        if (preset.videos) {
+            add(
+                stringResource(
+                    R.string.settings_autodownload_summary_videos,
+                    formatAutoDownloadLimit(preset.maxVideoBytes),
+                ),
+            )
+        }
+        if (preset.gifs) {
+            add(
+                stringResource(
+                    R.string.settings_autodownload_summary_gifs,
+                    formatAutoDownloadLimit(preset.maxGifBytes),
+                ),
+            )
+        }
+        if (preset.files) {
+            add(
+                stringResource(
+                    R.string.settings_autodownload_summary_files,
+                    formatAutoDownloadLimit(preset.maxFileBytes),
+                ),
+            )
+        }
+    }
+    return parts.joinToString(", ").ifEmpty { stringResource(R.string.settings_autodownload_off) }
+}
+
+@Composable
+private fun DataChevron() {
+    Icon(
+        Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+        contentDescription = null,
+        modifier = Modifier.size(20.dp),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }

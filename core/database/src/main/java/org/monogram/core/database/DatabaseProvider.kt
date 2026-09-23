@@ -3,6 +3,8 @@ package org.monogram.core.database
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import org.json.JSONObject
 import java.io.File
 
@@ -10,7 +12,15 @@ object DatabaseProvider {
     @Volatile
     private var instance: MonogramDatabase? = null
 
-    const val SCHEMA_VERSION = 1
+    const val SCHEMA_VERSION = 2
+
+    val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE messages ADD COLUMN supportsStreaming INTEGER NOT NULL DEFAULT 0",
+            )
+        }
+    }
     private const val DB_NAME = "monogram.db"
     private const val IDENTITY_BACKUP = "session-identity.json"
 
@@ -57,6 +67,7 @@ object DatabaseProvider {
 
     private fun build(app: Context): MonogramDatabase =
         Room.databaseBuilder(app, MonogramDatabase::class.java, DB_NAME)
+            .addMigrations(MIGRATION_1_2)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()

@@ -120,6 +120,7 @@ pub struct MessageDto {
     pub grouped_id: Option<i64>,
     pub file_name: Option<String>,
     pub file_size: Option<i64>, // album / document meta
+    pub supports_streaming: bool,
     pub reactions_json: Option<String>,
     pub replies_count: i32,
     pub discussion_peer_id: Option<i64>,

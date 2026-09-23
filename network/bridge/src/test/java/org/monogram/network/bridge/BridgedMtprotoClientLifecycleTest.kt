@@ -21,11 +21,14 @@ import org.monogram.core.common.TelegramCredentials
 import org.monogram.core.models.PeerId
 import org.monogram.mtproto.MtprotoNative
 import uniffi.monogram_mtproto.AuthSignedIn
+import uniffi.monogram_mtproto.ChatDto
 import uniffi.monogram_mtproto.MtprotoException
 import uniffi.monogram_mtproto.MessageDto
 import uniffi.monogram_mtproto.UpdateEventDto
 import uniffi.monogram_mtproto.UpdatesStateDto
 import org.monogram.network.bridge.session.nativeFailureLogLine
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class BridgedMtprotoClientLifecycleTest {
@@ -427,6 +430,30 @@ class BridgedMtprotoClientLifecycleTest {
     }
 
     @Test
+    fun connectRecordsASingleDebugStat() = runTest {
+        org.monogram.core.common.DebugStats.resetForTests(true)
+        try {
+            var connects = 0
+            val native = object : RecordingNative() {
+                override fun connect(handle: Long) {
+                    connects++
+                }
+            }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                assertEquals(1, connects)
+                val rows = org.monogram.core.common.DebugStats.snapshot().records.filter { it.op == "bridge:connect" }
+                assertEquals(1, rows.size)
+            } finally {
+                client.close()
+            }
+        } finally {
+            org.monogram.core.common.DebugStats.resetForTests(false)
+        }
+    }
+
+    @Test
     fun parallelConnectReachesNativeOnlyOnce() = runTest {
         var connects = 0
         val native = object : RecordingNative() {
@@ -440,6 +467,36 @@ class BridgedMtprotoClientLifecycleTest {
             assertTrue(results.all { it is Outcome.Ok })
             assertEquals(1, connects)
             assertEquals(1, native.created)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun parallelGetChatsReachesNativeOnlyOnce() = runBlocking {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        var chats = 0
+        val native = object : RecordingNative() {
+            override fun connect(handle: Long) = Unit
+            override fun getChats(handle: Long): List<ChatDto> {
+                chats++
+                entered.countDown()
+                check(release.await(2, TimeUnit.SECONDS))
+                return emptyList()
+            }
+        }
+        val client = client(native, Dispatchers.IO)
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            val first = async(Dispatchers.IO) { client.getChats() }
+            val second = async(Dispatchers.IO) { client.getChats() }
+            check(entered.await(2, TimeUnit.SECONDS))
+            Thread.sleep(50)
+            release.countDown()
+            assertTrue(first.await() is Outcome.Ok)
+            assertTrue(second.await() is Outcome.Ok)
+            assertEquals(1, chats)
         } finally {
             client.close()
         }
@@ -758,6 +815,7 @@ class BridgedMtprotoClientLifecycleTest {
         groupedId = null,
         fileName = null,
         fileSize = null,
+        supportsStreaming = false,
         reactionsJson = null,
         repliesCount = 0,
         discussionPeerId = null,

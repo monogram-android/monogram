@@ -125,6 +125,7 @@ import org.monogram.core.ui.AccentPreset
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.AppearanceState
 import org.monogram.core.ui.ComposerStyle
+import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.ThemePreference
 import org.monogram.core.ui.components.AppBarSyncTitle
 import org.monogram.core.ui.components.AppStatusBanner
@@ -162,7 +163,7 @@ fun SettingsContent(
     val state by component.state.collectAsState()
     val notifications by component.notifications.collectAsState()
     val appearance by AppearanceSettings.state.collectAsStateWithLifecycle()
-    val download by org.monogram.core.ui.DownloadSettings.state.collectAsStateWithLifecycle()
+    val download by DownloadSettings.state.collectAsStateWithLifecycle()
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     var debugStatsExpanded by rememberSaveable { mutableStateOf("") }
@@ -376,8 +377,8 @@ fun SettingsContent(
                             cacheMessage = state.cacheMessage,
                             loading = state.loading || state.loggingOut,
                             download = download,
-                            onSpeedUpUploads = org.monogram.core.ui.DownloadSettings::setSpeedUpUploads,
-                            onSpeedUpDownloads = org.monogram.core.ui.DownloadSettings::setSpeedUpDownloads,
+                            onSpeedUpUploads = DownloadSettings::setSpeedUpUploads,
+                            onSpeedUpDownloads = DownloadSettings::setSpeedUpDownloads,
                             onOpenAutoDownload = { network ->
                                 component.openPage(
                                     SettingsPage.AutoDownload(autoDownloadNetworkKey(network)),

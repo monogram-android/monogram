@@ -155,10 +155,10 @@ data class DownloadState(
     val autoplayVideos: Boolean = true,
     val activeNetwork: AutoDownloadNetwork = AutoDownloadNetwork.Wifi,
 ) {
-    val parts: Int get() = if (speedUpDownloads) 12 else 6
+    val parts: Int get() = if (speedUpDownloads) 8 else 6
     val concurrency: DownloadConcurrency get() = DownloadConcurrency(lanes = lanes, parts = parts)
     val filePartKib: Int get() = if (speedUpUploads) 512 else 32
-    val downloadChunkKib: Int get() = if (speedUpDownloads) 512 else 128
+    val downloadChunkKib: Int get() = if (speedUpDownloads) 256 else 128
 
     fun presetFor(network: AutoDownloadNetwork): AutoDownloadPreset = when (network) {
         AutoDownloadNetwork.Wifi -> wifi

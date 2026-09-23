@@ -67,7 +67,7 @@ import org.monogram.network.http.MediaRepository
 import java.util.Locale
 
 @Composable
-private fun storageCategoryIcon(kind: String): androidx.compose.ui.graphics.vector.ImageVector = when (kind) {
+private fun storageCategoryIcon(kind: String): ImageVector = when (kind) {
     FileCache.KIND_PHOTOS -> Icons.Outlined.Image
     FileCache.KIND_VIDEOS -> Icons.Outlined.Videocam
     FileCache.KIND_FILES -> Icons.AutoMirrored.Outlined.InsertDriveFile
@@ -76,7 +76,7 @@ private fun storageCategoryIcon(kind: String): androidx.compose.ui.graphics.vect
 }
 
 @Composable
-private fun storageCategoryColor(kind: String): androidx.compose.ui.graphics.Color = when (kind) {
+private fun storageCategoryColor(kind: String): Color = when (kind) {
     FileCache.KIND_PHOTOS -> MaterialTheme.colorScheme.primary
     FileCache.KIND_VIDEOS -> MaterialTheme.colorScheme.tertiary
     FileCache.KIND_FILES -> MaterialTheme.colorScheme.secondary
@@ -86,7 +86,7 @@ private fun storageCategoryColor(kind: String): androidx.compose.ui.graphics.Col
 
 @Composable
 private fun ChatStorageRow(
-    row: org.monogram.feature.settings.SettingsStore.CacheChatRow,
+    row: SettingsStore.CacheChatRow,
     mediaRepository: MediaRepository?,
     position: ItemPosition,
     enabled: Boolean,
@@ -115,17 +115,17 @@ private fun ChatStorageRow(
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         shape = when (position) {
-            ItemPosition.TOP -> androidx.compose.foundation.shape.RoundedCornerShape(
-                topStart = org.monogram.core.ui.components.SettingsGroupCorner,
-                topEnd = org.monogram.core.ui.components.SettingsGroupCorner,
+            ItemPosition.TOP -> RoundedCornerShape(
+                topStart = SettingsGroupCorner,
+                topEnd = SettingsGroupCorner,
             )
             ItemPosition.MIDDLE -> androidx.compose.foundation.shape.RoundedCornerShape(0.dp)
-            ItemPosition.BOTTOM -> androidx.compose.foundation.shape.RoundedCornerShape(
-                bottomStart = org.monogram.core.ui.components.SettingsGroupCorner,
-                bottomEnd = org.monogram.core.ui.components.SettingsGroupCorner,
+            ItemPosition.BOTTOM -> RoundedCornerShape(
+                bottomStart = SettingsGroupCorner,
+                bottomEnd = SettingsGroupCorner,
             )
             ItemPosition.STANDALONE ->
-                androidx.compose.foundation.shape.RoundedCornerShape(org.monogram.core.ui.components.SettingsGroupCorner)
+                androidx.compose.foundation.shape.RoundedCornerShape(SettingsGroupCorner)
         },
         modifier = Modifier
             .fillMaxWidth()
@@ -153,7 +153,7 @@ private fun ChatStorageRow(
 internal fun LazyListScope.dataItems(
     cacheBytes: Long,
     cacheByKind: Map<String, Long>,
-    cacheChats: List<org.monogram.feature.settings.SettingsStore.CacheChatRow>,
+    cacheChats: List<SettingsStore.CacheChatRow>,
     cacheMessage: String?,
     loading: Boolean,
     download: DownloadState,
@@ -239,7 +239,7 @@ internal fun LazyListScope.dataItems(
                 ),
                 iconColor = MaterialTheme.colorScheme.secondary,
                 position = ItemPosition.STANDALONE,
-                onClick = org.monogram.core.ui.DownloadSettings::cycleDebugNetwork,
+                onClick = DownloadSettings::cycleDebugNetwork,
             )
         }
     }

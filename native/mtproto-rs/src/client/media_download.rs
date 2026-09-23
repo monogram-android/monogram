@@ -688,6 +688,7 @@ pub(crate) fn download_media_range_on_lane(
 ///
 /// Uploads already work this way; the pipelined window keeps throughput while the
 /// updates subscriber shares the same sequence-number space.
+#[allow(dead_code)]
 pub(crate) fn download_media_range_on_home_session(
     handle: u64,
     client: &Client,
@@ -709,24 +710,24 @@ pub(crate) fn download_media_range_on_home_session(
     // `download_media_range_batched` invokes its callback once per pipelined
     // window. Acquiring the main lane there lets the updates drain run between
     // windows while preserving the one permitted home-DC session.
-    media::download_media_range_batched(
+    media::download_media_range_batched_streaming(
         dc,
         media,
         staged.path(),
         dest,
         offset,
         pipeline_parts(),
-        |_init_first, requests| {
+        |_init_first, requests, on_chunk| {
             with_client_mut(handle, |state| {
                 if state.snapshot.session_id != session_id {
                     return Err(expired_session_lease());
                 }
                 ensure_ready(state)?;
                 crate::rpc::with_rpc_timeout_secs(45, || {
-                    crate::api_invoke::invoke_api_batch_without_updates::<
+                    crate::api_invoke::invoke_api_batch_without_updates_streaming::<
                         _,
                         tellers_mtproto::latest::api::UploadFile,
-                    >(&mut state.snapshot, api_id, requests)
+                    >(&mut state.snapshot, api_id, requests, on_chunk)
                 })
             })
         },
@@ -770,18 +771,18 @@ pub(crate) fn download_media_range_on_lane_dc(
         crate::rpc::with_rpc_timeout_secs(45, || {
             // Pipelined window: several parts in flight on this one session.
             let lane_dc = media_snap.dc_id;
-            match media::download_media_range_batched(
+            match media::download_media_range_batched_streaming(
                 lane_dc,
                 media,
                 staged.path(),
                 dest,
                 offset,
                 pipeline_parts(),
-                |_init_first, requests| {
-                    crate::api_invoke::invoke_api_batch_without_updates::<
+                |_init_first, requests, on_chunk| {
+                    crate::api_invoke::invoke_api_batch_without_updates_streaming::<
                         _,
                         tellers_mtproto::latest::api::UploadFile,
-                    >(&mut media_snap, api_id, requests)
+                    >(&mut media_snap, api_id, requests, on_chunk)
                 },
             ) {
                 Ok(path) => Ok(path),
@@ -804,18 +805,18 @@ pub(crate) fn download_media_range_on_lane_dc(
                         };
                         crate::rpc::drop_live_transport();
                         let retry_dc = media_snap.dc_id;
-                        media::download_media_range_batched(
+                        media::download_media_range_batched_streaming(
                             retry_dc,
                             media,
                             staged.path(),
                             dest,
                             offset,
                             pipeline_parts(),
-                            |_init_first, requests| {
-                                crate::api_invoke::invoke_api_batch_without_updates::<
+                            |_init_first, requests, on_chunk| {
+                                crate::api_invoke::invoke_api_batch_without_updates_streaming::<
                                     _,
                                     tellers_mtproto::latest::api::UploadFile,
-                                >(&mut media_snap, api_id, requests)
+                                >(&mut media_snap, api_id, requests, on_chunk)
                             },
                         )
                     } else {
@@ -948,6 +949,7 @@ fn follow_cdn_redirect(
                     break;
                 }
                 offset += part.len() as i64;
+                media::notify_progress(&dest.display().to_string(), offset, 0);
             }
             out.flush()
                 .map_err(|e| MtprotoError::Message(e.to_string()))?;

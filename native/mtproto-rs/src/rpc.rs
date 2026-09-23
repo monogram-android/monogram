@@ -23,7 +23,8 @@ pub use live::{LiveTransport, drop_live_transport, with_live_transport};
 pub use timeout::with_rpc_timeout_secs;
 
 pub(crate) use invoke::{
-    invoke_batch_raw_with_retry, invoke_raw_with_retry_factory, receive_updates,
+    invoke_batch_raw_with_retry, invoke_batch_raw_with_retry_streaming,
+    invoke_raw_with_retry_factory, receive_updates,
 };
 
 #[cfg(test)]

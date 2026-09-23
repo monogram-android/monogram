@@ -831,7 +831,7 @@ class MediaRepository(
     }
 
     companion object {
-        const val TELEGRAM_WORKERS = 6
+        const val TELEGRAM_WORKERS = 5
         @Volatile
         var progressSink: ((String, Long) -> Unit)? = null
 

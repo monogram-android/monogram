@@ -13,6 +13,7 @@ use crate::MtprotoError;
 use crate::api_invoke;
 
 pub(crate) const CHUNK: i32 = 128 * 1024;
+pub(crate) const STREAM_WINDOW_CHUNKS: usize = 4;
 
 pub fn download_media(
     snapshot: &mut Snapshot,
@@ -234,7 +235,8 @@ pub(crate) fn download_media_range_batched(
         let mut out =
             fs::File::create(dest_path).map_err(|e| MtprotoError::Message(e.to_string()))?;
         let width = parts_in_flight.max(1);
-        let single = offset.is_some();
+        let stream = offset.is_some();
+        let batch = if stream { STREAM_WINDOW_CHUNKS } else { width };
         let mut next = offset.unwrap_or(0);
         let mut written_end = 0i64;
         let mut first_batch = true;
@@ -242,8 +244,8 @@ pub(crate) fn download_media_range_batched(
             if download_cancelled(cancellation_path) {
                 return Err(MtprotoError::Message("cancelled".into()));
             }
-            let mut offsets = Vec::with_capacity(if single { 1 } else { width });
-            for step in 0..(if single { 1 } else { width }) {
+            let mut offsets = Vec::with_capacity(batch);
+            for step in 0..batch {
                 offsets.push(next + (step as i64) * i64::from(CHUNK));
             }
             let (flags, cdn_supported) = super::cdn::getfile_cdn_fields();
@@ -288,14 +290,14 @@ pub(crate) fn download_media_range_batched(
                 out.write_all(&bytes)
                     .map_err(|e| MtprotoError::Message(e.to_string()))?;
                 written_end = written_end.max(part_offset + bytes.len() as i64);
-                if bytes.len() < CHUNK as usize || single {
+                if bytes.len() < CHUNK as usize {
                     last_part = true;
                 }
             }
-            if last_part {
+            if last_part || stream {
                 break;
             }
-            next += (width as i64) * i64::from(CHUNK);
+            next += (batch as i64) * i64::from(CHUNK);
         }
         out.set_len(written_end as u64)
             .map_err(|e| MtprotoError::Message(e.to_string()))?;

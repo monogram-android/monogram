@@ -216,7 +216,6 @@ internal fun composedMediaPreview(
     return if (visible != null) "$head, $visible" else head
 }
 
-/** Sender prefix Rust already composed into `lastMessagePreview` (`"Danil: hello"`). */
 internal fun composedPreviewSender(preview: String?): String? {
     val text = preview?.trim().orEmpty()
     if (text.isEmpty()) return null

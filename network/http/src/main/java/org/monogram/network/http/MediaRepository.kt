@@ -515,13 +515,19 @@ class MediaRepository(
     }
 
     private fun hasInteractivePendingLocked(): Boolean =
+        hasPendingAtLeastLocked(MediaPriority.IDLE + 1)
+
+    private fun hasDisplayPendingLocked(): Boolean =
+        hasPendingAtLeastLocked(MediaPriority.DISPLAY)
+
+    private fun hasPendingAtLeastLocked(minPriority: Int): Boolean =
         telegramPending.any { queued ->
             val job = queued.job
             queued.generation == job.generation &&
                 !job.running &&
                 !job.cancelled &&
                 !job.deferred.isCompleted &&
-                job.priority > MediaPriority.IDLE
+                job.priority >= minPriority
         }
 
     private suspend fun enqueueTelegram(
@@ -590,6 +596,7 @@ class MediaRepository(
 
     private fun pollTelegramLocked(): TelegramJob? {
         val holdIdle = hasInteractivePendingLocked()
+        val holdDefault = hasDisplayPendingLocked()
         val skipped = ArrayList<QueuedTelegram>()
         try {
             while (true) {
@@ -597,7 +604,12 @@ class MediaRepository(
                 val job = queued.job
                 if (queued.generation != job.generation) continue
                 if (job.cancelled || job.running || job.deferred.isCompleted) continue
-                if (holdIdle && job.priority <= MediaPriority.IDLE) {
+                val hold = when {
+                    holdDefault && job.priority < MediaPriority.DISPLAY -> true
+                    holdIdle && job.priority <= MediaPriority.IDLE -> true
+                    else -> false
+                }
+                if (hold) {
                     skipped += queued
                     continue
                 }

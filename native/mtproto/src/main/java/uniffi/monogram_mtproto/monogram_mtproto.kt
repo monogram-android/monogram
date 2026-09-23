@@ -3272,7 +3272,8 @@ data class PollVoterDto (
     , 
     var `title`: kotlin.String
     , 
-    var `date`: kotlin.Int,
+    var `date`: kotlin.Int
+    , 
     var `options`: List<kotlin.ByteArray>
     
 ){

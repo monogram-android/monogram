@@ -410,6 +410,11 @@ pub(crate) fn with_client_mut<T>(
     let before_peers = state.peers.clone();
     let before_media = state.media.clone();
     let before_user_id = state.user_id;
+    let before_updates = state.updates.clone();
+    let before_logout = state.logout_tokens.clone();
+    let before_new_session = state.new_session.clone();
+    let before_dead = state.session_dead;
+    let before_test_dc = state.test_dc;
     let mut slot = io.transport.take();
     let before_snapshot = io.snapshot.clone();
     let result = with_client_transport(&client, &mut slot, || f(&mut state));
@@ -434,10 +439,16 @@ pub(crate) fn with_client_mut<T>(
     }
     let identity_changed =
         before_user_id != state.user_id || before_snapshot.auth_key != state.snapshot.auth_key;
+    let updates_changed = before_updates != state.updates;
+    let tokens_changed = before_logout != state.logout_tokens;
+    let session_meta_changed = before_new_session != state.new_session
+        || before_dead != state.session_dead
+        || before_test_dc != state.test_dc;
+    let persist_needed;
     {
         let mut d = client.data.lock();
         d.user_id = state.user_id;
-        if identity_changed {
+        let maps_changed = if identity_changed {
             d.peers = state.peers;
             d.media = state.media;
             d.updates = state.updates;
@@ -445,12 +456,14 @@ pub(crate) fn with_client_mut<T>(
             d.channel_recovery = state.channel_recovery;
             d.seen_messages = state.seen_messages;
             d.updates_started = state.updates_started;
+            true
         } else {
-            let _ = merge_changed_entries(&mut d.peers, &before_peers, state.peers);
-            let _ = merge_changed_entries(&mut d.media, &before_media, state.media);
+            let peers_changed = merge_changed_entries(&mut d.peers, &before_peers, state.peers);
+            let media_changed = merge_changed_entries(&mut d.media, &before_media, state.media);
             d.updates = prefer_newer_cursor(d.updates.clone(), state.updates);
             d.updates_started |= state.updates_started;
-        }
+            peers_changed || media_changed || updates_changed
+        };
         d.logout_tokens = state.logout_tokens;
         d.new_session = state.new_session;
         d.session_dead = state.session_dead;
@@ -466,7 +479,13 @@ pub(crate) fn with_client_mut<T>(
         d.home_time_offset = state.snapshot.time_offset_micros;
         d.test_dc = state.test_dc;
         d.last_inline = state.last_inline;
-        if result.is_ok() {
+        persist_needed = result.is_ok()
+            && (identity_changed
+                || snapshot_changed
+                || maps_changed
+                || tokens_changed
+                || session_meta_changed);
+        if persist_needed {
             d.persist_epoch = d.persist_epoch.saturating_add(1);
         }
     }
@@ -480,7 +499,7 @@ pub(crate) fn with_client_mut<T>(
             }
         }
     }
-    if result.is_ok() {
+    if persist_needed {
         let persist_id = client.data.lock().home_session_id;
         schedule_persist(&client, persist_id);
     }

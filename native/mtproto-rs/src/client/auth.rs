@@ -17,6 +17,7 @@ pub fn connect(handle: u64) -> Result<(), MtprotoError> {
             return Ok(());
         }
         crate::rpc::set_use_test_dc(state.test_dc);
+        let mut persist_needed = false;
         if !state.test_dc {
             crate::dns_txt::load_sidecar(&state.session_path);
             let home_dc = state.snapshot.dc_id;
@@ -29,6 +30,7 @@ pub fn connect(handle: u64) -> Result<(), MtprotoError> {
                     state.api_id,
                     &mut state.snapshot,
                 );
+                persist_needed = true;
             }
         } else {
             ensure_ready(state)?;
@@ -44,8 +46,12 @@ pub fn connect(handle: u64) -> Result<(), MtprotoError> {
                 state.api_id,
                 &mut state.snapshot,
             );
+            persist_needed = true;
         }
-        persist(state)
+        if persist_needed {
+            persist(state)?;
+        }
+        Ok(())
     })
 }
 

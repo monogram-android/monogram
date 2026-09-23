@@ -444,6 +444,71 @@ fn existing_auth_key_does_not_rewrite_snapshot_on_every_rpc() {
 }
 
 #[test]
+fn cached_connect_does_not_rewrite_session() {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let dir = std::env::temp_dir().join(format!("mtproto-cached-connect-{nonce}"));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("session.json");
+    let expires = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
+        + 3600;
+    std::fs::write(
+        dir.join("dc_txt.config"),
+        format!("# dc_txt.config v2\nexpires {expires}\ntmp_sessions 1\n2 149.154.167.51:443\n"),
+    )
+    .unwrap();
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    with_client_mut(handle, |state| {
+        state.snapshot.auth_key = Some(vec![7; 256]);
+        state.user_id = Some(42);
+        persist(state)
+    })
+    .unwrap();
+    let before = std::fs::read(&path).unwrap();
+    assert!(!before.is_empty());
+    connect(handle).expect("cached connect");
+    let after = std::fs::read(&path).unwrap();
+    assert_eq!(after, before, "cached connect must not rewrite the session file");
+    destroy_client(handle);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn getfile_without_durable_change_does_not_rewrite_session() {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("mtproto-getfile-nopersist-{nonce}.json"));
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    with_client_mut(handle, |state| {
+        state.snapshot.auth_key = Some(vec![7; 256]);
+        state.user_id = Some(42);
+        persist(state)
+    })
+    .unwrap();
+    let client = get_client(handle).unwrap();
+    flush_persist(&client);
+    let before = std::fs::read(&path).unwrap();
+    with_client_mut(handle, |state| {
+        state.snapshot.server_salt = state.snapshot.server_salt.wrapping_add(1);
+        state.snapshot.time_offset_micros = state.snapshot.time_offset_micros.wrapping_add(1);
+        Ok(())
+    })
+    .unwrap();
+    flush_persist(&client);
+    let after = std::fs::read(&path).unwrap();
+    assert_eq!(after, before, "getFile-like RPC must not rewrite the session file");
+    destroy_client(handle);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn update_persistence_uses_current_home_snapshot() {
     let path = std::env::temp_dir().join(format!(
         "mtproto-persist-current-{}.json",
@@ -887,6 +952,12 @@ fn main_lane_schedules_persist_and_flush_on_destroy() {
     with_client_mut(handle, |_state| Ok(())).unwrap();
     with_client_mut(handle, |_state| Ok(())).unwrap();
     with_client_mut(handle, |_state| Ok(())).unwrap();
+    assert_eq!(client.data.lock().persist_epoch, 0);
+    with_client_mut(handle, |state| {
+        state.user_id = Some(1);
+        Ok(())
+    })
+    .unwrap();
     let started = std::time::Instant::now();
     while client.persist_running.load(Ordering::Acquire)
         || client.persist_queued.load(Ordering::Acquire)
@@ -896,7 +967,7 @@ fn main_lane_schedules_persist_and_flush_on_destroy() {
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    assert!(client.data.lock().persist_epoch >= 3);
+    assert!(client.data.lock().persist_epoch >= 1);
     destroy_client(handle);
     assert!(!client.persist_running.load(Ordering::Acquire));
     let _ = std::fs::remove_file(&path);

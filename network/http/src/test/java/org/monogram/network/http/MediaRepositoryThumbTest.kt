@@ -82,7 +82,7 @@ class MediaRepositoryThumbTest {
         var lastPriority: Int? = null
         val repo = MediaRepository(
             cacheRoot = tmp.newFolder("cache-display"),
-            telegramFetcher = TelegramMediaFetcher { _, _, destPath, kind, _ ->
+            telegramFetcher = TelegramMediaFetcher { _, _, destPath, kind, priority ->
                 lastKind = kind
                 lastPriority = priority
                 File(destPath).writeBytes(byteArrayOf(8, 8, 8))

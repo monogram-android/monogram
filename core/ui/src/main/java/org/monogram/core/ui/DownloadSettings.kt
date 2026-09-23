@@ -147,7 +147,7 @@ data class AutoDownloadPreset(
 data class DownloadState(
     val lanes: Int = 8,
     val speedUpUploads: Boolean = false,
-    val speedUpDownloads: Boolean = true,
+    val speedUpDownloads: Boolean = false,
     val wifi: AutoDownloadPreset = AutoDownloadPreset.WIFI,
     val mobile: AutoDownloadPreset = AutoDownloadPreset.MOBILE,
     val roaming: AutoDownloadPreset = AutoDownloadPreset.ROAMING,
@@ -200,7 +200,7 @@ object DownloadSettings {
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         mutable.value = DownloadState(
             speedUpUploads = prefs.getBoolean(KEY_SPEED_UP_UPLOADS, false),
-            speedUpDownloads = prefs.getBoolean(KEY_SPEED_UP_DOWNLOADS, true),
+            speedUpDownloads = prefs.getBoolean(KEY_SPEED_UP_DOWNLOADS, false),
             wifi = AutoDownloadPreset.decode(prefs.getString(KEY_WIFI, null), AutoDownloadPreset.WIFI),
             mobile = AutoDownloadPreset.decode(prefs.getString(KEY_MOBILE, null), AutoDownloadPreset.MOBILE),
             roaming = AutoDownloadPreset.decode(prefs.getString(KEY_ROAMING, null), AutoDownloadPreset.ROAMING),

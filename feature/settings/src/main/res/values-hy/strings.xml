@@ -110,6 +110,8 @@
     <string name="settings_data_transfers">Փոխանցումներ</string>
     <string name="settings_speed_up_uploads">Արագացնել վերբեռնումը</string>
     <string name="settings_speed_up_uploads_sub">Լուսանկարներն ու ֆայլերը լավ կապի դեպքում ավելի արագ են ուղարկվում</string>
+    <string name="settings_speed_up_downloads">Արագացնել ներբեռնումը</string>
+    <string name="settings_speed_up_downloads_sub">Օգտագործել 512 ԿԲ բլոկներ՝ մեդիան ավելի արագ ներբեռնելու համար</string>
     <string name="settings_autodownload">Մեդիայի ինքնաբեռնում</string>
     <string name="settings_autodownload_wifi">Wi-Fi-ով</string>
     <string name="settings_autodownload_mobile">Բջջային ցանցով</string>

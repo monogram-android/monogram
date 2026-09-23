@@ -456,6 +456,15 @@ internal class SessionCore(
             .onFailure { AppLog.warn("upload part", "apply failed: ${it.message}") }
     }
 
+    override fun setDownloadChunkKib(kib: Int) {
+        runCatching { native.setDownloadChunkKib(kib) }
+            .onSuccess { AppLog.api("download chunk", "kib=$kib") }
+            .onFailure { AppLog.warn("download chunk", "apply failed: ${it.message}") }
+    }
+
+    override fun downloadChunkKib(): Int =
+        runCatching { native.downloadChunkKib() }.getOrDefault(0)
+
     override fun downloadConcurrency(): List<Int> =
         runCatching { native.downloadConcurrency() }.getOrDefault(listOf(0, 0))
 

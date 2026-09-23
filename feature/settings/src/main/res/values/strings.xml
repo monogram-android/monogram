@@ -110,6 +110,8 @@
     <string name="settings_data_transfers">Transfers</string>
     <string name="settings_speed_up_uploads">Speed up uploads</string>
     <string name="settings_speed_up_uploads_sub">Send photos and files faster on a good connection</string>
+    <string name="settings_speed_up_downloads">Speed up downloads</string>
+    <string name="settings_speed_up_downloads_sub">Use 512 KiB chunks for faster media downloads</string>
     <string name="settings_autodownload">Automatic media download</string>
     <string name="settings_autodownload_wifi">Using Wi-Fi</string>
     <string name="settings_autodownload_mobile">Using mobile data</string>

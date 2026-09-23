@@ -140,6 +140,15 @@ object MtprotoNativeUniFfi : MtprotoNative {
 
     override fun downloadConcurrency(): List<Int> =
         uniffi.monogram_mtproto.downloadConcurrency()
+
+    override fun setFilePartKib(kib: Int) =
+        uniffi.monogram_mtproto.setFilePartKib(kib)
+
+    override fun setDownloadChunkKib(kib: Int) =
+        uniffi.monogram_mtproto.setDownloadChunkKib(kib)
+
+    override fun downloadChunkKib(): Int =
+        uniffi.monogram_mtproto.downloadChunkKib()
     init {
         uniffiEnsureInitialized()
     }

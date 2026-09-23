@@ -110,6 +110,8 @@
     <string name="settings_data_transfers">Aktarımlar</string>
     <string name="settings_speed_up_uploads">Yüklemeleri hızlandır</string>
     <string name="settings_speed_up_uploads_sub">İyi bir bağlantıda fotoğrafları ve dosyaları daha hızlı gönderin</string>
+    <string name="settings_speed_up_downloads">İndirmeleri hızlandır</string>
+    <string name="settings_speed_up_downloads_sub">Daha hızlı medya indirmeleri için 512 KiB bloklar kullanın</string>
     <string name="settings_autodownload">Otomatik medya indirme</string>
     <string name="settings_autodownload_wifi">Wi-Fi ile</string>
     <string name="settings_autodownload_mobile">Hücresel veri ile</string>

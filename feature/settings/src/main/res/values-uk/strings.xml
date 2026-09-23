@@ -110,6 +110,8 @@
     <string name="settings_data_transfers">Передавання</string>
     <string name="settings_speed_up_uploads">Прискорити надсилання</string>
     <string name="settings_speed_up_uploads_sub">Фото та файли надсилаються швидше за стабільного з\'єднання</string>
+    <string name="settings_speed_up_downloads">Прискорити завантаження</string>
+    <string name="settings_speed_up_downloads_sub">Використовувати блоки по 512 КБ для швидкого завантаження медіа</string>
     <string name="settings_autodownload">Автозавантаження медіа</string>
     <string name="settings_autodownload_wifi">Через Wi-Fi</string>
     <string name="settings_autodownload_mobile">Через мобільну мережу</string>

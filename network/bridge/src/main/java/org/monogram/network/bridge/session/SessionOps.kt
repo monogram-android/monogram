@@ -23,6 +23,8 @@ interface SessionOps {
     fun downloadConcurrency(): List<Int> = listOf(0, 0)
 
     fun setFilePartKib(kib: Int) {}
+    fun setDownloadChunkKib(kib: Int) {}
+    fun downloadChunkKib(): Int = 0
 
     /** Hint that a dialog is open. Media downloads yield; chats/updates keep running. */
     fun setDialogForeground(active: Boolean) {}

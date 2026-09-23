@@ -38,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Forward
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
@@ -96,6 +97,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.content.ContextCompat
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -151,6 +153,7 @@ import org.monogram.feature.dialog.shouldPageNewer
 import org.monogram.feature.dialog.shouldPageOlder
 import org.monogram.feature.dialog.unreadDividerIndex
 import org.monogram.network.http.MediaPriority
+import org.monogram.network.http.UserDownload
 import java.io.File
 import java.time.ZoneId
 import java.util.Locale
@@ -217,6 +220,15 @@ internal fun DialogTopBar(
     CompositionLocalProvider(
         LocalDialogMedia provides component.mediaRepository,
     ) {
+    val mediaRepository = component.mediaRepository
+    val userDownloads by remember(mediaRepository) {
+        mediaRepository?.userDownloads ?: MutableStateFlow(emptyMap<String, UserDownload>())
+    }.collectAsState()
+    val downloadProgress by remember(mediaRepository) {
+        mediaRepository?.downloadProgress ?: MutableStateFlow(emptyMap())
+    }.collectAsState()
+    var showDownloads by remember { mutableStateOf(false) }
+    Column(modifier = Modifier.fillMaxWidth()) {
     TopAppBar(
         windowInsets = WindowInsets.statusBars,
         title = {
@@ -361,6 +373,14 @@ internal fun DialogTopBar(
             }
         },
         actions = {
+            if (userDownloads.isNotEmpty()) {
+                IconButton(onClick = { showDownloads = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Download,
+                        contentDescription = stringResource(R.string.dialog_downloads),
+                    )
+                }
+            }
             IconButton(
                 onClick = onToggleSearch,
             ) {
@@ -376,5 +396,18 @@ internal fun DialogTopBar(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
     )
+    DialogDownloadProgressBar(
+        downloads = userDownloads,
+        progress = downloadProgress,
+    )
+    }
+    if (showDownloads) {
+        DialogDownloadsSheet(
+            downloads = userDownloads,
+            progress = downloadProgress,
+            onCancel = { key -> mediaRepository?.cancel(key) },
+            onDismiss = { showDownloads = false },
+        )
+    }
     }
 }

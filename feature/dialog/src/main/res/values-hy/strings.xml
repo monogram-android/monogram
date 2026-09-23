@@ -20,6 +20,12 @@
     <string name="dialog_media_failed">Չհաջողվեց բեռնել մեդիան</string>
     <string name="dialog_media_open_failed">Չհաջողվեց բացել ֆայլը</string>
     <string name="dialog_media_cancel">Կանգնեցնել ներբեռնումը</string>
+    <string name="dialog_downloads">Ներբեռնումներ</string>
+    <string name="dialog_downloads_empty">Ակտիվ ներբեռնումներ չկան</string>
+    <plurals name="dialog_downloads_count">
+        <item quantity="one">%d ֆայլ</item>
+        <item quantity="other">%d ֆայլ</item>
+    </plurals>
     <string name="dialog_media_document">Փաստաթուղթ</string>
     <string name="dialog_unsupported_message">Այս հաղորդագրության տեսակը դեռ չի աջակցվում</string>
     <string name="dialog_poll_quiz">Վիկտորինա</string>

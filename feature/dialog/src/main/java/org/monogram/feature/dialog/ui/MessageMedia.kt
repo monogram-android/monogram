@@ -82,7 +82,7 @@ fun MessageMedia(
     val preset = downloadState.presetFor(DownloadSettings.activeNetwork())
     val fullKey = message.mediaCacheKey ?: return
     val thumbKey = message.thumbCacheKey ?: fullKey
-    val displayKey = if (shouldAutoFetchDisplayMedia(kind, message.fileSize, preset)) {
+    val displayKey = if (shouldFetchDisplayPreview(kind, false, message.fileSize, preset)) {
         photoDisplayCacheKey(fullKey)
     } else {
         null
@@ -123,6 +123,9 @@ fun MessageMedia(
             )
             .then(visibilityModifier)
     }
+    val strippedJpeg = remember(mediaRepository, message.id) {
+        mediaRepository?.inlineThumbJpeg(message)
+    }
     var thumbFile by remember(thumbKey) {
         mutableStateOf(mediaRepository?.cachedFile(thumbKey))
     }
@@ -146,6 +149,15 @@ fun MessageMedia(
     val mediaScope = rememberCoroutineScope()
     var wantFull by remember(fullKey) { mutableStateOf(false) }
     var downloadAttempt by remember(fullKey) { mutableStateOf(0) }
+    val userOwned by remember(mediaRepository, fullKey) {
+        mediaRepository?.userDownloads
+            ?.map { fullKey in it }
+            ?.distinctUntilChanged()
+            ?: flowOf(false)
+    }.collectAsStateWithLifecycle(
+        initialValue = mediaRepository?.isUserDownload(fullKey) == true,
+    )
+    val requestFull = wantFull || userOwned
     var previewFetchDone by remember(fullKey) {
         mutableStateOf(displayFile != null || fullFile != null)
     }
@@ -164,7 +176,7 @@ fun MessageMedia(
         fullKey,
         mediaRepository,
         playing,
-        wantFull,
+        requestFull,
         kind,
         downloadAttempt,
         previewOnly,
@@ -176,7 +188,10 @@ fun MessageMedia(
             previewFetchDone = true
             return@LaunchedEffect
         }
-        if (!mediaVisible && !wantFull) {
+        if (shouldCancelOnViewportDetach(mediaVisible, requestFull, false)) {
+            repo.cancelRunning(thumbKey)
+            displayKey?.let { repo.cancelRunning(it) }
+            repo.cancelRunning(fullKey)
             return@LaunchedEffect
         }
         val displayPriority = MediaPriority.VISIBLE
@@ -189,7 +204,7 @@ fun MessageMedia(
                     MediaFetchKind.Display ->
                         repo.ensureLocalMessageDisplay(message, priority = displayPriority)
                     MediaFetchKind.Full ->
-                        repo.ensureLocalMessageMedia(message, priority = mediaFullPriority(wantFull))
+                        repo.ensureLocalMessageMedia(message, priority = mediaFullPriority(requestFull))
                 }
                 when (result) {
                     is Outcome.Ok -> return@withContext result.value
@@ -219,37 +234,42 @@ fun MessageMedia(
             }
             null
         }
-        val userRequested = wantFull || (playing && kind != "gif")
-        val waitingForSharp = displayFile == null && fullFile == null && (
-            shouldAutoFetchDisplayMedia(kind, message.fileSize, preset) ||
-                shouldAutoFetchFullMedia(kind, userRequested, message.fileSize, preset)
-            )
+        val userRequested = requestFull || (playing && kind != "gif")
+        val needFull = shouldAutoFetchFullMedia(
+            kind,
+            userRequested,
+            message.fileSize,
+            preset,
+        )
+        val needDisplay = shouldFetchDisplayPreview(
+            kind,
+            userRequested,
+            message.fileSize,
+            preset,
+        )
+        val waitingForSharp = displayFile == null && fullFile == null && (needDisplay || needFull)
         if (!waitingForSharp) previewFetchDone = true
         coroutineScope {
-            if (thumbFile == null && kind != "audio" && kind != "voice") {
-                if (kind != "document" || hasDistinctMediaThumb(thumbKey, fullKey)) {
-                    launch {
-                        thumbFile = fetch(MediaFetchKind.Thumb) ?: thumbFile
-                    }
+            if (shouldFetchMessageThumb(
+                    kind,
+                    thumbFile != null,
+                    strippedJpeg,
+                    thumbKey,
+                    fullKey,
+                )
+            ) {
+                launch {
+                    thumbFile = fetch(MediaFetchKind.Thumb) ?: thumbFile
                 }
             }
-            if (shouldAutoFetchDisplayMedia(kind, message.fileSize, preset) &&
-                displayFile == null &&
-                fullFile == null
-            ) {
+            if (needDisplay && displayFile == null && fullFile == null) {
                 displayFile = fetch(MediaFetchKind.Display)
             }
-            val needFull = shouldAutoFetchFullMedia(
-                kind,
-                userRequested,
-                message.fileSize,
-                preset,
-            )
             if (needFull && fullFile == null) {
                 fullFailed = false
                 fullFile = fetch(MediaFetchKind.Full)
-                fullFailed = fullFile == null && (playing || wantFull)
-                failed = fullFile == null && thumbFile == null && (playing || wantFull)
+                fullFailed = fullFile == null && (playing || requestFull)
+                failed = fullFile == null && thumbFile == null && (playing || requestFull)
             }
         }
         previewFetchDone = true
@@ -346,7 +366,7 @@ fun MessageMedia(
                 ),
                 durationSeconds = message.mediaDuration,
                 voice = kind == "voice",
-                loading = wantFull && fullFile == null && !fullFailed,
+                loading = requestFull && fullFile == null && !fullFailed,
                 failed = fullFailed,
                 downloadedBytes = downloadedBytes,
                 fileSize = message.fileSize,
@@ -356,7 +376,7 @@ fun MessageMedia(
                     playing = false
                     mediaRepository?.cancel(fullKey)
                 },
-                modifier = modifier.fillMaxWidth().padding(vertical = 2.dp),
+                modifier = modifier.fillMaxWidth().padding(vertical = 2.dp).then(visibilityModifier),
             )
         }
         !sticker && kind == "document" -> {
@@ -366,7 +386,7 @@ fun MessageMedia(
                 thumb = preview?.takeIf { stillImageFile(it) },
                 name = message.fileName ?: message.text ?: stringResource(R.string.dialog_media_document),
                 size = message.fileSize,
-                loading = wantFull && fullFile == null && !fullFailed,
+                loading = requestFull && fullFile == null && !fullFailed,
                 failed = fullFailed,
                 downloadedBytes = downloadedBytes,
                 onDownload = {
@@ -389,7 +409,7 @@ fun MessageMedia(
                     wantFull = false
                     mediaRepository?.cancel(fullKey)
                 },
-                modifier = modifier.fillMaxWidth().padding(vertical = 2.dp),
+                modifier = modifier.fillMaxWidth().padding(vertical = 2.dp).then(visibilityModifier),
             )
         }
         kind == "video" || kind == "gif" -> {
@@ -432,6 +452,7 @@ fun MessageMedia(
                 VideoThumb(
                     thumb = stillThumb,
                     image = sharpStill,
+                    stripped = strippedJpeg,
                     durationSeconds = if (kind == "video") message.mediaDuration else null,
                     failed = failed || (playing && fullFailed),
                     loading = loadingFull,
@@ -467,7 +488,7 @@ fun MessageMedia(
                     else -> R.string.dialog_media_photo
                 },
             )
-            val loadingFull = kind == "photo" && wantFull && fullFile == null && !fullFailed
+            val loadingFull = kind == "photo" && requestFull && fullFile == null && !fullFailed
             val stillThumb = thumbFile?.takeIf { stillImageFile(it) }
             val sharpStill = (fullFile ?: displayFile)?.takeIf { stillImageFile(it) }
             val placeholder = !sticker && shouldBlurMediaPreview(thumbKey, fullKey, sharpStill != null)
@@ -490,6 +511,7 @@ fun MessageMedia(
                 ProgressiveStill(
                     thumb = stillThumb,
                     image = stillImage,
+                    stripped = strippedJpeg,
                     contentDescription = description,
                     contentScale = if (sticker) ContentScale.Fit else ContentScale.Crop,
                     failed = failed && stillThumb == null && stillImage == null,

@@ -58,6 +58,9 @@ interface MtprotoNative {
     /** Current download chunk size in KiB. */
     fun downloadChunkKib(): Int = 0
 
+    /** Native download progress. Path is the destination/staging file. */
+    fun setDownloadProgressListener(listener: ((String, Long, Long) -> Unit)?) = Unit
+
     fun libraryVersion(): String
 
     /** Switches Rust netcode timing spans on or off (off by default). */
@@ -458,6 +461,8 @@ interface MtprotoNative {
     @Throws(MtprotoException::class)
     fun downloadMessageThumb(handle: Long, chatId: Long, messageId: Int, destPath: String): String =
         downloadMessageMedia(handle, chatId, messageId, destPath)
+
+    fun peekMessageInlineThumb(handle: Long, chatId: Long, messageId: Int): ByteArray? = null
 
     @Throws(MtprotoException::class)
     fun downloadMessageDisplay(handle: Long, chatId: Long, messageId: Int, destPath: String): String =

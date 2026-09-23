@@ -4,13 +4,13 @@ use tellers_mtproto::latest::api::{CdnConfig, CdnPublicKey, FileHash, UploadCdnF
 use tellers_mtproto_session::OsRandom;
 use tellers_mtproto_transport::PaddedIntermediate;
 
+use crate::MtprotoError;
 use crate::api_invoke;
 use crate::auth_key::create_auth_key_with_pem;
 use crate::dialogs;
 use crate::media;
 use crate::peers::vector_boxed_items;
 use crate::tcp;
-use crate::MtprotoError;
 
 use super::*;
 
@@ -234,6 +234,14 @@ pub fn download_message_media(
     download_message_media_range(handle, chat_id, message_id, dest_path, kind, None)
 }
 
+/// Shared-index read of an inline stripped/cached JPEG. No RPC and no main-session lock.
+pub fn peek_message_inline_thumb(handle: u64, chat_id: i64, message_id: i32) -> Option<Vec<u8>> {
+    let client = get_client(handle).ok()?;
+    let data = client.data.lock();
+    let indexed = data.media.get(&(chat_id, message_id))?;
+    media::inline_thumb_jpeg(indexed)
+}
+
 pub(crate) fn indexed_media_for_download(
     data: &ClientData,
     chat_id: i64,
@@ -252,8 +260,7 @@ pub(crate) fn indexed_media_for_download(
         return None;
     }
     let home = home_fork_source(data)?;
-    Some(media::media_for_download(indexed, kind)
-        .map(|media| (data.api_id, home, media)))
+    Some(media::media_for_download(indexed, kind).map(|media| (data.api_id, home, media)))
 }
 
 pub fn download_message_media_range(
@@ -277,80 +284,80 @@ pub fn download_message_media_range(
         let _span = crate::perf::span("media_lookup_main_fallback");
         crate::perf::count("media.lookup.main_fallback");
         with_client_mut(handle, |state| {
-        ensure_ready(state)?;
-        if !state.media.contains_key(&(chat_id, message_id)) {
-            if message_id == crate::instant_view_rpc::INSTANT_VIEW_MEDIA_MSG {
-                // Indexed only by messages.getWebPage as (media_id, -1).
-                // Never treat a photo/document id as a dialog for history.
-            } else if message_id == 0 {
-                // Saved GIFs / inline docs are also keyed as `(document_id, 0)`.
-                // Only known dialog peers should fall back to avatar reindex.
-                if state.peers.contains_key(&chat_id) {
-                    reindex_peer_avatar(state, chat_id);
-                }
-            } else {
-                let _ = call_with_migrate(state, |state| {
-                    with_peer_refresh(state, chat_id, |state| {
-                        refresh_file_source(state, chat_id, message_id)
-                    })
-                });
-                if !state.media.contains_key(&(chat_id, message_id)) {
+            ensure_ready(state)?;
+            if !state.media.contains_key(&(chat_id, message_id)) {
+                if message_id == crate::instant_view_rpc::INSTANT_VIEW_MEDIA_MSG {
+                    // Indexed only by messages.getWebPage as (media_id, -1).
+                    // Never treat a photo/document id as a dialog for history.
+                } else if message_id == 0 {
+                    // Saved GIFs / inline docs are also keyed as `(document_id, 0)`.
+                    // Only known dialog peers should fall back to avatar reindex.
+                    if state.peers.contains_key(&chat_id) {
+                        reindex_peer_avatar(state, chat_id);
+                    }
+                } else {
                     let _ = call_with_migrate(state, |state| {
-                        history_with_peer_refresh(state, chat_id, 3, message_id, 0, -1)
+                        with_peer_refresh(state, chat_id, |state| {
+                            refresh_file_source(state, chat_id, message_id)
+                        })
                     });
+                    if !state.media.contains_key(&(chat_id, message_id)) {
+                        let _ = call_with_migrate(state, |state| {
+                            history_with_peer_refresh(state, chat_id, 3, message_id, 0, -1)
+                        });
+                    }
                 }
             }
-        }
-        if state
-            .media
-            .get(&(chat_id, message_id))
-            .is_some_and(media::peer_photo_needs_hash)
-        {
-            let _ = call_with_migrate(state, refresh_dialogs);
-            media::fill_zero_peer_photo_hashes(&mut state.media, &state.peers);
-        }
-        if message_id == 0
-            && kind == media::MediaDownloadKind::Full
-            && state.peers.contains_key(&chat_id)
-            && state
+            if state
                 .media
-                .get(&(chat_id, 0))
-                .is_some_and(media::needs_video_avatar_upgrade)
-        {
-            let _ = call_with_migrate(state, |state| {
-                with_peer_refresh(state, chat_id, |state| {
-                    crate::profile::get_profile(
-                        &mut state.snapshot,
-                        state.api_id,
-                        &state.peers,
-                        &mut state.media,
-                        state.user_id,
-                        chat_id,
-                    )
-                })
-            });
-        }
-        let mut indexed = state.media.get(&(chat_id, message_id)).cloned();
-        if indexed.is_none() {
-            // Local index gap (cold history, cleared cache, peer hash expired):
-            // re-fetch this message's media instead of failing the download outright.
-            let _ = crate::rpc::with_rpc_timeout_secs(20, || {
-                call_with_migrate(state, |state| {
+                .get(&(chat_id, message_id))
+                .is_some_and(media::peer_photo_needs_hash)
+            {
+                let _ = call_with_migrate(state, refresh_dialogs);
+                media::fill_zero_peer_photo_hashes(&mut state.media, &state.peers);
+            }
+            if message_id == 0
+                && kind == media::MediaDownloadKind::Full
+                && state.peers.contains_key(&chat_id)
+                && state
+                    .media
+                    .get(&(chat_id, 0))
+                    .is_some_and(media::needs_video_avatar_upgrade)
+            {
+                let _ = call_with_migrate(state, |state| {
                     with_peer_refresh(state, chat_id, |state| {
-                        refresh_file_source(state, chat_id, message_id)
+                        crate::profile::get_profile(
+                            &mut state.snapshot,
+                            state.api_id,
+                            &state.peers,
+                            &mut state.media,
+                            state.user_id,
+                            chat_id,
+                        )
                     })
-                })
-            });
-            indexed = state.media.get(&(chat_id, message_id)).cloned();
-        }
-        let indexed = indexed.ok_or_else(|| {
-            MtprotoError::Message(format!("no media for chat {chat_id} message {message_id}"))
-        })?;
-        Ok((
-            state.api_id,
-            state.snapshot.clone(),
-            media::media_for_download(&indexed, kind)?,
-        ))
+                });
+            }
+            let mut indexed = state.media.get(&(chat_id, message_id)).cloned();
+            if indexed.is_none() {
+                // Local index gap (cold history, cleared cache, peer hash expired):
+                // re-fetch this message's media instead of failing the download outright.
+                let _ = crate::rpc::with_rpc_timeout_secs(20, || {
+                    call_with_migrate(state, |state| {
+                        with_peer_refresh(state, chat_id, |state| {
+                            refresh_file_source(state, chat_id, message_id)
+                        })
+                    })
+                });
+                indexed = state.media.get(&(chat_id, message_id)).cloned();
+            }
+            let indexed = indexed.ok_or_else(|| {
+                MtprotoError::Message(format!("no media for chat {chat_id} message {message_id}"))
+            })?;
+            Ok((
+                state.api_id,
+                state.snapshot.clone(),
+                media::media_for_download(&indexed, kind)?,
+            ))
         })?
     };
     let dest = Path::new(&dest_path);
@@ -647,7 +654,15 @@ pub(crate) fn download_media_range_on_lane(
         // File transfer sessions are exempt from the parallel-session rule only on
         // *media* DCs. A file stored on the home DC rides the single main session,
         // otherwise the extra home-DC session kills the authorization (406).
-        match download_media_range_on_home_session(handle, client, home.session_id, api_id, media, dest, offset) {
+        match download_media_range_on_home_session(
+            handle,
+            client,
+            home.session_id,
+            api_id,
+            media,
+            dest,
+            offset,
+        ) {
             Err(err) => match api_invoke::migrate_dc(&err) {
                 Some(dc) => download_media_range_on_lane_dc(
                     handle, client, home, api_id, media, dest, offset, dc,
@@ -670,7 +685,13 @@ pub(crate) fn download_media_range_on_lane(
                 Err(_) => media::with_cdn_supported(false, || {
                     if target_dc == home.dc_id {
                         download_media_range_on_home_session(
-                            handle, client, home.session_id, api_id, media, dest, offset,
+                            handle,
+                            client,
+                            home.session_id,
+                            api_id,
+                            media,
+                            dest,
+                            offset,
                         )
                     } else {
                         download_media_range_on_lane_dc(
@@ -707,16 +728,16 @@ pub(crate) fn download_media_range_on_home_session(
         (expected_session_id, data.home_dc)
     };
     let staged = media::StagedDownload::new(dest)?;
-    // `download_media_range_batched` invokes its callback once per pipelined
-    // window. Acquiring the main lane there lets the updates drain run between
-    // windows while preserving the one permitted home-DC session.
-    media::download_media_range_batched_streaming(
+    // Cap refills to one window so `with_client_mut` returns and updates can drain.
+    // Sliding refill still keeps the in-flight window full inside that lease.
+    media::download_media_range_batched_streaming_capped(
         dc,
         media,
         staged.path(),
         dest,
         offset,
         pipeline_parts(),
+        Some(pipeline_parts()),
         |_init_first, requests, on_chunk| {
             with_client_mut(handle, |state| {
                 if state.snapshot.session_id != session_id {
@@ -735,6 +756,112 @@ pub(crate) fn download_media_range_on_home_session(
     publish_media(client, session_id, staged, dest)
 }
 
+pub(crate) fn split_even_odd_request_indices(
+    offsets: &[i64],
+    chunk: i32,
+) -> (Vec<usize>, Vec<usize>) {
+    let step = i64::from(chunk.max(1));
+    let mut even = Vec::new();
+    let mut odd = Vec::new();
+    for (index, offset) in offsets.iter().enumerate() {
+        if (*offset / step) % 2 == 0 {
+            even.push(index);
+        } else {
+            odd.push(index);
+        }
+    }
+    (even, odd)
+}
+
+fn invoke_lane_batch(
+    client: &Client,
+    snapshot: &mut tellers_mtproto_session::Snapshot,
+    slot: &mut Option<crate::rpc::LiveTransport>,
+    api_id: i32,
+    requests: Vec<tellers_mtproto::latest::api::UploadGetFileRequest>,
+) -> Result<Vec<Result<tellers_mtproto::latest::api::UploadFile, MtprotoError>>, MtprotoError> {
+    with_client_transport(client, slot, || {
+        crate::api_invoke::invoke_api_batch_without_updates_streaming::<
+            _,
+            tellers_mtproto::latest::api::UploadFile,
+        >(snapshot, api_id, requests, &mut |_, _| None)
+    })
+}
+
+fn invoke_media_batch_even_odd(
+    client: &Client,
+    snap_a: &mut tellers_mtproto_session::Snapshot,
+    slot_a: &mut Option<crate::rpc::LiveTransport>,
+    snap_b: Option<&mut tellers_mtproto_session::Snapshot>,
+    slot_b: Option<&mut Option<crate::rpc::LiveTransport>>,
+    api_id: i32,
+    requests: Vec<tellers_mtproto::latest::api::UploadGetFileRequest>,
+    on_chunk: &mut dyn FnMut(
+        usize,
+        Result<tellers_mtproto::latest::api::UploadFile, MtprotoError>,
+    ) -> Option<tellers_mtproto::latest::api::UploadGetFileRequest>,
+) -> Result<Vec<Result<tellers_mtproto::latest::api::UploadFile, MtprotoError>>, MtprotoError> {
+    let Some(first) = requests.first() else {
+        return Ok(Vec::new());
+    };
+    let offsets: Vec<i64> = requests.iter().map(|r| r.offset).collect();
+    let (even_idx, odd_idx) = split_even_odd_request_indices(&offsets, first.limit);
+    let even_reqs: Vec<_> = even_idx.iter().map(|i| requests[*i].clone()).collect();
+    let odd_reqs: Vec<_> = odd_idx.iter().map(|i| requests[*i].clone()).collect();
+    if snap_b.is_none() || slot_b.is_none() || odd_reqs.is_empty() || even_reqs.is_empty() {
+        return with_client_transport(client, slot_a, || {
+            crate::api_invoke::invoke_api_batch_without_updates_streaming(
+                snap_a, api_id, requests, on_chunk,
+            )
+        });
+    }
+    let snap_b = snap_b.unwrap();
+    let slot_b = slot_b.unwrap();
+    let mut snap_a_t = snap_a.clone();
+    let mut snap_b_t = snap_b.clone();
+    let mut slot_a_t = slot_a.take();
+    let mut slot_b_t = slot_b.take();
+    let joined = std::thread::scope(|scope| {
+        let even_h = scope
+            .spawn(|| invoke_lane_batch(client, &mut snap_a_t, &mut slot_a_t, api_id, even_reqs));
+        let odd_h = scope
+            .spawn(|| invoke_lane_batch(client, &mut snap_b_t, &mut slot_b_t, api_id, odd_reqs));
+        (even_h.join(), odd_h.join())
+    });
+    *snap_a = snap_a_t;
+    *snap_b = snap_b_t;
+    *slot_a = slot_a_t;
+    *slot_b = slot_b_t;
+    let even_res = joined
+        .0
+        .map_err(|_| MtprotoError::Message("even media lane".into()))??;
+    let odd_res = joined
+        .1
+        .map_err(|_| MtprotoError::Message("odd media lane".into()))??;
+    let mut merged: Vec<Option<Result<tellers_mtproto::latest::api::UploadFile, MtprotoError>>> =
+        (0..requests.len()).map(|_| None).collect();
+    for (slot, result) in even_idx.into_iter().zip(even_res) {
+        merged[slot] = Some(result);
+    }
+    for (slot, result) in odd_idx.into_iter().zip(odd_res) {
+        merged[slot] = Some(result);
+    }
+    let mut out = Vec::with_capacity(merged.len());
+    for (index, item) in merged.into_iter().enumerate() {
+        let item = item.unwrap_or_else(|| Err(MtprotoError::Message("missing media part".into())));
+        match &item {
+            Ok(file) => {
+                let _ = on_chunk(index, Ok(file.clone()));
+            }
+            Err(err) => {
+                let _ = on_chunk(index, Err(err.clone()));
+            }
+        }
+        out.push(item);
+    }
+    Ok(out)
+}
+
 pub(crate) fn download_media_range_on_lane_dc(
     handle: u64,
     client: &Client,
@@ -748,6 +875,10 @@ pub(crate) fn download_media_range_on_lane_dc(
     let _span = crate::perf::span("media_file");
     let staged = media::StagedDownload::new(dest)?;
     let mut io = lock_media_lane(client)?;
+    // One media-DC TCP with a sliding 12-part window. A second lane plus a
+    // lockstep 12-part batch caused FLOOD_WAIT_2; Telegram uses 2 connections
+    // with 4-8 in-flight, not 2x12. Even/odd split helpers remain for tests.
+    let mut io2: Option<LaneLease<'_>> = None;
     if !session_lease_valid(&client.data.lock(), home.session_id) {
         return Err(expired_session_lease());
     }
@@ -764,72 +895,105 @@ pub(crate) fn download_media_range_on_lane_dc(
         MediaLanePrep::Replaced => io.transport = None,
         MediaLanePrep::Reuse => {}
     }
+    if let Some(second) = io2.as_mut() {
+        match prepare_media_lane_snapshot(&mut second.snapshot, home, target_dc) {
+            MediaLanePrep::NeedExport => {
+                second.snapshot = io.snapshot.clone();
+                second.transport = None;
+            }
+            MediaLanePrep::Replaced => second.transport = None,
+            MediaLanePrep::Reuse => {}
+        }
+    }
     let mut media_snap = io.snapshot.clone();
     let mut slot = io.transport.take();
+    let mut media_snap2 = io2.as_ref().map(|lane| lane.snapshot.clone());
+    let mut slot2 = io2.as_mut().map(|lane| lane.transport.take());
     crate::rpc::clear_new_session_metadata();
-    let path = with_client_transport(client, &mut slot, || {
-        crate::rpc::with_rpc_timeout_secs(45, || {
-            // Pipelined window: several parts in flight on this one session.
-            let lane_dc = media_snap.dc_id;
-            match media::download_media_range_batched_streaming(
-                lane_dc,
-                media,
-                staged.path(),
-                dest,
-                offset,
-                pipeline_parts(),
-                |_init_first, requests, on_chunk| {
-                    crate::api_invoke::invoke_api_batch_without_updates_streaming::<
-                        _,
-                        tellers_mtproto::latest::api::UploadFile,
-                    >(&mut media_snap, api_id, requests, on_chunk)
-                },
-            ) {
-                Ok(path) => Ok(path),
-                Err(err) => {
-                    if let Some(dc) = crate::api_invoke::migrate_dc(&err) {
-                        crate::rpc::drop_live_transport();
-                        media_snap = if dc == home.dc_id {
-                            fork_session(home)
-                        } else {
-                            with_client_mut(handle, |state| {
-                                if state.snapshot.session_id != home.session_id {
-                                    return Err(expired_session_lease());
-                                }
-                                let destination = call_with_migrate(state, |state| {
-                                    copy_authorization_to_dc(&mut state.snapshot, api_id, dc)
-                                })?;
-                                persist(state)?;
-                                Ok(destination)
-                            })?
-                        };
-                        crate::rpc::drop_live_transport();
-                        let retry_dc = media_snap.dc_id;
-                        media::download_media_range_batched_streaming(
-                            retry_dc,
-                            media,
-                            staged.path(),
-                            dest,
-                            offset,
-                            pipeline_parts(),
-                            |_init_first, requests, on_chunk| {
-                                crate::api_invoke::invoke_api_batch_without_updates_streaming::<
-                                    _,
-                                    tellers_mtproto::latest::api::UploadFile,
-                                >(&mut media_snap, api_id, requests, on_chunk)
-                            },
-                        )
+    // Timeout is per window, not the whole file. Streaming idle-extends while parts arrive.
+    let path = {
+        let lane_dc = media_snap.dc_id;
+        match media::download_media_range_batched_streaming(
+            lane_dc,
+            media,
+            staged.path(),
+            dest,
+            offset,
+            pipeline_parts(),
+            |_init_first, requests, on_chunk| {
+                crate::rpc::with_rpc_timeout_secs(45, || {
+                    invoke_media_batch_even_odd(
+                        client,
+                        &mut media_snap,
+                        &mut slot,
+                        media_snap2.as_mut(),
+                        slot2.as_mut(),
+                        api_id,
+                        requests,
+                        on_chunk,
+                    )
+                })
+            },
+        ) {
+            Ok(path) => Ok(path),
+            Err(err) => {
+                if let Some(dc) = crate::api_invoke::migrate_dc(&err) {
+                    crate::rpc::drop_live_transport();
+                    media_snap = if dc == home.dc_id {
+                        fork_session(home)
                     } else {
-                        Err(err)
-                    }
+                        with_client_mut(handle, |state| {
+                            if state.snapshot.session_id != home.session_id {
+                                return Err(expired_session_lease());
+                            }
+                            let destination = call_with_migrate(state, |state| {
+                                copy_authorization_to_dc(&mut state.snapshot, api_id, dc)
+                            })?;
+                            persist(state)?;
+                            Ok(destination)
+                        })?
+                    };
+                    crate::rpc::drop_live_transport();
+                    let retry_dc = media_snap.dc_id;
+                    media::download_media_range_batched_streaming(
+                        retry_dc,
+                        media,
+                        staged.path(),
+                        dest,
+                        offset,
+                        pipeline_parts(),
+                        |_init_first, requests, on_chunk| {
+                            crate::rpc::with_rpc_timeout_secs(45, || {
+                                invoke_media_batch_even_odd(
+                                    client,
+                                    &mut media_snap,
+                                    &mut slot,
+                                    media_snap2.as_mut(),
+                                    slot2.as_mut(),
+                                    api_id,
+                                    requests,
+                                    on_chunk,
+                                )
+                            })
+                        },
+                    )
+                } else {
+                    Err(err)
                 }
             }
-        })
-    });
+        }
+    };
     io.snapshot = media_snap.clone();
     // FILE_REFERENCE / transport errors must not park this TCP for the next file.
     io.transport = if path.is_ok() { slot } else { None };
+    if let Some(second) = io2.as_mut() {
+        if let Some(snap2) = media_snap2 {
+            second.snapshot = snap2;
+        }
+        second.transport = if path.is_ok() { slot2.flatten() } else { None };
+    }
     drop(io);
+    drop(io2);
     let new_session = crate::rpc::take_new_session_metadata();
     if media_snap.dc_id == home.dc_id && media_snap.auth_key == home.auth_key {
         let mut d = client.data.lock();

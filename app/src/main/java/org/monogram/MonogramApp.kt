@@ -23,6 +23,7 @@ import org.monogram.network.bridge.BridgedMtprotoClient
 import org.monogram.network.http.MediaFetchKind
 import org.monogram.network.http.MediaRepository
 import org.monogram.network.http.TelegramChunkFetcher
+import org.monogram.network.http.TelegramInlineThumbPeek
 import org.monogram.network.http.TelegramMediaFetcher
 import org.monogram.push.PushCoordinator
 import org.monogram.sponsor.SponsorSyncManager
@@ -124,7 +125,13 @@ class MonogramApp : Application() {
                 customEmojiFetcher = { documentId, destPath, priority ->
                     client.downloadCustomEmoji(documentId, destPath, priority)
                 },
+                inlineThumbPeek = TelegramInlineThumbPeek { chatId, messageId ->
+                    client.peekMessageInlineThumb(chatId, messageId)
+                },
             )
+        }
+        client.setDownloadProgressListener { path, downloaded, _ ->
+            mediaRepository.onNativeProgress(path, downloaded)
         }
         notifications = NotificationLocalStore(this)
         push = perfSpan("app:push") {

@@ -56,14 +56,20 @@ internal fun ProgressiveStill(
     failedText: String,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
+    stripped: ByteArray? = null,
 ) {
     val context = LocalContext.current
     val sharp = image?.takeIf { stillImageFile(it) }
     val base = thumb?.takeIf { stillImageFile(it) }
-    val hasFile = base != null || sharp != null
-    val blurBase = base != null && base != sharp
-    val baseRequest = remember(base, blurBase, context) {
-        base?.let { localStillRequest(context, it, crossfade = 0, blur = blurBase) }
+    val strippedJpeg = stripped?.takeIf { it.isNotEmpty() && sharp == null && base == null }
+    val hasFile = base != null || sharp != null || strippedJpeg != null
+    val blurBase = (base != null && base != sharp) || strippedJpeg != null
+    val baseRequest = remember(base, blurBase, strippedJpeg, context) {
+        when {
+            base != null -> localStillRequest(context, base, crossfade = 0, blur = blurBase)
+            strippedJpeg != null -> localStrippedRequest(context, strippedJpeg)
+            else -> null
+        }
     }
     val sharpRequest = remember(sharp, base, context) {
         sharp?.let { localStillRequest(context, it, crossfade = if (base != null && base != sharp) 220 else 0) }
@@ -92,7 +98,7 @@ internal fun ProgressiveStill(
             )
         }
         MediaProgressOverlay(visible = loading && sharp == null && hasFile)
-        if (failed && base == null && sharp == null) {
+        if (failed && !hasFile) {
             Text(
                 text = failedText,
                 style = MaterialTheme.typography.labelMedium,
@@ -133,3 +139,15 @@ private fun localStillRequest(
     }
     return builder.build()
 }
+
+private fun localStrippedRequest(
+    context: android.content.Context,
+    jpeg: ByteArray,
+): ImageRequest = ImageRequest.Builder(context)
+    .data(jpeg)
+    .memoryCacheKey("stripped:${jpeg.size}:${jpeg.contentHashCode()}")
+    .diskCachePolicy(CachePolicy.DISABLED)
+    .crossfade(0)
+    .size(128)
+    .transformations(PreviewBlurTransformation())
+    .build()

@@ -20,6 +20,14 @@
     <string name="dialog_media_failed">Не вдалося завантажити медіа</string>
     <string name="dialog_media_open_failed">Не вдалося відкрити файл</string>
     <string name="dialog_media_cancel">Зупинити завантаження</string>
+    <string name="dialog_downloads">Завантаження</string>
+    <string name="dialog_downloads_empty">Немає активних завантажень</string>
+    <plurals name="dialog_downloads_count">
+        <item quantity="one">%d файл</item>
+        <item quantity="few">%d файли</item>
+        <item quantity="many">%d файлів</item>
+        <item quantity="other">%d файлу</item>
+    </plurals>
     <string name="dialog_media_document">Файл</string>
     <string name="dialog_unsupported_message">Цей тип повідомлення поки не підтримується</string>
     <string name="dialog_poll_quiz">Вікторина</string>

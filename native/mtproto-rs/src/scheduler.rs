@@ -497,7 +497,10 @@ mod tests {
         };
         let deadline = std::time::Instant::now() + Duration::from_secs(2);
         while gate.state.lock().waiters.len() != 2 {
-            assert!(std::time::Instant::now() < deadline, "waiters did not register");
+            assert!(
+                std::time::Instant::now() < deadline,
+                "waiters did not register"
+            );
             std::thread::yield_now();
         }
         drop(held);

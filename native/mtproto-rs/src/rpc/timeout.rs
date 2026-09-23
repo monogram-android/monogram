@@ -26,6 +26,25 @@ pub(crate) fn rpc_timeout_secs() -> u64 {
     RPC_TIMEOUT_SECS.with(|cell| cell.get()).max(1)
 }
 
+/// Idle timeout for a streaming getFile window: each completed part proves the
+/// socket is alive, so the transfer may exceed the original RPC budget.
+pub(crate) fn extend_streaming_deadlines(
+    attempt_deadline: &mut std::time::Instant,
+    overall_deadline: &mut std::time::Instant,
+    hard_cap: &mut std::time::Instant,
+) {
+    let timeout = std::time::Duration::from_secs(rpc_timeout_secs());
+    let now = std::time::Instant::now();
+    *overall_deadline = now + timeout;
+    *hard_cap = now
+        + std::time::Duration::from_secs(
+            rpc_timeout_secs()
+                .saturating_mul(2)
+                .max(rpc_timeout_secs() + 8),
+        );
+    *attempt_deadline = now + timeout;
+}
+
 /// Padded intermediate appends 0..=15 random bytes after the encrypted envelope.
 /// Encrypted MTProto length is 24 + 16k (auth_key_id + msg_key + AES blocks).
 pub(crate) fn trim_padded_mtproto_packet(packet: &[u8]) -> &[u8] {
@@ -203,5 +222,22 @@ pub(crate) fn recv_wait_deadline(
         overall_deadline
     } else {
         attempt_deadline
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extend_streaming_deadlines_moves_forward() {
+        let now = std::time::Instant::now();
+        let mut attempt = now;
+        let mut overall = now;
+        let mut hard = now;
+        extend_streaming_deadlines(&mut attempt, &mut overall, &mut hard);
+        assert!(overall > now);
+        assert!(hard > overall);
+        assert!(attempt > now);
     }
 }

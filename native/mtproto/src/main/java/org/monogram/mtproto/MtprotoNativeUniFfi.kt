@@ -45,6 +45,7 @@ import uniffi.monogram_mtproto.destroyClient as nativeDestroyClient
 import uniffi.monogram_mtproto.downloadCustomEmoji as nativeDownloadCustomEmoji
 import uniffi.monogram_mtproto.downloadMessageMedia as nativeDownloadMessageMedia
 import uniffi.monogram_mtproto.downloadMessageThumb as nativeDownloadMessageThumb
+import uniffi.monogram_mtproto.peekMessageInlineThumb as nativePeekMessageInlineThumb
 import uniffi.monogram_mtproto.drainUpdates as nativeDrainUpdates
 import uniffi.monogram_mtproto.editTextMessage as nativeEditTextMessage
 import uniffi.monogram_mtproto.forwardMessages as nativeForwardMessages
@@ -149,6 +150,17 @@ object MtprotoNativeUniFfi : MtprotoNative {
 
     override fun downloadChunkKib(): Int =
         uniffi.monogram_mtproto.downloadChunkKib()
+
+    override fun setDownloadProgressListener(listener: ((String, Long, Long) -> Unit)?) {
+        val cb = listener ?: return
+        uniffi.monogram_mtproto.setDownloadProgressListener(
+            object : uniffi.monogram_mtproto.DownloadProgressListener {
+                override fun onProgress(path: String, downloaded: Long, total: Long) {
+                    cb(path, downloaded, total)
+                }
+            },
+        )
+    }
     init {
         uniffiEnsureInitialized()
     }
@@ -612,6 +624,12 @@ object MtprotoNativeUniFfi : MtprotoNative {
         messageId: Int,
         destPath: String,
     ): String = nativeDownloadMessageThumb(handle.toULong(), chatId, messageId, destPath)
+
+    override fun peekMessageInlineThumb(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+    ): ByteArray? = nativePeekMessageInlineThumb(handle.toULong(), chatId, messageId)
 
     override fun downloadMessageDisplay(
         handle: Long,

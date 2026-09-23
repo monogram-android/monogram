@@ -46,6 +46,14 @@
     <string name="dialog_media_failed">Не удалось загрузить медиа</string>
     <string name="dialog_media_open_failed">Не удалось открыть файл</string>
     <string name="dialog_media_cancel">Остановить загрузку</string>
+    <string name="dialog_downloads">Загрузки</string>
+    <string name="dialog_downloads_empty">Нет активных загрузок</string>
+    <plurals name="dialog_downloads_count">
+        <item quantity="one">%d файл</item>
+        <item quantity="few">%d файла</item>
+        <item quantity="many">%d файлов</item>
+        <item quantity="other">%d файлов</item>
+    </plurals>
     <string name="dialog_media_document">Файл</string>
     <string name="dialog_unsupported_message">Этот тип сообщения пока не поддерживается</string>
     <plurals name="dialog_poll_voters">

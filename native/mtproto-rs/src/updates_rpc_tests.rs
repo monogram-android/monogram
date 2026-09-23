@@ -6,11 +6,11 @@ use tellers_mtproto::codec::{Encoder, TlEncode};
 use tellers_mtproto::latest::api::{
     MessageReactions, MessageReactionsConstructor, Peer, PeerUserConstructor, Update,
     UpdateBotStoppedConstructor, UpdateChannelReadMessagesContentsConstructor,
-    UpdateChannelTooLongConstructor,
-    UpdateDeleteChannelMessagesConstructor, UpdateDeleteMessagesConstructor,
-    UpdateMessageReactionsConstructor, UpdateReadMessagesContentsConstructor,
+    UpdateChannelTooLongConstructor, UpdateDeleteChannelMessagesConstructor,
+    UpdateDeleteMessagesConstructor, UpdateMessageReactionsConstructor,
     UpdatePtsChangedConstructor, UpdateReadChannelDiscussionInboxConstructor,
-    UpdateShortConstructor, Updates, UpdatesConstructor, Vector, VectorConstructor,
+    UpdateReadMessagesContentsConstructor, UpdateShortConstructor, Updates, UpdatesConstructor,
+    Vector, VectorConstructor,
 };
 
 #[test]
@@ -81,7 +81,10 @@ fn reaction_snapshot_requests_one_authoritative_dialog_refresh_even_when_empty()
         &mut events,
     );
     assert_eq!(
-        events.iter().filter(|event| matches!(event, UpdateEventDto::ChatsChanged)).count(),
+        events
+            .iter()
+            .filter(|event| matches!(event, UpdateEventDto::ChatsChanged))
+            .count(),
         1,
     );
     assert!(events.iter().all(|event| !matches!(
@@ -102,8 +105,8 @@ fn remote_message_contents_reads_request_authoritative_dialog_refresh() {
         pts_count: 1,
         date: None,
     });
-    let channel = Update::UpdateChannelReadMessagesContents(
-        UpdateChannelReadMessagesContentsConstructor {
+    let channel =
+        Update::UpdateChannelReadMessagesContents(UpdateChannelReadMessagesContentsConstructor {
             flags: 0,
             channel_id: 42,
             top_msg_id: None,
@@ -112,16 +115,17 @@ fn remote_message_contents_reads_request_authoritative_dialog_refresh() {
                 field_0: 1,
                 field_1: vec![9],
             })),
-        },
+        });
+    assert!(
+        advance_push_update(
+            &channel,
+            &mut cursor(),
+            &mut HashMap::new(),
+            true,
+            &mut Vec::new(),
+        )
+        .unwrap()
     );
-    assert!(advance_push_update(
-        &channel,
-        &mut cursor(),
-        &mut HashMap::new(),
-        true,
-        &mut Vec::new(),
-    )
-    .unwrap());
     let mut events = Vec::new();
     collect_other_updates(
         [&regular, &channel].into_iter(),

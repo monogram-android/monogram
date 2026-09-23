@@ -25,6 +25,7 @@ interface SessionOps {
     fun setFilePartKib(kib: Int) {}
     fun setDownloadChunkKib(kib: Int) {}
     fun downloadChunkKib(): Int = 0
+    fun setDownloadProgressListener(listener: ((String, Long, Long) -> Unit)?) {}
 
     /** Hint that a dialog is open. Media downloads yield; chats/updates keep running. */
     fun setDialogForeground(active: Boolean) {}

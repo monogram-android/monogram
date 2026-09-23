@@ -165,10 +165,11 @@ pub(crate) fn message_preview(
             ))
         }
         Message::MessageService(m) => {
-            let actor = m
-                .from_id
-                .as_ref()
-                .and_then(|peer| user_names.get(&peer_chat_id(peer)).map(|name| name.as_str()));
+            let actor = m.from_id.as_ref().and_then(|peer| {
+                user_names
+                    .get(&peer_chat_id(peer))
+                    .map(|name| name.as_str())
+            });
             Some((
                 m.id,
                 i64::from(m.date),

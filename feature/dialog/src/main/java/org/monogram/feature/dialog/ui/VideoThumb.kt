@@ -28,6 +28,7 @@ internal fun VideoThumb(
     thumb: File?,
     image: File?,
     durationSeconds: Int?,
+    stripped: ByteArray? = null,
     failed: Boolean,
     loading: Boolean,
     previewLoading: Boolean = false,
@@ -51,6 +52,7 @@ internal fun VideoThumb(
         ProgressiveStill(
             thumb = stillThumb,
             image = sharpStill,
+            stripped = stripped,
             contentDescription = stringResource(R.string.dialog_media_video),
             contentScale = ContentScale.Crop,
             failed = failed && stillThumb == null && sharpStill == null,

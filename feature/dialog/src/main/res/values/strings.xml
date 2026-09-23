@@ -20,6 +20,12 @@
     <string name="dialog_media_failed">Couldn’t load media</string>
     <string name="dialog_media_open_failed">Couldn’t open file</string>
     <string name="dialog_media_cancel">Stop download</string>
+    <string name="dialog_downloads">Downloads</string>
+    <string name="dialog_downloads_empty">No active downloads</string>
+    <plurals name="dialog_downloads_count">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
     <string name="dialog_media_document">Document</string>
     <string name="dialog_unsupported_message">This message type isn’t supported yet</string>
     <plurals name="dialog_poll_voters">

@@ -48,15 +48,15 @@ class MediaRepositoryInflightTest {
     fun telegramDownloadPublishesGrowingProgressWithoutCachingPartial() = runBlocking {
         val started = CompletableDeferred<Unit>()
         val proceed = CompletableDeferred<Unit>()
-        val repo = MediaRepository(
+        lateinit var repo: MediaRepository
+        repo = MediaRepository(
             cacheRoot = tmp.newFolder("cache"),
             telegramFetcher = TelegramMediaFetcher { _, _, destPath, _, _ ->
-                val staged = File("$destPath.123.1.part")
-                staged.writeBytes(ByteArray(1000))
+                File(destPath).writeBytes(ByteArray(1000))
+                repo.onNativeProgress(destPath, 1000L)
                 started.complete(Unit)
                 proceed.await()
-                FileOutputStream(staged, true).use { it.write(ByteArray(1000)) }
-                check(staged.renameTo(File(destPath)))
+                FileOutputStream(destPath, true).use { it.write(ByteArray(1000)) }
                 Outcome.Ok(destPath)
             },
         )

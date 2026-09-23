@@ -111,7 +111,7 @@
     <string name="settings_speed_up_uploads">Zrýchliť odosielanie</string>
     <string name="settings_speed_up_uploads_sub">Odosielajte fotky a súbory rýchlejšie pri dobrom pripojení</string>
     <string name="settings_speed_up_downloads">Zrýchliť sťahovanie</string>
-    <string name="settings_speed_up_downloads_sub">Používať 512 KiB bloky pre rýchlejšie sťahovanie médií</string>
+    <string name="settings_speed_up_downloads_sub">Sťahujte fotky, videá a súbory rýchlejšie pri dobrom pripojení</string>
     <string name="settings_autodownload">Automatické sťahovanie médií</string>
     <string name="settings_autodownload_wifi">Cez Wi-Fi</string>
     <string name="settings_autodownload_mobile">Cez mobilné dáta</string>

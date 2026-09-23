@@ -151,6 +151,24 @@ internal fun shouldAutoFetchDisplayMedia(
     preset: AutoDownloadPreset = DownloadSettings.activePreset(),
 ): Boolean = preset.allowsDisplay(kind, sizeBytes)
 
+/** Display preview is skipped when full auto-download will fetch the same bytes. */
+internal fun shouldFetchDisplayPreview(
+    kind: String?,
+    userRequested: Boolean,
+    sizeBytes: Long? = null,
+    preset: AutoDownloadPreset = DownloadSettings.activePreset(),
+): Boolean {
+    if (shouldAutoFetchFullMedia(kind, userRequested, sizeBytes, preset)) return false
+    return shouldAutoFetchDisplayMedia(kind, sizeBytes, preset)
+}
+
+/** Detach may cancel this message's fetches unless the user or viewer owns them. */
+internal fun shouldCancelOnViewportDetach(
+    visible: Boolean,
+    userRequested: Boolean,
+    viewerOpen: Boolean,
+): Boolean = !visible && !userRequested && !viewerOpen
+
 internal fun shouldAutoplayChatVideo(
     kind: String?,
     supportsStreaming: Boolean,
@@ -166,6 +184,20 @@ internal fun shouldAutoplayChatVideo(
 /** Stripped/inline thumbs live on a different cache key than the original. */
 internal fun hasDistinctMediaThumb(thumbCacheKey: String?, fullCacheKey: String?): Boolean =
     !thumbCacheKey.isNullOrBlank() && thumbCacheKey != fullCacheKey
+
+/** Skip getFile thumbs when a file or in-memory stripped JPEG is already available. */
+internal fun shouldFetchMessageThumb(
+    kind: String?,
+    hasThumbFile: Boolean,
+    strippedJpeg: ByteArray?,
+    thumbCacheKey: String?,
+    fullCacheKey: String?,
+): Boolean {
+    if (hasThumbFile || strippedJpeg?.isNotEmpty() == true) return false
+    if (kind == "audio" || kind == "voice") return false
+    if (kind == "document" && !hasDistinctMediaThumb(thumbCacheKey, fullCacheKey)) return false
+    return true
+}
 
 /** Blur the tiny preview until a display/full still exists. */
 internal fun shouldBlurMediaPreview(

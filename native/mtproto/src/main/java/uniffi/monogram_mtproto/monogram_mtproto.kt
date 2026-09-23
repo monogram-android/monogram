@@ -649,6 +649,28 @@ internal open class UniffiForeignFutureResultVoid(
 internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
     fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultVoid.UniffiByValue,)
 }
+internal interface UniffiCallbackInterfaceDownloadProgressListenerMethod0 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`path`: RustBuffer.ByValue,`downloaded`: Long,`total`: Long,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
+}
+@Structure.FieldOrder("uniffiFree", "uniffiClone", "onProgress")
+internal open class UniffiVTableCallbackInterfaceDownloadProgressListener(
+    @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+    @JvmField internal var `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+    @JvmField internal var `onProgress`: UniffiCallbackInterfaceDownloadProgressListenerMethod0? = null,
+) : Structure() {
+    class UniffiByValue(
+        `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+        `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+        `onProgress`: UniffiCallbackInterfaceDownloadProgressListenerMethod0? = null,
+    ): UniffiVTableCallbackInterfaceDownloadProgressListener(`uniffiFree`,`uniffiClone`,`onProgress`,), Structure.ByValue
+
+   internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceDownloadProgressListener) {
+        `uniffiFree` = other.`uniffiFree`
+        `uniffiClone` = other.`uniffiClone`
+        `onProgress` = other.`onProgress`
+    }
+
+}
 
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
@@ -826,6 +848,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_mark_dialog_unread(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_peek_message_inline_thumb(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_perf_set_enabled(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_perf_snapshot(
@@ -888,6 +912,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_download_concurrency(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_set_download_progress_listener(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_file_part_kib(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_typing(
@@ -908,6 +934,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_update_status(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_method_downloadprogresslistener_on_progress(
+    ): Int
     external fun ffi_monogram_mtproto_uniffi_contract_version(
     ): Int
 
@@ -919,8 +947,11 @@ internal object UniffiLib {
 
     init {
         Native.register(UniffiLib::class.java, findLibraryName(componentName = "monogram_mtproto"))
+        uniffiCallbackInterfaceDownloadProgressListener.register(this)
         
     }
+    external fun uniffi_monogram_mtproto_fn_init_callback_vtable_downloadprogresslistener(`vtable`: UniffiVTableCallbackInterfaceDownloadProgressListener,
+    ): Unit
     external fun uniffi_monogram_mtproto_fn_func_animated_emoji_max(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
     external fun uniffi_monogram_mtproto_fn_func_append_todo_items(`handle`: Long,`chatId`: Long,`messageId`: Int,`firstId`: Int,`titles`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -1075,6 +1106,8 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_mark_dialog_unread(`handle`: Long,`chatId`: Long,`unread`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_peek_message_inline_thumb(`handle`: Long,`chatId`: Long,`messageId`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_perf_set_enabled(`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_perf_snapshot(`reset`: Byte,uniffi_out_err: UniffiRustCallStatus, 
@@ -1136,6 +1169,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_set_download_chunk_kib(`kib`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_set_download_concurrency(`lanes`: Int,`parts`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_set_download_progress_listener(`listener`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_set_file_part_kib(`kib`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1507,6 +1542,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_mark_dialog_unread() and 0xFFFF) != 40354) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_peek_message_inline_thumb() and 0xFFFF) != 34494) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_perf_set_enabled() and 0xFFFF) != 49824) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1600,6 +1638,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_set_download_concurrency() and 0xFFFF) != 39908) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_download_progress_listener() and 0xFFFF) != 23308) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_set_file_part_kib() and 0xFFFF) != 34374) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1628,6 +1669,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_update_status() and 0xFFFF) != 57001) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_method_downloadprogresslistener_on_progress() and 0xFFFF) != 19749) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1721,7 +1765,38 @@ object UniffiWithHandle
  *
  * @suppress
  * */
-object NoHandle
+object NoHandle// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+internal const val IDX_CALLBACK_FREE = 0
+// Callback return codes
+internal const val UNIFFI_CALLBACK_SUCCESS = 0
+internal const val UNIFFI_CALLBACK_ERROR = 1
+internal const val UNIFFI_CALLBACK_UNEXPECTED_ERROR = 2
+
+/**
+ * @suppress
+ */
+public abstract class FfiConverterCallbackInterface<CallbackInterface: Any>: FfiConverter<CallbackInterface, Long> {
+    internal val handleMap = UniffiHandleMap<CallbackInterface>()
+
+    internal fun drop(handle: Long) {
+        handleMap.remove(handle)
+    }
+
+    override fun lift(value: Long): CallbackInterface {
+        return handleMap.get(value)
+    }
+
+    override fun read(buf: ByteBuffer) = lift(buf.getLong())
+
+    override fun lower(value: CallbackInterface) = handleMap.insert(value)
+
+    override fun allocationSize(value: CallbackInterface) = 8UL
+
+    override fun write(value: CallbackInterface, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
 
 /**
  * @suppress
@@ -4819,6 +4894,68 @@ public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEven
 
 
 
+
+public interface DownloadProgressListener {
+    
+    fun `onProgress`(`path`: kotlin.String, `downloaded`: kotlin.Long, `total`: kotlin.Long)
+    
+    companion object
+}
+
+
+
+// Put the implementation in an object so we don't pollute the top-level namespace
+internal object uniffiCallbackInterfaceDownloadProgressListener {
+    internal object `onProgress`: UniffiCallbackInterfaceDownloadProgressListenerMethod0 {
+        override fun callback(`uniffiHandle`: Long,`path`: RustBuffer.ByValue,`downloaded`: Long,`total`: Long,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeDownloadProgressListener.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`onProgress`(
+                    FfiConverterString.lift(`path`),
+                    FfiConverterLong.lift(`downloaded`),
+                    FfiConverterLong.lift(`total`),
+                )
+            }
+            val writeReturn = { _: Unit -> Unit }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+
+    internal object uniffiFree: UniffiCallbackInterfaceFree {
+        override fun callback(handle: Long) {
+            FfiConverterTypeDownloadProgressListener.handleMap.remove(handle)
+        }
+    }
+
+    internal object uniffiClone: UniffiCallbackInterfaceClone {
+        override fun callback(handle: Long): Long {
+            return FfiConverterTypeDownloadProgressListener.handleMap.clone(handle)
+        }
+    }
+
+    internal var vtable = UniffiVTableCallbackInterfaceDownloadProgressListener.UniffiByValue(
+        uniffiFree,
+        uniffiClone,
+        `onProgress`,
+    )
+
+    // Registers the foreign callback with the Rust side.
+    // This method is generated for each callback interface.
+    internal fun register(lib: UniffiLib) {
+        lib.uniffi_monogram_mtproto_fn_init_callback_vtable_downloadprogresslistener(vtable)
+    }
+}
+
+/**
+ * The ffiConverter which transforms the Callbacks in to handles to pass to Rust.
+ *
+ * @suppress
+ */
+public object FfiConverterTypeDownloadProgressListener: FfiConverterCallbackInterface<DownloadProgressListener>()
+
+
+
+
 /**
  * @suppress
  */
@@ -4908,6 +5045,38 @@ public object FfiConverterOptionalString: FfiConverterRustBuffer<kotlin.String?>
         } else {
             buf.put(1)
             FfiConverterString.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteArray?> {
+    override fun read(buf: ByteBuffer): kotlin.ByteArray? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterByteArray.read(buf)
+    }
+
+    override fun allocationSize(value: kotlin.ByteArray?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterByteArray.allocationSize(value)
+        }
+    }
+
+    override fun write(value: kotlin.ByteArray?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterByteArray.write(value, buf)
         }
     }
 }
@@ -6540,6 +6709,19 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 }
     
     
+ fun `peekMessageInlineThumb`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int): kotlin.ByteArray? {
+            return FfiConverterOptionalByteArray.lift(
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_peek_message_inline_thumb(
+    
+        
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),_status)
+}
+    )
+    }
+    
 
         /**
          * Netcode timing spans on/off; off by default.
@@ -6992,6 +7174,16 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         
         FfiConverterInt.lower(`lanes`),
         FfiConverterInt.lower(`parts`),_status)
+}
+    
+    
+ fun `setDownloadProgressListener`(`listener`: DownloadProgressListener)
+        = 
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_set_download_progress_listener(
+    
+        
+        FfiConverterTypeDownloadProgressListener.lower(`listener`),_status)
 }
     
     

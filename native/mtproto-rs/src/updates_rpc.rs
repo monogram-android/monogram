@@ -7,9 +7,9 @@ use crate::HashMap;
 
 use tellers_mtproto::latest::api::{
     ChannelMessagesFilter, ChannelMessagesFilterEmptyConstructor, Dialog, DialogPeer, InputChannel,
-    InputChannelConstructor, Message, Peer, Update,
-    UpdatesChannelDifference, UpdatesDifference, UpdatesGetChannelDifferenceRequest,
-    UpdatesGetDifferenceRequest, UpdatesGetStateRequest, UpdatesState,
+    InputChannelConstructor, Message, Peer, Update, UpdatesChannelDifference, UpdatesDifference,
+    UpdatesGetChannelDifferenceRequest, UpdatesGetDifferenceRequest, UpdatesGetStateRequest,
+    UpdatesState,
 };
 use tellers_mtproto_session::Snapshot;
 
@@ -498,7 +498,8 @@ pub(crate) fn collect_other_updates<'a>(
             }
             // These carry message ids but no absolute dialog-counter delta. Re-read dialogs so
             // reading mentions/reactions on another device updates their absolute counters.
-            Update::UpdateReadMessagesContents(_) | Update::UpdateChannelReadMessagesContents(_) => {
+            Update::UpdateReadMessagesContents(_)
+            | Update::UpdateChannelReadMessagesContents(_) => {
                 chats_changed = true;
             }
             Update::UpdateReadChannelInbox(u) => {

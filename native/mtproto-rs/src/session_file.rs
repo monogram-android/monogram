@@ -159,7 +159,7 @@ impl FileSessionStore {
             Some(key) => {
                 let _span = crate::perf::span("session_save.encrypt");
                 zeroize::Zeroizing::new(crate::session_crypto::encrypt(&plaintext, &key)?)
-            },
+            }
             None => plaintext,
         };
         // Each writer owns its temporary file. Never truncate another writer's

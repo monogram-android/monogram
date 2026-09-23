@@ -362,3 +362,12 @@ pub fn media_for_download(
         }
     }
 }
+
+/// Expanded JPEG for `photoStrippedSize` / cached thumbs. No `upload.getFile`.
+pub fn inline_thumb_jpeg(media: &MediaRef) -> Option<Vec<u8>> {
+    let download = media_for_download(media, MediaDownloadKind::Thumb).ok()?;
+    match download.location {
+        MediaLocation::Inline { bytes, .. } if !bytes.is_empty() => Some(bytes),
+        _ => None,
+    }
+}

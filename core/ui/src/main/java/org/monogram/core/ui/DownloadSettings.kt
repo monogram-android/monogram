@@ -146,7 +146,6 @@ data class AutoDownloadPreset(
 
 data class DownloadState(
     val lanes: Int = 8,
-    val parts: Int = 6,
     val speedUpUploads: Boolean = false,
     val speedUpDownloads: Boolean = true,
     val wifi: AutoDownloadPreset = AutoDownloadPreset.WIFI,
@@ -156,6 +155,7 @@ data class DownloadState(
     val autoplayVideos: Boolean = true,
     val activeNetwork: AutoDownloadNetwork = AutoDownloadNetwork.Wifi,
 ) {
+    val parts: Int get() = if (speedUpDownloads) 12 else 6
     val concurrency: DownloadConcurrency get() = DownloadConcurrency(lanes = lanes, parts = parts)
     val filePartKib: Int get() = if (speedUpUploads) 512 else 32
     val downloadChunkKib: Int get() = if (speedUpDownloads) 512 else 128

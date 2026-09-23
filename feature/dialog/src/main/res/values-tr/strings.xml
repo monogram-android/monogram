@@ -20,6 +20,12 @@
     <string name="dialog_media_failed">Medya yüklenemedi</string>
     <string name="dialog_media_open_failed">Dosya açılamadı</string>
     <string name="dialog_media_cancel">İndirmeyi durdur</string>
+    <string name="dialog_downloads">İndirmeler</string>
+    <string name="dialog_downloads_empty">Aktif indirme yok</string>
+    <plurals name="dialog_downloads_count">
+        <item quantity="one">%d dosya</item>
+        <item quantity="other">%d dosya</item>
+    </plurals>
     <string name="dialog_media_document">Dosya</string>
     <string name="dialog_unsupported_message">Bu mesaj türü henüz desteklenmiyor</string>
     <string name="dialog_poll_quiz">Quiz</string>

@@ -443,9 +443,7 @@ fn save_config_cache(session_path: &Path, expires: i64, endpoints: &[TxtEndpoint
         return;
     }
     let tmp_sessions = crate::scheduler::main_session_allowance();
-    let mut body = format!(
-        "# dc_txt.config v2\nexpires {expires}\ntmp_sessions {tmp_sessions}\n"
-    );
+    let mut body = format!("# dc_txt.config v2\nexpires {expires}\ntmp_sessions {tmp_sessions}\n");
     for e in endpoints {
         match e.secret {
             Some(secret) => {

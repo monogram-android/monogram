@@ -86,6 +86,21 @@ pub fn set_download_chunk_kib(kib: i32) {
     crate::media::set_chunk_size(kib * 1024);
 }
 
+#[uniffi::export(callback_interface)]
+pub trait DownloadProgressListener: Send + Sync {
+    fn on_progress(&self, path: String, downloaded: i64, total: i64);
+}
+
+#[uniffi::export]
+pub fn set_download_progress_listener(listener: Box<dyn DownloadProgressListener>) {
+    let listener: std::sync::Arc<dyn DownloadProgressListener> = std::sync::Arc::from(listener);
+    crate::media::set_progress_callback(Some(std::sync::Arc::new(
+        move |path: &str, downloaded: i64, total: i64| {
+            listener.on_progress(path.to_string(), downloaded, total);
+        },
+    )));
+}
+
 #[uniffi::export]
 pub fn download_chunk_kib() -> i32 {
     crate::media::chunk_size() / 1024
@@ -737,6 +752,11 @@ pub fn download_message_thumb(
         dest_path,
         crate::media::MediaDownloadKind::Thumb,
     )
+}
+
+#[uniffi::export]
+pub fn peek_message_inline_thumb(handle: u64, chat_id: i64, message_id: i32) -> Option<Vec<u8>> {
+    client_mgr::peek_message_inline_thumb(handle, chat_id, message_id)
 }
 
 #[uniffi::export]

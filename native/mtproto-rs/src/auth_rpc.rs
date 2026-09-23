@@ -317,9 +317,8 @@ mod tests {
             AuthSentCodeTypeAppConstructor, AuthSentCodeTypeSmsConstructor,
         };
 
-        let app_type = AuthSentCodeType::AuthSentCodeTypeApp(AuthSentCodeTypeAppConstructor {
-            length: 6,
-        });
+        let app_type =
+            AuthSentCodeType::AuthSentCodeTypeApp(AuthSentCodeTypeAppConstructor { length: 6 });
         assert_eq!(sent_code_type_length(&app_type), 6);
 
         let sent = AuthSentCode::AuthSentCode(AuthSentCodeConstructor {
@@ -335,9 +334,8 @@ mod tests {
         assert_eq!(dto.code_type, "app");
         assert_eq!(dto.code_length, 6);
 
-        let sms_type = AuthSentCodeType::AuthSentCodeTypeSms(AuthSentCodeTypeSmsConstructor {
-            length: 5,
-        });
+        let sms_type =
+            AuthSentCodeType::AuthSentCodeTypeSms(AuthSentCodeTypeSmsConstructor { length: 5 });
         assert_eq!(sent_code_type_length(&sms_type), 5);
     }
 }

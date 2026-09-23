@@ -20,6 +20,11 @@
     <string name="dialog_media_failed">メディアを読み込めませんでした</string>
     <string name="dialog_media_open_failed">ファイルを開けませんでした</string>
     <string name="dialog_media_cancel">ダウンロードを停止</string>
+    <string name="dialog_downloads">ダウンロード</string>
+    <string name="dialog_downloads_empty">進行中のダウンロードはありません</string>
+    <plurals name="dialog_downloads_count">
+        <item quantity="other">%d 件のファイル</item>
+    </plurals>
     <string name="dialog_media_document">ファイル</string>
     <string name="dialog_unsupported_message">このメッセージの種類はまだ未対応です</string>
     <string name="dialog_poll_quiz">クイズ</string>

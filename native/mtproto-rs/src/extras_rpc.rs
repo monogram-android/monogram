@@ -27,7 +27,9 @@ use tellers_mtproto_session::Snapshot;
 use crate::api_invoke;
 use crate::media::{self, MediaIndex, MediaLocation};
 use crate::messages;
-use crate::peers::{self, CachedPeer, input_peer_from_cached, peer_chat_id, vector_boxed_items, vector_items};
+use crate::peers::{
+    self, CachedPeer, input_peer_from_cached, peer_chat_id, vector_boxed_items, vector_items,
+};
 use crate::{
     BotCallbackAnswerDto, DiscussionDto, MessageDto, MtprotoError, ReactionChoiceDto, SavedGifDto,
 };
@@ -814,12 +816,11 @@ mod tests {
 
     #[test]
     fn input_option_vote_has_no_bytes() {
-        let row = MessagePeerVote::MessagePeerVoteInputOption(
-            MessagePeerVoteInputOptionConstructor {
+        let row =
+            MessagePeerVote::MessagePeerVoteInputOption(MessagePeerVoteInputOptionConstructor {
                 peer: user_peer(7),
                 date: 11,
-            },
-        );
+            });
         assert!(poll_vote_options(&row).is_empty());
     }
 

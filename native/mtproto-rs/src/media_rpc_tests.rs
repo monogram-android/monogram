@@ -321,6 +321,52 @@ fn pick_thumb_skips_streaming_letters_without_inline() {
 }
 
 #[test]
+fn inline_thumb_jpeg_returns_stripped_bytes_without_getfile() {
+    let jpeg = vec![0xFF, 0xD8, 0xFF, 0xD9];
+    let media = MediaRef {
+        kind: "photo".into(),
+        cache_key: "photo:stripped".into(),
+        location: MediaLocation::Photo {
+            id: 1,
+            access_hash: 2,
+            file_reference: vec![1],
+            thumb_size: "x".into(),
+            dc_id: 2,
+        },
+        thumb_cache_key: Some("photo:stripped:thumb".into()),
+        thumb_location: Some(MediaLocation::Inline {
+            bytes: jpeg.clone(),
+            extension: "jpg".into(),
+        }),
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    assert_eq!(inline_thumb_jpeg(&media).as_deref(), Some(jpeg.as_slice()));
+    let getfile_only = MediaRef {
+        kind: "photo".into(),
+        cache_key: "photo:m".into(),
+        location: MediaLocation::Photo {
+            id: 1,
+            access_hash: 2,
+            file_reference: vec![1],
+            thumb_size: "m".into(),
+            dc_id: 2,
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    assert!(inline_thumb_jpeg(&getfile_only).is_none());
+}
+
+#[test]
 fn empty_cached_size_is_skipped_for_getfile() {
     use tellers_mtproto::latest::api::{PhotoCachedSizeConstructor, PhotoSizeConstructor};
     let sizes = vec![
@@ -1171,4 +1217,498 @@ fn poll_payload_marks_answers_voters_and_quiz() {
     assert_eq!(answers[0]["o"], "01a0");
     assert_eq!(answers[1]["c"], 0);
     assert_eq!(answers[1]["v"], 0);
+}
+
+#[test]
+fn default_pipeline_parts_is_twelve() {
+    use crate::client_mgr::{DEFAULT_PIPELINE_PARTS, pipeline_parts, set_pipeline_parts};
+    let previous = pipeline_parts();
+    set_pipeline_parts(DEFAULT_PIPELINE_PARTS);
+    assert_eq!(pipeline_parts(), 12);
+    set_pipeline_parts(previous);
+}
+
+#[test]
+fn limit_invalid_falls_back_to_128kib() {
+    use tellers_mtproto::latest::api::{
+        StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
+    };
+    let previous_chunk = chunk_size();
+    set_chunk_size(512 * 1024);
+    let media = MediaRef {
+        kind: "video".into(),
+        cache_key: "limit-invalid".into(),
+        location: MediaLocation::Document {
+            id: 9,
+            access_hash: 10,
+            file_reference: vec![4],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "video/mp4".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    let path = std::env::temp_dir().join(format!("monogram-limit-invalid-{}", std::process::id()));
+    let mut limits: Vec<i32> = Vec::new();
+    let file_size = 200i64;
+    let result =
+        download_media_range_batched(2, &media, &path, &path, None, 2, |_init, requests| {
+            limits.push(requests[0].limit);
+            if requests[0].limit > DEFAULT_CHUNK {
+                return Err(MtprotoError::Message("RPC 400: LIMIT_INVALID".into()));
+            }
+            Ok(requests
+                .into_iter()
+                .map(|request| {
+                    let remaining = (file_size - request.offset).max(0) as usize;
+                    let len = remaining.min(request.limit as usize);
+                    Ok(UploadFile::UploadFile(UploadFileConstructor {
+                        type_: Box::new(StorageFileType::StorageFileUnknown(
+                            StorageFileUnknownConstructor {},
+                        )),
+                        mtime: 0,
+                        bytes: vec![7u8; len],
+                    }))
+                })
+                .collect())
+        });
+    set_chunk_size(previous_chunk);
+    assert!(result.is_ok(), "fallback download failed: {result:?}");
+    assert_eq!(limits, vec![512 * 1024, DEFAULT_CHUNK]);
+    assert_eq!(fs::read(&path).unwrap(), vec![7u8; file_size as usize]);
+    fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn batched_streaming_writes_a_part_before_the_batch_returns() {
+    use tellers_mtproto::latest::api::{
+        StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
+    };
+    let previous = pipeline_parts();
+    set_pipeline_parts(4);
+    let media = MediaRef {
+        kind: "video".into(),
+        cache_key: "stream-write".into(),
+        location: MediaLocation::Document {
+            id: 11,
+            access_hash: 12,
+            file_reference: vec![5],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "video/mp4".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    let path = std::env::temp_dir().join(format!("monogram-stream-write-{}", std::process::id()));
+    let mut lengths_during_batch: Vec<u64> = Vec::new();
+    let mut batches = 0usize;
+    let file_size = CHUNK as i64 * 3;
+    let result = download_media_range_batched_streaming(
+        2,
+        &media,
+        &path,
+        &path,
+        None,
+        3,
+        |_init, requests, on_chunk| {
+            batches += 1;
+            let mut results = Vec::with_capacity(requests.len());
+            for (index, request) in requests.iter().enumerate() {
+                let remaining = (file_size - request.offset).max(0) as usize;
+                let len = remaining.min(request.limit as usize);
+                let file = UploadFile::UploadFile(UploadFileConstructor {
+                    type_: Box::new(StorageFileType::StorageFileUnknown(
+                        StorageFileUnknownConstructor {},
+                    )),
+                    mtime: 0,
+                    bytes: vec![(request.offset % 251) as u8; len],
+                });
+                let _ = on_chunk(index, Ok(file.clone()));
+                if index == 0 {
+                    lengths_during_batch.push(fs::metadata(&path).map(|m| m.len()).unwrap_or(0));
+                }
+                results.push(Ok(file));
+            }
+            Ok(results)
+        },
+    );
+    set_pipeline_parts(previous);
+    assert!(result.is_ok(), "streaming download failed: {result:?}");
+    assert!(
+        lengths_during_batch.iter().any(|len| *len > 0),
+        "part must be written before fetch_batch returns: {lengths_during_batch:?}"
+    );
+    assert!(batches >= 1);
+    fs::remove_file(&path).ok();
+}
+
+#[test]
+fn progress_counts_each_offset_once_when_on_chunk_and_batch_both_deliver() {
+    use std::sync::{Arc, Mutex};
+    use tellers_mtproto::latest::api::{
+        StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
+    };
+    let seen = Arc::new(Mutex::new(Vec::<i64>::new()));
+    let seen_cb = seen.clone();
+    set_progress_callback(Some(Arc::new(move |_, downloaded, _| {
+        seen_cb.lock().unwrap().push(downloaded);
+    })));
+    let media = MediaRef {
+        kind: "document".into(),
+        cache_key: "progress-once".into(),
+        location: MediaLocation::Document {
+            id: 41,
+            access_hash: 42,
+            file_reference: vec![8],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "application/pdf".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    let path = std::env::temp_dir().join(format!("monogram-progress-once-{}", std::process::id()));
+    let file_size = CHUNK as i64 * 4;
+    let result = download_media_range_batched_streaming(
+        2,
+        &media,
+        &path,
+        &path,
+        None,
+        2,
+        |_init, requests, on_chunk| {
+            let mut pending = requests;
+            let mut results = Vec::new();
+            let mut index = 0usize;
+            while index < pending.len() {
+                let request = pending[index].clone();
+                let remaining = (file_size - request.offset).max(0) as usize;
+                let len = remaining.min(request.limit as usize);
+                let file = UploadFile::UploadFile(UploadFileConstructor {
+                    type_: Box::new(StorageFileType::StorageFileUnknown(
+                        StorageFileUnknownConstructor {},
+                    )),
+                    mtime: 0,
+                    bytes: vec![4u8; len],
+                });
+                if let Some(next) = on_chunk(index, Ok(file.clone())) {
+                    pending.push(next);
+                }
+                results.push(Ok(file));
+                index += 1;
+            }
+            Ok(results)
+        },
+    );
+    set_progress_callback(None);
+    assert!(result.is_ok(), "{result:?}");
+    let values = seen.lock().unwrap().clone();
+    assert!(!values.is_empty(), "progress must be pushed");
+    let last = *values.last().unwrap();
+    assert_eq!(last, file_size, "progress doubled or short: {values:?}");
+    assert!(
+        values.windows(2).all(|w| w[1] >= w[0]),
+        "progress went backwards: {values:?}"
+    );
+    fs::remove_file(&path).ok();
+}
+
+#[test]
+fn completed_part_refills_inflight_window_without_waiting_for_the_batch() {
+    use tellers_mtproto::latest::api::{
+        StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
+    };
+    let previous = pipeline_parts();
+    set_pipeline_parts(2);
+    let media = MediaRef {
+        kind: "video".into(),
+        cache_key: "slide-refill".into(),
+        location: MediaLocation::Document {
+            id: 31,
+            access_hash: 32,
+            file_reference: vec![7],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "video/mp4".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    let path = std::env::temp_dir().join(format!("monogram-slide-refill-{}", std::process::id()));
+    let file_size = CHUNK as i64 * 5;
+    let mut batches = 0usize;
+    let mut max_inflight = 0usize;
+    let mut seen_offsets: Vec<i64> = Vec::new();
+    let result = download_media_range_batched_streaming(
+        2,
+        &media,
+        &path,
+        &path,
+        None,
+        2,
+        |_init, requests, on_chunk| {
+            batches += 1;
+            let mut pending = requests;
+            let mut results = Vec::new();
+            let mut index = 0usize;
+            while index < pending.len() {
+                max_inflight = max_inflight.max(pending.len() - index);
+                let request = pending[index].clone();
+                seen_offsets.push(request.offset);
+                let remaining = (file_size - request.offset).max(0) as usize;
+                let len = remaining.min(request.limit as usize);
+                let file = UploadFile::UploadFile(UploadFileConstructor {
+                    type_: Box::new(StorageFileType::StorageFileUnknown(
+                        StorageFileUnknownConstructor {},
+                    )),
+                    mtime: 0,
+                    bytes: vec![3u8; len],
+                });
+                if let Some(next) = on_chunk(index, Ok(file.clone())) {
+                    pending.push(next);
+                }
+                results.push(Ok(file));
+                index += 1;
+            }
+            Ok(results)
+        },
+    );
+    set_pipeline_parts(previous);
+    assert!(result.is_ok(), "sliding download failed: {result:?}");
+    assert_eq!(batches, 1, "refill must stay inside the first window call");
+    assert!(
+        seen_offsets.len() >= 5,
+        "expected whole file via refill: {seen_offsets:?}"
+    );
+    assert!(
+        max_inflight <= 2,
+        "window must stay at parts_in_flight: {max_inflight}"
+    );
+    assert_eq!(fs::read(&path).unwrap().len(), file_size as usize);
+    fs::remove_file(&path).ok();
+}
+
+#[test]
+fn one_mib_chunks_are_rejected() {
+    let previous = chunk_size();
+    set_chunk_size(1024 * 1024);
+    assert_eq!(chunk_size(), DEFAULT_CHUNK);
+    set_chunk_size(512 * 1024);
+    assert_eq!(chunk_size(), 512 * 1024);
+    set_chunk_size(previous);
+}
+
+#[test]
+fn flood_wait_retries_then_succeeds() {
+    use tellers_mtproto::latest::api::{
+        StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
+    };
+    let media = MediaRef {
+        kind: "video".into(),
+        cache_key: "flood-retry".into(),
+        location: MediaLocation::Document {
+            id: 21,
+            access_hash: 22,
+            file_reference: vec![6],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "video/mp4".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    let path = std::env::temp_dir().join(format!("monogram-flood-{}", std::process::id()));
+    let mut calls = 0u8;
+    let result =
+        download_media_range_batched(2, &media, &path, &path, None, 1, |_init, requests| {
+            calls += 1;
+            if calls == 1 {
+                return Err(MtprotoError::Message("RPC 420: FLOOD_WAIT_2".into()));
+            }
+            Ok(requests
+                .into_iter()
+                .map(|request| {
+                    let remaining = (20i64 - request.offset).max(0) as usize;
+                    Ok(UploadFile::UploadFile(UploadFileConstructor {
+                        type_: Box::new(StorageFileType::StorageFileUnknown(
+                            StorageFileUnknownConstructor {},
+                        )),
+                        mtime: 0,
+                        bytes: vec![9u8; remaining.min(request.limit as usize)],
+                    }))
+                })
+                .collect())
+        });
+    assert!(result.is_ok(), "{result:?}");
+    assert!(calls >= 2);
+    fs::remove_file(&path).ok();
+}
+
+#[test]
+fn rpc_timeout_retries_from_missing_offset_without_dropping_written_parts() {
+    use tellers_mtproto::latest::api::{
+        StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
+    };
+    let media = MediaRef {
+        kind: "document".into(),
+        cache_key: "timeout-retry".into(),
+        location: MediaLocation::Document {
+            id: 51,
+            access_hash: 52,
+            file_reference: vec![9],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "application/pdf".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    let path = std::env::temp_dir().join(format!("monogram-timeout-{}", std::process::id()));
+    let file_size = CHUNK as i64 * 3;
+    let mut calls = 0u8;
+    let result = download_media_range_batched_streaming(
+        2,
+        &media,
+        &path,
+        &path,
+        None,
+        2,
+        |_init, requests, on_chunk| {
+            calls += 1;
+            if calls == 1 {
+                let request = requests[0].clone();
+                let file = UploadFile::UploadFile(UploadFileConstructor {
+                    type_: Box::new(StorageFileType::StorageFileUnknown(
+                        StorageFileUnknownConstructor {},
+                    )),
+                    mtime: 0,
+                    bytes: vec![1u8; request.limit as usize],
+                });
+                let _ = on_chunk(0, Ok(file.clone()));
+                return Err(MtprotoError::Message(
+                    "RPC timeout recv=95973128 needed=524399 available=513559 prefix=524395 last_ctor=0xf35c6d01".into(),
+                ));
+            }
+            let mut results = Vec::new();
+            for (index, request) in requests.iter().enumerate() {
+                let remaining = (file_size - request.offset).max(0) as usize;
+                let len = remaining.min(request.limit as usize);
+                let file = UploadFile::UploadFile(UploadFileConstructor {
+                    type_: Box::new(StorageFileType::StorageFileUnknown(
+                        StorageFileUnknownConstructor {},
+                    )),
+                    mtime: 0,
+                    bytes: vec![2u8; len],
+                });
+                let _ = on_chunk(index, Ok(file.clone()));
+                results.push(Ok(file));
+            }
+            Ok(results)
+        },
+    );
+    assert!(result.is_ok(), "{result:?}");
+    assert!(calls >= 2, "timeout must retry the window: calls={calls}");
+    assert_eq!(fs::read(&path).unwrap().len(), file_size as usize);
+    fs::remove_file(&path).ok();
+}
+
+#[test]
+fn capped_refill_releases_fetch_batch_before_eof() {
+    use tellers_mtproto::latest::api::{
+        StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
+    };
+    let media = MediaRef {
+        kind: "video".into(),
+        cache_key: "window-release".into(),
+        location: MediaLocation::Document {
+            id: 61,
+            access_hash: 62,
+            file_reference: vec![10],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "video/mp4".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    let path = std::env::temp_dir().join(format!("monogram-window-{}", std::process::id()));
+    let file_size = CHUNK as i64 * 6;
+    let mut batches = 0usize;
+    let result = download_media_range_batched_streaming_capped(
+        2,
+        &media,
+        &path,
+        &path,
+        None,
+        2,
+        Some(2),
+        |_init, requests, on_chunk| {
+            batches += 1;
+            let mut pending = requests;
+            let mut results = Vec::new();
+            let mut index = 0usize;
+            while index < pending.len() {
+                let request = pending[index].clone();
+                let remaining = (file_size - request.offset).max(0) as usize;
+                let len = remaining.min(request.limit as usize);
+                let file = UploadFile::UploadFile(UploadFileConstructor {
+                    type_: Box::new(StorageFileType::StorageFileUnknown(
+                        StorageFileUnknownConstructor {},
+                    )),
+                    mtime: 0,
+                    bytes: vec![5u8; len],
+                });
+                if let Some(next) = on_chunk(index, Ok(file.clone())) {
+                    pending.push(next);
+                }
+                results.push(Ok(file));
+                index += 1;
+            }
+            Ok(results)
+        },
+    );
+    assert!(result.is_ok(), "{result:?}");
+    assert!(
+        batches >= 2,
+        "home-DC window must return fetch_batch before EOF: batches={batches}"
+    );
+    assert_eq!(fs::read(&path).unwrap().len(), file_size as usize);
+    fs::remove_file(&path).ok();
 }

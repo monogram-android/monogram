@@ -5,6 +5,8 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use crate::{HashSet, HashSetExt};
+
 use tellers_mtproto::latest::api::{UploadFile, UploadGetFileRequest};
 use tellers_mtproto_session::Snapshot;
 
@@ -30,11 +32,10 @@ pub fn notify_progress(path: &str, downloaded: i64, total: i64) {
     }
 }
 
-static CHUNK_SIZE: std::sync::atomic::AtomicI32 =
-    std::sync::atomic::AtomicI32::new(DEFAULT_CHUNK);
+static CHUNK_SIZE: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(DEFAULT_CHUNK);
 
 pub fn set_chunk_size(size: i32) {
-    let valid = matches!(size, 131072 | 262144 | 524288 | 1048576);
+    let valid = matches!(size, 131072 | 262144 | 524288);
     CHUNK_SIZE.store(
         if valid { size } else { DEFAULT_CHUNK },
         std::sync::atomic::Ordering::Relaxed,
@@ -53,6 +54,68 @@ fn resolve_chunk(offset: Option<i64>) -> i32 {
         }
     }
     desired
+}
+
+fn is_limit_invalid(err: &MtprotoError) -> bool {
+    match err {
+        MtprotoError::Message(message) => {
+            message.contains("LIMIT_INVALID") || message.contains("limit_invalid")
+        }
+        _ => false,
+    }
+}
+
+fn fallback_chunk_after_limit_invalid(chunk: i32) -> Option<i32> {
+    if chunk > DEFAULT_CHUNK {
+        Some(DEFAULT_CHUNK)
+    } else {
+        None
+    }
+}
+
+fn flood_wait_secs(err: &MtprotoError) -> Option<u64> {
+    let MtprotoError::Message(message) = err else {
+        return None;
+    };
+    ["FLOOD_WAIT_", "FLOOD_PREMIUM_WAIT_"]
+        .iter()
+        .filter_map(|prefix| message.split_once(prefix))
+        .filter_map(|(_, suffix)| {
+            suffix
+                .split(|c: char| !c.is_ascii_digit())
+                .next()?
+                .parse::<u64>()
+                .ok()
+        })
+        .max()
+}
+
+fn sleep_flood_wait(secs: u64) {
+    let dur = if cfg!(test) {
+        std::time::Duration::from_millis(1)
+    } else {
+        std::time::Duration::from_secs(secs.clamp(1, 15))
+    };
+    std::thread::sleep(dur);
+}
+
+fn is_rpc_timeout(err: &MtprotoError) -> bool {
+    match err {
+        MtprotoError::Message(message) => message.contains("RPC timeout"),
+        _ => false,
+    }
+}
+
+fn first_missing_offset(counted: &HashSet<i64>, start: i64, end: i64, chunk: i32) -> i64 {
+    let step = i64::from(chunk.max(1));
+    let mut off = start;
+    while off < end {
+        if !counted.contains(&off) {
+            return off;
+        }
+        off = off.saturating_add(step);
+    }
+    end
 }
 
 pub fn download_media(
@@ -227,9 +290,8 @@ impl Drop for StagedDownload {
     }
 }
 
-/// Requests `parts_in_flight` parts together on one session, writing each response at its
-/// offset. EOF is a short or empty part. `fetch_batch` sends the whole batch before
-/// returning and answers one result per request, in order.
+/// Requests `parts_in_flight` parts on one session and refills the window as each
+/// part returns. EOF is a short or empty part.
 pub(crate) fn download_media_range_batched(
     dc_id: i32,
     media: &MediaRef,
@@ -249,7 +311,20 @@ pub(crate) fn download_media_range_batched(
         cancellation_path,
         offset,
         parts_in_flight,
-        |first, requests, _| fetch_batch(first, requests),
+        |first, requests, on_chunk| {
+            let results = fetch_batch(first, requests)?;
+            for (index, result) in results.iter().enumerate() {
+                match result {
+                    Ok(file) => {
+                        let _ = on_chunk(index, Ok(file.clone()));
+                    }
+                    Err(err) => {
+                        let _ = on_chunk(index, Err(err.clone()));
+                    }
+                }
+            }
+            Ok(results)
+        },
     )
 }
 
@@ -260,10 +335,39 @@ pub(crate) fn download_media_range_batched_streaming(
     cancellation_path: &Path,
     offset: Option<i64>,
     parts_in_flight: usize,
+    fetch_batch: impl FnMut(
+        bool,
+        Vec<UploadGetFileRequest>,
+        &mut dyn FnMut(usize, Result<UploadFile, MtprotoError>) -> Option<UploadGetFileRequest>,
+    ) -> Result<Vec<Result<UploadFile, MtprotoError>>, MtprotoError>,
+) -> Result<String, MtprotoError> {
+    download_media_range_batched_streaming_capped(
+        dc_id,
+        media,
+        dest_path,
+        cancellation_path,
+        offset,
+        parts_in_flight,
+        None,
+        fetch_batch,
+    )
+}
+
+/// `refill_limit` caps sliding refills per `fetch_batch` so the caller can drop
+/// a home-DC main-session lock between windows. `None` keeps the window full
+/// until EOF (media-DC file sessions).
+pub(crate) fn download_media_range_batched_streaming_capped(
+    dc_id: i32,
+    media: &MediaRef,
+    dest_path: &Path,
+    cancellation_path: &Path,
+    offset: Option<i64>,
+    parts_in_flight: usize,
+    refill_limit: Option<usize>,
     mut fetch_batch: impl FnMut(
         bool,
         Vec<UploadGetFileRequest>,
-        &mut dyn FnMut(usize, Result<UploadFile, MtprotoError>),
+        &mut dyn FnMut(usize, Result<UploadFile, MtprotoError>) -> Option<UploadGetFileRequest>,
     ) -> Result<Vec<Result<UploadFile, MtprotoError>>, MtprotoError>,
 ) -> Result<String, MtprotoError> {
     let chunk = resolve_chunk(offset);
@@ -281,7 +385,7 @@ pub(crate) fn download_media_range_batched_streaming(
             cancellation_path,
             offset,
             |request| {
-                let mut results = fetch_batch(false, vec![request], &mut |_, _| {})?;
+                let mut results = fetch_batch(false, vec![request], &mut |_, _| None)?;
                 results
                     .pop()
                     .unwrap_or_else(|| Err(MtprotoError::Message("missing media part".into())))
@@ -303,120 +407,223 @@ pub(crate) fn download_media_range_batched_streaming(
             fs::File::create(dest_path).map_err(|e| MtprotoError::Message(e.to_string()))?;
         let width = parts_in_flight.max(1);
         let stream = offset.is_some();
-        let batch = if stream { STREAM_WINDOW_CHUNKS } else { width };
         let mut next = offset.unwrap_or(0);
+        let mut retried_limit = false;
+        let mut flood_retries = 0u8;
+        let mut timeout_retries = 0u8;
         let mut written_end = 0i64;
         let mut downloaded_bytes = offset.unwrap_or(0);
+        let mut counted_offsets = HashSet::new();
         let mut first_batch = true;
         let target_str = cancellation_path.display().to_string();
-        loop {
-            if download_cancelled(cancellation_path) {
-                return Err(MtprotoError::Message("cancelled".into()));
-            }
-            let mut offsets = Vec::with_capacity(batch);
-            for step in 0..batch {
-                offsets.push(next + (step as i64) * i64::from(chunk));
-            }
-            let (flags, cdn_supported) = super::cdn::getfile_cdn_fields();
-            let requests: Vec<UploadGetFileRequest> = offsets
-                .iter()
-                .map(|offset| UploadGetFileRequest {
-                    flags,
-                    precise: None,
-                    cdn_supported: cdn_supported.clone(),
-                    location: Box::new(location.clone()),
-                    offset: *offset,
-                    limit: chunk,
-                })
-                .collect();
-            let mut written_parts = vec![false; offsets.len()];
-            let mut short_or_empty = vec![false; offsets.len()];
-            let mut last_part = false;
-
-            let responses = {
-                let mut chunk_cb = |index: usize, res: Result<UploadFile, MtprotoError>| {
-                    if download_cancelled(cancellation_path) {
-                        return;
-                    }
-                    if let Ok(UploadFile::UploadFile(file)) = res {
-                        let bytes = file.bytes;
-                        if !bytes.is_empty() && bytes.len() <= chunk as usize {
-                            let part_offset = offsets[index];
-                            use std::io::{Seek, SeekFrom, Write};
-                            if out.seek(SeekFrom::Start(part_offset as u64)).is_ok()
-                                && out.write_all(&bytes).is_ok()
-                            {
-                                let _ = out.flush();
-                                written_end = written_end.max(part_offset + bytes.len() as i64);
-                                downloaded_bytes += bytes.len() as i64;
-                                notify_progress(&target_str, downloaded_bytes, 0);
-                                written_parts[index] = true;
-                            }
-                        }
-                        if bytes.len() < chunk as usize || stream {
-                            short_or_empty[index] = true;
-                        }
-                    }
-                };
-                fetch_batch(first_batch, requests, &mut chunk_cb)?
-            };
-
-            first_batch = false;
-            for (index, response) in responses.into_iter().enumerate() {
+        'download: loop {
+            let chunk = resolve_chunk(Some(next).filter(|_| next > 0).or(offset));
+            let batch = if stream { STREAM_WINDOW_CHUNKS } else { width };
+            loop {
                 if download_cancelled(cancellation_path) {
                     return Err(MtprotoError::Message("cancelled".into()));
                 }
-                if last_part {
-                    // Reached EOF at an earlier part; ignore any trailing parts/errors past EOF.
-                    break;
+                let mut offsets = Vec::with_capacity(batch);
+                for step in 0..batch {
+                    offsets.push(next + (step as i64) * i64::from(chunk));
                 }
-                if written_parts[index] {
-                    if short_or_empty[index] {
-                        last_part = true;
-                    }
-                    continue;
-                }
-                let part_offset = offsets[index];
-                match response {
-                    Ok(UploadFile::UploadFile(file)) => {
-                        let bytes = file.bytes;
-                        if bytes.len() > chunk as usize {
-                            return Err(MtprotoError::Message("oversized media part".into()));
+                let (flags, cdn_supported) = super::cdn::getfile_cdn_fields();
+                let requests: Vec<UploadGetFileRequest> = offsets
+                    .iter()
+                    .map(|offset| UploadGetFileRequest {
+                        flags,
+                        precise: None,
+                        cdn_supported: cdn_supported.clone(),
+                        location: Box::new(location.clone()),
+                        offset: *offset,
+                        limit: chunk,
+                    })
+                    .collect();
+                let mut written_parts = vec![false; offsets.len()];
+                let mut short_or_empty = vec![false; offsets.len()];
+                let mut last_part = false;
+
+                let mut offset_by_index = offsets.clone();
+                let mut next_to_request = next + (batch as i64) * i64::from(chunk);
+                let mut refills_used = 0usize;
+                let responses = {
+                    let mut chunk_cb = |index: usize,
+                                        res: Result<UploadFile, MtprotoError>|
+                     -> Option<UploadGetFileRequest> {
+                        if download_cancelled(cancellation_path) {
+                            return None;
                         }
-                        if bytes.is_empty() {
+                        let part_offset = *offset_by_index.get(index)?;
+                        let mut hit_short = false;
+                        if let Ok(UploadFile::UploadFile(file)) = &res {
+                            let bytes = &file.bytes;
+                            if !bytes.is_empty() && bytes.len() <= chunk as usize {
+                                use std::io::{Seek, SeekFrom, Write};
+                                if out.seek(SeekFrom::Start(part_offset as u64)).is_ok()
+                                    && out.write_all(bytes).is_ok()
+                                {
+                                    let _ = out.flush();
+                                    written_end = written_end.max(part_offset + bytes.len() as i64);
+                                    if counted_offsets.insert(part_offset) {
+                                        downloaded_bytes += bytes.len() as i64;
+                                        notify_progress(&target_str, downloaded_bytes, 0);
+                                    }
+                                    if index < written_parts.len() {
+                                        written_parts[index] = true;
+                                    }
+                                }
+                            }
+                            if bytes.len() < chunk as usize || stream {
+                                hit_short = true;
+                                last_part = true;
+                                if index < short_or_empty.len() {
+                                    short_or_empty[index] = true;
+                                }
+                            }
+                        }
+                        if stream || hit_short {
+                            return None;
+                        }
+                        if refill_limit.is_some_and(|limit| refills_used >= limit) {
+                            return None;
+                        }
+                        while counted_offsets.contains(&next_to_request) {
+                            next_to_request += i64::from(chunk);
+                        }
+                        refills_used += 1;
+                        let off = next_to_request;
+                        next_to_request += i64::from(chunk);
+                        offset_by_index.push(off);
+                        crate::perf::count("media.pipeline.refill");
+                        Some(UploadGetFileRequest {
+                            flags,
+                            precise: None,
+                            cdn_supported: cdn_supported.clone(),
+                            location: Box::new(location.clone()),
+                            offset: off,
+                            limit: chunk,
+                        })
+                    };
+                    match fetch_batch(first_batch, requests, &mut chunk_cb) {
+                        Err(err)
+                            if !retried_limit
+                                && is_limit_invalid(&err)
+                                && fallback_chunk_after_limit_invalid(chunk).is_some() =>
+                        {
+                            set_chunk_size(DEFAULT_CHUNK);
+                            retried_limit = true;
+                            continue 'download;
+                        }
+                        Err(err) if flood_retries < 3 && flood_wait_secs(&err).is_some() => {
+                            flood_retries += 1;
+                            sleep_flood_wait(flood_wait_secs(&err).unwrap_or(1));
+                            continue 'download;
+                        }
+                        Err(err) if timeout_retries < 3 && is_rpc_timeout(&err) => {
+                            timeout_retries += 1;
+                            next = first_missing_offset(
+                                &counted_offsets,
+                                offset.unwrap_or(0),
+                                next_to_request,
+                                chunk,
+                            );
+                            continue 'download;
+                        }
+                        other => other?,
+                    }
+                };
+
+                first_batch = false;
+                timeout_retries = 0;
+                for (index, response) in responses.into_iter().enumerate() {
+                    if download_cancelled(cancellation_path) {
+                        return Err(MtprotoError::Message("cancelled".into()));
+                    }
+                    if last_part {
+                        // Reached EOF at an earlier part; ignore any trailing parts/errors past EOF.
+                        break;
+                    }
+                    if index >= written_parts.len() {
+                        continue;
+                    }
+                    if written_parts[index] {
+                        if short_or_empty[index] {
                             last_part = true;
-                            break;
                         }
-                        use std::io::{Seek, SeekFrom, Write};
-                        out.seek(SeekFrom::Start(part_offset as u64))
-                            .map_err(|e| MtprotoError::Message(e.to_string()))?;
-                        out.write_all(&bytes)
-                            .map_err(|e| MtprotoError::Message(e.to_string()))?;
-                        let _ = out.flush();
-                        written_end = written_end.max(part_offset + bytes.len() as i64);
-                        downloaded_bytes += bytes.len() as i64;
-                        notify_progress(&target_str, downloaded_bytes, 0);
-                        if bytes.len() < chunk as usize || stream {
-                            last_part = true;
+                        continue;
+                    }
+                    let part_offset = match offsets.get(index) {
+                        Some(value) => *value,
+                        None => continue,
+                    };
+                    match response {
+                        Ok(UploadFile::UploadFile(file)) => {
+                            let bytes = file.bytes;
+                            if bytes.len() > chunk as usize {
+                                return Err(MtprotoError::Message("oversized media part".into()));
+                            }
+                            if bytes.is_empty() {
+                                last_part = true;
+                                break;
+                            }
+                            use std::io::{Seek, SeekFrom, Write};
+                            out.seek(SeekFrom::Start(part_offset as u64))
+                                .map_err(|e| MtprotoError::Message(e.to_string()))?;
+                            out.write_all(&bytes)
+                                .map_err(|e| MtprotoError::Message(e.to_string()))?;
+                            let _ = out.flush();
+                            written_end = written_end.max(part_offset + bytes.len() as i64);
+                            if counted_offsets.insert(part_offset) {
+                                downloaded_bytes += bytes.len() as i64;
+                                notify_progress(&target_str, downloaded_bytes, 0);
+                            }
+                            if bytes.len() < chunk as usize || stream {
+                                last_part = true;
+                            }
                         }
-                    }
-                    Ok(UploadFile::UploadFileCdnRedirect(redirect)) => {
-                        super::cdn::store_cdn_redirect(&redirect, part_offset);
-                        return Err(super::cdn::cdn_redirect_error());
-                    }
-                    Ok(_) => {
-                        return Err(MtprotoError::Message("unexpected media response".into()));
-                    }
-                    Err(err) => {
-                        return Err(err);
+                        Ok(UploadFile::UploadFileCdnRedirect(redirect)) => {
+                            super::cdn::store_cdn_redirect(&redirect, part_offset);
+                            return Err(super::cdn::cdn_redirect_error());
+                        }
+                        Ok(_) => {
+                            return Err(MtprotoError::Message("unexpected media response".into()));
+                        }
+                        Err(err) => {
+                            if !retried_limit
+                                && is_limit_invalid(&err)
+                                && fallback_chunk_after_limit_invalid(chunk).is_some()
+                            {
+                                set_chunk_size(DEFAULT_CHUNK);
+                                retried_limit = true;
+                                continue 'download;
+                            }
+                            if flood_retries < 3 {
+                                if let Some(secs) = flood_wait_secs(&err) {
+                                    flood_retries += 1;
+                                    sleep_flood_wait(secs);
+                                    continue 'download;
+                                }
+                            }
+                            if timeout_retries < 3 && is_rpc_timeout(&err) {
+                                timeout_retries += 1;
+                                next = first_missing_offset(
+                                    &counted_offsets,
+                                    offset.unwrap_or(0),
+                                    next_to_request,
+                                    chunk,
+                                );
+                                continue 'download;
+                            }
+                            return Err(err);
+                        }
                     }
                 }
+                if last_part || stream {
+                    break 'download;
+                }
+                next = next_to_request;
             }
-            if last_part || stream {
-                break;
-            }
-            next += (batch as i64) * i64::from(chunk);
-        }
+        } // 'download
         out.set_len(written_end as u64)
             .map_err(|e| MtprotoError::Message(e.to_string()))?;
         out.flush()

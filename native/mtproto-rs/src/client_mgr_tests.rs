@@ -473,7 +473,10 @@ fn cached_connect_does_not_rewrite_session() {
     assert!(!before.is_empty());
     connect(handle).expect("cached connect");
     let after = std::fs::read(&path).unwrap();
-    assert_eq!(after, before, "cached connect must not rewrite the session file");
+    assert_eq!(
+        after, before,
+        "cached connect must not rewrite the session file"
+    );
     destroy_client(handle);
     let _ = std::fs::remove_dir_all(dir);
 }
@@ -503,7 +506,10 @@ fn getfile_without_durable_change_does_not_rewrite_session() {
     .unwrap();
     flush_persist(&client);
     let after = std::fs::read(&path).unwrap();
-    assert_eq!(after, before, "getFile-like RPC must not rewrite the session file");
+    assert_eq!(
+        after, before,
+        "getFile-like RPC must not rewrite the session file"
+    );
     destroy_client(handle);
     let _ = std::fs::remove_file(path);
 }
@@ -728,7 +734,10 @@ fn read_keeps_home_session_when_a_secondary_lane_is_busy() {
     let elapsed = started.elapsed();
     destroy_client(handle);
     let _ = std::fs::remove_file(path);
-    assert!(!used_read_lane, "permanent-key read opened a parallel session");
+    assert!(
+        !used_read_lane,
+        "permanent-key read opened a parallel session"
+    );
     assert!(
         elapsed < std::time::Duration::from_millis(150),
         "read waited for an unused secondary lane ({elapsed:?})"
@@ -771,8 +780,7 @@ fn read_does_not_wait_for_unused_secondary_lanes_without_pfs() {
         });
         let _ = done_tx.send(result.expect("read lane call"));
     });
-    let used_read_lane = done_rx
-        .recv_timeout(std::time::Duration::from_secs(5));
+    let used_read_lane = done_rx.recv_timeout(std::time::Duration::from_secs(5));
     release_tx.send(()).expect("release lanes");
     holder.join().expect("holder thread");
     caller.join().expect("caller thread");
@@ -1070,4 +1078,18 @@ fn upload_batches_take_the_main_lane_once_per_batch() {
     let _ = std::fs::remove_file(file);
     let _ = std::fs::remove_file(session);
     crate::scheduler::set_main_session_allowance(Some(original));
+}
+
+#[test]
+fn even_odd_media_offsets_split_by_chunk() {
+    let chunk = 128 * 1024;
+    let offsets = [0, chunk, chunk * 2, chunk * 3, chunk * 4];
+    let (even, odd) = split_even_odd_request_indices(&offsets, chunk as i32);
+    assert_eq!(even, vec![0, 2, 4]);
+    assert_eq!(odd, vec![1, 3]);
+}
+
+#[test]
+fn extra_main_sessions_stay_zero_without_tmp_sessions() {
+    assert_eq!(crate::scheduler::extra_main_sessions(), 0);
 }

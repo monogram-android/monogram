@@ -9,20 +9,21 @@ use crate::MtprotoError;
 
 use super::dc::{extra_reconnect_same_host, reconnect_backoff, same_ip_endpoints};
 use super::framing::{
-    bad_msg_should_reconnect, flush_acks, make_padding, open_live, open_live_addr, queue_update,
-    recover_detailed_answer, recreate_session_after_bad_message, recv_framed,
-    repair_clock_from_server_msg_id, send_framed, send_ping, try_decode_complete, SystemClock,
+    SystemClock, bad_msg_should_reconnect, flush_acks, make_padding, open_live, open_live_addr,
+    queue_update, recover_detailed_answer, recreate_session_after_bad_message, recv_framed,
+    repair_clock_from_server_msg_id, send_framed, send_ping, try_decode_complete,
 };
 use super::inbound::{
-    apply_new_session_salt, map_rpc_error, parse_authenticated, should_process_inbound,
-    InboundEvent, BAD_MSG_NOTIFICATION, MAX_UNPACKED_BYTES,
+    BAD_MSG_NOTIFICATION, InboundEvent, MAX_UNPACKED_BYTES, apply_new_session_salt, map_rpc_error,
+    parse_authenticated, should_process_inbound,
 };
 use super::live::LiveTransport;
-use super::supervisor::{failure_class, is_transport_error, ConnectionSupervisor, FailureClass};
+use super::supervisor::{ConnectionSupervisor, FailureClass, failure_class, is_transport_error};
 use super::timeout::{
-    keepalive_probe_failed, leftover_frame_grace, live_transport_stale, note_inbound_liveness,
-    rpc_attempt_budget, rpc_timeout_message, rpc_timeout_secs, subscribed_read_deadline,
-    timeout_idle_needs_probe, trim_padded_mtproto_packet, LAST_INBOUND_CTOR,
+    LAST_INBOUND_CTOR, extend_streaming_deadlines, keepalive_probe_failed, leftover_frame_grace,
+    live_transport_stale, note_inbound_liveness, rpc_attempt_budget, rpc_timeout_message,
+    rpc_timeout_secs, subscribed_read_deadline, timeout_idle_needs_probe,
+    trim_padded_mtproto_packet,
 };
 
 pub(crate) struct RawMethod {
@@ -247,14 +248,14 @@ pub(crate) fn invoke_batch_raw_with_retry<F>(
 where
     F: FnMut(bool) -> Result<Vec<Vec<u8>>, MtprotoError>,
 {
-    invoke_batch_raw_with_retry_streaming(snapshot, replay_safe, make_bodies, &mut |_, _| {})
+    invoke_batch_raw_with_retry_streaming(snapshot, replay_safe, make_bodies, &mut |_, _| None)
 }
 
 pub(crate) fn invoke_batch_raw_with_retry_streaming<F>(
     snapshot: &mut Snapshot,
     replay_safe: bool,
     mut make_bodies: F,
-    on_chunk: &mut dyn FnMut(usize, Result<&[u8], &MtprotoError>),
+    on_chunk: &mut dyn FnMut(usize, Result<&[u8], &MtprotoError>) -> Option<Vec<u8>>,
 ) -> Result<Vec<Result<Vec<u8>, MtprotoError>>, MtprotoError>
 where
     F: FnMut(bool) -> Result<Vec<Vec<u8>>, MtprotoError>,
@@ -410,7 +411,7 @@ pub(crate) fn invoke_batch_until_results<P: tellers_mtproto_engine::RetryPolicy>
         hard_cap,
         reused,
         send_started,
-        |_, _| {},
+        |_, _| None,
     )
 }
 
@@ -420,12 +421,12 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
     transport: &mut LiveTransport,
     bodies: &[Vec<u8>],
     clock: &SystemClock,
-    attempt_deadline: std::time::Instant,
-    overall_deadline: std::time::Instant,
-    hard_cap: std::time::Instant,
+    mut attempt_deadline: std::time::Instant,
+    mut overall_deadline: std::time::Instant,
+    mut hard_cap: std::time::Instant,
     reused: bool,
     send_started: &mut bool,
-    mut on_chunk: impl FnMut(usize, Result<&[u8], &MtprotoError>),
+    mut on_chunk: impl FnMut(usize, Result<&[u8], &MtprotoError>) -> Option<Vec<u8>>,
 ) -> Result<Vec<Result<Vec<u8>, MtprotoError>>, MtprotoError> {
     LAST_INBOUND_CTOR.with(|c| c.set(0));
     let mut pending: Vec<Option<RequestHandle<Vec<u8>>>> = Vec::with_capacity(bodies.len());
@@ -502,6 +503,7 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
             }
 
             let mut complete = true;
+            let mut refills: Vec<Vec<u8>> = Vec::new();
             for (index, slot) in pending.iter_mut().enumerate() {
                 if results[index].is_some() {
                     continue;
@@ -515,19 +517,37 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
                 {
                     let mapped = match map_rpc_error(&response) {
                         Some(err) => {
-                            on_chunk(index, Err(&err));
+                            if let Some(body) = on_chunk(index, Err(&err)) {
+                                refills.push(body);
+                            }
                             Err(err)
                         }
                         None => {
-                            on_chunk(index, Ok(&response));
+                            if let Some(body) = on_chunk(index, Ok(&response)) {
+                                refills.push(body);
+                            }
                             Ok(response)
                         }
                     };
                     results[index] = Some(mapped);
                     *slot = None;
+                    extend_streaming_deadlines(
+                        &mut attempt_deadline,
+                        &mut overall_deadline,
+                        &mut hard_cap,
+                    );
                 } else {
                     complete = false;
                 }
+            }
+            for body in refills {
+                let method = RawMethod { body };
+                let handle = engine
+                    .invoke(&method, clock)
+                    .map_err(|e| MtprotoError::Message(e.to_string()))?;
+                pending.push(Some(handle));
+                results.push(None);
+                complete = false;
             }
             if complete {
                 flush_acks(engine, &mut transport.conn, &mut transport.framing, clock)?;

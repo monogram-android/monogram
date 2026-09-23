@@ -20,6 +20,14 @@
     <string name="dialog_media_failed">Médiá sa nepodarilo načítať</string>
     <string name="dialog_media_open_failed">Súbor sa nepodarilo otvoriť</string>
     <string name="dialog_media_cancel">Zastaviť sťahovanie</string>
+    <string name="dialog_downloads">Stiahnuté</string>
+    <string name="dialog_downloads_empty">Žiadne aktívne sťahovania</string>
+    <plurals name="dialog_downloads_count">
+        <item quantity="one">%d súbor</item>
+        <item quantity="few">%d súbory</item>
+        <item quantity="many">%d súborov</item>
+        <item quantity="other">%d súborov</item>
+    </plurals>
     <string name="dialog_media_document">Dokument</string>
     <string name="dialog_unsupported_message">Tento typ správy zatiaľ nie je podporovaný</string>
     <string name="dialog_poll_quiz">Kvíz</string>

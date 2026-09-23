@@ -465,6 +465,11 @@ internal class SessionCore(
     override fun downloadChunkKib(): Int =
         runCatching { native.downloadChunkKib() }.getOrDefault(0)
 
+    override fun setDownloadProgressListener(listener: ((String, Long, Long) -> Unit)?) {
+        runCatching { native.setDownloadProgressListener(listener) }
+            .onFailure { AppLog.warn("download progress", "listener failed: ${it.message}") }
+    }
+
     override fun downloadConcurrency(): List<Int> =
         runCatching { native.downloadConcurrency() }.getOrDefault(listOf(0, 0))
 

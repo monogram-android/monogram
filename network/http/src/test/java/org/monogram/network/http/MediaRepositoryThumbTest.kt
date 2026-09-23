@@ -224,4 +224,39 @@ class MediaRepositoryThumbTest {
         observer.cancelAndJoin()
         repo.shutdown()
     }
+
+    @Test
+    fun inlineThumbJpegSkipsFetcher() {
+        var peeks = 0
+        var fetches = 0
+        val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xD9.toByte())
+        val repo = MediaRepository(
+            cacheRoot = tmp.newFolder("inline-thumb"),
+            telegramFetcher = TelegramMediaFetcher { _, _, destPath, _, _ ->
+                fetches += 1
+                File(destPath).writeBytes(byteArrayOf(1))
+                Outcome.Ok(destPath)
+            },
+            inlineThumbPeek = TelegramInlineThumbPeek { _, _ ->
+                peeks += 1
+                jpeg
+            },
+        )
+        val message = Message(
+            id = MessageId(PeerId(1), 9),
+            senderId = null,
+            text = null,
+            date = 0L,
+            outgoing = false,
+            mediaKind = "photo",
+            mediaCacheKey = "photo:1",
+            thumbCacheKey = "photo:1:thumb",
+        )
+        assertTrue(repo.inlineThumbJpeg(message).contentEquals(jpeg))
+        assertEquals(1, peeks)
+        assertEquals(0, fetches)
+        assertTrue(repo.inlineThumbJpeg(message).contentEquals(jpeg))
+        assertEquals(1, peeks)
+        repo.shutdown()
+    }
 }

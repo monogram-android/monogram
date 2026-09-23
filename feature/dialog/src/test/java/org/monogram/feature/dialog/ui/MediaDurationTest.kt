@@ -196,10 +196,38 @@ class MediaDurationTest {
         assertEquals(true, shouldAutoFetchDisplayMedia("video"))
         assertEquals(true, shouldAutoFetchDisplayMedia("gif"))
         assertEquals(false, shouldAutoFetchDisplayMedia("sticker"))
+        assertEquals(true, shouldFetchDisplayPreview("photo", false, preset = wifi))
+        assertEquals(false, shouldFetchDisplayPreview("video", false, 200_000, wifi))
+        assertEquals(false, shouldFetchDisplayPreview("gif", false, 200_000, wifi))
+        assertEquals(true, shouldFetchDisplayPreview("video", false, 200_000, roaming))
+        assertEquals(true, shouldCancelOnViewportDetach(visible = false, userRequested = false, viewerOpen = false))
+        assertEquals(false, shouldCancelOnViewportDetach(visible = true, userRequested = false, viewerOpen = false))
+        assertEquals(false, shouldCancelOnViewportDetach(visible = false, userRequested = true, viewerOpen = false))
+        assertEquals(false, shouldCancelOnViewportDetach(visible = false, userRequested = false, viewerOpen = true))
         assertEquals(false, shouldAutoFetchFullMedia("audio", false))
         assertEquals(false, shouldAutoFetchFullMedia("voice", false))
         assertEquals(org.monogram.network.http.MediaPriority.VISIBLE, mediaFullPriority(false))
         assertEquals(org.monogram.network.http.MediaPriority.USER, mediaFullPriority(true))
+        assertEquals(
+            false,
+            shouldFetchMessageThumb(
+                "photo",
+                hasThumbFile = false,
+                strippedJpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte()),
+                thumbCacheKey = "photo:1:thumb",
+                fullCacheKey = "photo:1",
+            ),
+        )
+        assertEquals(
+            true,
+            shouldFetchMessageThumb(
+                "photo",
+                hasThumbFile = false,
+                strippedJpeg = null,
+                thumbCacheKey = "photo:1:thumb",
+                fullCacheKey = "photo:1",
+            ),
+        )
     }
 
     @Test

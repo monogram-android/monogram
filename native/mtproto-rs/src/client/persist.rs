@@ -6,9 +6,9 @@ use std::sync::{Arc, LazyLock};
 
 use parking_lot::Mutex;
 
-use crate::session_file::{media_from_index, ClientSession, FileSessionStore};
-use crate::tcp;
 use crate::MtprotoError;
+use crate::session_file::{ClientSession, FileSessionStore, media_from_index};
+use crate::tcp;
 
 use super::*;
 
@@ -22,13 +22,17 @@ static PERSIST_ORDER: LazyLock<Mutex<HashMap<PathBuf, Arc<AtomicU64>>>> =
 static PERSIST_WRITE: Mutex<()> = Mutex::new(());
 
 fn persist_generation(path: &Path) -> Arc<AtomicU64> {
-    PERSIST_ORDER.lock().entry(path.to_path_buf())
-        .or_insert_with(|| Arc::new(AtomicU64::new(0))).clone()
+    PERSIST_ORDER
+        .lock()
+        .entry(path.to_path_buf())
+        .or_insert_with(|| Arc::new(AtomicU64::new(0)))
+        .clone()
 }
 
 fn bump_persist_clock(clock: &AtomicU64) {
-    let _ = clock.fetch_update(Ordering::AcqRel, Ordering::Acquire,
-        |value| Some(value.saturating_add(1)));
+    let _ = clock.fetch_update(Ordering::AcqRel, Ordering::Acquire, |value| {
+        Some(value.saturating_add(1))
+    });
 }
 
 /// True when this capture must not be written. A generation change means a
@@ -154,27 +158,29 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
     let client = Arc::clone(client);
     let _ = std::thread::Builder::new()
         .name("mtproto-persist".into())
-        .spawn(move || loop {
-            client.persist_queued.store(false, Ordering::Release);
-            let skip = {
-                let d = client.data.lock();
-                d.persist_epoch == d.persisted_epoch
-            };
-            if !skip {
-                let span = crate::perf::span("persist_session");
-                let _ = persist_updates_data(&client, session_id);
-                drop(span);
+        .spawn(move || {
+            loop {
+                client.persist_queued.store(false, Ordering::Release);
+                let skip = {
+                    let d = client.data.lock();
+                    d.persist_epoch == d.persisted_epoch
+                };
+                if !skip {
+                    let span = crate::perf::span("persist_session");
+                    let _ = persist_updates_data(&client, session_id);
+                    drop(span);
+                }
+                if client.persist_queued.load(Ordering::Acquire) {
+                    continue;
+                }
+                client.persist_running.store(false, Ordering::Release);
+                if client.persist_queued.load(Ordering::Acquire)
+                    && !client.persist_running.swap(true, Ordering::AcqRel)
+                {
+                    continue;
+                }
+                break;
             }
-            if client.persist_queued.load(Ordering::Acquire) {
-                continue;
-            }
-            client.persist_running.store(false, Ordering::Release);
-            if client.persist_queued.load(Ordering::Acquire)
-                && !client.persist_running.swap(true, Ordering::AcqRel)
-            {
-                continue;
-            }
-            break;
         });
 }
 
@@ -206,7 +212,12 @@ mod tests {
         bump_persist_clock(&first);
         assert_eq!(same.load(Ordering::Acquire), previous + 1);
         assert_eq!(other.load(Ordering::Acquire), unrelated);
-        assert!(captured_session_is_stale(previous, same.load(Ordering::Acquire), 1, 1));
+        assert!(captured_session_is_stale(
+            previous,
+            same.load(Ordering::Acquire),
+            1,
+            1
+        ));
     }
 }
 

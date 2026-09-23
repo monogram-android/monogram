@@ -64,8 +64,10 @@ class DialogMediaPreloader(
 
     private suspend fun fetch(repository: MediaRepository?, task: DialogMediaPreload.MediaTask) {
         when (task.fetch) {
-            DialogMediaPreload.Fetch.Thumb ->
+            DialogMediaPreload.Fetch.Thumb -> {
+                if (repository?.inlineThumbJpeg(task.message) != null) return
                 repository?.ensureLocalMessageThumb(task.message, task.priority)
+            }
             DialogMediaPreload.Fetch.Display ->
                 repository?.ensureLocalMessageDisplay(task.message, task.priority)
             DialogMediaPreload.Fetch.Full ->

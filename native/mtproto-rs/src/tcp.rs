@@ -319,24 +319,35 @@ mod tests {
         let (entered_tx, entered_rx) = std::sync::mpsc::channel();
         let (release_tx, release_rx) = std::sync::mpsc::channel();
         let saving = control.clone();
-        let saver = std::thread::spawn(move || saving.while_open(|| {
-            entered_tx.send(()).unwrap();
-            release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
-        }).unwrap());
+        let saver = std::thread::spawn(move || {
+            saving
+                .while_open(|| {
+                    entered_tx.send(()).unwrap();
+                    release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                })
+                .unwrap()
+        });
         entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
         let checking = control.clone();
         let (checked_tx, checked_rx) = std::sync::mpsc::channel();
         let checker = std::thread::spawn(move || {
-            checked_tx.send(checking.wait(Duration::ZERO).is_ok()).unwrap();
+            checked_tx
+                .send(checking.wait(Duration::ZERO).is_ok())
+                .unwrap();
         });
         let checked = checked_rx.recv_timeout(Duration::from_millis(500));
         let closing = control.clone();
         let (closed_tx, closed_rx) = std::sync::mpsc::channel();
-        let closer = std::thread::spawn(move || { closing.close(); closed_tx.send(()).unwrap(); });
+        let closer = std::thread::spawn(move || {
+            closing.close();
+            closed_tx.send(()).unwrap();
+        });
         let observing = control.clone();
         let (observed_tx, observed_rx) = std::sync::mpsc::channel();
         let observer = std::thread::spawn(move || {
-            observed_tx.send(observing.wait(Duration::from_secs(3)).is_err()).unwrap();
+            observed_tx
+                .send(observing.wait(Duration::from_secs(3)).is_err())
+                .unwrap();
         });
         let observed = observed_rx.recv_timeout(Duration::from_millis(500));
         let closed_early = closed_rx.try_recv().is_ok();

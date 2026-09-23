@@ -1,13 +1,13 @@
 use parking_lot::Mutex;
 use tellers_mtproto_session::Snapshot;
 
-use crate::scheduler;
 use crate::MtprotoError;
+use crate::scheduler;
 
 use super::*;
 
-/// In-session pipelining depth for 128 KiB parts.
-pub(crate) const DEFAULT_PIPELINE_PARTS: usize = 6;
+/// In-session pipelining depth. Speed-up uses 12 x 512 KiB.
+pub(crate) const DEFAULT_PIPELINE_PARTS: usize = 12;
 
 pub(crate) const MAX_PIPELINE_PARTS: usize = 16;
 
@@ -135,6 +135,26 @@ pub(crate) fn lock_media_lane(client: &Client) -> Result<LaneLease<'_>, MtprotoE
             "read class on the media family".into(),
         )),
     }
+}
+
+/// Second media-DC TCP if a lane is free. The held first lease makes that gate
+/// busy, so this never returns the same lane. Home-DC downloads must not call this.
+#[allow(dead_code)]
+pub(crate) fn try_lock_second_media_lane(client: &Client) -> Option<LaneLease<'_>> {
+    let class = scheduler::current_class();
+    if scheduler::family(class) != scheduler::LaneFamily::Media {
+        return None;
+    }
+    for index in scheduler::media_lane_order() {
+        if let Some(lease) = client
+            .media
+            .get(index)
+            .and_then(|lane| lane.try_lease(class))
+        {
+            return Some(lease);
+        }
+    }
+    None
 }
 
 pub(crate) fn acquire_lane_family<'a>(

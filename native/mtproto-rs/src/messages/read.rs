@@ -3,12 +3,12 @@ use crate::HashMap;
 use tellers_mtproto::latest::api::{
     Bool, ChannelsReadHistoryRequest, ChannelsReadMessageContentsRequest, InputChannel,
     InputChannelConstructor, InputDialogPeer, InputDialogPeerConstructor, MessagesAffectedHistory,
-    MessagesAffectedMessages, MessagesReadMessageContentsRequest,
-    MessagesGetUnreadMentionsRequest, MessagesGetUnreadReactionsRequest,
+    MessagesAffectedMessages, MessagesGetUnreadMentionsRequest, MessagesGetUnreadReactionsRequest,
     MessagesMarkDialogUnreadRequest, MessagesMessages, MessagesReadDiscussionRequest,
-    MessagesReadHistoryRequest, MessagesReadMentionsRequest, MessagesReadReactionsRequest,
-    MessagesSetTypingRequest, SendMessageAction, SendMessageCancelActionConstructor,
-    SendMessageTypingActionConstructor, True, TrueConstructor, Vector, VectorConstructor,
+    MessagesReadHistoryRequest, MessagesReadMentionsRequest, MessagesReadMessageContentsRequest,
+    MessagesReadReactionsRequest, MessagesSetTypingRequest, SendMessageAction,
+    SendMessageCancelActionConstructor, SendMessageTypingActionConstructor, True, TrueConstructor,
+    Vector, VectorConstructor,
 };
 use tellers_mtproto_session::Snapshot;
 
@@ -65,10 +65,7 @@ pub fn read_message_contents(
     chat_id: i64,
     message_ids: Vec<i32>,
 ) -> Result<(), MtprotoError> {
-    let message_ids: Vec<i32> = message_ids
-        .into_iter()
-        .filter(|id| *id > 0)
-        .collect();
+    let message_ids: Vec<i32> = message_ids.into_iter().filter(|id| *id > 0).collect();
     if message_ids.is_empty() {
         return Ok(());
     }

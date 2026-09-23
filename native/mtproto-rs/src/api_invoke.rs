@@ -191,14 +191,14 @@ where
     Req: TlEncode + Boxed + Clone,
     Res: BoxedDecode,
 {
-    invoke_api_batch_without_updates_streaming(snapshot, api_id, requests, &mut |_, _| {})
+    invoke_api_batch_without_updates_streaming(snapshot, api_id, requests, &mut |_, _| None)
 }
 
 pub fn invoke_api_batch_without_updates_streaming<Req, Res>(
     snapshot: &mut Snapshot,
     api_id: i32,
     requests: Vec<Req>,
-    on_chunk: &mut dyn FnMut(usize, Result<Res, MtprotoError>),
+    on_chunk: &mut dyn FnMut(usize, Result<Res, MtprotoError>) -> Option<Req>,
 ) -> Result<Vec<Result<Res, MtprotoError>>, MtprotoError>
 where
     Req: TlEncode + Boxed + Clone,
@@ -232,7 +232,8 @@ where
                 Ok(bytes) => decode_response::<Res>(bytes),
                 Err(err) => Err((*err).clone()),
             };
-            on_chunk(index, res);
+            let refill = on_chunk(index, res)?;
+            rpc::encode_boxed_bytes(&wrap_without_updates(refill)).ok()
         },
     );
     drop(span);

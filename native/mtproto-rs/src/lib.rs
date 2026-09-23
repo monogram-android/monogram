@@ -57,7 +57,9 @@ mod upload_rpc;
 mod vpx;
 mod wallpaper_rpc;
 
-pub(crate) use collections::{CompactString, HashMap, HashMapExt, HashSet, HashSetExt, IndexMap, SmallVec};
+pub(crate) use collections::{
+    CompactString, HashMap, HashMapExt, HashSet, HashSetExt, IndexMap, SmallVec,
+};
 
 pub use dto::*;
 pub use error::*;

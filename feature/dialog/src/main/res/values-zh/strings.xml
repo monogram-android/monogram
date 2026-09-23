@@ -20,6 +20,11 @@
     <string name="dialog_media_failed">无法加载媒体</string>
     <string name="dialog_media_open_failed">无法打开文件</string>
     <string name="dialog_media_cancel">停止下载</string>
+    <string name="dialog_downloads">下载列表</string>
+    <string name="dialog_downloads_empty">没有正在进行的下载</string>
+    <plurals name="dialog_downloads_count">
+        <item quantity="other">%d 个文件</item>
+    </plurals>
     <string name="dialog_media_document">文件</string>
     <string name="dialog_unsupported_message">暂不支持此消息类型</string>
     <string name="dialog_poll_quiz">测验</string>

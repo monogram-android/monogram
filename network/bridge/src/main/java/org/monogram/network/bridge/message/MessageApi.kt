@@ -214,6 +214,7 @@ internal class MessageApi(
         replyToMsgId: Int,
         entitiesJson: String?,
         topMsgId: Int,
+        webpageUrl: String?,
     ): Outcome<Message> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
@@ -235,6 +236,7 @@ internal class MessageApi(
                 replyToMsgId,
                 entitiesJson,
                 topMsgId,
+                webpageUrl,
             ).toModel()
             AppLog.api("sendText", "ok id=${sent.id.id}")
             sent

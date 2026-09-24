@@ -178,6 +178,12 @@ internal fun DialogComposerDock(
     botKeyboard: org.monogram.core.models.ReplyMarkup? = null,
     botKeyboardMessageId: Int = 0,
     botPlaceholder: String? = null,
+    composerFocusSeq: Int = 0,
+    linkPreview: org.monogram.core.models.WebpagePreview? = null,
+    linkPreviewLoading: Boolean = false,
+    linkPreviewHidden: Boolean = false,
+    onDismissLinkPreview: () -> Unit = {},
+    onRestoreLinkPreview: () -> Unit = {},
 ) {
     var value by composer
     val context = LocalContext.current
@@ -339,6 +345,12 @@ internal fun DialogComposerDock(
             replyBody = replyBody,
             pendingAttach = pendingAttach,
             hasFailed = hasFailed,
+            composerFocusSeq = composerFocusSeq,
+            linkPreview = linkPreview,
+            linkPreviewLoading = linkPreviewLoading,
+            linkPreviewHidden = linkPreviewHidden,
+            onDismissLinkPreview = onDismissLinkPreview,
+            onRestoreLinkPreview = onRestoreLinkPreview,
             onSend = {
                 val sent = value.text
                 if (!editing) {

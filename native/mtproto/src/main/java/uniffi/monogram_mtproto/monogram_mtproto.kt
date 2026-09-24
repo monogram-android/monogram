@@ -832,6 +832,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_web_page(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_get_web_page_preview(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_is_authorized(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_library_version(
@@ -1090,6 +1092,8 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_web_page(`handle`: Long,`url`: RustBuffer.ByValue,`hash`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_get_web_page_preview(`handle`: Long,`message`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_is_authorized(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     external fun uniffi_monogram_mtproto_fn_func_library_version(uniffi_out_err: UniffiRustCallStatus, 
@@ -1154,7 +1158,7 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_send_saved_gif(`handle`: Long,`chatId`: Long,`documentId`: Long,`replyToMsgId`: Int,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_send_text_message(`handle`: Long,`chatId`: Long,`text`: RustBuffer.ByValue,`replyToMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_monogram_mtproto_fn_func_send_text_message(`handle`: Long,`chatId`: Long,`text`: RustBuffer.ByValue,`replyToMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,`topMsgId`: Int,`webpageUrl`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_uploaded_album(`handle`: Long,`chatId`: Long,`items`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -1518,6 +1522,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_web_page() and 0xFFFF) != 28449) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_web_page_preview() and 0xFFFF) != 55665) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_is_authorized() and 0xFFFF) != 9962) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1614,7 +1621,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_saved_gif() and 0xFFFF) != 47209) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_monogram_mtproto_checksum_func_send_text_message() and 0xFFFF) != 13717) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_text_message() and 0xFFFF) != 21603) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_album() and 0xFFFF) != 30233) {
@@ -6609,6 +6616,19 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
     
 
+    @Throws(MtprotoException::class) fun `getWebPagePreview`(`handle`: kotlin.ULong, `message`: kotlin.String): InstantViewDto {
+            return FfiConverterTypeInstantViewDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_web_page_preview(
+    
+        
+        FfiConverterULong.lower(`handle`),
+        FfiConverterString.lower(`message`),_status)
+}
+    )
+    }
+    
+
     @Throws(MtprotoException::class) fun `isAuthorized`(`handle`: kotlin.ULong): kotlin.Boolean {
             return FfiConverterBoolean.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -7066,7 +7086,7 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
     
 
-    @Throws(MtprotoException::class) fun `sendTextMessage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `text`: kotlin.String, `replyToMsgId`: kotlin.Int, `entitiesJson`: kotlin.String?, `topMsgId`: kotlin.Int): MessageDto {
+    @Throws(MtprotoException::class) fun `sendTextMessage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `text`: kotlin.String, `replyToMsgId`: kotlin.Int, `entitiesJson`: kotlin.String?, `topMsgId`: kotlin.Int, `webpageUrl`: kotlin.String?): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_text_message(
@@ -7077,7 +7097,8 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterString.lower(`text`),
         FfiConverterInt.lower(`replyToMsgId`),
         FfiConverterOptionalString.lower(`entitiesJson`),
-        FfiConverterInt.lower(`topMsgId`),_status)
+        FfiConverterInt.lower(`topMsgId`),
+        FfiConverterOptionalString.lower(`webpageUrl`),_status)
 }
     )
     }

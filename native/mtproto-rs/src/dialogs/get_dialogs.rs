@@ -5,8 +5,9 @@ use crate::{HashMap, HashMapExt, HashSet, HashSetExt};
 
 use tellers_mtproto::latest::api::{
     Chat as TlChat, ChatPhoto, Dialog, InputPeer, InputPeerEmptyConstructor, Message,
-    MessagesDialogs, MessagesGetDialogsRequest, Peer, PeerNotifySettings, True, TrueConstructor,
-    User, UserProfilePhoto,
+    MessagesDialogs, MessagesGetDialogsRequest, MessagesGetPinnedDialogsRequest,
+    MessagesPeerDialogs, Peer, PeerNotifySettings, True, TrueConstructor, User,
+    UserProfilePhoto, Vector,
 };
 use tellers_mtproto_session::Snapshot;
 
@@ -85,7 +86,56 @@ pub fn get_dialogs(
         }
         _ => return Err(MtprotoError::Message("unexpected messages.dialogs".into())),
     };
+    let mut out = map_peer_dialogs(peers, media_index, channel_pts, dialogs, messages, chats, users);
+    if offset_date == 0 && offset_id == 0 && offset_peer_id == 0 {
+        if let Ok(pinned) = fetch_pinned_dialogs(
+            snapshot,
+            api_id,
+            peers,
+            media_index,
+            channel_pts,
+            folder_id.unwrap_or(0),
+        ) {
+            out = merge_pinned_prefix(pinned, out);
+        }
+    }
+    Ok(out)
+}
 
+fn fetch_pinned_dialogs(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &mut HashMap<i64, CachedPeer>,
+    media_index: &mut MediaIndex,
+    channel_pts: &mut HashMap<i64, i32>,
+    folder_id: i32,
+) -> Result<Vec<ChatDto>, MtprotoError> {
+    let response: MessagesPeerDialogs = api_invoke::invoke_api(
+        snapshot,
+        api_id,
+        MessagesGetPinnedDialogsRequest { folder_id },
+    )?;
+    let MessagesPeerDialogs::MessagesPeerDialogs(d) = response;
+    Ok(map_peer_dialogs(
+        peers,
+        media_index,
+        channel_pts,
+        d.dialogs,
+        d.messages,
+        d.chats,
+        d.users,
+    ))
+}
+
+pub(crate) fn map_peer_dialogs(
+    peers: &mut HashMap<i64, CachedPeer>,
+    media_index: &mut MediaIndex,
+    channel_pts: &mut HashMap<i64, i32>,
+    dialogs: Box<Vector<Box<Dialog>>>,
+    messages: Box<Vector<Box<Message>>>,
+    chats: Box<Vector<Box<TlChat>>>,
+    users: Box<Vector<Box<User>>>,
+) -> Vec<ChatDto> {
     let user_list: Vec<User> = vector_boxed_items(&users).cloned().collect();
     let chat_list: Vec<TlChat> = vector_boxed_items(&chats).cloned().collect();
     cache_from_users_chats(
@@ -237,8 +287,9 @@ pub fn get_dialogs(
             Peer::PeerChannel(c) => chat_meta.contains_key(&c.channel_id),
             _ => true,
         };
-        // Left, kicked, and chats Telegram omitted from the payload stay out of the list.
-        if meta.left || !known_peer {
+        // Chats Telegram omitted from the payload stay out. Left/kicked dialogs
+        // are returned with `left = true` so Room can hide them.
+        if !known_peer {
             continue;
         }
         let title = meta.title.clone();
@@ -297,7 +348,24 @@ pub fn get_dialogs(
             last_message_outgoing: last_outgoing,
         });
     }
-    Ok(out)
+    out
+}
+
+pub(crate) fn merge_pinned_prefix(pinned: Vec<ChatDto>, rest: Vec<ChatDto>) -> Vec<ChatDto> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::with_capacity(pinned.len() + rest.len());
+    for mut chat in pinned {
+        if seen.insert(chat.id) {
+            chat.pinned = true;
+            out.push(chat);
+        }
+    }
+    for chat in rest {
+        if seen.insert(chat.id) {
+            out.push(chat);
+        }
+    }
+    out
 }
 
 /// Dialog `pts` is the last channel cursor supplied with the dialog list.

@@ -45,6 +45,7 @@
     <string name="chats_preview_document">文件</string>
     <string name="chats_preview_audio">音频</string>
     <string name="chats_preview_voice">语音消息</string>
+    <string name="chats_preview_video_note">视频消息</string>
     <string name="chats_preview_link">链接</string>
     <string name="chats_preview_checklist">待办清单</string>
     <string name="chats_status_sending">发送中</string>

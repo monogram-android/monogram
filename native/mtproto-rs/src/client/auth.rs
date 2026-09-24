@@ -51,8 +51,33 @@ pub fn connect(handle: u64) -> Result<(), MtprotoError> {
         if persist_needed {
             persist(state)?;
         }
+        recover_imported_user(state)?;
         Ok(())
     })
+}
+
+fn recover_imported_user(state: &mut ClientState) -> Result<(), MtprotoError> {
+    if state.session_dead
+        || state.user_id.is_some()
+        || state.snapshot.auth_key.as_ref().map(|k| k.len()) != Some(256)
+    {
+        return Ok(());
+    }
+    match crate::profile::get_profile(
+        &mut state.snapshot,
+        state.api_id,
+        &state.peers,
+        &mut state.media,
+        None,
+        0,
+    ) {
+        Ok(profile) if profile.id > 0 => {
+            state.user_id = Some(profile.id);
+            persist(state)
+        }
+        Ok(_) => Ok(()),
+        Err(_) => Ok(()),
+    }
 }
 
 pub fn is_authorized(handle: u64) -> Result<bool, MtprotoError> {

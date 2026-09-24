@@ -79,6 +79,12 @@ pub(crate) fn document_kind(doc: &tellers_mtproto::latest::api::DocumentConstruc
     if is_voice {
         return "voice".into();
     }
+    let is_round = attrs.iter().any(|a| {
+        matches!(a, DocumentAttribute::DocumentAttributeVideo(v) if v.round_message.is_some())
+    });
+    if is_round {
+        return "video_note".into();
+    }
     let is_audio = attrs
         .iter()
         .any(|a| matches!(a, DocumentAttribute::DocumentAttributeAudio(_)));
@@ -600,6 +606,7 @@ pub(crate) fn media_fallback_text(media: &MessageMedia) -> Option<String> {
                     | "audio"
                     | "gif"
                     | "video"
+                    | "video_note"
                     | "photo"
             ) {
                 return None;

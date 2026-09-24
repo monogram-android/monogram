@@ -25,6 +25,7 @@ import org.monogram.core.models.SavedGif
 import org.monogram.core.models.StickerPack
 import org.monogram.core.models.TypingPresence
 import org.monogram.core.models.UploadItem
+import org.monogram.core.models.WebpagePreview
 import org.monogram.feature.dialog.store.DialogExecutor
 import org.monogram.feature.dialog.store.DialogReducer
 import org.monogram.network.bridge.MtprotoClient
@@ -41,7 +42,10 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data class AttachMedia(val items: List<UploadItem>) : Intent
         data class AppendMedia(val items: List<UploadItem>) : Intent
         data object ClearAttach : Intent
-        data class ReplyTo(val message: Message) : Intent
+        data object FixLinkPreview : Intent
+        data object DismissLinkPreview : Intent
+        data object RestoreLinkPreview : Intent
+        data class ReplyTo(val message: Message, val focusComposer: Boolean = false) : Intent
         data object ClearReply : Intent
         data class Edit(val message: Message) : Intent
         data object CancelEdit : Intent
@@ -141,7 +145,13 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val senderTags: Map<PeerId, String> = emptyMap(),
         val draft: String = "",
         val pendingAttach: List<UploadItem> = emptyList(),
+        val linkPreview: WebpagePreview? = null,
+        val linkPreviewUrl: String? = null,
+        val linkPreviewFixed: Boolean = false,
+        val linkPreviewLoading: Boolean = false,
+        val linkPreviewHidden: Boolean = false,
         val replyTo: Message? = null,
+        val composerFocusSeq: Int = 0,
         val editing: Message? = null,
         val forwardMessage: Message? = null,
         val forwardTargets: List<Chat> = emptyList(),

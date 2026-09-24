@@ -76,6 +76,7 @@ internal class DialogExecutor(
     internal var unreadRevision: Int = 0
     internal var topicHeaderJob: Job? = null
     internal var confirmingInlineUser: String? = null
+    internal var linkPreviewJob: Job? = null
     internal val loadingStickerPacks = mutableSetOf<Long>()
     internal val stickerPackRequests = kotlinx.coroutines.sync.Semaphore(2)
     internal val inlineBots = HashMap<String, PeerId>()
@@ -301,7 +302,11 @@ internal class DialogExecutor(
                 }
                 publishTyping(intent.value.isNotBlank())
                 scheduleComposerAt(intent.value)
+                scheduleLinkPreview(intent.value)
             }
+            DialogStore.Intent.FixLinkPreview -> fixLinkPreview()
+            DialogStore.Intent.DismissLinkPreview -> dismissLinkPreview()
+            DialogStore.Intent.RestoreLinkPreview -> restoreLinkPreview()
             is DialogStore.Intent.AttachPhoto -> dispatch(
                 Msg.PendingAttach(
                     listOf(
@@ -326,7 +331,7 @@ internal class DialogExecutor(
             DialogStore.Intent.ClearAttach -> dispatch(Msg.PendingAttach(emptyList()))
             is DialogStore.Intent.ReplyTo -> {
                 dispatch(Msg.Editing(null))
-                dispatch(Msg.ReplyTo(intent.message))
+                dispatch(Msg.ReplyTo(intent.message, focusComposer = intent.focusComposer))
             }
             DialogStore.Intent.ClearReply -> dispatch(Msg.ReplyTo(null))
             is DialogStore.Intent.Edit -> {

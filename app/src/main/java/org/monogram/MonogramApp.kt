@@ -76,6 +76,8 @@ class MonogramApp : Application() {
         }
         sessionStore = SessionMetadataStore(database)
         val sessionFile = File(filesDir, "mtproto.session.json")
+        runCatching { TdlibSessionImport.maybeImport(filesDir, sessionFile, cacheDir) }
+            .onFailure { AppLog.warn("session", "tdlib import failed") }
         client = perfSpan("app:client") {
             BridgedMtprotoClient(
                 credentials = credentials,

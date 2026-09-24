@@ -65,6 +65,9 @@
     <string name="dialog_saved_gifs_empty">保存した GIF はまだありません</string>
     <string name="dialog_media_audio">音声</string>
     <string name="dialog_media_voice">ボイスメッセージ</string>
+    <string name="dialog_link_preview_loading">リンクのプレビューを読み込み中</string>
+    <string name="dialog_restore_preview">プレビューを復元</string>
+    <string name="dialog_media_video_note">動画メッセージ</string>
     <string name="dialog_media_video">動画</string>
     <string name="dialog_media_gif">GIF</string>
     <string name="dialog_media_play">再生</string>

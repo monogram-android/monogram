@@ -45,6 +45,7 @@
     <string name="chats_preview_document">Փաստաթուղթ</string>
     <string name="chats_preview_audio">Աուդիո</string>
     <string name="chats_preview_voice">Ձայնային</string>
+    <string name="chats_preview_video_note">Տեսահաղորդագրություն</string>
     <string name="chats_preview_link">Հղում</string>
     <string name="chats_preview_checklist">Ցանկ</string>
     <string name="chats_status_sending">Ուղարկվում է</string>

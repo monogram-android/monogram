@@ -230,6 +230,8 @@
     <string name="settings_input_bar_emoji_shortcut_sub">Показывать кнопку эмодзи в строке ввода</string>
     <string name="settings_input_bar_send_by_enter">Отправка по Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter отправляет сообщение, Shift+Enter добавляет новую строку</string>
+    <string name="settings_input_bar_fix_previews">Исправление предпросмотра ссылок</string>
+    <string name="settings_input_bar_fix_previews_sub">Предлагать кнопку «Исправить» для X, Bluesky, TikTok, Reddit и Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">Версия %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

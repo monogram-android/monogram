@@ -125,6 +125,9 @@ class DialogComponent(
     fun onLoadOlder() = store.accept(DialogStore.Intent.LoadOlder)
     fun onLoadNewer() = store.accept(DialogStore.Intent.LoadNewer)
     fun onDraftChanged(value: String) = store.accept(DialogStore.Intent.DraftChanged(value))
+    fun onFixLinkPreview() = store.accept(DialogStore.Intent.FixLinkPreview)
+    fun onDismissLinkPreview() = store.accept(DialogStore.Intent.DismissLinkPreview)
+    fun onRestoreLinkPreview() = store.accept(DialogStore.Intent.RestoreLinkPreview)
     fun onAttachPhoto(path: String) = store.accept(DialogStore.Intent.AttachPhoto(path))
     fun onAttachMedia(items: List<UploadItem>) = store.accept(DialogStore.Intent.AttachMedia(items))
     fun onAppendMedia(items: List<UploadItem>) = store.accept(DialogStore.Intent.AppendMedia(items))
@@ -150,8 +153,8 @@ class DialogComponent(
         store.accept(DialogStore.Intent.SendAlbum(items))
     fun onOpenStickerPack(setId: Long, accessHash: Long) =
         store.accept(DialogStore.Intent.OpenStickerPack(setId, accessHash))
-    fun onReply(message: org.monogram.core.models.Message) =
-        store.accept(DialogStore.Intent.ReplyTo(message))
+    fun onReply(message: org.monogram.core.models.Message, focusComposer: Boolean = false) =
+        store.accept(DialogStore.Intent.ReplyTo(message, focusComposer = focusComposer))
     fun onClearReply() = store.accept(DialogStore.Intent.ClearReply)
     fun onEdit(message: org.monogram.core.models.Message) =
         store.accept(DialogStore.Intent.Edit(message))

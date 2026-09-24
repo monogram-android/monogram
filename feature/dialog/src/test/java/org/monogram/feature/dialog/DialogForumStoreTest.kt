@@ -2890,6 +2890,7 @@ class DialogForumStoreTest {
             replyToMsgId: Int,
             entitiesJson: String?,
             topMsgId: Int,
+            webpageUrl: String?,
         ): Outcome<Message> {
             lastSendReply = replyToMsgId
             lastSendTop = topMsgId

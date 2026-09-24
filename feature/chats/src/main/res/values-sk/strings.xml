@@ -45,6 +45,7 @@
     <string name="chats_preview_document">Dokument</string>
     <string name="chats_preview_audio">Audio</string>
     <string name="chats_preview_voice">Hlasová správa</string>
+    <string name="chats_preview_video_note">Videonahrávka</string>
     <string name="chats_preview_link">Odkaz</string>
     <string name="chats_preview_checklist">Zoznam úloh</string>
     <string name="chats_status_sending">Odosiela sa</string>

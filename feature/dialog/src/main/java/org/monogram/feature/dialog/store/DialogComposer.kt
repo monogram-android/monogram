@@ -100,6 +100,7 @@ internal fun DialogExecutor.applyDraft(text: String, mentions: List<DraftMention
         inlineJob?.cancel()
         clearMentions()
         clearInline()
+        clearLinkPreview()
     }
     work.launch { warmup?.setDraft(chatId, threadTopMsgId, text) }
 }

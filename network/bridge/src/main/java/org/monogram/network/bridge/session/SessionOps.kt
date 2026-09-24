@@ -4,6 +4,9 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.models.AuthState
 
 interface SessionOps {
+    suspend fun isLocallyAuthorized(): Outcome<Boolean> = Outcome.Ok(false)
+    suspend fun isAuthorized(): Outcome<Boolean> = Outcome.Ok(false)
+
     suspend fun connect(): Outcome<Unit>
     suspend fun setTestDc(enabled: Boolean): Outcome<Unit> = Outcome.Ok(Unit)
     suspend fun sendAuthCode(phone: String): Outcome<AuthState.AwaitingCode>

@@ -137,6 +137,7 @@ object MtprotoNativeStub : MtprotoNative {
         replyToMsgId: Int,
         entitiesJson: String?,
         topMsgId: Int,
+        webpageUrl: String?,
     ): MessageDto {
         throw MtprotoException.Message("native library failed to load")
     }

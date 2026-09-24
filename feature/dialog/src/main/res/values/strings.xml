@@ -80,6 +80,9 @@
     <string name="dialog_saved_gifs_empty">No saved GIFs yet</string>
     <string name="dialog_media_audio">Audio</string>
     <string name="dialog_media_voice">Voice message</string>
+    <string name="dialog_link_preview_loading">Loading link preview</string>
+    <string name="dialog_restore_preview">Restore preview</string>
+    <string name="dialog_media_video_note">Video message</string>
     <string name="dialog_media_video">Video</string>
     <string name="dialog_media_gif">GIF</string>
     <string name="dialog_media_play">Play</string>

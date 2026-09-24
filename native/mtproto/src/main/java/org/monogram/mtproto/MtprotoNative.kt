@@ -121,6 +121,10 @@ interface MtprotoNative {
         throw MtprotoException.Message("instant view requires native rebuild")
 
     @Throws(MtprotoException::class)
+    fun getWebPagePreview(handle: Long, message: String): InstantViewDto =
+        getWebPage(handle, message, 0)
+
+    @Throws(MtprotoException::class)
     fun getFolders(handle: Long): List<FolderDto>
 
     @Throws(MtprotoException::class)
@@ -264,6 +268,7 @@ interface MtprotoNative {
         replyToMsgId: Int = 0,
         entitiesJson: String? = null,
         topMsgId: Int = 0,
+        webpageUrl: String? = null,
     ): MessageDto
 
     @Throws(MtprotoException::class)

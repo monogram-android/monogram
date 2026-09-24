@@ -1,7 +1,10 @@
 use crate::HashMap;
 
 use serde_json::Value;
-use tellers_mtproto::latest::api::{MessagesGetWebPageRequest, MessagesWebPage, Page, WebPage};
+use tellers_mtproto::latest::api::{
+    MessageMedia, MessagesGetWebPagePreviewRequest, MessagesGetWebPageRequest, MessagesWebPage,
+    MessagesWebPagePreview, Page, WebPage,
+};
 use tellers_mtproto_session::Snapshot;
 
 use super::blocks::map_block;
@@ -59,6 +62,52 @@ pub fn get_web_page(
         }
     }
     Ok(dto)
+}
+
+pub fn get_web_page_preview(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &mut HashMap<i64, CachedPeer>,
+    media: &mut MediaIndex,
+    message: String,
+) -> Result<InstantViewDto, MtprotoError> {
+    let response: MessagesWebPagePreview = invoke_api(
+        snapshot,
+        api_id,
+        MessagesGetWebPagePreviewRequest {
+            flags: 0,
+            message,
+            entities: None,
+        },
+    )?;
+    let MessagesWebPagePreview::MessagesWebPagePreview(body) = response;
+    dialogs::cache_from_users_chats(
+        peers,
+        media,
+        vector_boxed_items(&body.users).cloned(),
+        vector_boxed_items(&body.chats).cloned(),
+    );
+    let webpage = match body.media.as_ref() {
+        MessageMedia::MessageMediaWebPage(w) => w.webpage.as_ref(),
+        _ => {
+            return Ok(InstantViewDto {
+                url: String::new(),
+                display_url: String::new(),
+                title: None,
+                site_name: None,
+                description: None,
+                webpage_type: None,
+                hash: 0,
+                has_instant_view: false,
+                part: false,
+                rtl: false,
+                v2: false,
+                not_modified: false,
+                blocks_json: "[]".into(),
+            });
+        }
+    };
+    Ok(map_messages_web_page(webpage, media, 0))
 }
 
 pub fn map_messages_web_page(

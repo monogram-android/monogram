@@ -115,6 +115,9 @@
     <string name="dialog_saved_gifs_empty">Нет сохранённых GIF</string>
     <string name="dialog_media_audio">Аудио</string>
     <string name="dialog_media_voice">Голосовое сообщение</string>
+    <string name="dialog_link_preview_loading">Загрузка предпросмотра ссылки</string>
+    <string name="dialog_restore_preview">Восстановить предпросмотр</string>
+    <string name="dialog_media_video_note">Видеосообщение</string>
     <string name="dialog_media_video">Видео</string>
     <string name="dialog_media_gif">GIF</string>
     <string name="dialog_media_play">Смотреть</string>

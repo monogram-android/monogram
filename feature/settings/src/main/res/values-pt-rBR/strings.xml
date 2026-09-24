@@ -230,6 +230,8 @@
     <string name="settings_input_bar_emoji_shortcut_sub">Mostrar atalho de emoji na barra</string>
     <string name="settings_input_bar_send_by_enter">Enviar com Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter envia a mensagem; Shift+Enter insere uma linha</string>
+    <string name="settings_input_bar_fix_previews">Corrigir prévias de links</string>
+    <string name="settings_input_bar_fix_previews_sub">Oferecer botão de correção para X, Bluesky, TikTok, Reddit e Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">App %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

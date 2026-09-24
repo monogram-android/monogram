@@ -12,6 +12,10 @@ data class WebpagePreview(
 ) {
     val offersInstantView: Boolean
         get() = InstantViewPages.offersInstantView(type, hasInstantView)
+
+    val hasContent: Boolean
+        get() = !title.isNullOrBlank() || !siteName.isNullOrBlank() ||
+            !description.isNullOrBlank() || hasInstantView
 }
 
 object WebpagePreviews {

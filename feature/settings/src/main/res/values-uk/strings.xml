@@ -230,6 +230,8 @@
     <string name="settings_input_bar_emoji_shortcut_sub">Показувати кнопку емодзі в панелі введення</string>
     <string name="settings_input_bar_send_by_enter">Надсилання по Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter надсилає повідомлення, Shift+Enter додає новий рядок</string>
+    <string name="settings_input_bar_fix_previews">Виправлення перегляду посилань</string>
+    <string name="settings_input_bar_fix_previews_sub">Пропонувати кнопку «Виправити» для X, Bluesky, TikTok, Reddit та Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">Версія %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

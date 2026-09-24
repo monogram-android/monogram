@@ -40,6 +40,7 @@ data class AppearanceState(
     val composerStyle: ComposerStyle = ComposerStyle.Material,
     val showEmojiButton: Boolean = true,
     val sendByEnter: Boolean = false,
+    val fixLinkPreviews: Boolean = true,
     val ivFontSize: Int = AppearanceSettings.DEFAULT_IV_FONT_SIZE,
     val messageTextSize: Int = AppearanceSettings.DEFAULT_MESSAGE_TEXT_SIZE,
     val lineSpacing: Float = AppearanceSettings.DEFAULT_LINE_SPACING,
@@ -87,6 +88,7 @@ object AppearanceSettings {
     private const val KEY_COMPOSER_STYLE = "composer_style"
     private const val KEY_SHOW_EMOJI_BUTTON = "show_emoji_button"
     private const val KEY_SEND_BY_ENTER = "send_by_enter"
+    private const val KEY_FIX_LINK_PREVIEWS = "fix_link_previews"
     private const val KEY_IV_FONT_SIZE = "iv_font_size"
     private const val KEY_LIST_PANE_WIDTH = "list_pane_width"
 
@@ -118,6 +120,7 @@ object AppearanceSettings {
             composerStyle = parseComposerStyle(prefs.getString(KEY_COMPOSER_STYLE, null)),
             showEmojiButton = prefs.getBoolean(KEY_SHOW_EMOJI_BUTTON, true),
             sendByEnter = prefs.getBoolean(KEY_SEND_BY_ENTER, false),
+            fixLinkPreviews = prefs.getBoolean(KEY_FIX_LINK_PREVIEWS, true),
             ivFontSize = parseIvFontSize(prefs.getInt(KEY_IV_FONT_SIZE, DEFAULT_IV_FONT_SIZE)),
             messageTextSize = parseMessageTextSize(
                 prefs.getInt(KEY_MESSAGE_TEXT_SIZE, DEFAULT_MESSAGE_TEXT_SIZE),
@@ -207,6 +210,11 @@ object AppearanceSettings {
         persist()
     }
 
+    fun setFixLinkPreviews(enabled: Boolean) {
+        mutable.update { it.copy(fixLinkPreviews = enabled) }
+        persist()
+    }
+
     fun setListPaneWidth(width: Int) {
         mutable.update { it.copy(listPaneWidth = parseListPaneWidth(width)) }
         persist()
@@ -252,6 +260,7 @@ object AppearanceSettings {
                 .putString(KEY_COMPOSER_STYLE, current.composerStyle.name)
                 .putBoolean(KEY_SHOW_EMOJI_BUTTON, current.showEmojiButton)
                 .putBoolean(KEY_SEND_BY_ENTER, current.sendByEnter)
+                .putBoolean(KEY_FIX_LINK_PREVIEWS, current.fixLinkPreviews)
                 .putInt(KEY_IV_FONT_SIZE, current.ivFontSize)
                 .putInt(KEY_MESSAGE_TEXT_SIZE, current.messageTextSize)
                 .putFloat(KEY_LINE_SPACING, current.lineSpacing)

@@ -250,6 +250,8 @@ fn perf_op(id: u32) -> String {
     let name = match id {
         HelpGetConfigRequest::ID => "getConfig",
         MessagesGetDialogsRequest::ID => "getDialogs",
+        MessagesGetPinnedDialogsRequest::ID => "getPinnedDialogs",
+        MessagesGetWebPagePreviewRequest::ID => "getWebPagePreview",
         MessagesGetDialogFiltersRequest::ID => "getDialogFilters",
         MessagesGetHistoryRequest::ID => "getHistory",
         MessagesGetMessagesRequest::ID => "getMessages",
@@ -262,6 +264,7 @@ fn perf_op(id: u32) -> String {
         UpdatesGetChannelDifferenceRequest::ID => "getChannelDifference",
         UpdatesGetStateRequest::ID => "getState",
         MessagesSendMessageRequest::ID => "sendMessage",
+        MessagesSendMediaRequest::ID => "sendMedia",
         _ => return format!("rpc:{id:#010x}"),
     };
     format!("rpc:{name}")
@@ -277,6 +280,8 @@ fn replay_safe_method(id: u32) -> bool {
             | HelpGetAppConfigRequest::ID
             | AccountGetPasswordRequest::ID
             | MessagesGetDialogsRequest::ID
+            | MessagesGetPinnedDialogsRequest::ID
+            | MessagesGetWebPagePreviewRequest::ID
             | MessagesGetDialogFiltersRequest::ID
             | MessagesGetHistoryRequest::ID
             | MessagesGetMessagesRequest::ID

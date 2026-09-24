@@ -93,6 +93,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -191,6 +192,12 @@ internal fun DialogScreenDialogs(
             },
             pendingAttach = state.pendingAttach,
             hasFailed = state.messages.any { it.failed },
+            composerFocusSeq = state.composerFocusSeq,
+            linkPreview = state.linkPreview,
+            linkPreviewLoading = state.linkPreviewLoading,
+            linkPreviewHidden = state.linkPreviewHidden,
+            onDismissLinkPreview = component::onDismissLinkPreview,
+            onRestoreLinkPreview = component::onRestoreLinkPreview,
             botKeyboard = state.let { current ->
                 val latest = org.monogram.core.models.ReplyMarkups.latestBotKeyboard(current.messages)
                 val key = org.monogram.core.models.ReplyMarkups.serialize(latest)

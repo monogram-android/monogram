@@ -73,6 +73,7 @@ interface MessageOps {
         replyToMsgId: Int = 0,
         entitiesJson: String? = null,
         topMsgId: Int = 0,
+        webpageUrl: String? = null,
     ): Outcome<Message>
 
     suspend fun sendPhoto(

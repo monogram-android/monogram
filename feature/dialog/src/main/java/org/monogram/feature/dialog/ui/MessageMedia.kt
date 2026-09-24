@@ -276,7 +276,7 @@ fun MessageMedia(
     }
 
     val preview = when (kind) {
-        "video" ->
+        "video", "video_note" ->
             listOfNotNull(thumbFile, displayFile, fullFile).firstOrNull { stillImageFile(it) }
                 ?: thumbFile ?: displayFile ?: fullFile
         "webpage" ->
@@ -411,6 +411,18 @@ fun MessageMedia(
                 },
                 modifier = modifier.fillMaxWidth().padding(vertical = 2.dp).then(visibilityModifier),
             )
+        }
+        kind == "video_note" -> {
+            if (mediaRepository != null) {
+                VideoNoteBubble(
+                    message = message,
+                    repository = mediaRepository,
+                    poster = (displayFile ?: fullFile ?: thumbFile)?.takeIf { stillImageFile(it) }
+                        ?: thumbFile,
+                    onLongPress = onLongPress,
+                    modifier = Modifier.padding(vertical = 2.dp).then(visibilityModifier),
+                )
+            }
         }
         kind == "video" || kind == "gif" -> {
             val loadingFull = playing && fullFile == null && !fullFailed

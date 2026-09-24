@@ -43,6 +43,7 @@ import androidx.compose.material.icons.outlined.FormatLineSpacing
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
@@ -258,6 +259,14 @@ internal fun LazyListScope.appearanceItems(
                 subtitle = stringResource(R.string.settings_input_bar_send_by_enter_sub),
                 checked = appearance.sendByEnter,
                 onCheckedChange = AppearanceSettings::setSendByEnter,
+            )
+            SwitchRow(
+                icon = Icons.Outlined.Link,
+                iconColor = MaterialTheme.colorScheme.primary,
+                title = stringResource(R.string.settings_input_bar_fix_previews),
+                subtitle = stringResource(R.string.settings_input_bar_fix_previews_sub),
+                checked = appearance.fixLinkPreviews,
+                onCheckedChange = AppearanceSettings::setFixLinkPreviews,
             )
         }
     }
@@ -526,12 +535,26 @@ private fun InputBarSettings(appearance: AppearanceState) {
             title = stringResource(R.string.settings_input_bar_send_by_enter),
             subtitle = stringResource(R.string.settings_input_bar_send_by_enter_sub),
             iconColor = MaterialTheme.colorScheme.primary,
-            position = ItemPosition.BOTTOM,
+            position = ItemPosition.MIDDLE,
             onClick = { AppearanceSettings.setSendByEnter(!appearance.sendByEnter) },
             trailingContent = {
                 Switch(
                     checked = appearance.sendByEnter,
                     onCheckedChange = AppearanceSettings::setSendByEnter,
+                )
+            },
+        )
+        SettingsTile(
+            icon = Icons.Outlined.Link,
+            title = stringResource(R.string.settings_input_bar_fix_previews),
+            subtitle = stringResource(R.string.settings_input_bar_fix_previews_sub),
+            iconColor = MaterialTheme.colorScheme.tertiary,
+            position = ItemPosition.BOTTOM,
+            onClick = { AppearanceSettings.setFixLinkPreviews(!appearance.fixLinkPreviews) },
+            trailingContent = {
+                Switch(
+                    checked = appearance.fixLinkPreviews,
+                    onCheckedChange = AppearanceSettings::setFixLinkPreviews,
                 )
             },
         )

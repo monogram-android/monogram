@@ -22,6 +22,7 @@ fun chatPreviewMedia(kind: String?): ChatPreviewMedia? = when (kind) {
     "gif" -> ChatPreviewMedia.Gif
     "sticker", "sticker_animated", "sticker_video" -> ChatPreviewMedia.Sticker
     "voice" -> ChatPreviewMedia.Voice
+    "video_note" -> ChatPreviewMedia.Video
     "audio" -> ChatPreviewMedia.Audio
     "document" -> ChatPreviewMedia.Document
     "webpage" -> ChatPreviewMedia.Link

@@ -520,6 +520,7 @@ class BridgedMtprotoClientLifecycleTest {
                 replyToMsgId: Int,
                 entitiesJson: String?,
                 topMsgId: Int,
+                webpageUrl: String?,
             ) = sampleMessage(chatId, 9)
         }
         val client = client(native, StandardTestDispatcher(testScheduler)) { sidecar++ }

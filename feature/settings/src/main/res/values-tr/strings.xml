@@ -230,6 +230,8 @@
     <string name="settings_input_bar_emoji_shortcut_sub">Giriş çubuğunda emoji kısayolu göster</string>
     <string name="settings_input_bar_send_by_enter">Enter ile gönder</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter mesajı gönderir; Shift+Enter yeni satır ekler</string>
+    <string name="settings_input_bar_fix_previews">Bağlantı önizlemelerini düzelt</string>
+    <string name="settings_input_bar_fix_previews_sub">X, Bluesky, TikTok, Reddit ve Pixiv için Düzelt düğmesi öner</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">Uygulama %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

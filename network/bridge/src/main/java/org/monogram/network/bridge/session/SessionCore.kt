@@ -152,7 +152,11 @@ internal class SessionCore(
         if (PerfLog.isEnabled()) {
             AppLog.api("rpc raw", "op=$fallback exc=${e.javaClass.simpleName} text=$raw")
         }
-        AppLog.warn(fallback, nativeFailureLogLine(telegram, raw))
+        if (telegram.type == "FOLDER_ID_INVALID") {
+            AppLog.api(fallback, nativeFailureLogLine(telegram, raw))
+        } else {
+            AppLog.warn(fallback, nativeFailureLogLine(telegram, raw))
+        }
         DebugStats.record(
             kind = DebugStatKind.ERROR,
             op = fallback.removeSuffix(" failed"),
@@ -335,10 +339,10 @@ internal class SessionCore(
     }
 
     /** Reads the restored native session without waiting for a network connection. */
-    suspend fun isLocallyAuthorized(): Outcome<Boolean> =
+    override suspend fun isLocallyAuthorized(): Outcome<Boolean> =
         rpc("isLocallyAuthorized failed") { activeHandle -> native.isAuthorized(activeHandle) }
 
-    suspend fun isAuthorized(): Outcome<Boolean> {
+    override suspend fun isAuthorized(): Outcome<Boolean> {
         when (val connected = ensureConnected()) {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit

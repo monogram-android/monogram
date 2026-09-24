@@ -29,6 +29,7 @@ import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.markup.NativeMarkupParser
 import org.monogram.core.models.AccountState
+import org.monogram.core.models.AuthSession
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.requiresForwardPhotoRight
 import org.monogram.feature.auth.AuthComponent
@@ -321,6 +322,9 @@ class RootComponent(
                 accountState.isPremium = profile.value.isPremium
                 sessionStore?.savePremium(profile.value.isPremium)
                 sessionStore?.upsertProfile(profile.value)
+                if (sessionStore?.readAuthorizedUserId() == null) {
+                    sessionStore?.saveAuthorized(AuthSession(profile.value.id, 0))
+                }
             }
             is Outcome.Err -> Unit
         }

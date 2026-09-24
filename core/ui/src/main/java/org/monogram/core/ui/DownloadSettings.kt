@@ -30,7 +30,7 @@ data class AutoDownloadPreset(
         if (!enabled) return false
         return when (kind) {
             "photo", "webpage" -> photos
-            "video", "gif" -> true
+            "video", "video_note", "gif" -> true
             else -> false
         }
     }
@@ -41,14 +41,14 @@ data class AutoDownloadPreset(
         return when (kind) {
             "sticker", "sticker_animated", "sticker_video" -> true
             "gif" -> gifs && sizeWithin(sizeBytes, maxGifBytes)
-            "video" -> videos && sizeWithin(sizeBytes, maxVideoBytes)
+            "video", "video_note" -> videos && sizeWithin(sizeBytes, maxVideoBytes)
             "document" -> files && sizeWithin(sizeBytes, maxFileBytes)
             else -> false
         }
     }
 
     fun allowsStream(kind: String?, sizeBytes: Long?): Boolean {
-        if (!enabled || kind != "video" || !videos) return false
+        if (!enabled || (kind != "video" && kind != "video_note") || !videos) return false
         if (sizeWithin(sizeBytes, maxVideoBytes)) return true
         val size = sizeBytes ?: return false
         return preloadVideo && size > maxVideoBytes && maxVideoBytes > 2L * MB

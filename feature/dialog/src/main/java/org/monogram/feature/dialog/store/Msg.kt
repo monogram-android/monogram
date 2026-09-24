@@ -31,7 +31,7 @@ internal sealed interface Msg {
     data class SenderTags(val value: Map<PeerId, String>) : Msg
     data class Draft(val value: String) : Msg
     data class PendingAttach(val items: List<UploadItem>) : Msg
-    data class ReplyTo(val value: Message?) : Msg
+    data class ReplyTo(val value: Message?, val focusComposer: Boolean = false) : Msg
     data class Editing(val value: Message?) : Msg
     data class ForwardMessage(val value: Message?) : Msg
     data class ForwardTargets(val value: List<Chat>) : Msg
@@ -145,4 +145,11 @@ internal sealed interface Msg {
         val hasMore: Boolean = false,
     ) : Msg
     data class DraftMentions(val value: List<DraftMention>) : Msg
+    data class LinkPreview(
+        val preview: org.monogram.core.models.WebpagePreview?,
+        val url: String? = null,
+        val fixed: Boolean = false,
+        val loading: Boolean = false,
+        val hidden: Boolean = false,
+    ) : Msg
 }

@@ -105,6 +105,7 @@ class ChatListPreviewTextTest {
     fun mediaKindsMapToIcons() {
         assertEquals(ChatPreviewMedia.Photo, chatPreviewMedia("photo"))
         assertEquals(ChatPreviewMedia.Voice, chatPreviewMedia("voice"))
+        assertEquals(ChatPreviewMedia.Video, chatPreviewMedia("video_note"))
         assertEquals(ChatPreviewMedia.Link, chatPreviewMedia("webpage"))
         assertEquals(ChatPreviewMedia.Checklist, chatPreviewMedia("todo"))
         assertEquals(ChatPreviewMedia.Sticker, chatPreviewMedia("sticker_video"))

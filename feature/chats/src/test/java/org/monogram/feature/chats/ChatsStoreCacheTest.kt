@@ -776,6 +776,87 @@ class ChatsStoreCacheTest {
     }
 
     @Test
+    fun refreshPersistsLeftNetworkDialogsAndDropsThemFromTheList() = runTest {
+        val leaked = Chat(
+            PeerId(-100),
+            "/vg/ comments",
+            isGroup = true,
+            lastMessageDate = 50,
+            lastMessageId = 6,
+            unreadCount = 6,
+        )
+        val anna = Chat(PeerId(1), "Anna", lastMessageDate = 10, lastMessageId = 2)
+        val upserted = mutableListOf<Chat>()
+        val warmup = object : OfflineWarmup() {
+            override suspend fun chats() = listOf(anna, leaked)
+            override suspend fun upsertChats(chats: List<Chat>) {
+                upserted += chats
+            }
+        }
+        val store = ChatsStoreFactory(
+            DefaultStoreFactory(),
+            StubClient(chats = Outcome.Ok(listOf(anna, leaked.copy(left = true)))),
+            warmup,
+            sessionStore = null,
+        ).create()
+        try {
+            advanceUntilIdle()
+            assertTrue(store.state.chats.none { it.id == leaked.id })
+            assertEquals(listOf(1L), store.state.chats.map { it.id.value })
+            assertTrue(upserted.any { it.id == leaked.id && it.left })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun incomingMessageDoesNotPromoteALeftCommentGroup() = runTest {
+        val comments = Chat(
+            PeerId(-100),
+            "Comments",
+            isGroup = true,
+            left = true,
+            lastMessageDate = 5,
+            lastMessageId = 1,
+        )
+        val anna = Chat(PeerId(1), "Anna", lastMessageDate = 10, lastMessageId = 2)
+        val upserted = mutableListOf<Chat>()
+        val warmup = object : OfflineWarmup() {
+            override suspend fun chats() = listOf(anna, comments)
+            override suspend fun chat(chatId: PeerId) = chats().firstOrNull { it.id == chatId }
+            override suspend fun upsertChats(chats: List<Chat>) {
+                upserted += chats
+            }
+        }
+        val client = StubClient(chats = Outcome.Ok(listOf(anna)))
+        val store = ChatsStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup,
+            sessionStore = null,
+        ).create()
+        try {
+            advanceUntilIdle()
+            client.events.emit(
+                MtprotoUpdate.NewMessage(
+                    Message(
+                        id = org.monogram.core.models.MessageId(comments.id, 8),
+                        senderId = null,
+                        text = "hi",
+                        date = 99L,
+                        outgoing = false,
+                    ),
+                ),
+            )
+            advanceUntilIdle()
+            assertTrue(store.state.chats.none { it.id == comments.id })
+            assertTrue(upserted.none { it.id == comments.id && !it.left })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
     fun metadataPageRewritesTheCacheOnlyWhenMuteStateMoved() = runTest {
         val upserted = mutableListOf<List<Chat>>()
         val warmup = object : OfflineWarmup() {
@@ -885,6 +966,7 @@ class ChatsStoreCacheTest {
             replyToMsgId: Int,
             entitiesJson: String?,
             topMsgId: Int,
+            webpageUrl: String?,
         ) = unused<Message>()
         override suspend fun sendPhoto(
             chatId: PeerId,

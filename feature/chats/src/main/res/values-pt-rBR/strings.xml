@@ -45,6 +45,7 @@
     <string name="chats_preview_document">Arquivo</string>
     <string name="chats_preview_audio">Áudio</string>
     <string name="chats_preview_voice">Mensagem de voz</string>
+    <string name="chats_preview_video_note">Mensagem de vídeo</string>
     <string name="chats_preview_link">Link</string>
     <string name="chats_preview_checklist">Lista de tarefas</string>
     <string name="chats_status_sending">Enviando</string>

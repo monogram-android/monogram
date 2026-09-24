@@ -23,6 +23,7 @@ import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.database.dao.ChatReadState
 import org.monogram.core.models.ARCHIVE_FOLDER_ID
+import org.monogram.core.models.AuthSession
 import org.monogram.core.models.Chat
 import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.LastSeen
@@ -480,17 +481,18 @@ internal class ChatsExecutor(
 
     private fun loadSelf() {
         scope.launch {
-            val store = sessionStore ?: return@launch
-            val id = store.readAuthorizedUserId() ?: return@launch
-            val cached = store.readProfile(id.value)
+            val store = sessionStore
+            val id = store?.readAuthorizedUserId()
+            val cached = id?.let { store.readProfile(it.value) }
             if (cached != null) dispatch(Msg.Self(cached))
-            if (cached?.status != null) return@launch
-            // The chat list header shows the account's own presence and status emoji;
-            // read them once when the cached row carries none yet.
+            if (cached?.avatarCacheKey != null && cached.status != null) return@launch
             when (val result = client.getProfile(PeerId(0))) {
                 is Outcome.Ok -> {
                     dispatch(Msg.Self(result.value))
-                    store.upsertProfile(result.value)
+                    store?.upsertProfile(result.value)
+                    if (store?.readAuthorizedUserId() == null) {
+                        store?.saveAuthorized(AuthSession(result.value.id, 0))
+                    }
                 }
                 is Outcome.Err -> Unit
             }
@@ -618,7 +620,8 @@ internal class ChatsExecutor(
                                 keep = paintKeep(),
                             )
                         }
-                        warmup?.upsertChats(persisted)
+                        val hidden = mapped.filter { !it.isShownInChatList() }
+                        warmup?.upsertChats(if (hidden.isEmpty()) persisted else persisted + hidden)
                         sessionStore?.upsertPeersFromChats(persisted)
                         if (!isFolderScopedStream(activeFolderId) &&
                             cachedTail.any { it.isMainListRow() }
@@ -1158,32 +1161,39 @@ internal class ChatsExecutor(
 
     private fun absorbIncoming(message: Message) {
         scope.launch {
-            val existing = listPublicationMutex.withLock {
+            var persistHidden: Chat? = null
+            val published = listPublicationMutex.withLock {
                 val current = listedChat(message.id.chatId)
-                if (current != null) {
-                    cachedTail = cachedTail.filter { it.id != current.id }
-                    val listed = buildList {
-                        addAll(state().chats)
-                        addAll(cachedTail)
-                        if (none { it.id == current.id }) add(current)
+                when {
+                    current == null -> false
+                    !current.isShownInChatList() -> {
+                        persistHidden = current.withIncomingMessage(message)
+                        true
                     }
-                    republishListedLocked(
-                        applyIncomingMessage(listed, message),
-                        fromCache = false,
-                        hasMore = null,
-                        keep = paintKeep(),
-                    )
-                    true
-                } else {
-                    false
+                    else -> {
+                        cachedTail = cachedTail.filter { it.id != current.id }
+                        val listed = buildList {
+                            addAll(state().chats)
+                            addAll(cachedTail)
+                            if (none { it.id == current.id }) add(current)
+                        }
+                        republishListedLocked(
+                            applyIncomingMessage(listed, message),
+                            fromCache = false,
+                            hasMore = null,
+                            keep = paintKeep(),
+                        )
+                        true
+                    }
                 }
             }
-            if (existing) return@launch
+            persistHidden?.let { warmup?.upsertChats(listOf(it)) }
+            if (published) return@launch
             val stored = withContext(Dispatchers.IO) {
                 warmup?.chat(message.id.chatId)
             } ?: return@launch
             if (!stored.isMainListRow()) {
-                warmup?.upsertChats(applyIncomingMessage(listOf(stored), message))
+                warmup?.upsertChats(listOf(stored.withIncomingMessage(message)))
                 return@launch
             }
             listPublicationMutex.withLock {

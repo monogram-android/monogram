@@ -66,6 +66,32 @@ class ChatListMembershipTest {
     }
 
     @Test
+    fun incomingMessageUpdatesALeftDialogWithoutListingIt() {
+        val comments = chat(id = 9, title = "Comments", isGroup = true, left = true).copy(
+            lastMessagePreview = "old",
+            lastMessageDate = 1L,
+            lastMessageId = 3,
+        )
+        val incoming = org.monogram.core.models.Message(
+            id = org.monogram.core.models.MessageId(comments.id, 8),
+            senderId = null,
+            text = "hi",
+            date = 9L,
+            outgoing = false,
+        )
+        val updated = comments.withIncomingMessage(incoming)
+        assertTrue(updated.left)
+        assertEquals("hi", updated.lastMessagePreview)
+        assertEquals(8, updated.lastMessageId)
+        assertEquals(9L, updated.lastMessageDate)
+        val listed = applyIncomingMessage(
+            listOf(chat(id = 1, title = "Anna"), comments),
+            incoming,
+        )
+        assertEquals(listOf(1L), listed.map { it.id.value })
+    }
+
+    @Test
     fun incomingMessageDoesNotPromoteAnArchivedOrLeftDialog() {
         val archived = chat(id = 8, title = "Old", lastMessageDate = 1).copy(archived = true)
         val comments = chat(id = 9, title = "Comments", isGroup = true, left = true)

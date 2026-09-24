@@ -374,13 +374,13 @@ private fun rememberPinnedThumb(
 
 /** Only visual media carries a small preview on the wire. */
 private fun pinnedThumbAvailable(mediaKind: String?): Boolean = when (mediaKind) {
-    "photo", "video", "gif", "sticker", "sticker_animated" -> true
+    "photo", "video", "video_note", "gif", "sticker", "sticker_animated" -> true
     else -> false
 }
 
 private fun pinnedTypeIcon(mediaKind: String?): ImageVector = when (mediaKind) {
     "photo" -> Icons.Outlined.Image
-    "video" -> Icons.Outlined.Videocam
+    "video", "video_note" -> Icons.Outlined.Videocam
     "gif" -> Icons.Outlined.Gif
     "sticker", "sticker_animated" -> Icons.Outlined.EmojiEmotions
     "document" -> Icons.AutoMirrored.Outlined.InsertDriveFile

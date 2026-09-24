@@ -45,6 +45,7 @@
     <string name="chats_preview_document">Document</string>
     <string name="chats_preview_audio">Audio</string>
     <string name="chats_preview_voice">Voice message</string>
+    <string name="chats_preview_video_note">Video message</string>
     <string name="chats_preview_link">Link</string>
     <string name="chats_preview_checklist">Checklist</string>
     <string name="chats_status_sending">Sending</string>

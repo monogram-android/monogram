@@ -60,6 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
@@ -87,6 +88,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import java.io.File
 import org.monogram.core.models.UploadItem
+import org.monogram.core.models.WebpagePreview
 import org.monogram.core.ui.ExpressiveDefaults
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.feature.dialog.R
@@ -116,9 +118,22 @@ internal fun DialogWriteBar(
     onOpenEditor: () -> Unit = {},
     onSelectionMenuVisibilityChange: (Boolean) -> Unit = {},
     hint: String? = null,
+    composerFocusSeq: Int = 0,
+    linkPreview: WebpagePreview? = null,
+    linkPreviewLoading: Boolean = false,
+    linkPreviewHidden: Boolean = false,
+    onDismissLinkPreview: () -> Unit = {},
+    onRestoreLinkPreview: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val composerFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(composerFocusSeq) {
+        if (composerFocusSeq <= 0) return@LaunchedEffect
+        composerFocus.requestFocus()
+        keyboard?.show()
+    }
     val appearance by AppearanceSettings.state.collectAsStateWithLifecycle()
     val canCompose = canSendPlain || canSendPhotos
     if (!canCompose) {
@@ -172,6 +187,28 @@ internal fun DialogWriteBar(
                         body = body,
                         onClear = onClearReply,
                     )
+                }
+                if (linkPreviewLoading) {
+                    WriteBarContext(
+                        title = stringResource(R.string.dialog_link_preview_loading),
+                        body = "",
+                        onClear = onDismissLinkPreview,
+                    )
+                } else if (linkPreviewHidden) {
+                    TextButton(onClick = onRestoreLinkPreview) {
+                        Text(stringResource(R.string.dialog_restore_preview))
+                    }
+                } else {
+                    linkPreview?.takeIf { it.hasContent }?.let { preview ->
+                        WriteBarContext(
+                            title = preview.siteName?.takeIf { it.isNotBlank() }
+                                ?: preview.title?.takeIf { it.isNotBlank() }
+                                ?: preview.url,
+                            body = preview.description?.takeIf { it.isNotBlank() }
+                                ?: preview.title.orEmpty(),
+                            onClear = onDismissLinkPreview,
+                        )
+                    }
                 }
                 if (pendingAttach.isNotEmpty()) {
                     WriteBarContext(
@@ -324,6 +361,7 @@ internal fun DialogWriteBar(
                                     state = textFieldState,
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .focusRequester(composerFocus)
                                         .contentReceiver(receiveMedia)
                                         .onPreviewKeyEvent { event ->
                                             if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false

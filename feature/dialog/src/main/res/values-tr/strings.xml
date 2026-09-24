@@ -67,6 +67,9 @@
     <string name="dialog_saved_gifs_empty">Kayıtlı GIF yok</string>
     <string name="dialog_media_audio">Ses</string>
     <string name="dialog_media_voice">Sesli mesaj</string>
+    <string name="dialog_link_preview_loading">Bağlantı önizlemesi yükleniyor</string>
+    <string name="dialog_restore_preview">Önizlemeyi geri yükle</string>
+    <string name="dialog_media_video_note">Görüntülü mesaj</string>
     <string name="dialog_media_video">Video</string>
     <string name="dialog_media_gif">GIF</string>
     <string name="dialog_media_play">Oynat</string>

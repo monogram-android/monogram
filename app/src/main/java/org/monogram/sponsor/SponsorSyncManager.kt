@@ -65,13 +65,14 @@ class SponsorSyncManager(
             loadFromDatabase()
             watchUpdates()
 
-            var wasAuthorized = sessionStore.isAuthorized()
+            var wasAuthorized = canSync()
             if (wasAuthorized) {
-                runScheduledSync(force = true, reason = "startup")
+                val empty = sponsorDao.getAllIds().isEmpty()
+                runScheduledSync(force = empty, reason = "startup")
             }
 
             while (isActive) {
-                if (!sessionStore.isAuthorized()) {
+                if (!canSync()) {
                     wasAuthorized = false
                     failureCount = 0
                     delay(AUTH_CHECK_INTERVAL_MS)
@@ -183,14 +184,15 @@ class SponsorSyncManager(
 
         try {
             _sponsorState.value = _sponsorState.value.copy(isSyncInProgress = true)
-            if (!sessionStore.isAuthorized()) {
+            if (!canSync()) {
                 AppLog.api(LOG_TAG, "skipped reason=$reason unauthorized")
                 return SyncOutcome.SKIPPED
             }
 
+            val cachedEmpty = sponsorDao.getAllIds().isEmpty()
             val latestUpdatedAt = sponsorDao.getLatestUpdatedAt() ?: 0L
             val age = System.currentTimeMillis() - latestUpdatedAt
-            if (!force && latestUpdatedAt > 0L && age < PERIODIC_SYNC_INTERVAL_MS) {
+            if (!force && !cachedEmpty && latestUpdatedAt > 0L && age < PERIODIC_SYNC_INTERVAL_MS) {
                 AppLog.api(LOG_TAG, "skipped reason=$reason age=${age}ms")
                 return SyncOutcome.SKIPPED
             }
@@ -235,10 +237,10 @@ class SponsorSyncManager(
                 _sponsorState.value = _sponsorState.value.copy(
                     supporterIds = oldIds,
                     supportersCount = oldIds.size,
-                    isLoaded = true,
+                    isLoaded = oldIds.isNotEmpty(),
                     lastSyncAt = now,
                 )
-                return SyncOutcome.SUCCESS
+                return if (oldIds.isEmpty()) SyncOutcome.FAILED else SyncOutcome.SUCCESS
             }
 
             val actualIds = oldIds + parsedIds
@@ -274,6 +276,14 @@ class SponsorSyncManager(
         } finally {
             _sponsorState.value = _sponsorState.value.copy(isSyncInProgress = false)
             syncInProgress.set(false)
+        }
+    }
+
+    private suspend fun canSync(): Boolean {
+        if (sessionStore.isAuthorized()) return true
+        return when (val result = client.isLocallyAuthorized()) {
+            is Outcome.Ok -> result.value
+            is Outcome.Err -> false
         }
     }
 

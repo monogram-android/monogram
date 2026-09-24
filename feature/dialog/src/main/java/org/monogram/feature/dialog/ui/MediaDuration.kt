@@ -50,6 +50,7 @@ internal const val PHOTO_MAX_WIDTH_DP = 280
 internal const val PHOTO_MAX_HEIGHT_DP = 320
 internal const val PHOTO_DEFAULT_ASPECT = 4f / 3f
 internal const val VIDEO_DEFAULT_ASPECT = 16f / 9f
+internal const val VIDEO_NOTE_DP = 192
 
 /** Widest bubble body; edge-to-edge media spans exactly this. */
 internal const val BUBBLE_MAX_WIDTH_DP = 324
@@ -81,7 +82,8 @@ internal fun photoDisplaySize(
 }
 
 internal fun visualMediaDisplaySize(kind: String?, width: Int?, height: Int?): Pair<Int, Int> =
-    photoDisplaySize(width, height, mediaFallbackAspect(kind))
+    if (kind == "video_note") VIDEO_NOTE_DP to VIDEO_NOTE_DP
+    else photoDisplaySize(width, height, mediaFallbackAspect(kind))
 
 /**
  * Media drawn edge-to-edge in its bubble: full bubble width, still aspect-correct and

@@ -230,6 +230,8 @@
     <string name="settings_input_bar_emoji_shortcut_sub">Zobraziť skratku emoji v paneli vstupu</string>
     <string name="settings_input_bar_send_by_enter">Odosielať klávesou Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter odošle správu; Shift+Enter pridá nový riadok</string>
+    <string name="settings_input_bar_fix_previews">Oprava náhľadov odkazov</string>
+    <string name="settings_input_bar_fix_previews_sub">Ponúknuť tlačidlo na opravu náhľadu pre X, Bluesky, TikTok, Reddit a Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">App %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

@@ -133,8 +133,15 @@ class MainActivity : ComponentActivity() {
         val componentContext = defaultComponentContext()
         lifecycleScope.launch {
             val startOnHome = withContext(Dispatchers.IO) {
-                when (val result = app.client.isLocallyAuthorized()) {
-                    is Outcome.Ok -> result.value
+                when (val local = app.client.isLocallyAuthorized()) {
+                    is Outcome.Ok -> if (local.value) {
+                        true
+                    } else {
+                        when (val remote = app.client.isAuthorized()) {
+                            is Outcome.Ok -> remote.value
+                            is Outcome.Err -> app.sessionStore.isAuthorized()
+                        }
+                    }
                     is Outcome.Err -> app.sessionStore.isAuthorized()
                 }
             }

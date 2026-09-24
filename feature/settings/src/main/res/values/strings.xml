@@ -230,6 +230,8 @@
     <string name="settings_input_bar_emoji_shortcut_sub">Show an emoji shortcut in the input bar</string>
     <string name="settings_input_bar_send_by_enter">Send by Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter sends a message; Shift+Enter inserts a new line</string>
+    <string name="settings_input_bar_fix_previews">Fix link previews</string>
+    <string name="settings_input_bar_fix_previews_sub">Offer a Fix preview button for X, Bluesky, TikTok, Reddit, and Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">App %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

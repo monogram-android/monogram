@@ -67,6 +67,9 @@
     <string name="dialog_saved_gifs_empty">Պահպանված GIF չկա</string>
     <string name="dialog_media_audio">Աուդիո</string>
     <string name="dialog_media_voice">Ձայնային հաղորդագրություն</string>
+    <string name="dialog_link_preview_loading">Հղման նախադիտման բեռնում</string>
+    <string name="dialog_restore_preview">Վերականգնել նախադիտումը</string>
+    <string name="dialog_media_video_note">Տեսահաղորդագրություն</string>
     <string name="dialog_media_video">Տեսանյութ</string>
     <string name="dialog_media_gif">GIF</string>
     <string name="dialog_media_play">Նվագարկել</string>

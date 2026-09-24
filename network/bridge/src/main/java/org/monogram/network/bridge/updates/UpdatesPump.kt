@@ -21,6 +21,7 @@ import org.monogram.network.bridge.session.SessionCore
 import org.monogram.network.bridge.session.dispatchClassName
 import org.monogram.network.bridge.session.nativeRequest
 import uniffi.monogram_mtproto.UpdateEventDto
+import org.monogram.network.bridge.chat.toChatModels
 import org.monogram.network.bridge.chat.toModel as toFolderModel
 import org.monogram.network.bridge.message.toModel as toMessageModel
 import org.monogram.network.bridge.profile.toModel as toProfileModel
@@ -326,7 +327,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 core.scope.launch {
                     try {
                         val chats = core.onNativeIfFree { handle ->
-                            core.native.getChats(handle).map { dto -> dto.toFolderModel() }
+                            core.native.getChats(handle).toChatModels()
                         }
                         if (chats != null && core.isCurrentHandle(refreshHandle)) {
                             lastChatsRefreshMs.set(core.clock.elapsedMs())

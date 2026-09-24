@@ -55,6 +55,7 @@ pub(crate) fn chat_list_media_word(kind: &str) -> Option<&'static str> {
         "document" => Some("Document"),
         "audio" => Some("Audio"),
         "voice" => Some("Voice message"),
+        "video_note" => Some("Video message"),
         "todo" => Some("Checklist"),
         "webpage" => Some("Link"),
         "poll" => Some("Poll"),
@@ -86,6 +87,7 @@ pub(crate) fn preview_hides_file_name(kind: Option<&str>, file_name: &str) -> bo
                 | "sticker_animated"
                 | "sticker_video"
                 | "voice"
+                | "video_note"
                 | "webpage"
                 | "todo"
                 | "poll"

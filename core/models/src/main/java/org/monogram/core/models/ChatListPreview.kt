@@ -57,6 +57,7 @@ private val generatedFileNameKinds = setOf(
     "sticker_animated",
     "sticker_video",
     "voice",
+    "video_note",
     "webpage",
     "todo",
     "poll",
@@ -119,6 +120,7 @@ fun chatListMediaLabel(kind: String): String? = when (kind) {
     "document" -> "Document"
     "audio" -> "Audio"
     "voice" -> "Voice message"
+    "video_note" -> "Video message"
     "todo" -> "Checklist"
     "webpage" -> "Link"
     "poll" -> "Poll"

@@ -88,6 +88,7 @@ import uniffi.monogram_mtproto.getStickerSet as nativeGetStickerSet
 import uniffi.monogram_mtproto.getStickers as nativeGetStickers
 import uniffi.monogram_mtproto.getUpdatesState as nativeGetUpdatesState
 import uniffi.monogram_mtproto.getWebPage as nativeGetWebPage
+import uniffi.monogram_mtproto.getWebPagePreview as nativeGetWebPagePreview
 import uniffi.monogram_mtproto.isAuthorized as nativeIsAuthorized
 import uniffi.monogram_mtproto.libraryVersion as nativeLibraryVersion
 import uniffi.monogram_mtproto.loadMoreChats as nativeLoadMoreChats
@@ -238,6 +239,9 @@ object MtprotoNativeUniFfi : MtprotoNative {
 
     override fun getWebPage(handle: Long, url: String, hash: Int): InstantViewDto =
         nativeGetWebPage(handle.toULong(), url, hash)
+
+    override fun getWebPagePreview(handle: Long, message: String): InstantViewDto =
+        nativeGetWebPagePreview(handle.toULong(), message)
 
     override fun getFolders(handle: Long): List<FolderDto> = nativeGetFolders(handle.toULong())
 
@@ -393,8 +397,17 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId: Int,
         entitiesJson: String?,
         topMsgId: Int,
+        webpageUrl: String?,
     ): MessageDto =
-        nativeSendTextMessage(handle.toULong(), chatId, text, replyToMsgId, entitiesJson, topMsgId)
+        nativeSendTextMessage(
+            handle.toULong(),
+            chatId,
+            text,
+            replyToMsgId,
+            entitiesJson,
+            topMsgId,
+            webpageUrl,
+        )
 
     override fun sendPhotoMessage(
         handle: Long,

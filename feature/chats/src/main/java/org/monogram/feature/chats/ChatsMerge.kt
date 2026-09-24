@@ -53,7 +53,6 @@ internal fun mergeChats(current: List<Chat>, extra: List<Chat>): List<Chat> {
     val typing = current.filter { it.typing }.associateBy { it.id.value }
     val byId = LinkedHashMap<Long, Chat>()
     current.forEach { byId[it.id.value] = it }
-    val dialogsPage = extra.size > 1
     extra.forEach { incoming ->
         if (!incoming.isShownInChatList()) {
             byId.remove(incoming.id.value)
@@ -62,7 +61,6 @@ internal fun mergeChats(current: List<Chat>, extra: List<Chat>): List<Chat> {
         val prev = byId[incoming.id.value]
         val pinnedOrder = when {
             incoming.pinned && incoming.pinnedOrder != Int.MAX_VALUE -> incoming.pinnedOrder
-            dialogsPage -> Int.MAX_VALUE
             incoming.pinned -> prev?.pinnedOrder ?: incoming.pinnedOrder
             else -> Int.MAX_VALUE
         }
@@ -177,18 +175,16 @@ internal fun applyUnreadReactionsDelta(chats: List<Chat>, chatId: PeerId, delta:
     }
 }
 
-internal fun applyIncomingMessage(chats: List<Chat>, message: Message): List<Chat> {
-    val existing = chats.firstOrNull { it.id == message.id.chatId } ?: return chats
+internal fun Chat.withIncomingMessage(message: Message): Chat {
     val unread =
-        if (message.outgoing || message.id.id <= existing.readInboxMaxId ||
-            message.id.id == existing.lastMessageId
+        if (message.outgoing || message.id.id <= readInboxMaxId ||
+            message.id.id == lastMessageId
         ) {
-            existing.unreadCount
+            unreadCount
         } else {
-            existing.unreadCount + 1
+            unreadCount + 1
         }
-    val updated = existing.copy(
-        title = existing.title,
+    return copy(
         lastMessagePreview = message.chatListPreviewSource(),
         lastMessageOutgoing = message.outgoing,
         lastMessageSenderName = message.senderName,
@@ -196,7 +192,11 @@ internal fun applyIncomingMessage(chats: List<Chat>, message: Message): List<Cha
         lastMessageDate = message.date,
         unreadCount = unread,
         lastMessageId = message.id.id,
-        lastMediaThumbCacheKey = message.thumbCacheKey ?: existing.lastMediaThumbCacheKey,
+        lastMediaThumbCacheKey = message.thumbCacheKey ?: lastMediaThumbCacheKey,
     )
-    return mergeChats(chats, listOf(updated))
+}
+
+internal fun applyIncomingMessage(chats: List<Chat>, message: Message): List<Chat> {
+    val existing = chats.firstOrNull { it.id == message.id.chatId } ?: return chats
+    return mergeChats(chats, listOf(existing.withIncomingMessage(message)))
 }

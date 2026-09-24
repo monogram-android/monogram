@@ -442,7 +442,7 @@ open class OfflineWarmup(
                 } else {
                     (stored?.unreadCount ?: 0) + 1
                 }
-            val chat = (stored ?: Chat(id = message.id.chatId, title = "")).copy(
+            val chat = (stored ?: placeholderChat(message.id.chatId)).copy(
                 lastMessagePreview = message.chatListPreviewSource(),
                 lastMessageOutgoing = message.outgoing,
                 lastMessageSenderName = message.senderName,
@@ -489,12 +489,19 @@ open class OfflineWarmup(
         val database = db ?: return@roomIo
         database.withTransaction {
             if (database.chatDao().get(chatId.value) == null) {
-                database.chatDao().upsertAll(listOf(Chat(chatId, "").toEntity()))
+                database.chatDao().upsertAll(listOf(placeholderChat(chatId).toEntity()))
             }
             database.chatDao().updateInboxRead(chatId.value, maxId, stillUnread.coerceAtLeast(0))
         }
     }
 }
+
+/** Users are positive; groups/channels are negative. Unknown non-user peers start unjoined. */
+internal fun placeholderChat(chatId: PeerId) = Chat(
+    id = chatId,
+    title = "",
+    left = chatId.value < 0,
+)
 
 data class HistoryPrune(
     val chatId: Long,

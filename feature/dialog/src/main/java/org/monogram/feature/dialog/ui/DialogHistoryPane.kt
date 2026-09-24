@@ -475,7 +475,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                 enabled = menuMessage == null && selectingMessage == null && !multiSelecting &&
                                     message.mediaKind != "service" && !message.pending && message.id.id > 0 &&
                                     (state.canSendPlain || state.canSendPhotos),
-                                onReply = { component.onReply(message) },
+                                onReply = { component.onReply(message, focusComposer = true) },
                             ) {
                             MessageBubble(
                                 onMarkupButton = { button ->
@@ -810,6 +810,38 @@ internal fun ColumnScope.DialogHistoryPane(
                 onLoadMore = component::onLoadMoreMentions,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
+        }
+        var dateOverlayEpoch by remember { mutableStateOf<Long?>(null) }
+        var dateOverlayVisible by remember { mutableStateOf(false) }
+        val overlayZone = remember { java.time.ZoneId.systemDefault() }
+        LaunchedEffect(listState, state.messages) {
+            snapshotFlow {
+                val scrolling = listState.isScrollInProgress
+                val topIndex = listState.layoutInfo.visibleItemsInfo.maxByOrNull { it.index }?.index
+                val heads = state.messages.mapIndexedNotNull { index, message ->
+                    if (isAlbumHead(state.messages, index)) message else null
+                }
+                val date = topIndex?.let { heads.getOrNull(it)?.date }
+                scrolling to date
+            }.collect { (scrolling, date) ->
+                if (date != null) dateOverlayEpoch = date
+                if (scrolling) {
+                    dateOverlayVisible = true
+                } else {
+                    delay(1_000)
+                    if (!listState.isScrollInProgress) dateOverlayVisible = false
+                }
+            }
+        }
+        androidx.compose.animation.AnimatedVisibility(
+            visible = dateOverlayVisible && dateOverlayEpoch != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = if (showPinned) 68.dp else 8.dp),
+        ) {
+            dateOverlayEpoch?.let { epoch ->
+                DialogDateSeparator(epochSeconds = epoch, zone = overlayZone)
+            }
         }
         androidx.compose.animation.AnimatedVisibility(
             visible = showPinned,

@@ -6,9 +6,10 @@
 use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::latest::api::{
-    ChannelsDeleteMessagesRequest, InputChannel, InputChannelConstructor, InputReplyTo,
-    InputReplyToMessageConstructor, MessagesAffectedMessages, MessagesDeleteMessagesRequest,
-    MessagesEditMessageRequest, MessagesForwardMessagesRequest, MessagesSendMessageRequest, True,
+    ChannelsDeleteMessagesRequest, InputChannel, InputChannelConstructor, InputMedia,
+    InputMediaWebPageConstructor, InputReplyTo, InputReplyToMessageConstructor,
+    MessagesAffectedMessages, MessagesDeleteMessagesRequest, MessagesEditMessageRequest,
+    MessagesForwardMessagesRequest, MessagesSendMediaRequest, MessagesSendMessageRequest, True,
     TrueConstructor, Updates, Vector, VectorConstructor,
 };
 use tellers_mtproto_crypto::fill_random;
@@ -297,36 +298,78 @@ pub fn send_text(
     reply_to_msg_id: i32,
     entities_json: Option<&str>,
     top_msg_id: i32,
+    webpage_url: Option<&str>,
 ) -> Result<MessageDto, MtprotoError> {
     let cached = peers::require_usable_peer(peers, chat_id)?;
     let (reply_flag, reply_to) = input_reply_to_thread(reply_to_msg_id, top_msg_id);
     let (entities_flag, entities) = entities_from_json(entities_json)?;
-    let request = MessagesSendMessageRequest {
-        flags: reply_flag | entities_flag,
-        no_webpage: None,
-        silent: None,
-        background: None,
-        clear_draft: None,
-        noforwards: None,
-        update_stickersets_order: None,
-        invert_media: None,
-        allow_paid_floodskip: None,
-        peer: Box::new(input_peer_from_cached(cached)),
-        reply_to,
-        message: text.to_string(),
-        random_id: random_id(),
-        reply_markup: None,
-        entities,
-        schedule_date: None,
-        schedule_repeat_period: None,
-        send_as: None,
-        quick_reply_shortcut: None,
-        effect: None,
-        allow_paid_stars: None,
-        suggested_post: None,
-        rich_message: None,
+    let peer = Box::new(input_peer_from_cached(cached));
+    let updates: Updates = if let Some(url) = webpage_url.map(str::trim).filter(|s| !s.is_empty()) {
+        api_invoke::invoke_api(
+            snapshot,
+            api_id,
+            MessagesSendMediaRequest {
+                flags: reply_flag | entities_flag,
+                silent: None,
+                background: None,
+                clear_draft: None,
+                noforwards: None,
+                update_stickersets_order: None,
+                invert_media: None,
+                allow_paid_floodskip: None,
+                peer,
+                reply_to,
+                media: Box::new(InputMedia::InputMediaWebPage(InputMediaWebPageConstructor {
+                    flags: InputMediaWebPageConstructor::OPTIONAL_FLAG,
+                    force_large_media: None,
+                    force_small_media: None,
+                    optional: Some(Box::new(True::True(TrueConstructor {}))),
+                    url: url.to_string(),
+                })),
+                message: text.to_string(),
+                random_id: random_id(),
+                reply_markup: None,
+                entities,
+                schedule_date: None,
+                schedule_repeat_period: None,
+                send_as: None,
+                quick_reply_shortcut: None,
+                effect: None,
+                allow_paid_stars: None,
+                suggested_post: None,
+            },
+        )?
+    } else {
+        api_invoke::invoke_api(
+            snapshot,
+            api_id,
+            MessagesSendMessageRequest {
+                flags: reply_flag | entities_flag,
+                no_webpage: None,
+                silent: None,
+                background: None,
+                clear_draft: None,
+                noforwards: None,
+                update_stickersets_order: None,
+                invert_media: None,
+                allow_paid_floodskip: None,
+                peer,
+                reply_to,
+                message: text.to_string(),
+                random_id: random_id(),
+                reply_markup: None,
+                entities,
+                schedule_date: None,
+                schedule_repeat_period: None,
+                send_as: None,
+                quick_reply_shortcut: None,
+                effect: None,
+                allow_paid_stars: None,
+                suggested_post: None,
+                rich_message: None,
+            },
+        )?
     };
-    let updates: Updates = api_invoke::invoke_api(snapshot, api_id, request)?;
     let mut dto = message_from_updates(updates, chat_id, text, media_index);
     if dto.entities_json.is_none() {
         dto.entities_json = entities_json

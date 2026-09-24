@@ -1,7 +1,6 @@
 package org.monogram.feature.auth
 
 import com.arkivanov.decompose.ComponentContext
-import com.arkivanov.essenty.lifecycle.doOnDestroy
 import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
@@ -24,18 +23,6 @@ class AuthComponent(
 
     val state: StateFlow<AuthStore.State> = store.stateFlow
 
-    init {
-        lifecycle.doOnDestroy { /* store cleared by InstanceKeeper */ }
-    }
-
-    fun onPhoneChanged(value: String) = store.accept(AuthStore.Intent.PhoneChanged(value))
-    fun onCodeChanged(value: String) = store.accept(AuthStore.Intent.CodeChanged(value))
-    fun onPasswordChanged(value: String) = store.accept(AuthStore.Intent.PasswordChanged(value))
-    fun onSendCode() = store.accept(AuthStore.Intent.SendCode)
-    fun onSignIn() = store.accept(AuthStore.Intent.SignIn)
-    fun onSubmitPassword(password: String = "") =
-        store.accept(AuthStore.Intent.SubmitPassword(password))
-    fun onBackToPhone() = store.accept(AuthStore.Intent.BackToPhone)
     fun onIntent(intent: AuthStore.Intent) = store.accept(intent)
 
     fun consumeAuthorized() {

@@ -45,6 +45,7 @@
     <string name="chats_preview_document">Dosya</string>
     <string name="chats_preview_audio">Ses</string>
     <string name="chats_preview_voice">Sesli mesaj</string>
+    <string name="chats_preview_video_note">Görüntülü mesaj</string>
     <string name="chats_preview_link">Bağlantı</string>
     <string name="chats_preview_checklist">Yapılacaklar listesi</string>
     <string name="chats_status_sending">Gönderiliyor</string>

@@ -13,6 +13,7 @@ import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.markup.forSend
 import org.monogram.core.models.Chat
 import org.monogram.core.models.ChatActionKind
+import org.monogram.core.models.FixedLinkPreviewRules
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.InlineBotResult
@@ -42,6 +43,7 @@ import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.models.playedMediaKind
 import org.monogram.core.models.preferredPeerTitle
+import org.monogram.core.ui.AppearanceSettings
 import org.monogram.feature.dialog.ComposerAt
 import org.monogram.feature.dialog.ComposerAtToken
 import org.monogram.feature.dialog.ComposerPanels
@@ -466,12 +468,22 @@ internal fun DialogExecutor.send(overrideText: String? = null) {
             val wire = styleForSend(parsed)
             val entitiesJson = serializeSendEntities(wire, mentions)
             PerfLog.event("send", "id=$sendOp phase=bridge_send")
+            val webpageUrl =
+                if (AppearanceSettings.state.value.fixLinkPreviews && !current.linkPreviewHidden) {
+                    FixedLinkPreviewRules.previewUrlFor(
+                        wire.text,
+                        current.linkPreviewUrl.takeIf { current.linkPreviewFixed },
+                    )
+                } else {
+                    null
+                }
             val result = client.sendText(
                 chatId,
                 wire.text,
                 replyId,
                 entitiesJson,
                 topId,
+                webpageUrl,
             )
             PerfLog.event(
                 "send",

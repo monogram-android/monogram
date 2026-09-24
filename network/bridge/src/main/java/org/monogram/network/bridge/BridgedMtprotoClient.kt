@@ -71,7 +71,7 @@ class BridgedMtprotoClient internal constructor(
         ),
     )
 
-    suspend fun isLocallyAuthorized(): Outcome<Boolean> = apis.core.isLocallyAuthorized()
+    override suspend fun isLocallyAuthorized(): Outcome<Boolean> = apis.core.isLocallyAuthorized()
 
-    suspend fun isAuthorized(): Outcome<Boolean> = apis.core.isAuthorized()
+    override suspend fun isAuthorized(): Outcome<Boolean> = apis.core.isAuthorized()
 }

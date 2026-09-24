@@ -32,6 +32,25 @@ pub fn get_web_page(
     })
 }
 
+pub fn get_web_page_preview(
+    handle: u64,
+    message: String,
+) -> Result<crate::InstantViewDto, MtprotoError> {
+    with_client_mut(handle, |state| {
+        ensure_ready(state)?;
+        let page = call_with_migrate(state, |state| {
+            crate::instant_view_rpc::get_web_page_preview(
+                &mut state.snapshot,
+                state.api_id,
+                &mut state.peers,
+                &mut state.media,
+                message.clone(),
+            )
+        })?;
+        Ok(page)
+    })
+}
+
 pub fn send_location(
     handle: u64,
     chat_id: i64,

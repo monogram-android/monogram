@@ -56,7 +56,7 @@ interface ChatDao {
         """
         SELECT * FROM chats
         WHERE `left` = 0 AND archived = 1
-        ORDER BY lastMessageDate DESC
+        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC
         LIMIT :limit
         """,
     )
@@ -66,7 +66,7 @@ interface ChatDao {
         """
         SELECT * FROM chats
         WHERE `left` = 0 AND archived = 1 AND id NOT IN (:excludeIds)
-        ORDER BY lastMessageDate DESC
+        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC
         LIMIT :limit
         """,
     )

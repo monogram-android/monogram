@@ -249,7 +249,7 @@ class FileCache(
             val hint = mediaKind.orEmpty()
             return when {
                 hint == "photo" || hint == "webpage" || key.startsWith("photo:") -> KIND_PHOTOS
-                hint == "video" || hint == "gif" || key.startsWith("doc:") && key.endsWith(":thumb") -> KIND_VIDEOS
+                hint == "video" || hint == "video_note" || hint == "gif" || key.startsWith("doc:") && key.endsWith(":thumb") -> KIND_VIDEOS
                 hint.startsWith("sticker") || key.startsWith("emoji:") -> KIND_STICKERS
                 key.startsWith("avatar:") -> KIND_OTHER
                 hint == "document" || hint == "audio" || hint == "voice" -> KIND_FILES

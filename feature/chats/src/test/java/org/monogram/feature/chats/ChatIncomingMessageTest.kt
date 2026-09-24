@@ -223,6 +223,28 @@ class ChatIncomingMessageTest {
     }
 
     @Test
+    fun dialogsRefreshWithoutPinIndexKeepsExistingPinOrder() {
+        val current = listOf(
+            chat(1, pinned = true, pinnedOrder = 0, date = 10),
+            chat(2, pinned = true, pinnedOrder = 1, date = 20),
+            chat(3, pinned = true, pinnedOrder = 2, date = 30),
+            chat(4, pinned = false, date = 40),
+        )
+        val refreshed = listOf(
+            chat(3, pinned = true, date = 300),
+            chat(2, pinned = true, date = 200),
+            chat(1, pinned = true, date = 100),
+            chat(4, pinned = false, date = 40),
+        )
+        val next = mergeChats(current, refreshed)
+        assertEquals(listOf(1L, 2L, 3L, 4L), next.map { it.id.value })
+        assertEquals(0, next[0].pinnedOrder)
+        assertEquals(1, next[1].pinnedOrder)
+        assertEquals(2, next[2].pinnedOrder)
+        assertEquals(300L, next[2].lastMessageDate)
+    }
+
+    @Test
     fun editedLatestUpdatesPreview() {
         val chats = listOf(chat(1, preview = "old").copy(lastMessageId = 8))
         val edited = applyEditedMessage(

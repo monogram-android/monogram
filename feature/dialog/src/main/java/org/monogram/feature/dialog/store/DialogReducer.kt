@@ -30,7 +30,17 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         is Msg.SenderTags -> copy(senderTags = msg.value)
         is Msg.Draft -> if (draft == msg.value) this else copy(draft = msg.value)
         is Msg.PendingAttach -> copy(pendingAttach = msg.items)
-        is Msg.ReplyTo -> copy(replyTo = msg.value)
+        is Msg.LinkPreview -> copy(
+            linkPreview = msg.preview,
+            linkPreviewUrl = msg.url,
+            linkPreviewFixed = msg.fixed,
+            linkPreviewLoading = msg.loading,
+            linkPreviewHidden = msg.hidden,
+        )
+        is Msg.ReplyTo -> copy(
+            replyTo = msg.value,
+            composerFocusSeq = if (msg.focusComposer) composerFocusSeq + 1 else composerFocusSeq,
+        )
         is Msg.Editing -> copy(editing = msg.value)
         is Msg.ForwardMessage -> copy(forwardMessage = msg.value)
         is Msg.ForwardTargets -> copy(forwardTargets = msg.value)

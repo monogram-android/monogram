@@ -230,6 +230,8 @@
     <string name="settings_input_bar_emoji_shortcut_sub">入力バーに絵文字ショートカットを表示</string>
     <string name="settings_input_bar_send_by_enter">Enter で送信</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter で送信、Shift+Enter で改行</string>
+    <string name="settings_input_bar_fix_previews">リンクのプレビュー修正</string>
+    <string name="settings_input_bar_fix_previews_sub">X、Bluesky、TikTok、Reddit、Pixivの修正ボタンを表示</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">アプリ %1$s</string>
     <string name="settings_native_version">ネイティブ %1$s</string>

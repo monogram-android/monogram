@@ -67,6 +67,9 @@
     <string name="dialog_saved_gifs_empty">Aún no hay GIF guardados</string>
     <string name="dialog_media_audio">Audio</string>
     <string name="dialog_media_voice">Mensaje de voz</string>
+    <string name="dialog_link_preview_loading">Cargando vista previa del enlace</string>
+    <string name="dialog_restore_preview">Restaurar vista previa</string>
+    <string name="dialog_media_video_note">Videomensaje</string>
     <string name="dialog_media_video">Video</string>
     <string name="dialog_media_gif">GIF</string>
     <string name="dialog_media_play">Reproducir</string>

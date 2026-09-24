@@ -65,6 +65,9 @@
     <string name="dialog_saved_gifs_empty">还没有保存的 GIF</string>
     <string name="dialog_media_audio">音频</string>
     <string name="dialog_media_voice">语音消息</string>
+    <string name="dialog_link_preview_loading">正在加载链接预览</string>
+    <string name="dialog_restore_preview">恢复预览</string>
+    <string name="dialog_media_video_note">视频消息</string>
     <string name="dialog_media_video">视频</string>
     <string name="dialog_media_gif">GIF</string>
     <string name="dialog_media_play">播放</string>

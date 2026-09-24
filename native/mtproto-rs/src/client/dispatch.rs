@@ -505,6 +505,7 @@ pub fn send_text_message(
     reply_to_msg_id: i32,
     entities_json: Option<String>,
     top_msg_id: i32,
+    webpage_url: Option<String>,
 ) -> Result<MessageDto, MtprotoError> {
     with_interactive_client_mut(handle, |state| {
         let sent = crate::rpc::with_rpc_timeout_secs(15, || {
@@ -519,6 +520,7 @@ pub fn send_text_message(
                     reply_to_msg_id,
                     entities_json.as_deref(),
                     top_msg_id,
+                    webpage_url.as_deref(),
                 )
             })
         })?;

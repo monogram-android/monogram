@@ -230,6 +230,8 @@
     <string name="settings_input_bar_emoji_shortcut_sub">Ցույց տալ էմոջի կոճակը մուտքի վահանակում</string>
     <string name="settings_input_bar_send_by_enter">Ուղարկել Enter-ով</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter-ը ուղարկում է, Shift+Enter-ը՝ նոր տող</string>
+    <string name="settings_input_bar_fix_previews">Հղումների նախադիտման ուղղում</string>
+    <string name="settings_input_bar_fix_previews_sub">Առաջարկել «Ուղղել» կոճակ X-ի, Bluesky-ի, TikTok-ի, Reddit-ի և Pixiv-ի համար</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">Հավելված %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

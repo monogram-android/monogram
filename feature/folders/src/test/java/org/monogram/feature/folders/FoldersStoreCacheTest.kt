@@ -176,6 +176,7 @@ class FoldersStoreCacheTest {
             replyToMsgId: Int,
             entitiesJson: String?,
             topMsgId: Int,
+            webpageUrl: String?,
         ) = unused<Message>()
         override suspend fun sendPhoto(
             chatId: PeerId,

@@ -18,4 +18,17 @@ internal class WebApi(private val core: SessionCore) : WebOps {
             }
         }
     }
+
+    override suspend fun getWebPagePreview(message: String): Outcome<InstantViewPage> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        AppLog.api("link preview", "start")
+        return core.rpcBackground("link preview failed") { handle ->
+            core.native.getWebPagePreview(handle, message).toModel().also {
+                AppLog.api("link preview", "ok")
+            }
+        }
+    }
 }

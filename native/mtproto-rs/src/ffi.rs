@@ -28,6 +28,11 @@ pub fn get_web_page(handle: u64, url: String, hash: i32) -> Result<InstantViewDt
 }
 
 #[uniffi::export]
+pub fn get_web_page_preview(handle: u64, message: String) -> Result<InstantViewDto, MtprotoError> {
+    client_mgr::get_web_page_preview(handle, message)
+}
+
+#[uniffi::export]
 pub fn download_wallpaper(
     handle: u64,
     id: i64,
@@ -370,6 +375,7 @@ pub fn send_text_message(
     reply_to_msg_id: i32,
     entities_json: Option<String>,
     top_msg_id: i32,
+    webpage_url: Option<String>,
 ) -> Result<MessageDto, MtprotoError> {
     client_mgr::send_text_message(
         handle,
@@ -378,6 +384,7 @@ pub fn send_text_message(
         reply_to_msg_id,
         entities_json,
         top_msg_id,
+        webpage_url,
     )
 }
 

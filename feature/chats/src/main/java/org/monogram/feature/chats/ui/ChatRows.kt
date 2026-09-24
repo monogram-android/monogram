@@ -150,6 +150,7 @@ internal data class ChatListTexts(
         "document" -> document
         "audio" -> audio
         "voice" -> voice
+        "video_note" -> video
         "webpage" -> link
         "todo" -> checklist
         else -> chatListMediaLabel(kind)

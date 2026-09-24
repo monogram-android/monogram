@@ -230,6 +230,8 @@
     <string name="settings_input_bar_emoji_shortcut_sub">在输入栏显示表情按钮</string>
     <string name="settings_input_bar_send_by_enter">回车发送</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter 发送消息；Shift+Enter 换行</string>
+    <string name="settings_input_bar_fix_previews">修复链接预览</string>
+    <string name="settings_input_bar_fix_previews_sub">为 X、Bluesky、TikTok、Reddit 和 Pixiv 提供修复预览按钮</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">应用 %1$s</string>
     <string name="settings_native_version">原生 %1$s</string>

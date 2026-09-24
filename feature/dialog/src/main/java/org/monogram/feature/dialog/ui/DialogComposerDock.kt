@@ -182,6 +182,9 @@ internal fun DialogComposerDock(
     linkPreview: org.monogram.core.models.WebpagePreview? = null,
     linkPreviewLoading: Boolean = false,
     linkPreviewHidden: Boolean = false,
+    linkPreviewUrls: List<String> = emptyList(),
+    linkPreviewChoice: String? = null,
+    onSelectLinkPreview: (String) -> Unit = {},
     onDismissLinkPreview: () -> Unit = {},
     onRestoreLinkPreview: () -> Unit = {},
 ) {
@@ -349,6 +352,9 @@ internal fun DialogComposerDock(
             linkPreview = linkPreview,
             linkPreviewLoading = linkPreviewLoading,
             linkPreviewHidden = linkPreviewHidden,
+            linkPreviewUrls = linkPreviewUrls,
+            linkPreviewChoice = linkPreviewChoice,
+            onSelectLinkPreview = onSelectLinkPreview,
             onDismissLinkPreview = onDismissLinkPreview,
             onRestoreLinkPreview = onRestoreLinkPreview,
             onSend = {

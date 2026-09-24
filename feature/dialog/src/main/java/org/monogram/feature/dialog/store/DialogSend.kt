@@ -361,6 +361,22 @@ internal suspend fun DialogExecutor.styleForSend(parsed: StyledText): StyledText
     )
 }
 
+internal fun webpageUrlForSend(text: String, current: DialogStore.State): String? {
+    if (current.linkPreviewHidden) return null
+    val urls = FixedLinkPreviewRules.urls(text)
+    val selected = current.linkPreviewChoice?.takeIf { it in urls } ?: urls.firstOrNull() ?: return null
+    val fixed = if (AppearanceSettings.state.value.fixLinkPreviews) {
+        FixedLinkPreviewRules.previewUrlFor(
+            selected,
+            current.linkPreviewUrl.takeIf { current.linkPreviewFixed },
+        )
+    } else {
+        null
+    }
+    val page = fixed ?: selected
+    return page.takeIf { urls.size > 1 || page != urls.first() }
+}
+
 internal fun DialogExecutor.send(overrideText: String? = null) {
     val current = snapshot()
     val raw = overrideText ?: current.draft
@@ -468,15 +484,7 @@ internal fun DialogExecutor.send(overrideText: String? = null) {
             val wire = styleForSend(parsed)
             val entitiesJson = serializeSendEntities(wire, mentions)
             PerfLog.event("send", "id=$sendOp phase=bridge_send")
-            val webpageUrl =
-                if (AppearanceSettings.state.value.fixLinkPreviews && !current.linkPreviewHidden) {
-                    FixedLinkPreviewRules.previewUrlFor(
-                        wire.text,
-                        current.linkPreviewUrl.takeIf { current.linkPreviewFixed },
-                    )
-                } else {
-                    null
-                }
+            val webpageUrl = webpageUrlForSend(wire.text, current)
             val result = client.sendText(
                 chatId,
                 wire.text,

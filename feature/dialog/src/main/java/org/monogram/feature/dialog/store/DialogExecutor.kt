@@ -307,6 +307,7 @@ internal class DialogExecutor(
             DialogStore.Intent.FixLinkPreview -> fixLinkPreview()
             DialogStore.Intent.DismissLinkPreview -> dismissLinkPreview()
             DialogStore.Intent.RestoreLinkPreview -> restoreLinkPreview()
+            is DialogStore.Intent.SelectLinkPreview -> selectLinkPreview(intent.url)
             is DialogStore.Intent.AttachPhoto -> dispatch(
                 Msg.PendingAttach(
                     listOf(

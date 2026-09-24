@@ -117,6 +117,7 @@
     <string name="dialog_media_voice">Голосовое сообщение</string>
     <string name="dialog_link_preview_loading">Загрузка предпросмотра ссылки</string>
     <string name="dialog_restore_preview">Восстановить предпросмотр</string>
+    <string name="dialog_link_preview_choice">Предпросмотр %1$s</string>
     <string name="dialog_media_video_note">Видеосообщение</string>
     <string name="dialog_media_video">Видео</string>
     <string name="dialog_media_gif">GIF</string>

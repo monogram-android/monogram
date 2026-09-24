@@ -196,6 +196,9 @@ internal fun DialogScreenDialogs(
             linkPreview = state.linkPreview,
             linkPreviewLoading = state.linkPreviewLoading,
             linkPreviewHidden = state.linkPreviewHidden,
+            linkPreviewUrls = state.linkPreviewUrls,
+            linkPreviewChoice = state.linkPreviewChoice,
+            onSelectLinkPreview = component::onSelectLinkPreview,
             onDismissLinkPreview = component::onDismissLinkPreview,
             onRestoreLinkPreview = component::onRestoreLinkPreview,
             botKeyboard = state.let { current ->

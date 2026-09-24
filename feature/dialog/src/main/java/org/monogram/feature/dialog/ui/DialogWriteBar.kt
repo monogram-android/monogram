@@ -4,8 +4,16 @@ package org.monogram.feature.dialog.ui
 
 import android.content.res.Configuration
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.content.MediaType
 import androidx.compose.foundation.content.ReceiveContentListener
 import androidx.compose.foundation.content.TransferableContent
@@ -22,6 +30,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -36,7 +45,10 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -76,6 +88,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -87,13 +101,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import java.io.File
+import java.net.URI
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.WebpagePreview
 import org.monogram.core.ui.ExpressiveDefaults
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.feature.dialog.R
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalFoundationApi::class,
+)
 @Composable
 internal fun DialogWriteBar(
     composer: TextFieldValue,
@@ -122,6 +141,9 @@ internal fun DialogWriteBar(
     linkPreview: WebpagePreview? = null,
     linkPreviewLoading: Boolean = false,
     linkPreviewHidden: Boolean = false,
+    linkPreviewUrls: List<String> = emptyList(),
+    linkPreviewChoice: String? = null,
+    onSelectLinkPreview: (String) -> Unit = {},
     onDismissLinkPreview: () -> Unit = {},
     onRestoreLinkPreview: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -188,28 +210,16 @@ internal fun DialogWriteBar(
                         onClear = onClearReply,
                     )
                 }
-                if (linkPreviewLoading) {
-                    WriteBarContext(
-                        title = stringResource(R.string.dialog_link_preview_loading),
-                        body = "",
-                        onClear = onDismissLinkPreview,
-                    )
-                } else if (linkPreviewHidden) {
-                    TextButton(onClick = onRestoreLinkPreview) {
-                        Text(stringResource(R.string.dialog_restore_preview))
-                    }
-                } else {
-                    linkPreview?.takeIf { it.hasContent }?.let { preview ->
-                        WriteBarContext(
-                            title = preview.siteName?.takeIf { it.isNotBlank() }
-                                ?: preview.title?.takeIf { it.isNotBlank() }
-                                ?: preview.url,
-                            body = preview.description?.takeIf { it.isNotBlank() }
-                                ?: preview.title.orEmpty(),
-                            onClear = onDismissLinkPreview,
-                        )
-                    }
-                }
+                LinkPreviewWriteBar(
+                    urls = linkPreviewUrls,
+                    choice = linkPreviewChoice,
+                    preview = linkPreview,
+                    loading = linkPreviewLoading,
+                    hidden = linkPreviewHidden,
+                    onSelect = onSelectLinkPreview,
+                    onDismiss = onDismissLinkPreview,
+                    onRestore = onRestoreLinkPreview,
+                )
                 if (pendingAttach.isNotEmpty()) {
                     WriteBarContext(
                         title = when {
@@ -422,6 +432,92 @@ internal fun DialogWriteBar(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LinkPreviewWriteBar(
+    urls: List<String>,
+    choice: String?,
+    preview: WebpagePreview?,
+    loading: Boolean,
+    hidden: Boolean,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onRestore: () -> Unit,
+) {
+    val showChips = urls.size > 1
+    val showCard = loading || hidden || preview?.hasContent == true
+    AnimatedVisibility(
+        visible = showChips || showCard,
+        enter = fadeIn(animationSpec = tween(200)) + expandVertically(animationSpec = tween(200)),
+        exit = fadeOut(animationSpec = tween(150)) + shrinkVertically(animationSpec = tween(150)),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (showChips) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(start = 8.dp, end = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    urls.forEach { url ->
+                        val selected = url == choice
+                        val label = composerLinkPreviewTabLabel(url)
+                        val description = stringResource(R.string.dialog_link_preview_choice, label)
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                if (!selected || hidden) onSelect(url)
+                            },
+                            label = {
+                                Text(
+                                    text = label,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            modifier = Modifier
+                                .widthIn(max = 144.dp)
+                                .semantics { contentDescription = description },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ),
+                        )
+                    }
+                }
+            }
+            when {
+                loading -> WriteBarContext(
+                    title = stringResource(R.string.dialog_link_preview_loading),
+                    body = "",
+                    onClear = onDismiss,
+                )
+                hidden -> TextButton(onClick = onRestore) {
+                    Text(stringResource(R.string.dialog_restore_preview))
+                }
+                else -> preview?.takeIf { it.hasContent }?.let { page ->
+                    WriteBarContext(
+                        title = page.siteName?.takeIf { it.isNotBlank() }
+                            ?: page.title?.takeIf { it.isNotBlank() }
+                            ?: page.url,
+                        body = page.description?.takeIf { it.isNotBlank() }
+                            ?: page.title.orEmpty(),
+                        onClear = onDismiss,
+                    )
+                }
+            }
+        }
+    }
+}
+
+internal fun composerLinkPreviewTabLabel(url: String): String {
+    val host = runCatching { URI(url).host }.getOrNull()
+        ?.removePrefix("www.")
+        ?.takeIf { it.isNotBlank() }
+    return host ?: url
+}
+
 @Composable
 internal fun RestrictionBar(
     text: String,
@@ -545,6 +641,40 @@ private fun DialogWriteBarReadyPreview() {
             onCancelEdit = {},
             onClearReply = {},
             onClearAttach = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Multi-link preview")
+@Composable
+private fun DialogWriteBarLinkPreviewPreview() {
+    MonogramTheme(dynamicColor = false) {
+        DialogWriteBar(
+            composer = TextFieldValue("https://example.com https://x.com/a"),
+            onComposerChange = {},
+            sending = false,
+            canSendPlain = true,
+            canSendPhotos = true,
+            isChannel = false,
+            editing = false,
+            editingBody = "",
+            replyBody = null,
+            pendingAttach = emptyList(),
+            hasFailed = false,
+            onSend = {},
+            onAttach = {},
+            onRetryFailed = {},
+            onCancelEdit = {},
+            onClearReply = {},
+            onClearAttach = {},
+            linkPreview = WebpagePreview(
+                url = "https://example.com",
+                title = "Example",
+                siteName = "example.com",
+                description = "Sample page",
+            ),
+            linkPreviewUrls = listOf("https://example.com", "https://x.com/a"),
+            linkPreviewChoice = "https://example.com",
         )
     }
 }

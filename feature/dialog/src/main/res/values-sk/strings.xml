@@ -73,6 +73,7 @@
     <string name="dialog_media_voice">Hlasová správa</string>
     <string name="dialog_link_preview_loading">Načítava sa náhľad odkazu</string>
     <string name="dialog_restore_preview">Obnoviť náhľad</string>
+    <string name="dialog_link_preview_choice">Náhľad %1$s</string>
     <string name="dialog_media_video_note">Videonahrávka</string>
     <string name="dialog_media_video">Video</string>
     <string name="dialog_media_gif">GIF</string>

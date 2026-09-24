@@ -73,6 +73,7 @@
     <string name="dialog_media_voice">Голосове повідомлення</string>
     <string name="dialog_link_preview_loading">Завантаження попереднього перегляду посилання</string>
     <string name="dialog_restore_preview">Відновити перегляд</string>
+    <string name="dialog_link_preview_choice">Перегляд %1$s</string>
     <string name="dialog_media_video_note">Відеоповідомлення</string>
     <string name="dialog_media_video">Відео</string>
     <string name="dialog_media_gif">GIF</string>

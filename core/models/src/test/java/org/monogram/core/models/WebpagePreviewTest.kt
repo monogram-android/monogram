@@ -41,6 +41,13 @@ class WebpagePreviewTest {
     }
 
     @Test
+    fun urlOnlyPageStillHasContent() {
+        assertTrue(WebpagePreview(url = "https://example.com/a").hasContent)
+        assertFalse(WebpagePreview(url = "").hasContent)
+        assertFalse(WebpagePreview(url = "   ").hasContent)
+    }
+
+    @Test
     fun parseRejectsMissingUrl() {
         assertNull(WebpagePreviews.parse("""{"t":"Nope"}"""))
         assertNull(WebpagePreviews.parse("plain title"))

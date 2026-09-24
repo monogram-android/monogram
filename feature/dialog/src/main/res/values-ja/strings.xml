@@ -67,6 +67,7 @@
     <string name="dialog_media_voice">ボイスメッセージ</string>
     <string name="dialog_link_preview_loading">リンクのプレビューを読み込み中</string>
     <string name="dialog_restore_preview">プレビューを復元</string>
+    <string name="dialog_link_preview_choice">プレビュー %1$s</string>
     <string name="dialog_media_video_note">動画メッセージ</string>
     <string name="dialog_media_video">動画</string>
     <string name="dialog_media_gif">GIF</string>

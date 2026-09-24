@@ -69,6 +69,7 @@
     <string name="dialog_media_voice">Mensagem de voz</string>
     <string name="dialog_link_preview_loading">Carregando prévia do link</string>
     <string name="dialog_restore_preview">Restaurar prévia</string>
+    <string name="dialog_link_preview_choice">Prévia %1$s</string>
     <string name="dialog_media_video_note">Mensagem de vídeo</string>
     <string name="dialog_media_video">Vídeo</string>
     <string name="dialog_media_gif">GIF</string>

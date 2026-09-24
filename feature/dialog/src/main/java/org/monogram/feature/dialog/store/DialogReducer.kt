@@ -36,6 +36,8 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             linkPreviewFixed = msg.fixed,
             linkPreviewLoading = msg.loading,
             linkPreviewHidden = msg.hidden,
+            linkPreviewChoice = msg.choice,
+            linkPreviewUrls = msg.urls,
         )
         is Msg.ReplyTo -> copy(
             replyTo = msg.value,

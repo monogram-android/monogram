@@ -45,6 +45,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data object FixLinkPreview : Intent
         data object DismissLinkPreview : Intent
         data object RestoreLinkPreview : Intent
+        data class SelectLinkPreview(val url: String) : Intent
         data class ReplyTo(val message: Message, val focusComposer: Boolean = false) : Intent
         data object ClearReply : Intent
         data class Edit(val message: Message) : Intent
@@ -150,6 +151,8 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val linkPreviewFixed: Boolean = false,
         val linkPreviewLoading: Boolean = false,
         val linkPreviewHidden: Boolean = false,
+        val linkPreviewChoice: String? = null,
+        val linkPreviewUrls: List<String> = emptyList(),
         val replyTo: Message? = null,
         val composerFocusSeq: Int = 0,
         val editing: Message? = null,

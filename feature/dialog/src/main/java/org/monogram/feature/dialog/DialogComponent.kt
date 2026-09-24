@@ -128,6 +128,7 @@ class DialogComponent(
     fun onFixLinkPreview() = store.accept(DialogStore.Intent.FixLinkPreview)
     fun onDismissLinkPreview() = store.accept(DialogStore.Intent.DismissLinkPreview)
     fun onRestoreLinkPreview() = store.accept(DialogStore.Intent.RestoreLinkPreview)
+    fun onSelectLinkPreview(url: String) = store.accept(DialogStore.Intent.SelectLinkPreview(url))
     fun onAttachPhoto(path: String) = store.accept(DialogStore.Intent.AttachPhoto(path))
     fun onAttachMedia(items: List<UploadItem>) = store.accept(DialogStore.Intent.AttachMedia(items))
     fun onAppendMedia(items: List<UploadItem>) = store.accept(DialogStore.Intent.AppendMedia(items))

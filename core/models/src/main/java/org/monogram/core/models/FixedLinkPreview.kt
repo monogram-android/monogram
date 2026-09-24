@@ -47,10 +47,14 @@ object FixedLinkPreviewRules {
 
     private val urlRegex = Regex("""https?://[^\s<>()]+""", RegexOption.IGNORE_CASE)
 
-    fun firstUrl(text: String): String? {
-        val raw = urlRegex.find(text)?.value?.trimEnd('.', ',', ';', ')', ']') ?: return null
-        return raw.takeIf { it.length >= 8 }
-    }
+    fun firstUrl(text: String): String? = urls(text).firstOrNull()
+
+    fun urls(text: String): List<String> =
+        urlRegex.findAll(text)
+            .map { it.value.trimEnd('.', ',', ';', ')', ']') }
+            .filter { it.length >= 8 }
+            .distinct()
+            .toList()
 
     fun findRule(normalizedUrl: String): FixedLinkPreviewRule? {
         val host = normalizedUrl.toParsedUri()?.host?.lowercase() ?: return null

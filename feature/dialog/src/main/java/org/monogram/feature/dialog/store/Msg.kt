@@ -151,5 +151,7 @@ internal sealed interface Msg {
         val fixed: Boolean = false,
         val loading: Boolean = false,
         val hidden: Boolean = false,
+        val choice: String? = null,
+        val urls: List<String> = emptyList(),
     ) : Msg
 }

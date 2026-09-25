@@ -19,4 +19,26 @@ class HistoryPruneTest {
         assertEquals(emptyList<Int>(), staleHistoryIds(listOf(8, 9, 10), lastMessageId = 10))
     }
 
+    @Test
+    fun historyCacheWindowsStayWithinTelegramLimit() {
+        assertEquals(100, HISTORY_CACHE_WINDOW)
+    }
+
+    @Test
+    fun pendingWithRandomIdSurvivesProcessDeathCleanup() {
+        assertEquals(false, shouldDropUnsentAfterRestart(pending = true, id = -3, randomId = 99L))
+        assertEquals(true, shouldDropUnsentAfterRestart(pending = true, id = -3, randomId = null))
+        assertEquals(true, shouldDropUnsentAfterRestart(pending = true, id = -3, randomId = 0L))
+    }
+
+    @Test
+    fun pruneMissingLatestKeepsLiveRowsNewerThanTheFetchedPage() {
+        assertEquals(
+            listOf(12),
+            staleIdsInsideFetchedWindow(
+                cachedIds = listOf(10, 11, 12, 13, 20),
+                fetchedIds = listOf(10, 11, 13),
+            ),
+        )
+    }
 }

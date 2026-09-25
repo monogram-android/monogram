@@ -336,9 +336,12 @@ fun followBottomFromScroll(
     return currentlyFollowing
 }
 
-const val HISTORY_PAGE_LIMIT = 40
-const val HISTORY_FIRST_LIMIT = 32
-const val HISTORY_PAINT_LIMIT = 16
+const val HISTORY_PAGE_LIMIT = 80
+const val HISTORY_FIRST_LIMIT = 80
+const val HISTORY_CACHE_LIMIT = 100
+const val HISTORY_PAINT_LIMIT = 40
+private const val HISTORY_ID_SLACK_MIN = 8
+private const val DATE_JUMP_CACHE_MAX_SKEW_SEC = 2 * 86_400L
 
 fun historyHasMore(pageSize: Int, limit: Int = HISTORY_PAGE_LIMIT): Boolean =
     pageSize >= limit
@@ -413,21 +416,19 @@ fun historyPagingAllowed(searchQuery: String): Boolean = searchQuery.isBlank()
 /**
  * Header sync state for an open history.
  *
- * The automatic older-page prefetch keeps [prefetchingOlder] set but stays invisible:
- * it is background work triggered by opening the chat, not by scrolling, so it must not
- * replace the peer status subtitle or flash a progress bar.
+ * Older/newer paging stays off the peer subtitle so scroll-triggered pages do not flash
+ * "Loading more". Connecting/Syncing still cover the empty first fetch and in-chat search.
  */
 fun dialogSyncStatus(
     loading: Boolean,
     searching: Boolean,
     messagesEmpty: Boolean,
-    loadingOlder: Boolean,
-    loadingNewer: Boolean,
-    prefetchingOlder: Boolean,
+    @Suppress("UNUSED_PARAMETER") loadingOlder: Boolean,
+    @Suppress("UNUSED_PARAMETER") loadingNewer: Boolean,
+    @Suppress("UNUSED_PARAMETER") prefetchingOlder: Boolean,
 ): AppSyncStatus = when {
     loading && messagesEmpty -> AppSyncStatus.Connecting
     loading || searching -> AppSyncStatus.Syncing
-    (loadingOlder && !prefetchingOlder) || loadingNewer -> AppSyncStatus.LoadingMore
     else -> AppSyncStatus.Hidden
 }
 
@@ -450,12 +451,98 @@ fun mergeLiveEdgeMessages(current: List<Message>, incoming: List<Message>): List
     if (incoming.isEmpty()) return current
     if (current.isEmpty()) return incoming
     val minIncoming = incoming.minOf { it.id.id }
+    val maxIncoming = incoming.maxOf { it.id.id }
     val incomingIds = incoming.mapTo(HashSet()) { it.id.id }
     val keep = current.filter { message ->
         message.id.id < minIncoming ||
+            message.id.id > maxIncoming ||
             ((message.pending || message.failed || message.id.id <= 0) && message.id.id !in incomingIds)
     }
     return incoming + keep
+}
+
+/** Median adjacent-ID gap among the newest rows, padded so a sparse cache island is not next. */
+fun typicalOlderIdSlack(window: List<Message>): Int {
+    val ids = window.map { it.id.id }.filter { it > 0 }.sortedDescending().take(16)
+    if (ids.size < 2) return HISTORY_ID_SLACK_MIN
+    val gaps = ids.zipWithNext { a, b -> a - b }.filter { it > 0 }
+    if (gaps.isEmpty()) return HISTORY_ID_SLACK_MIN
+    val median = gaps.sorted()[gaps.size / 2]
+    return (median * 8).coerceIn(HISTORY_ID_SLACK_MIN, 50_000)
+}
+
+private fun cacheRunBreaks(prev: Message, next: Message, slack: Int, newer: Boolean): Boolean {
+    val idGap = if (newer) next.id.id - prev.id.id else prev.id.id - next.id.id
+    val dateGap = if (newer) next.date - prev.date else prev.date - next.date
+    return idGap > slack || dateGap > DATE_JUMP_CACHE_MAX_SKEW_SEC
+}
+
+/**
+ * Cached rows older than [oldestVisible] that form a continuous run with the painted window.
+ * A 15-day island with a large ID or date hole is not the next page.
+ */
+fun contiguousOlderCache(
+    oldestVisible: Message,
+    cachedOlder: List<Message>,
+    window: List<Message>,
+): List<Message> {
+    val slack = typicalOlderIdSlack(window)
+    val ordered = historyOrder(
+        cachedOlder.filter { it.id.id in 1 until oldestVisible.id.id },
+    )
+    if (ordered.isEmpty()) return emptyList()
+    val run = ArrayList<Message>(ordered.size)
+    var prev = oldestVisible
+    for (message in ordered) {
+        if (cacheRunBreaks(prev, message, slack, newer = false)) break
+        run += message
+        prev = message
+    }
+    return run
+}
+
+fun contiguousNewerCache(
+    newestVisible: Message,
+    cachedNewer: List<Message>,
+    window: List<Message>,
+): List<Message> {
+    val slack = typicalOlderIdSlack(window)
+    val ordered = cachedNewer.filter { it.id.id > newestVisible.id.id }.sortedBy { it.id.id }
+    if (ordered.isEmpty()) return emptyList()
+    val run = ArrayList<Message>(ordered.size)
+    var prev = newestVisible
+    for (message in ordered) {
+        if (cacheRunBreaks(prev, message, slack, newer = true)) break
+        run += message
+        prev = message
+    }
+    return run
+}
+
+/** Newest contiguous server run, plus local pending/failed rows. */
+fun contiguousHistoryFromNewest(messages: List<Message>): List<Message> {
+    val pending = messages.filter { it.pending || it.failed || it.id.id <= 0 }
+    val server = messages.filter { it.id.id > 0 }
+    val newest = historyOrder(server).firstOrNull() ?: return pending
+    return pending + newest + contiguousOlderCache(newest, server, server)
+}
+
+/** Cache around a date jump only when it actually sits on that day, not an older island. */
+fun dateJumpCacheWindow(
+    cached: List<Message>,
+    epochSeconds: Int,
+    limit: Int = HISTORY_PAGE_LIMIT,
+): List<Message> {
+    val target = epochSeconds.toLong().coerceAtLeast(0L)
+    val before = historyOrder(cached.filter { it.id.id > 0 && it.date <= target })
+    val newest = before.firstOrNull() ?: return emptyList()
+    if (target - newest.date > DATE_JUMP_CACHE_MAX_SKEW_SEC) return emptyList()
+    val older = contiguousOlderCache(
+        oldestVisible = newest,
+        cachedOlder = before.drop(1),
+        window = before.take(16),
+    )
+    return (listOf(newest) + older).take(limit)
 }
 
 fun historyOrder(messages: List<Message>): List<Message> =

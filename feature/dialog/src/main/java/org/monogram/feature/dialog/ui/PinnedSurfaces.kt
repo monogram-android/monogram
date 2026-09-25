@@ -415,7 +415,7 @@ private fun AnimatedPinnedPreview(message: Message) {
         Text(
             text = pinnedPreviewText(message),
             style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }
@@ -434,14 +434,46 @@ internal fun pinnedPreviewText(message: Message): String {
     if (message.mediaKind == "service") {
         return localizedServiceMessage(message.text.orEmpty(), message.outgoing)
     }
-    val text = message.text?.trim().orEmpty()
-    if (text.isNotEmpty()) return text
-    return when (message.mediaKind) {
-        "photo" -> stringResource(R.string.dialog_media_photo)
-        "video" -> stringResource(R.string.dialog_media_video)
-        "sticker", "sticker_animated" -> stringResource(R.string.dialog_media_sticker)
-        "gif" -> stringResource(R.string.dialog_media_gif)
-        "document" -> stringResource(R.string.dialog_media_document)
-        else -> stringResource(R.string.dialog_pinned)
+    return formatPinnedPreview(
+        text = message.text,
+        fileName = message.fileName,
+        mediaKind = message.mediaKind,
+        mediaLabel = pinnedMediaLabel(message.mediaKind),
+    )
+}
+
+@Composable
+private fun pinnedMediaLabel(mediaKind: String?): String = when (mediaKind) {
+    "photo" -> stringResource(R.string.dialog_media_photo)
+    "video" -> stringResource(R.string.dialog_media_video)
+    "sticker", "sticker_animated" -> stringResource(R.string.dialog_media_sticker)
+    "gif" -> stringResource(R.string.dialog_media_gif)
+    "document" -> stringResource(R.string.dialog_media_document)
+    else -> stringResource(R.string.dialog_pinned)
+}
+
+internal fun formatPinnedPreview(
+    text: String?,
+    fileName: String?,
+    mediaKind: String?,
+    mediaLabel: String,
+): String {
+    if (mediaKind == "service") return text?.trim().orEmpty()
+    val body = text?.trim().orEmpty()
+    val name = fileName?.trim().orEmpty()
+    val lead = name.ifEmpty {
+        mediaLabel.takeIf { kind ->
+            !kind.isNullOrBlank() &&
+                mediaKind != null &&
+                mediaKind != "service" &&
+                !body.equals(kind, ignoreCase = true)
+        }.orEmpty()
+    }
+    return when {
+        lead.isNotEmpty() && body.isNotEmpty() && !body.equals(lead, ignoreCase = true) ->
+            "$lead\n$body"
+        body.isNotEmpty() -> body
+        lead.isNotEmpty() -> lead
+        else -> mediaLabel
     }
 }

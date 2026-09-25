@@ -27,6 +27,7 @@ import org.monogram.core.models.replaceComposedDialogSeed
 import org.monogram.core.models.toggleChosenReaction
 import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.DialogStore
+import org.monogram.feature.dialog.HISTORY_CACHE_LIMIT
 import org.monogram.feature.dialog.HISTORY_FIRST_LIMIT
 import org.monogram.feature.dialog.PinnedBarMemory
 import org.monogram.feature.dialog.encodeSenderTags
@@ -35,6 +36,7 @@ import org.monogram.feature.dialog.tagsMetaKey
 import org.monogram.feature.dialog.SavedGifMemory
 import org.monogram.feature.dialog.SenderTagMemory
 import org.monogram.feature.dialog.applyMessageEdit
+import org.monogram.feature.dialog.contiguousHistoryFromNewest
 import org.monogram.feature.dialog.historyHasMore
 import org.monogram.feature.dialog.mergeSenderTags
 import org.monogram.feature.dialog.parseUpdateMessageId
@@ -625,11 +627,11 @@ internal class DialogExecutor(
             }
             val cached = warmup?.let { cache ->
                 if (cache.usesIoDispatcher) {
-                    withContext(Dispatchers.IO) { cache.messages(chatId, HISTORY_FIRST_LIMIT) }
+                    withContext(Dispatchers.IO) { cache.messages(chatId, HISTORY_CACHE_LIMIT) }
                 } else {
-                    cache.messages(chatId, HISTORY_FIRST_LIMIT)
+                    cache.messages(chatId, HISTORY_CACHE_LIMIT)
                 }
-            }.orEmpty().replaceComposedDialogSeed(cachedChat)
+            }.orEmpty().replaceComposedDialogSeed(cachedChat).let(::contiguousHistoryFromNewest)
             val lastId = cachedChat?.lastMessageId ?: 0
             val newestCachedId = cached.maxOfOrNull { it.id.id } ?: 0
             if (cached.isNotEmpty()) {

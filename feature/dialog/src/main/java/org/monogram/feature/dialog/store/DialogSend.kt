@@ -282,12 +282,25 @@ internal suspend fun DialogExecutor.absorbIncoming(incoming: Message) {
     sessionStore?.upsertPeerMins(listOf(incoming))
 }
 
+/** Native text sends may mint a different random_id. Bind only when this chat has one pending. */
+internal fun DialogExecutor.uniqueUnmatchedPending(): Message? {
+    val unmatched = snapshot().messages.filter {
+        it.outgoing &&
+            it.pending &&
+            !it.failed &&
+            (it.randomId ?: 0L) != 0L &&
+            it.id.id < 0
+    }
+    return unmatched.singleOrNull()
+}
+
 internal fun DialogExecutor.bindPendingId(randomId: Long, messageId: Int) {
     val pending = snapshot().messages.firstOrNull {
         it.randomId == randomId && (it.pending || it.failed || it.id.id < 0)
-    } ?: return
+    } ?: uniqueUnmatchedPending() ?: return
+    val mappedRandomId = pending.randomId ?: randomId
     PerfLog.event("send", "phase=update_message_id")
-    emit(Msg.BindPending(randomId, messageId))
+    emit(Msg.BindPending(mappedRandomId, messageId))
     work.launch {
         warmup?.deleteMessage(chatId, pending.id.id)
         val bound = pending.copy(

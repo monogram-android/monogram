@@ -224,7 +224,7 @@ internal fun ColumnScope.DialogHistoryPane(
         ?: state.pinnedMessages.firstOrNull()
     val showPinned = !state.isCommentThread && pinned != null
     val topPadding by animateDpAsState(
-        targetValue = if (showPinned) 68.dp else 8.dp,
+        targetValue = if (showPinned) 88.dp else 8.dp,
         label = "pinned-top-padding",
     )
         Box(
@@ -837,7 +837,7 @@ internal fun ColumnScope.DialogHistoryPane(
             visible = dateOverlayVisible && dateOverlayEpoch != null,
             enter = fadeIn(),
             exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = if (showPinned) 68.dp else 8.dp),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = if (showPinned) 88.dp else 8.dp),
         ) {
             dateOverlayEpoch?.let { epoch ->
                 DialogDateSeparator(epochSeconds = epoch, zone = overlayZone)

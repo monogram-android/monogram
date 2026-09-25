@@ -8,7 +8,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.yield
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
@@ -61,6 +60,8 @@ import org.monogram.feature.dialog.StickerCatalogMemory
 import org.monogram.feature.dialog.StickerPackMemory
 import org.monogram.feature.dialog.HISTORY_PAGE_LIMIT
 import org.monogram.feature.dialog.applyMessageEdit
+import org.monogram.feature.dialog.contiguousOlderCache
+import org.monogram.feature.dialog.dateJumpCacheWindow
 import org.monogram.feature.dialog.mergeLiveEdgeMessages
 import org.monogram.feature.dialog.paintHistoryWindow
 import org.monogram.feature.dialog.atHistoryOldest
@@ -195,11 +196,14 @@ internal fun DialogExecutor.jumpToMessageId(messageId: Int, atTop: Boolean = fal
                 if (gen != historyGen) return@launch
                 // A jump replaces the visible window with a server page, so its
                 // continuation must replace the prior window's network cursor too.
-                serverHistoryBoundaryId = result.value.minOfOrNull { it.id.id }
+                val minId = result.value.minOfOrNull { it.id.id }
+                serverHistoryBoundaryId = minId
                 emit(
                     Msg.Messages(result.value, fromCache = false, replace = true),
                 )
-                emit(Msg.HasOlder(historyHasMore(result.value.size)))
+                // A centered jump page is not a newest-edge fetch: a short page still
+                // has older history unless the server returned the true first message.
+                emit(Msg.HasOlder(minId != null && !atHistoryOldest(minId)))
                 // Anchor belongs to the committed jump window; publish it before any
                 // suspending enrichment so an obsolete jump cannot overwrite a newer one.
                 emit(Msg.Anchor(messageId, atTop = atTop))
@@ -225,7 +229,7 @@ internal fun DialogExecutor.inCommentThread(message: Message): Boolean {
 }
 
 internal suspend fun DialogExecutor.topicOrHistoryPage(
-    limit: Int = 40,
+    limit: Int = HISTORY_PAGE_LIMIT,
     offsetId: Int = 0,
     offsetDate: Int = 0,
     addOffset: Int = 0,
@@ -295,13 +299,23 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
     if (snapshot().error?.requiresReauth == true) return
     emit(Msg.LoadingOlder(true, prefetch))
     if (cachedOlderTail.isNotEmpty()) {
-        // The cache tail is already bounded by the initial paint window. Drain it before
-        // asking Telegram for the next page so a single user gesture cannot strand the
-        // network cursor behind local rows.
-        val cached = cachedOlderTail
+        // The cache tail is leftover from the same paint source, but still apply the
+        // continuity filter so a sparse first-page island cannot skip 15 days on scroll.
+        val oldestVisible = snapshot().messages.minByOrNull { it.id.id }
+        val cached = if (oldestVisible == null) {
+            emptyList()
+        } else {
+            contiguousOlderCache(
+                oldestVisible = oldestVisible,
+                cachedOlder = cachedOlderTail,
+                window = snapshot().messages + cachedOlderTail,
+            )
+        }
         cachedOlderTail = emptyList()
-        emit(Msg.AppendOlder(cached))
-        emit(Msg.HasOlder(true))
+        if (cached.isNotEmpty()) {
+            emit(Msg.AppendOlder(cached))
+            emit(Msg.HasOlder(true))
+        }
         if (prefetch && anchorToUnread && anchorUnreadIfNeeded()) {
             emit(Msg.LoadingOlder(false))
             return
@@ -337,28 +351,9 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
         fun ownsRequest() = gen == historyGen && activeOlderRequestId == requestId
         if (!ownsRequest()) return@launch
         val historyTop = ForumIo.historyThreadId(threadTopMsgId)
-        val cacheBoundaryId = oldest.id.id
-        // Cached rows are not a continuity proof. Only a server page may move the
-        // next network offset, otherwise a sparse cache can skip missing IDs.
-        val boundaryId = serverHistoryBoundaryId ?: cacheBoundaryId
-        val cachedOlder = if (historyTop > 0) {
-            emptyList()
-        } else {
-            warmup?.let { cache ->
-                if (cache.usesIoDispatcher) {
-                    withContext(Dispatchers.IO) {
-                        cache.olderMessages(chatId, cacheBoundaryId, HISTORY_PAGE_LIMIT)
-                    }
-                } else {
-                    cache.olderMessages(chatId, cacheBoundaryId, HISTORY_PAGE_LIMIT)
-                }
-            }.orEmpty()
-        }
-        if (!ownsRequest()) return@launch
-        if (cachedOlder.isNotEmpty()) {
-            AppLog.api("dialog", "cache older chat=${chatId.value} count=${cachedOlder.size}")
-            emit(Msg.AppendOlder(cachedOlder))
-            yield()
+        val boundaryId = serverHistoryBoundaryId ?: run {
+            emit(Msg.LoadingOlder(false))
+            return@launch
         }
         if (!ownsRequest()) return@launch
         when (
@@ -380,8 +375,6 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
         ) {
             is Outcome.Ok -> {
                 if (!ownsRequest()) return@launch
-                // Compare with the requested boundary: the same page may already
-                // have been appended from cache while the request was in flight.
                 val fresh = result.value.count { it.id.id < boundaryId }
                 AppLog.api(
                     "dialog",
@@ -394,20 +387,9 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
                     emit(Msg.LoadingOlder(false))
                     return@launch
                 }
-                emit(
-                    Msg.HasOlder(
-                        fresh > 0 && (
-                            historyHasMore(result.value.size) ||
-                                cachedOlder.size >= HISTORY_PAGE_LIMIT
-                            ),
-                    ),
-                )
-                // The page is committed; do not keep scroll pagination blocked while
-                // optional sender enrichment and cache persistence complete.
+                emit(Msg.HasOlder(fresh > 0 && historyHasMore(result.value.size)))
                 emit(Msg.LoadingOlder(false))
                 activeOlderRequestId = null
-                continueUnreadPaging()
-                resolveSenders(result.value)
                 if (warmup?.usesIoDispatcher == true || sessionStore != null) {
                     withContext(Dispatchers.IO) {
                         warmup?.upsertMessages(result.value)
@@ -417,6 +399,8 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
                     warmup?.upsertMessages(result.value)
                     sessionStore?.upsertPeerMins(result.value)
                 }
+                continueUnreadPaging()
+                resolveSenders(result.value)
             }
             is Outcome.Err -> if (ownsRequest()) {
                 // A failed page is not an end-of-history signal. Preserve the cursor and
@@ -511,23 +495,22 @@ internal fun DialogExecutor.loadNewer() {
     work.launch {
         fun ownsRequest() = gen == historyGen && activeNewerRequestId == requestId
         try {
+            if (!ownsRequest()) return@launch
             when (
                 val result = topicOrHistoryPage(
                     offsetId = newest.id.id,
-                    addOffset = -40,
+                    addOffset = -HISTORY_PAGE_LIMIT,
                 )
             ) {
                 is Outcome.Ok -> {
                     if (!ownsRequest()) return@launch
                     emit(Msg.Prepend(result.value))
-                    // Release the pagination gate as soon as the page is visible. Sender
-                    // enrichment and cache persistence are optional follow-up work.
                     emit(Msg.HasNewer(historyHasMore(result.value.size)))
                     emit(Msg.LoadingNewer(false))
                     activeNewerRequestId = null
-                    resolveSenders(result.value)
                     warmup?.upsertMessages(result.value)
                     sessionStore?.upsertPeerMins(result.value)
+                    resolveSenders(result.value)
                 }
                 is Outcome.Err -> if (ownsRequest()) {
                     // A transient newer-page failure is retryable; it is not proof that the
@@ -563,18 +546,38 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
     emit(Msg.LoadingNewer(false))
     emit(Msg.Loading(true))
     work.launch {
+        val historyTop = ForumIo.historyThreadId(threadTopMsgId)
+        if (historyTop <= 0) {
+            val cached = warmup?.let { cache ->
+                if (cache.usesIoDispatcher) {
+                    withContext(Dispatchers.IO) {
+                        cache.messagesBeforeDate(chatId, epochSeconds, HISTORY_PAGE_LIMIT)
+                    }
+                } else {
+                    cache.messagesBeforeDate(chatId, epochSeconds, HISTORY_PAGE_LIMIT)
+                }
+            }.orEmpty()
+            val paint = dateJumpCacheWindow(cached, epochSeconds)
+            if (paint.isNotEmpty() && gen == historyGen) {
+                emit(Msg.Messages(paint, fromCache = true, replace = true))
+                emit(Msg.HasOlder(true))
+                // Keep loading until the server jump page sets serverHistoryBoundaryId.
+                // Clearing it here lets LoadOlder use a cache min as offset_id.
+            }
+        }
         when (
             val result = topicOrHistoryPage(offsetDate = epochSeconds)
         ) {
             is Outcome.Ok -> if (gen == historyGen) {
-                serverHistoryBoundaryId = result.value.minOfOrNull { it.id.id }
+                val minId = result.value.minOfOrNull { it.id.id }
+                serverHistoryBoundaryId = minId
                 emit(
                     Msg.Messages(result.value, fromCache = false, replace = true),
                 )
-                emit(Msg.HasOlder(historyHasMore(result.value.size)))
-                resolveSenders(result.value)
+                emit(Msg.HasOlder(minId != null && !atHistoryOldest(minId)))
                 warmup?.upsertMessages(result.value)
                 sessionStore?.upsertPeerMins(result.value)
+                resolveSenders(result.value)
             }
             is Outcome.Err -> if (gen == historyGen) handleError(result.telegramError, false)
         }

@@ -217,8 +217,8 @@ class DialogForumStoreTest {
                 }
             }
             assertTrue(store.state.messages.any { it.id.id == 20 })
-            assertFalse(store.state.messages.any { it.id.id == 1 })
-            assertEquals(16, store.state.messages.map { it.id.id }.toSet().size)
+            assertTrue(store.state.messages.any { it.id.id == 1 })
+            assertEquals(20, store.state.messages.map { it.id.id }.toSet().size)
             assertTrue(store.state.hasOlder)
             store.accept(DialogStore.Intent.LoadOlder)
             kotlinx.coroutines.withTimeout(2000) {
@@ -1958,7 +1958,7 @@ class DialogForumStoreTest {
         ).create()
         try {
             advanceUntilIdle()
-            assertEquals(225, store.state.messages.minOf { it.id.id })
+            assertEquals(201, store.state.messages.minOf { it.id.id })
             assertTrue(store.state.hasOlder)
             // The first older request merges the cached 81..160 page with the matching
             // network page and must retain a continuation cursor for the next request.
@@ -2053,6 +2053,419 @@ class DialogForumStoreTest {
             assertEquals(101, client.lastHistoryOffsetId)
             assertTrue(store.state.messages.any { it.id.id == 61 })
             assertTrue(store.state.messages.any { it.id.id == 100 })
+            assertTrue(
+                "sparse 50..60 must not skip the uncached 61..100 page",
+                store.state.messages.none { it.id.id in 50..60 },
+            )
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun sparseCachedOlderRowsStayHiddenUntilTheServerFillsTheHole() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val olderGate = CompletableDeferred<Unit>()
+        val client = FakeClient().apply {
+            history = (101..180).reversed().map { topicMessage(it) }
+            historyPage = (61..100).reversed().map { topicMessage(it) }
+            historyPageGate = olderGate
+        }
+        val warmup = FakeWarmup().apply {
+            olderPage = (50..60).reversed().map { client.topicMessage(it) }
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertTrue(store.state.messages.none { it.id.id in 50..60 })
+            assertEquals(101, client.lastHistoryOffsetId)
+            olderGate.complete(Unit)
+            advanceUntilIdle()
+            assertTrue(store.state.messages.any { it.id.id == 61 })
+            assertTrue(store.state.messages.none { it.id.id in 50..60 })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun dateJumpDoesNotPaintASparseOlderIsland() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val jumpGate = CompletableDeferred<Unit>()
+        val yesterday = 1_800_000
+        val client = FakeClient().apply {
+            history = (161..240).reversed().map { topicMessage(it).copy(date = 2_000_000) }
+            jumpPage = (121..160).reversed().map { topicMessage(it).copy(date = yesterday.toLong()) }
+            jumpPageGate = jumpGate
+        }
+        val warmup = FakeWarmup().apply {
+            beforeDatePage = (1..40).map {
+                client.topicMessage(it).copy(date = yesterday - 15L * 86_400L)
+            }
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.JumpToDate(yesterday))
+            advanceUntilIdle()
+            assertTrue(store.state.messages.none { it.id.id in 1..40 })
+            jumpGate.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(121, store.state.messages.minOf { it.id.id })
+            assertTrue(store.state.messages.none { it.id.id in 1..40 })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun dateJumpDoesNotPageOlderUntilServerCursorCommits() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val jumpGate = CompletableDeferred<Unit>()
+        val yesterday = 1_800_000
+        val client = FakeClient().apply {
+            history = (161..240).reversed().map { topicMessage(it).copy(date = 2_000_000) }
+            jumpPage = (121..160).reversed().map { topicMessage(it).copy(date = yesterday.toLong()) }
+            jumpPageGate = jumpGate
+        }
+        val warmup = FakeWarmup().apply {
+            beforeDatePage = (121..160).map {
+                client.topicMessage(it).copy(date = yesterday.toLong())
+            }
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.JumpToDate(yesterday))
+            advanceUntilIdle()
+            assertTrue(store.state.hasNewer)
+            val offsetBefore = client.lastHistoryOffsetId
+            store.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertEquals(
+                "older paging must wait for the jump server cursor",
+                offsetBefore,
+                client.lastHistoryOffsetId,
+            )
+            assertFalse(store.state.loadingOlder)
+            jumpGate.complete(Unit)
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertEquals(121, client.lastHistoryOffsetId)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun firstPaintDropsSparseOlderCacheIslands() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val client = FakeClient().apply {
+            history = (161..240).reversed().map { topicMessage(it) }
+            historyGate = gate
+        }
+        val warmup = FakeWarmup().apply {
+            storedMessages[5L] =
+                (161..240).map { client.topicMessage(it) } +
+                    (1..40).map { client.topicMessage(it) }
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            assertTrue(store.state.messages.any { it.id.id == 240 })
+            assertTrue(store.state.messages.none { it.id.id in 1..40 })
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertTrue(store.state.messages.none { it.id.id in 1..40 })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun dateJumpPersistsTheServerPage() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val yesterday = 1_800_000
+        val client = FakeClient().apply {
+            history = (161..240).reversed().map { topicMessage(it).copy(date = 2_000_000) }
+            jumpPage = (121..160).reversed().map { topicMessage(it).copy(date = yesterday.toLong()) }
+        }
+        val warmup = FakeWarmup()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.JumpToDate(yesterday))
+            advanceUntilIdle()
+            assertEquals(121, store.state.messages.minOf { it.id.id })
+            assertTrue(store.state.messages.any { it.id.id == 160 })
+            assertTrue(
+                warmup.storedMessages[5L].orEmpty().any { it.id.id == 160 },
+            )
+        } finally {
+            store.dispose()
+        }
+        val jumpGate = CompletableDeferred<Unit>()
+        val secondClient = FakeClient().apply {
+            history = (161..240).reversed().map { topicMessage(it).copy(date = 2_000_000) }
+            jumpPage = (121..160).reversed().map { topicMessage(it).copy(date = yesterday.toLong()) }
+            jumpPageGate = jumpGate
+        }
+        val second = DialogStoreFactory(
+            DefaultStoreFactory(), secondClient, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            second.accept(DialogStore.Intent.JumpToDate(yesterday))
+            advanceUntilIdle()
+            assertEquals(121, second.state.messages.minOf { it.id.id })
+            assertTrue(second.state.messages.any { it.id.id == 160 })
+            jumpGate.complete(Unit)
+            advanceUntilIdle()
+        } finally {
+            second.dispose()
+        }
+    }
+
+    @Test
+    fun reopenedChatHydratesPersistedHistoryPages() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient().apply {
+            history = (161..240).reversed().map { topicMessage(it) }
+            historyPage = (81..160).reversed().map { topicMessage(it) }
+        }
+        val warmup = FakeWarmup()
+        val first = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            first.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertTrue(warmup.storedMessages[5L].orEmpty().any { it.id.id == 240 })
+            assertTrue(warmup.storedMessages[5L].orEmpty().any { it.id.id == 81 })
+            assertTrue(warmup.storedMessages[5L].orEmpty().size > 40)
+        } finally {
+            first.dispose()
+        }
+        val gate = CompletableDeferred<Unit>()
+        val secondClient = FakeClient().apply {
+            history = (161..240).reversed().map { topicMessage(it) }
+            historyGate = gate
+        }
+        val second = DialogStoreFactory(
+            DefaultStoreFactory(), secondClient, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            assertEquals(240, second.state.messages.maxOf { it.id.id })
+            assertEquals(201, second.state.messages.minOf { it.id.id })
+            assertTrue(second.state.hasOlder)
+            val offsetBefore = secondClient.lastHistoryOffsetId
+            second.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertEquals(
+                "rehydrated tail must not use a network older cursor",
+                offsetBefore,
+                secondClient.lastHistoryOffsetId,
+            )
+            assertEquals(141, second.state.messages.minOf { it.id.id })
+            assertTrue(second.state.messages.any { it.id.id == 200 })
+            gate.complete(Unit)
+            advanceUntilIdle()
+        } finally {
+            second.dispose()
+        }
+    }
+
+    @Test
+    fun roomOlderCacheIsNotShownBeforeTheServerPage() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val olderGate = CompletableDeferred<Unit>()
+        val client = FakeClient().apply {
+            history = (101..180).reversed().map { topicMessage(it) }
+            historyPage = (61..100).reversed().map { topicMessage(it) }
+            historyPageGate = olderGate
+        }
+        val warmup = FakeWarmup().apply {
+            olderPage = (90..100).reversed().map { client.topicMessage(it) }
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertEquals(101, client.lastHistoryOffsetId)
+            assertTrue(store.state.messages.none { it.id.id in 90..100 })
+            olderGate.complete(Unit)
+            advanceUntilIdle()
+            assertTrue(store.state.messages.any { it.id.id == 61 })
+            assertTrue(store.state.messages.any { it.id.id == 100 })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun liveMessageDuringFirstFetchStaysAfterNetworkPage() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val client = FakeClient().apply {
+            history = (1..80).reversed().map { topicMessage(it) }
+            historyGate = gate
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            client.events.emit(
+                MtprotoUpdate.NewMessage(client.topicMessage(90).copy(text = "live")),
+            )
+            advanceUntilIdle()
+            assertTrue(store.state.messages.any { it.id.id == 90 && it.text == "live" })
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertTrue(store.state.messages.any { it.id.id == 90 && it.text == "live" })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun unmatchedUpdateMessageIdClearsTheOldestPendingSend() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val client = FakeClient().apply { sendGate = gate }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            store.accept(DialogStore.Intent.Send("one"))
+            store.accept(DialogStore.Intent.Send("two"))
+            advanceUntilIdle()
+            assertEquals(2, store.state.messages.count { it.outgoing && it.pending })
+            client.events.emit(MtprotoUpdate.Ignored("UpdateMessageId:999:44"))
+            advanceUntilIdle()
+            assertEquals(
+                "two in-flight sends must not guess which UpdateMessageId belongs to which",
+                2,
+                store.state.messages.count { it.outgoing && it.pending },
+            )
+            gate.complete(Unit)
+            advanceUntilIdle()
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun unmatchedUpdateMessageIdBindsTheOnlyPendingSend() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val client = FakeClient().apply { sendGate = gate }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            store.accept(DialogStore.Intent.Send("solo"))
+            advanceUntilIdle()
+            assertTrue(store.state.messages.any { it.pending && it.text == "solo" })
+            client.events.emit(MtprotoUpdate.Ignored("UpdateMessageId:999:44"))
+            advanceUntilIdle()
+            val bound = store.state.messages.single { it.text == "solo" }
+            assertFalse(bound.pending)
+            assertEquals(44, bound.id.id)
+            gate.complete(Unit)
+            advanceUntilIdle()
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun matchingNewMessageClearsThePendingClock() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val client = FakeClient().apply { sendGate = gate }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            store.accept(DialogStore.Intent.Send("hello"))
+            advanceUntilIdle()
+            client.events.emit(
+                MtprotoUpdate.NewMessage(
+                    client.topicMessage(44).copy(text = "hello", outgoing = true),
+                ),
+            )
+            advanceUntilIdle()
+            val sent = store.state.messages.single { it.text == "hello" }
+            assertFalse(sent.pending)
+            assertEquals(44, sent.id.id)
+            gate.complete(Unit)
+            advanceUntilIdle()
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun readOutboxMarksOutgoingAsRead() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            store.accept(DialogStore.Intent.Send("seen"))
+            advanceUntilIdle()
+            val sentId = store.state.messages.single { it.text == "seen" }.id.id
+            assertTrue(sentId > 0)
+            assertFalse(store.state.messages.single { it.text == "seen" }.read)
+            client.events.emit(MtprotoUpdate.ReadOutbox(PeerId(5), sentId))
+            advanceUntilIdle()
+            assertTrue(store.state.messages.single { it.text == "seen" }.read)
         } finally {
             store.dispose()
         }
@@ -2560,7 +2973,7 @@ class DialogForumStoreTest {
                 advanceUntilIdle()
                 assertEquals(101 - unread, store.state.anchorMessageId)
                 assertTrue(store.state.anchorAtTop)
-                assertEquals(if (unread <= 20) 1 else 3, client.historyCalls)
+                assertEquals(if (unread < 80) 1 else 2, client.historyCalls)
             } finally {
                 store.dispose()
             }
@@ -2590,7 +3003,7 @@ class DialogForumStoreTest {
                 advanceUntilIdle()
                 assertEquals(101 - unread, store.state.anchorMessageId)
                 assertTrue(store.state.anchorAtTop)
-                assertEquals(if (unread <= 20) 1 else 3, client.historyCalls)
+                assertEquals(1, client.historyCalls)
             } finally {
                 store.dispose()
             }
@@ -2725,8 +3138,29 @@ class DialogForumStoreTest {
 
     private class FakeWarmup : OfflineWarmup() {
         var olderPage: List<Message> = emptyList()
-        override suspend fun olderMessages(chatId: PeerId, beforeId: Int, limit: Int) =
-            olderPage.filter { it.id.id < beforeId }.take(limit)
+        var beforeDatePage: List<Message> = emptyList()
+        override suspend fun olderMessages(chatId: PeerId, beforeId: Int, limit: Int): List<Message> {
+            val fromPage = olderPage.filter { it.id.id < beforeId }.take(limit)
+            if (fromPage.isNotEmpty()) return fromPage
+            return storedMessages[chatId.value].orEmpty()
+                .filter { it.id.id < beforeId }
+                .sortedByDescending { it.id.id }
+                .take(limit)
+        }
+        override suspend fun newerMessages(chatId: PeerId, afterId: Int, limit: Int) =
+            storedMessages[chatId.value].orEmpty()
+                .filter { it.id.id > afterId }
+                .sortedBy { it.id.id }
+                .take(limit)
+        override suspend fun messagesBeforeDate(chatId: PeerId, beforeDate: Int, limit: Int): List<Message> {
+            if (beforeDatePage.isNotEmpty()) {
+                return beforeDatePage.filter { it.date <= beforeDate.toLong() }.take(limit)
+            }
+            return storedMessages[chatId.value].orEmpty()
+                .filter { it.date <= beforeDate.toLong() && it.id.id > 0 }
+                .sortedByDescending { it.id.id }
+                .take(limit)
+        }
         val storedMessages = mutableMapOf<Long, List<Message>>()
         val storedChats = mutableMapOf<Long, Chat>()
         val upsertedChats = mutableListOf<Chat>()
@@ -2740,6 +3174,8 @@ class DialogForumStoreTest {
         val deletedIds = mutableListOf<Int>()
         override suspend fun messages(chatId: PeerId, limit: Int) =
             storedMessages[chatId.value].orEmpty()
+                .sortedByDescending { it.id.id }
+                .take(limit)
         override suspend fun messagesByIds(chatId: PeerId, ids: List<Int>): List<Message> {
             val byId = storedMessages[chatId.value].orEmpty().associateBy { it.id.id }
             return ids.mapNotNull { byId[it] }
@@ -2930,10 +3366,9 @@ class DialogForumStoreTest {
         }
 
         fun configureUnreadHistory() {
-            history = (69..100).reversed().map(::topicMessage)
+            history = (21..100).reversed().map(::topicMessage)
             historyPagesByOffset = mapOf(
-                69 to (29..68).reversed().map(::topicMessage),
-                29 to (1..28).reversed().map(::topicMessage),
+                21 to (1..20).reversed().map(::topicMessage),
             )
         }
         override suspend fun searchMessages(chatId: PeerId, query: String, limit: Int): Outcome<List<Message>> {

@@ -29,10 +29,20 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId AND id IN (:ids)")
     suspend fun byIds(chatId: Long, ids: List<Int>): List<MessageEntity>
 
-    @Query("SELECT DISTINCT chatId FROM messages WHERE pending = 1 OR id < 0")
+    @Query(
+        """
+        SELECT DISTINCT chatId FROM messages
+        WHERE (pending = 1 OR id < 0) AND (randomId IS NULL OR randomId = 0)
+        """,
+    )
     suspend fun unsentChatIds(): List<Long>
 
-    @Query("DELETE FROM messages WHERE pending = 1 OR id < 0")
+    @Query(
+        """
+        DELETE FROM messages
+        WHERE (pending = 1 OR id < 0) AND (randomId IS NULL OR randomId = 0)
+        """,
+    )
     suspend fun deleteUnsent()
 
     @Query(
@@ -44,6 +54,26 @@ interface MessageDao {
         """,
     )
     suspend fun olderThan(chatId: Long, beforeId: Int, limit: Int): List<MessageEntity>
+
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE chatId = :chatId AND pending = 0 AND id > :afterId
+        ORDER BY id ASC
+        LIMIT :limit
+        """,
+    )
+    suspend fun newerThan(chatId: Long, afterId: Int, limit: Int): List<MessageEntity>
+
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE chatId = :chatId AND pending = 0 AND date <= :beforeDate
+        ORDER BY id DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun atOrBeforeDate(chatId: Long, beforeDate: Long, limit: Int): List<MessageEntity>
 
     @Query(
         """

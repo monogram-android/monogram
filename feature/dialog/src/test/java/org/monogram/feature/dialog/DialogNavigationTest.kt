@@ -582,10 +582,12 @@ class DialogNavigationTest {
             false,
             shouldPageOlder(48, size = 50, hasOlder = true, loadingOlder = false, firstVisibleIndex = 0),
         )
-        assertEquals(32, HISTORY_FIRST_LIMIT)
-        assertEquals(40, HISTORY_PAGE_LIMIT)
-        assertEquals(true, historyHasMore(40))
-        assertEquals(false, historyHasMore(39))
+        assertEquals(80, HISTORY_FIRST_LIMIT)
+        assertEquals(80, HISTORY_PAGE_LIMIT)
+        assertEquals(100, HISTORY_CACHE_LIMIT)
+        assertEquals(40, HISTORY_PAINT_LIMIT)
+        assertEquals(true, historyHasMore(80))
+        assertEquals(false, historyHasMore(79))
         assertEquals(true, atHistoryOldest(1))
         assertEquals(false, atHistoryOldest(400))
     }
@@ -622,7 +624,74 @@ class DialogNavigationTest {
         val cached = listOf(msg(22), msg(20), msg(19), msg(10))
         val incoming = listOf(msg(21), msg(20), msg(19))
         val merged = mergeLiveEdgeMessages(cached, incoming)
-        assertEquals(listOf(21, 20, 19, 10), merged.map { it.id.id })
+        assertEquals(listOf(21, 20, 19, 22, 10), merged.map { it.id.id })
+    }
+
+    @Test
+    fun liveEdgeKeepsRowsNewerThanTheFetchedWindow() {
+        val cached = listOf(msg(25), msg(20), msg(19), msg(10))
+        val incoming = listOf(msg(21), msg(20), msg(19))
+        val merged = mergeLiveEdgeMessages(cached, incoming)
+        assertEquals(listOf(21, 20, 19, 25, 10), merged.map { it.id.id })
+    }
+
+    @Test
+    fun contiguousOlderCacheKeepsAMatchingPage() {
+        val window = (161..240).map { msg(it) }
+        val cached = (81..160).map { msg(it) }
+        val run = contiguousOlderCache(msg(161), cached, window)
+        assertEquals((160 downTo 81).toList(), run.map { it.id.id })
+    }
+
+    @Test
+    fun contiguousOlderCacheRejectsASparseIsland() {
+        val window = (161..240).map { msg(it) }
+        val cached = (50..60).map { msg(it) }
+        assertEquals(emptyList<Int>(), contiguousOlderCache(msg(161), cached, window).map { it.id.id })
+    }
+
+    @Test
+    fun contiguousOlderCacheRejectsAFifteenDayDateHole() {
+        val newest = msg(160).copy(date = 2_000_000)
+        val older = (150..159).map { msg(it).copy(date = 2_000_000 - 15L * 86_400L) }
+        assertEquals(
+            emptyList<Int>(),
+            contiguousOlderCache(newest, older, listOf(newest) + older).map { it.id.id },
+        )
+    }
+
+    @Test
+    fun contiguousHistoryFromNewestDropsAnOlderIsland() {
+        val recent = (161..240).map { msg(it) }
+        val island = (1..40).map { msg(it) }
+        assertEquals(
+            (240 downTo 161).toList(),
+            contiguousHistoryFromNewest(recent + island).map { it.id.id },
+        )
+    }
+
+    @Test
+    fun contiguousNewerCacheRejectsASparseIsland() {
+        val window = (61..100).map { msg(it) }
+        val cached = (400..440).map { msg(it) }
+        assertEquals(
+            emptyList<Int>(),
+            contiguousNewerCache(msg(100), cached, window).map { it.id.id },
+        )
+    }
+
+    @Test
+    fun dateJumpCacheRejectsAnIslandOlderThanTwoDays() {
+        val yesterday = 1_800_000
+        val island = (1..40).map { id -> msg(id).copy(date = yesterday - 15L * 86_400L) }
+        assertEquals(emptyList<Int>(), dateJumpCacheWindow(island, yesterday).map { it.id.id })
+    }
+
+    @Test
+    fun dateJumpCacheKeepsTheRequestedDay() {
+        val yesterday = 1_800_000
+        val page = (81..160).map { id -> msg(id).copy(date = yesterday - 3_600L) }
+        assertEquals((160 downTo 81).toList(), dateJumpCacheWindow(page, yesterday).map { it.id.id })
     }
 
     @Test
@@ -700,9 +769,9 @@ class DialogNavigationTest {
     }
 
     @Test
-    fun scrollTriggeredOlderPageShowsLoadingMore() {
+    fun scrollTriggeredOlderPageHidesLoadingMore() {
         assertEquals(
-            AppSyncStatus.LoadingMore,
+            AppSyncStatus.Hidden,
             dialogSyncStatus(
                 loading = false,
                 searching = false,
@@ -713,7 +782,7 @@ class DialogNavigationTest {
             ),
         )
         assertEquals(
-            AppSyncStatus.LoadingMore,
+            AppSyncStatus.Hidden,
             dialogSyncStatus(
                 loading = false,
                 searching = false,

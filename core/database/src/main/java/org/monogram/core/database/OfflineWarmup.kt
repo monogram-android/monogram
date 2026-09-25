@@ -252,7 +252,7 @@ open class OfflineWarmup(
         }
     }
 
-    /** Drops stuck unsent/failed local rows left after process death. */
+    /** Drops stuck local rows with no random_id. Pending sends with a random_id wait for updateMessageID. */
     open suspend fun dropUnsentAfterRestart() {
         val database = db ?: return
         roomIo {
@@ -265,7 +265,7 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun messages(chatId: PeerId, limit: Int = 200): List<Message> {
+    open suspend fun messages(chatId: PeerId, limit: Int = HISTORY_CACHE_WINDOW): List<Message> {
         val database = db ?: run {
             ensureStartupCleanup()
             return emptyList()
@@ -292,7 +292,7 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun olderMessages(chatId: PeerId, beforeId: Int, limit: Int = 40): List<Message> {
+    open suspend fun olderMessages(chatId: PeerId, beforeId: Int, limit: Int = HISTORY_CACHE_WINDOW): List<Message> {
         val database = db ?: run {
             ensureStartupCleanup()
             return emptyList()
@@ -300,6 +300,34 @@ open class OfflineWarmup(
         return withContext(Dispatchers.IO) {
             ensureStartupCleanup()
             database.messageDao().olderThan(chatId.value, beforeId, limit).map { it.toModel() }
+        }
+    }
+
+    open suspend fun newerMessages(chatId: PeerId, afterId: Int, limit: Int = HISTORY_CACHE_WINDOW): List<Message> {
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
+        return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
+            database.messageDao().newerThan(chatId.value, afterId, limit).map { it.toModel() }
+        }
+    }
+
+    open suspend fun messagesBeforeDate(
+        chatId: PeerId,
+        beforeDate: Int,
+        limit: Int = HISTORY_CACHE_WINDOW,
+    ): List<Message> {
+        val database = db ?: run {
+            ensureStartupCleanup()
+            return emptyList()
+        }
+        return withContext(Dispatchers.IO) {
+            ensureStartupCleanup()
+            database.messageDao()
+                .atOrBeforeDate(chatId.value, beforeDate.toLong(), limit)
+                .map { it.toModel() }
         }
     }
 
@@ -419,11 +447,12 @@ open class OfflineWarmup(
     open suspend fun pruneMissingLatest(chatId: PeerId, fetched: List<Message>) = roomIo {
         val database = db ?: return@roomIo
         if (fetched.isEmpty()) return@roomIo
-        val keep = fetched.mapTo(mutableSetOf()) { it.id.id }
+        val keep = fetched.map { it.id.id }
         val minId = keep.minOrNull() ?: return@roomIo
-        val stale = database.messageDao()
-            .idsAtOrAfter(chatId.value, minId)
-            .filterNot(keep::contains)
+        val stale = staleIdsInsideFetchedWindow(
+            cachedIds = database.messageDao().idsAtOrAfter(chatId.value, minId),
+            fetchedIds = keep,
+        )
         if (stale.isNotEmpty()) {
             database.messageDao().deleteInChat(chatId.value, stale)
         }
@@ -510,8 +539,23 @@ data class HistoryPrune(
     val droppedIds: List<Int>,
 )
 
+/** Telegram history `limit` ceiling; Room cache windows stay at or below this. */
+const val HISTORY_CACHE_WINDOW = 100
+
 fun staleHistoryIds(cachedIds: List<Int>, lastMessageId: Int): List<Int> =
     if (lastMessageId <= 0) emptyList() else cachedIds.filter { it > lastMessageId }
+
+/** Holes inside a fetched page, never live rows newer than that page. */
+fun shouldDropUnsentAfterRestart(pending: Boolean, id: Int, randomId: Long?): Boolean =
+    (pending || id < 0) && (randomId == null || randomId == 0L)
+
+fun staleIdsInsideFetchedWindow(cachedIds: List<Int>, fetchedIds: Collection<Int>): List<Int> {
+    if (fetchedIds.isEmpty()) return emptyList()
+    val keep = fetchedIds.toSet()
+    val minId = keep.minOrNull() ?: return emptyList()
+    val maxId = keep.maxOrNull() ?: return emptyList()
+    return cachedIds.filter { it in minId..maxId && it !in keep }
+}
 
 const val DRAFT_META_PREFIX = "draft:"
 

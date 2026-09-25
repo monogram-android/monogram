@@ -73,12 +73,12 @@ fun UnreadBadge(
 ) {
     val scheme = MaterialTheme.colorScheme
     val container = if (muted) {
-        mutedColor ?: scheme.onSurfaceVariant
+        mutedColor ?: scheme.surfaceVariant
     } else {
         unmutedColor ?: scheme.primary
     }
     val content = contentColorFor(container).takeIf { it != Color.Unspecified }
-        ?: if (muted) scheme.surface else scheme.onPrimary
+        ?: if (muted) scheme.onSurfaceVariant else scheme.onPrimary
     AnimatedVisibility(
         visible = count > 0,
         modifier = modifier.then(

@@ -54,3 +54,7 @@ fun folderChipItems(
         else -> listOf(all) + chips
     }
 }
+
+/** Hide the chat-list folder row when the account has no custom folders. */
+fun showsFolderChipRow(items: List<FolderChipItem>): Boolean =
+    items.any { !it.isAll }

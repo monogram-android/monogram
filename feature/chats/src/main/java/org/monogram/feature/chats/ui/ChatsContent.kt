@@ -113,6 +113,7 @@ import androidx.compose.ui.text.style.TextAlign
 import org.monogram.core.ui.ExpressiveDefaults
 import org.monogram.feature.chats.R
 import org.monogram.feature.chats.folderChipItems
+import org.monogram.feature.chats.showsFolderChipRow
 import org.monogram.feature.chats.folderScrollKey
 import org.monogram.feature.chats.folderUnreadBadge
 import org.monogram.feature.chats.onFolderChipClick
@@ -327,6 +328,7 @@ fun ChatsContent(
             )
         }
     }
+    val showFolderChips = remember(chipItems) { showsFolderChipRow(chipItems.items) }
     val allChats = remember { ChatListSnapshot() }
     val shownChats = remember { ChatListSnapshot() }
     val archivedChats = remember { ChatListSnapshot() }
@@ -514,7 +516,7 @@ fun ChatsContent(
                     },
                 )
                 Column(modifier = Modifier.weight(1f).fillMaxSize()) {
-                    if (!archive && !searchOpen && !foldersAtBottom) {
+                    if (!archive && !searchOpen && !foldersAtBottom && showFolderChips) {
                         Box {
                             FolderChipRow(
                                 chips = chipItems,
@@ -602,7 +604,7 @@ fun ChatsContent(
                                 markReadLabel = markReadLabel,
                                 markUnreadLabel = markUnreadLabel,
                                 manageFoldersLabel = manageFoldersLabel,
-                                foldersAtBottom = foldersAtBottom,
+                                foldersAtBottom = foldersAtBottom && showFolderChips,
                                 inlineFolderChips = false,
                                 searchPeople = state.searchPeople,
                                 searchChats = state.searchChats,
@@ -628,13 +630,18 @@ fun ChatsContent(
                                 motionEnabled = listMotionEnabled(),
                                 onMoving = { folderMoving = it },
                             ) { folderId, isPrimary ->
-                                val pageChats = remember { ChatListSnapshot() }
-                                pageChats.replace(
-                                    filterChats(
-                                        visibleChats(state.chats, folders, folderId),
-                                        state.query,
-                                    ),
-                                )
+                                val pageChats = if (folderId == homeFolderId) {
+                                    shownChats
+                                } else {
+                                    remember { ChatListSnapshot() }.also { snapshot ->
+                                        snapshot.replace(
+                                            filterChats(
+                                                visibleChats(state.chats, folders, folderId),
+                                                state.query,
+                                            ),
+                                        )
+                                    }
+                                }
                                 val restored = clampFolderScroll(
                                     folderScroll[folderScrollKey(folderId)],
                                     pageChats.size,
@@ -698,7 +705,7 @@ fun ChatsContent(
                                     markReadLabel = markReadLabel,
                                     markUnreadLabel = markUnreadLabel,
                                     manageFoldersLabel = manageFoldersLabel,
-                                    foldersAtBottom = foldersAtBottom,
+                                    foldersAtBottom = foldersAtBottom && showFolderChips,
                                     inlineFolderChips = false,
                                     searchPeople = state.searchPeople,
                                     searchChats = state.searchChats,
@@ -717,7 +724,7 @@ fun ChatsContent(
                                 )
                             }
                         }
-                        if (foldersAtBottom && !archive && !searchOpen) {
+                        if (foldersAtBottom && !archive && !searchOpen && showFolderChips) {
                             FloatingFolderBar(
                                 chips = chipItems,
                                 selectedId = homeFolderId,

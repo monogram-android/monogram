@@ -255,8 +255,6 @@ internal fun ArchiveRow(
             UnreadCountRow(
                 unmuted = unmuted,
                 muted = mutedUnread,
-                unmutedColor = MaterialTheme.colorScheme.error,
-                mutedColor = MaterialTheme.colorScheme.secondary,
             )
         }
     }
@@ -456,8 +454,6 @@ internal fun ChatRow(
                 UnreadBadge(
                     count = unread,
                     muted = chat.muted,
-                    unmutedColor = MaterialTheme.colorScheme.error,
-                    mutedColor = MaterialTheme.colorScheme.secondary,
                     description = if (unread > 0) {
                         pluralStringResource(R.plurals.chats_unread_count, unread, unread)
                     } else {
@@ -497,9 +493,9 @@ internal fun showsReactionBadge(chat: Chat): Boolean = chat.unreadReactionsCount
 @Composable
 private fun MentionBadge(muted: Boolean, description: String) {
     val scheme = MaterialTheme.colorScheme
-    val container = if (muted) scheme.secondary else scheme.error
+    val container = if (muted) scheme.surfaceVariant else scheme.primary
     val content = contentColorFor(container).takeIf { it != Color.Unspecified }
-        ?: if (muted) scheme.surface else scheme.onError
+        ?: if (muted) scheme.onSurfaceVariant else scheme.onPrimary
     Box(
         modifier = Modifier
             .clip(CircleShape)
@@ -519,9 +515,9 @@ private fun MentionBadge(muted: Boolean, description: String) {
 @Composable
 private fun ReactionBadge(muted: Boolean, description: String) {
     val scheme = MaterialTheme.colorScheme
-    val container = if (muted) scheme.secondary else scheme.error
+    val container = if (muted) scheme.surfaceVariant else scheme.primary
     val content = contentColorFor(container).takeIf { it != Color.Unspecified }
-        ?: if (muted) scheme.surface else scheme.onError
+        ?: if (muted) scheme.onSurfaceVariant else scheme.onPrimary
     Box(
         modifier = Modifier
             .size(24.dp)
@@ -550,7 +546,7 @@ private fun UnreadMarkDot(muted: Boolean, description: String) {
             .size(10.dp)
             .clip(CircleShape)
             .background(
-                if (muted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
+                if (muted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
             )
             .semantics { contentDescription = description },
     )
@@ -621,15 +617,19 @@ private fun ChatPreviewLine(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
     AnimatedContent(
-        targetState = chat.typingAction to chat.typingName,
+        targetState = chat,
         transitionSpec = { liveActionTransition() },
-        contentKey = { it.first ?: "preview" },
+        contentKey = { row ->
+            row.typingAction?.let { action -> "t:$action:${row.typingName}" }
+                ?: "p:${row.lastMessageId}:${row.lastMessagePreview}:${row.lastMessageMediaKind}:${row.lastMessageOutgoing}:${row.lastMessageSenderName}"
+        },
         label = "chat-preview",
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = ChatRowPreviewLineHeight)
             .clipToBounds(),
-    ) { (action, packed) ->
+    ) { row ->
+        val action = row.typingAction
         if (action != null) {
             Row(
                 modifier = Modifier.heightIn(min = ChatRowPreviewLineHeight),
@@ -638,7 +638,7 @@ private fun ChatPreviewLine(
             ) {
                 TypingDots(dotColor = MaterialTheme.colorScheme.primary)
                 Text(
-                    text = typingStatusText(unpackTypingNames(packed), action),
+                    text = typingStatusText(unpackTypingNames(row.typingName), action),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -646,15 +646,15 @@ private fun ChatPreviewLine(
                 )
             }
         } else {
-            val media = chatPreviewMedia(chat.lastMessageMediaKind)
+            val media = chatPreviewMedia(row.lastMessageMediaKind)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                if (thumbAvailable(chat, media)) {
+                if (thumbAvailable(row, media)) {
                     LastMessageThumb(
-                        chat = chat,
+                        chat = row,
                         mediaRepository = mediaRepository,
                     )
                 } else if (media != null) {
@@ -666,7 +666,7 @@ private fun ChatPreviewLine(
                     )
                 }
                 val preview = formatPreviewText(
-                    chat = chat,
+                    chat = row,
                     youLabel = texts.you,
                     someoneLabel = texts.someone,
                     mediaLabel = texts::mediaLabel,

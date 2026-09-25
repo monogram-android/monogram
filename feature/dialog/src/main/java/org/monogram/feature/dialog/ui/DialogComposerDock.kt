@@ -194,7 +194,6 @@ internal fun DialogComposerDock(
     var editorValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue())
     }
-    var autoEditorPending by remember { mutableStateOf(false) }
     val clipboard = LocalClipboard.current
     val clipboardScope = rememberCoroutineScope()
     var selectionMenuRequested by remember { mutableStateOf(false) }
@@ -243,14 +242,6 @@ internal fun DialogComposerDock(
         }
     }
     val hasComposerSelection = value.selection.length > 0
-    LaunchedEffect(value.text, value.composition, autoEditorPending) {
-        if (autoEditorPending && value.composition == null && needsFullScreenEditor(value.text)) {
-            delay(400)
-            editorValue = value.copy(composition = null)
-            autoEditorPending = false
-            component.openMarkdownEditor()
-        }
-    }
     LaunchedEffect(draft) {
         if (draft != value.text) {
             value = TextFieldValue(draft, TextRange(draft.length))
@@ -329,14 +320,9 @@ internal fun DialogComposerDock(
         DialogWriteBar(
             composer = value,
             onComposerChange = {
-                val expandEditor = it.composition == null && needsFullScreenEditor(it.text) &&
-                    (value.composition != null || !needsFullScreenEditor(value.text))
                 value = it
                 if (ComposerAt.mentionToken(it.text) != null) {
                     component.onDraftChanged(it.text)
-                }
-                if (expandEditor) {
-                    autoEditorPending = true
                 }
             },
             sending = sending,
@@ -361,7 +347,6 @@ internal fun DialogComposerDock(
                 val sent = value.text
                 if (!editing) {
                     value = TextFieldValue("")
-                    autoEditorPending = false
                 }
                 component.onSend(sent)
             },
@@ -373,11 +358,6 @@ internal fun DialogComposerDock(
             onClearAttach = component::onClearAttach,
             onReceiveMedia = receiveMedia,
             hint = botPlaceholder,
-            onOpenEditor = {
-                autoEditorPending = false
-                editorValue = value.copy(composition = null)
-                component.openMarkdownEditor()
-            },
             onSelectionMenuVisibilityChange = { selectionMenuRequested = it },
         )
         }
@@ -389,21 +369,25 @@ internal fun DialogComposerDock(
             onDismissRequest = component::closeMarkdownEditor,
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
         ) {
-            AnimatedVisibility(
-                visibleState = editorTransition,
-                enter = fadeIn() + slideInVertically { it / 12 },
-                exit = fadeOut() + slideOutVertically { it / 12 },
-            ) {
-                MarkdownEditorScreen(
-                    value = editorValue,
-                    onValueChange = { editorValue = it },
-                    onApply = {
-                        value = finishMarkdownEditor(value, editorValue, apply = true)
-                        component.onDraftChanged(value.text)
-                        component.closeMarkdownEditor()
-                    },
-                    onDismiss = component::closeMarkdownEditor,
-                )
+            Box(modifier = Modifier.fillMaxSize()) {
+                AnimatedVisibility(
+                    visibleState = editorTransition,
+                    modifier = Modifier.fillMaxSize(),
+                    enter = fadeIn() + slideInVertically { it / 12 },
+                    exit = fadeOut() + slideOutVertically { it / 12 },
+                ) {
+                    MarkdownEditorScreen(
+                        value = editorValue,
+                        onValueChange = { editorValue = it },
+                        onApply = {
+                            value = finishMarkdownEditor(value, editorValue, apply = true)
+                            component.onDraftChanged(value.text)
+                            component.closeMarkdownEditor()
+                        },
+                        onDismiss = component::closeMarkdownEditor,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
     }

@@ -270,20 +270,6 @@ internal fun LazyListScope.appearanceItems(
             )
         }
     }
-
-    item { SectionHeader(stringResource(R.string.settings_section_dialog)) }
-    item {
-        SettingsCard(position = ItemPosition.STANDALONE) {
-            SwitchRow(
-                icon = Icons.Outlined.Check,
-                iconColor = MaterialTheme.colorScheme.primary,
-                title = stringResource(R.string.settings_read_status),
-                subtitle = stringResource(R.string.settings_read_status_sub),
-                checked = appearance.showReadStatus,
-                onCheckedChange = AppearanceSettings::setShowReadStatus,
-            )
-        }
-    }
 }
 
 @Composable

@@ -64,11 +64,19 @@ internal fun SavedGifCell(
     var failed by remember(gif.documentId) { mutableStateOf(false) }
     var unavailable by remember(gif.documentId) { mutableStateOf(false) }
     var attempt by remember(gif.documentId) { mutableStateOf(0) }
-    LaunchedEffect(gif.documentId, gif.cacheKey, gif.thumbCacheKey, mediaRepository, attempt) {
+    val wantFull = !thumbOnly && visible && animationEnabled
+    LaunchedEffect(
+        gif.documentId,
+        gif.cacheKey,
+        gif.thumbCacheKey,
+        mediaRepository,
+        attempt,
+        wantFull,
+    ) {
         val repo = mediaRepository ?: return@LaunchedEffect
         failed = false
         unavailable = false
-        if (!thumbOnly) {
+        if (wantFull) {
             repo.cachedFile(gif.cacheKey)?.takeIf { it.exists() }?.let {
                 file = it
                 return@LaunchedEffect
@@ -85,7 +93,7 @@ internal fun SavedGifCell(
                 if (thumbOnly) return@LaunchedEffect
             }
         }
-        if (thumbOnly && file != null) return@LaunchedEffect
+        if (!wantFull && file != null) return@LaunchedEffect
         val thumbKey = gif.thumbCacheKey ?: "${gif.cacheKey}:thumb"
         suspend fun fetchThumb(): Outcome<File> {
             var last: Outcome<File> = Outcome.Err("no downloadable thumb")
@@ -113,7 +121,7 @@ internal fun SavedGifCell(
             when (val result = fetchThumb()) {
                 is Outcome.Ok -> file = result.value
                 is Outcome.Err -> {
-                    if (thumbOnly) {
+                    if (!wantFull) {
                         unavailable = missingThumb(result.message) || deferredThumb(result.message)
                         failed = !unavailable
                         return@LaunchedEffect
@@ -121,7 +129,7 @@ internal fun SavedGifCell(
                 }
             }
         }
-        if (!thumbOnly) {
+        if (wantFull) {
             repo.cachedFile(gif.cacheKey)?.takeIf { it.exists() }?.let {
                 file = it
                 return@LaunchedEffect

@@ -1010,6 +1010,102 @@ class DialogForumStoreTest {
     }
 
     @Test
+    fun pickerCatalogsAreOnInitialStateBeforeAnySchedulerWork() = runTest {
+        StickerCatalogMemory.clear()
+        SavedGifMemory.clear()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val client = FakeClient()
+        val meta = FakeMeta()
+        val diskGif = org.monogram.core.models.SavedGif(
+            documentId = 5L,
+            cacheKey = "gif:5",
+            thumbCacheKey = "gif:5:thumb",
+        )
+        val pack = StickerPack(
+            id = 9L,
+            title = "Cats",
+            shortName = "cats",
+            count = 1,
+            isEmoji = false,
+            previewDocumentIds = listOf(42L),
+            accessHash = 11L,
+        )
+        meta.values["picker.stickers"] = PickerDisk.encodeCatalog(
+            StickerCatalogSnapshot(7L, listOf(pack)),
+        )
+        meta.values["picker.gifs"] = PickerDisk.encodeGifs(listOf(diskGif))
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = meta,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            assertEquals(listOf(9L), store.state.stickerSets.map { it.id })
+            assertEquals(true, store.state.stickerSetsLoaded)
+            assertEquals(5L, store.state.savedGifs.single().documentId)
+            assertEquals(true, store.state.savedGifsLoaded)
+            assertEquals(0, client.stickerCatalogCalls)
+            assertEquals(0, client.savedGifCalls)
+        } finally {
+            store.dispose()
+            StickerCatalogMemory.clear()
+            SavedGifMemory.clear()
+        }
+    }
+
+    @Test
+    fun pickerCatalogsHydrateFromDiskOnStoreStart() = runTest {
+        StickerCatalogMemory.clear()
+        SavedGifMemory.clear()
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient()
+        val meta = FakeMeta()
+        val diskGif = org.monogram.core.models.SavedGif(
+            documentId = 5L,
+            cacheKey = "gif:5",
+            thumbCacheKey = "gif:5:thumb",
+        )
+        client.savedGifs = listOf(diskGif)
+        val pack = StickerPack(
+            id = 9L,
+            title = "Cats",
+            shortName = "cats",
+            count = 1,
+            isEmoji = false,
+            previewDocumentIds = listOf(42L),
+            accessHash = 11L,
+        )
+        meta.values["picker.stickers"] = PickerDisk.encodeCatalog(
+            StickerCatalogSnapshot(7L, listOf(pack)),
+        )
+        meta.values["picker.gifs"] = PickerDisk.encodeGifs(listOf(diskGif))
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = meta,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            assertEquals(listOf(9L), store.state.stickerSets.map { it.id })
+            assertEquals(true, store.state.stickerSetsLoaded)
+            assertEquals(5L, store.state.savedGifs.single().documentId)
+            assertEquals(true, store.state.savedGifsLoaded)
+            advanceUntilIdle()
+            assertEquals(1, client.stickerCatalogCalls)
+            assertEquals(7L, client.lastStickerHash)
+            assertEquals(1, client.savedGifCalls)
+            store.accept(DialogStore.Intent.SetEmojiTab(ComposerPanels.TAB_STICKERS))
+            store.accept(DialogStore.Intent.SetEmojiTab(ComposerPanels.TAB_GIFS))
+            advanceUntilIdle()
+            assertEquals(1, client.stickerCatalogCalls)
+            assertEquals(1, client.savedGifCalls)
+        } finally {
+            store.dispose()
+            StickerCatalogMemory.clear()
+            SavedGifMemory.clear()
+        }
+    }
+
+    @Test
     fun stickerCatalogUsesProcessCacheOnSecondOpen() = runTest {
         StickerCatalogMemory.clear()
         StickerPackMemory.clear()

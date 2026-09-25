@@ -67,9 +67,52 @@ import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
 import kotlin.time.Duration.Companion.milliseconds
 
+internal fun DialogExecutor.warmPickerCatalogs() {
+    warmStickerCatalog(emoji = false)
+    warmStickerCatalog(emoji = true)
+    warmSavedGifs()
+}
+
+private fun DialogExecutor.warmStickerCatalog(emoji: Boolean) {
+    StickerCatalogMemory.get(emoji)?.let { cached ->
+        if (emoji) {
+            if (snapshot().emojiSets.isEmpty()) emit(Msg.EmojiSets(cached.sets))
+        } else if (snapshot().stickerSets.isEmpty()) {
+            emit(Msg.StickerSets(cached.sets))
+        }
+        if (!StickerCatalogMemory.isLive(emoji)) refreshStickerCatalog(emoji, cached.hash)
+        return
+    }
+    val store = sessionStore ?: return
+    work.launch {
+        val cached = PickerDisk.readCatalog(store, emoji) ?: return@launch
+        if (StickerCatalogMemory.get(emoji) != null) return@launch
+        StickerCatalogMemory.put(emoji, cached)
+        if (emoji) emit(Msg.EmojiSets(cached.sets)) else emit(Msg.StickerSets(cached.sets))
+        refreshStickerCatalog(emoji, cached.hash)
+    }
+}
+
+private fun DialogExecutor.warmSavedGifs() {
+    SavedGifMemory.get()?.let {
+        if (!snapshot().savedGifsLoaded) emit(Msg.SavedGifs(it))
+        if (!SavedGifMemory.isLive()) refreshSavedGifs()
+        return
+    }
+    val store = sessionStore ?: return
+    work.launch {
+        val cached = PickerDisk.readGifs(store) ?: return@launch
+        if (SavedGifMemory.get() != null) return@launch
+        SavedGifMemory.put(cached)
+        emit(Msg.SavedGifs(cached))
+        refreshSavedGifs()
+    }
+}
+
 internal fun DialogExecutor.loadSavedGifs() {
     SavedGifMemory.get()?.let {
         emit(Msg.SavedGifs(it))
+        if (!SavedGifMemory.isLive()) refreshSavedGifs()
         return
     }
     work.launch {
@@ -86,6 +129,7 @@ internal fun DialogExecutor.refreshSavedGifs() {
         when (val result = client.getSavedGifs()) {
             is Outcome.Ok -> {
                 SavedGifMemory.put(result.value)
+                SavedGifMemory.markLive()
                 sessionStore?.let { PickerDisk.writeGifs(it, result.value) }
                 emit(Msg.SavedGifs(result.value))
             }
@@ -120,6 +164,7 @@ internal fun DialogExecutor.openEmojiTab(tab: String) {
 internal fun DialogExecutor.loadStickerCatalog(emoji: Boolean) {
     StickerCatalogMemory.get(emoji)?.let { cached ->
         if (emoji) emit(Msg.EmojiSets(cached.sets)) else emit(Msg.StickerSets(cached.sets))
+        if (!StickerCatalogMemory.isLive(emoji)) refreshStickerCatalog(emoji, cached.hash)
         return
     }
     work.launch {
@@ -138,6 +183,7 @@ internal fun DialogExecutor.refreshStickerCatalog(emoji: Boolean, hash: Long) {
         val result = if (emoji) client.getEmojiStickers(hash) else client.getAllStickers(hash)
         when (result) {
             is Outcome.Ok -> {
+                StickerCatalogMemory.markLive(emoji)
                 if (result.value.notModified) {
                     val cached = StickerCatalogMemory.get(emoji)?.sets.orEmpty()
                     if (emoji) emit(Msg.EmojiSets(cached)) else emit(Msg.StickerSets(cached))

@@ -42,7 +42,6 @@ import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -134,7 +133,6 @@ internal fun DialogWriteBar(
     onClearReply: () -> Unit,
     onClearAttach: () -> Unit,
     onReceiveMedia: (List<Uri>, TransferableContent?) -> Unit = { _, _ -> },
-    onOpenEditor: () -> Unit = {},
     onSelectionMenuVisibilityChange: (Boolean) -> Unit = {},
     hint: String? = null,
     composerFocusSeq: Int = 0,
@@ -247,7 +245,6 @@ internal fun DialogWriteBar(
                         clearDescription = stringResource(R.string.dialog_attach_remove),
                     )
                 }
-                val showExpand = shouldShowFullScreenEditor(composer.text)
                 ChatComposerLayout(
                     style = appearance.composerStyle,
                     showEmoji = appearance.showEmojiButton,
@@ -262,24 +259,6 @@ internal fun DialogWriteBar(
                     onAttach = onAttach,
                     onEmoji = onEmoji,
                     onSend = onSend,
-                    topTrailing = if (showExpand) {
-                        {
-                            IconButton(
-                                onClick = onOpenEditor,
-                                enabled = editing || canSendPlain,
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(top = 0.dp, end = 4.dp)
-                                    .size(44.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Fullscreen,
-                                    contentDescription = stringResource(R.string.dialog_markdown_expand),
-                                    tint = scheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    } else null,
                 ) {
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (composer.text.isEmpty()) {
@@ -419,7 +398,9 @@ internal fun DialogWriteBar(
                                         ) {
                                             CustomEmojiGlyph(
                                                 documentId = span.documentId,
+                                                fallback = "🙂",
                                                 size = 20.dp,
+                                                compact = true,
                                             )
                                         }
                                     }

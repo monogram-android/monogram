@@ -206,8 +206,6 @@
     <string name="settings_avatar_profile_tap">Otvoriť profil z avatara</string>
     <string name="settings_avatar_profile_tap_sub">Klepnutím na avatar otvoríte profil alebo informácie o chate</string>
     <string name="settings_avatar_profile_tap_unavailable">Vyžaduje profilové fotky</string>
-    <string name="settings_read_status">Stav prečítania</string>
-    <string name="settings_read_status_sub">Fajky na odoslaných správach — skryté v kanáloch</string>
     <string name="settings_message_text_size">Veľkosť textu</string>
     <string name="settings_message_text_size_value">%d sp</string>
     <string name="settings_line_spacing">Riadkovanie</string>
@@ -216,7 +214,6 @@
     <string name="settings_letter_spacing">Medzery medzi písmenami</string>
     <string name="settings_letter_spacing_value">+%d</string>
     <string name="settings_reset_control">Obnoviť %1$s</string>
-    <string name="settings_section_dialog">Obrazovka chatu</string>
     <string name="settings_input_bar">Panel vstupu</string>
     <string name="settings_input_bar_ios">iOS</string>
     <string name="settings_input_bar_material">Material</string>
@@ -231,7 +228,7 @@
     <string name="settings_input_bar_send_by_enter">Odosielať klávesou Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter odošle správu; Shift+Enter pridá nový riadok</string>
     <string name="settings_input_bar_fix_previews">Oprava náhľadov odkazov</string>
-    <string name="settings_input_bar_fix_previews_sub">Ponúknuť tlačidlo na opravu náhľadu pre X, Bluesky, TikTok, Reddit a Pixiv</string>
+    <string name="settings_input_bar_fix_previews_sub">Opravovať náhľady odkazov pre X, Bluesky, TikTok, Reddit a Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">App %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

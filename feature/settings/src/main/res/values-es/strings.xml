@@ -206,8 +206,6 @@
     <string name="settings_avatar_profile_tap">Abrir perfil desde el avatar</string>
     <string name="settings_avatar_profile_tap_sub">Tocar un avatar abre el perfil o la info del chat</string>
     <string name="settings_avatar_profile_tap_unavailable">Requiere fotos de perfil</string>
-    <string name="settings_read_status">Estado de lectura</string>
-    <string name="settings_read_status_sub">Marcas en los mensajes enviados — ocultas en canales</string>
     <string name="settings_message_text_size">Tamaño del texto</string>
     <string name="settings_message_text_size_value">%d sp</string>
     <string name="settings_line_spacing">Interlineado</string>
@@ -216,7 +214,6 @@
     <string name="settings_letter_spacing">Espaciado entre letras</string>
     <string name="settings_letter_spacing_value">+%d</string>
     <string name="settings_reset_control">Restablecer %1$s</string>
-    <string name="settings_section_dialog">Pantalla del chat</string>
     <string name="settings_input_bar">Barra de entrada</string>
     <string name="settings_input_bar_ios">iOS</string>
     <string name="settings_input_bar_material">Material</string>
@@ -231,7 +228,7 @@
     <string name="settings_input_bar_send_by_enter">Enviar con Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter envía el mensaje; Shift+Enter inserta una línea</string>
     <string name="settings_input_bar_fix_previews">Corregir vistas previas de enlaces</string>
-    <string name="settings_input_bar_fix_previews_sub">Mostrar botón de corrección para X, Bluesky, TikTok, Reddit y Pixiv</string>
+    <string name="settings_input_bar_fix_previews_sub">Corregir vistas previas de enlaces para X, Bluesky, TikTok, Reddit y Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">App %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

@@ -206,8 +206,6 @@
     <string name="settings_avatar_profile_tap">Avatardan profili aç</string>
     <string name="settings_avatar_profile_tap_sub">Avatara dokunmak profili veya sohbet bilgisini açar</string>
     <string name="settings_avatar_profile_tap_unavailable">Profil fotoğrafları gerekir</string>
-    <string name="settings_read_status">Okundu durumu</string>
-    <string name="settings_read_status_sub">Giden mesajlarda tikler — kanallarda gizli</string>
     <string name="settings_message_text_size">Metin boyutu</string>
     <string name="settings_message_text_size_value">%d sp</string>
     <string name="settings_line_spacing">Satır aralığı</string>
@@ -216,7 +214,6 @@
     <string name="settings_letter_spacing">Harf aralığı</string>
     <string name="settings_letter_spacing_value">+%d</string>
     <string name="settings_reset_control">%1$s sıfırla</string>
-    <string name="settings_section_dialog">Sohbet ekranı</string>
     <string name="settings_input_bar">Giriş çubuğu</string>
     <string name="settings_input_bar_ios">iOS</string>
     <string name="settings_input_bar_material">Material</string>
@@ -231,7 +228,7 @@
     <string name="settings_input_bar_send_by_enter">Enter ile gönder</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter mesajı gönderir; Shift+Enter yeni satır ekler</string>
     <string name="settings_input_bar_fix_previews">Bağlantı önizlemelerini düzelt</string>
-    <string name="settings_input_bar_fix_previews_sub">X, Bluesky, TikTok, Reddit ve Pixiv için Düzelt düğmesi öner</string>
+    <string name="settings_input_bar_fix_previews_sub">X, Bluesky, TikTok, Reddit ve Pixiv için bağlantı önizlemelerini düzelt</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">Uygulama %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

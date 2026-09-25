@@ -25,12 +25,22 @@ internal data class SystemEmojiCategory(
 
 /** Builds the picker from Unicode emoji properties and glyphs available on this device. */
 internal object SystemEmojiCatalog {
-    private val cached by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+    private val cachedDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         buildCategories { glyph -> paint.hasGlyph(glyph) }
     }
+    private val cached: List<SystemEmojiCategory> by cachedDelegate
 
     fun categories(): List<SystemEmojiCategory> = cached
+
+    fun cachedCategories(): List<SystemEmojiCategory>? =
+        if (cachedDelegate.isInitialized()) cached else null
+
+    /** Build off the UI thread so the first emoji tab does not hitch on glyph checks. */
+    fun warm() {
+        if (cachedDelegate.isInitialized()) return
+        runCatching { categories() }
+    }
 
     internal fun keycapGlyphs(): List<String> = KEYCAP_BASES.map { "$it\uFE0F\u20E3" }
 

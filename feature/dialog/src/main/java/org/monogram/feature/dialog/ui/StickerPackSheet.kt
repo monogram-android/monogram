@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import org.monogram.core.common.Outcome
 import org.monogram.core.models.StickerPack
 import org.monogram.core.ui.components.AppModalSheet
-import org.monogram.core.ui.components.LocalMediaAnimationEnabled
 import org.monogram.feature.dialog.R
 import org.monogram.network.bridge.MtprotoClient
 
@@ -109,10 +107,7 @@ internal fun StickerPackSheet(
                         PickerMetrics.StickerCell.dp
                     }
                     val gridState = rememberLazyGridState()
-                    CompositionLocalProvider(
-                        LocalMediaAnimationEnabled provides !gridState.isScrollInProgress,
-                    ) {
-                        LazyVerticalGrid(
+                    LazyVerticalGrid(
                             columns = GridCells.Adaptive(minSize = cell),
                             state = gridState,
                             modifier = Modifier
@@ -136,7 +131,6 @@ internal fun StickerPackSheet(
                                 }
                             }
                         }
-                    }
                 }
             }
             error?.let {

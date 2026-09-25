@@ -53,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,6 +78,7 @@ import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
 import org.monogram.core.ui.components.SheetPanelHost
 import org.monogram.feature.dialog.ComposerPanels
+import org.monogram.feature.dialog.PickerMediaPreload
 import org.monogram.feature.dialog.R
 import org.monogram.feature.dialog.SystemEmojiCatalog
 import org.monogram.feature.dialog.SystemEmojiCategory
@@ -109,7 +111,13 @@ internal fun EmojiStickerGifPanel(
     onOpenPack: (StickerPack) -> Unit,
     onSendDocument: (Long) -> Unit,
     onDismiss: () -> Unit,
+    onPickerDocumentsVisible: (List<Long>, Set<Long>) -> Unit = { _, _ -> },
+    onPickerGifsVisible: (List<SavedGif>, Set<Long>) -> Unit = { _, _ -> },
+    onPickerClosed: () -> Unit = {},
 ) {
+    LaunchedEffect(visible) {
+        if (!visible) onPickerClosed()
+    }
     SheetPanelHost(visible = visible) { sheetVisible, onExited ->
         val tabs = listOf(
             ComposerPanels.TAB_EMOJI to stringResource(R.string.dialog_panel_emoji),
@@ -149,6 +157,7 @@ internal fun EmojiStickerGifPanel(
                             onOpenPack = onOpenPack,
                             onSendDocument = onSendDocument,
                             onRetry = { onTab(ComposerPanels.TAB_STICKERS) },
+                            onDocumentsVisible = onPickerDocumentsVisible,
                             modifier = Modifier.fillMaxSize(),
                         )
 
@@ -159,6 +168,7 @@ internal fun EmojiStickerGifPanel(
                             error = gifsError,
                             onSendDocument = onSendDocument,
                             onRetry = { onTab(ComposerPanels.TAB_GIFS) },
+                            onGifsVisible = onPickerGifsVisible,
                         )
 
                         else -> SystemEmojiBrowser(
@@ -172,6 +182,7 @@ internal fun EmojiStickerGifPanel(
                             onInsertCustomEmoji = onInsertCustomEmoji,
                             onOpenPack = onOpenPack,
                             onSendDocument = onSendDocument,
+                            onDocumentsVisible = onPickerDocumentsVisible,
                         )
                     }
                 }
@@ -244,9 +255,14 @@ private fun SystemEmojiBrowser(
     onInsertCustomEmoji: (Long) -> Unit,
     onOpenPack: (StickerPack) -> Unit,
     onSendDocument: (Long) -> Unit,
+    onDocumentsVisible: (List<Long>, Set<Long>) -> Unit = { _, _ -> },
 ) {
-    val categories by produceState(initialValue = emptyList<SystemEmojiCategory>()) {
-        value = withContext(Dispatchers.Default) { SystemEmojiCatalog.categories() }
+    val categories by produceState(
+        initialValue = SystemEmojiCatalog.cachedCategories().orEmpty(),
+    ) {
+        if (value.isEmpty()) {
+            value = withContext(Dispatchers.Default) { SystemEmojiCatalog.categories() }
+        }
     }
     val gridState = rememberLazyGridState()
     val scope = rememberCoroutineScope()
@@ -322,6 +338,7 @@ private fun SystemEmojiBrowser(
                             ids = selectedPack.previewDocumentIds,
                             cellSize = PickerMetrics.EmojiPackCell,
                             onClick = onInsertCustomEmoji,
+                            onDocumentsVisible = onDocumentsVisible,
                         )
 
                     packFailed -> PickerStatus(
@@ -369,7 +386,7 @@ private fun EmojiPreviewRow(
     LaunchedEffect(visibleChipPacks) {
         visibleChipPacks.forEach(onPrefetchPack)
     }
-    CompositionLocalProvider(LocalMediaAnimationEnabled provides !rowState.isScrollInProgress) {
+    CompositionLocalProvider(LocalMediaAnimationEnabled provides true) {
         LazyRow(
             state = rowState,
             modifier = Modifier
@@ -470,6 +487,7 @@ internal fun PackBrowser(
     onOpenPack: (StickerPack) -> Unit,
     onSendDocument: (Long) -> Unit,
     onRetry: () -> Unit,
+    onDocumentsVisible: (List<Long>, Set<Long>) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     if (packs.isEmpty()) {
@@ -530,8 +548,16 @@ internal fun PackBrowser(
     LaunchedEffect(visiblePacks, visibleChipPacks) {
         (visiblePacks + visibleChipPacks).distinctBy { it.id }.forEach(onOpenPack)
     }
+    val slots = remember(packs, loadedPacks) { PickerMediaPreload.packSlots(packs, loadedPacks) }
+    val documentIds = remember(slots) { slots.mapNotNull { it } }
+    ReportPickerVisible(
+        itemsKey = documentIds,
+        gridState = gridState,
+    ) { min, max ->
+        onDocumentsVisible(documentIds, PickerMediaPreload.visibleIds(slots, min, max))
+    }
     Column(modifier = modifier) {
-        CompositionLocalProvider(LocalMediaAnimationEnabled provides !previewState.isScrollInProgress) {
+        CompositionLocalProvider(LocalMediaAnimationEnabled provides true) {
             LazyRow(
                 state = previewState,
                 modifier = Modifier.fillMaxWidth().height(PickerMetrics.ChipRowHeight.dp),
@@ -551,7 +577,7 @@ internal fun PackBrowser(
                 }
             }
         }
-        CompositionLocalProvider(LocalMediaAnimationEnabled provides !gridState.isScrollInProgress) {
+        CompositionLocalProvider(LocalMediaAnimationEnabled provides true) {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(PickerMetrics.StickerCell.dp),
                 state = gridState,
@@ -671,8 +697,12 @@ private fun DocumentGrid(
     ids: List<Long>,
     cellSize: Int,
     onClick: (Long) -> Unit,
+    onDocumentsVisible: (List<Long>, Set<Long>) -> Unit = { _, _ -> },
 ) {
     val gridState = rememberLazyGridState()
+    ReportPickerVisible(itemsKey = ids, gridState = gridState) { min, max ->
+        onDocumentsVisible(ids, ids.subList(min.coerceAtLeast(0), (max + 1).coerceIn(0, ids.size)).toSet())
+    }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(cellSize.dp),
         state = gridState,
@@ -682,7 +712,7 @@ private fun DocumentGrid(
         verticalArrangement = Arrangement.spacedBy(PickerMetrics.GridSpacing.dp),
     ) {
         items(ids, key = { it }) { id ->
-            CompositionLocalProvider(LocalMediaAnimationEnabled provides !gridState.isScrollInProgress) {
+            CompositionLocalProvider(LocalMediaAnimationEnabled provides true) {
                 Box(
                     modifier = Modifier
                         .size(cellSize.dp)
@@ -709,6 +739,7 @@ internal fun SavedGifBrowser(
     error: Boolean,
     onSendDocument: (Long) -> Unit,
     onRetry: () -> Unit,
+    onGifsVisible: (List<SavedGif>, Set<Long>) -> Unit = { _, _ -> },
 ) {
     if (gifs.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -727,7 +758,13 @@ internal fun SavedGifBrowser(
         return
     }
     val gridState = rememberLazyGridState()
-    CompositionLocalProvider(LocalMediaAnimationEnabled provides !gridState.isScrollInProgress) {
+    ReportPickerVisible(itemsKey = gifs.map { it.documentId }, gridState = gridState) { min, max ->
+        val visible = gifs.subList(min.coerceAtLeast(0), (max + 1).coerceIn(0, gifs.size))
+            .map { it.documentId }
+            .toSet()
+        onGifsVisible(gifs, visible)
+    }
+    CompositionLocalProvider(LocalMediaAnimationEnabled provides true) {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(PickerMetrics.GifCell.dp),
             state = gridState,
@@ -784,3 +821,19 @@ private fun emojiCategoryLabel(kind: SystemEmojiCategoryKind): String = stringRe
         SystemEmojiCategoryKind.Flags -> R.string.dialog_emoji_category_flags
     },
 )
+
+@Composable
+private fun ReportPickerVisible(
+    itemsKey: Any?,
+    gridState: LazyGridState,
+    onRange: (Int, Int) -> Unit,
+) {
+    LaunchedEffect(itemsKey, gridState) {
+        onRange(0, -1)
+        snapshotFlow {
+            val visible = gridState.layoutInfo.visibleItemsInfo
+            if (visible.isEmpty()) 0 to -1
+            else visible.minOf { it.index } to visible.maxOf { it.index }
+        }.collect { (min, max) -> onRange(min, max) }
+    }
+}

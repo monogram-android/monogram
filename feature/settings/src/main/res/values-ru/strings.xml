@@ -206,8 +206,6 @@
     <string name="settings_avatar_profile_tap">Профиль по нажатию на аватар</string>
     <string name="settings_avatar_profile_tap_sub">Нажатие на аватар открывает профиль или информацию о чате</string>
     <string name="settings_avatar_profile_tap_unavailable">Нужны фото профилей</string>
-    <string name="settings_read_status">Статус прочтения</string>
-    <string name="settings_read_status_sub">Галочки на исходящих сообщениях — в каналах не отображаются</string>
     <string name="settings_message_text_size">Размер текста</string>
     <string name="settings_message_text_size_value">%d sp</string>
     <string name="settings_line_spacing">Межстрочный интервал</string>
@@ -216,7 +214,6 @@
     <string name="settings_letter_spacing">Межбуквенный интервал</string>
     <string name="settings_letter_spacing_value">+%d</string>
     <string name="settings_reset_control">Сбросить: %1$s</string>
-    <string name="settings_section_dialog">Экран чата</string>
     <string name="settings_input_bar">Строка ввода</string>
     <string name="settings_input_bar_ios">iOS</string>
     <string name="settings_input_bar_material">Material</string>
@@ -231,7 +228,7 @@
     <string name="settings_input_bar_send_by_enter">Отправка по Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter отправляет сообщение, Shift+Enter добавляет новую строку</string>
     <string name="settings_input_bar_fix_previews">Исправление предпросмотра ссылок</string>
-    <string name="settings_input_bar_fix_previews_sub">Предлагать кнопку «Исправить» для X, Bluesky, TikTok, Reddit и Pixiv</string>
+    <string name="settings_input_bar_fix_previews_sub">Исправлять превью ссылок для X, Bluesky, TikTok, Reddit и Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">Версия %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

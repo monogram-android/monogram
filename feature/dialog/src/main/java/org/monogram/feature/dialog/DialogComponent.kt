@@ -67,12 +67,17 @@ class DialogComponent(
         prefetchInstantView = { url, hash -> instantViewController(url, hash).load() },
         scope = preloadScope,
     )
+    private val pickerPreloader = PickerMediaPreloader(
+        mediaRepository = mediaRepository,
+        scope = preloadScope,
+    )
 
     init {
         lifecycle.doOnStart { client.setDialogForeground(true) }
         lifecycle.doOnDestroy {
             client.setDialogForeground(false)
             mediaPreloader.close()
+            pickerPreloader.close()
             preloadScope.cancel()
         }
     }
@@ -118,7 +123,24 @@ class DialogComponent(
                 mediaPreloader.onVisible(store.state.messages, lastVisibleIds)
             }
         }
+        preloadScope.launch(Dispatchers.Default) {
+            SystemEmojiCatalog.warm()
+        }
     }
+
+    fun onPickerDocumentsVisible(documentIds: List<Long>, visibleIds: Set<Long>) {
+        pickerPreloader.onPlan(
+            PickerMediaPreload.plan(PickerMediaPreload.documents(documentIds), visibleIds),
+        )
+    }
+
+    fun onPickerGifsVisible(gifs: List<org.monogram.core.models.SavedGif>, visibleIds: Set<Long>) {
+        pickerPreloader.onPlan(
+            PickerMediaPreload.plan(PickerMediaPreload.gifs(gifs), visibleIds),
+        )
+    }
+
+    fun onPickerClosed() = pickerPreloader.close()
 
     fun onRefresh() = store.accept(DialogStore.Intent.Refresh)
     fun onRefreshPresence() = store.accept(DialogStore.Intent.RefreshPresence)

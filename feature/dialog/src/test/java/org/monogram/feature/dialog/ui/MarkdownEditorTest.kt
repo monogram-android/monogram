@@ -18,6 +18,9 @@ class MarkdownEditorTest {
         assertTrue(shouldShowFullScreenEditor("one\ntwo"))
         assertTrue(shouldShowFullScreenEditor("```kotlin"))
         org.junit.Assert.assertFalse(shouldShowFullScreenEditor("**hello**"))
+        org.junit.Assert.assertFalse(
+            shouldShowFullScreenEditor("![🙂](tg://emoji?id=123456789012345)".repeat(4)),
+        )
     }
 
     @Test

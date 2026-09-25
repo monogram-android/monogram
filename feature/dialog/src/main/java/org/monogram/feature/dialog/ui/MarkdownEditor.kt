@@ -92,8 +92,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal fun shouldShowFullScreenEditor(text: String): Boolean {
-    if (text.isBlank()) return false
-    return text.codePointCount(0, text.length) > 50 || '\n' in text || needsFullScreenEditor(text)
+    val display = collapseCustomEmojiMarkdown(text)?.text?.text ?: text
+    if (display.isBlank()) return false
+    return display.codePointCount(0, display.length) > 50 ||
+        '\n' in display ||
+        needsFullScreenEditor(display)
 }
 
 internal fun needsFullScreenEditor(text: String): Boolean {

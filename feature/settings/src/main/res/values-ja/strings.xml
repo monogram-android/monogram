@@ -206,8 +206,6 @@
     <string name="settings_avatar_profile_tap">アバターからプロフィールを開く</string>
     <string name="settings_avatar_profile_tap_sub">アバターをタップするとプロフィールまたはチャット情報が開きます</string>
     <string name="settings_avatar_profile_tap_unavailable">プロフィール写真が必要です</string>
-    <string name="settings_read_status">既読状況</string>
-    <string name="settings_read_status_sub">送信メッセージのチェックマーク — チャンネルでは非表示</string>
     <string name="settings_message_text_size">メッセージの文字サイズ</string>
     <string name="settings_message_text_size_value">%d sp</string>
     <string name="settings_line_spacing">行間</string>
@@ -216,7 +214,6 @@
     <string name="settings_letter_spacing">文字間隔</string>
     <string name="settings_letter_spacing_value">+%d</string>
     <string name="settings_reset_control">%1$sをリセット</string>
-    <string name="settings_section_dialog">チャット画面</string>
     <string name="settings_input_bar">入力バー</string>
     <string name="settings_input_bar_ios">iOS</string>
     <string name="settings_input_bar_material">Material</string>
@@ -231,7 +228,7 @@
     <string name="settings_input_bar_send_by_enter">Enter で送信</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter で送信、Shift+Enter で改行</string>
     <string name="settings_input_bar_fix_previews">リンクのプレビュー修正</string>
-    <string name="settings_input_bar_fix_previews_sub">X、Bluesky、TikTok、Reddit、Pixivの修正ボタンを表示</string>
+    <string name="settings_input_bar_fix_previews_sub">X、Bluesky、TikTok、Reddit、Pixivのリンクプレビューを修正</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">アプリ %1$s</string>
     <string name="settings_native_version">ネイティブ %1$s</string>

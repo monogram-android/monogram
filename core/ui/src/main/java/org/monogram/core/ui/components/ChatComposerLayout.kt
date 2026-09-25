@@ -85,20 +85,22 @@ fun ChatComposerLayout(
                     if (!ios) attach()
                     Box(
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                            .padding(start = if (ios) 14.dp else 0.dp, end = if (showEmoji) 6.dp else 12.dp),
+                            .padding(start = if (ios) 14.dp else 0.dp, end = if (showEmoji) 0.dp else 12.dp),
                         contentAlignment = Alignment.CenterStart,
-                    ) { field() }
+                    ) {
+                        field()
+                        topTrailing?.invoke(this)
+                    }
                     if (showEmoji) {
                         IconButton(
                             onClick = onEmoji,
                             enabled = emojiEnabled,
-                            modifier = Modifier.padding(end = 4.dp).size(44.dp),
+                            modifier = Modifier.size(48.dp),
                         ) {
                             Icon(Icons.Outlined.EmojiEmotions, emojiDescription)
                         }
                     }
                 }
-                topTrailing?.invoke(this)
             }
         }
         MonogramBusyIconButton(

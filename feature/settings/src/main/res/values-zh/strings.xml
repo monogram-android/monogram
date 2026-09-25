@@ -206,8 +206,6 @@
     <string name="settings_avatar_profile_tap">点头像打开资料</string>
     <string name="settings_avatar_profile_tap_sub">点按头像可打开资料或聊天信息</string>
     <string name="settings_avatar_profile_tap_unavailable">需要开启头像</string>
-    <string name="settings_read_status">已读状态</string>
-    <string name="settings_read_status_sub">发出的消息显示对勾 — 频道中隐藏</string>
     <string name="settings_message_text_size">消息文字大小</string>
     <string name="settings_message_text_size_value">%d sp</string>
     <string name="settings_line_spacing">行距</string>
@@ -216,7 +214,6 @@
     <string name="settings_letter_spacing">字间距</string>
     <string name="settings_letter_spacing_value">+%d</string>
     <string name="settings_reset_control">重置%1$s</string>
-    <string name="settings_section_dialog">聊天界面</string>
     <string name="settings_input_bar">输入栏</string>
     <string name="settings_input_bar_ios">iOS</string>
     <string name="settings_input_bar_material">Material</string>
@@ -231,7 +228,7 @@
     <string name="settings_input_bar_send_by_enter">回车发送</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter 发送消息；Shift+Enter 换行</string>
     <string name="settings_input_bar_fix_previews">修复链接预览</string>
-    <string name="settings_input_bar_fix_previews_sub">为 X、Bluesky、TikTok、Reddit 和 Pixiv 提供修复预览按钮</string>
+    <string name="settings_input_bar_fix_previews_sub">修复 X、Bluesky、TikTok、Reddit 和 Pixiv 的链接预览</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">应用 %1$s</string>
     <string name="settings_native_version">原生 %1$s</string>

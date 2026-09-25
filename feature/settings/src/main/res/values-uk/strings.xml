@@ -206,8 +206,6 @@
     <string name="settings_avatar_profile_tap">Відкривати профіль з аватара</string>
     <string name="settings_avatar_profile_tap_sub">Натискання на аватар відкриває профіль або інформацію про чат</string>
     <string name="settings_avatar_profile_tap_unavailable">Потрібні фото профілів</string>
-    <string name="settings_read_status">Статус прочитання</string>
-    <string name="settings_read_status_sub">Галочки на вихідних повідомленнях — приховані в каналах</string>
     <string name="settings_message_text_size">Розмір тексту</string>
     <string name="settings_message_text_size_value">%d sp</string>
     <string name="settings_line_spacing">Міжрядковий інтервал</string>
@@ -216,7 +214,6 @@
     <string name="settings_letter_spacing">Міжлітерний інтервал</string>
     <string name="settings_letter_spacing_value">+%d</string>
     <string name="settings_reset_control">Скинути: %1$s</string>
-    <string name="settings_section_dialog">Екран чату</string>
     <string name="settings_input_bar">Панель введення</string>
     <string name="settings_input_bar_ios">iOS</string>
     <string name="settings_input_bar_material">Material</string>
@@ -231,7 +228,7 @@
     <string name="settings_input_bar_send_by_enter">Надсилання по Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter надсилає повідомлення, Shift+Enter додає новий рядок</string>
     <string name="settings_input_bar_fix_previews">Виправлення перегляду посилань</string>
-    <string name="settings_input_bar_fix_previews_sub">Пропонувати кнопку «Виправити» для X, Bluesky, TikTok, Reddit та Pixiv</string>
+    <string name="settings_input_bar_fix_previews_sub">Виправляти перегляд посилань для X, Bluesky, TikTok, Reddit та Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">Версія %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

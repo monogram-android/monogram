@@ -283,6 +283,7 @@ internal class DialogExecutor(
             .launchIn(scope)
         refresh()
         loadRecentReactions()
+        warmPickerCatalogs()
     }
 
     override fun executeIntent(intent: DialogStore.Intent) {

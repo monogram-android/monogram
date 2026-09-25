@@ -1,5 +1,6 @@
 package org.monogram.feature.dialog
 
+import kotlinx.coroutines.runBlocking
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.models.CompactJson
 import org.monogram.core.models.SavedGif
@@ -13,9 +14,19 @@ internal data class StickerCatalogSnapshot(
 internal object StickerCatalogMemory {
     @Volatile private var stickers: StickerCatalogSnapshot? = null
     @Volatile private var emojis: StickerCatalogSnapshot? = null
+    @Volatile private var stickersLive = false
+    @Volatile private var emojisLive = false
 
     @Synchronized
     fun get(emoji: Boolean): StickerCatalogSnapshot? = if (emoji) emojis else stickers
+
+    @Synchronized
+    fun isLive(emoji: Boolean): Boolean = if (emoji) emojisLive else stickersLive
+
+    @Synchronized
+    fun markLive(emoji: Boolean) {
+        if (emoji) emojisLive = true else stickersLive = true
+    }
 
     @Synchronized
     fun put(emoji: Boolean, snapshot: StickerCatalogSnapshot) {
@@ -26,6 +37,8 @@ internal object StickerCatalogMemory {
     fun clear() {
         stickers = null
         emojis = null
+        stickersLive = false
+        emojisLive = false
     }
 }
 
@@ -51,9 +64,18 @@ internal object StickerPackMemory {
 
 internal object SavedGifMemory {
     @Volatile private var gifs: List<SavedGif>? = null
+    @Volatile private var live = false
 
     @Synchronized
     fun get(): List<SavedGif>? = gifs
+
+    @Synchronized
+    fun isLive(): Boolean = live
+
+    @Synchronized
+    fun markLive() {
+        live = true
+    }
 
     @Synchronized
     fun put(value: List<SavedGif>) {
@@ -63,6 +85,7 @@ internal object SavedGifMemory {
     @Synchronized
     fun clear() {
         gifs = null
+        live = false
     }
 }
 
@@ -177,5 +200,28 @@ internal object PickerDisk {
 
     private fun String.jsonString(): String =
         "\"" + CompactJson.escape(this) + "\""
+}
+
+/** Fill process memory from disk so the first picker frame can reuse a snapshot. */
+internal fun warmPickerMemory(sessionStore: SessionMetadataStore?) {
+    if (sessionStore == null) return
+    if (
+        StickerCatalogMemory.get(false) != null &&
+        StickerCatalogMemory.get(true) != null &&
+        SavedGifMemory.get() != null
+    ) {
+        return
+    }
+    runBlocking {
+        if (StickerCatalogMemory.get(false) == null) {
+            PickerDisk.readCatalog(sessionStore, false)?.let { StickerCatalogMemory.put(false, it) }
+        }
+        if (StickerCatalogMemory.get(true) == null) {
+            PickerDisk.readCatalog(sessionStore, true)?.let { StickerCatalogMemory.put(true, it) }
+        }
+        if (SavedGifMemory.get() == null) {
+            PickerDisk.readGifs(sessionStore)?.let { SavedGifMemory.put(it) }
+        }
+    }
 }
 

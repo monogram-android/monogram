@@ -206,8 +206,6 @@
     <string name="settings_avatar_profile_tap">Open profile from avatar</string>
     <string name="settings_avatar_profile_tap_sub">Tapping an avatar opens the profile or chat info</string>
     <string name="settings_avatar_profile_tap_unavailable">Requires profile photos</string>
-    <string name="settings_read_status">Read status</string>
-    <string name="settings_read_status_sub">Ticks on outgoing messages — hidden in channels</string>
     <string name="settings_message_text_size">Message text size</string>
     <string name="settings_message_text_size_value">%d sp</string>
     <string name="settings_line_spacing">Line spacing</string>
@@ -216,7 +214,6 @@
     <string name="settings_letter_spacing">Letter spacing</string>
     <string name="settings_letter_spacing_value">+%d</string>
     <string name="settings_reset_control">Reset %1$s</string>
-    <string name="settings_section_dialog">Chat screen</string>
     <string name="settings_input_bar">Input bar</string>
     <string name="settings_input_bar_ios">iOS</string>
     <string name="settings_input_bar_material">Material</string>
@@ -231,7 +228,7 @@
     <string name="settings_input_bar_send_by_enter">Send by Enter</string>
     <string name="settings_input_bar_send_by_enter_sub">Enter sends a message; Shift+Enter inserts a new line</string>
     <string name="settings_input_bar_fix_previews">Fix link previews</string>
-    <string name="settings_input_bar_fix_previews_sub">Offer a Fix preview button for X, Bluesky, TikTok, Reddit, and Pixiv</string>
+    <string name="settings_input_bar_fix_previews_sub">Fix link previews for X, Bluesky, TikTok, Reddit, and Pixiv</string>
     <string name="settings_about">Monogram</string>
     <string name="settings_app_version">App %1$s</string>
     <string name="settings_native_version">Native %1$s</string>

@@ -70,6 +70,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -261,26 +263,33 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
     var deviceMediaFailed by remember { mutableStateOf(false) }
     var deviceMediaWanted by remember { mutableIntStateOf(0) }
     var deviceMediaComplete by remember { mutableStateOf(false) }
-    fun wantedFirstPage() {
+    fun reloadGallery() {
+        deviceMedia = emptyList()
         deviceMediaComplete = false
-        deviceMediaWanted = maxOf(deviceMediaWanted, deviceMedia.size + AttachMediaStore.FirstPage)
+        deviceMediaFailed = false
+        deviceMediaWanted = AttachMediaStore.FirstPage
     }
     val galleryAccessLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) {
         galleryAccess = AttachGalleryAccess.granted(context)
         galleryAccessDenied = !galleryAccess
-        if (galleryAccess && deviceMedia.isEmpty()) wantedFirstPage()
+        if (galleryAccess) reloadGallery()
     }
     val pendingDeleteId = rememberSaveable { mutableStateOf<Int?>(null) }
     val instantViewUrl = rememberSaveable { mutableStateOf<String?>(null) }
     val instantViewHash = rememberSaveable { mutableIntStateOf(0) }
     val clipboard = LocalClipboard.current
     val attachOpen = state.composerPanel == ComposerPanels.ATTACH
-    LaunchedEffect(attachOpen, galleryAccess) {
+    LaunchedEffect(attachOpen) {
         if (!attachOpen) return@LaunchedEffect
         galleryAccess = AttachGalleryAccess.granted(context)
-        if (galleryAccess && deviceMedia.isEmpty()) wantedFirstPage()
+        if (galleryAccess) reloadGallery()
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (!attachOpen) return@LifecycleEventEffect
+        galleryAccess = AttachGalleryAccess.granted(context)
+        if (galleryAccess) reloadGallery()
     }
     LaunchedEffect(attachOpen, galleryAccess, deviceMediaWanted) {
         if (!attachOpen || !galleryAccess) return@LaunchedEffect
@@ -584,6 +593,9 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
             onOpenPack = { pack -> component.onOpenStickerPack(pack.id, pack.accessHash) },
             onSendDocument = component::onSendSavedGif,
             onDismiss = component::onToggleEmojiPanel,
+            onPickerDocumentsVisible = component::onPickerDocumentsVisible,
+            onPickerGifsVisible = component::onPickerGifsVisible,
+            onPickerClosed = component::onPickerClosed,
         )
         }
         if (state.pinnedListOpen) {
@@ -631,6 +643,7 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                 },
             )
         }
+        CompositionLocalProvider(LocalDialogMedia provides component.mediaRepository) {
         DialogHistoryPane(
             component = component,
             state = state,
@@ -659,6 +672,8 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
             taskDraftFor = taskDraftFor,
             taskDraft = taskDraft,
         )
+        }
     }
     }
 }
+

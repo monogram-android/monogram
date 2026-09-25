@@ -269,8 +269,9 @@ internal class DialogStoreFactory(
     private val isPremium: () -> Boolean = { false },
     private val markupContext: CoroutineContext = Dispatchers.Default,
 ) {
-    fun create(): DialogStore =
-        object :
+    fun create(): DialogStore {
+        warmPickerMemory(sessionStore)
+        return object :
             DialogStore,
             Store<DialogStore.Intent, DialogStore.State, Nothing> by storeFactory.create(
                 name = "DialogStore",
@@ -309,4 +310,5 @@ internal class DialogStoreFactory(
                 },
                 reducer = DialogReducer,
             ) {}
+    }
 }

@@ -20,7 +20,9 @@ import androidx.compose.ui.unit.dp
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
+import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.SearchPeer
 import org.monogram.core.ui.components.FolderChipItem
 import org.monogram.core.ui.components.FolderChipRow
 import org.monogram.core.ui.components.FolderChips
@@ -79,11 +81,26 @@ internal fun ChatsLazyList(
     markUnreadLabel: String,
     manageFoldersLabel: String,
     foldersAtBottom: Boolean = false,
+    inlineFolderChips: Boolean = true,
     selectingRecipient: Boolean = false,
     recipientIds: Set<Long> = emptySet(),
     recipientSelectionEnabled: Boolean = true,
     canSelectRecipient: (Chat) -> Boolean = { true },
     onToggleRecipient: (Long) -> Unit = {},
+    searchPeople: List<SearchPeer> = emptyList(),
+    searchChats: List<SearchPeer> = emptyList(),
+    searchMessages: List<Message> = emptyList(),
+    searchLoading: Boolean = false,
+    searchLoadingMore: Boolean = false,
+    searchHasMore: Boolean = false,
+    searchError: TelegramError? = null,
+    searchPeopleLabel: String = "",
+    searchChatsLabel: String = "",
+    searchMessagesLabel: String = "",
+    searchRetryLabel: String = "",
+    listedChats: List<Chat> = emptyList(),
+    onOpenSearchMessage: (Message) -> Unit = {},
+    onRetrySearch: () -> Unit = {},
 ) {
     RecompositionProbe("ChatsLazyList")
     val context = LocalContext.current
@@ -94,20 +111,50 @@ internal fun ChatsLazyList(
         selectingRecipient = selectingRecipient,
         canSelectRecipient = canSelectRecipient,
     )
-    LaunchedEffect(listState, paneIds.size, hasMore, loadingMore, archive, searchOpen, showArchiveRow, foldersAtBottom) {
+    val searching = query.isNotBlank()
+    val searchExtra = if (searching) {
+        globalSearchLeadingCount(
+            people = searchPeople,
+            foundChats = searchChats,
+            messages = searchMessages,
+            searchLoading = searchLoading,
+            searchLoadingMore = searchLoadingMore,
+            searchError = searchError,
+            localCount = paneIds.size,
+        )
+    } else {
+        0
+    }
+    LaunchedEffect(
+        listState,
+        paneIds.size,
+        searchExtra,
+        hasMore,
+        loadingMore,
+        searching,
+        searchHasMore,
+        searchLoadingMore,
+        archive,
+        searchOpen,
+        showArchiveRow,
+        foldersAtBottom,
+        inlineFolderChips,
+    ) {
         snapshotFlow {
             listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
         }.collect { last ->
-            val showInlineChips = !archive && !searchOpen && !foldersAtBottom
+            val showInlineChips = inlineFolderChips && !archive && !searchOpen && !foldersAtBottom
             val leading = (if (showInlineChips) 1 else 0) +
                 (if (showArchiveRow) 1 else 0)
+            val pageHasMore = if (searching) searchHasMore else hasMore
+            val pageLoading = if (searching) searchLoadingMore else loadingMore
             if (
                 last != null &&
                 shouldPageChats(
                     lastVisibleIndex = last,
-                    size = paneIds.size,
-                    hasMore = hasMore,
-                    loadingMore = loadingMore,
+                    size = paneIds.size + searchExtra,
+                    hasMore = pageHasMore,
+                    loadingMore = pageLoading,
                     leadingItems = leading,
                 )
             ) {
@@ -124,7 +171,7 @@ internal fun ChatsLazyList(
                 WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
         ),
     ) {
-        if (!archive && !searchOpen && !foldersAtBottom) {
+        if (inlineFolderChips && !archive && !searchOpen && !foldersAtBottom) {
             item(key = "folder-chips") {
                 RecompositionProbe("ChipItemScope")
                 Box {
@@ -166,7 +213,12 @@ internal fun ChatsLazyList(
                 )
             }
         }
-        if (!loading && paneIds.isEmpty() && error == null) {
+        val searchBusy = searching && (searchLoading || searchLoadingMore)
+        val searchHasRows = searchPeople.isNotEmpty() || searchChats.isNotEmpty() ||
+            searchMessages.isNotEmpty()
+        if (!loading && paneIds.isEmpty() && error == null && !searchBusy && !searchHasRows &&
+            (searchError == null || !searching)
+        ) {
             item(key = "empty-state") {
                 FolderEmptyState(
                     archive = archive,
@@ -210,6 +262,37 @@ internal fun ChatsLazyList(
                 modifier = Modifier,
             )
         }
+        globalSearchSections(
+            query = query,
+            localCount = paneIds.size,
+            people = searchPeople,
+            foundChats = searchChats,
+            messages = searchMessages,
+            listedChats = listedChats.ifEmpty { chats.items() },
+            searchLoading = searchLoading,
+            searchLoadingMore = searchLoadingMore,
+            searchError = searchError,
+            retryLabel = searchRetryLabel,
+            peopleLabel = searchPeopleLabel,
+            chatsLabel = searchChatsLabel,
+            messagesLabel = searchMessagesLabel,
+            selectedChatId = selectedChatId,
+            selfPeerId = selfPeerId,
+            selectingRecipient = selectingRecipient,
+            recipientIds = recipientIds,
+            recipientSelectionEnabled = recipientSelectionEnabled,
+            canSelectRecipient = canSelectRecipient,
+            onToggleRecipient = onToggleRecipient,
+            showAvatar = showAvatar,
+            showReadStatus = showReadStatus,
+            openAvatarsInProfile = openAvatarsInProfile,
+            texts = texts,
+            mediaRepository = mediaRepository,
+            onOpenChat = onOpenChat,
+            onOpenAvatar = onOpenAvatar,
+            onOpenMessage = onOpenSearchMessage,
+            onRetrySearch = onRetrySearch,
+        )
     }
 }
 

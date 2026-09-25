@@ -30,6 +30,24 @@ pub fn next_global_page(messages: &[MessageDto], next_rate: i32) -> (i32, i64, i
     }
 }
 
+pub fn contacts_search_query(query: &str) -> Result<String, MtprotoError> {
+    let q = query.trim().to_string();
+    if q.is_empty() {
+        Err(MtprotoError::Message("empty search query".into()))
+    } else {
+        Ok(q)
+    }
+}
+
+/// `folder_id` is always sent: 0 = main list, 1 = archive.
+/// https://core.telegram.org/api/folders
+pub fn search_global_folder(folder_id: i32) -> (u32, Option<i32>) {
+    (
+        MessagesSearchGlobalRequest::FOLDER_ID_FLAG,
+        Some(folder_id),
+    )
+}
+
 pub fn contacts_search(
     snapshot: &mut Snapshot,
     api_id: i32,
@@ -38,10 +56,7 @@ pub fn contacts_search(
     query: &str,
     limit: i32,
 ) -> Result<ContactsSearchDto, MtprotoError> {
-    let q = query.trim().to_string();
-    if q.is_empty() {
-        return Err(MtprotoError::Message("empty search query".into()));
-    }
+    let q = contacts_search_query(query)?;
     let response: ContactsFound = api_invoke::invoke_api(
         snapshot,
         api_id,
@@ -92,14 +107,16 @@ pub fn search_global(
     offset_peer_id: i64,
     offset_id: i32,
     limit: i32,
+    folder_id: i32,
 ) -> Result<GlobalMessageSearchDto, MtprotoError> {
     let offset_peer = offset_input_peer(peers, offset_peer_id)?;
+    let (flags, folder_id) = search_global_folder(folder_id);
     let request = MessagesSearchGlobalRequest {
-        flags: 0,
+        flags,
         broadcasts_only: None,
         groups_only: None,
         users_only: None,
-        folder_id: None,
+        folder_id,
         community: None,
         q: query.to_string(),
         filter: Box::new(MessagesFilter::InputMessagesFilterEmpty(
@@ -276,6 +293,7 @@ mod tests {
             replies_count: 0,
             discussion_peer_id: None,
             reply_markup_json: None,
+            forum_topic: false,
         };
         let (rate, peer, id) = next_global_page(&[last], 17);
         assert_eq!(rate, 17);
@@ -288,5 +306,22 @@ mod tests {
         let peers = HashMap::new();
         let peer = offset_input_peer(&peers, 0).expect("empty");
         assert!(matches!(peer, InputPeer::InputPeerEmpty(_)));
+    }
+
+    #[test]
+    fn empty_contacts_query_is_rejected() {
+        let err = contacts_search_query("   ").expect_err("blank");
+        assert!(matches!(err, MtprotoError::Message(message) if message == "empty search query"));
+        assert_eq!(contacts_search_query(" ada ").expect("trim"), "ada");
+    }
+
+    #[test]
+    fn search_global_always_sends_folder_id() {
+        let (flags, folder) = search_global_folder(0);
+        assert_eq!(flags, MessagesSearchGlobalRequest::FOLDER_ID_FLAG);
+        assert_eq!(folder, Some(0));
+        let (archive_flags, archive) = search_global_folder(1);
+        assert_eq!(archive_flags, MessagesSearchGlobalRequest::FOLDER_ID_FLAG);
+        assert_eq!(archive, Some(1));
     }
 }

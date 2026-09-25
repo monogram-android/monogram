@@ -112,6 +112,7 @@ val buildNativeMarkup =
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
+        inputs.property("abis", abis)
         outputs.files(
             abis.map { jniLibs.file("$it/libmonogram_markup.so") },
         )

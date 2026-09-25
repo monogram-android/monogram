@@ -3,7 +3,8 @@ use crate::{HashMap, HashMapExt};
 use tellers_mtproto::latest::api::{Chat as TlChat, ChatPhoto, Peer, User, UserProfilePhoto};
 
 use super::permissions::{
-    admin_can_delete, admin_can_post, banned_media, banned_photos, banned_plain, banned_send,
+    admin_can_delete, admin_can_manage_topics, admin_can_post, banned_media, banned_photos,
+    banned_plain, banned_send,
     banned_view, resolve_permissions,
 };
 use crate::media::{self, MediaIndex};
@@ -155,6 +156,7 @@ pub(crate) struct ChatMeta {
     pub(crate) can_send_photos: bool,
     pub(crate) can_forward: bool,
     pub(crate) can_delete_others: bool,
+    pub(crate) can_manage_topics: bool,
 }
 
 pub(crate) fn user_chat_meta(title: impl Into<crate::CompactString>) -> ChatMeta {
@@ -169,6 +171,7 @@ pub(crate) fn user_chat_meta(title: impl Into<crate::CompactString>) -> ChatMeta
         can_send_photos: true,
         can_forward: true,
         can_delete_others: false,
+        can_manage_topics: false,
     }
 }
 
@@ -196,6 +199,7 @@ pub(crate) fn title_for_peer(
             can_send_photos: true,
             can_forward: true,
             can_delete_others: false,
+            can_manage_topics: false,
         }),
         Peer::PeerChannel(c) => chats
             .get(&c.channel_id)
@@ -211,6 +215,7 @@ pub(crate) fn title_for_peer(
                 can_send_photos: false,
                 can_forward: true,
                 can_delete_others: false,
+                can_manage_topics: false,
             }),
         _ => user_chat_meta(crate::CompactString::from("Chat")),
     }
@@ -277,6 +282,8 @@ pub(crate) fn chat_meta_from_tl(chat: &TlChat) -> Option<(i64, ChatMeta)> {
                     can_send_photos,
                     can_forward,
                     can_delete_others,
+                    can_manage_topics: c.creator.is_some()
+                        || admin_can_manage_topics(c.admin_rights.as_deref()),
                 },
             ))
         }
@@ -319,6 +326,8 @@ pub(crate) fn chat_meta_from_tl(chat: &TlChat) -> Option<(i64, ChatMeta)> {
                     can_send_photos,
                     can_forward,
                     can_delete_others,
+                    can_manage_topics: c.creator.is_some()
+                        || admin_can_manage_topics(c.admin_rights.as_deref()),
                 },
             ))
         }
@@ -335,6 +344,7 @@ pub(crate) fn chat_meta_from_tl(chat: &TlChat) -> Option<(i64, ChatMeta)> {
                 can_send_photos: false,
                 can_forward: false,
                 can_delete_others: false,
+                can_manage_topics: false,
             },
         )),
         TlChat::ChannelForbidden(c) => Some((
@@ -350,6 +360,7 @@ pub(crate) fn chat_meta_from_tl(chat: &TlChat) -> Option<(i64, ChatMeta)> {
                 can_send_photos: false,
                 can_forward: false,
                 can_delete_others: false,
+                can_manage_topics: false,
             },
         )),
         _ => None,

@@ -483,6 +483,7 @@ internal class DialogExecutor(
             }
             DialogStore.Intent.ClearPendingChat -> dispatch(Msg.PendingChat(null, null))
             DialogStore.Intent.LoadMoreTopics -> loadMoreTopics()
+            is DialogStore.Intent.ToggleTopicHidden -> toggleTopicHidden(intent.topicId, intent.hidden)
             is DialogStore.Intent.SendInlineResult -> sendInlineResult(intent.resultId)
             DialogStore.Intent.LoadMoreInlineResults -> loadMoreInlineResults()
             DialogStore.Intent.RetryInlineResults -> retryInlineResults()
@@ -806,6 +807,7 @@ internal class DialogExecutor(
         canSendPhotos = chat.canSendPhotos,
         canForward = chat.canForward,
         canDeleteOthers = chat.canDeleteOthers,
+        canManageTopics = chat.canManageTopics,
     )
 
     internal suspend fun resolveSenders(messages: List<Message>) {

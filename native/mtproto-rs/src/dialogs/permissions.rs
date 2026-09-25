@@ -39,6 +39,9 @@ pub(crate) fn admin_can_post(rights: Option<&ChatAdminRights>) -> bool {
 pub(crate) fn admin_can_delete(rights: Option<&ChatAdminRights>) -> bool {
     admin_rights(rights).is_some_and(|r| r.delete_messages.is_some())
 }
+pub(crate) fn admin_can_manage_topics(rights: Option<&ChatAdminRights>) -> bool {
+    admin_rights(rights).is_some_and(|r| r.manage_topics.is_some())
+}
 
 /// Resolves effective permissions inverted from
 /// chatBannedRights flags (https://core.telegram.org/constructor/chatBannedRights).

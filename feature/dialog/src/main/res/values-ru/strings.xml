@@ -40,6 +40,11 @@
     <string name="dialog_topic_mentions">%1$d упоминаний</string>
     <string name="dialog_topic_pinned">Закреплено</string>
     <string name="dialog_topic_closed">Закрыто</string>
+    <string name="dialog_topic_hidden">Скрыто</string>
+    <string name="dialog_topic_hide_general">Скрыть «Основной»</string>
+    <string name="dialog_topic_show_general">Показать «Основной»</string>
+    <string name="dialog_topic_archived_general">«Основной» скрыт. Потяните вниз, чтобы увидеть</string>
+    <string name="dialog_topic_collapse_archived">Нажмите, чтобы скрыть «Основной»</string>
     <string name="dialog_media_loading">Загрузка медиа</string>
     <string name="dialog_media_uploading">Отправка</string>
     <string name="dialog_media_download_progress">Загрузка %1$s из %2$s</string>

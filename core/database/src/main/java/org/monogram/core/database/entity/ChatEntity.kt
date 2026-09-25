@@ -43,5 +43,6 @@ data class ChatEntity(
     val canSendPhotos: Boolean = true,
     val canForward: Boolean = true,
     val canDeleteOthers: Boolean = false,
+    val canManageTopics: Boolean = false,
     val emojiStatusDocumentId: Long? = null,
 )

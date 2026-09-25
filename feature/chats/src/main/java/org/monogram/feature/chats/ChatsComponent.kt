@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
+import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
@@ -22,7 +23,7 @@ class ChatsComponent(
     sessionStore: SessionMetadataStore?,
     notifications: NotificationLocalStore? = null,
     val mediaRepository: MediaRepository? = null,
-    private val onOpenChat: (PeerId, Boolean) -> Unit,
+    private val onOpenChat: (PeerId, Boolean, Int) -> Unit,
     private val onOpenProfile: (PeerId) -> Unit = {},
     private val onOpenSelfProfile: () -> Unit = {},
     private val onOpenSettings: () -> Unit = {},
@@ -39,13 +40,21 @@ class ChatsComponent(
     fun onRefresh() = store.accept(ChatsStore.Intent.Refresh)
     fun onLoadMore() = store.accept(ChatsStore.Intent.LoadMore)
     fun onQueryChanged(value: String) = store.accept(ChatsStore.Intent.QueryChanged(value))
+    fun onRetrySearch() = store.accept(ChatsStore.Intent.RetrySearch)
     fun onMarkRead(chatIds: List<PeerId>) = store.accept(ChatsStore.Intent.MarkRead(chatIds))
     fun onMarkUnread(chatId: PeerId, unread: Boolean) =
         store.accept(ChatsStore.Intent.MarkUnread(chatId, unread))
     fun onFolderSelected(folderId: Int?) = store.accept(ChatsStore.Intent.FolderSelected(folderId))
     fun onChatClick(id: PeerId) {
+        openChat(id, messageId = 0)
+    }
+    fun onSearchMessageClick(message: Message) {
+        val (peer, messageId) = searchMessageJump(message)
+        openChat(peer, messageId)
+    }
+    private fun openChat(id: PeerId, messageId: Int) {
         val forum = state.value.chats.firstOrNull { it.id == id }?.isForum == true
-        onOpenChat(id, forum)
+        onOpenChat(id, forum, messageId)
     }
     fun onPeerProfile(id: PeerId) = onOpenProfile(id)
     fun onOpenSelfProfile() = onOpenSelfProfile.invoke()

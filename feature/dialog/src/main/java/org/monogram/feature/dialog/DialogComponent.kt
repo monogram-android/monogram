@@ -222,6 +222,8 @@ class DialogComponent(
     fun onOpenProfile() = onOpenProfile.invoke(chatId)
     fun onOpenPeer(peerId: PeerId) = onOpenProfile.invoke(peerId)
     fun onLoadMoreTopics() = store.accept(DialogStore.Intent.LoadMoreTopics)
+    fun onToggleTopicHidden(topicId: Int, hidden: Boolean) =
+        store.accept(DialogStore.Intent.ToggleTopicHidden(topicId, hidden))
     fun onToggleChecklist(messageId: Int, itemId: Int) =
         store.accept(DialogStore.Intent.ToggleChecklist(messageId, itemId))
     fun onVotePoll(messageId: Int, options: List<ByteArray>) =

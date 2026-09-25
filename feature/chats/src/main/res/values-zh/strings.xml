@@ -31,6 +31,10 @@
     <string name="chats_search_empty">未找到结果</string>
     <string name="chats_search_empty_body">没有与“%1$s”匹配的聊天。</string>
     <string name="chats_search_clear">清除搜索</string>
+    <string name="chats_search_people">用户</string>
+    <string name="chats_search_global_chats">聊天</string>
+    <string name="chats_search_messages">消息</string>
+    <string name="chats_search_retry">重试</string>
     <string name="chats_muted">已静音</string>
     <string name="chats_pinned">已置顶</string>
     <string name="chats_brand">Monogram</string>

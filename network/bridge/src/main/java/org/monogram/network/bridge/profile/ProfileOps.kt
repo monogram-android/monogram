@@ -54,6 +54,7 @@ interface ProfileOps {
         offsetPeerId: PeerId = PeerId(0),
         offsetId: Int = 0,
         limit: Int = 40,
+        folderId: Int = 0,
     ): Outcome<GlobalMessageSearch> = Outcome.Err("unsupported")
 
     suspend fun resolveUsername(username: String): Outcome<ResolvedPeer> =

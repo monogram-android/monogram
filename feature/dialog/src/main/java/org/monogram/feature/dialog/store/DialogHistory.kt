@@ -220,6 +220,7 @@ internal fun DialogExecutor.inCommentThread(message: Message): Boolean {
         message = message,
         threadTopMsgId = threadTopMsgId,
         knownMessages = snapshot().messages + message,
+        isForum = snapshot().isForum,
     )
 }
 

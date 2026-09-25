@@ -129,10 +129,11 @@ class RootComponent(
         onIncomingShareConsumed()
     }
 
-    private fun openChatFromList(peer: PeerId, forum: Boolean) {
+    private fun openChatFromList(peer: PeerId, forum: Boolean, messageId: Int = 0) {
         val destination = Config.Dialog(
             chatId = peer.value,
             isForum = forum,
+            jumpToMessageId = messageId,
         )
         navigation.navigate { configurations ->
             chatSelectionStack(configurations, destination, listDetailVisible)
@@ -543,7 +544,7 @@ class HomeComponent(
     sessionStore: SessionMetadataStore?,
     mediaRepository: MediaRepository?,
     notificationLocal: NotificationLocalStore? = null,
-    onOpenChat: (PeerId, Boolean) -> Unit,
+    onOpenChat: (PeerId, Boolean, Int) -> Unit,
     onOpenProfile: (PeerId) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenFolders: () -> Unit,

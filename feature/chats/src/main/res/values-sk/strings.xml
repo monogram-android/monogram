@@ -31,6 +31,10 @@
     <string name="chats_search_empty">Nič sa nenašlo</string>
     <string name="chats_search_empty_body">Žiadne chaty pre „%1$s“.</string>
     <string name="chats_search_clear">Vymazať hľadanie</string>
+    <string name="chats_search_people">Ľudia</string>
+    <string name="chats_search_global_chats">Chaty</string>
+    <string name="chats_search_messages">Správy</string>
+    <string name="chats_search_retry">Skúsiť znova</string>
     <string name="chats_muted">Stlmené</string>
     <string name="chats_pinned">Pripnuté</string>
     <string name="chats_brand">Monogram</string>

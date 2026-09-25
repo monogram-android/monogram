@@ -63,7 +63,7 @@ mod header_tests {
     use crate::{HashMap, HashMapExt};
     use tellers_mtproto::latest::api::{
         MessageFwdHeader, MessageFwdHeaderConstructor, MessageReplyHeader,
-        MessageReplyHeaderConstructor,
+        MessageReplyHeaderConstructor, True, TrueConstructor,
     };
 
     fn dto(id: i32, text: &str, reply_to: Option<i32>, quote: Option<&str>) -> MessageDto {
@@ -100,6 +100,7 @@ mod header_tests {
             replies_count: 0,
             discussion_peer_id: None,
             reply_markup_json: None,
+            forum_topic: false,
         }
     }
 
@@ -124,8 +125,30 @@ mod header_tests {
         });
         assert_eq!(
             reply_meta(Some(&header)),
-            (Some(9), Some(42), Some("quoted".into())),
+            (Some(9), Some(42), Some("quoted".into()), false),
         );
+    }
+
+    #[test]
+    fn reply_meta_reads_forum_topic_flag() {
+        let header = MessageReplyHeader::MessageReplyHeader(MessageReplyHeaderConstructor {
+            flags: 0,
+            reply_to_scheduled: None,
+            forum_topic: Some(Box::new(True::True(TrueConstructor {}))),
+            quote: None,
+            reply_to_msg_id: Some(9),
+            reply_to_peer_id: None,
+            reply_from: None,
+            reply_media: None,
+            reply_to_top_id: Some(42),
+            quote_text: None,
+            quote_entities: None,
+            quote_offset: None,
+            todo_item_id: None,
+            poll_option: None,
+            reply_to_ephemeral: None,
+        });
+        assert_eq!(reply_meta(Some(&header)).3, true);
     }
 
     #[test]

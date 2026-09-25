@@ -31,6 +31,10 @@
     <string name="chats_search_empty">Sonuç bulunamadı</string>
     <string name="chats_search_empty_body">“%1$s” ile eşleşen sohbet yok.</string>
     <string name="chats_search_clear">Aramayı temizle</string>
+    <string name="chats_search_people">Kişiler</string>
+    <string name="chats_search_global_chats">Sohbetler</string>
+    <string name="chats_search_messages">Mesajlar</string>
+    <string name="chats_search_retry">Yeniden dene</string>
     <string name="chats_muted">Sessize alındı</string>
     <string name="chats_pinned">Sabitlendi</string>
     <string name="chats_brand">Monogram</string>

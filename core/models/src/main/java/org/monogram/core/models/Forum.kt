@@ -66,4 +66,115 @@ object ForumIo {
 
     /** Navigation id: General keeps `1` so the topic list (threadTop=0) stays distinct. */
     fun dialogThreadId(topicId: Int): Int = topicId.coerceAtLeast(0)
+
+    fun openTopicId(threadTopMsgId: Int, isForum: Boolean): Int {
+        if (!isForum) return historyThreadId(threadTopMsgId)
+        return if (threadTopMsgId <= 0) 0 else threadTopMsgId
+    }
+
+    /**
+     * Resolve the forum topic id for a message.
+     * No `reply_to.forum_topic` -> General (`id=1`). Otherwise top, then reply.
+     */
+    fun topicId(message: Message, isForum: Boolean): Int {
+        if (!isForum) return 0
+        if (!message.forumTopic) {
+            val top = message.replyToTopId?.takeIf { it > GENERAL_FORUM_TOPIC_ID }
+            return top ?: GENERAL_FORUM_TOPIC_ID
+        }
+        val top = message.replyToTopId?.takeIf { it > 0 }
+        val reply = message.replyToMsgId?.takeIf { it > 0 }
+        return if (message.mediaKind == "service") {
+            reply ?: top ?: GENERAL_FORUM_TOPIC_ID
+        } else {
+            top ?: reply ?: GENERAL_FORUM_TOPIC_ID
+        }
+    }
+
+    fun belongsToOpenTopic(message: Message, threadTopMsgId: Int, isForum: Boolean): Boolean {
+        val want = openTopicId(threadTopMsgId, isForum)
+        if (want <= 0) return true
+        if (!isForum) return false
+        return topicId(message, true) == want
+    }
+
+    /** Hidden General sits above the list, then pinned, then the rest by date. */
+    fun sortForumTopics(topics: List<ForumTopic>): List<ForumTopic> {
+        if (topics.size <= 1) return topics
+        return topics.sortedWith(
+            compareByDescending<ForumTopic> { it.hidden }
+                .thenByDescending { it.pinned }
+                .thenByDescending { it.date },
+        )
+    }
+
+    fun hiddenTopicCount(topics: List<ForumTopic>): Int = topics.count { it.hidden }
+
+    /**
+     * Hidden General stays out of the main list until the archive is revealed,
+     * so a short viewport cannot keep it on screen.
+     */
+    fun displayedForumTopics(
+        topics: List<ForumTopic>,
+        archiveRevealed: Boolean,
+    ): List<ForumTopic> {
+        val sorted = sortForumTopics(topics)
+        if (archiveRevealed) return sorted
+        return sorted.filter { !it.hidden }
+    }
+
+    /** Hide/Show General right based on topic management permissions. */
+    fun canHideGeneral(canManageTopics: Boolean): Boolean = canManageTopics
+
+    fun archivePullShouldReveal(
+        atTop: Boolean,
+        hiddenCount: Int,
+        revealed: Boolean,
+        pulledPx: Float,
+        snapPx: Float,
+    ): Boolean {
+        if (revealed || hiddenCount <= 0 || !atTop) return false
+        return pulledPx >= snapPx && snapPx > 0f
+    }
+
+    /** One continuous overscroll. Release or reverse below snap discards the pull. */
+    data class ArchivePullState(
+        val pulledPx: Float = 0f,
+        val revealed: Boolean = false,
+    )
+
+    fun archivePullOnScroll(
+        state: ArchivePullState,
+        atTop: Boolean,
+        hiddenCount: Int,
+        deltaY: Float,
+        snapPx: Float,
+    ): ArchivePullState {
+        if (state.revealed || hiddenCount <= 0) return state.copy(pulledPx = 0f)
+        if (!atTop) return state.copy(pulledPx = 0f)
+        val nextPull = (state.pulledPx + deltaY).coerceAtLeast(0f)
+        return if (archivePullShouldReveal(true, hiddenCount, false, nextPull, snapPx)) {
+            ArchivePullState(pulledPx = 0f, revealed = true)
+        } else {
+            state.copy(pulledPx = nextPull)
+        }
+    }
+
+    fun archivePullOnRelease(state: ArchivePullState): ArchivePullState =
+        if (state.revealed) state else state.copy(pulledPx = 0f)
+
+    /** Peek height for the hidden General slot: follow the finger, then rest at 0 or one row. */
+    fun archivePeekPx(
+        hiddenCount: Int,
+        revealed: Boolean,
+        pulledPx: Float,
+        rowHeightPx: Float,
+    ): Float {
+        if (hiddenCount <= 0 || rowHeightPx <= 0f) return 0f
+        if (revealed) return rowHeightPx * hiddenCount
+        return pulledPx.coerceIn(0f, rowHeightPx * hiddenCount)
+    }
+
+    fun archivePullFollowsFinger(state: ArchivePullState): Boolean =
+        !state.revealed && state.pulledPx > 0f
 }

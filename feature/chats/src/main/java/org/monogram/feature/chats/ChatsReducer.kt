@@ -16,7 +16,11 @@ internal object ChatsReducer : Reducer<ChatsStore.State, Msg> {
             error = if (msg.fromCache) error else null,
         )
         is Msg.Append -> copy(chats = mergeChats(chats, msg.value))
-        is Msg.Query -> copy(query = msg.value)
+        is Msg.Query -> copy(
+            query = msg.value,
+            searchHasMore = false,
+            searchError = null,
+        )
         is Msg.LoadingMore -> copy(loadingMore = msg.value)
         is Msg.HasMore -> copy(hasMore = msg.value)
         is Msg.Error -> copy(error = msg.value)
@@ -83,6 +87,35 @@ internal object ChatsReducer : Reducer<ChatsStore.State, Msg> {
         is Msg.UnreadReactions -> copy(chats = applyUnreadReactions(chats, msg.chatId, msg.stillUnread))
         is Msg.UnreadMentionsDelta -> copy(chats = applyUnreadMentionsDelta(chats, msg.chatId, msg.delta))
         is Msg.UnreadReactionsDelta -> copy(chats = applyUnreadReactionsDelta(chats, msg.chatId, msg.delta))
+        is Msg.SearchLoading -> copy(
+            searchLoading = msg.value,
+            searchError = if (msg.value) null else searchError,
+        )
+        is Msg.SearchLoadingMore -> copy(searchLoadingMore = msg.value)
+        is Msg.SearchError -> copy(
+            searchError = msg.value,
+            searchLoading = if (msg.value != null) false else searchLoading,
+            searchLoadingMore = if (msg.value != null) false else searchLoadingMore,
+            searchHasMore = if (msg.value != null) false else searchHasMore,
+        )
+        is Msg.SearchCleared -> copy(
+            searchPeople = emptyList(),
+            searchChats = emptyList(),
+            searchMessages = emptyList(),
+            searchHasMore = false,
+            searchError = null,
+            searchLoading = false,
+            searchLoadingMore = false,
+        )
+        is Msg.SearchPage -> copy(
+            searchPeople = if (msg.replace) msg.people else searchPeople,
+            searchChats = if (msg.replace) msg.chats else searchChats,
+            searchMessages = if (msg.replace) msg.messages else searchMessages + msg.messages,
+            searchHasMore = msg.hasMore,
+            searchError = if (msg.replace) null else searchError,
+            searchLoading = false,
+            searchLoadingMore = false,
+        )
     }
 
     private inline fun ChatsStore.State.withUpdatedChat(

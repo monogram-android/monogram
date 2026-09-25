@@ -1,8 +1,9 @@
 use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::latest::api::{
-    ForumTopic, Message, MessagesForumTopics, MessagesGetForumTopicsByIdRequest,
-    MessagesGetForumTopicsRequest, Vector, VectorConstructor,
+    Bool, BoolFalseConstructor, BoolTrueConstructor, ForumTopic, Message,
+    MessagesEditForumTopicRequest, MessagesForumTopics, MessagesGetForumTopicsByIdRequest,
+    MessagesGetForumTopicsRequest, Updates, Vector, VectorConstructor,
 };
 use tellers_mtproto_session::Snapshot;
 
@@ -167,5 +168,39 @@ pub(crate) fn map_forum_topic(topic: &ForumTopic, preview: Option<String>) -> Fo
             deleted: true,
             last_message_preview: None,
         },
+    }
+}
+
+/// Hide or unhide General (`messages.editForumTopic` hidden flag).
+/// https://core.telegram.org/method/messages.editForumTopic
+pub fn edit_forum_topic_hidden(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    topic_id: i32,
+    hidden: bool,
+) -> Result<(), MtprotoError> {
+    let peer = Box::new(input_peer_from_cached(peers::require_usable_peer(
+        peers, chat_id,
+    )?));
+    let request = MessagesEditForumTopicRequest {
+        flags: MessagesEditForumTopicRequest::HIDDEN_FLAG,
+        peer,
+        topic_id,
+        title: None,
+        icon_emoji_id: None,
+        closed: None,
+        hidden: Some(tl_bool(hidden)),
+    };
+    let _: Updates = api_invoke::invoke_api(snapshot, api_id, request)?;
+    Ok(())
+}
+
+fn tl_bool(value: bool) -> Box<Bool> {
+    if value {
+        Box::new(Bool::BoolTrue(BoolTrueConstructor {}))
+    } else {
+        Box::new(Bool::BoolFalse(BoolFalseConstructor {}))
     }
 }

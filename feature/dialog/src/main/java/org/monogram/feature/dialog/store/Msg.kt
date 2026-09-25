@@ -44,6 +44,7 @@ internal sealed interface Msg {
         val canSendPhotos: Boolean,
         val canForward: Boolean,
         val canDeleteOthers: Boolean,
+        val canManageTopics: Boolean = false,
     ) : Msg
     data class SearchQuery(val value: String) : Msg
     data class Searching(val value: Boolean) : Msg

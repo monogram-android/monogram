@@ -118,6 +118,7 @@ object MtprotoNativeStub : MtprotoNative {
         offsetPeerId: Long,
         offsetId: Int,
         limit: Int,
+        folderId: Int,
     ): GlobalMessageSearchDto {
         throw MtprotoException.Message("native library failed to load")
     }

@@ -54,6 +54,8 @@ pub struct ChatDto {
     pub unread_mentions_count: i32,
     /// `dialog.unread_reactions_count`.
     pub unread_reactions_count: i32,
+    /// Creator or `manage_topics` admin right.
+    pub can_manage_topics: bool,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -126,6 +128,7 @@ pub struct MessageDto {
     pub discussion_peer_id: Option<i64>,
     /// Compact JSON for reply/inline keyboards. Never log.
     pub reply_markup_json: Option<String>,
+    pub forum_topic: bool,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]

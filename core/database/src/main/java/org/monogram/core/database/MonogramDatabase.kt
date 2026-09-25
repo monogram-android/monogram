@@ -39,7 +39,7 @@ import org.monogram.core.database.entity.UpdateCursorEntity
         ProfileCommonEntity::class,
         SponsorEntity::class,
     ],
-    version = 2,
+    version = 4,
     exportSchema = true,
 )
 abstract class MonogramDatabase : RoomDatabase() {

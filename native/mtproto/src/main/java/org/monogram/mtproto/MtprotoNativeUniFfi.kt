@@ -61,6 +61,7 @@ import uniffi.monogram_mtproto.deleteFolder as nativeDeleteFolder
 import uniffi.monogram_mtproto.updateFolderOrder as nativeUpdateFolderOrder
 import uniffi.monogram_mtproto.getForumTopics as nativeGetForumTopics
 import uniffi.monogram_mtproto.getForumTopicsById as nativeGetForumTopicsById
+import uniffi.monogram_mtproto.editForumTopicHidden as nativeEditForumTopicHidden
 import uniffi.monogram_mtproto.getGroupAdminTags as nativeGetGroupAdminTags
 import uniffi.monogram_mtproto.getHistory as nativeGetHistory
 import uniffi.monogram_mtproto.getHistoryPage as nativeGetHistoryPage
@@ -294,6 +295,15 @@ object MtprotoNativeUniFfi : MtprotoNative {
     ): ForumTopicsPageDto =
         nativeGetForumTopicsById(handle.toULong(), chatId, topicIds)
 
+    override fun editForumTopicHidden(
+        handle: Long,
+        chatId: Long,
+        topicId: Int,
+        hidden: Boolean,
+    ) {
+        nativeEditForumTopicHidden(handle.toULong(), chatId, topicId, hidden)
+    }
+
     override fun loadMoreChats(
         handle: Long,
         offsetDate: Int,
@@ -343,6 +353,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         offsetPeerId: Long,
         offsetId: Int,
         limit: Int,
+        folderId: Int,
     ): GlobalMessageSearchDto =
         nativeSearchGlobal(
             handle.toULong(),
@@ -351,6 +362,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
             offsetPeerId,
             offsetId,
             limit,
+            folderId,
         )
 
     override fun getPinnedMessages(

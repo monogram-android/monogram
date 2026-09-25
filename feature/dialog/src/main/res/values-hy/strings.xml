@@ -14,6 +14,11 @@
     <string name="dialog_topic_mentions">%1$d հիշատակում</string>
     <string name="dialog_topic_pinned">Ամրացված</string>
     <string name="dialog_topic_closed">Փակված</string>
+    <string name="dialog_topic_hidden">Թաքցված</string>
+    <string name="dialog_topic_hide_general">Թաքցնել Հիմնականը</string>
+    <string name="dialog_topic_show_general">Ցուցադրել Հիմնականը</string>
+    <string name="dialog_topic_archived_general">Հիմնականը թաքցված է: Քաշեք ներքև՝ տեսնելու համար</string>
+    <string name="dialog_topic_collapse_archived">Հպեք՝ արխիվացված Հիմնականը թաքցնելու համար</string>
     <string name="dialog_media_loading">Մեդիան բեռնվում է</string>
     <string name="dialog_media_uploading">Վերբեռնում</string>
     <string name="dialog_media_download_progress">Ներբեռնում %1$s / %2$s</string>

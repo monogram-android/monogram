@@ -58,6 +58,7 @@ fun ChatEntity.toModel(): Chat = Chat(
     canSendPhotos = canSendPhotos,
     canForward = canForward,
     canDeleteOthers = canDeleteOthers,
+    canManageTopics = canManageTopics,
     emojiStatusDocumentId = emojiStatusDocumentId,
 )
 
@@ -98,6 +99,7 @@ fun Chat.toEntity(): ChatEntity = ChatEntity(
     canSendPhotos = canSendPhotos,
     canForward = canForward,
     canDeleteOthers = canDeleteOthers,
+    canManageTopics = canManageTopics,
     emojiStatusDocumentId = emojiStatusDocumentId,
 )
 
@@ -159,6 +161,8 @@ fun MessageEntity.toModel(): Message = Message(
     replyQuote = replyQuote,
     entities = TextEntities.parse(entitiesJson),
     replyToMsgId = replyToMsgId,
+    replyToTopId = replyToTopId,
+    forumTopic = forumTopic,
     fwdFrom = fwdFrom,
     fwdFromId = fwdFromId,
     fwdDate = fwdDate,
@@ -194,6 +198,8 @@ fun Message.toEntity(): MessageEntity = MessageEntity(
     replyQuote = replyQuote,
     entitiesJson = TextEntities.serialize(entities),
     replyToMsgId = replyToMsgId,
+    replyToTopId = replyToTopId,
+    forumTopic = forumTopic,
     fwdFrom = fwdFrom,
     fwdFromId = fwdFromId,
     fwdDate = fwdDate,

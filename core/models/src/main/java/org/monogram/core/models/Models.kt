@@ -61,6 +61,8 @@ data class Chat(
     val canSendPhotos: Boolean = true,
     val canForward: Boolean = true,
     val canDeleteOthers: Boolean = false,
+    /** Creator or `manage_topics` admin right. */
+    val canManageTopics: Boolean = false,
     val emojiStatusDocumentId: Long? = null,
     val isVerified: Boolean = false,
 )
@@ -206,6 +208,7 @@ data class Message(
     val noforwards: Boolean = false,
     val replyToMsgId: Int? = null,
     val replyToTopId: Int? = null,
+    val forumTopic: Boolean = false,
     val fwdFrom: String? = null,
     val fwdFromId: Long? = null,
     val fwdDate: Long? = null,

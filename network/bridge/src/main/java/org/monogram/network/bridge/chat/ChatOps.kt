@@ -55,6 +55,13 @@ interface ChatOps {
         topicIds: List<Int>,
     ): Outcome<ForumTopicsPage> = Outcome.Err("unsupported")
 
+    /** Hide or unhide the General topic. https://core.telegram.org/method/messages.editForumTopic */
+    suspend fun editForumTopicHidden(
+        chatId: PeerId,
+        topicId: Int,
+        hidden: Boolean,
+    ): Outcome<Unit> = Outcome.Err("unsupported")
+
     suspend fun getGroupAdminTags(chatId: PeerId): Outcome<Map<PeerId, String>> =
         Outcome.Ok(emptyMap())
 }

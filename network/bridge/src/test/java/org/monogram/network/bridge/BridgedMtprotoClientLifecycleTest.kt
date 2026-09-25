@@ -821,6 +821,7 @@ class BridgedMtprotoClientLifecycleTest {
         repliesCount = 0,
         discussionPeerId = null,
         replyMarkupJson = null,
+        forumTopic = false,
     )
 
     private open class RecordingNative : MtprotoNative by MtprotoNative.Stub {

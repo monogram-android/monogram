@@ -32,6 +32,8 @@ data class MessageEntity(
     val replyQuote: String? = null,
     val entitiesJson: String? = null,
     val replyToMsgId: Int? = null,
+    val replyToTopId: Int? = null,
+    val forumTopic: Boolean = false,
     val fwdFrom: String? = null,
     val fwdFromId: Long? = null,
     val fwdDate: Long? = null,

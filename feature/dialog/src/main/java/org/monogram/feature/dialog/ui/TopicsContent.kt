@@ -1,7 +1,11 @@
 package org.monogram.feature.dialog.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,10 +41,21 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -45,6 +63,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import org.monogram.core.models.ForumIo
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.core.ui.components.AppStatusBanner
@@ -108,14 +127,17 @@ fun TopicsContent(
                     loading = state.loadingTopics && state.topics.isEmpty(),
                     empty = !state.loadingTopics && state.topics.isEmpty() && state.error == null,
                     hasMore = state.hasMoreTopics,
+                    canHideGeneral = ForumIo.canHideGeneral(state.canManageTopics),
                     onOpen = component::onOpenTopic,
                     onLoadMore = component::onLoadMoreTopics,
+                    onToggleHidden = component::onToggleTopicHidden,
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun TopicsList(
     topics: List<ForumTopic>,
@@ -124,6 +146,8 @@ internal fun TopicsList(
     hasMore: Boolean,
     onOpen: (ForumTopic) -> Unit,
     onLoadMore: () -> Unit,
+    onToggleHidden: (Int, Boolean) -> Unit = { _, _ -> },
+    canHideGeneral: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -141,34 +165,146 @@ internal fun TopicsList(
             )
         }
         else -> {
+            val density = LocalDensity.current
+            val hiddenTopics = remember(topics) {
+                ForumIo.sortForumTopics(topics).filter { it.hidden }
+            }
+            val visibleTopics = remember(topics) {
+                ForumIo.sortForumTopics(topics).filter { !it.hidden }
+            }
+            val hiddenCount = hiddenTopics.size
+            var pullState by remember { mutableStateOf(ForumIo.ArchivePullState()) }
+            LaunchedEffect(hiddenCount) {
+                if (hiddenCount <= 0) pullState = ForumIo.ArchivePullState()
+            }
             val listState = rememberLazyListState()
-            LaunchedEffect(listState, hasMore, topics.size) {
+            val rowHeightPx = with(density) { 72.dp.toPx() }
+            val snapPx = with(density) { 48.dp.toPx() }
+            val peekPx = remember { Animatable(0f) }
+            val peekTarget = ForumIo.archivePeekPx(
+                hiddenCount = hiddenCount,
+                revealed = pullState.revealed,
+                pulledPx = pullState.pulledPx,
+                rowHeightPx = rowHeightPx,
+            )
+            LaunchedEffect(peekTarget, pullState.revealed, pullState.pulledPx) {
+                if (ForumIo.archivePullFollowsFinger(pullState)) {
+                    peekPx.snapTo(peekTarget)
+                } else {
+                    peekPx.animateTo(
+                        peekTarget,
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                    )
+                }
+            }
+            val pull = remember(hiddenCount, snapPx) {
+                object : NestedScrollConnection {
+                    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                        val atTop = listState.firstVisibleItemIndex == 0 &&
+                            listState.firstVisibleItemScrollOffset == 0
+                        val before = pullState
+                        val next = ForumIo.archivePullOnScroll(
+                            state = before,
+                            atTop = atTop,
+                            hiddenCount = hiddenCount,
+                            deltaY = available.y,
+                            snapPx = snapPx,
+                        )
+                        if (next != before) pullState = next
+                        val consumed = when {
+                            next.revealed && !before.revealed -> available.y
+                            next.pulledPx != before.pulledPx -> available.y
+                            else -> 0f
+                        }
+                        return Offset(0f, consumed)
+                    }
+
+                    override suspend fun onPreFling(available: Velocity): Velocity {
+                        val released = ForumIo.archivePullOnRelease(pullState)
+                        if (released != pullState) pullState = released
+                        return if (released.pulledPx == 0f && !released.revealed) {
+                            available
+                        } else {
+                            Velocity.Zero
+                        }
+                    }
+
+                    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                        val released = ForumIo.archivePullOnRelease(pullState)
+                        if (released != pullState) pullState = released
+                        return Velocity.Zero
+                    }
+                }
+            }
+            LaunchedEffect(listState, hasMore, visibleTopics.size) {
                 snapshotFlow {
                     val info = listState.layoutInfo
                     val last = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-                    last >= topics.lastIndex - 3
+                    last >= visibleTopics.lastIndex - 3
                 }.collect { nearEnd ->
                     if (nearEnd && hasMore) onLoadMore()
                 }
             }
+            val peekDp = with(density) { peekPx.value.toDp() }
             LazyColumn(
-                modifier = modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize().nestedScroll(pull),
                 state = listState,
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
-                items(topics, key = { it.id }) { topic ->
-                    TopicRow(topic = topic, onClick = { onOpen(topic) })
+                if (hiddenCount > 0) {
+                    item(key = "archive-peek") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(peekDp)
+                                .clipToBounds(),
+                        ) {
+                            Column {
+                                hiddenTopics.forEach { topic ->
+                                    TopicRow(
+                                        topic = topic,
+                                        canHideGeneral = canHideGeneral,
+                                        onClick = { onOpen(topic) },
+                                        onToggleHidden = { id, hidden ->
+                                            if (hidden) pullState = ForumIo.ArchivePullState()
+                                            onToggleHidden(id, hidden)
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                items(visibleTopics, key = { it.id }) { topic ->
+                    TopicRow(
+                        modifier = Modifier.animateItem(),
+                        topic = topic,
+                        canHideGeneral = canHideGeneral,
+                        onClick = { onOpen(topic) },
+                        onToggleHidden = { id, hidden ->
+                            if (hidden) pullState = ForumIo.ArchivePullState()
+                            onToggleHidden(id, hidden)
+                        },
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TopicRow(
     topic: ForumTopic,
     onClick: () -> Unit,
+    onToggleHidden: (Int, Boolean) -> Unit = { _, _ -> },
+    canHideGeneral: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
+    var menu by remember { mutableStateOf(false) }
     val unreadLabel = buildString {
         if (topic.unreadCount > 0) {
             append(stringResource(R.string.dialog_topic_unread, topic.unreadCount))
@@ -188,16 +324,24 @@ private fun TopicRow(
             append(" · ")
             append(stringResource(R.string.dialog_topic_closed))
         }
+        if (topic.hidden) {
+            append(" · ")
+            append(stringResource(R.string.dialog_topic_hidden))
+        }
         if (unreadLabel.isNotEmpty()) {
             append(" · ")
             append(unreadLabel)
         }
     }
+    Box(modifier) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { if (topic.isGeneral && canHideGeneral) menu = true },
+            )
             .padding(horizontal = 16.dp, vertical = 10.dp)
             .semantics { contentDescription = description },
         verticalAlignment = Alignment.CenterVertically,
@@ -255,6 +399,23 @@ private fun TopicRow(
                 )
             }
             UnreadBadge(count = topic.unreadCount, muted = false)
+        }
+    }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            if (topic.hidden) R.string.dialog_topic_show_general
+                            else R.string.dialog_topic_hide_general,
+                        ),
+                    )
+                },
+                onClick = {
+                    menu = false
+                    onToggleHidden(topic.id, !topic.hidden)
+                },
+            )
         }
     }
 }

@@ -31,6 +31,10 @@
     <string name="chats_search_empty">Nothing found</string>
     <string name="chats_search_empty_body">No chats match “%1$s”.</string>
     <string name="chats_search_clear">Clear search</string>
+    <string name="chats_search_people">People</string>
+    <string name="chats_search_global_chats">Chats</string>
+    <string name="chats_search_messages">Messages</string>
+    <string name="chats_search_retry">Retry</string>
     <string name="chats_muted">Muted</string>
     <string name="chats_pinned">Pinned</string>
     <string name="chats_brand">Monogram</string>

@@ -16,7 +16,7 @@ import org.monogram.core.models.ReplyMarkupKind
 class MessageMediaFieldsTest {
     @Test
     fun schemaVersionIsCurrent() {
-        assertEquals(2, DatabaseProvider.SCHEMA_VERSION)
+        assertEquals(4, DatabaseProvider.SCHEMA_VERSION)
     }
 
     @Test
@@ -24,6 +24,8 @@ class MessageMediaFieldsTest {
         assertTrue(DatabaseProvider.hasMigrationPath(1))
         assertTrue(DatabaseProvider.hasMigrationPath(0, 1))
         assertTrue(DatabaseProvider.hasMigrationPath(1, 2))
+        assertTrue(DatabaseProvider.hasMigrationPath(2, 3))
+        assertTrue(DatabaseProvider.hasMigrationPath(3, 4))
         assertFalse(DatabaseProvider.hasMigrationPath(32))
         assertFalse(DatabaseProvider.hasMigrationPath(3, 2))
     }
@@ -48,6 +50,8 @@ class MessageMediaFieldsTest {
             fileSize = 8_000_000,
             supportsStreaming = true,
             replyToMsgId = 3,
+            replyToTopId = 42,
+            forumTopic = true,
             fwdFrom = "Alice",
             fwdFromId = 100L,
             fwdDate = 1_700_000_000L,
@@ -71,6 +75,8 @@ class MessageMediaFieldsTest {
         assertEquals("video", back.mediaKind)
         assertEquals("doc:1:thumb", back.thumbCacheKey)
         assertEquals(3, back.replyToMsgId)
+        assertEquals(42, back.replyToTopId)
+        assertEquals(true, back.forumTopic)
         assertEquals("Alice", back.fwdFrom)
         assertEquals(100L, back.fwdFromId)
         assertEquals(1_700_000_000L, back.fwdDate)

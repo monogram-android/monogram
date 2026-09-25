@@ -302,6 +302,16 @@ pub fn get_forum_topics_by_id(
 }
 
 #[uniffi::export]
+pub fn edit_forum_topic_hidden(
+    handle: u64,
+    chat_id: i64,
+    topic_id: i32,
+    hidden: bool,
+) -> Result<(), MtprotoError> {
+    client_mgr::edit_forum_topic_hidden(handle, chat_id, topic_id, hidden)
+}
+
+#[uniffi::export]
 pub fn load_more_chats(
     handle: u64,
     offset_date: i32,
@@ -354,8 +364,17 @@ pub fn search_global(
     offset_peer_id: i64,
     offset_id: i32,
     limit: i32,
+    folder_id: i32,
 ) -> Result<GlobalMessageSearchDto, MtprotoError> {
-    client_mgr::search_global(handle, query, offset_rate, offset_peer_id, offset_id, limit)
+    client_mgr::search_global(
+        handle,
+        query,
+        offset_rate,
+        offset_peer_id,
+        offset_id,
+        limit,
+        folder_id,
+    )
 }
 
 #[uniffi::export]

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -31,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -115,6 +117,7 @@ import org.monogram.feature.chats.folderScrollKey
 import org.monogram.feature.chats.folderUnreadBadge
 import org.monogram.feature.chats.onFolderChipClick
 import org.monogram.feature.chats.unreadChatIds
+import org.monogram.feature.chats.matchesSearchQuery
 import org.monogram.feature.chats.visibleChats
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
@@ -161,6 +164,8 @@ fun ChatsContent(
     var searchFocusRequest by remember { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
     val archiveListState = rememberLazyListState()
+    var primaryListState by remember { mutableStateOf<LazyListState?>(null) }
+    var folderMoving by remember { mutableStateOf(false) }
     val searchFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val texts = chatListTexts()
@@ -189,13 +194,7 @@ fun ChatsContent(
         selectedFolderId = next.selectedId
         folderChoiceMade = true
         if (next.scrollToTop) {
-            scope.launch { listState.animateScrollToItem(0) }
-        } else {
-            val restored = clampFolderScroll(
-                next.saved[folderScrollKey(next.selectedId)],
-                state.chats.size,
-            )
-            scope.launch { listState.scrollToItem(restored.index, restored.offset) }
+            scope.launch { (primaryListState ?: listState).animateScrollToItem(0) }
         }
     }
     val selectFolderState = rememberUpdatedState(selectFolder)
@@ -210,8 +209,13 @@ fun ChatsContent(
     }
     val loadMoreState = rememberUpdatedState(component::onLoadMore)
     val stableLoadMore: () -> Unit = remember { { loadMoreState.value() } }
+    val retrySearchState = rememberUpdatedState(component::onRetrySearch)
+    val stableRetrySearch: () -> Unit = remember { { retrySearchState.value() } }
     val openChatState = rememberUpdatedState(component::onChatClick)
     val stableOpenChat: (PeerId) -> Unit = remember { { id -> openChatState.value(id) } }
+    val openSearchMessageState = rememberUpdatedState(component::onSearchMessageClick)
+    val stableOpenSearchMessage: (org.monogram.core.models.Message) -> Unit =
+        remember { { message -> openSearchMessageState.value(message) } }
     val openAvatarState = rememberUpdatedState(component::onPeerProfile)
     val stableOpenAvatar: (PeerId) -> Unit = remember { { id -> openAvatarState.value(id) } }
     val markReadState = rememberUpdatedState(component::onMarkRead)
@@ -304,6 +308,10 @@ fun ChatsContent(
     val markAllReadLabel = stringResource(R.string.chats_mark_all_read)
     val markUnreadLabel = stringResource(R.string.chats_mark_unread)
     val manageFoldersLabel = stringResource(R.string.chats_folder_manage)
+    val searchPeopleLabel = stringResource(R.string.chats_search_people)
+    val searchGlobalChatsLabel = stringResource(R.string.chats_search_global_chats)
+    val searchMessagesLabel = stringResource(R.string.chats_search_messages)
+    val searchRetryLabel = stringResource(R.string.chats_search_retry)
     val foldersAtBottom = appearance.foldersAtBottom
     val showAllChats = appearance.showAllChats
     val chipItems = remember(state.chats, folders, showMutedCounter, allChatsLabel, showAllChats) {
@@ -362,7 +370,7 @@ fun ChatsContent(
     ) { archive ->
         RecompositionProbe(if (archive) "ChatsPaneArchive" else "ChatsPaneHome")
         val paneChats = if (archive) archivedChats else shownChats
-        val paneListState = if (archive) archiveListState else listState
+        val paneListState = if (archive) archiveListState else (primaryListState ?: listState)
         val paneEmpty = paneChats.isEmpty
         val atTop by remember(paneListState) {
             derivedStateOf {
@@ -492,104 +500,242 @@ fun ChatsContent(
                         placeholder = stringResource(R.string.chats_search),
                         closeLabel = stringResource(R.string.chats_search_close),
                         focusRequester = searchFocus,
+                        busy = state.searchLoading && !state.searchLoadingMore,
+                        busyLabel = stringResource(R.string.chats_loading),
                     )
                 }
                 AppStatusBanner(
                     sync = syncStatus,
-                    error = state.error,
-                    onRetry = component::onRefresh,
+                    error = if (state.query.isNotBlank()) state.searchError else state.error,
+                    onRetry = if (state.query.isNotBlank()) {
+                        component::onRetrySearch
+                    } else {
+                        component::onRefresh
+                    },
                 )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .then(
-                            folderSwipeModifier(
+                Column(modifier = Modifier.weight(1f).fillMaxSize()) {
+                    if (!archive && !searchOpen && !foldersAtBottom) {
+                        Box {
+                            FolderChipRow(
+                                chips = chipItems,
+                                selectedId = homeFolderId,
+                                onSelect = stableSelectFolder,
+                                onManage = if (selectingRecipient) null else stableOpenFolders,
+                                manageContentDescription = if (selectingRecipient) null else manageFoldersLabel,
+                                onLongPress = if (selectingRecipient) null else stableChipLongPress,
+                            )
+                            if (!selectingRecipient) {
+                                AppMenuPopup(
+                                    expanded = folderMenu != null,
+                                    onDismiss = stableDismissFolderMenu,
+                                ) {
+                                    FolderChipMenu(
+                                        chats = allChats.items(),
+                                        folders = folders,
+                                        folderId = folderMenu?.id,
+                                        markReadLabel = markReadLabel,
+                                        editLabel = manageFoldersLabel,
+                                        onMarkRead = stableMarkFolderRead,
+                                        onEditFolders = stableEditFolders,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = state.loading && paneEmpty && !folderMoving,
+                            modifier = Modifier.fillMaxSize(),
+                            enter = fadeIn(animationSpec = tween(180)),
+                            exit = fadeOut(animationSpec = tween(220)),
+                        ) {
+                            ChatListSkeleton(showAvatar = appearance.showChatAvatars)
+                        }
+                        if (archive) {
+                            ChatsLazyList(
+                                chats = paneChats,
+                                listState = paneListState,
+                                archive = true,
+                                searchOpen = searchOpen,
+                                query = state.query,
+                                homeFolderId = homeFolderId,
+                                chips = chipItems,
+                                allChats = allChats,
+                                folders = folders,
+                                archivedTitles = archivedTitles,
+                                archivedUnmuted = archivedPreview.unmuted,
+                                archivedMuted = if (showMutedCounter) archivedPreview.muted else 0,
+                                showArchiveRow = false,
+                                loading = state.loading,
+                                error = state.error,
+                                hasMore = state.hasMore,
+                                loadingMore = state.loadingMore,
+                                selectedChatId = selectedChatId,
+                                selectingRecipient = selectingRecipient,
+                                recipientIds = recipientIds,
+                                recipientSelectionEnabled = recipientSelectionEnabled,
+                                canSelectRecipient = canSelectRecipient,
+                                onToggleRecipient = onToggleRecipient,
+                                selfPeerId = selfPeerId,
+                                showAvatar = showChatAvatars,
+                                showReadStatus = showReadStatus,
+                                openAvatarsInProfile = openAvatarsInProfile,
+                                texts = texts,
+                                mediaRepository = component.mediaRepository,
+                                folderMenu = folderMenu,
+                                rowMenuId = rowMenu?.id?.value,
+                                onSelectFolder = stableSelectFolder,
+                                onManageFolders = stableOpenFolders,
+                                onFolderLongPress = stableChipLongPress,
+                                onDismissFolderMenu = stableDismissFolderMenu,
+                                onMarkFolderRead = stableMarkFolderRead,
+                                onEditFolders = stableEditFolders,
+                                onOpenArchive = stableOpenArchive,
+                                onOpenChat = stableOpenChat,
+                                onOpenAvatar = stableOpenAvatar,
+                                onRowMenu = stableRowMenu,
+                                onDismissRowMenu = stableDismissRowMenu,
+                                onMarkRead = stableMarkReadOne,
+                                onMarkUnread = stableMarkUnread,
+                                onClearSearch = stableQueryChanged,
+                                onLoadMore = stableLoadMore,
+                                markReadLabel = markReadLabel,
+                                markUnreadLabel = markUnreadLabel,
+                                manageFoldersLabel = manageFoldersLabel,
+                                foldersAtBottom = foldersAtBottom,
+                                inlineFolderChips = false,
+                                searchPeople = state.searchPeople,
+                                searchChats = state.searchChats,
+                                searchMessages = state.searchMessages,
+                                searchLoading = state.searchLoading,
+                                searchLoadingMore = state.searchLoadingMore,
+                                searchHasMore = state.searchHasMore,
+                                searchError = state.searchError,
+                                searchPeopleLabel = searchPeopleLabel,
+                                searchChatsLabel = searchGlobalChatsLabel,
+                                searchMessagesLabel = searchMessagesLabel,
+                                searchRetryLabel = searchRetryLabel,
+                                listedChats = state.chats,
+                                onOpenSearchMessage = stableOpenSearchMessage,
+                                onRetrySearch = stableRetrySearch,
+                            )
+                        } else {
+                            FolderTransition(
                                 folderIds = chipItems.items.map { it.id },
                                 selectedId = homeFolderId,
-                                enabled = !archive && !searchOpen && state.query.isBlank(),
+                                enabled = !searchOpen && state.query.isBlank(),
                                 onSelect = stableSelectFolder,
-                            ),
-                        ),
-                ) {
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = state.loading && paneEmpty,
-                        modifier = Modifier.fillMaxSize(),
-                        enter = fadeIn(animationSpec = tween(180)),
-                        exit = fadeOut(animationSpec = tween(220)),
-                    ) {
-                        ChatListSkeleton(showAvatar = appearance.showChatAvatars)
-                    }
-                    ChatsLazyList(
-                        chats = paneChats,
-                        listState = paneListState,
-                        archive = archive,
-                        searchOpen = searchOpen,
-                        query = state.query,
-                        homeFolderId = homeFolderId,
-                        chips = chipItems,
-                        allChats = allChats,
-                        folders = folders,
-                        archivedTitles = archivedTitles,
-                        archivedUnmuted = archivedPreview.unmuted,
-                        archivedMuted = if (showMutedCounter) archivedPreview.muted else 0,
-                        showArchiveRow = !archive && homeFolderId == null && !searchOpen &&
-                            state.query.isBlank() && archivedCount > 0,
-                        loading = state.loading,
-                        error = state.error,
-                        hasMore = state.hasMore,
-                        loadingMore = state.loadingMore,
-                        selectedChatId = selectedChatId,
-                        selectingRecipient = selectingRecipient,
-                        recipientIds = recipientIds,
-                        recipientSelectionEnabled = recipientSelectionEnabled,
-                        canSelectRecipient = canSelectRecipient,
-                        onToggleRecipient = onToggleRecipient,
-                        selfPeerId = selfPeerId,
-                        showAvatar = showChatAvatars,
-                        showReadStatus = showReadStatus,
-                        openAvatarsInProfile = openAvatarsInProfile,
-                        texts = texts,
-                        mediaRepository = component.mediaRepository,
-                        folderMenu = folderMenu,
-                        rowMenuId = rowMenu?.id?.value,
-                        onSelectFolder = stableSelectFolder,
-                        onManageFolders = stableOpenFolders,
-                        onFolderLongPress = stableChipLongPress,
-                        onDismissFolderMenu = stableDismissFolderMenu,
-                        onMarkFolderRead = stableMarkFolderRead,
-                        onEditFolders = stableEditFolders,
-                        onOpenArchive = stableOpenArchive,
-                        onOpenChat = stableOpenChat,
-                        onOpenAvatar = stableOpenAvatar,
-                        onRowMenu = stableRowMenu,
-                        onDismissRowMenu = stableDismissRowMenu,
-                        onMarkRead = stableMarkReadOne,
-                        onMarkUnread = stableMarkUnread,
-                        onClearSearch = stableQueryChanged,
-                        onLoadMore = stableLoadMore,
-                        markReadLabel = markReadLabel,
-                        markUnreadLabel = markUnreadLabel,
-                        manageFoldersLabel = manageFoldersLabel,
-                        foldersAtBottom = foldersAtBottom,
-                    )
-                    if (foldersAtBottom && !archive && !searchOpen) {
-                        FloatingFolderBar(
-                            chips = chipItems,
-                            selectedId = homeFolderId,
-                            allChats = allChats,
-                            folders = folders,
-                            folderMenu = folderMenu,
-                            markReadLabel = markReadLabel,
-                            manageFoldersLabel = manageFoldersLabel,
-                            onSelectFolder = stableSelectFolder,
-                            onManageFolders = stableOpenFolders,
-                            onFolderLongPress = stableChipLongPress,
-                            onDismissFolderMenu = stableDismissFolderMenu,
-                            onMarkFolderRead = stableMarkFolderRead,
-                            onEditFolders = stableEditFolders,
-                            folderManagementEnabled = !selectingRecipient,
-                            modifier = Modifier.align(Alignment.BottomCenter),
-                        )
+                                motionEnabled = listMotionEnabled(),
+                                onMoving = { folderMoving = it },
+                            ) { folderId, isPrimary ->
+                                val pageChats = remember { ChatListSnapshot() }
+                                pageChats.replace(
+                                    filterChats(
+                                        visibleChats(state.chats, folders, folderId),
+                                        state.query,
+                                    ),
+                                )
+                                val restored = clampFolderScroll(
+                                    folderScroll[folderScrollKey(folderId)],
+                                    pageChats.size,
+                                )
+                                val pageListState = rememberLazyListState(
+                                    initialFirstVisibleItemIndex = restored.index,
+                                    initialFirstVisibleItemScrollOffset = restored.offset,
+                                )
+                                SideEffect {
+                                    if (isPrimary) primaryListState = pageListState
+                                }
+                                val activePage = folderId == homeFolderId
+                                ChatsLazyList(
+                                    chats = pageChats,
+                                    listState = pageListState,
+                                    archive = false,
+                                    searchOpen = searchOpen,
+                                    query = state.query,
+                                    homeFolderId = folderId,
+                                    chips = chipItems,
+                                    allChats = allChats,
+                                    folders = folders,
+                                    archivedTitles = archivedTitles,
+                                    archivedUnmuted = archivedPreview.unmuted,
+                                    archivedMuted = if (showMutedCounter) archivedPreview.muted else 0,
+                                    showArchiveRow = folderId == null && !searchOpen &&
+                                        state.query.isBlank() && archivedCount > 0,
+                                    loading = state.loading && activePage,
+                                    error = state.error,
+                                    hasMore = state.hasMore && activePage,
+                                    loadingMore = state.loadingMore && activePage,
+                                    selectedChatId = selectedChatId,
+                                    selectingRecipient = selectingRecipient,
+                                    recipientIds = recipientIds,
+                                    recipientSelectionEnabled = recipientSelectionEnabled,
+                                    canSelectRecipient = canSelectRecipient,
+                                    onToggleRecipient = onToggleRecipient,
+                                    selfPeerId = selfPeerId,
+                                    showAvatar = showChatAvatars,
+                                    showReadStatus = showReadStatus,
+                                    openAvatarsInProfile = openAvatarsInProfile,
+                                    texts = texts,
+                                    mediaRepository = component.mediaRepository,
+                                    folderMenu = folderMenu,
+                                    rowMenuId = rowMenu?.id?.value,
+                                    onSelectFolder = stableSelectFolder,
+                                    onManageFolders = stableOpenFolders,
+                                    onFolderLongPress = stableChipLongPress,
+                                    onDismissFolderMenu = stableDismissFolderMenu,
+                                    onMarkFolderRead = stableMarkFolderRead,
+                                    onEditFolders = stableEditFolders,
+                                    onOpenArchive = stableOpenArchive,
+                                    onOpenChat = stableOpenChat,
+                                    onOpenAvatar = stableOpenAvatar,
+                                    onRowMenu = stableRowMenu,
+                                    onDismissRowMenu = stableDismissRowMenu,
+                                    onMarkRead = stableMarkReadOne,
+                                    onMarkUnread = stableMarkUnread,
+                                    onClearSearch = stableQueryChanged,
+                                    onLoadMore = stableLoadMore,
+                                    markReadLabel = markReadLabel,
+                                    markUnreadLabel = markUnreadLabel,
+                                    manageFoldersLabel = manageFoldersLabel,
+                                    foldersAtBottom = foldersAtBottom,
+                                    inlineFolderChips = false,
+                                    searchPeople = state.searchPeople,
+                                    searchChats = state.searchChats,
+                                    searchMessages = state.searchMessages,
+                                    searchLoading = state.searchLoading,
+                                    searchLoadingMore = state.searchLoadingMore,
+                                    searchHasMore = state.searchHasMore,
+                                    searchError = state.searchError,
+                                    searchPeopleLabel = searchPeopleLabel,
+                                    searchChatsLabel = searchGlobalChatsLabel,
+                                    searchMessagesLabel = searchMessagesLabel,
+                                    searchRetryLabel = searchRetryLabel,
+                                    listedChats = state.chats,
+                                    onOpenSearchMessage = stableOpenSearchMessage,
+                                    onRetrySearch = stableRetrySearch,
+                                )
+                            }
+                        }
+                        if (foldersAtBottom && !archive && !searchOpen) {
+                            FloatingFolderBar(
+                                chips = chipItems,
+                                selectedId = homeFolderId,
+                                allChats = allChats,
+                                folders = folders,
+                                folderMenu = folderMenu,
+                                markReadLabel = markReadLabel,
+                                manageFoldersLabel = manageFoldersLabel,
+                                onSelectFolder = stableSelectFolder,
+                                onManageFolders = stableOpenFolders,
+                                onFolderLongPress = stableChipLongPress,
+                                onDismissFolderMenu = stableDismissFolderMenu,
+                                onMarkFolderRead = stableMarkFolderRead,
+                                onEditFolders = stableEditFolders,
+                                folderManagementEnabled = !selectingRecipient,
+                                modifier = Modifier.align(Alignment.BottomCenter),
+                            )
+                        }
                     }
                 }
             }
@@ -777,10 +923,7 @@ private fun filterChats(
 ): List<Chat> {
     val q = query.trim()
     if (q.isEmpty()) return chats
-    return chats.filter {
-        it.title.contains(q, ignoreCase = true) ||
-            it.displayPreview().contains(q, ignoreCase = true)
-    }
+    return chats.filter { it.matchesSearchQuery(query) }
 }
 
 /** Scroll slop that still counts as "the list is at the top". */

@@ -2,6 +2,7 @@ package org.monogram.feature.dialog.store
 
 import com.arkivanov.mvikotlin.core.store.Reducer
 import org.monogram.core.models.ChatActionKind
+import org.monogram.core.models.ForumIo
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.Presence
 import org.monogram.core.models.TypingPresence
@@ -55,6 +56,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             canSendPhotos = msg.canSendPhotos,
             canForward = msg.canForward,
             canDeleteOthers = msg.canDeleteOthers,
+            canManageTopics = msg.canManageTopics,
         )
         is Msg.SearchQuery -> copy(searchQuery = msg.value)
         is Msg.Searching -> copy(searching = msg.value)
@@ -75,6 +77,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
                         ),
                     ),
                     threadTopId,
+                    isForum,
                 ),
                 readOutboxMaxId,
             ),
@@ -92,8 +95,12 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
                 else -> false
             },
         )
-        is Msg.Prepend -> copy(messages = filterThreadMessages(mergeById(msg.value + messages), threadTopId))
-        is Msg.AppendOlder -> copy(messages = filterThreadMessages(mergeById(messages + msg.value), threadTopId))
+        is Msg.Prepend -> copy(
+            messages = filterThreadMessages(mergeById(msg.value + messages), threadTopId, isForum),
+        )
+        is Msg.AppendOlder -> copy(
+            messages = filterThreadMessages(mergeById(messages + msg.value), threadTopId, isForum),
+        )
         is Msg.ReplacePending -> copy(
             messages = mergeById(
                 messages.map { if (it.id.id == msg.pendingId) msg.sent else it },
@@ -129,7 +136,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         )
         is Msg.Append -> copy(
             messages = Presence.withReadState(
-                filterThreadMessages(upsertMessage(messages, msg.value), threadTopId),
+                filterThreadMessages(upsertMessage(messages, msg.value), threadTopId, isForum),
                 readOutboxMaxId,
             ),
         )
@@ -233,7 +240,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             } else {
                 msg.value
             }
-            copy(topics = merged, topicsCount = msg.count)
+            copy(topics = ForumIo.sortForumTopics(merged), topicsCount = msg.count)
         }
         is Msg.LoadingTopics -> copy(loadingTopics = msg.value)
         is Msg.HasMoreTopics -> copy(hasMoreTopics = msg.value)

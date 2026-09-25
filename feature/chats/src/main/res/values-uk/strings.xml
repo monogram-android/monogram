@@ -31,6 +31,10 @@
     <string name="chats_search_empty">Нічого не знайдено</string>
     <string name="chats_search_empty_body">Немає чатів за запитом «%1$s».</string>
     <string name="chats_search_clear">Очистити пошук</string>
+    <string name="chats_search_people">Люди</string>
+    <string name="chats_search_global_chats">Чати</string>
+    <string name="chats_search_messages">Повідомлення</string>
+    <string name="chats_search_retry">Повторити</string>
     <string name="chats_muted">Без звуку</string>
     <string name="chats_pinned">Закріплені</string>
     <string name="chats_brand">Monogram</string>

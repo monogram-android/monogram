@@ -73,23 +73,40 @@ internal fun visibleMessages(messages: List<Message>): List<Message> =
             it.failed
     }
 
-internal fun filterThreadMessages(messages: List<Message>, threadTopMsgId: Int): List<Message> {
+internal fun filterThreadMessages(
+    messages: List<Message>,
+    threadTopMsgId: Int,
+    isForum: Boolean = false,
+): List<Message> {
+    if (isForum && threadTopMsgId == org.monogram.core.models.GENERAL_FORUM_TOPIC_ID) {
+        return messages.filter { ForumIo.belongsToOpenTopic(it, threadTopMsgId, true) }
+    }
     if (ForumIo.historyThreadId(threadTopMsgId) <= 0) return messages
     val known = messages.associateBy { it.id.id }
-    return messages.filter { messageBelongsToThread(it, threadTopMsgId, known) }
+    return messages.filter { messageBelongsToThread(it, threadTopMsgId, known, isForum) }
 }
 
 internal fun messageBelongsToThread(
     message: Message,
     threadTopMsgId: Int,
     knownMessages: List<Message>,
-): Boolean = messageBelongsToThread(message, threadTopMsgId, knownMessages.associateBy { it.id.id })
+    isForum: Boolean = false,
+): Boolean = messageBelongsToThread(
+    message,
+    threadTopMsgId,
+    knownMessages.associateBy { it.id.id },
+    isForum,
+)
 
 internal fun messageBelongsToThread(
     message: Message,
     threadTopMsgId: Int,
     knownMessages: Map<Int, Message>,
+    isForum: Boolean = false,
 ): Boolean {
+    if (isForum && threadTopMsgId == org.monogram.core.models.GENERAL_FORUM_TOPIC_ID) {
+        return ForumIo.belongsToOpenTopic(message, threadTopMsgId, true)
+    }
     val top = ForumIo.historyThreadId(threadTopMsgId)
     if (top <= 0) return true
     if (message.pending || message.failed) return true

@@ -1,8 +1,11 @@
 package org.monogram.feature.chats
 
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -26,9 +29,12 @@ import org.monogram.core.models.ARCHIVE_FOLDER_ID
 import org.monogram.core.models.AuthSession
 import org.monogram.core.models.Chat
 import org.monogram.core.models.ChatActionKind
+import org.monogram.core.models.ContactsSearch
+import org.monogram.core.models.GlobalMessageSearch
 import org.monogram.core.models.LastSeen
 import org.monogram.core.models.Message
 import org.monogram.core.models.NotifyDefaults
+import org.monogram.core.models.SearchPeer
 import org.monogram.core.models.NotifySettings
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.TypingPresence
@@ -78,6 +84,13 @@ internal class ChatsExecutor(
     private var roomMainCount = 0
     private var titleRecoveryJob: Job? = null
     private val attemptedTitleRecovery = mutableSetOf<PeerId>()
+    private var searchJob: Job? = null
+    private var searchMoreJob: Job? = null
+    private var searchGen = 0
+    private var searchNextRate = 0
+    private var searchNextPeerId = 0L
+    private var searchNextOffsetId = 0
+    private var lastRunSearchQuery = ""
     override fun executeAction(action: Unit) {
         warmup?.observeReadStates()
             ?.map { rows -> rows.associateBy { it.id } }
@@ -314,7 +327,9 @@ internal class ChatsExecutor(
     override fun executeIntent(intent: ChatsStore.Intent) {
         when (intent) {
             ChatsStore.Intent.Refresh -> refresh(force = true)
-            ChatsStore.Intent.LoadMore -> loadMore()
+            ChatsStore.Intent.LoadMore -> {
+                if (state().query.isNotBlank()) loadMoreSearch() else loadMore()
+            }
             is ChatsStore.Intent.FolderSelected -> {
                 val changed = activeFolderId != intent.folderId
                 if (changed) folderSelectionGeneration++
@@ -349,7 +364,11 @@ internal class ChatsExecutor(
                 }
             }
             is ChatsStore.Intent.MarkUnread -> markUnread(intent.chatId, intent.unread)
-            is ChatsStore.Intent.QueryChanged -> dispatch(Msg.Query(intent.value))
+            is ChatsStore.Intent.QueryChanged -> {
+                dispatch(Msg.Query(intent.value))
+                startSearch(intent.value, immediate = false)
+            }
+            ChatsStore.Intent.RetrySearch -> startSearch(state().query, immediate = true)
             is ChatsStore.Intent.MarkRead -> markRead(intent.chatIds)
         }
     }
@@ -1215,6 +1234,197 @@ internal class ChatsExecutor(
             withContext(Dispatchers.IO) { apply() }
         } else {
             apply()
+        }
+    }
+
+    private fun startSearch(query: String, immediate: Boolean) {
+        searchJob?.cancel()
+        searchMoreJob?.cancel()
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            searchGen++
+            lastRunSearchQuery = ""
+            searchNextRate = 0
+            searchNextPeerId = 0L
+            searchNextOffsetId = 0
+            dispatch(Msg.SearchCleared)
+            return
+        }
+        val gen = ++searchGen
+        lastRunSearchQuery = ""
+        searchNextRate = 0
+        searchNextPeerId = 0L
+        searchNextOffsetId = 0
+        searchJob = scope.launch {
+            if (!immediate) delay(GLOBAL_SEARCH_DEBOUNCE_MS)
+            if (gen != searchGen) return@launch
+            runSearch(trimmed, gen, reset = true)
+        }
+    }
+
+    private fun loadMoreSearch() {
+        val query = state().query.trim()
+        if (query.isEmpty() ||
+            query != lastRunSearchQuery ||
+            state().searchLoading ||
+            state().searchLoadingMore ||
+            state().searchError != null ||
+            !state().searchHasMore
+        ) {
+            return
+        }
+        val gen = searchGen
+        searchMoreJob?.cancel()
+        searchMoreJob = scope.launch {
+            runSearch(query, gen, reset = false)
+        }
+    }
+
+    private suspend fun runSearch(query: String, gen: Int, reset: Boolean) {
+        if (reset) {
+            dispatch(Msg.SearchLoading(true))
+            searchNextRate = 0
+            searchNextPeerId = 0L
+            searchNextOffsetId = 0
+        } else {
+            dispatch(Msg.SearchLoadingMore(true))
+        }
+        if (reset) lastRunSearchQuery = query
+        val folderId = searchFolderId(activeFolderId)
+        val knownIds = localSearchMatchIds(state().chats, query)
+        try {
+            if (reset) {
+                coroutineScope {
+                    val contactsDeferred = async {
+                        client.contactsSearch(query, GLOBAL_SEARCH_LIMIT)
+                    }
+                    val globalDeferred = async {
+                        client.searchGlobal(
+                            query = query,
+                            offsetRate = 0,
+                            offsetPeerId = PeerId(0),
+                            offsetId = 0,
+                            limit = GLOBAL_SEARCH_LIMIT,
+                            folderId = folderId,
+                        )
+                    }
+                    val contacts = contactsDeferred.await()
+                    val global = globalDeferred.await()
+                    if (gen != searchGen) return@coroutineScope
+                    applySearchResults(
+                        gen = gen,
+                        contacts = contacts,
+                        global = global,
+                        knownIds = knownIds,
+                        reset = true,
+                    )
+                }
+            } else {
+                val global = client.searchGlobal(
+                    query = query,
+                    offsetRate = searchNextRate,
+                    offsetPeerId = PeerId(searchNextPeerId),
+                    offsetId = searchNextOffsetId,
+                    limit = GLOBAL_SEARCH_LIMIT,
+                    folderId = folderId,
+                )
+                if (gen != searchGen) return
+                applySearchResults(
+                    gen = gen,
+                    contacts = Outcome.Ok(
+                        ContactsSearch(
+                            people = state().searchPeople,
+                            chats = state().searchChats,
+                        ),
+                    ),
+                    global = global,
+                    knownIds = knownIds,
+                    reset = false,
+                )
+            }
+        } catch (e: CancellationException) {
+            throw e
+        }
+    }
+
+    private fun applySearchResults(
+        gen: Int,
+        contacts: Outcome<ContactsSearch>,
+        global: Outcome<GlobalMessageSearch>,
+        knownIds: Set<Long>,
+        reset: Boolean,
+    ) {
+        if (gen != searchGen) return
+        var people = emptyList<SearchPeer>()
+        var foundChats = emptyList<SearchPeer>()
+        var messages = emptyList<Message>()
+        var contactsErr: TelegramError? = null
+        var globalErr: TelegramError? = null
+        when (contacts) {
+            is Outcome.Ok -> {
+                people = excludeKnownPeers(contacts.value.people, knownIds)
+                foundChats = excludeKnownPeers(
+                    contacts.value.chats,
+                    knownIds + people.map { it.id.value },
+                )
+            }
+            is Outcome.Err -> contactsErr = contacts.telegramError
+        }
+        when (global) {
+            is Outcome.Ok -> {
+                val page = global.value
+                searchNextRate = page.nextRate
+                searchNextPeerId = page.nextPeerId.value
+                searchNextOffsetId = page.nextOffsetId
+                val existing = if (reset) emptySet() else {
+                    state().searchMessages.map { it.id }.toSet()
+                }
+                messages = page.messages.filter { it.id !in existing }
+                val hasMore = globalSearchHasMore(
+                    page.messages.size,
+                    page.nextRate,
+                    page.nextPeerId.value,
+                    page.nextOffsetId,
+                )
+                dispatch(
+                    Msg.SearchPage(
+                        people = people,
+                        chats = foundChats,
+                        messages = messages,
+                        replace = reset,
+                        hasMore = hasMore,
+                    ),
+                )
+                AppLog.api(
+                    "chats",
+                    "search people=${people.size} chats=${foundChats.size} messages=${messages.size}",
+                )
+            }
+            is Outcome.Err -> {
+                globalErr = global.telegramError
+                if (reset) {
+                    dispatch(
+                        Msg.SearchPage(
+                            people = people,
+                            chats = foundChats,
+                            messages = emptyList(),
+                            replace = true,
+                            hasMore = false,
+                        ),
+                    )
+                } else {
+                    dispatch(Msg.SearchLoadingMore(false))
+                }
+            }
+        }
+        val err = globalErr ?: contactsErr
+        if (err != null && !isEmptySearchQuery(err)) {
+            dispatch(Msg.SearchError(err))
+        } else if (err != null) {
+            dispatch(Msg.SearchLoading(false))
+            dispatch(Msg.SearchLoadingMore(false))
+        } else if (global is Outcome.Ok && contacts is Outcome.Err) {
+            dispatch(Msg.SearchError(contacts.telegramError))
         }
     }
 

@@ -100,6 +100,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data class OpenComments(val message: Message) : Intent
         data object ClearPendingChat : Intent
         data object LoadMoreTopics : Intent
+        data class ToggleTopicHidden(val topicId: Int, val hidden: Boolean) : Intent
         data class SendInlineResult(val resultId: String) : Intent
         data object LoadMoreInlineResults : Intent
         data object RetryInlineResults : Intent
@@ -166,6 +167,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val canSendPhotos: Boolean = true,
         val canForward: Boolean = true,
         val canDeleteOthers: Boolean = false,
+        val canManageTopics: Boolean = false,
         val searchQuery: String = "",
         val searching: Boolean = false,
         val loading: Boolean = false,

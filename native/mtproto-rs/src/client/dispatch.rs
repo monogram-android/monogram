@@ -378,6 +378,30 @@ pub fn get_forum_topics_by_id(
     })
 }
 
+pub fn edit_forum_topic_hidden(
+    handle: u64,
+    chat_id: i64,
+    topic_id: i32,
+    hidden: bool,
+) -> Result<(), MtprotoError> {
+    with_client_mut(handle, |state| {
+        crate::rpc::with_rpc_timeout_secs(15, || {
+            call_with_migrate(state, |state| {
+                with_peer_refresh(state, chat_id, |state| {
+                    dialogs::edit_forum_topic_hidden(
+                        &mut state.snapshot,
+                        state.api_id,
+                        &state.peers,
+                        chat_id,
+                        topic_id,
+                        hidden,
+                    )
+                })
+            })
+        })
+    })
+}
+
 pub fn search_messages(
     handle: u64,
     chat_id: i64,
@@ -457,6 +481,7 @@ pub fn search_global(
     offset_peer_id: i64,
     offset_id: i32,
     limit: i32,
+    folder_id: i32,
 ) -> Result<crate::GlobalMessageSearchDto, MtprotoError> {
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
@@ -470,6 +495,7 @@ pub fn search_global(
                 offset_peer_id,
                 offset_id,
                 limit,
+                folder_id,
             )
         })?;
         Ok(dto)

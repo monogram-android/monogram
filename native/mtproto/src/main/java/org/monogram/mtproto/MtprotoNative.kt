@@ -183,6 +183,16 @@ interface MtprotoNative {
         throw MtprotoException.Message("forum topics require native rebuild")
 
     @Throws(MtprotoException::class)
+    fun editForumTopicHidden(
+        handle: Long,
+        chatId: Long,
+        topicId: Int,
+        hidden: Boolean,
+    ) {
+        throw MtprotoException.Message("edit forum topic requires native rebuild")
+    }
+
+    @Throws(MtprotoException::class)
     fun loadMoreChats(
         handle: Long,
         offsetDate: Int,
@@ -217,6 +227,7 @@ interface MtprotoNative {
         offsetPeerId: Long,
         offsetId: Int,
         limit: Int,
+        folderId: Int = 0,
     ): GlobalMessageSearchDto =
         throw MtprotoException.Message("global search requires native rebuild")
 

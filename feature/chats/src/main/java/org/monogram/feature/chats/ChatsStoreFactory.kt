@@ -12,6 +12,7 @@ import org.monogram.core.models.Chat
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
+import org.monogram.core.models.SearchPeer
 import org.monogram.network.bridge.MtprotoClient
 
 internal class ChatsStoreFactory(
@@ -80,4 +81,15 @@ internal sealed interface Msg {
     data class UnreadReactions(val chatId: PeerId, val stillUnread: Int) : Msg
     data class UnreadMentionsDelta(val chatId: PeerId, val delta: Int) : Msg
     data class UnreadReactionsDelta(val chatId: PeerId, val delta: Int) : Msg
+    data class SearchLoading(val value: Boolean) : Msg
+    data class SearchLoadingMore(val value: Boolean) : Msg
+    data class SearchError(val value: TelegramError?) : Msg
+    data object SearchCleared : Msg
+    data class SearchPage(
+        val people: List<SearchPeer>,
+        val chats: List<SearchPeer>,
+        val messages: List<Message>,
+        val replace: Boolean,
+        val hasMore: Boolean,
+    ) : Msg
 }

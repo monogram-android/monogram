@@ -211,7 +211,9 @@ internal fun DialogExecutor.pendingOutgoing(
     groupedId: Long?,
     reply: Message?,
     entities: List<org.monogram.core.models.TextEntity>,
-): Message = Message(
+): Message {
+    val replyIds = ForumIo.sendReplyIds(threadTopMsgId, reply?.id?.id)
+    return Message(
     id = MessageId(chatId, pendingMessageId()),
     senderId = null,
     text = caption?.takeIf { it.isNotBlank() },
@@ -229,9 +231,12 @@ internal fun DialogExecutor.pendingOutgoing(
     pending = true,
     randomId = randomId,
     replyQuote = reply?.text,
-    replyToMsgId = reply?.id?.id,
+    replyToMsgId = replyIds.first.takeIf { it > 0 },
+    replyToTopId = replyIds.second.takeIf { it > 0 },
+    forumTopic = ForumIo.historyThreadId(threadTopMsgId) > 0,
     entities = entities,
-)
+    )
+}
 
 internal suspend fun DialogExecutor.finishOutgoingSend(pendingId: Int, result: Outcome<Message>) {
     when (result) {
@@ -465,7 +470,9 @@ internal fun DialogExecutor.send(overrideText: String? = null) {
         pending = true,
         randomId = randomId,
         replyQuote = current.replyTo?.text,
-        replyToMsgId = current.replyTo?.id?.id,
+        replyToMsgId = replyId.takeIf { it > 0 },
+        replyToTopId = topId.takeIf { it > 0 },
+        forumTopic = ForumIo.historyThreadId(threadTopMsgId) > 0,
         entities = emptyList(),
     )
     emit(Msg.Append(pending))

@@ -14,6 +14,11 @@
     <string name="dialog_topic_mentions">%1$d menciones</string>
     <string name="dialog_topic_pinned">Fijado</string>
     <string name="dialog_topic_closed">Cerrado</string>
+    <string name="dialog_topic_hidden">Oculto</string>
+    <string name="dialog_topic_hide_general">Ocultar General</string>
+    <string name="dialog_topic_show_general">Mostrar General</string>
+    <string name="dialog_topic_archived_general">General está oculto. Desliza hacia abajo para verlo</string>
+    <string name="dialog_topic_collapse_archived">Toca para ocultar General archivado</string>
     <string name="dialog_media_loading">Cargando multimedia</string>
     <string name="dialog_media_uploading">Subiendo</string>
     <string name="dialog_media_download_progress">Descargando %1$s de %2$s</string>

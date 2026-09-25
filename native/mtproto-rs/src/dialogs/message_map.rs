@@ -78,7 +78,8 @@ pub(crate) fn message_to_dto_named(
                 (Some("unsupported"), Some(_)) => None,
                 _ => indexed.kind.clone(),
             };
-            let (reply_to_msg_id, reply_to_top_id, reply_quote) = reply_meta(m.reply_to.as_deref());
+            let (reply_to_msg_id, reply_to_top_id, reply_quote, forum_topic) =
+                reply_meta(m.reply_to.as_deref());
             Some(MessageDto {
                 chat_id,
                 id: m.id,
@@ -137,12 +138,14 @@ pub(crate) fn message_to_dto_named(
                 )
                 .1,
                 reply_markup_json: crate::reply_markup::to_json(m.reply_markup.as_deref()),
+                forum_topic,
             })
         }
         Message::MessageService(m) => {
             let sender_id = m.from_id.as_ref().map(|p| peer_chat_id(p));
             let sender_name = sender_id.and_then(|id| titles.get(&id).map(|name| name.to_string()));
-            let (reply_to_msg_id, reply_to_top_id, _) = reply_meta(m.reply_to.as_deref());
+            let (reply_to_msg_id, reply_to_top_id, _, forum_topic) =
+                reply_meta(m.reply_to.as_deref());
             Some(MessageDto {
                 chat_id: peer_chat_id(&m.peer_id),
                 id: m.id,
@@ -182,6 +185,7 @@ pub(crate) fn message_to_dto_named(
                 replies_count: 0,
                 discussion_peer_id: None,
                 reply_markup_json: None,
+                forum_topic,
             })
         }
         _ => None,
@@ -190,17 +194,18 @@ pub(crate) fn message_to_dto_named(
 
 pub(crate) fn reply_meta(
     header: Option<&MessageReplyHeader>,
-) -> (Option<i32>, Option<i32>, Option<String>) {
+) -> (Option<i32>, Option<i32>, Option<String>, bool) {
     let Some(header) = header else {
-        return (None, None, None);
+        return (None, None, None, false);
     };
     let MessageReplyHeader::MessageReplyHeader(h) = header else {
-        return (None, None, None);
+        return (None, None, None, false);
     };
     (
         h.reply_to_msg_id,
         h.reply_to_top_id,
         h.quote_text.clone().filter(|s| !s.is_empty()),
+        h.forum_topic.is_some(),
     )
 }
 

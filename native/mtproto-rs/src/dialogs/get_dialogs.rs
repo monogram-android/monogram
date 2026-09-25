@@ -344,6 +344,7 @@ pub(crate) fn map_peer_dialogs(
             can_send_photos: meta.can_send_photos,
             can_forward: meta.can_forward,
             can_delete_others: meta.can_delete_others,
+            can_manage_topics: meta.can_manage_topics,
             emoji_status_document_id,
             last_message_outgoing: last_outgoing,
         });

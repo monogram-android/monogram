@@ -40,6 +40,7 @@ internal class ProfileApi(private val core: SessionCore) : ProfileOps {
         offsetPeerId: PeerId,
         offsetId: Int,
         limit: Int,
+        folderId: Int,
     ): Outcome<GlobalMessageSearch> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
@@ -53,6 +54,7 @@ internal class ProfileApi(private val core: SessionCore) : ProfileOps {
                 offsetPeerId.value,
                 offsetId,
                 limit,
+                folderId,
             ).toModel()
         }
     }

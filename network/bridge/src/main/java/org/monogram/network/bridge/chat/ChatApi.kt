@@ -217,4 +217,18 @@ internal class ChatApi(private val core: SessionCore) : ChatOps {
             core.native.getForumTopicsById(activeHandle, chatId.value, topicIds).toModel()
         }
     }
+
+    override suspend fun editForumTopicHidden(
+        chatId: PeerId,
+        topicId: Int,
+        hidden: Boolean,
+    ): Outcome<Unit> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpc("editForumTopicHidden failed") { activeHandle ->
+            core.native.editForumTopicHidden(activeHandle, chatId.value, topicId, hidden)
+        }
+    }
 }

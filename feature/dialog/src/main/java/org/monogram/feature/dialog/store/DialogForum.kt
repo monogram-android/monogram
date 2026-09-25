@@ -204,3 +204,33 @@ internal fun DialogExecutor.loadMoreTopics() {
     if (snapshot().loadingTopics || !snapshot().hasMoreTopics) return
     loadTopics(reset = false)
 }
+
+internal fun DialogExecutor.toggleTopicHidden(topicId: Int, hidden: Boolean) {
+    if (!snapshot().canManageTopics) return
+    val previous = snapshot().topics
+    val current = previous.firstOrNull { it.id == topicId } ?: return
+    if (current.hidden == hidden) return
+    val next = previous.map { topic ->
+        if (topic.id != topicId) topic
+        else topic.copy(hidden = hidden, closed = if (hidden) true else topic.closed)
+    }
+    emit(Msg.Topics(next, snapshot().topicsCount, append = false))
+    work.launch {
+        when (val result = client.editForumTopicHidden(chatId, topicId, hidden)) {
+            is Outcome.Ok -> persistForumTopics(next)
+            is Outcome.Err -> {
+                persistForumTopics(previous)
+                emit(Msg.Topics(previous, snapshot().topicsCount, append = false))
+                handleError(result.telegramError, false)
+            }
+        }
+    }
+}
+
+internal suspend fun DialogExecutor.persistForumTopics(topics: List<ForumTopic>) {
+    org.monogram.feature.dialog.TopicListMemory.put(chatId.value, topics)
+    sessionStore?.writeMeta(
+        org.monogram.feature.dialog.topicsMetaKey(chatId.value),
+        org.monogram.feature.dialog.encodeForumTopics(topics),
+    )
+}

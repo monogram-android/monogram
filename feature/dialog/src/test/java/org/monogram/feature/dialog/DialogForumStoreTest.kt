@@ -35,6 +35,7 @@ import org.monogram.core.models.ContactsSearch
 import org.monogram.core.models.Folder
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.ForumTopicsPage
+import org.monogram.core.models.GENERAL_FORUM_TOPIC_ID
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
@@ -89,6 +90,67 @@ class DialogForumStoreTest {
         assertTrue(store.state.showTopicList)
         assertEquals("General", store.state.topics.single().title)
         assertEquals(3, store.state.topics.single().unreadCount)
+        store.dispose()
+    }
+
+    @Test
+    fun generalHistoryOmitsOtherTopicMessagesFromServerPage() = runBlocking {
+        val client = FakeClient()
+        client.history = listOf(
+            Message(
+                MessageId(PeerId(5), 10), PeerId(1), "general", 1, outgoing = false,
+            ),
+            Message(
+                MessageId(PeerId(5), 11), null, "там вроде не бета", 2, outgoing = true,
+                replyToMsgId = 9,
+                replyToTopId = 42,
+                forumTopic = true,
+            ),
+        )
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup = null,
+            sessionStore = null,
+            chatId = PeerId(5),
+            threadTopMsgId = GENERAL_FORUM_TOPIC_ID,
+            seedIsForum = true,
+            mainContext = Dispatchers.Unconfined,
+            markupContext = Dispatchers.Unconfined,
+        ).create()
+        yield()
+        assertEquals(listOf(10), store.state.messages.map { it.id.id })
+        store.dispose()
+    }
+
+    @Test
+    fun rejectedHideDoesNotPersistHiddenGeneral() = runBlocking {
+        val warmup = FakeWarmup()
+        warmup.storedChats[5] = Chat(
+            id = PeerId(5),
+            title = "Forum",
+            isGroup = true,
+            isForum = true,
+            canManageTopics = true,
+        )
+        val client = FakeClient()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup = warmup,
+            sessionStore = null,
+            chatId = PeerId(5),
+            seedIsForum = true,
+            mainContext = Dispatchers.Unconfined,
+            markupContext = Dispatchers.Unconfined,
+        ).create()
+        yield()
+        assertTrue(store.state.canManageTopics)
+        store.accept(DialogStore.Intent.ToggleTopicHidden(1, true))
+        yield()
+        assertEquals(1, client.hideCalls)
+        assertEquals(false, store.state.topics.single { it.id == 1 }.hidden)
+        assertEquals(false, TopicListMemory.get(5).single { it.id == 1 }.hidden)
         store.dispose()
     }
 
@@ -3191,6 +3253,19 @@ class DialogForumStoreTest {
                 listOf(ForumTopic(id = 8, title = "Bugs", date = 9, topMessageId = 7))
             }
             return Outcome.Ok(ForumTopicsPage(count = topicCount, topics = topics))
+        }
+        var hideError: String? = "denied"
+        var hideCalls = 0
+        var lastHide: Pair<Int, Boolean>? = null
+        override suspend fun editForumTopicHidden(
+            chatId: PeerId,
+            topicId: Int,
+            hidden: Boolean,
+        ): Outcome<Unit> {
+            hideCalls++
+            lastHide = topicId to hidden
+            hideError?.let { return Outcome.Err(it) }
+            return Outcome.Ok(Unit)
         }
         override suspend fun getForumTopicsById(
             chatId: PeerId,

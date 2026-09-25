@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -22,16 +23,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.dao.ChatReadState
 import org.monogram.core.models.ARCHIVE_FOLDER_ID
 import org.monogram.core.models.AuthState
 import org.monogram.core.models.Chat
+import org.monogram.core.models.ContactsSearch
 import org.monogram.core.models.Folder
+import org.monogram.core.models.GlobalMessageSearch
 import org.monogram.core.models.Message
+import org.monogram.core.models.MessageId
 import org.monogram.core.models.NotifySettings
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
+import org.monogram.core.models.SearchPeer
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.UpdatesCursor
@@ -890,6 +896,328 @@ class ChatsStoreCacheTest {
         }
     }
 
+    @Test
+    fun debounceThenFillsPeopleChatsAndMessages() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val client = StubClient(chats = Outcome.Ok(listOf(Chat(PeerId(1), "Ada"))))
+        client.contactsPage = Outcome.Ok(
+            ContactsSearch(
+                people = listOf(SearchPeer(PeerId(2), "Bob", username = "bob", kind = "user")),
+                chats = listOf(
+                    SearchPeer(PeerId(-100), "News", username = "news", kind = "channel", isChannel = true),
+                ),
+            ),
+        )
+        client.globalPages.add(
+            Outcome.Ok(
+                GlobalMessageSearch(
+                    messages = listOf(searchMessage(9, -3)),
+                    nextRate = 11,
+                    nextPeerId = PeerId(-3),
+                    nextOffsetId = 9,
+                ),
+            ),
+        )
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("bo"))
+            runCurrent()
+            assertTrue(client.contactsQueries.isEmpty())
+            advanceTimeBy(GLOBAL_SEARCH_DEBOUNCE_MS)
+            runCurrent()
+            assertEquals(listOf("bo"), client.contactsQueries)
+            assertEquals("Bob", store.state.searchPeople.single().title)
+            assertEquals("News", store.state.searchChats.single().title)
+            assertEquals(9, store.state.searchMessages.single().id.id)
+            assertFalse(store.state.searchHasMore)
+            assertEquals(0, client.globalCalls.single().folderId)
+            assertFalse(store.state.searchLoading)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun emptyQueryCancelsInFlightSearch() = runTest {
+        val client = StubClient(chats = Outcome.Ok(listOf(Chat(PeerId(1), "Ada"))))
+        client.searchGate = CompletableDeferred()
+        client.contactsPage = Outcome.Ok(
+            ContactsSearch(people = listOf(SearchPeer(PeerId(2), "Bob", kind = "user"))),
+        )
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("bo"))
+            store.accept(ChatsStore.Intent.RetrySearch)
+            runCurrent()
+            assertTrue(store.state.searchLoading)
+            store.accept(ChatsStore.Intent.QueryChanged(""))
+            runCurrent()
+            assertTrue(store.state.searchPeople.isEmpty())
+            assertTrue(store.state.searchMessages.isEmpty())
+            assertFalse(store.state.searchLoading)
+            assertNull(store.state.searchError)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun newerQueryDropsStaleResults() = runTest {
+        val staleGate = CompletableDeferred<Unit>()
+        val client = StubClient(chats = Outcome.Ok(emptyList()))
+        client.searchGate = staleGate
+        client.contactsPage = Outcome.Ok(
+            ContactsSearch(people = listOf(SearchPeer(PeerId(2), "Bob", kind = "user"))),
+        )
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("bo"))
+            store.accept(ChatsStore.Intent.RetrySearch)
+            runCurrent()
+            assertTrue(store.state.searchLoading)
+            client.searchGate = null
+            client.contactsPage = Outcome.Ok(
+                ContactsSearch(people = listOf(SearchPeer(PeerId(3), "Cara", kind = "user"))),
+            )
+            store.accept(ChatsStore.Intent.QueryChanged("ca"))
+            store.accept(ChatsStore.Intent.RetrySearch)
+            runCurrent()
+            assertEquals(listOf("Cara"), store.state.searchPeople.map { it.title })
+            staleGate.complete(Unit)
+            runCurrent()
+            assertEquals(listOf("Cara"), store.state.searchPeople.map { it.title })
+            assertEquals(listOf("bo", "ca"), client.contactsQueries)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun pagesGlobalMessagesWithOffsetTriple() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val client = StubClient(chats = Outcome.Ok(emptyList()))
+        client.contactsPage = Outcome.Ok(ContactsSearch())
+        val first = (1..GLOBAL_SEARCH_LIMIT).map { searchMessage(it, -4) }
+        client.globalPages.add(
+            Outcome.Ok(
+                GlobalMessageSearch(
+                    messages = first,
+                    nextRate = 44,
+                    nextPeerId = PeerId(-4),
+                    nextOffsetId = GLOBAL_SEARCH_LIMIT,
+                ),
+            ),
+        )
+        client.globalPages.add(
+            Outcome.Ok(
+                GlobalMessageSearch(
+                    messages = listOf(searchMessage(21, -5)),
+                    nextRate = 0,
+                    nextPeerId = PeerId(0),
+                    nextOffsetId = 0,
+                ),
+            ),
+        )
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("hi"))
+            advanceTimeBy(GLOBAL_SEARCH_DEBOUNCE_MS)
+            runCurrent()
+            assertTrue(store.state.searchHasMore)
+            assertEquals(GLOBAL_SEARCH_LIMIT, store.state.searchMessages.size)
+            store.accept(ChatsStore.Intent.LoadMore)
+            runCurrent()
+            assertEquals(GLOBAL_SEARCH_LIMIT + 1, store.state.searchMessages.size)
+            assertEquals(44, client.globalCalls[1].offsetRate)
+            assertEquals(-4L, client.globalCalls[1].offsetPeerId)
+            assertEquals(GLOBAL_SEARCH_LIMIT, client.globalCalls[1].offsetId)
+            assertFalse(store.state.searchHasMore)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun archiveSearchSendsFolderId() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val client = StubClient(chats = Outcome.Ok(emptyList()))
+        client.contactsPage = Outcome.Ok(ContactsSearch())
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.FolderSelected(ARCHIVE_FOLDER_ID))
+            store.accept(ChatsStore.Intent.QueryChanged("hi"))
+            advanceTimeBy(GLOBAL_SEARCH_DEBOUNCE_MS)
+            runCurrent()
+            assertEquals(ARCHIVE_FOLDER_WIRE_ID, client.globalCalls.single().folderId)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun emptySearchQueryIsNotRetried() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val client = StubClient(chats = Outcome.Ok(emptyList()))
+        client.contactsPage = Outcome.Ok(ContactsSearch())
+        val emptyQuery = TelegramError.parse("SEARCH_QUERY_EMPTY")
+        client.globalPages.add(Outcome.Err(emptyQuery.message, telegram = emptyQuery))
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("x"))
+            advanceTimeBy(GLOBAL_SEARCH_DEBOUNCE_MS)
+            runCurrent()
+            assertNull(store.state.searchError)
+            assertEquals(1, client.globalCalls.size)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun otherErrorsSurfaceForRetry() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val client = StubClient(chats = Outcome.Ok(emptyList()))
+        client.contactsPage = Outcome.Ok(ContactsSearch())
+        client.globalPages.add(Outcome.Err("Timeout"))
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("x"))
+            advanceTimeBy(GLOBAL_SEARCH_DEBOUNCE_MS)
+            runCurrent()
+            assertEquals(TelegramError.Kind.Network, store.state.searchError?.kind)
+            client.globalPages.add(
+                Outcome.Ok(GlobalMessageSearch(messages = listOf(searchMessage(1, 8)))),
+            )
+            store.accept(ChatsStore.Intent.RetrySearch)
+            runCurrent()
+            assertNull(store.state.searchError)
+            assertEquals(1, store.state.searchMessages.size)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun failedPageStopsAutomaticPaging() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val client = StubClient(chats = Outcome.Ok(emptyList()))
+        client.contactsPage = Outcome.Ok(ContactsSearch())
+        val first = (1..GLOBAL_SEARCH_LIMIT).map { searchMessage(it, -4) }
+        client.globalPages.add(
+            Outcome.Ok(
+                GlobalMessageSearch(
+                    messages = first,
+                    nextRate = 44,
+                    nextPeerId = PeerId(-4),
+                    nextOffsetId = GLOBAL_SEARCH_LIMIT,
+                ),
+            ),
+        )
+        client.globalPages.add(Outcome.Err("Timeout"))
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("hi"))
+            advanceTimeBy(GLOBAL_SEARCH_DEBOUNCE_MS)
+            runCurrent()
+            assertTrue(store.state.searchHasMore)
+            store.accept(ChatsStore.Intent.LoadMore)
+            runCurrent()
+            assertFalse(store.state.searchHasMore)
+            assertEquals(TelegramError.Kind.Network, store.state.searchError?.kind)
+            val calls = client.globalCalls.size
+            store.accept(ChatsStore.Intent.LoadMore)
+            runCurrent()
+            assertEquals(calls, client.globalCalls.size)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun loadMoreDuringDebounceDoesNotReuseOldOffsets() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val client = StubClient(chats = Outcome.Ok(emptyList()))
+        client.contactsPage = Outcome.Ok(ContactsSearch())
+        val first = (1..GLOBAL_SEARCH_LIMIT).map { searchMessage(it, -4) }
+        client.globalPages.add(
+            Outcome.Ok(
+                GlobalMessageSearch(
+                    messages = first,
+                    nextRate = 44,
+                    nextPeerId = PeerId(-4),
+                    nextOffsetId = GLOBAL_SEARCH_LIMIT,
+                ),
+            ),
+        )
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("hi"))
+            advanceTimeBy(GLOBAL_SEARCH_DEBOUNCE_MS)
+            runCurrent()
+            assertEquals(1, client.globalCalls.size)
+            store.accept(ChatsStore.Intent.QueryChanged("yo"))
+            store.accept(ChatsStore.Intent.LoadMore)
+            runCurrent()
+            assertEquals(1, client.globalCalls.size)
+            assertFalse(store.state.searchHasMore)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun localDialogsAreDroppedFromPeopleSection() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val local = Chat(PeerId(2), "Bob")
+        val client = StubClient(chats = Outcome.Ok(listOf(local)))
+        client.contactsPage = Outcome.Ok(
+            ContactsSearch(
+                people = listOf(
+                    SearchPeer(PeerId(2), "Bob", kind = "user"),
+                    SearchPeer(PeerId(3), "Cara", kind = "user"),
+                ),
+            ),
+        )
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("b"))
+            advanceTimeBy(GLOBAL_SEARCH_DEBOUNCE_MS)
+            runCurrent()
+            assertEquals(listOf(3L), store.state.searchPeople.map { it.id.value })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun usernameHitStaysWhenLoadedTitleDoesNotMatch() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val loaded = Chat(PeerId(2), "Ada Lovelace")
+        val client = StubClient(chats = Outcome.Ok(listOf(loaded)))
+        client.contactsPage = Outcome.Ok(
+            ContactsSearch(
+                people = listOf(SearchPeer(PeerId(2), "Bob", username = "bob", kind = "user")),
+            ),
+        )
+        val store = ChatsStoreFactory(DefaultStoreFactory(), client, warmup = null, sessionStore = null).create()
+        try {
+            store.accept(ChatsStore.Intent.QueryChanged("bob"))
+            advanceTimeBy(GLOBAL_SEARCH_DEBOUNCE_MS)
+            runCurrent()
+            assertEquals(listOf(2L), store.state.searchPeople.map { it.id.value })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    private fun searchMessage(id: Int, chat: Long) = Message(
+        id = MessageId(PeerId(chat), id),
+        senderId = null,
+        text = "m$id",
+        date = id.toLong(),
+        outgoing = false,
+    )
+
     private fun archiveChats(count: Int): List<Chat> =
         (1L..count.toLong()).map { id ->
             Chat(
@@ -904,7 +1232,7 @@ class ChatsStoreCacheTest {
     private fun visibleArchive(store: ChatsStore): List<Chat> =
         visibleChats(store.state.chats, emptyList(), ARCHIVE_FOLDER_ID)
 
-    private open class StubClient(
+    internal open class StubClient(
         private val chats: Outcome<List<Chat>>,
         private val defaults: NotifySettings = NotifySettings(),
         private val failNotifySettings: Boolean = false,
@@ -921,6 +1249,11 @@ class ChatsStoreCacheTest {
         val events = MutableSharedFlow<MtprotoUpdate>(extraBufferCapacity = 8)
         var notifySettingsCalls = 0
         var profileCalls = 0
+        var contactsPage: Outcome<ContactsSearch> = Outcome.Err("unsupported")
+        val globalPages = ArrayDeque<Outcome<GlobalMessageSearch>>()
+        val contactsQueries = mutableListOf<String>()
+        val globalCalls = mutableListOf<SearchGlobalCall>()
+        var searchGate: CompletableDeferred<Unit>? = null
         override suspend fun getNotifySettings(peerKind: String, chatId: PeerId): Outcome<NotifySettings> {
             notifySettingsCalls++
             return if (failNotifySettings) Outcome.Err("offline") else Outcome.Ok(defaults)
@@ -959,6 +1292,27 @@ class ChatsStoreCacheTest {
         ) = Outcome.Ok(emptyList<Message>())
         override suspend fun searchMessages(chatId: PeerId, query: String, limit: Int) =
             Outcome.Ok(emptyList<Message>())
+        override suspend fun contactsSearch(query: String, limit: Int): Outcome<ContactsSearch> {
+            contactsQueries += query
+            searchGate?.await()
+            return contactsPage
+        }
+        override suspend fun searchGlobal(
+            query: String,
+            offsetRate: Int,
+            offsetPeerId: PeerId,
+            offsetId: Int,
+            limit: Int,
+            folderId: Int,
+        ): Outcome<GlobalMessageSearch> {
+            globalCalls += SearchGlobalCall(query, offsetRate, offsetPeerId.value, offsetId, limit, folderId)
+            searchGate?.await()
+            return if (globalPages.isEmpty()) {
+                Outcome.Ok(GlobalMessageSearch())
+            } else {
+                globalPages.removeFirst()
+            }
+        }
         override suspend fun getPinnedMessages(chatId: PeerId, limit: Int) = Outcome.Ok(emptyList<Message>())
         override suspend fun sendText(
             chatId: PeerId,
@@ -1003,3 +1357,12 @@ class ChatsStoreCacheTest {
         private fun <T> unused(): Outcome<T> = Outcome.Err("unused")
     }
 }
+
+internal data class SearchGlobalCall(
+    val query: String,
+    val offsetRate: Int,
+    val offsetPeerId: Long,
+    val offsetId: Int,
+    val limit: Int,
+    val folderId: Int,
+)

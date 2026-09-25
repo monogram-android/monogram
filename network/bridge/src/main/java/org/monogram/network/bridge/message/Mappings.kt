@@ -34,6 +34,7 @@ internal fun MessageDto.toModel(): Message = Message(
     noforwards = noforwards,
     replyToMsgId = replyToMsgId,
     replyToTopId = replyToTopId,
+    forumTopic = forumTopic,
     fwdFrom = fwdFrom,
     fwdFromId = fwdFromId,
     fwdDate = fwdDate,

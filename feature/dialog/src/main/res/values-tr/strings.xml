@@ -14,6 +14,11 @@
     <string name="dialog_topic_mentions">%1$d bahsetme</string>
     <string name="dialog_topic_pinned">Sabitlendi</string>
     <string name="dialog_topic_closed">Kapalı</string>
+    <string name="dialog_topic_hidden">Gizli</string>
+    <string name="dialog_topic_hide_general">Genel\'i Gizle</string>
+    <string name="dialog_topic_show_general">Genel\'i Göster</string>
+    <string name="dialog_topic_archived_general">Genel gizlendi. Görmek için aşağı çekin</string>
+    <string name="dialog_topic_collapse_archived">Arşivlenen Genel\'i gizlemek için dokunun</string>
     <string name="dialog_media_loading">Medya yükleniyor</string>
     <string name="dialog_media_uploading">Yükleniyor</string>
     <string name="dialog_media_download_progress">İndiriliyor %1$s / %2$s</string>

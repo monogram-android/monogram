@@ -113,6 +113,7 @@ val buildNativeMtproto =
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
+        inputs.property("abis", abis)
         outputs.files(
             abis.map { jniLibs.file("$it/libmonogram_mtproto.so") },
         )
@@ -202,6 +203,13 @@ val generateUniffiMtproto =
         inputs.dir(rustCrate.dir("src"))
         outputs.file(uniffiKotlin)
         enabled = !skipNativeBuild.get()
+        doLast {
+            val file = outputs.files.singleFile
+            if (!file.exists()) return@doLast
+            val original = file.readText()
+            val stripped = original.lineSequence().joinToString("\n") { it.trimEnd() }.trimEnd() + "\n"
+            if (stripped != original) file.writeText(stripped)
+        }
     }
 
 val cleanOrphanedLibraries =

@@ -210,7 +210,7 @@ private fun CountryPicker(
                     modifier = Modifier.heightIn(max = 360.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    items(matches, key = { it.iso }) { item ->
+                    items(matches, key = { it.pickerKey }) { item ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

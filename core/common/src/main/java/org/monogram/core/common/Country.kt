@@ -7,6 +7,8 @@ data class Country(
     val flagEmoji: String,
     val mask: String? = null,
 ) {
+    val pickerKey: String get() = "$code:$iso"
+
     fun mobileNumberLength(): Int {
         val maskDigits = mask
             ?.filter { it == MASK_CHAR }

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">Priečinky</string>
+    <string name="folders_back">Späť</string>
+    <string name="folders_refresh">Obnoviť</string>
+    <string name="folders_loading">Načítavajú sa priečinky</string>
+    <string name="folders_empty">Žiadne priečinky</string>
+    <string name="folders_list_heading">Priečinky chatov</string>
+    <string name="folders_all_chats">Všetky chaty</string>
+    <string name="folders_pinned">Pripnutý priečinok</string>
+    <string name="folders_reorder">Zmeniť poradie priečinkov</string>
+    <string name="folders_add">Pridať priečinok</string>
+    <string name="folders_new">Nový priečinok</string>
+    <string name="folders_chat_count">%1$d chatov</string>
+    <string name="folders_save">Uložiť</string>
+    <string name="folders_search_chats">Hľadať chaty</string>
+    <string name="folders_clear_search">Vymazať hľadanie</string>
+    <string name="folders_include_empty">Hľadajte chaty na pridanie</string>
+    <string name="folders_exclude_empty">Hľadajte chaty na vylúčenie</string>
+    <string name="folders_delete">Odstrániť priečinok</string>
+    <string name="folders_name">Názov priečinka</string>
+    <string name="folders_emoji">Emoji priečinka</string>
+    <string name="folders_include_types">Typy chatov</string>
+    <string name="folders_include_contacts">Kontakty</string>
+    <string name="folders_include_non_contacts">Mimo kontaktov</string>
+    <string name="folders_include_groups">Skupiny</string>
+    <string name="folders_include_channels">Kanály</string>
+    <string name="folders_include_bots">Boti</string>
+    <string name="folders_exclude">Vylúčiť</string>
+    <string name="folders_exclude_muted">Stlmené</string>
+    <string name="folders_exclude_read">Prečítané</string>
+    <string name="folders_exclude_archived">Archivované</string>
+    <string name="folders_include_chats">Zahrnuté chaty</string>
+    <string name="folders_exclude_chats">Vylúčené chaty</string>
+    <string name="folders_show_all_chats">Zobraziť priečinok „Všetky chaty“</string>
+    <string name="folders_show_all_chats_sub">Zobraziť kartu „Všetky chaty“ v paneli priečinkov</string>
+</resources>

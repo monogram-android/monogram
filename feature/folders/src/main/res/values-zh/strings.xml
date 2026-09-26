@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">文件夹</string>
+    <string name="folders_back">返回</string>
+    <string name="folders_refresh">刷新</string>
+    <string name="folders_loading">正在加载文件夹</string>
+    <string name="folders_empty">暂无文件夹</string>
+    <string name="folders_list_heading">聊天文件夹</string>
+    <string name="folders_all_chats">全部聊天</string>
+    <string name="folders_pinned">已置顶文件夹</string>
+    <string name="folders_reorder">调整文件夹顺序</string>
+    <string name="folders_add">添加文件夹</string>
+    <string name="folders_new">新建文件夹</string>
+    <string name="folders_chat_count">%1$d 个聊天</string>
+    <string name="folders_save">保存</string>
+    <string name="folders_search_chats">搜索聊天</string>
+    <string name="folders_clear_search">清除搜索</string>
+    <string name="folders_include_empty">搜索以添加聊天</string>
+    <string name="folders_exclude_empty">搜索要排除的聊天</string>
+    <string name="folders_delete">删除文件夹</string>
+    <string name="folders_name">文件夹名称</string>
+    <string name="folders_emoji">文件夹表情</string>
+    <string name="folders_include_types">包含的聊天类型</string>
+    <string name="folders_include_contacts">联系人</string>
+    <string name="folders_include_non_contacts">非联系人</string>
+    <string name="folders_include_groups">群组</string>
+    <string name="folders_include_channels">频道</string>
+    <string name="folders_include_bots">机器人</string>
+    <string name="folders_exclude">排除</string>
+    <string name="folders_exclude_muted">已静音</string>
+    <string name="folders_exclude_read">已读</string>
+    <string name="folders_exclude_archived">已归档</string>
+    <string name="folders_include_chats">包含的聊天</string>
+    <string name="folders_exclude_chats">排除的聊天</string>
+    <string name="folders_show_all_chats">显示“全部聊天”文件夹</string>
+    <string name="folders_show_all_chats_sub">在文件夹栏中显示“全部聊天”标签页</string>
+</resources>

@@ -1,40 +1,23 @@
 <h1 align="center">
-  <br>
-  <a href="https://github.com/monogram-android/monogram"><img width="130" height="130" alt="MonoGram" src="./documents/monogram.png" />
-</a>
-  <br>
-  <b>MonoGram</b>
-  <br>
+  <a href="https://github.com/monogram-android/monogram"><img width="130" height="130" alt="Monogram" src="./documents/monogram.png" /></a>
+  <br />Monogram
 </h1>
 
-<h1 align="center">
-  <a href="https://github.com/monogram-android/monogram/blob/develop/LICENSE">
-    <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" width="120">
-  </a>
-  <a href="https://github.com/monogram-android/monogram/stargazers">
-    <img src="https://img.shields.io/github/stars/monogram-android/monogram" width="120">
-  </a>
-  <img src="https://img.shields.io/badge/Kotlin-2.0+-blue.svg?logo=kotlin" width="130">
-  <img src="https://img.shields.io/badge/TDLib-1.8.66-blue" width="120">
-  <img src="https://img.shields.io/badge/Status-Active_Development-orange" width="170">
-  <a href="https://boosty.to/monogram">
-    <img src="https://img.shields.io/badge/Boosty-Support_the_project-ff6f61?logo=boosty&logoColor=white" width="200">
-  </a>
-</h1>
+<p align="center">
+  <a href="./LICENSE"><img alt="GPLv3" src="https://img.shields.io/badge/License-GPLv3-blue.svg" /></a>
+  <a href="https://github.com/monogram-android/monogram/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/monogram-android/monogram" /></a>
+  <img alt="Kotlin + Rust" src="https://img.shields.io/badge/Kotlin_+_Rust-MTProto-blue" />
+  <a href="https://boosty.to/monogram"><img alt="Boosty" src="https://img.shields.io/badge/Boosty-Support-ff6f61" /></a>
+</p>
 
-**اسے دوسری زبانوں میں پڑھیں:** [English](README.md), [Русский](README_RU.md)، [Türkçe](README_TR.md), [한국어](README_KOR.md),
-[Español](README_ES.md)
+<p align="center"><a href="README.md">English</a> · <a href="README_RU.md">Русский</a> · <a href="README_TR.md">Türkçe</a> · <a href="README_KOR.md">한국어</a> · <a href="README_UR.md">اُردو</a> · <a href="README_ES.md">Español</a></p>
 
----
-
-**مونوگرام (MonoGram)** اینڈرائیڈ کے لیے ایک جدید، انتہائی تیز، اور شاندار غیر سرکاری ٹیلیگرام کلائنٹ ہے۔ اسے **Jetpack Compose** اور **Material Design 3** کے ساتھ بنایا گیا ہے، اور یہ سرکاری **TDLib** کی مدد سے ایک مقامی (native) اور ہموار تجربہ فراہم کرتا ہے۔
+<p align="center"><strong>Monogram</strong>، Android 7.0 اور اس سے نئے ورژنز کے لیے بجلی کی طرح تیز، مکمل طور پر نیٹو Telegram کلائنٹ ہے۔ <strong>Kotlin</strong>، <strong>Jetpack Compose</strong> اور <strong>Material 3</strong> سے بنایا گیا جدید Android انٹرفیس، <strong>Rust میں ہماری اپنی MTProto implementation</strong> کے ساتھ کام کرتا ہے</p>
 
 > [!IMPORTANT]
-> مونوگرام فی الحال **فعال ترقی (active development)** کے مراحل میں ہے۔ متواتر اپ ڈیٹس، تعمیراتی تبدیلیوں، اور کبھی کبھار بگز کی توقع رکھیں۔
+> Monogram کی **فعال ترقی جاری ہے**۔ خصوصیات اور ساخت میں تبدیلیاں ہو رہی ہیں؛ خرابیاں اور نامکمل خصوصیات موجود ہو سکتی ہیں۔
 
-[**Boosty**](https://boosty.to/monogram) پر اس پروجیکٹ کی حمایت کریں۔
-
----
+[Boosty](https://boosty.to/monogram) پر منصوبے کی مدد کریں۔
 
 ## اسکرین شاٹس
 
@@ -42,57 +25,62 @@
 
 | | | | |
 |:---:|:---:|:---:|:---:|
-| <img src="./documents/1.png" width="180" alt="Screenshot 1" /> | <img src="./documents/2.png" width="180" alt="Screenshot 2" /> | <img src="./documents/3.png" width="180" alt="Screenshot 3" /> | <img src="./documents/4.png" width="180" alt="Screenshot 4" /> |
+| <img src="./documents/1.png" width="180" alt="Monogram 1" /> | <img src="./documents/2.png" width="180" alt="Monogram 2" /> | <img src="./documents/3.png" width="180" alt="Monogram 3" /> | <img src="./documents/4.png" width="180" alt="Monogram 4" /> |
 
 </div>
 
----
+## منصوبے کی خصوصیات
 
-## اہم خصوصیات
+- **مکمل طور پر نیٹو** — Kotlin اور Jetpack Compose کے ساتھ Android کے لیے بنایا گیا
+- **آپ کی اسکرین کے مطابق** — فون، ٹیبلیٹ اور بڑی اسکرینز کے مطابق ڈھلنے والے Material 3 لے آؤٹس
+- **چیٹس میں میڈیا** — گفتگو میں تصاویر، ویڈیوز اور متحرک اسٹیکرز
+- **Rust کی طاقت، بجلی جیسی رفتار** — Telegram کے MTProto پروٹوکول کا ہمارا اپنا نیٹو نفاذ 🚀
+- **NFT یا کرپٹو نہیں** — Monogram میں NFT کی تشہیر، تحائف یا Telegram کی وہ دیگر خصوصیات شامل نہیں ہوں گی جنہیں ہم پیغام رسانی کی ایپ کے دائرے سے باہر سمجھتے ہیں
 
-- **آزاد کلائنٹ (Independent Client)** — یہ Telegram for Android کا فورک نہیں ہے۔ MonoGram ایک مکمل طور پر نئے سرے سے بنایا گیا آزاد پروجیکٹ ہے۔
-- **Material Design 3** — ایک خوبصورت، موافق (adaptive) UI جو فونز، ٹیبلیٹس، اور فولڈ ایبلز پر بہترین نظر آتا ہے۔
-- **محفوظ (Secure)** — بائیو میٹرک لاکنگ اور انکرپٹڈ لوکل اسٹوریج شامل ہے۔
-- **میڈیا سے بھرپور (Media Rich)** — ExoPlayer اور Coil 3 کے ساتھ اعلیٰ کارکردگی والا میڈیا پلے بیک۔
-- **تیز اور موثر (Fast & Efficient)** — Kotlin Coroutines کی مدد سے چلنے والا اور کارکردگی کے لیے آپٹمائزڈ۔
-- **کلین آرکیٹیکچر (Clean Architecture)** — ڈومین (Domain)، ڈیٹا (Data)، اور پریزنٹیشن (Presentation) لیئرز کے ساتھ کام کی واضح تقسیم۔
-- **MVI پیٹرن** — MVIKotlin کا استعمال کرتے ہوئے قابل پیشین گوئی اسٹیٹ مینجمنٹ (state management)۔
-- **کوئی NFT یا کرپٹو نہیں** — مونوگرام میں کبھی بھی NFT پروموشنز، تحائف یا ٹیلیگرام کی جانب سے پیش کیا گیا کوئی ایسا فیچر شامل نہیں ہوگا جسے ہم میسجنگ ایپ کے دائرہ کار سے باہر سمجھتے ہیں۔
+## سورس سے بلڈ بنانا
 
----
+### 1. ضروریات
 
-## شروعات (Getting Started)
+- **JDK 17** اور Android Studio کا ایسا ورژن جو منصوبے کے Android Gradle Plugin کے ساتھ مطابقت رکھتا ہو ([ورژن کی فہرست](gradle/libs.versions.toml) دیکھیں)
+- **Android SDK Platform 37**، platform tools اور **Android NDK**۔ CI میں **NDK r28c** استعمال ہوتا ہے۔ کسی مخصوص NDK کے انتخاب کے لیے `ANDROID_NDK_HOME` مقرر کریں؛ بصورت دیگر Gradle، SDK کی `ndk` ڈائریکٹری میں تلاش کرتا ہے۔
+- **Rust 1.98 یا جدید تر**، Cargo اور مقامی dependencies اور UniFFI کی تیاری کے لیے میزبان سسٹم کے C/C++ بلڈ ٹولز
+- **Git**، درج ذیل Android Rust targets اور **cargo-ndk**:
 
-پروجیکٹ کو مقامی طور پر سیٹ اپ کرنے کے لیے ان اقدامات پر عمل کریں۔
+```console
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+cargo install cargo-ndk --locked
+```
 
-### بنیادی شرائط
+### 2. ریپوزٹریز کلون کرنا
 
-- **Android Studio**: لیڈی بگ (Ladybug) یا اس سے نیا (تجویز کردہ)۔
-- **JDK**: جاوا 17 یا اس سے نیا۔
-
-### 1. ریپوزٹری کلون کریں
-
-```bash
+```console
 git clone --recurse-submodules https://github.com/monogram-android/monogram.git
+git clone --recurse-submodules https://github.com/gdlbo/telers-mtproto-impl.git
 cd monogram
+git submodule update --init --recursive
 ```
 
-### 2. ٹیلیگرام API کیز کنفیگر کریں
+دونوں clone کمانڈز ایک ہی بنیادی ڈائریکٹری سے چلائیں۔ موجودہ Cargo manifests کو Monogram کی ڈائریکٹری کے ساتھ `../telers-mtproto-impl` درکار ہے؛ `vendor` میں موجود submodule اس الگ، ساتھ والی کاپی کا متبادل نہیں ہے۔ CI بھی یہی ترتیب استعمال کرتا ہے۔
 
-ٹیلیگرام سرورز سے جڑنے کے لیے، آپ کو اپنی API اسناد (credentials) درکار ہوں گی۔
+### 3. مقامی ترتیبات
 
-1. [my.telegram.org](https://my.telegram.org/) پر لاگ ان کریں۔
-2. **API development tools** پر جائیں۔
-3. اپنی `App api_id` اور `App api_hash` حاصل کرنے کے لیے ایک نئی ایپلیکیشن بنائیں۔
-4. پروجیکٹ کی روٹ ڈائرکٹری میں `local.properties` نام کی ایک فائل بنائیں (اگر یہ پہلے سے موجود نہیں ہے)۔
-5. درج ذیل لائنیں شامل کریں:
+[local.properties.example](local.properties.example) کو `local.properties` کے نام سے کاپی کریں، پھر `sdk.dir`، `API_ID` اور `API_HASH` مقرر کریں۔
 
-```properties
-API_ID=12345678
-API_HASH=your_api_hash_here
+Unix جیسے سسٹمز:
+
+```sh
+cp local.properties.example local.properties
 ```
 
-اگر آپ Gradle سے signed release builds بنانا چاہتے ہیں تو یہ properties بھی شامل کریں:
+Windows (PowerShell):
+
+```powershell
+Copy-Item local.properties.example local.properties
+```
+
+اپنی API اسناد [my.telegram.org/apps](https://my.telegram.org/apps) سے حاصل کریں۔ ان کے بغیر بلڈ بن سکتا ہے، لیکن Telegram میں لاگ اِن کے لیے درست اسناد ضروری ہیں۔ `local.properties`، دستخطی کلیدیں اور سروس اکاؤنٹ کی اسناد ورژن کنٹرول سے باہر رکھیں؛ انہیں لاگز یا commits میں شامل نہ کریں۔
+
+ریلیز کو اپنی کلید سے دستخط کرنے کے لیے یہ اقدار بھی مقرر کریں:
 
 ```properties
 RELEASE_STORE_FILE=keystore/release.jks
@@ -101,188 +89,97 @@ RELEASE_KEY_ALIAS=your_key_alias
 RELEASE_KEY_PASSWORD=your_key_password
 ```
 
-### 3. پش نوٹیفکیشنز کنفیگر کریں
+اگر `RELEASE_STORE_FILE` موجود نہ ہو تو release اور beta بلڈز میں بطورِ ڈیفالٹ debug کلید استعمال ہوتی ہے۔ ریلیز کلید مقرر نہ ہونے پر `-Punsigned=true` اس متبادل دستخط کو بند کرتا ہے۔ debug دستخط والے بلڈز ترقیاتی کام کے لیے ہیں، آپ کی اصل تقسیمی دستخطی شناخت کا متبادل نہیں۔
 
-یہ مرحلہ `firebase` build variants کے لیے ضروری ہے۔ اگر آپ صرف `libre` variants بنانا چاہتے ہیں
-تو اسے چھوڑ سکتے ہیں۔
+### 4. پش اطلاعات کی ترتیب (اختیاری)
 
-1. [Firebase console](https://console.firebase.google.com) پر لاگ ان کریں۔
-2. ایک نیا پروجیکٹ بنائیں۔
-3. Firebase میں دو Android apps شامل کریں:
+- **FCM:** Firebase میں `org.monogram` کے لیے Android ایپ رجسٹر کریں (debug، release اور beta کا application ID ایک ہی ہے)۔ کنفیگریشن `app/google-services.json` میں رکھیں؛ Gradle صرف اس فائل کی موجودگی میں Google Services plugin لاگو کرتا ہے۔ کنفیگریشن فائل کے بغیر بھی Firebase dependencies ایپ میں شامل رہتی ہیں۔
+- اپنے Telegram API ID کے لیے متعلقہ FCM اسناد [my.telegram.org/apps](https://my.telegram.org/apps) پر رجسٹر کریں۔ `google-services.json` اور تمام `firebase-adminsdk` JSON فائلیں ورژن کنٹرول سے باہر رکھیں؛ سروس اکاؤنٹ کی کلید کبھی APK میں شامل نہ کریں۔
+- FCM کی جانچ کے لیے Google Play services ضروری ہیں؛ ایمولیٹر پر Google Play امیج استعمال کریں
+- **UnifiedPush:** ڈیوائس پر موافق distributor انسٹال اور کنفیگر کریں۔ ایپ UnifiedPush رجسٹریشن کی سہولت رکھتی ہے۔
 
-    - `org.monogram` ریلیز builds کے لیے
-    - `org.monogram.debug` ڈیبگ builds کے لیے
+### 5. بلڈ اور اجرا
 
-4. `google-services.json` فائل ڈاؤن لوڈ کریں اور اسے **app** ماڈیول کی روٹ (
-   `monogram/app/google-services.json`) میں کاپی کریں۔ یقینی بنائیں کہ اس میں اوپر والے دونوں
-   package names کے clients موجود ہوں۔
-5. **Cloud Messaging** سیکشن پر جائیں۔
-6. **Manage service accounts** پر کلک کریں۔
-7. کھلنے والی ونڈو کے اوپری حصے میں **Keys** سیکشن منتخب کریں۔
-8. **Add key** پر کلک کریں اور **JSON** آپشن منتخب کریں۔ فائل کے ڈاؤن لوڈ ہونے کا انتظار کریں۔
-9. اس ٹیلیگرام API پیج پر واپس جائیں جہاں سے آپ نے اپنی App ID حاصل کی تھی۔
-10. FCM اسناد والے سیکشن کے آگے **Update** پر کلک کریں۔
-11. کھلنے والے پیج پر سروس اکاؤنٹ JSON اپ لوڈ کریں۔
+ریپوزٹری Android Studio میں کھولیں، Gradle sync کریں اور `app` رن کنفیگریشن منتخب کریں، یا ریپوزٹری کی بنیادی ڈائریکٹری سے درج ذیل کمانڈز چلائیں۔ `installDebug` کے لیے منسلک ڈیوائس یا چلتا ہوا ایمولیٹر ضروری ہے۔
 
-### 4. پہلی مرتبہ سیٹ اپ: libvpx کی تعمیر
+Unix جیسے سسٹمز:
 
-اینیمیشنز کے لیے libvpx کو کمپائل کرنا ضروری ہے۔ یہ کام Gradle بلڈ شروع کرنے سے پہلے کرنا ہوگا، ورنہ بلڈ ناکام ہو سکتی ہے۔
-
-1. اپنی ورکنگ ڈائرکٹری `presentation/src/main/cpp` پر لے جائیں۔
-2. `build.sh` میں اپنا `ANDROID_NDK_HOME` شامل کریں۔
-3. `build.sh` چلائیں اور مکمل ہونے تک انتظار کریں۔
-
-### 5. بلڈ اور رن
-
-1. **Android Studio** میں پروجیکٹ کھولیں۔
-2. IDE کی انڈیکسنگ کی حد میں اضافہ کریں تاکہ `TdApi.java` (TDLib ریپر) صحیح طرح انڈیکس ہو سکے۔ **Android Studio** یا **IntelliJ IDEA** میں، **Help → Edit Custom Properties...** کھولیں، نیچے دی گئی لائنز پیسٹ کریں، اور اگر کہا جائے تو IDE کو ری اسٹارٹ کریں:
-
-```properties
-# size in Kb
-idea.max.intellisense.filesize=20480
-# size in Kb
-idea.max.content.load.filesize=20480
+```sh
+./gradlew :app:assembleDebug
+./gradlew :app:installDebug
+./gradlew :app:assembleRelease
+./gradlew :app:assembleBeta
 ```
 
-3. Gradle کو سنک کریں۔
-4. `app` رن کنفیگریشن منتخب کریں۔
-5. کوئی ڈیوائس کنیکٹ کریں یا ایمولیٹر اسٹارٹ کریں۔
-6. **Run** پر کلک کریں۔
+Windows (PowerShell):
 
----
-
-## TDLib کی تعمیر (Building TDLib)
-
-اگر آپ کو سورس کوڈ سے TDLib بنانے کی ضرورت ہے، تو پہلے درکار انحصار (dependencies) انسٹال کریں۔ Debian/Ubuntu پر مبنی ڈسٹریبیوشنز کے لیے:
-
-```bash
-sudo apt-get update
-sudo apt-get install build-essential git curl wget php perl gperf unzip zip default-jdk cmake
+```powershell
+./gradlew.bat :app:assembleDebug
+./gradlew.bat :app:installDebug
+./gradlew.bat :app:assembleRelease
+./gradlew.bat :app:assembleBeta
 ```
 
-پھر اپنے پروجیکٹ کی روٹ سے بلڈ اسکرپٹ چلائیں:
+- `debug`: ترقیاتی بلڈ
+- `release`: R8 کے ساتھ بہتر بنایا گیا بلڈ
+- `beta`: release پر مبنی بلڈ جس میں آسان debugging کے لیے R8 بند ہے
 
-```bash
-./build-tdlib.sh
+
+### مقامی کوڈ کی کمپائلیشن
+
+عام بلڈ کے دوران Gradle، `armeabi-v7a`، `arm64-v8a` اور `x86_64` کے لیے Rust لائبریریاں بناتا ہے اور میزبان کی debug لائبریریوں سے UniFFI Kotlin bindings دوبارہ تیار کرتا ہے۔ ویڈیو اسٹیکرز کے لیے پہلے سے کمپائل شدہ libvpx لائبریریاں `native/vpx/prebuilt` میں شامل ہیں۔ Android کے مقامی کمپائلیشن ٹاسکس براہِ راست چلانے کے لیے:
+
+```sh
+./gradlew :native:mtproto:buildNativeMtproto :native:markup:buildNativeMarkup
 ```
 
-اسکرپٹ یہ موڈز سپورٹ کرتا ہے:
+Windows پر `./gradlew` کی جگہ `./gradlew.bat` استعمال کریں۔ `-PskipNativeBuild=true` صرف Kotlin کی تبدیلیوں کے لیے استعمال کریں جب موافق مقامی لائبریریاں اور تیار شدہ bindings پہلے سے موجود ہوں۔ یہ مقامی کمپائلیشن اور bindings کی دوبارہ تیاری دونوں چھوڑ دیتا ہے؛ SDK/NDK کی ترتیب پھر بھی ضروری ہے۔
 
-- `./build-tdlib.sh official`
-- `./build-tdlib.sh telemt`
-- `./build-tdlib.sh both`
+## ٹیکنالوجیز
 
-وہ upstream repositories جو یہ اسکرپٹ استعمال کرتا ہے:
+- **زبانیں اور پروٹوکول:** Kotlin, Rust, MTProto, UniFFI
+- **انٹرفیس اور اسٹیٹ:** Jetpack Compose, Material 3, Decompose, MVIKotlin
+- **مشترکہ سروسز:** Koin, Coroutines, Flow, Room
+- **میڈیا اور پش:** Media3, Coil, libvpx, tlottie, Firebase Cloud Messaging, UnifiedPush
 
-- `official`: [tdlib/td](https://github.com/tdlib/td)
-- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+## منصوبے کی ساخت
 
-اگر آپ اسے بغیر arguments کے چلائیں گے تو یہ آپ سے آپشن منتخب کروائے گا۔
-
-### Build Variants اور Gradle tasks
-
-Android Studio میں یہ variants استعمال کریں:
-
-- `officialFirebaseDebug`
-- `officialFirebaseRelease`
-- `officialLibreDebug`
-- `officialLibreRelease`
-- `telemtFirebaseDebug`
-- `telemtFirebaseRelease`
-- `telemtLibreDebug`
-- `telemtLibreRelease`
-
-Variant naming:
-
-- `official` / `telemt` TDLib source منتخب کرتا ہے
-- `firebase` FCM / Firebase push کو فعال کرتا ہے
-- `libre` Firebase dependencies کے بغیر build کرتا ہے
-
-کارآمد Gradle tasks:
-
-```bash
-./gradlew :app:assembleOfficialFirebaseRelease
-./gradlew :app:assembleTelemtFirebaseRelease
-./gradlew :app:assembleOfficialFirebaseDebug
-./gradlew :app:assembleTelemtFirebaseDebug
-./gradlew :app:assembleOfficialLibreRelease
-./gradlew :app:assembleTelemtLibreRelease
-./gradlew :app:assembleOfficialLibreDebug
-./gradlew :app:assembleTelemtLibreDebug
-```
-
-APK نام:
-
-- official Firebase: `monogram-arm64-v8a-<version>-release.apk`
-- official libre: `monogram-libre-arm64-v8a-<version>-release.apk`
-- Telemt Firebase: `monogram-telemt-arm64-v8a-<version>-release.apk`
-- Telemt libre: `monogram-telemt-libre-arm64-v8a-<version>-release.apk`
-
----
-
-## تعاون (Contributing)
-
-ہم تعاون کا خیرمقدم کرتے ہیں! چاہے وہ بگز ٹھیک کرنا ہو، دستاویزات کو بہتر بنانا ہو، یا نئے فیچرز کی تجویز دینا ہو۔
-
-1. **مسائل (Issues) چیک کریں** — کھلے ہوئے ایشوز تلاش کریں یا اپنے آئیڈیاز پر بحث کرنے کے لیے ایک نیا ایشو بنائیں۔
-2. **`develop` سے کام کریں** — اپنی برانچ `develop` سے بنائیں اور اپنا کام اسی برانچ کی بنیاد پر رکھیں۔
-3. **فورک اور برانچ (Fork & Branch)** — ریپوزٹری کو فورک کریں اور ایک فیچر برانچ بنائیں۔
-4. **کوڈ اسٹائل (Code Style)** — موجودہ Kotlin کوڈنگ اسٹائل اور کلین آرکیٹیکچر کی ہدایات پر عمل کریں۔
-5. **PR جمع کرائیں** — اپنی تبدیلیوں کی واضح تفصیل کے ساتھ `develop` برانچ میں ایک Pull Request (PR) کھولیں۔
-
-> [!IMPORTANT]
-> - [ٹیلیگرام API کی سروس کی شرائط (Terms of Service)](https://core.telegram.org/api/terms) کا احترام کریں۔
-> - یقینی بنائیں کہ آپ کا کوڈ تمام چیکس اور ٹیسٹس پاس کرتا ہے۔
-
-### بگز رپورٹ کرنا اور فیچرز تجویز کرنا
-
-- **بگز (Bugs)** — ایک ایشو کھولیں اور ٹائٹل میں `[Bug]` ٹیگ استعمال کریں (مثال کے طور پر `[Bug] App crashes on startup`)۔ آپ [**بگ ٹریکر (Bug Tracker)**](https://github.com/orgs/monogram-android/projects/3/views/1) پر تمام معلوم بگز بھی دیکھ سکتے ہیں۔
-- **فیچر کی درخواستیں (Feature Requests)** — `[Feature]` ٹیگ کے ساتھ ایک ایشو کھولیں (مثال کے طور پر `[Feature] Support scheduled messages`)۔ موجودہ فیچر کی درخواستیں [**فیچر بورڈ (Feature Board)**](https://github.com/orgs/monogram-android/projects/5/views/1) پر مل سکتی ہیں۔
-
----
-
-## تراجم (Translations)
-
-مونوگرام کمیونٹی کے تراجم کا خیرمقدم کرتا ہے! آپ اسٹرنگز ریسورس فائل میں ترمیم کر کے اپنی زبان کا حصہ ڈال سکتے ہیں۔
-
-سورس اسٹرنگز [`presentation/src/main/res/values/string.xml`](https://github.com/monogram-android/monogram/blob/develop/presentation/src/main/res/values/string.xml) پر واقع ہیں۔ نئی زبان شامل کرنے کے لیے، متعلقہ `values-<locale>/string.xml` فائل بنائیں (مثال کے طور پر جرمن کے لیے `values-de/string.xml`) اور وہاں اسٹرنگز کا ترجمہ کریں۔ اپنے ترجمے کے ساتھ ایک PR کھولیں اور ہم اسے مرج کر دیں گے۔
-
----
-
-## ٹیکنالوجی اسٹیک (Tech Stack)
-
-مونوگرام اینڈرائیڈ کے جدید ترین ترقیاتی ٹولز اور لائبریریوں کا استعمال کرتا ہے:
-
-| کیٹیگری | لائبریریاں |
+| راستہ | ذمہ داری |
 |:---|:---|
-| **زبان** | [Kotlin](https://kotlinlang.org/) |
-| **UI ٹول کٹ** | [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material 3) |
-| **آرکیٹیکچر** | [Decompose](https://github.com/arkivanov/Decompose) (Navigation), [MVIKotlin](https://github.com/arkivanov/MVIKotlin) |
-| **ڈیپینڈینسی انجیکشن** | [Koin](https://insert-koin.io/) |
-| **ایسنک (Async)** | Coroutines & Flow |
-| **ٹیلیگرام کور** | [TDLib](https://core.telegram.org/tdlib) (Telegram Database Library) |
-| **امیج لوڈنگ** | [Coil 3](https://coil-kt.github.io/coil/) |
-| **میڈیا** | Media3 (ExoPlayer) |
-| **نقشے (Maps)** | [MapLibre](https://maplibre.org/) |
-| **لوکل ڈیٹا بیس** | Room |
+| `app` | ایپ کا نقطۂ آغاز، dependency injection، نیویگیشن اور پش انضمام |
+| `core/*` | مشترکہ ماڈلز، ڈیٹابیس، انٹرفیس، معاون ٹولز اور مارک اپ پروسیسنگ تک رسائی |
+| `feature/*` | تصدیقِ شناخت، چیٹ فہرست، گفتگو، فولڈرز، پروفائلز اور ترتیبات |
+| `network/bridge` | Kotlin کلائنٹ API، domain mapping اور خرابیوں کی ہینڈلنگ |
+| `network/http` | HTTP میڈیا ڈاؤن لوڈز، کیش اور قطار |
+| `native/mtproto-rs` | Rust پروٹوکول کلائنٹ اور UniFFI exports |
+| `native/markup-rs` | Rust میں Markdown، syntax highlighting اور ریاضیاتی فارمولوں کی parsing |
+| `native/mtproto`, `native/markup` | Kotlin facades، تیار شدہ bindings اور مقامی لائبریریاں |
+| `native/vpx` | ویڈیو اسٹیکرز کے لیے پہلے سے کمپائل شدہ VP9 decoder |
+| `vendor` | تیسرے فریق کا سورس اور submodules |
 
----
+Feature ماڈیولز `network/bridge` کو کال کرتے ہیں؛ مقامی پروٹوکول کی منطق Rust میں ہے۔ Feature ماڈیولز کو تیار شدہ UniFFI types درآمد نہیں کرنے چاہییں اور نہ ہی دوسرے feature ماڈیولز پر منحصر ہونا چاہیے۔ ترقیاتی اصولوں اور پروٹوکول کے لازمی قواعد کے لیے [AGENTS.md](AGENTS.md) دیکھیں۔
 
-## پروجیکٹ کا ڈھانچہ (Project Structure)
+## تعاون
 
-کام کی تقسیم اور اسکیل ایبلٹی کو یقینی بنانے کے لیے پروجیکٹ ملٹی ماڈیول ڈھانچے کی پیروی کرتا ہے:
+اپنی برانچ `develop` سے بنائیں اور pull request کا ہدف `develop` رکھیں۔ موجودہ ساخت اور کوڈ اسٹائل اپنائیں، تبدیلیاں متعلقہ کام تک محدود رکھیں اور واضح وضاحت کے ساتھ متعلقہ جانچ کے نتائج شامل کریں۔ [Telegram API کی شرائط](https://core.telegram.org/api/terms) کی پابندی کریں۔
 
-| ماڈیول | تفصیل |
-|:---|:---|
-| **:app** | مرکزی اینڈرائیڈ ایپلیکیشن ماڈیول۔ |
-| **:domain** | خالص Kotlin ماڈیول جس میں بزنس لاجک، یوز کیسز (use cases)، اور ریپوزٹری انٹرفیس شامل ہیں۔ |
-| **:data** | ریپوزٹریز، ڈیٹا سورسز، اور TDLib انضمام کی عمل درآمد (Implementation)۔ |
-| **:presentation** | UI کمپوننٹس، اسکرینز، اور ویو ماڈلز (MVI اسٹورز)۔ |
-| **:core** | مشترکہ یوٹیلٹی کلاسز اور ایکسٹینشنز جو تمام ماڈیولز میں استعمال ہوتے ہیں۔ |
-| **:baselineprofile** | ایپ کے اسٹارٹ اپ اور کارکردگی کو بہتر بنانے کے لیے بیس لائن پروفائلز (Baseline Profiles)۔ |
+تبدیل کیے گئے ماڈیول سے متعلق جانچ چلائیں۔ مثالیں:
 
----
+```sh
+./gradlew :network:bridge:test
+cargo test --manifest-path native/mtproto-rs/Cargo.toml
+cargo test --manifest-path native/markup-rs/Cargo.toml
+git diff --check
+```
+
+Windows پر `./gradlew.bat` استعمال کریں۔ صرف اپنی تبدیلی سے متعلق جانچ چلائیں؛ اصل Telegram اور ڈیوائس پر رویے کی تصدیق اپنی اسناد کے ساتھ الگ سے ضروری ہے۔
+
+خرابی کی رپورٹ کے عنوان میں `[Bug]` اور نئی خصوصیت کی درخواست میں `[Feature]` استعمال کریں۔ [بگ ٹریکر](https://github.com/orgs/monogram-android/projects/3/views/1) اور [فیچر بورڈ](https://github.com/orgs/monogram-android/projects/5/views/1) دیکھیں۔
+
+## تراجم
+
+انٹرفیس کے متن `core/ui/src/main/res/values/strings.xml` اور `feature/*/src/main/res/values/strings.xml` فائلوں میں ہیں۔ ہر متعلقہ ماڈیول میں `values-<locale>/strings.xml` شامل یا اپ ڈیٹ کریں (مثلاً `values-de/strings.xml`)۔ وسائل کے نام، formatting placeholders اور جمع کی صورتیں برقرار رکھیں۔ تراجم pull request کے ذریعے بھیجیں۔ ترجمہ شدہ README فائلوں کو انگریزی ورژن کے مطابق رکھیں۔
 
 ## لائسنس
 
-یہ پروجیکٹ [**GNU General Public License v3.0**](LICENSE) کے تحت لائسنس یافتہ ہے۔
+Monogram، [GNU General Public License v3.0](LICENSE) کے تحت دستیاب ہے۔ تیسرے فریق کے اجزا اور مقامی crates پر ان کی متعلقہ سورس ڈائریکٹریز میں درج لائسنس لاگو ہوتے ہیں۔

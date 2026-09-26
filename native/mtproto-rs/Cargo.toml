@@ -1,0 +1,62 @@
+[package]
+name = "monogram-mtproto"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MPL-2.0"
+description = "UniFFI MTProto bridge for Monogram (telers-mtproto-impl runtime)"
+publish = false
+
+[lib]
+name = "monogram_mtproto"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+bindgen-cli = ["uniffi/cli"]
+
+[dependencies]
+uniffi = { version = "0.32", default-features = false }
+mimalloc = { version = "0.1", default-features = false, features = ["local_dynamic_tls"] }
+parking_lot = "0.12"
+rapidhash = "4"
+compact_str = { version = "0.9", features = ["serde"] }
+smallvec = "1"
+indexmap = "2"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bnum = "0.14"
+num-bigint = "0.5"
+num-traits = "0.2"
+sha2 = "0.11"
+aes = "0.9"
+ctr = "0.10"
+aes-gcm = "0.11"
+zeroize = "1"
+cipher = "0.5"
+pbkdf2 = { version = "0.13", default-features = false, features = ["hmac"] }
+flate2 = "1"
+tlottie = { path = "../../vendor/tlottie", default-features = false, features = ["cpu", "std"] }
+
+tellers-mtproto = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto" }
+tellers-mtproto-codec = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-codec" }
+tellers-mtproto-crypto = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-crypto" }
+tellers-mtproto-transport = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-transport" }
+tellers-mtproto-session = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-session" }
+tellers-mtproto-engine = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-engine" }
+
+[build-dependencies]
+uniffi = { version = "0.32", features = ["build"] }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+required-features = ["bindgen-cli"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

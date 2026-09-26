@@ -1,44 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Lock Screen -->
-    <string name="lock_unlock_title">Desbloquear MonoGram</string>
-    <string name="lock_unlock_subtitle">Faça login usando sua credencial biométrica</string>
-    <string name="lock_use_passcode">Usar código de acesso</string>
-    <string name="lock_enter_passcode">Digite o código de acesso</string>
-    <string name="lock_messages_protected">Suas mensagens estão protegidas</string>
-    <string name="lock_invalid_passcode">Código de acesso inválido</string>
-    <string name="lock_biometric_unlock">Desbloqueio biométrico</string>
-
-    <!-- Main Content / Proxy Confirm -->
-    <string name="proxy_details">Detalhes do proxy</string>
-    <string name="proxy_add_connect">Adicionar e conectar a este servidor proxy</string>
-    <string name="proxy_server">Servidor</string>
-    <string name="proxy_port">Porta</string>
-    <string name="proxy_type">Tipo</string>
-    <string name="proxy_unknown">Desconhecido</string>
-    <string name="cancel">Cancelar</string>
-    <string name="connect">Conectar</string>
-
-    <!-- Main Content / Chat Confirm -->
-    <string name="chat_join">Entrar</string>
-    <string name="chat_channel">Canal</string>
-    <string name="chat_group">Grupo</string>
-    <plurals name="members_count">
-        <item quantity="one">%d membro</item>
-        <item quantity="other">%d membros</item>
+    <string name="recipient_messages">Mensagens: %1$d</string>
+    <string name="recipient_files">Anexos: %1$d</string>
+    <string name="recipient_hide_author">Ocultar nomes dos remetentes</string>
+    <string name="recipient_comment">Adicionar um comentário</string>
+    <string name="recipient_send">Enviar (%1$d)</string>
+    <string name="recipient_sending">Enviando: %1$d de %2$d</string>
+    <string name="recipient_error">Não foi possível concluir. Tente novamente para continuar</string>
+    <string name="recipient_retry">Tentar novamente</string>
+    <string name="recipient_interrupted">O envio foi interrompido. Verifique os chats de destino antes de enviar novamente</string>
+    <string name="app_name">Monogram</string>
+    <string name="app_description">Cliente não oficial do Telegram</string>
+    <string name="home_tab_chats">Conversas</string>
+    <string name="home_tab_folders">Pastas</string>
+    <string name="select_chat">Selecione uma conversa</string>
+    <string name="push_group_chats">Conversas</string>
+    <string name="push_group_stories">Stories</string>
+    <string name="push_group_reactions">Reações</string>
+    <string name="push_group_folders">Pastas</string>
+    <string name="push_channel_private">Conversas privadas</string>
+    <string name="push_channel_groups">Grupos</string>
+    <string name="push_channel_channels">Canais</string>
+    <string name="push_channel_other">Outros</string>
+    <string name="push_channel_stories">Stories</string>
+    <string name="push_channel_reactions">Reações</string>
+    <string name="push_folder">Pasta %1$d</string>
+    <string name="push_hidden_title">Telegram</string>
+    <string name="push_hidden_body">Nova mensagem</string>
+    <string name="push_you">Você</string>
+    <string name="push_reply">Responder</string>
+    <string name="push_reply_hint">Mensagem</string>
+    <string name="push_mark_read">Marcar como lida</string>
+    <string name="push_open_link">Abrir link</string>
+    <string name="push_more_chats">+%1$d a mais</string>
+    <plurals name="push_new_messages">
+        <item quantity="one">%1$d nova mensagem</item>
+        <item quantity="other">%1$d novas mensagens</item>
     </plurals>
-
-    <!-- Tablet Layout -->
-    <string name="tablet_select_setting">Selecione uma configuração</string>
-    <string name="tablet_select_chat">Selecione um chat para começar a enviar mensagens</string>
-
-    <!-- Crash Activity -->
-    <string name="crash_log_label">Registro de falha</string>
-    <string name="crash_copied_to_clipboard">Copiado para a área de transferência</string>
-    <string name="crash_share_title">Compartilhar registro de falha</string>
+    <string name="crash_title">Algo deu errado</string>
+    <string name="crash_subtitle">O Monogram encontrou um erro inesperado. O relatório abaixo ajuda a corrigir.</string>
+    <string name="crash_log_label">Registro da falha</string>
+    <string name="crash_copy">Copiar detalhes</string>
+    <string name="crash_copied">Detalhes da falha copiados</string>
     <string name="crash_share">Compartilhar</string>
-    <string name="crash_copy">Copiar</string>
-    <string name="crash_restart">Reiniciar app</string>
-    <string name="crash_error_details">Detalhes do erro</string>
-    <string name="crash_description">Algo deu errado. Compartilhe ou copie os logs abaixo para relatar este problema aos desenvolvedores.</string>
-
+    <string name="crash_share_title">Compartilhar relatório de falha</string>
+    <string name="crash_restart">Reiniciar o Monogram</string>
+    <string name="update_prompt_title">Atualizar para %1$s</string>
+    <string name="update_prompt_skip">Ignorar</string>
+    <string name="update_prompt_update">Atualizar</string>
+    <string name="update_prompt_install">Instalar</string>
+    <string name="update_prompt_body">Há uma nova build. Tamanho do download: %1$s.</string>
+    <string name="update_prompt_hide">Ocultar</string>
+    <string name="update_prompt_progress">Baixando %1$s / %2$s</string>
+    <string name="update_prompt_error">Não foi possível baixar a atualização</string>
+    <string name="update_prompt_retry">Tentar de novo</string>
+    <string name="update_prompt_ready">Pronto para instalar</string>
 </resources>

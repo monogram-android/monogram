@@ -1,44 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Lock Screen -->
-    <string name="lock_unlock_title">MonoGram Kilidini Aç</string>
-    <string name="lock_unlock_subtitle">Biyometrik verilerinizi kullanarak giriş yapın</string>
-    <string name="lock_use_passcode">Şifre kullan</string>
-    <string name="lock_enter_passcode">Şifreyi Girin</string>
-    <string name="lock_messages_protected">Mesajlarınız korunuyor</string>
-    <string name="lock_invalid_passcode">Geçersiz şifre</string>
-    <string name="lock_biometric_unlock">Biyometrik Kilidi Aç</string>
-
-    <!-- Main Content / Proxy Confirm -->
-    <string name="proxy_details">Proxy Detayları</string>
-    <string name="proxy_add_connect">Bu proxy sunucusunu ekleyin ve bağlanın</string>
-    <string name="proxy_server">Sunucu</string>
-    <string name="proxy_port">Port</string>
-    <string name="proxy_type">Tür</string>
-    <string name="proxy_unknown">Bilinmiyor</string>
-    <string name="cancel">İptal</string>
-    <string name="connect">Bağlan</string>
-	
-    <!-- Main Content / Chat Confirm -->
-    <string name="chat_join">Katıl</string>
-    <string name="chat_channel">Kanal</string>
-    <string name="chat_group">Grup</string>
-    <plurals name="members_count">
-        <item quantity="one">%d üye</item>
-        <item quantity="other">%d üye</item>
+    <string name="recipient_messages">Mesajlar: %1$d</string>
+    <string name="recipient_files">Ekler: %1$d</string>
+    <string name="recipient_hide_author">Gönderen adlarını gizle</string>
+    <string name="recipient_comment">Yorum ekle</string>
+    <string name="recipient_send">Gönder (%1$d)</string>
+    <string name="recipient_sending">Gönderiliyor: %1$d / %2$d</string>
+    <string name="recipient_error">Tamamlanamadı. Devam etmek için tekrar deneyin</string>
+    <string name="recipient_retry">Tekrar dene</string>
+    <string name="recipient_interrupted">Gönderme işlemi kesildi. Tekrar göndermeden önce hedef sohbetleri kontrol edin</string>
+    <string name="app_name">Monogram</string>
+    <string name="app_description">Resmi olmayan Telegram istemcisi</string>
+    <string name="home_tab_chats">Sohbetler</string>
+    <string name="home_tab_folders">Klasörler</string>
+    <string name="select_chat">Bir sohbet seçin</string>
+    <string name="push_group_chats">Sohbetler</string>
+    <string name="push_group_stories">Hikayeler</string>
+    <string name="push_group_reactions">Tepkiler</string>
+    <string name="push_group_folders">Klasörler</string>
+    <string name="push_channel_private">Özel sohbetler</string>
+    <string name="push_channel_groups">Gruplar</string>
+    <string name="push_channel_channels">Kanallar</string>
+    <string name="push_channel_other">Diğer</string>
+    <string name="push_channel_stories">Hikayeler</string>
+    <string name="push_channel_reactions">Tepkiler</string>
+    <string name="push_folder">Klasör %1$d</string>
+    <string name="push_hidden_title">Telegram</string>
+    <string name="push_hidden_body">Yeni mesaj</string>
+    <string name="push_you">Siz</string>
+    <string name="push_reply">Yanıtla</string>
+    <string name="push_reply_hint">Mesaj</string>
+    <string name="push_mark_read">Okundu olarak işaretle</string>
+    <string name="push_open_link">Bağlantıyı aç</string>
+    <string name="push_more_chats">+%1$d daha</string>
+    <plurals name="push_new_messages">
+        <item quantity="one">%1$d yeni mesaj</item>
+        <item quantity="other">%1$d yeni mesaj</item>
     </plurals>
-	
-    <!-- Tablet Layout -->
-    <string name="tablet_select_setting">Bir ayar seçin</string>
-    <string name="tablet_select_chat">Mesajlaşmaya başlamak için bir sohbet seçin</string>
-
-    <!-- Crash Activity -->
-    <string name="crash_log_label">Hata Günlüğü</string>
-    <string name="crash_copied_to_clipboard">Panoya kopyalandı</string>
-    <string name="crash_share_title">Hata Günlüğünü Paylaş</string>
+    <string name="crash_title">Bir şeyler ters gitti</string>
+    <string name="crash_subtitle">Monogram beklenmeyen bir hatayla karşılaştı. Aşağıdaki rapor düzeltmeye yardımcı olur.</string>
+    <string name="crash_log_label">Çökme kaydı</string>
+    <string name="crash_copy">Ayrıntıları kopyala</string>
+    <string name="crash_copied">Çökme ayrıntıları kopyalandı</string>
     <string name="crash_share">Paylaş</string>
-    <string name="crash_copy">Kopyala</string>
-    <string name="crash_restart">Uygulamayı Yeniden Başlat</string>
-    <string name="crash_error_details">Hata Detayları</string>
-    <string name="crash_description">Bir şeyler ters gitti. Bu sorunu geliştiricilere bildirmek için lütfen aşağıdaki günlükleri paylaşın veya kopyalayın.</string>
-
+    <string name="crash_share_title">Çökme raporunu paylaş</string>
+    <string name="crash_restart">Monogram\'ı yeniden başlat</string>
+    <string name="update_prompt_title">%1$s sürümüne güncelle</string>
+    <string name="update_prompt_skip">Atla</string>
+    <string name="update_prompt_update">Güncelle</string>
+    <string name="update_prompt_install">Yükle</string>
+    <string name="update_prompt_body">Yeni bir derleme hazır. İndirme boyutu %1$s.</string>
+    <string name="update_prompt_hide">Gizle</string>
+    <string name="update_prompt_progress">İndiriliyor %1$s / %2$s</string>
+    <string name="update_prompt_error">Güncelleme indirilemedi</string>
+    <string name="update_prompt_retry">Yeniden dene</string>
+    <string name="update_prompt_ready">Yüklemeye hazır</string>
 </resources>

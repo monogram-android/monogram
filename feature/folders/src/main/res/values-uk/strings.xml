@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">Папки</string>
+    <string name="folders_back">Назад</string>
+    <string name="folders_refresh">Оновити</string>
+    <string name="folders_loading">Завантаження папок</string>
+    <string name="folders_empty">Немає папок</string>
+    <string name="folders_list_heading">Папки чатів</string>
+    <string name="folders_all_chats">Усі чати</string>
+    <string name="folders_pinned">Закріплена папка</string>
+    <string name="folders_reorder">Змінити порядок папок</string>
+    <string name="folders_add">Додати папку</string>
+    <string name="folders_new">Нова папка</string>
+    <string name="folders_chat_count">%1$d чатів</string>
+    <string name="folders_save">Зберегти</string>
+    <string name="folders_search_chats">Пошук чатів</string>
+    <string name="folders_clear_search">Очистити пошук</string>
+    <string name="folders_include_empty">Знайдіть чати, щоб додати</string>
+    <string name="folders_exclude_empty">Знайдіть чати, щоб виключити</string>
+    <string name="folders_delete">Видалити папку</string>
+    <string name="folders_name">Назва папки</string>
+    <string name="folders_emoji">Емодзі папки</string>
+    <string name="folders_include_types">Типи чатів</string>
+    <string name="folders_include_contacts">Контакти</string>
+    <string name="folders_include_non_contacts">Не контакти</string>
+    <string name="folders_include_groups">Групи</string>
+    <string name="folders_include_channels">Канали</string>
+    <string name="folders_include_bots">Боти</string>
+    <string name="folders_exclude">Винятки</string>
+    <string name="folders_exclude_muted">Без звуку</string>
+    <string name="folders_exclude_read">Прочитані</string>
+    <string name="folders_exclude_archived">В архіві</string>
+    <string name="folders_include_chats">Включені чати</string>
+    <string name="folders_exclude_chats">Виключені чати</string>
+    <string name="folders_show_all_chats">Показувати папку «Усі чати»</string>
+    <string name="folders_show_all_chats_sub">Відображати вкладку «Усі чати» в списку папок</string>
+</resources>

@@ -1,45 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Lock Screen -->
-    <string name="lock_unlock_title">Odomknúť MonoGram</string>
-    <string name="lock_unlock_subtitle">Prihláste sa pomocou biometrických údajov</string>
-    <string name="lock_use_passcode">Použiť kód</string>
-    <string name="lock_enter_passcode">Zadajte kód</string>
-    <string name="lock_messages_protected">Vaše správy sú chránené</string>
-    <string name="lock_invalid_passcode">Nesprávny kód</string>
-    <string name="lock_biometric_unlock">Biometrické odomknutie</string>
-
-    <!-- Main Content / Proxy Confirm -->
-    <string name="proxy_details">Podrobnosti proxy</string>
-    <string name="proxy_add_connect">Pridať a pripojiť sa k tomuto proxy serveru</string>
-    <string name="proxy_server">Server</string>
-    <string name="proxy_port">Port</string>
-    <string name="proxy_type">Typ</string>
-    <string name="proxy_unknown">Neznáme</string>
-    <string name="cancel">Zrušiť</string>
-    <string name="connect">Pripojiť</string>
-
-    <!-- Main Content / Chat Confirm -->
-    <string name="chat_join">Pripojiť sa</string>
-    <string name="chat_channel">Kanál</string>
-    <string name="chat_group">Skupina</string>
-    <plurals name="members_count">
-        <item quantity="one">%d člen</item>
-        <item quantity="few">%d členov</item>
-        <item quantity="many">%d členov</item>
-        <item quantity="other">%d členov</item>
+    <string name="recipient_messages">Správy: %1$d</string>
+    <string name="recipient_files">Prílohy: %1$d</string>
+    <string name="recipient_hide_author">Skryť mená odosielateľov</string>
+    <string name="recipient_comment">Pridať komentár</string>
+    <string name="recipient_send">Odoslať (%1$d)</string>
+    <string name="recipient_sending">Odosiela sa: %1$d z %2$d</string>
+    <string name="recipient_error">Nepodarilo sa dokončiť. Skúste to znova pre pokračovanie</string>
+    <string name="recipient_retry">Skúsiť znova</string>
+    <string name="recipient_interrupted">Odosielanie bolo prerušené. Pred opätovným odoslaním skontrolujte cieľové chaty</string>
+    <string name="app_name">Monogram</string>
+    <string name="app_description">Neoficiálny klient Telegram</string>
+    <string name="home_tab_chats">Chaty</string>
+    <string name="home_tab_folders">Priečinky</string>
+    <string name="select_chat">Vyberte chat</string>
+    <string name="push_group_chats">Chaty</string>
+    <string name="push_group_stories">Príbehy</string>
+    <string name="push_group_reactions">Reakcie</string>
+    <string name="push_group_folders">Priečinky</string>
+    <string name="push_channel_private">Súkromné chaty</string>
+    <string name="push_channel_groups">Skupiny</string>
+    <string name="push_channel_channels">Kanály</string>
+    <string name="push_channel_other">Iné</string>
+    <string name="push_channel_stories">Príbehy</string>
+    <string name="push_channel_reactions">Reakcie</string>
+    <string name="push_folder">Priečinok %1$d</string>
+    <string name="push_hidden_title">Telegram</string>
+    <string name="push_hidden_body">Nová správa</string>
+    <string name="push_you">Vy</string>
+    <string name="push_reply">Odpovedať</string>
+    <string name="push_reply_hint">Správa</string>
+    <string name="push_mark_read">Označiť ako prečítané</string>
+    <string name="push_open_link">Otvoriť odkaz</string>
+    <string name="push_more_chats">+ešte %1$d</string>
+    <plurals name="push_new_messages">
+        <item quantity="one">%1$d nová správa</item>
+        <item quantity="few">%1$d nové správy</item>
+        <item quantity="many">%1$d nových správ</item>
+        <item quantity="other">%1$d nových správ</item>
     </plurals>
-
-    <!-- Tablet Layout -->
-    <string name="tablet_select_setting">Vyberte nastavenie</string>
-    <string name="tablet_select_chat">Vyberte chat a začnite písať</string>
-
-    <!-- Crash Activity -->
-    <string name="crash_log_label">Záznam pádu</string>
-    <string name="crash_copied_to_clipboard">Skopírované do schránky</string>
-    <string name="crash_share_title">Zdieľať záznam pádu</string>
+    <string name="crash_title">Niečo sa pokazilo</string>
+    <string name="crash_subtitle">V aplikácii Monogram nastala neočakávaná chyba. Report nižšie pomôže s opravou.</string>
+    <string name="crash_log_label">Záznam zlyhania</string>
+    <string name="crash_copy">Kopírovať podrobnosti</string>
+    <string name="crash_copied">Podrobnosti zlyhania skopírované</string>
     <string name="crash_share">Zdieľať</string>
-    <string name="crash_copy">Kopírovať</string>
-    <string name="crash_restart">Reštartovať aplikáciu</string>
-    <string name="crash_error_details">Podrobnosti chyby</string>
-    <string name="crash_description">Niečo sa pokazilo. Prosím, zdieľajte alebo skopírujte záznamy nižšie a nahláste tento problém vývojárom.</string>
+    <string name="crash_share_title">Zdieľať report o zlyhaní</string>
+    <string name="crash_restart">Reštartovať Monogram</string>
+    <string name="update_prompt_title">Aktualizovať na %1$s</string>
+    <string name="update_prompt_skip">Preskočiť</string>
+    <string name="update_prompt_update">Aktualizovať</string>
+    <string name="update_prompt_install">Inštalovať</string>
+    <string name="update_prompt_body">K dispozícii je nový build. Veľkosť sťahovania: %1$s.</string>
+    <string name="update_prompt_hide">Skryť</string>
+    <string name="update_prompt_progress">Sťahovanie %1$s / %2$s</string>
+    <string name="update_prompt_error">Aktualizáciu sa nepodarilo stiahnuť</string>
+    <string name="update_prompt_retry">Skúsiť znova</string>
+    <string name="update_prompt_ready">Pripravené na inštaláciu</string>
 </resources>

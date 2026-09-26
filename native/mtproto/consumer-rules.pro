@@ -1,0 +1,6 @@
+-keep class com.sun.jna.** { *; }
+-keep class * implements com.sun.jna.** { *; }
+-keep class uniffi.monogram_mtproto.** { *; }
+-keepclassmembers class uniffi.monogram_mtproto.** { *; }
+-keep class org.monogram.mtproto.** { *; }
+-dontwarn java.awt.**

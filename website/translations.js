@@ -1,7 +1,7 @@
 window.MONOGRAM_TRANSLATIONS = {
   en: {
     "meta.title": "Monogram for Android",
-    "meta.description": "Fast, polished unofficial Telegram client for Android with Material 3 design and TDLib under the hood",
+    "meta.description": "Unofficial Telegram client for Android with Material 3 and our own MTProto implementation in Rust",
     "meta.previewAlt": "Monogram preview showing the Android chat list on a phone screen with the Monogram logo",
     "brand.logoAlt": "Monogram logo",
     "brand.tagline": "Telegram for Android",
@@ -10,7 +10,7 @@ window.MONOGRAM_TRANSLATIONS = {
     "lang.option.ru": "Russian",
     "lang.option.zh": "Chinese",
     "hero.title": "Monogram",
-    "hero.lede": "A fast and elegant unofficial Telegram client for Android built with Jetpack Compose, Material Design 3, and TDLib",
+    "hero.lede": "An unofficial Telegram client for Android built with Jetpack Compose and Material 3, powered by our own MTProto implementation in Rust",
     "cta.download": "Download latest version",
     "cta.telegramChannelShort": "Channel",
     "cta.telegramChatShort": "Chat",
@@ -26,7 +26,7 @@ window.MONOGRAM_TRANSLATIONS = {
   },
   ru: {
     "meta.title": "Monogram для Android",
-    "meta.description": "Быстрый и аккуратный неофициальный Telegram-клиент для Android с дизайном Material 3 и TDLib под капотом",
+    "meta.description": "Неофициальный Telegram-клиент для Android с Material 3 и собственной реализацией MTProto на Rust",
     "meta.previewAlt": "Превью Monogram: список чатов Android-приложения на экране телефона и логотип Monogram",
     "brand.logoAlt": "Логотип Monogram",
     "brand.tagline": "Telegram для Android",
@@ -35,7 +35,7 @@ window.MONOGRAM_TRANSLATIONS = {
     "lang.option.ru": "Русский",
     "lang.option.zh": "Китайский",
     "hero.title": "Monogram",
-    "hero.lede": "Быстрый и элегантный неофициальный Telegram-клиент для Android на Jetpack Compose, Material Design 3 и TDLib",
+    "hero.lede": "Неофициальный Telegram-клиент для Android на Jetpack Compose и Material 3 с собственной реализацией MTProto на Rust",
     "cta.download": "Скачать последнюю версию",
     "cta.telegramChannelShort": "Канал",
     "cta.telegramChatShort": "Чат",
@@ -51,7 +51,7 @@ window.MONOGRAM_TRANSLATIONS = {
   },
   zh: {
     "meta.title": "Monogram Android 版",
-    "meta.description": "快速精致的 Android 非官方 Telegram 客户端，采用 Material 3 设计，并基于 TDLib 构建",
+    "meta.description": "采用 Material 3 设计和自主 Rust MTProto 实现的 Android 非官方 Telegram 客户端",
     "meta.previewAlt": "Monogram 预览图，展示手机屏幕上的 Android 聊天列表和 Monogram 标志",
     "brand.logoAlt": "Monogram 标志",
     "brand.tagline": "Android 版 Telegram",
@@ -60,7 +60,7 @@ window.MONOGRAM_TRANSLATIONS = {
     "lang.option.ru": "俄语",
     "lang.option.zh": "中文",
     "hero.title": "Monogram",
-    "hero.lede": "一款基于 Jetpack Compose、Material Design 3 和 TDLib 构建的快速优雅 Android 非官方 Telegram 客户端",
+    "hero.lede": "采用 Jetpack Compose 和 Material 3 构建，并由自主 Rust MTProto 实现驱动的 Android 非官方 Telegram 客户端",
     "cta.download": "下载最新版本",
     "cta.telegramChannelShort": "频道",
     "cta.telegramChatShort": "聊天",

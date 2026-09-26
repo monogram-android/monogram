@@ -1,0 +1,6 @@
+[build]
+rustflags = [
+    "-C", "llvm-args=-vectorize-loops=true",
+    "-C", "prefer-dynamic=false",
+    "-C", "llvm-args=-enable-loop-flatten",
+]

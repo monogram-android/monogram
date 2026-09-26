@@ -1,0 +1,38 @@
+[package]
+name = "monogram-markup"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MPL-2.0"
+description = "UniFFI tree-sitter markup bridge for Monogram (Telegram markdown, code highlight, math spans)"
+publish = false
+
+[lib]
+name = "monogram_markup"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+bindgen-cli = ["uniffi/cli"]
+
+[dependencies]
+uniffi = { version = "0.32", default-features = false }
+mimalloc = { version = "0.1", default-features = false, features = ["local_dynamic_tls"] }
+compact_str = "0.9"
+tree-sitter = "0.25"
+tree-sitter-md = "0.5"
+
+[build-dependencies]
+uniffi = { version = "0.32", features = ["build"] }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+required-features = ["bindgen-cli"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">Klasörler</string>
+    <string name="folders_back">Geri</string>
+    <string name="folders_refresh">Yenile</string>
+    <string name="folders_loading">Klasörler yükleniyor</string>
+    <string name="folders_empty">Klasör yok</string>
+    <string name="folders_list_heading">Sohbet klasörleri</string>
+    <string name="folders_all_chats">Tüm sohbetler</string>
+    <string name="folders_pinned">Sabitlenmiş klasör</string>
+    <string name="folders_reorder">Klasör sırasını değiştir</string>
+    <string name="folders_add">Klasör ekle</string>
+    <string name="folders_new">Yeni klasör</string>
+    <string name="folders_chat_count">%1$d sohbet</string>
+    <string name="folders_save">Kaydet</string>
+    <string name="folders_search_chats">Sohbet ara</string>
+    <string name="folders_clear_search">Aramayı temizle</string>
+    <string name="folders_include_empty">Eklemek için sohbet arayın</string>
+    <string name="folders_exclude_empty">Hariç tutmak için sohbet arayın</string>
+    <string name="folders_delete">Klasörü sil</string>
+    <string name="folders_name">Klasör adı</string>
+    <string name="folders_emoji">Klasör emojisi</string>
+    <string name="folders_include_types">Sohbet türlerini dahil et</string>
+    <string name="folders_include_contacts">Kişiler</string>
+    <string name="folders_include_non_contacts">Kişi olmayanlar</string>
+    <string name="folders_include_groups">Gruplar</string>
+    <string name="folders_include_channels">Kanallar</string>
+    <string name="folders_include_bots">Botlar</string>
+    <string name="folders_exclude">Hariç tut</string>
+    <string name="folders_exclude_muted">Sessize alınanlar</string>
+    <string name="folders_exclude_read">Okunmuş</string>
+    <string name="folders_exclude_archived">Arşivlenenler</string>
+    <string name="folders_include_chats">Dahil edilen sohbetler</string>
+    <string name="folders_exclude_chats">Hariç tutulan sohbetler</string>
+    <string name="folders_show_all_chats">\"Tüm sohbetler\" klasörünü göster</string>
+    <string name="folders_show_all_chats_sub">Klasör çubuğunda \"Tüm sohbetler\" sekmesini göster</string>
+</resources>

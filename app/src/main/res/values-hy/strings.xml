@@ -1,39 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="lock_unlock_title">Բացել MonoGram-ը</string>
-    <string name="lock_unlock_subtitle">Մուտք գործեք կենսաչափական տվյալներով</string>
-    <string name="lock_use_passcode">Օգտագործել գաղտնագիրը</string>
-    <string name="lock_enter_passcode">Մուտքագրեք գաղտնագիրը</string>
-    <string name="lock_messages_protected">Ձեր հաղորդագրությունները պաշտպանված են</string>
-    <string name="lock_invalid_passcode">Սխալ գաղտնագիր</string>
-    <string name="lock_biometric_unlock">Կենսաչափական հաստատում</string>
-
-    <string name="proxy_details">Պրոքսիի տվյալները</string>
-    <string name="proxy_add_connect">Ավելացնել և միանալ այս պրոքսի սերվերին</string>
-    <string name="proxy_server">Սերվեր</string>
-    <string name="proxy_port">Պորտ</string>
-    <string name="proxy_type">Տեսակ</string>
-    <string name="proxy_unknown">Անհայտ</string>
-    <string name="cancel">Չեղարկել</string>
-    <string name="connect">Միանալ</string>
-
-    <string name="chat_join">Միանալ</string>
-    <string name="chat_channel">Ալիք</string>
-    <string name="chat_group">Խումբ</string>
-    <plurals name="members_count">
-        <item quantity="one">%d անդամ</item>
-        <item quantity="other">%d անդամ</item>
+    <string name="recipient_messages">Հաղորդագրություններ՝ %1$d</string>
+    <string name="recipient_files">Կցորդներ՝ %1$d</string>
+    <string name="recipient_hide_author">Թաքցնել ուղարկողների անունները</string>
+    <string name="recipient_comment">Ավելացնել մեկնաբանություն</string>
+    <string name="recipient_send">Ուղարկել (%1$d)</string>
+    <string name="recipient_sending">Ուղարկվում է՝ %1$d-ը %2$d-ից</string>
+    <string name="recipient_error">Չհաջողվեց ավարտել: Փորձեք նորից՝ շարունակելու համար</string>
+    <string name="recipient_retry">Կրկնել</string>
+    <string name="recipient_interrupted">Ուղարկումն ընդհատվել է: Կրկին ուղարկելուց առաջ ստուգեք նպատակային չաթերը</string>
+    <string name="app_name">Monogram</string>
+    <string name="app_description">Telegram-ի ոչ պաշտոնական հավելված</string>
+    <string name="home_tab_chats">Զրույցներ</string>
+    <string name="home_tab_folders">Թղթապանակներ</string>
+    <string name="select_chat">Ընտրեք զրույց</string>
+    <string name="push_group_chats">Զրույցներ</string>
+    <string name="push_group_stories">Պատմություններ</string>
+    <string name="push_group_reactions">Ռեակցիաներ</string>
+    <string name="push_group_folders">Թղթապանակներ</string>
+    <string name="push_channel_private">Անձնական զրույցներ</string>
+    <string name="push_channel_groups">Խմբեր</string>
+    <string name="push_channel_channels">Ալիքներ</string>
+    <string name="push_channel_other">Այլ</string>
+    <string name="push_channel_stories">Պատմություններ</string>
+    <string name="push_channel_reactions">Ռեակցիաներ</string>
+    <string name="push_folder">Թղթապանակ %1$d</string>
+    <string name="push_hidden_title">Telegram</string>
+    <string name="push_hidden_body">Նոր հաղորդագրություն</string>
+    <string name="push_you">Դուք</string>
+    <string name="push_reply">Պատասխանել</string>
+    <string name="push_reply_hint">Հաղորդագրություն</string>
+    <string name="push_mark_read">Նշել որպես կարդացված</string>
+    <string name="push_open_link">Բացել հղումը</string>
+    <string name="push_more_chats">ևս %1$d</string>
+    <plurals name="push_new_messages">
+        <item quantity="one">%1$d նոր հաղորդագրություն</item>
+        <item quantity="other">%1$d նոր հաղորդագրություն</item>
     </plurals>
-
-    <string name="tablet_select_setting">Ընտրեք կարգավորումը</string>
-    <string name="tablet_select_chat">Ընտրեք չատը՝ զրույցը սկսելու համար</string>
-
-    <string name="crash_log_label">Սխալների մատյան (Log)</string>
-    <string name="crash_copied_to_clipboard">Պատճենված է</string>
-    <string name="crash_share_title">Տարածել սխալի մատյանը</string>
-    <string name="crash_share">Տարածել</string>
-    <string name="crash_copy">Պատճենել</string>
-    <string name="crash_restart">Վերագործարկել հավելվածը</string>
-    <string name="crash_error_details">Սխալի մանրամասները</string>
-    <string name="crash_description">Ինչ-որ բան այն չէ: Խնդրում ենք տարածել կամ պատճենել սխալի մատյանը՝ ծրագրավորողներին խնդրի մասին հայտնելու համար:</string>
-
+    <string name="crash_title">Ինչ-որ բան սխալ գնաց</string>
+    <string name="crash_subtitle">Monogram-ում տեղի ունեցավ անսպասելի սխալ։ Ստորև զեկույցը կօգնի այն շտկել։</string>
+    <string name="crash_log_label">Սխալի մատյան</string>
+    <string name="crash_copy">Պատճենել մանրամասները</string>
+    <string name="crash_copied">Սխալի մանրամասները պատճենվեցին</string>
+    <string name="crash_share">Կիսվել</string>
+    <string name="crash_share_title">Կիսվել սխալի զեկույցով</string>
+    <string name="crash_restart">Վերագործարկել Monogram-ը</string>
+    <string name="update_prompt_title">Թարմացնել մինչև %1$s</string>
+    <string name="update_prompt_skip">Բաց թողնել</string>
+    <string name="update_prompt_update">Թարմացնել</string>
+    <string name="update_prompt_install">Տեղադրել</string>
+    <string name="update_prompt_body">Հասանելի է նոր կառուցում։ Ներբեռնման չափը՝ %1$s։</string>
+    <string name="update_prompt_hide">Թաքցնել</string>
+    <string name="update_prompt_progress">Ներբեռնում %1$s / %2$s</string>
+    <string name="update_prompt_error">Չհաջողվեց ներբեռնել թարմացումը</string>
+    <string name="update_prompt_retry">Կրկնել</string>
+    <string name="update_prompt_ready">Պատրաստ է տեղադրման</string>
 </resources>

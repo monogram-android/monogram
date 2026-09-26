@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_title">Folders</string>
+    <string name="folders_back">Back</string>
+    <string name="folders_refresh">Refresh</string>
+    <string name="folders_loading">Loading folders</string>
+    <string name="folders_empty">No folders</string>
+    <string name="folders_list_heading">Chat folders</string>
+    <string name="folders_all_chats">All Chats</string>
+    <string name="folders_pinned">Pinned folder</string>
+    <string name="folders_reorder">Reorder folder</string>
+    <string name="folders_add">Add folder</string>
+    <string name="folders_new">New folder</string>
+    <string name="folders_chat_count">%1$d chats</string>
+    <string name="folders_save">Save</string>
+    <string name="folders_search_chats">Search chats</string>
+    <string name="folders_clear_search">Clear search</string>
+    <string name="folders_include_empty">Search to add chats</string>
+    <string name="folders_exclude_empty">Search chats to exclude</string>
+    <string name="folders_delete">Delete folder</string>
+    <string name="folders_name">Folder name</string>
+    <string name="folders_emoji">Folder emoji</string>
+    <string name="folders_include_types">Include chat types</string>
+    <string name="folders_include_contacts">Contacts</string>
+    <string name="folders_include_non_contacts">Non-contacts</string>
+    <string name="folders_include_groups">Groups</string>
+    <string name="folders_include_channels">Channels</string>
+    <string name="folders_include_bots">Bots</string>
+    <string name="folders_exclude">Exclude</string>
+    <string name="folders_exclude_muted">Muted</string>
+    <string name="folders_exclude_read">Read</string>
+    <string name="folders_exclude_archived">Archived</string>
+    <string name="folders_include_chats">Included chats</string>
+    <string name="folders_exclude_chats">Excluded chats</string>
+    <string name="folders_show_all_chats">Show All Chats folder</string>
+    <string name="folders_show_all_chats_sub">Display the All Chats tab in the folder row</string>
+</resources>

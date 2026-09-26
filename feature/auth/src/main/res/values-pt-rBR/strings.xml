@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_title">Entrar no Telegram</string>
+    <string name="auth_subtitle">Digite seu número de telefone</string>
+    <string name="auth_phone_label">Número de telefone</string>
+    <string name="auth_country_picker">Escolher país</string>
+    <string name="auth_country_search_hint">Buscar país</string>
+    <string name="auth_dial_code">Código do país</string>
+    <string name="auth_country_selected">País: %1$s</string>
+    <string name="auth_phone_hint">55 11 91234 5678</string>
+    <string name="auth_test_server">Servidor de teste</string>
+    <string name="auth_test_server_sub">DCs de teste do Telegram, não produção</string>
+    <string name="auth_code_title">Digite o código</string>
+    <string name="auth_code_label">Código</string>
+    <string name="auth_send_code">Avançar</string>
+    <string name="auth_cd_back">Alterar número</string>
+    <string name="auth_show_password">Mostrar senha</string>
+    <string name="auth_hide_password">Ocultar senha</string>
+    <string name="auth_sign_in">Avançar</string>
+    <string name="auth_code_sent_to">Enviamos o código para %1$s</string>
+    <string name="auth_code_sent_telegram">Enviado para seus outros apps do Telegram</string>
+    <string name="auth_error_code_unavailable">Nenhum código enviado. Espere e toque em Avançar de novo. Se o Telegram oficial estiver aberto, o código chega lá.</string>
+    <string name="auth_code_sent_sms">O Telegram enviou um SMS para %1$s</string>
+    <string name="auth_code_sent_call">O Telegram ligará para %1$s com o código</string>
+    <string name="auth_password_title">Verificação em duas etapas</string>
+    <string name="auth_password_prompt">Digite a senha da nuvem do Telegram</string>
+    <string name="auth_password_label">Senha da nuvem</string>
+    <string name="auth_submit_password">Avançar</string>
+    <string name="auth_error_phone_required">Digite seu número de telefone</string>
+    <string name="auth_error_code_required">Digite o código</string>
+    <string name="auth_error_password_required">Digite a senha da nuvem</string>
+    <string name="auth_error_bad_password">Senha da nuvem incorreta — tente de novo</string>
+    <string name="auth_error_srp_expired">A verificação em duas etapas expirou — digite a senha novamente</string>
+    <string name="auth_error_generic">Algo deu errado — tente de novo</string>
+    <string name="auth_error_network">Não foi possível conectar ao Telegram — verifique a conexão</string>
+    <string name="auth_error_no_account">Nenhuma conta do Telegram encontrada para este número</string>
+    <string name="auth_error_restart">O login expirou — toque em Avançar para um código novo</string>
+    <string name="auth_working">Entrando</string>
+    <string name="auth_step_indicator">Etapa %1$d de %2$d</string>
+    <string name="auth_resend_code">Reenviar código</string>
+    <string name="auth_resend_in">Reenviar em %1$d s</string>
+    <string name="auth_paste_password">Colar senha</string>
+    <string name="auth_paste_empty">A área de transferência está vazia</string>
+    <string name="auth_paste_code">Colar código</string>
+</resources>

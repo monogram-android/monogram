@@ -1,17 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.MonoGram" parent="android:Theme.Material.NoActionBar" />
-
-    <style name="Theme.MonoGram.Startup" parent="Theme.MonoGram">
-        <item name="android:windowBackground">@drawable/startup_background</item>
-    </style>
-
-    <style name="Theme.MonoGram.Startup.Light" parent="Theme.MonoGram">
-        <item name="android:windowBackground">@drawable/startup_background_light</item>
-    </style>
-
-    <style name="Theme.MonoGram.Startup.Dark" parent="Theme.MonoGram">
-        <item name="android:windowBackground">@drawable/startup_background_dark</item>
+    <style name="Theme.Monogram" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 </resources>

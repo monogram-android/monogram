@@ -1,40 +1,23 @@
 <h1 align="center">
-  <br>
-  <a href="https://github.com/monogram-android/monogram"><img width="130" height="130" alt="MonoGram" src="./documents/monogram.png" />
-</a>
-  <br>
-  <b>MonoGram</b>
-  <br>
+  <a href="https://github.com/monogram-android/monogram"><img width="130" height="130" alt="Monogram" src="./documents/monogram.png" /></a>
+  <br />Monogram
 </h1>
 
-<h1 align="center">
-  <a href="https://github.com/monogram-android/monogram/blob/develop/LICENSE">
-    <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" width="120">
-  </a>
-  <a href="https://github.com/monogram-android/monogram/stargazers">
-    <img src="https://img.shields.io/github/stars/monogram-android/monogram" width="120">
-  </a>
-  <img src="https://img.shields.io/badge/Kotlin-2.0+-blue.svg?logo=kotlin" width="130">
-  <img src="https://img.shields.io/badge/TDLib-1.8.66-blue" width="120">
-  <img src="https://img.shields.io/badge/Status-Active_Development-orange" width="170">
-  <a href="https://boosty.to/monogram">
-    <img src="https://img.shields.io/badge/Boosty-Support_the_project-ff6f61?logo=boosty&logoColor=white" width="200">
-  </a>
-</h1>
+<p align="center">
+  <a href="./LICENSE"><img alt="GPLv3" src="https://img.shields.io/badge/License-GPLv3-blue.svg" /></a>
+  <a href="https://github.com/monogram-android/monogram/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/monogram-android/monogram" /></a>
+  <img alt="Kotlin + Rust" src="https://img.shields.io/badge/Kotlin_+_Rust-MTProto-blue" />
+  <a href="https://boosty.to/monogram"><img alt="Boosty" src="https://img.shields.io/badge/Boosty-Support-ff6f61" /></a>
+</p>
 
-**Read this in other languages:** [Русский](README_RU.md), [Türkçe](README_TR.md), [한국어](README_KOR.md), [اُردو](README_UR.md), [Español](README_ES.md)
+<p align="center"><a href="README.md">English</a> · <a href="README_RU.md">Русский</a> · <a href="README_TR.md">Türkçe</a> · <a href="README_KOR.md">한국어</a> · <a href="README_UR.md">اُردو</a> · <a href="README_ES.md">Español</a></p>
 
-
----
-
-**MonoGram** is a modern, lightning-fast, and elegant unofficial Telegram client for Android. Built with **Jetpack Compose** and **Material Design 3**, it delivers a native and fluid experience powered by the official **TDLib**.
+<p align="center"><strong>Monogram</strong> is a blazing-fast, fully native Telegram client for Android 7.0 and newer. Built with <strong>Kotlin</strong>, <strong>Jetpack Compose</strong>, and <strong>Material 3</strong>, it pairs a modern Android interface with <strong>our own MTProto implementation in Rust</strong></p>
 
 > [!IMPORTANT]
-> MonoGram is currently in **active development**. Expect frequent updates, architectural changes, and the occasional bug.
+> Monogram is in **active development**. Features and architecture are still evolving; bugs and incomplete behavior are possible.
 
-Support the project on [**Boosty**](https://boosty.to/monogram).
-
----
+Support the project on [Boosty](https://boosty.to/monogram)
 
 ## Screenshots
 
@@ -42,57 +25,62 @@ Support the project on [**Boosty**](https://boosty.to/monogram).
 
 | | | | |
 |:---:|:---:|:---:|:---:|
-| <img src="./documents/1.png" width="180" alt="Screenshot 1" /> | <img src="./documents/2.png" width="180" alt="Screenshot 2" /> | <img src="./documents/3.png" width="180" alt="Screenshot 3" /> | <img src="./documents/4.png" width="180" alt="Screenshot 4" /> |
+| <img src="./documents/1.png" width="180" alt="Monogram 1" /> | <img src="./documents/2.png" width="180" alt="Monogram 2" /> | <img src="./documents/3.png" width="180" alt="Monogram 3" /> | <img src="./documents/4.png" width="180" alt="Monogram 4" /> |
 
 </div>
 
----
+## Project highlights
 
-## Key Features
+- **Fully native** — Built for Android with Kotlin and Jetpack Compose
+- **Made for your screen** — Material 3 layouts that adapt to phones, tablets, and larger displays
+- **Your chats, with media** — Photos, videos, and animated stickers in your conversations
+- **Blazingly fast, powered by Rust** — Our own native implementation of Telegram's MTProto protocol 🚀
+- **No NFT or crypto** — Monogram will not include NFT promotions, gifts, or other Telegram features that we consider outside the scope of a messaging app
 
-- **Independent Client** — Not a fork of Telegram for Android. MonoGram is built entirely from scratch as a standalone project.
-- **Material Design 3** — A beautiful, adaptive UI that looks great on phones, tablets, and foldables.
-- **Secure** — Built-in biometric locking and encrypted local storage.
-- **Media Rich** — High-performance media playback with ExoPlayer and Coil 3.
-- **Fast & Efficient** — Powered by Kotlin Coroutines and optimized for performance.
-- **Clean Architecture** — Clear separation of concerns with Domain, Data, and Presentation layers.
-- **MVI Pattern** — Predictable state management using MVIKotlin.
-- **No NFT or Crypto** — MonoGram will never include NFT promotions, gifts or any other features pushed by Telegram that we consider outside the scope of a messaging app.
+## Build from source
 
----
+### 1. Requirements
 
-## Getting Started
+- **JDK 17** and an Android Studio version compatible with the project's Android Gradle Plugin (see [the version catalog](gradle/libs.versions.toml))
+- **Android SDK Platform 37**, platform tools, and an **Android NDK**. CI uses **NDK r28c**. Set `ANDROID_NDK_HOME` to select an NDK explicitly; otherwise Gradle looks under the SDK's `ndk` directory.
+- **Rust 1.98 or newer**, Cargo, and the host platform's C/C++ build tools for native dependencies and UniFFI generation
+- **Git**, the Android Rust targets below, and **cargo-ndk**:
 
-Follow these steps to set up the project locally.
+```console
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+cargo install cargo-ndk --locked
+```
 
-### Prerequisites
+### 2. Clone the repositories
 
-- **Android Studio**: Ladybug or newer (recommended).
-- **JDK**: Java 17 or newer.
-
-### 1. Clone the Repository
-
-```bash
+```console
 git clone --recurse-submodules https://github.com/monogram-android/monogram.git
+git clone --recurse-submodules https://github.com/gdlbo/telers-mtproto-impl.git
 cd monogram
+git submodule update --init --recursive
 ```
 
-### 2. Configure Telegram API Keys
+Run both clone commands from the same parent directory. The current Cargo manifests require `../telers-mtproto-impl` next to the Monogram checkout; the submodule under `vendor` does not replace this sibling checkout. CI uses the same layout.
 
-To connect to Telegram servers, you need your own API credentials.
+### 3. Configure local settings
 
-1. Log in to [my.telegram.org](https://my.telegram.org/).
-2. Go to **API development tools**.
-3. Create a new application to get your `App api_id` and `App api_hash`.
-4. Create a file named `local.properties` in the root directory of the project (if it doesn't exist).
-5. Add the following lines:
+Copy [local.properties.example](local.properties.example) to `local.properties`, then set `sdk.dir`, `API_ID`, and `API_HASH`.
 
-```properties
-API_ID=12345678
-API_HASH=your_api_hash_here
+Unix-like systems:
+
+```sh
+cp local.properties.example local.properties
 ```
 
-For signed release builds from Gradle, add these properties too:
+Windows (PowerShell):
+
+```powershell
+Copy-Item local.properties.example local.properties
+```
+
+Obtain your API credentials from [my.telegram.org/apps](https://my.telegram.org/apps). Builds can be produced without them, but Telegram login requires valid credentials. Keep `local.properties`, signing keys, and service-account credentials untracked; never include them in logs or commits.
+
+For your own release signing key, also set:
 
 ```properties
 RELEASE_STORE_FILE=keystore/release.jks
@@ -101,189 +89,97 @@ RELEASE_KEY_ALIAS=your_key_alias
 RELEASE_KEY_PASSWORD=your_key_password
 ```
 
-### 3. Configure Push Notifications
+Without `RELEASE_STORE_FILE`, release and beta builds use the debug signing key by default. `-Punsigned=true` disables that fallback when no release key is configured. Debug-signed builds are for development, not distribution under your production signing identity.
 
-This step is required for `firebase` build variants. You can skip it if you only plan to build
-`libre`
-variants.
+### 4. Configure push notifications (optional)
 
-1. Log in to the [Firebase console](https://console.firebase.google.com).
-2. Create a new project.
-3. Add two Firebase Android apps:
+- **FCM:** Register a Firebase Android app for `org.monogram` (the same application ID is used for debug, release, and beta). Place its configuration at `app/google-services.json`; Gradle applies the Google Services plugin only when this file exists. Firebase dependencies remain part of the app even without the configuration file.
+- Register the corresponding FCM credentials for your Telegram API ID at [my.telegram.org/apps](https://my.telegram.org/apps). Keep `google-services.json` and any `firebase-adminsdk` JSON untracked; never package a service-account key in the APK.
+- FCM testing requires Google Play services; use a Google Play emulator image for emulator checks
+- **UnifiedPush:** Install and configure a compatible distributor on the device. The app includes UnifiedPush registration support.
 
-    - `org.monogram` for release builds
-    - `org.monogram.debug` for debug builds
+### 5. Build and run
 
-4. Download the `google-services.json` file and copy it to the root of the **app** module (
-   `monogram/app/google-services.json`). Make sure it contains clients for both package names above.
-5. Go to the **Cloud Messaging** section.
-6. Click **Manage service accounts**.
-7. Select the **Keys** section at the top of the window that opens.
-8. Click **Add key** and select the **JSON** option. Wait for the file to download.
-9. Return to the Telegram API page where you received your App ID.
-10. Click **Update** next to the FCM credentials section.
-11. Upload the service account JSON on the page that opens.
+Open the repository in Android Studio, sync Gradle, and select the `app` run configuration, or use the commands below from the repository root. `installDebug` requires a connected device or a running emulator.
 
-### 4. First Time Setup: Building libvpx
+Unix-like systems:
 
-The animations require libvpx to be compiled. This has to be done before starting a Gradle build or it will cause build failures.
-
-1. Change your working directory to `presentation/src/main/cpp`
-2. In `build.sh`, add your `ANDROID_NDK_HOME`
-3. Run `build.sh` and wait for it to finish
-
-### 5. Build and Run
-
-1. Open the project in **Android Studio**.
-2. Increase the IDE indexing limits so `TdApi.java` (the TDLib wrapper) is indexed correctly. In **Android Studio** or **IntelliJ IDEA**, open **Help → Edit Custom Properties...**, paste the lines below, and restart the IDE if prompted:
-
-```properties
-# size in Kb
-idea.max.intellisense.filesize=20480
-# size in Kb
-idea.max.content.load.filesize=20480
+```sh
+./gradlew :app:assembleDebug
+./gradlew :app:installDebug
+./gradlew :app:assembleRelease
+./gradlew :app:assembleBeta
 ```
 
-3. Sync Gradle.
-4. Select the `app` run configuration.
-5. Connect a device or start an emulator.
-6. Click **Run**.
+Windows (PowerShell):
 
----
-
-## Building TDLib
-
-If you need to build TDLib from source, first install the required dependencies. For Debian/Ubuntu-based distributions:
-
-```bash
-sudo apt-get update
-sudo apt-get install build-essential git curl wget php perl gperf unzip zip default-jdk cmake
+```powershell
+./gradlew.bat :app:assembleDebug
+./gradlew.bat :app:installDebug
+./gradlew.bat :app:assembleRelease
+./gradlew.bat :app:assembleBeta
 ```
 
-Then run the build script from the root of your project:
+- `debug`: development build
+- `release`: optimized build with R8
+- `beta`: release-derived build with R8 disabled for easier debugging
 
-```bash
-./build-tdlib.sh
+
+### Native compilation
+
+Gradle builds the Rust libraries for `armeabi-v7a`, `arm64-v8a`, and `x86_64` and regenerates UniFFI Kotlin bindings from host debug libraries as part of the normal build. Prebuilt libvpx libraries are included under `native/vpx/prebuilt` for video stickers. To invoke the Android native compilation tasks directly:
+
+```sh
+./gradlew :native:mtproto:buildNativeMtproto :native:markup:buildNativeMarkup
 ```
 
-The script supports:
+On Windows, replace `./gradlew` with `./gradlew.bat`. Use `-PskipNativeBuild=true` only for Kotlin-only work when compatible native libraries and generated bindings already exist. It skips both native compilation and binding regeneration; SDK/NDK configuration is still required.
 
-- `./build-tdlib.sh official`
-- `./build-tdlib.sh telemt`
-- `./build-tdlib.sh both`
+## Tech stack
 
-Upstream repositories used by the script:
+- **Languages and protocol:** Kotlin, Rust, MTProto, UniFFI
+- **UI and state:** Jetpack Compose, Material 3, Decompose, MVIKotlin
+- **Shared services:** Koin, Coroutines, Flow, Room
+- **Media and push:** Media3, Coil, libvpx, tlottie, Firebase Cloud Messaging, UnifiedPush
 
-- `official`: [tdlib/td](https://github.com/tdlib/td)
-- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+## Project structure
 
-If you run `./build-tdlib.sh` without arguments, it will prompt you to choose one of these modes
-interactively.
+| Path | Responsibility |
+|:---|:---|
+| `app` | Application entry point, dependency injection, navigation, and push integration |
+| `core/*` | Shared models, database, UI, utilities, and markup access |
+| `feature/*` | Authentication, chat list, conversations, folders, profiles, and settings |
+| `network/bridge` | Kotlin client API, domain mapping, and error handling |
+| `network/http` | HTTP media downloads, cache, and queue |
+| `native/mtproto-rs` | Rust protocol client and UniFFI exports |
+| `native/markup-rs` | Rust Markdown, syntax highlighting, and math parsing |
+| `native/mtproto`, `native/markup` | Kotlin facades, generated bindings, and native libraries |
+| `native/vpx` | Prebuilt VP9 decoder for video stickers |
+| `vendor` | Third-party source and submodules |
 
-### Build Variants and Gradle Tasks
-
-Use these variants in Android Studio:
-
-- `officialFirebaseDebug`
-- `officialFirebaseRelease`
-- `officialLibreDebug`
-- `officialLibreRelease`
-- `telemtFirebaseDebug`
-- `telemtFirebaseRelease`
-- `telemtLibreDebug`
-- `telemtLibreRelease`
-
-Variant naming:
-
-- `official` / `telemt` selects the TDLib source
-- `firebase` enables FCM / Firebase-backed push setup
-- `libre` builds without Firebase dependencies
-
-Useful Gradle tasks:
-
-```bash
-./gradlew :app:assembleOfficialFirebaseRelease
-./gradlew :app:assembleTelemtFirebaseRelease
-./gradlew :app:assembleOfficialFirebaseDebug
-./gradlew :app:assembleTelemtFirebaseDebug
-./gradlew :app:assembleOfficialLibreRelease
-./gradlew :app:assembleTelemtLibreRelease
-./gradlew :app:assembleOfficialLibreDebug
-./gradlew :app:assembleTelemtLibreDebug
-```
-
-APK names:
-
-- official Firebase: `monogram-arm64-v8a-<version>-release.apk`
-- official libre: `monogram-libre-arm64-v8a-<version>-release.apk`
-- Telemt Firebase: `monogram-telemt-arm64-v8a-<version>-release.apk`
-- Telemt libre: `monogram-telemt-libre-arm64-v8a-<version>-release.apk`
-
----
+Features call `network/bridge`; native protocol logic lives in Rust. Features must not import generated UniFFI types or depend on other feature modules. See [AGENTS.md](AGENTS.md) for development conventions and protocol invariants.
 
 ## Contributing
 
-We welcome contributions! Whether it's fixing bugs, improving documentation, or suggesting new features.
+Create your branch from `develop` and target `develop` with your pull request. Follow existing architecture and coding style, keep changes focused, and include a clear description and relevant verification. Respect the [Telegram API Terms of Service](https://core.telegram.org/api/terms).
 
-1. **Check the Issues** — Look for open issues or create a new one to discuss your ideas.
-2. **Work from `develop`** — Create your branch from `develop` and keep your work based on that branch.
-3. **Fork & Branch** — Fork the repo and create a feature branch.
-4. **Code Style** — Follow the existing Kotlin coding style and Clean Architecture guidelines.
-5. **Submit a PR** — Open a Pull Request to `develop` with a clear description of your changes.
+Run checks appropriate to the changed module. Examples:
 
-> [!IMPORTANT]
-> - Respect the [Telegram API Terms of Service](https://core.telegram.org/api/terms).
-> - Ensure your code passes all checks and tests.
+```sh
+./gradlew :network:bridge:test
+cargo test --manifest-path native/mtproto-rs/Cargo.toml
+cargo test --manifest-path native/markup-rs/Cargo.toml
+git diff --check
+```
 
-### Reporting Bugs & Suggesting Features
+Use `./gradlew.bat` on Windows. Run only the checks relevant to your change; live Telegram and device behavior require separate validation with your own credentials.
 
-- **Bugs** — Open an issue and use the `[Bug]` tag in the title (e.g. `[Bug] App crashes on startup`). You can also browse all known bugs on the [**Bug Tracker**](https://github.com/orgs/monogram-android/projects/3/views/1).
-- **Feature Requests** — Open an issue with the `[Feature]` tag (e.g. `[Feature] Support scheduled messages`). Existing feature requests can be found on the [**Feature Board**](https://github.com/orgs/monogram-android/projects/5/views/1).
-
----
+Report bugs with `[Bug]` and feature requests with `[Feature]` in the issue title. See the [Bug Tracker](https://github.com/orgs/monogram-android/projects/3/views/1) and [Feature Board](https://github.com/orgs/monogram-android/projects/5/views/1).
 
 ## Translations
 
-MonoGram welcomes community translations! You can contribute your own language by editing the strings resource file.
-
-The source strings are located at [`presentation/src/main/res/values/string.xml`](https://github.com/monogram-android/monogram/blob/develop/presentation/src/main/res/values/string.xml). To add a new language, create a corresponding `values-<locale>/string.xml` file (e.g. `values-de/string.xml` for German) and translate the strings there. Open a PR with your translation and we'll get it merged.
-
----
-
-## Tech Stack
-
-MonoGram leverages the latest Android development tools and libraries:
-
-| Category | Libraries |
-|:---|:---|
-| **Language** | [Kotlin](https://kotlinlang.org/) |
-| **UI Toolkit** | [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material 3) |
-| **Architecture** | [Decompose](https://github.com/arkivanov/Decompose) (Navigation), [MVIKotlin](https://github.com/arkivanov/MVIKotlin) |
-| **Dependency Injection** | [Koin](https://insert-koin.io/) |
-| **Async** | Coroutines & Flow |
-| **Telegram Core** | [TDLib](https://core.telegram.org/tdlib) (Telegram Database Library) |
-| **Image Loading** | [Coil 3](https://coil-kt.github.io/coil/) |
-| **Media** | Media3 (ExoPlayer) |
-| **Maps** | [MapLibre](https://maplibre.org/) |
-| **Local DB** | Room |
-
----
-
-## Project Structure
-
-The project follows a multi-module structure to ensure separation of concerns and scalability:
-
-| Module | Description |
-|:---|:---|
-| **:app** | The main Android application module. |
-| **:domain** | Pure Kotlin module containing business logic, use cases, and repository interfaces. |
-| **:data** | Implementation of repositories, data sources, and TDLib integration. |
-| **:presentation** | UI components, screens, and view models (MVI Stores). |
-| **:core** | Common utility classes and extensions used across modules. |
-| **:baselineprofile** | Baseline Profiles for optimizing app startup and performance. |
-
----
+UI strings live in `core/ui/src/main/res/values/strings.xml` and the `feature/*/src/main/res/values/strings.xml` files. Add or update `values-<locale>/strings.xml` in each relevant module (for example, `values-de/strings.xml`). Preserve resource names, formatting placeholders, and plural forms. Submit translations in a pull request. Keep translated READMEs aligned with the English version.
 
 ## License
 
-This project is licensed under the [**GNU General Public License v3.0**](LICENSE).
+Monogram is licensed under the [GNU General Public License v3.0](LICENSE). Third-party components and native crates retain the licenses declared in their respective source directories.

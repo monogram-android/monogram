@@ -1,42 +1,53 @@
-# Gradle files
+# Built artifacts
+*.class
+*.apk
+*.aab
+*.ap_
+*.dex
+*.log
+hs_err_pid*
+replay_pid*
+
+# Java packaging (keep Gradle wrapper jar)
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Gradle / Android Studio
 .gradle/
 build/
-
-# Kotlin Gradle plugin data
-.kotlin/
-
-# Local configuration file (sdk path, etc)
+**/build/
 local.properties
-
-# Log/OS Files
-*.log
-.DS_Store
-
-# Android Studio generated files and folders
-captures/
-.externalNativeBuild/
-.cxx/
-*.aab
-*.apk
-output-metadata.json
-
-# IntelliJ
-*.iml
 .idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
-
-# Keystore files
-*.jks
-*.keystore
-
-# Google Services (e.g. APIs or Firebase)
-google-services.json
-
-# Android Profiling
+*.iml
+.cxx/
+.externalNativeBuild/
+captures/
+.kotlin/
 *.hprof
-/app/release/baselineProfiles
-/tdlib_temp_official
-/td
-/td-telemt
+
+# Native / Rust
+native/*-rs/target/
+vendor/libvpx/
+native/vpx/build/
+native/vpx/tmp/
+# Temporary replacements; final native libraries remain versioned.
+native/*/src/main/jniLibs/**/*.so.pending
+**/Cargo.lock.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local agent state
+.pi*/
+*.keystore
+*.jks
+google-services.json
+**/google-services.json
+*firebase-adminsdk*
+/native/mtproto/src/main/jniLibs

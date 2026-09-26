@@ -4,6 +4,7 @@ import com.arkivanov.mvikotlin.core.store.Reducer
 import org.monogram.core.database.dao.ChatReadState
 import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.LastSeen
+import org.monogram.core.models.isHiddenInternalChat
 import org.monogram.core.models.packTypingNames
 
 internal object ChatsReducer : Reducer<ChatsStore.State, Msg> {
@@ -108,8 +109,10 @@ internal object ChatsReducer : Reducer<ChatsStore.State, Msg> {
             searchLoadingMore = false,
         )
         is Msg.SearchPage -> copy(
-            searchPeople = if (msg.replace) msg.people else searchPeople,
-            searchChats = if (msg.replace) msg.chats else searchChats,
+            searchPeople = (if (msg.replace) msg.people else searchPeople)
+                .filterNot { isHiddenInternalChat(it.id.value) },
+            searchChats = (if (msg.replace) msg.chats else searchChats)
+                .filterNot { isHiddenInternalChat(it.id.value) },
             searchMessages = if (msg.replace) msg.messages else searchMessages + msg.messages,
             searchHasMore = msg.hasMore,
             searchError = if (msg.replace) null else searchError,

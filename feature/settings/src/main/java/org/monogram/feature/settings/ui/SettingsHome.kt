@@ -1,6 +1,7 @@
 package org.monogram.feature.settings.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -14,14 +15,19 @@ import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -29,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import org.monogram.core.ui.components.ItemPosition
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.components.SectionHeader
+import org.monogram.core.models.AppUpdate
+import org.monogram.core.models.AppUpdateState
+import org.monogram.core.ui.AppUpdateSettings
 import org.monogram.core.ui.components.SettingsTile
 import org.monogram.feature.settings.R
 import org.monogram.feature.settings.SettingsComponent
@@ -51,6 +60,8 @@ internal fun LazyListScope.homeItems(
     loading: Boolean,
     sponsorIds: Set<Long>,
     selfPeerId: Long?,
+    updateState: AppUpdateState = AppUpdateState.Idle,
+    updatesEnabled: Boolean = true,
 ) {
     item {
         AccountHeader(
@@ -182,6 +193,71 @@ internal fun LazyListScope.homeItems(
             trailingContent = { Chevron() },
         )
     }
+    if (updatesEnabled) {
+        val supporter = selfPeerId != null && selfPeerId in sponsorIds
+        item { SectionHeader(stringResource(R.string.settings_section_about)) }
+        item {
+            val betaPref by AppUpdateSettings.betaUpdates.collectAsState()
+            val beta = supporter && betaPref
+            SettingsTile(
+                icon = Icons.Outlined.Science,
+                title = stringResource(R.string.settings_update_beta),
+                subtitle = stringResource(
+                    if (supporter) R.string.settings_update_beta_sub
+                    else R.string.settings_update_beta_supporters,
+                ),
+                iconColor = MaterialTheme.colorScheme.tertiary,
+                position = ItemPosition.TOP,
+                enabled = supporter,
+                onClick = {
+                    AppUpdateSettings.setBetaUpdates(!beta)
+                    component.onCheckForUpdates()
+                },
+                trailingContent = {
+                    Switch(
+                        checked = beta,
+                        enabled = supporter,
+                        onCheckedChange = { enabled ->
+                            AppUpdateSettings.setBetaUpdates(enabled)
+                            component.onCheckForUpdates()
+                        },
+                    )
+                },
+            )
+        }
+        item {
+            val (title, subtitle) = updateTileCopy(updateState)
+            val changelog = updateChangelog(updateState)
+            Column(Modifier.fillMaxWidth()) {
+                SettingsTile(
+                    icon = Icons.Outlined.SystemUpdate,
+                    title = title,
+                    subtitle = subtitle,
+                    iconColor = MaterialTheme.colorScheme.primary,
+                    position = ItemPosition.BOTTOM,
+                    enabled = updateState !is AppUpdateState.Checking,
+                    onClick = {
+                        when (updateState) {
+                            is AppUpdateState.Available -> component.onDownloadUpdate()
+                            is AppUpdateState.Downloading -> component.onCancelUpdateDownload()
+                            is AppUpdateState.ReadyToInstall -> component.onInstallUpdate()
+                            else -> component.onCheckForUpdates()
+                        }
+                    },
+                )
+                if (changelog.isNotEmpty()) {
+                    Text(
+                        text = changelog.joinToString("\n") { "• $it" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                    )
+                }
+            }
+        }
+    }
     item { SectionHeader(stringResource(R.string.settings_section_session)) }
     item {
         SettingsTile(
@@ -206,7 +282,66 @@ internal fun LazyListScope.homeItems(
 }
 
 @Composable
+private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
+    return when (state) {
+        AppUpdateState.Idle -> stringResource(R.string.settings_update_check) to
+            stringResource(R.string.settings_update_check_sub)
+        AppUpdateState.Checking -> stringResource(R.string.settings_update_checking) to null
+        is AppUpdateState.Available -> {
+            val sub = stringResource(
+                R.string.settings_update_available_sub,
+                state.info.fileName,
+                formatUpdateBytes(state.info.fileSize),
+            )
+            val commit = state.info.commit?.takeIf { it.isNotBlank() }
+            stringResource(
+                R.string.settings_update_available,
+                state.info.version,
+                state.info.versionCode,
+            ) to if (commit == null) sub else "$sub · $commit"
+        }
+        AppUpdateState.UpToDate -> stringResource(R.string.settings_update_up_to_date) to
+            stringResource(R.string.settings_update_up_to_date_sub)
+        is AppUpdateState.Downloading -> {
+            val total = state.info.fileSize.takeIf { it > 0L } ?: 1L
+            val percent = ((state.bytes * 100L) / total).toInt().coerceIn(0, 100)
+            stringResource(R.string.settings_update_downloading) to stringResource(
+                R.string.settings_update_downloading_sub,
+                percent,
+                formatUpdateBytes(state.info.fileSize),
+            )
+        }
+        is AppUpdateState.ReadyToInstall -> stringResource(R.string.settings_update_ready) to
+            stringResource(R.string.settings_update_ready_sub, state.info.version)
+        is AppUpdateState.Error -> stringResource(R.string.settings_update_error) to
+            if (state.message == AppUpdate.NO_UPDATE) {
+                stringResource(R.string.settings_update_none)
+            } else {
+                stringResource(R.string.settings_update_error_sub)
+            }
+    }
+}
 
+private fun updateChangelog(state: AppUpdateState): List<String> {
+    val info = when (state) {
+        is AppUpdateState.Available -> state.info
+        is AppUpdateState.Downloading -> state.info
+        is AppUpdateState.ReadyToInstall -> state.info
+        else -> return emptyList()
+    }
+    return info.changelog.filterNot { line ->
+        val commit = info.commit
+        commit != null && line.equals(commit, ignoreCase = true)
+    }
+}
+
+private fun formatUpdateBytes(bytes: Long): String {
+    if (bytes <= 0L) return ""
+    val mb = bytes / (1024.0 * 1024.0)
+    return if (mb >= 1.0) "${((mb * 10).toInt() / 10.0)} MB" else "${bytes / 1024} KB"
+}
+
+@Composable
 private fun Chevron() {
     Icon(
         Icons.AutoMirrored.Outlined.KeyboardArrowRight,

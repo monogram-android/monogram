@@ -151,6 +151,7 @@ class MainActivity : ComponentActivity() {
                 pushRegistration = app.push,
                 notificationLocal = app.notifications,
                 onIncomingShareConsumed = { pendingIncomingShare = null },
+                appUpdate = app.appUpdate,
             )
             if (pendingIncomingShare != null) {
                 root.openIncomingShare(pendingIncomingShare!!)

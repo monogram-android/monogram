@@ -30,6 +30,7 @@ import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.markup.NativeMarkupParser
 import org.monogram.core.models.AccountState
 import org.monogram.core.models.AuthSession
+import org.monogram.core.models.AppUpdate
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.requiresForwardPhotoRight
 import org.monogram.feature.auth.AuthComponent
@@ -37,6 +38,7 @@ import org.monogram.feature.chats.ChatsComponent
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.folders.FoldersComponent
 import org.monogram.feature.profile.ProfileComponent
+import org.monogram.feature.settings.AppUpdateController
 import org.monogram.feature.settings.SettingsComponent
 import org.monogram.BuildConfig
 import org.monogram.core.common.push.PushRegistration
@@ -61,6 +63,7 @@ class RootComponent(
     private val pushRegistration: PushRegistration? = null,
     private val notificationLocal: NotificationLocalStore? = null,
     private val onIncomingShareConsumed: () -> Unit = {},
+    val appUpdate: AppUpdateController? = null,
 ) : ComponentContext by componentContext {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -458,6 +461,8 @@ class RootComponent(
                 debugNotifications = BuildConfig.DEBUG,
                 notificationLocal = notificationLocal,
                 openFolders = config.openFolders,
+                appUpdate = appUpdate,
+                updatesEnabled = AppUpdate.inAppUpdatesEnabled(BuildConfig.BUILD_TYPE),
             ),
             folders = FoldersComponent(
                 componentContext = context,

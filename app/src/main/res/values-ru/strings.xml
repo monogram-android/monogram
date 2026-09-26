@@ -47,4 +47,14 @@
     <string name="crash_share">Поделиться</string>
     <string name="crash_share_title">Отправить отчёт о сбое</string>
     <string name="crash_restart">Перезапустить Monogram</string>
+    <string name="update_prompt_title">Обновление до %1$s</string>
+    <string name="update_prompt_body">Доступна новая сборка. Размер загрузки — %1$s.</string>
+    <string name="update_prompt_skip">Пропустить</string>
+    <string name="update_prompt_update">Обновить</string>
+    <string name="update_prompt_hide">Скрыть</string>
+    <string name="update_prompt_progress">Загрузка %1$s из %2$s</string>
+    <string name="update_prompt_install">Установить</string>
+    <string name="update_prompt_ready">Готово к установке</string>
+    <string name="update_prompt_error">Не удалось скачать обновление</string>
+    <string name="update_prompt_retry">Повторить</string>
 </resources>

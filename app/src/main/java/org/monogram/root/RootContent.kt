@@ -377,6 +377,10 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
                 )
             }
         }
+        UpdatePromptSheet(
+            controller = component.appUpdate,
+            enabled = currentStack.active.instance !is RootComponent.Child.Auth,
+        )
     }
     }
 }

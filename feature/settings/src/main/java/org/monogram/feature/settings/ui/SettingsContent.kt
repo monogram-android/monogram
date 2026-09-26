@@ -138,7 +138,7 @@ import org.monogram.core.ui.components.SettingsCard
 import org.monogram.core.ui.components.SettingsCardRow
 import org.monogram.core.ui.components.SettingsChoice
 import org.monogram.core.ui.components.SettingsChoiceGroup
-import org.monogram.core.ui.components.SettingsTile
+import org.monogram.core.common.SponsorRegistry
 import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.loading.MonogramLoadingInlineSize
 import org.monogram.core.ui.media.mediaViewerMotionEnabled
@@ -161,6 +161,8 @@ fun SettingsContent(
     folders: SettingsFolderHost? = null,
 ) {
     val state by component.state.collectAsState()
+    val updateState by component.updateState.collectAsState()
+    val sponsorIds by SponsorRegistry.sponsorIds.collectAsState()
     val notifications by component.notifications.collectAsState()
     val appearance by AppearanceSettings.state.collectAsStateWithLifecycle()
     val download by DownloadSettings.state.collectAsStateWithLifecycle()
@@ -365,8 +367,10 @@ fun SettingsContent(
                             onOpen = component::openPage,
                             onLogout = { confirmLogout = true },
                             loading = state.loading || state.loggingOut,
-                            sponsorIds = org.monogram.core.common.SponsorRegistry.sponsorIds.value,
+                            sponsorIds = sponsorIds,
                             selfPeerId = state.profile?.id?.value,
+                            updateState = updateState,
+                            updatesEnabled = component.updatesEnabled,
                         )
                     }
                     SettingsPage.Data -> SettingsPageList(innerPadding) {

@@ -44,4 +44,14 @@
     <string name="crash_share">共有</string>
     <string name="crash_share_title">クラッシュレポートを共有</string>
     <string name="crash_restart">Monogram を再起動</string>
+    <string name="update_prompt_title">%1$s にアップデート</string>
+    <string name="update_prompt_skip">スキップ</string>
+    <string name="update_prompt_update">アップデート</string>
+    <string name="update_prompt_install">インストール</string>
+    <string name="update_prompt_body">新しいビルドがあります。ダウンロードサイズは %1$s です。</string>
+    <string name="update_prompt_hide">非表示</string>
+    <string name="update_prompt_progress">ダウンロード中 %1$s / %2$s</string>
+    <string name="update_prompt_error">アップデートをダウンロードできませんでした</string>
+    <string name="update_prompt_retry">再試行</string>
+    <string name="update_prompt_ready">インストールの準備完了</string>
 </resources>

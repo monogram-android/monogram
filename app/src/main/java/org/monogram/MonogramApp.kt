@@ -14,6 +14,7 @@ import kotlinx.coroutines.withTimeout
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.DebugStats
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.SponsorRegistry
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.TelegramCredentials
 import org.monogram.core.common.push.NotificationLocalStore
@@ -21,6 +22,8 @@ import org.monogram.core.database.DatabaseProvider
 import org.monogram.core.database.MonogramDatabase
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
+import org.monogram.core.models.PeerId
+import org.monogram.core.ui.AppUpdateSettings
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.DownloadState
@@ -28,12 +31,15 @@ import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.perf.perfSpan
 import org.monogram.network.bridge.BridgedMtprotoClient
 import org.monogram.network.http.MediaFetchKind
+import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 import org.monogram.network.http.TelegramChunkFetcher
 import org.monogram.network.http.TelegramInlineThumbPeek
 import org.monogram.network.http.TelegramMediaFetcher
 import org.monogram.push.PushCoordinator
 import org.monogram.sponsor.SponsorSyncManager
+import org.monogram.update.AndroidAppUpdateInstaller
+import org.monogram.update.AppUpdateManager
 import java.io.File
 
 class MonogramApp : Application() {
@@ -46,6 +52,8 @@ class MonogramApp : Application() {
     lateinit var push: PushCoordinator
 
     lateinit var sponsorSync: SponsorSyncManager
+        private set
+    lateinit var appUpdate: AppUpdateManager
         private set
     lateinit var sessionStore: SessionMetadataStore
         private set
@@ -125,7 +133,10 @@ class MonogramApp : Application() {
                 sessionStore = SessionMetadataStore(db)
             },
             installAppearance = {
-                perfSpan("app:appearance") { AppearanceSettings.install(this) }
+                perfSpan("app:appearance") {
+                    AppearanceSettings.install(this)
+                    AppUpdateSettings.install(this)
+                }
             },
             createClient = {
                 val sessionFile = File(filesDir, "mtproto.session.json")
@@ -218,6 +229,47 @@ class MonogramApp : Application() {
                     db.sponsorDao(),
                     sessionStore,
                 )
+                appUpdate = AppUpdateManager(
+                    scope = settingsScope,
+                    isAuthorized = {
+                        if (sessionStore.isAuthorized()) {
+                            true
+                        } else {
+                            when (val result = client.isLocallyAuthorized()) {
+                                is Outcome.Ok -> result.value
+                                is Outcome.Err -> false
+                            }
+                        }
+                    },
+                    betaUpdates = { AppUpdateSettings.betaUpdates.value },
+                    isSupporter = {
+                        val id = sessionStore.readAuthorizedUserId()?.value
+                        id != null && id in SponsorRegistry.sponsorIds.value
+                    },
+                    resolveUsername = { username ->
+                        when (val outcome = client.resolveUsername(username)) {
+                            is Outcome.Ok -> Outcome.Ok(outcome.value.peerId.value)
+                            is Outcome.Err -> outcome
+                        }
+                    },
+                    getHistoryPage = { chatId, limit, offsetId ->
+                        client.getHistoryPage(PeerId(chatId), limit, offsetId)
+                    },
+                    telegramDownload = { message ->
+                        mediaRepository.ensureLocalMessageMedia(
+                            message,
+                            MediaPriority.USER,
+                        )
+                    },
+                    cancelDownloadKey = { key -> mediaRepository.cancel(key) },
+                    progress = mediaRepository.downloadProgress,
+                    currentVersionCode = { BuildConfig.VERSION_CODE },
+                    currentCommit = { BuildConfig.GIT_COMMIT },
+                    buildType = BuildConfig.BUILD_TYPE,
+                    supportedAbis = { android.os.Build.SUPPORTED_ABIS.toList() },
+                    installer = AndroidAppUpdateInstaller(this),
+                    updateDir = File(cacheDir, "updates"),
+                )
             },
             startPush = {
                 runCatching { push.start() }
@@ -226,6 +278,10 @@ class MonogramApp : Application() {
             startSponsor = {
                 runCatching { sponsorSync.start() }
                     .onFailure { AppLog.warn("startup", "sponsor start failed") }
+            },
+            startAppUpdate = {
+                runCatching { appUpdate.start() }
+                    .onFailure { AppLog.warn("startup", "app update start failed") }
             },
         )
     }

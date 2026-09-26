@@ -47,4 +47,14 @@
     <string name="crash_share">Zdieľať</string>
     <string name="crash_share_title">Zdieľať report o zlyhaní</string>
     <string name="crash_restart">Reštartovať Monogram</string>
+    <string name="update_prompt_title">Aktualizovať na %1$s</string>
+    <string name="update_prompt_skip">Preskočiť</string>
+    <string name="update_prompt_update">Aktualizovať</string>
+    <string name="update_prompt_install">Inštalovať</string>
+    <string name="update_prompt_body">K dispozícii je nový build. Veľkosť sťahovania: %1$s.</string>
+    <string name="update_prompt_hide">Skryť</string>
+    <string name="update_prompt_progress">Sťahovanie %1$s / %2$s</string>
+    <string name="update_prompt_error">Aktualizáciu sa nepodarilo stiahnuť</string>
+    <string name="update_prompt_retry">Skúsiť znova</string>
+    <string name="update_prompt_ready">Pripravené na inštaláciu</string>
 </resources>

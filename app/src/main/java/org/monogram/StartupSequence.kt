@@ -18,6 +18,7 @@ internal data class StartupSteps(
     val createPush: suspend () -> Unit,
     val startPush: () -> Unit = {},
     val startSponsor: () -> Unit = {},
+    val startAppUpdate: () -> Unit = {},
 )
 
 internal suspend fun runFirstPaintStartup(
@@ -45,4 +46,5 @@ internal suspend fun runFirstPaintStartup(
 internal fun startAfterFirstPaint(steps: StartupSteps) {
     steps.startPush()
     steps.startSponsor()
+    steps.startAppUpdate()
 }

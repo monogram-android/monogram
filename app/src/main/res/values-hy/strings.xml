@@ -45,4 +45,14 @@
     <string name="crash_share">Կիսվել</string>
     <string name="crash_share_title">Կիսվել սխալի զեկույցով</string>
     <string name="crash_restart">Վերագործարկել Monogram-ը</string>
+    <string name="update_prompt_title">Թարմացնել մինչև %1$s</string>
+    <string name="update_prompt_skip">Բաց թողնել</string>
+    <string name="update_prompt_update">Թարմացնել</string>
+    <string name="update_prompt_install">Տեղադրել</string>
+    <string name="update_prompt_body">Հասանելի է նոր կառուցում։ Ներբեռնման չափը՝ %1$s։</string>
+    <string name="update_prompt_hide">Թաքցնել</string>
+    <string name="update_prompt_progress">Ներբեռնում %1$s / %2$s</string>
+    <string name="update_prompt_error">Չհաջողվեց ներբեռնել թարմացումը</string>
+    <string name="update_prompt_retry">Կրկնել</string>
+    <string name="update_prompt_ready">Պատրաստ է տեղադրման</string>
 </resources>

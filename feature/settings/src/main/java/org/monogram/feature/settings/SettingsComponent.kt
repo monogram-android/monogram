@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.monogram.core.database.OfflineWarmup
@@ -26,6 +27,7 @@ import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.push.NotificationLocalStore
+import org.monogram.core.models.AppUpdateState
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsComponent(
@@ -44,6 +46,8 @@ class SettingsComponent(
     val debugNotifications: Boolean = false,
     notificationLocal: NotificationLocalStore? = null,
     openFolders: Boolean = false,
+    val appUpdate: AppUpdateController? = null,
+    val updatesEnabled: Boolean = true,
 ) : ComponentContext by componentContext {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -61,6 +65,8 @@ class SettingsComponent(
     }
 
     val state: StateFlow<SettingsStore.State> = store.stateFlow
+    val updateState: StateFlow<AppUpdateState> =
+        appUpdate?.state ?: MutableStateFlow(AppUpdateState.Idle)
     private val notificationsStore = instanceKeeper.getStore("notifications") {
         NotificationsStoreFactory(
             storeFactory,
@@ -118,6 +124,10 @@ class SettingsComponent(
     fun onClearChatCache(chatId: Long) = store.accept(SettingsStore.Intent.ClearChatCache(chatId))
     fun onClearKindCache(kind: String) = store.accept(SettingsStore.Intent.ClearKindCache(kind))
     fun onLogout() = store.accept(SettingsStore.Intent.Logout)
+    fun onCheckForUpdates() = appUpdate?.checkForUpdates()
+    fun onDownloadUpdate() = appUpdate?.downloadUpdate()
+    fun onCancelUpdateDownload() = appUpdate?.cancelDownload()
+    fun onInstallUpdate() = appUpdate?.installUpdate()
     fun onExportDebugStats() = store.accept(SettingsStore.Intent.ExportDebugStats)
     fun onClearDebugStats() = store.accept(SettingsStore.Intent.ClearDebugStats)
     fun openPage(page: SettingsPage) = pageNavigation.pushNew(page)

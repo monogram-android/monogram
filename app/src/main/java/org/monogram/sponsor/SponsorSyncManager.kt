@@ -54,10 +54,6 @@ class SponsorSyncManager(
     private var eventSyncJob: Job? = null
     private var failureCount = 0
 
-    init {
-        start()
-    }
-
     fun start() {
         if (!started.compareAndSet(false, true)) return
 

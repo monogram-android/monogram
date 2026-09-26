@@ -10,12 +10,14 @@ import org.unifiedpush.android.connector.data.PushMessage
 class MonogramUnifiedPushService : PushService() {
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
         val app = application as? MonogramApp ?: return
+        if (!app.awaitReadyBlocking()) return
         val keys = endpoint.pubKeySet
         app.push.onWebPushEndpoint(endpoint.url, keys?.pubKey, keys?.auth)
     }
 
     override fun onMessage(message: PushMessage, instance: String) {
         val app = application as? MonogramApp ?: return
+        if (!app.awaitReadyBlocking()) return
         AppLog.api("unifiedpush", "wake")
         val text = message.content.toString(Charsets.UTF_8)
         if (text.startsWith("{") || text.contains("loc_key")) {
@@ -28,11 +30,13 @@ class MonogramUnifiedPushService : PushService() {
     override fun onRegistrationFailed(reason: FailedReason, instance: String) {
         AppLog.warn("unifiedpush", "registration failed")
         val app = application as? MonogramApp ?: return
+        if (!app.awaitReadyBlocking()) return
         app.notifications.setLastRegister("unifiedpush failed")
     }
 
     override fun onUnregistered(instance: String) {
         val app = application as? MonogramApp ?: return
+        if (!app.awaitReadyBlocking()) return
         app.notifications.clearPushIdentity()
     }
 }

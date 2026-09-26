@@ -25,12 +25,9 @@ internal object TdlibSessionImport {
     private const val MAX_BINLOG = 512L * 1024 * 1024
 
     fun maybeImport(filesDir: File, sessionFile: File, cacheDir: File = filesDir) {
-        if (sessionHasUser(sessionFile)) {
-            if (File(filesDir, "td-db").isDirectory) wipeTdlib(filesDir, cacheDir)
-            return
-        }
         val tdDb = File(filesDir, "td-db")
         if (!tdDb.isDirectory) return
+        if (sessionFile.isFile && sessionFile.length() > 0L) return
         val imported = runCatching { scan(tdDb) }.getOrNull()
         if (imported == null) {
             AppLog.api("session", "tdlib db present but auth key not decoded")

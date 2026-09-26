@@ -2,16 +2,23 @@ package org.monogram
 
 import android.app.Application
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.DebugStats
+import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.TelegramCredentials
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.database.DatabaseProvider
+import org.monogram.core.database.MonogramDatabase
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.ui.AppearanceSettings
@@ -46,6 +53,25 @@ class MonogramApp : Application() {
         private set
 
     private val settingsScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val ready = CompletableDeferred<Unit>()
+
+    suspend fun awaitReady() = ready.await()
+
+    fun awaitReadyBlocking(timeoutMs: Long = 20_000L): Boolean =
+        runBlocking {
+            try {
+                withTimeout(timeoutMs) { ready.await() }
+                true
+            } catch (_: Exception) {
+                false
+            }
+        }
+
+    fun launchWhenReady(block: suspend () -> Unit): Job =
+        settingsScope.launch {
+            ready.await()
+            block()
+        }
 
     private fun applyDownloadSettings(state: DownloadState) {
         client.applyDownloadConcurrency(state.lanes, state.parts)
@@ -60,89 +86,147 @@ class MonogramApp : Application() {
         val startedAt = PerfLog.nowMs()
         perfSpan("app:settings") {
             AppLog.init(cacheDir)
-            DebugStats.install(BuildConfig.DEBUG, cacheDir)
-            ImageCache.install(this)
-            AppearanceSettings.install(this)
         }
+        settingsScope.launch(Dispatchers.IO) {
+            perfSpan("app:debugStats") {
+                DebugStats.install(BuildConfig.DEBUG, cacheDir)
+            }
+        }
+        settingsScope.launch(Dispatchers.IO) {
+            try {
+                val steps = firstPaintSteps()
+                runFirstPaintStartup(settingsScope, steps)
+                ready.complete(Unit)
+                PerfLog.mark("app:ready", PerfLog.nowMs() - startedAt)
+                startAfterFirstPaint(steps)
+            } catch (cancelled: CancellationException) {
+                ready.completeExceptionally(cancelled)
+                throw cancelled
+            } catch (error: Throwable) {
+                AppLog.warn("startup", "init failed")
+                ready.completeExceptionally(error)
+            }
+        }
+        PerfLog.mark("app:onCreate", PerfLog.nowMs() - startedAt)
+    }
+
+    private fun firstPaintSteps(): StartupSteps {
         val credentials = TelegramCredentials(
             apiId = BuildConfig.TELEGRAM_API_ID,
             apiHash = BuildConfig.TELEGRAM_API_HASH,
         )
-        val database = perfSpan("app:database") { DatabaseProvider.get(this) }
-        warmup = OfflineWarmup(database)
-        settingsScope.launch(Dispatchers.IO) {
-            runCatching { warmup.ensureStartupCleanup() }
-                .onFailure { AppLog.warn("warmup", "startup cleanup failed") }
-        }
-        sessionStore = SessionMetadataStore(database)
-        val sessionFile = File(filesDir, "mtproto.session.json")
-        runCatching { TdlibSessionImport.maybeImport(filesDir, sessionFile, cacheDir) }
-            .onFailure { AppLog.warn("session", "tdlib import failed") }
-        client = perfSpan("app:client") {
-            BridgedMtprotoClient(
-                credentials = credentials,
-                sessionPath = sessionFile.absolutePath,
-            )
-        }
-        if (BuildConfig.STARTUP_PREWARM) {
-            settingsScope.launch(Dispatchers.IO) {
-                val started = PerfLog.nowMs()
-                when (val result = runCatching { client.connect() }.getOrNull()) {
-                    is org.monogram.core.common.Outcome.Ok ->
-                        PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=ok")
-                    is org.monogram.core.common.Outcome.Err ->
-                        PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=err")
-                    null ->
-                        PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=throw")
-                }
-            }
-        }
         val durableMedia = File(filesDir, "media")
         val cacheMedia = File(cacheDir, "media")
-        if (!durableMedia.exists() && cacheMedia.exists()) {
-            settingsScope.launch(Dispatchers.IO) {
-                runCatching { cacheMedia.copyRecursively(durableMedia, overwrite = false) }
-                    .onFailure { AppLog.warn("media", "cache migration failed") }
-            }
-        }
-        perfSpan("app:downloadConcurrency") {
-            DownloadSettings.install(this, ::applyDownloadSettings)
-        }
-        mediaRepository = perfSpan("app:mediaRepository") {
-            MediaRepository(
-                cacheRoot = durableMedia,
-                telegramChunkFetcher = TelegramChunkFetcher { chatId, messageId, destPath, offset ->
-                    client.downloadMessageMediaChunk(chatId, messageId, destPath, offset)
-                },
-                telegramFetcher = TelegramMediaFetcher { chatId, messageId, destPath, kind, priority ->
-                    when (kind) {
-                        MediaFetchKind.Thumb ->
-                            client.downloadMessageThumb(chatId, messageId, destPath, priority)
-                        MediaFetchKind.Display ->
-                            client.downloadMessageDisplay(chatId, messageId, destPath, priority)
-                        MediaFetchKind.Full ->
-                            client.downloadMessageMedia(chatId, messageId, destPath, priority)
+        lateinit var db: MonogramDatabase
+        return StartupSteps(
+            openDatabase = {
+                db = perfSpan("app:database") { DatabaseProvider.get(this) }
+                warmup = OfflineWarmup(db)
+                sessionStore = SessionMetadataStore(db)
+            },
+            installAppearance = {
+                perfSpan("app:appearance") { AppearanceSettings.install(this) }
+            },
+            createClient = {
+                val sessionFile = File(filesDir, "mtproto.session.json")
+                perfSpan("app:tdlibImport") {
+                    runCatching { TdlibSessionImport.maybeImport(filesDir, sessionFile, cacheDir) }
+                        .onFailure { AppLog.warn("session", "tdlib import failed") }
+                }
+                client = perfSpan("app:client") {
+                    BridgedMtprotoClient(
+                        credentials = credentials,
+                        sessionPath = sessionFile.absolutePath,
+                    )
+                }
+            },
+            installImageCache = {
+                perfSpan("app:imageCache") { ImageCache.install(this) }
+            },
+            cleanup = {
+                runCatching { warmup.ensureStartupCleanup() }
+                    .onFailure { AppLog.warn("warmup", "startup cleanup failed") }
+            },
+            prewarm = {
+                if (BuildConfig.STARTUP_PREWARM) {
+                    val started = PerfLog.nowMs()
+                    when (val result = runCatching { client.connect() }.getOrNull()) {
+                        is Outcome.Ok ->
+                            PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=ok")
+                        is Outcome.Err ->
+                            PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=err")
+                        null ->
+                            PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=throw")
                     }
-                },
-                customEmojiFetcher = { documentId, destPath, priority ->
-                    client.downloadCustomEmoji(documentId, destPath, priority)
-                },
-                inlineThumbPeek = TelegramInlineThumbPeek { chatId, messageId ->
-                    client.peekMessageInlineThumb(chatId, messageId)
-                },
-            )
-        }
-        client.setDownloadProgressListener { path, downloaded, _ ->
-            mediaRepository.onNativeProgress(path, downloaded)
-        }
-        notifications = NotificationLocalStore(this)
-        push = perfSpan("app:push") {
-            PushCoordinator(this, client, notifications, mediaRepository, DefaultStoreFactory())
-                .also { it.start() }
-        }
-        sponsorSync = perfSpan("app:sponsorSync") {
-            SponsorSyncManager(settingsScope, client, database.sponsorDao(), sessionStore)
-        }
-        PerfLog.mark("app:onCreate", PerfLog.nowMs() - startedAt)
+                }
+            },
+            mediaMigration = {
+                TdlibSessionImport.wipeTdlib(filesDir, cacheDir)
+                if (!durableMedia.exists() && cacheMedia.exists()) {
+                    runCatching { cacheMedia.copyRecursively(durableMedia, overwrite = false) }
+                        .onFailure { AppLog.warn("media", "cache migration failed") }
+                }
+            },
+            installDownloadSettings = {
+                perfSpan("app:downloadConcurrency") {
+                    DownloadSettings.install(this, ::applyDownloadSettings)
+                }
+            },
+            createMedia = {
+                mediaRepository = perfSpan("app:mediaRepository") {
+                    MediaRepository(
+                        cacheRoot = durableMedia,
+                        telegramChunkFetcher = TelegramChunkFetcher { chatId, messageId, destPath, offset ->
+                            client.downloadMessageMediaChunk(chatId, messageId, destPath, offset)
+                        },
+                        telegramFetcher = TelegramMediaFetcher { chatId, messageId, destPath, kind, priority ->
+                            when (kind) {
+                                MediaFetchKind.Thumb ->
+                                    client.downloadMessageThumb(chatId, messageId, destPath, priority)
+                                MediaFetchKind.Display ->
+                                    client.downloadMessageDisplay(chatId, messageId, destPath, priority)
+                                MediaFetchKind.Full ->
+                                    client.downloadMessageMedia(chatId, messageId, destPath, priority)
+                            }
+                        },
+                        customEmojiFetcher = { documentId, destPath, priority ->
+                            client.downloadCustomEmoji(documentId, destPath, priority)
+                        },
+                        inlineThumbPeek = TelegramInlineThumbPeek { chatId, messageId ->
+                            client.peekMessageInlineThumb(chatId, messageId)
+                        },
+                    )
+                }
+                client.setDownloadProgressListener { path, downloaded, _ ->
+                    mediaRepository.onNativeProgress(path, downloaded)
+                }
+            },
+            createPush = {
+                notifications = NotificationLocalStore(this)
+                push = perfSpan("app:push") {
+                    PushCoordinator(
+                        this,
+                        client,
+                        notifications,
+                        mediaRepository,
+                        DefaultStoreFactory(),
+                    )
+                }
+                sponsorSync = SponsorSyncManager(
+                    settingsScope,
+                    client,
+                    db.sponsorDao(),
+                    sessionStore,
+                )
+            },
+            startPush = {
+                runCatching { push.start() }
+                    .onFailure { AppLog.warn("startup", "push start failed") }
+            },
+            startSponsor = {
+                runCatching { sponsorSync.start() }
+                    .onFailure { AppLog.warn("startup", "sponsor start failed") }
+            },
+        )
     }
 }

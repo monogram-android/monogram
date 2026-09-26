@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var root: RootComponent
     private val startupReady = CompletableDeferred<Unit>()
     private var idleJob: Job? = null
+    private var startJob: Job? = null
     private var inPictureInPicture by mutableStateOf(false)
     private var pendingIncomingShare: IncomingShare? = null
     private var shareIntentHandled = false
@@ -132,18 +133,12 @@ class MainActivity : ComponentActivity() {
         val app = application as MonogramApp
         val componentContext = defaultComponentContext()
         lifecycleScope.launch {
+            app.awaitReady()
             val startOnHome = withContext(Dispatchers.IO) {
-                when (val local = app.client.isLocallyAuthorized()) {
-                    is Outcome.Ok -> if (local.value) {
-                        true
-                    } else {
-                        when (val remote = app.client.isAuthorized()) {
-                            is Outcome.Ok -> remote.value
-                            is Outcome.Err -> app.sessionStore.isAuthorized()
-                        }
-                    }
-                    is Outcome.Err -> app.sessionStore.isAuthorized()
-                }
+                resolveStartOnHome(
+                    sessionAuthorized = { app.sessionStore.isAuthorized() },
+                    locallyAuthorized = { app.client.isLocallyAuthorized() },
+                )
             }
             root = RootComponent(
                 componentContext = componentContext,
@@ -226,10 +221,12 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         idleJob?.cancel()
+        startJob?.cancel()
         val app = application as MonogramApp
-        app.push.setForeground(true)
-        app.push.requestPermission(this)
-        lifecycleScope.launch {
+        startJob = lifecycleScope.launch {
+            app.awaitReady()
+            app.push.setForeground(true)
+            app.push.requestPermission(this@MainActivity)
             startupReady.await()
             val started = PerfLog.nowMs()
             when (val result = runCatching { app.client.connect() }.getOrNull()) {
@@ -242,9 +239,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         val app = application as MonogramApp
-        app.push.setForeground(false)
+        startJob?.cancel()
         idleJob?.cancel()
         idleJob = lifecycleScope.launch {
+            app.awaitReady()
+            app.push.setForeground(false)
             delay(120_000)
             if (!app.push.appForeground && app.notifications.token().isNotBlank()) {
                 app.client.hibernate()

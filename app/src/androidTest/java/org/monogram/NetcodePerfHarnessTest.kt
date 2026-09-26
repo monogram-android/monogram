@@ -42,6 +42,7 @@ class NetcodePerfHarnessTest {
     @Test
     fun measureLiveNetcode() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as MonogramApp
+        assertTrue("startup services", app.awaitReadyBlocking())
         val client = app.client
         val repository = app.mediaRepository
         val samples = mutableListOf<String>()
@@ -234,6 +235,7 @@ class NetcodePerfHarnessTest {
     @Test
     fun measureOpenPaths() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as MonogramApp
+        assertTrue("startup services", app.awaitReadyBlocking())
         val client = app.client
         val repository = app.mediaRepository
         val samples = mutableListOf<String>()

@@ -10,11 +10,13 @@ import java.util.concurrent.TimeUnit
 class MonogramFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         val app = application as? MonogramApp ?: return
+        if (!app.awaitReadyBlocking()) return
         app.push.onFcmToken(token)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         val app = application as? MonogramApp ?: return
+        if (!app.awaitReadyBlocking()) return
         AppLog.api("fcm", "data keys=${message.data.keys.joinToString()}")
         val latch = CountDownLatch(1)
         try {

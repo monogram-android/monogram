@@ -9,6 +9,14 @@ class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as? MonogramApp ?: return
         val pending = goAsync()
-        app.push.handleNotificationAction(intent) { pending.finish() }
+        app.launchWhenReady {
+            try {
+                app.push.handleNotificationAction(intent) { pending.finish() }
+            } catch (_: Throwable) {
+                pending.finish()
+            }
+        }.invokeOnCompletion { error ->
+            if (error != null) pending.finish()
+        }
     }
 }

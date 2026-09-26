@@ -122,10 +122,21 @@ jobs:
           ls dist/monogram-universal-*-release.apk >/dev/null
           ls dist/monogram-armeabi-v7a-*-release.apk >/dev/null
 
+      - name: Version stamp
+        id: ver
+        run: |
+          name=$(sed -n 's/^val appVersionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -n1)
+          code=$(sed -n 's/^val appVersionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -n1)
+          sha=$(git rev-parse --short HEAD)
+          test -n "$name" && test -n "$code" && test -n "$sha"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
       - name: Upload debug APKs
         uses: actions/upload-artifact@v4
         with:
-          name: monogram-debug
+          name: monogram-debug-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-*-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -133,7 +144,7 @@ jobs:
       - name: Upload release APKs
         uses: actions/upload-artifact@v4
         with:
-          name: monogram-release
+          name: monogram-release-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-*-release.apk
           if-no-files-found: error
           retention-days: 14

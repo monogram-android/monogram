@@ -84,6 +84,27 @@ jobs:
           echo "ANDROID_NDK_ROOT=${{ steps.ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
           chmod +x gradlew
 
+      - name: Write signing and Firebase secrets
+        env:
+          GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES }}
+          KEYS: ${{ secrets.KEYS }}
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+        run: |
+          set +x
+          if [ -n "$GOOGLE_SERVICES" ]; then
+            printf '%s\n' "$GOOGLE_SERVICES" > app/google-services.json
+          fi
+          if [ -n "$KEYS" ]; then
+            printf '%s\n' "$KEYS" > local.properties
+          fi
+          if [ -n "$KEYSTORE" ]; then
+            printf '%s' "$KEYSTORE" | base64 -d > release.keystore
+            test -s release.keystore
+            if [ ! -f local.properties ] || ! grep -q '^RELEASE_STORE_FILE=' local.properties; then
+              printf 'RELEASE_STORE_FILE=release.keystore\n' >> local.properties
+            fi
+          fi
+
       - name: Assemble debug and release
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
@@ -93,25 +114,26 @@ jobs:
       - name: Stage APKs
         run: |
           mkdir -p dist
-          debug=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
-          release=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
-          test -n "$debug" && test -n "$release"
-          cp "$debug" dist/monogram-debug.apk
-          cp "$release" dist/monogram-release.apk
+          cp app/build/outputs/apk/debug/monogram-*-debug.apk dist/
+          cp app/build/outputs/apk/release/monogram-*-release.apk dist/
           ls -l dist
+          ls dist/monogram-universal-*-debug.apk >/dev/null
+          ls dist/monogram-armeabi-v7a-*-debug.apk >/dev/null
+          ls dist/monogram-universal-*-release.apk >/dev/null
+          ls dist/monogram-armeabi-v7a-*-release.apk >/dev/null
 
-      - name: Upload debug APK
+      - name: Upload debug APKs
         uses: actions/upload-artifact@v4
         with:
           name: monogram-debug
-          path: dist/monogram-debug.apk
+          path: dist/monogram-*-debug.apk
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload release APK
+      - name: Upload release APKs
         uses: actions/upload-artifact@v4
         with:
           name: monogram-release
-          path: dist/monogram-release.apk
+          path: dist/monogram-*-release.apk
           if-no-files-found: error
           retention-days: 14

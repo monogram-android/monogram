@@ -37,6 +37,8 @@ val selectedAbis = if (!targetAbiProp.isNullOrBlank()) {
 } else {
     listOf("armeabi-v7a", "arm64-v8a", "x86_64")
 }
+val appVersionCode = 17
+val appVersionName = "0.4.0"
 
 /** Short git SHA of the checked-out commit, shown next to the build type in settings. */
 val gitCommit: String = providers.exec {
@@ -54,8 +56,8 @@ android {
         applicationId = "org.monogram"
         minSdk = 24
         targetSdk = 37
-        versionCode = 17
-        versionName = "0.4.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -66,6 +68,17 @@ android {
 
         ndk {
             abiFilters += selectedAbis
+        }
+    }
+
+    if (targetAbiProp.isNullOrBlank()) {
+        splits {
+            abi {
+                isEnable = true
+                reset()
+                include("armeabi-v7a", "arm64-v8a", "x86_64")
+                isUniversalApk = true
+            }
         }
     }
 
@@ -121,6 +134,20 @@ android {
     sourceSets.getByName("androidTest").assets.srcDir("../core/database/schemas")
 }
 
+androidComponents {
+    onVariants { variant ->
+        val buildType = variant.buildType ?: variant.name.substringAfterLast("-")
+        variant.outputs.forEach { output ->
+            val abi = output.filters
+                .firstOrNull { it.filterType.name == "ABI" }
+                ?.identifier
+                ?: targetAbiProp?.takeIf { it.isNotBlank() }
+                ?: "universal"
+            output.outputFileName.set("monogram-$abi-$appVersionName-$buildType.apk")
+        }
+    }
+}
+
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(project(":core:common"))
@@ -164,6 +191,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.ktor.client.core)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

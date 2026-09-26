@@ -30,9 +30,11 @@ calls go through `network/bridge`; protocol logic belongs in Rust.
 
 Copy `local.properties.example` to `local.properties` and set `sdk.dir`,
 `API_ID`, and `API_HASH` from [my.telegram.org/apps](https://my.telegram.org/apps).
-Keep this file untracked and never log credentials. CI assembles debug and
-release APKs without those values (debug-signed, no release keystore); login
-needs a real API id. Artifacts are `monogram-debug` and `monogram-release`.
+Keep this file untracked and never log credentials. CI writes secrets
+`GOOGLE_SERVICES` to `app/google-services.json`, `KEYS` to `local.properties`
+(API id/hash and `RELEASE_*` signing keys), and base64 `KEYSTORE` to
+`release.keystore`. Missing secrets still assemble (debug-signed). Login needs
+a real API id. Artifacts are `monogram-debug` and `monogram-release`.
 
 Push notifications: keep `app/google-services.json` and any
 `firebase-adminsdk` file untracked. Register the FCM/GCM key for this API id

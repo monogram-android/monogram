@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
       CI: true
@@ -134,56 +134,56 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Upload debug armeabi-v7a
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: monogram-debug-armeabi-v7a-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-armeabi-v7a-*-debug.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload debug arm64-v8a
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: monogram-debug-arm64-v8a-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-arm64-v8a-*-debug.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload debug x86_64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: monogram-debug-x86_64-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-x86_64-*-debug.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload debug universal
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: monogram-debug-universal-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-universal-*-debug.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload release armeabi-v7a
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: monogram-release-armeabi-v7a-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-armeabi-v7a-*-release.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload release arm64-v8a
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: monogram-release-arm64-v8a-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-arm64-v8a-*-release.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload release x86_64
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: monogram-release-x86_64-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-x86_64-*-release.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload release universal
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: monogram-release-universal-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.code }}-${{ steps.ver.outputs.sha }}
           path: dist/monogram-universal-*-release.apk

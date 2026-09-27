@@ -100,6 +100,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.runtime.rememberUpdatedState
+import com.arkivanov.decompose.extensions.compose.stack.animation.Direction
+import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimator
 
 @Composable
 @OptIn(ExperimentalDecomposeApi::class, FaultyDecomposeApi::class)
@@ -149,13 +151,31 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
     val animation = remember(backHandler, direction, motion) {
         val spec = tween<Float>(durationMillis = if (motion) 280 else 0, easing = FastOutSlowInEasing)
         val settingsSlide = fade(animationSpec = spec) + slide(animationSpec = spec)
+        val screenSlide = stackAnimator(animationSpec = spec) { factor, direction, content ->
+            val alphaProgress = 1f - factor
+            BoxWithConstraints {
+                val width = constraints.maxWidth.toFloat()
+                val translationXProgress = when (direction) {
+                    Direction.ENTER_FRONT -> width * factor
+                    Direction.EXIT_FRONT -> -width * factor
+                    Direction.ENTER_BACK -> 0f
+                    Direction.EXIT_BACK -> 0f
+                }
+                content(
+                    Modifier.graphicsLayer {
+                        translationX = translationXProgress
+                        alpha = alphaProgress
+                    }
+                )
+            }
+        }
         predictiveBackAnimation<RootComponent.Config, RootComponent.Child>(
             backHandler = backHandler,
             fallbackAnimation = stackAnimation { child, other, _ ->
                 val settingsNav =
                     child.configuration is RootComponent.Config.Settings ||
-                        other.configuration is RootComponent.Config.Settings
-                if (settingsNav) settingsSlide else fade()
+                            other.configuration is RootComponent.Config.Settings
+                if (settingsNav) settingsSlide else screenSlide
             },
             selector = { event, _, _ ->
                 predictiveBackAnimatable(

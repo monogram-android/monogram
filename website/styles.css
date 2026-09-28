@@ -743,7 +743,7 @@ a,
   }
   .reel__set { gap: 16px; padding-right: 16px; }
   .reel .phone {
-    width: min(240px, 68vw);
+    width: min(340px, 86vw);
     flex: none;
     box-shadow: none;
   }
@@ -772,7 +772,7 @@ a,
   .hero__copy { grid-area: copy; order: 0; }
   .stage { grid-area: stage; order: 0; }
   .stage {
-    min-height: 760px;
+    min-height: 920px;
     margin-top: 0;
     padding: 0;
   }
@@ -780,23 +780,23 @@ a,
   .phone--right { display: block; }
   .phone--front {
     position: relative;
-    width: 268px;
+    width: 400px;
   }
   .phone--left {
     position: absolute;
     z-index: 1;
-    width: 220px;
-    left: 2%;
-    top: 7%;
-    transform: rotate(-13deg);
+    width: 300px;
+    left: 0;
+    top: 6%;
+    transform: rotate(-10deg);
   }
   .phone--right {
     position: absolute;
     z-index: 2;
-    width: 200px;
-    right: 1%;
+    width: 280px;
+    right: 0;
     bottom: 4%;
-    transform: rotate(11deg);
+    transform: rotate(9deg);
   }
   .bento {
     grid-template-columns: 1.15fr 1fr 1fr;

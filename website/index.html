@@ -18,6 +18,14 @@
         const theme = stored === "light" || stored === "dark" ? stored : (dark ? "dark" : "light");
         root.dataset.theme = theme;
         root.style.colorScheme = theme;
+        const accents = ["blue", "violet", "teal", "green", "rose"];
+        let accent = null;
+        try { accent = sessionStorage.getItem("monogram-accent"); } catch { /* ignore */ }
+        if (!accents.includes(accent)) {
+          accent = accents[Math.floor(Math.random() * accents.length)];
+          try { sessionStorage.setItem("monogram-accent", accent); } catch { /* ignore */ }
+        }
+        root.dataset.accent = accent;
         const meta = document.querySelector('meta[name="theme-color"]');
         if (meta) meta.setAttribute("content", theme === "dark" ? "#0e1418" : "#eef6fa");
       })();

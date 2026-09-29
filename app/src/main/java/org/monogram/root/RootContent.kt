@@ -100,6 +100,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.runtime.rememberUpdatedState
+import com.arkivanov.decompose.extensions.compose.stack.animation.Direction
+import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimator
 
 @Composable
 @OptIn(ExperimentalDecomposeApi::class, FaultyDecomposeApi::class)
@@ -147,26 +149,39 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
         GestureBackHandler(component.backHandler, gestureDispatcher)
     }
     val animation = remember(backHandler, direction, motion) {
-        val spec = tween<Float>(durationMillis = if (motion) 280 else 0, easing = FastOutSlowInEasing)
+        val spec = tween<Float>( durationMillis = if (motion) 280 else 0, easing = FastOutSlowInEasing)
         val settingsSlide = fade(animationSpec = spec) + slide(animationSpec = spec)
+        val screenSlide = stackAnimator(animationSpec = spec) { factor, animDirection, content ->
+            val alphaProgress = 1f - factor
+            content(
+                Modifier.graphicsLayer {
+                    val width = size.width
+                    translationX = when (animDirection) {
+                        Direction.ENTER_FRONT -> width * factor
+                        Direction.EXIT_FRONT -> width * factor
+                        Direction.ENTER_BACK -> width * factor * 0.25f
+                        Direction.EXIT_BACK -> width * factor
+                    }
+                    alpha = alphaProgress
+                }
+            )
+        }
         predictiveBackAnimation<RootComponent.Config, RootComponent.Child>(
             backHandler = backHandler,
             fallbackAnimation = stackAnimation { child, other, _ ->
                 val settingsNav =
                     child.configuration is RootComponent.Config.Settings ||
-                        other.configuration is RootComponent.Config.Settings
-                if (settingsNav) settingsSlide else fade()
+                            other.configuration is RootComponent.Config.Settings
+                if (settingsNav) settingsSlide else screenSlide
             },
             selector = { event, _, _ ->
                 predictiveBackAnimatable(
                     initialBackEvent = event,
                     exitModifier = { progress, _ ->
-                        Modifier.graphicsLayer { translationX = size.width * progress * direction }
+                        Modifier.graphicsLayer { translationX = size.width * progress }
                     },
                     enterModifier = { progress, _ ->
-                        Modifier.graphicsLayer {
-                            translationX = -size.width * 0.25f * (1f - progress) * direction
-                        }
+                        Modifier.graphicsLayer { translationX = -size.width * 0.25f * (1f - progress) }
                     },
                 )
             },

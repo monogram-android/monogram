@@ -1,6 +1,5 @@
 package org.monogram.feature.dialog.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,12 +10,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -24,21 +21,12 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
-import androidx.compose.material.icons.automirrored.outlined.StickyNote2
-import androidx.compose.material.icons.outlined.EmojiEmotions
-import androidx.compose.material.icons.outlined.GifBox
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialShapes
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -55,14 +43,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -74,6 +58,7 @@ import org.monogram.core.models.SavedGif
 import org.monogram.core.models.StickerPack
 import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
+import org.monogram.core.ui.components.MonogramPlaceholder
 import org.monogram.core.ui.components.SheetPanelHost
 import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.PickerMediaPreload
@@ -82,7 +67,6 @@ import org.monogram.feature.dialog.SystemEmojiCatalog
 import org.monogram.feature.dialog.SystemEmojiCategory
 import org.monogram.feature.dialog.SystemEmojiCategoryKind
 import org.monogram.network.http.MediaRepository
-import org.monogram.core.ui.components.MonogramPlaceholder
 
 internal val PickerTabClearance = 8.dp
 
@@ -149,47 +133,47 @@ internal fun EmojiStickerGifPanel(
                     .height(panelHeight),
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = PickerTabInset),
+                    modifier = Modifier.fillMaxSize(),
                 ) {
-                    when (tab) {
-                        ComposerPanels.TAB_STICKERS -> PackBrowser(
-                            packs = stickerSets,
-                            loadedPacks = loadedPacks,
-                            loaded = stickerLoaded,
-                            error = stickerError,
-                            failedPackIds = failedPackIds,
-                            onOpenPack = onOpenPack,
-                            onSendDocument = onSendDocument,
-                            onRetry = { onTab(ComposerPanels.TAB_STICKERS) },
-                            onDocumentsVisible = onPickerDocumentsVisible,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                    CompositionLocalProvider(LocalPickerBottomInset provides PickerTabInset) {
+                        when (tab) {
+                            ComposerPanels.TAB_STICKERS -> PackBrowser(
+                                packs = stickerSets,
+                                loadedPacks = loadedPacks,
+                                loaded = stickerLoaded,
+                                error = stickerError,
+                                failedPackIds = failedPackIds,
+                                onOpenPack = onOpenPack,
+                                onSendDocument = onSendDocument,
+                                onRetry = { onTab(ComposerPanels.TAB_STICKERS) },
+                                onDocumentsVisible = onPickerDocumentsVisible,
+                                modifier = Modifier.fillMaxSize(),
+                            )
 
-                        ComposerPanels.TAB_GIFS -> SavedGifBrowser(
-                            gifs = gifs,
-                            mediaRepository = mediaRepository,
-                            loaded = gifsLoaded,
-                            error = gifsError,
-                            onSendDocument = onSendDocument,
-                            onRetry = { onTab(ComposerPanels.TAB_GIFS) },
-                            onGifsVisible = onPickerGifsVisible,
-                        )
+                            ComposerPanels.TAB_GIFS -> SavedGifBrowser(
+                                gifs = gifs,
+                                mediaRepository = mediaRepository,
+                                loaded = gifsLoaded,
+                                error = gifsError,
+                                onSendDocument = onSendDocument,
+                                onRetry = { onTab(ComposerPanels.TAB_GIFS) },
+                                onGifsVisible = onPickerGifsVisible,
+                            )
 
-                        else -> SystemEmojiBrowser(
-                            packs = emojiSets,
-                            openPack = openPack?.takeIf { it.isEmoji },
-                            loadedPacks = loadedPacks,
-                            packsLoaded = emojiLoaded,
-                            loadingPackIds = loadingPackIds,
-                            failedPackIds = failedPackIds,
-                            onInsertEmoji = onInsertEmoji,
-                            onInsertCustomEmoji = onInsertCustomEmoji,
-                            onOpenPack = onOpenPack,
-                            onSendDocument = onSendDocument,
-                            onDocumentsVisible = onPickerDocumentsVisible,
-                        )
+                            else -> SystemEmojiBrowser(
+                                packs = emojiSets,
+                                openPack = openPack?.takeIf { it.isEmoji },
+                                loadedPacks = loadedPacks,
+                                packsLoaded = emojiLoaded,
+                                loadingPackIds = loadingPackIds,
+                                failedPackIds = failedPackIds,
+                                onInsertEmoji = onInsertEmoji,
+                                onInsertCustomEmoji = onInsertCustomEmoji,
+                                onOpenPack = onOpenPack,
+                                onSendDocument = onSendDocument,
+                                onDocumentsVisible = onPickerDocumentsVisible,
+                            )
+                        }
                     }
                 }
                 Surface(
@@ -380,7 +364,8 @@ private fun EmojiPreviewRow(
     onPrefetchPack: (StickerPack) -> Unit,
 ) {
     val rowState = rememberLazyListState()
-    val packIndexOffset = categories.size + if (categories.isNotEmpty() && packs.isNotEmpty()) 1 else 0
+    val packIndexOffset =
+        categories.size + if (categories.isNotEmpty() && packs.isNotEmpty()) 1 else 0
     val visibleChipPacks by remember(packs, rowState, packIndexOffset) {
         derivedStateOf {
             val visible = rowState.layoutInfo.visibleItemsInfo
@@ -505,6 +490,7 @@ internal fun PackBrowser(
                     text = stringResource(R.string.dialog_sticker_sets_error),
                     onRetry = onRetry,
                 )
+
                 else -> Text(
                     text = stringResource(R.string.dialog_sticker_sets_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -520,7 +506,9 @@ internal fun PackBrowser(
         var next = 0
         packs.associate { pack ->
             val start = next
-            next += 1 + (loadedPacks[pack.id]?.previewDocumentIds?.size ?: pack.count.coerceAtLeast(1))
+            next += 1 + (loadedPacks[pack.id]?.previewDocumentIds?.size ?: pack.count.coerceAtLeast(
+                1
+            ))
             pack.id to start
         }
     }
@@ -538,8 +526,9 @@ internal fun PackBrowser(
             packs.filter { pack ->
                 val start = starts.getValue(pack.id)
                 val count = 1 + (
-                    loadedPacks[pack.id]?.previewDocumentIds?.size ?: pack.count.coerceAtLeast(1)
-                )
+                        loadedPacks[pack.id]?.previewDocumentIds?.size
+                            ?: pack.count.coerceAtLeast(1)
+                        )
                 start + count > minIndex && start <= maxIndex
             }
         }
@@ -567,7 +556,9 @@ internal fun PackBrowser(
         CompositionLocalProvider(LocalMediaAnimationEnabled provides true) {
             LazyRow(
                 state = previewState,
-                modifier = Modifier.fillMaxWidth().height(PickerMetrics.ChipRowHeight.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(PickerMetrics.ChipRowHeight.dp),
                 contentPadding = PickerChipPadding(),
                 horizontalArrangement = Arrangement.spacedBy(PickerMetrics.GridSpacing.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -610,7 +601,8 @@ internal fun PackBrowser(
                     ) { index ->
                         val id = documents?.getOrNull(index)
                         Box(
-                            modifier = Modifier.size(PickerMetrics.StickerCell.dp)
+                            modifier = Modifier
+                                .size(PickerMetrics.StickerCell.dp)
                                 .clip(MaterialTheme.shapes.small)
                                 .clickable(enabled = id != null || failed) {
                                     if (id != null) onSendDocument(id) else onOpenPack(pack)
@@ -708,7 +700,10 @@ private fun DocumentGrid(
 ) {
     val gridState = rememberLazyGridState()
     ReportPickerVisible(itemsKey = ids, gridState = gridState) { min, max ->
-        onDocumentsVisible(ids, ids.subList(min.coerceAtLeast(0), (max + 1).coerceIn(0, ids.size)).toSet())
+        onDocumentsVisible(
+            ids,
+            ids.subList(min.coerceAtLeast(0), (max + 1).coerceIn(0, ids.size)).toSet()
+        )
     }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(cellSize.dp),
@@ -756,6 +751,7 @@ internal fun SavedGifBrowser(
                     text = stringResource(R.string.dialog_saved_gifs_error),
                     onRetry = onRetry,
                 )
+
                 else -> Text(
                     text = stringResource(R.string.dialog_saved_gifs_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

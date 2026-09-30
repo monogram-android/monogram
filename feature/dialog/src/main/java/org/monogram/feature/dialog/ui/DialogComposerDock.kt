@@ -80,10 +80,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
@@ -158,6 +160,7 @@ import java.time.ZoneId
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 import org.monogram.core.ui.components.SponsorBadge
+import org.monogram.feature.dialog.performComposerSlot
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -187,6 +190,12 @@ internal fun DialogComposerDock(
     onSelectLinkPreview: (String) -> Unit = {},
     onDismissLinkPreview: () -> Unit = {},
     onRestoreLinkPreview: () -> Unit = {},
+    onPhotos: () -> Unit = {},
+    onFile: () -> Unit = {},
+    onLocation: () -> Unit = {},
+    onCloseAttachAnimated: () -> Unit = {},
+    composerPanel: String? = null,
+    emojiTab: String = "",
 ) {
     var value by composer
     val context = LocalContext.current
@@ -259,7 +268,15 @@ internal fun DialogComposerDock(
     androidx.activity.compose.BackHandler(enabled = hasComposerSelection) {
         value = collapseComposerSelection(value)
     }
-    Column {
+    val composerChrome = LocalComposerChrome.current
+    val composerDensity = LocalDensity.current
+    Column(
+        modifier = Modifier
+            .onSizeChanged { size ->
+                composerChrome.value = with(composerDensity) { size.height.toDp() }
+            }
+            .blockWriteBarChatSwipe(),
+    ) {
         botKeyboard?.let { keyboard ->
             BotKeyboardGrid(
                 markup = keyboard,
@@ -343,6 +360,13 @@ internal fun DialogComposerDock(
             onSelectLinkPreview = onSelectLinkPreview,
             onDismissLinkPreview = onDismissLinkPreview,
             onRestoreLinkPreview = onRestoreLinkPreview,
+            panelOpen = composerPanel != null,
+            onClosePanel = {
+                when (composerPanel) {
+                    ComposerPanels.ATTACH -> onCloseAttachAnimated()
+                    ComposerPanels.EMOJI -> component.onToggleEmojiPanel()
+                }
+            },
             onSend = {
                 val sent = value.text
                 if (!editing) {
@@ -350,8 +374,20 @@ internal fun DialogComposerDock(
                 }
                 component.onSend(sent)
             },
-            onAttach = component::onToggleAttachSheet,
-            onEmoji = component::onToggleEmojiPanel,
+            onSlot = { action ->
+                performComposerSlot(
+                    action = action,
+                    panel = composerPanel,
+                    tab = emojiTab,
+                    closeEmoji = component::onToggleEmojiPanel,
+                    closeAttach = component::onCloseAttachSheet,
+                    openEmojiTab = component::onSetEmojiTab,
+                    openAttach = component::onToggleAttachSheet,
+                    openPhotos = onPhotos,
+                    openFile = onFile,
+                    openLocation = onLocation,
+                )
+            },
             onRetryFailed = component::onRetryFailed,
             onCancelEdit = component::onCancelEdit,
             onClearReply = component::onClearReply,

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -84,12 +85,18 @@ internal fun pickerSkeletonSpec(kind: PickerSkeletonKind): PickerSkeletonSpec = 
     )
 }
 
+internal val LocalPickerBottomInset = staticCompositionLocalOf { PickerTabClearance }
+
 /** Content padding for picker grids and their placeholders, so cells line up exactly. */
-internal fun PickerGridPadding(top: Dp = PickerMetrics.GridSpacing.dp): PaddingValues = PaddingValues(
+@Composable
+internal fun PickerGridPadding(
+    top: Dp = PickerMetrics.GridSpacing.dp,
+    bottom: Dp = LocalPickerBottomInset.current,
+): PaddingValues = PaddingValues(
     start = PickerMetrics.GridPadding.dp,
     end = PickerMetrics.GridPadding.dp,
     top = top,
-    bottom = PickerTabClearance,
+    bottom = bottom,
 )
 
 /** Content padding for the pack and category chip rows. */

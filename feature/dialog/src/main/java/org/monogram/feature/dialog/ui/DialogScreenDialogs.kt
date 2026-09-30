@@ -167,6 +167,10 @@ internal fun DialogScreenDialogs(
     pendingDeleteId: androidx.compose.runtime.MutableState<Int?>,
     taskDraftFor: androidx.compose.runtime.MutableState<Pair<Int, Int>?>,
     taskDraft: androidx.compose.runtime.MutableState<String>,
+    onPhotos: () -> Unit,
+    onFile: () -> Unit,
+    onLocation: () -> Unit,
+    onCloseAttachAnimated: () -> Unit,
 ) {
     var packDocumentId by packDocumentId
     var instantViewUrl by instantViewUrl
@@ -201,6 +205,12 @@ internal fun DialogScreenDialogs(
             onSelectLinkPreview = component::onSelectLinkPreview,
             onDismissLinkPreview = component::onDismissLinkPreview,
             onRestoreLinkPreview = component::onRestoreLinkPreview,
+            onPhotos = onPhotos,
+            onFile = onFile,
+            onLocation = onLocation,
+            onCloseAttachAnimated = onCloseAttachAnimated,
+            composerPanel = state.composerPanel,
+            emojiTab = state.emojiTab,
             botKeyboard = state.let { current ->
                 val latest = org.monogram.core.models.ReplyMarkups.latestBotKeyboard(current.messages)
                 val key = org.monogram.core.models.ReplyMarkups.serialize(latest)

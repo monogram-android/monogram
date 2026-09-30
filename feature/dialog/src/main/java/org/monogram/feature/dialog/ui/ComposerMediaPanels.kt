@@ -10,11 +10,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -67,6 +64,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.Dispatchers
@@ -86,7 +84,9 @@ import org.monogram.feature.dialog.SystemEmojiCategoryKind
 import org.monogram.network.http.MediaRepository
 import org.monogram.core.ui.components.MonogramPlaceholder
 
-internal val PickerTabClearance = 72.dp
+internal val PickerTabClearance = 8.dp
+
+internal val PickerTabInset = 48.dp + 8.dp + PickerTabClearance
 
 @Composable
 internal fun EmojiStickerGifPanel(
@@ -131,7 +131,7 @@ internal fun EmojiStickerGifPanel(
             240.dp,
             minOf(520.dp, (screenHeight * 0.78f).coerceAtLeast(240.dp)),
         )
-        val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val wide = LocalConfiguration.current.screenWidthDp >= 840
         AppModalSheet(
             onDismissRequest = onDismiss,
             containerColor = container,
@@ -140,13 +140,19 @@ internal fun EmojiStickerGifPanel(
             padIme = false,
             visible = sheetVisible,
             onExited = onExited,
+            bottomGap = composerSheetBottomGap(),
+            maxWidth = if (wide) 520.dp else Dp.Unspecified,
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(panelHeight),
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = PickerTabInset),
+                ) {
                     when (tab) {
                         ComposerPanels.TAB_STICKERS -> PackBrowser(
                             packs = stickerSets,
@@ -190,7 +196,8 @@ internal fun EmojiStickerGifPanel(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .zIndex(1f)
-                        .padding(start = 24.dp, end = 24.dp, bottom = 8.dp + navBottom)
+                        .blockSheetDrag()
+                        .padding(start = 24.dp, end = 24.dp, bottom = 8.dp)
                         .widthIn(min = 220.dp, max = 360.dp)
                         .fillMaxWidth()
                         .height(48.dp),

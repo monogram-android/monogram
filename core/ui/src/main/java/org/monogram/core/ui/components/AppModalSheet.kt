@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -61,6 +62,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -104,6 +106,8 @@ fun AppModalSheet(
         easing = FastOutSlowInEasing,
     ),
     fadeSheet: Boolean = false,
+    bottomGap: Dp = 0.dp,
+    maxWidth: Dp = Dp.Unspecified,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -205,14 +209,7 @@ fun AppModalSheet(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource,
-            ): Offset {
-                if (source != NestedScrollSource.UserInput) return Offset.Zero
-                if (available.y > 0f) {
-                    applyDrag(available.y)
-                    return Offset(0f, available.y)
-                }
-                return Offset.Zero
-            }
+            ): Offset = Offset.Zero
             override suspend fun onPreFling(available: Velocity): Velocity {
                 if (dragOffsetY > 0f) {
                     settle(available.y)
@@ -221,7 +218,7 @@ fun AppModalSheet(
                 return Velocity.Zero
             }
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (available.y > 0f || dragOffsetY != 0f) {
+                if (dragOffsetY != 0f) {
                     settle(available.y)
                     return available
                 }
@@ -234,7 +231,7 @@ fun AppModalSheet(
         popupPositionProvider = WindowOriginPositionProvider,
         onDismissRequest = requestDismiss,
         properties = PopupProperties(
-            focusable = true,
+            focusable = bottomGap == 0.dp,
             dismissOnBackPress = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU,
             dismissOnClickOutside = false,
             clippingEnabled = false,
@@ -262,7 +259,11 @@ fun AppModalSheet(
                 }
             },
         )
-        Box(modifier = Modifier.size(overlayWidth, overlayHeight)) {
+        Box(
+            modifier = Modifier
+                .size(overlayWidth, (overlayHeight - bottomGap).coerceAtLeast(0.dp))
+                .clipToBounds(),
+        ) {
             TransparentPopupSystemBars()
             Box(
                 modifier = Modifier
@@ -283,9 +284,17 @@ fun AppModalSheet(
                         onClick = requestDismiss,
                     ),
             )
+            val capped = maxWidth != Dp.Unspecified
             Surface(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                    .align(if (capped) Alignment.BottomEnd else Alignment.BottomCenter)
+                    .then(
+                        if (capped) {
+                            Modifier.padding(end = 12.dp, bottom = 8.dp).widthIn(max = maxWidth)
+                        } else {
+                            Modifier
+                        },
+                    )
                     .fillMaxWidth()
                     .onSizeChanged { sheetHeightPx = it.height }
                     .graphicsLayer {
@@ -304,7 +313,11 @@ fun AppModalSheet(
                     .then(modifier),
                 color = containerColor,
                 contentColor = contentColor,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                shape = if (capped) {
+                    RoundedCornerShape(28.dp)
+                } else {
+                    RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                },
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
             ) {

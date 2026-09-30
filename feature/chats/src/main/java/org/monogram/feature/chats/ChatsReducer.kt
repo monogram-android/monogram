@@ -2,6 +2,7 @@ package org.monogram.feature.chats
 
 import com.arkivanov.mvikotlin.core.store.Reducer
 import org.monogram.core.database.dao.ChatReadState
+import org.monogram.core.models.Chat
 import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.LastSeen
 import org.monogram.core.models.isHiddenInternalChat
@@ -123,7 +124,7 @@ internal object ChatsReducer : Reducer<ChatsStore.State, Msg> {
 
     private inline fun ChatsStore.State.withUpdatedChat(
         peerId: Long,
-        transform: (org.monogram.core.models.Chat) -> org.monogram.core.models.Chat,
+        transform: (Chat) -> Chat,
     ): ChatsStore.State {
         val index = chats.indexOfFirst { it.id.value == peerId }
         if (index < 0) return this

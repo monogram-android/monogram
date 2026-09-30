@@ -16,11 +16,17 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.EmojiEmotions
+import androidx.compose.material.icons.outlined.GifBox
+import androidx.compose.material.icons.outlined.Interests
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -29,25 +35,40 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import org.monogram.core.ui.ComposerSlotAction
 import org.monogram.core.ui.ComposerStyle
 import org.monogram.core.ui.loading.MonogramBusyIconButton
+
+fun composerSlotIcon(action: ComposerSlotAction, style: ComposerStyle): ImageVector = when (action) {
+    ComposerSlotAction.None -> Icons.Outlined.Block
+    ComposerSlotAction.Emoji -> Icons.Outlined.EmojiEmotions
+    ComposerSlotAction.Stickers -> Icons.Outlined.Interests
+    ComposerSlotAction.Gifs -> Icons.Outlined.GifBox
+    ComposerSlotAction.Attach ->
+        if (style == ComposerStyle.IOS) Icons.Outlined.Add else Icons.Outlined.AttachFile
+    ComposerSlotAction.Photos -> Icons.Outlined.PhotoLibrary
+    ComposerSlotAction.File -> Icons.AutoMirrored.Outlined.InsertDriveFile
+    ComposerSlotAction.Location -> Icons.Outlined.LocationOn
+}
 
 /** Shared geometry for the real composer and its settings preview. The caller owns text input. */
 @Composable
 fun ChatComposerLayout(
     style: ComposerStyle,
-    showEmoji: Boolean,
-    attachEnabled: Boolean,
-    emojiEnabled: Boolean,
+    leftAction: ComposerSlotAction,
+    rightAction: ComposerSlotAction,
+    leftEnabled: Boolean,
+    rightEnabled: Boolean,
     sendEnabled: Boolean,
     sending: Boolean,
     editing: Boolean,
-    attachDescription: String,
-    emojiDescription: String,
+    leftDescription: String,
+    rightDescription: String,
     sendDescription: String,
-    onAttach: () -> Unit,
-    onEmoji: () -> Unit,
+    onLeft: () -> Unit,
+    onRight: () -> Unit,
     onSend: () -> Unit,
     topTrailing: (@Composable BoxScope.() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -61,9 +82,16 @@ fun ChatComposerLayout(
     )
     val corner by animateDpAsState(if (ios) 26.dp else 16.dp, tween(220), label = "composerCorner")
     val shape = RoundedCornerShape(corner)
-    val attach: @Composable () -> Unit = {
-        IconButton(onClick = onAttach, enabled = attachEnabled, modifier = Modifier.size(48.dp)) {
-            Icon(if (ios) Icons.Outlined.Add else Icons.Outlined.AttachFile, attachDescription)
+    val showLeft = leftAction != ComposerSlotAction.None
+    val showRight = rightAction != ComposerSlotAction.None
+    val leftButton: @Composable () -> Unit = {
+        IconButton(onClick = onLeft, enabled = leftEnabled, modifier = Modifier.size(48.dp)) {
+            Icon(composerSlotIcon(leftAction, style), leftDescription)
+        }
+    }
+    val rightButton: @Composable () -> Unit = {
+        IconButton(onClick = onRight, enabled = rightEnabled, modifier = Modifier.size(48.dp)) {
+            Icon(composerSlotIcon(rightAction, style), rightDescription)
         }
     }
     Row(
@@ -71,7 +99,7 @@ fun ChatComposerLayout(
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        if (ios) attach()
+        if (ios && showLeft) leftButton()
         Surface(
             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
             shape = shape,
@@ -82,24 +110,19 @@ fun ChatComposerLayout(
         ) {
             Box {
                 Row(verticalAlignment = Alignment.Bottom) {
-                    if (!ios) attach()
+                    if (!ios && showLeft) leftButton()
                     Box(
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                            .padding(start = if (ios) 14.dp else 0.dp, end = if (showEmoji) 0.dp else 12.dp),
+                            .padding(
+                                start = if (ios || !showLeft) 14.dp else 0.dp,
+                                end = if (showRight) 0.dp else 12.dp,
+                            ),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         field()
                         topTrailing?.invoke(this)
                     }
-                    if (showEmoji) {
-                        IconButton(
-                            onClick = onEmoji,
-                            enabled = emojiEnabled,
-                            modifier = Modifier.size(48.dp),
-                        ) {
-                            Icon(Icons.Outlined.EmojiEmotions, emojiDescription)
-                        }
-                    }
+                    if (showRight) rightButton()
                 }
             }
         }

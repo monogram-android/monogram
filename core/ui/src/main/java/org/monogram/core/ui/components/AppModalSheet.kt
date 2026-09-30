@@ -7,6 +7,7 @@ import android.view.WindowManager
 import android.window.OnBackAnimationCallback
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -73,6 +74,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.view.WindowCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -194,6 +196,26 @@ fun AppModalSheet(
         }
     }
     val requestDismiss = remember(close) { { close { dismissRequest.value() } } }
+    PredictiveBackHandler(enabled = bottomGap > 0.dp && visible && !closing) { events ->
+        try {
+            events.collect { event ->
+                backProgress = event.progress.coerceIn(0f, 1f)
+            }
+            val remaining = (progress.value - backProgress).coerceIn(0f, 1f)
+            backProgress = 0f
+            progress.snapTo(remaining)
+            requestDismiss()
+        } catch (cancelled: CancellationException) {
+            val from = backProgress
+            scope.launch {
+                val anim = Animatable(from)
+                anim.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow)) {
+                    backProgress = value
+                }
+            }
+            throw cancelled
+        }
+    }
     val nestedScroll = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -240,7 +262,7 @@ fun AppModalSheet(
         val popupView = LocalView.current
         SheetPopupBack(
             view = popupView,
-            enabled = visible && !closing,
+            enabled = visible && !closing && bottomGap == 0.dp,
             onProgress = { backProgress = it },
             onCancel = {
                 scope.launch {

@@ -209,6 +209,11 @@ internal fun DialogComposerDock(
     var pasteText by remember { mutableStateOf("") }
     var pasteMedia by remember { mutableStateOf(emptyList<Uri>()) }
     LaunchedEffect(clipboard, selectionMenuRequested) {
+        if (!selectionMenuRequested) {
+            pasteText = ""
+            pasteMedia = emptyList()
+            return@LaunchedEffect
+        }
         val clip = clipboard.getClipEntry()?.clipData
         pasteText = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString().orEmpty()
         pasteMedia = buildList {

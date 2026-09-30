@@ -39,6 +39,7 @@ fun StickerPlayer(
     var frameVersion by remember(lottieBytes, displaySizePx) { mutableStateOf(0) }
 
     LaunchedEffect(lottieBytes, displaySizePx, active, animationEnabled) {
+        if (!active || !animationEnabled) return@LaunchedEffect
         CompactVideoSlots.acquire()
         var handle = 0L
         try {

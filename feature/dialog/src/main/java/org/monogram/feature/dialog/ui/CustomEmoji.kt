@@ -197,20 +197,11 @@ internal fun CustomEmojiGlyph(
                         lottieBytes = bytes!!,
                         modifier = Modifier.fillMaxSize(),
                         displaySize = size,
-                        active = mediaAnimationEnabled && !compact,
+                        active = mediaAnimationEnabled,
                     )
                 } else if (fallback.isNotEmpty()) {
                     Text(text = fallback, style = TextStyle(fontSize = 18.sp))
                 }
-            }
-
-            webmFile(local) && compact -> {
-                VideoStill(
-                    file = local,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit,
-                    maxSizePx = 128,
-                )
             }
 
             webmFile(local) -> {

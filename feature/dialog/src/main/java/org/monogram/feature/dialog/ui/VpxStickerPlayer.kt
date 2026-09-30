@@ -27,8 +27,33 @@ import org.monogram.core.ui.components.argbFrameBitmap
 import org.monogram.mtproto.VpxNative
 import java.io.File
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
 
+private object VpxStickerSlots {
+    private const val MAX = 8
+    private val playing = AtomicInteger(0)
+
+    fun tryAcquire(): Boolean {
+        while (true) {
+            val current = playing.get()
+            if (current >= MAX) return false
+            if (playing.compareAndSet(current, current + 1)) return true
+        }
+    }
+
+    suspend fun acquire() {
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            if (tryAcquire()) return
+            delay(50L)
+        }
+    }
+
+    fun release() {
+        playing.updateAndGet { value -> (value - 1).coerceAtLeast(0) }
+    }
+}
 @Composable
 internal fun VpxStickerPlayer(
     file: File,
@@ -41,7 +66,7 @@ internal fun VpxStickerPlayer(
     LaunchedEffect(file.absolutePath, playable) {
         if (!playable) return@LaunchedEffect
 
-        CompactVideoSlots.acquire()
+        VpxStickerSlots.acquire()
         try {
             withContext(Dispatchers.Default) {
                 playVpxLoop(file) { frame ->
@@ -51,7 +76,7 @@ internal fun VpxStickerPlayer(
                 }
             }
         } finally {
-            CompactVideoSlots.release()
+            VpxStickerSlots.release()
         }
     }
     if (image == null) {

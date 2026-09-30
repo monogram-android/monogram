@@ -34,6 +34,12 @@
         <item quantity="other">%d файлу</item>
     </plurals>
     <string name="dialog_media_document">Файл</string>
+    <string name="dialog_media_link">Посилання</string>
+    <string name="dialog_media_checklist">Список завдань</string>
+    <string name="dialog_media_poll">Опитування</string>
+    <string name="dialog_media_location">Геопозиція</string>
+    <string name="dialog_media_contact">Контакт</string>
+    <string name="dialog_media_dice">Кубик</string>
     <string name="dialog_unsupported_message">Цей тип повідомлення поки не підтримується</string>
     <string name="dialog_poll_quiz">Вікторина</string>
     <string name="dialog_poll_closed">Опитування закрито</string>

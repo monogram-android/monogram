@@ -60,6 +60,12 @@
         <item quantity="other">%d файлов</item>
     </plurals>
     <string name="dialog_media_document">Файл</string>
+    <string name="dialog_media_link">Ссылка</string>
+    <string name="dialog_media_checklist">Список задач</string>
+    <string name="dialog_media_poll">Опрос</string>
+    <string name="dialog_media_location">Геопозиция</string>
+    <string name="dialog_media_contact">Контакт</string>
+    <string name="dialog_media_dice">Кубик</string>
     <string name="dialog_unsupported_message">Этот тип сообщения пока не поддерживается</string>
     <plurals name="dialog_poll_voters">
         <item quantity="one">%d голос</item>

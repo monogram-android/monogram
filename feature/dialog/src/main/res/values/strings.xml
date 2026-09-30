@@ -32,6 +32,12 @@
         <item quantity="other">%d files</item>
     </plurals>
     <string name="dialog_media_document">Document</string>
+    <string name="dialog_media_link">Link</string>
+    <string name="dialog_media_checklist">Checklist</string>
+    <string name="dialog_media_poll">Poll</string>
+    <string name="dialog_media_location">Location</string>
+    <string name="dialog_media_contact">Contact</string>
+    <string name="dialog_media_dice">Dice</string>
     <string name="dialog_unsupported_message">This message type isn’t supported yet</string>
     <plurals name="dialog_poll_voters">
         <item quantity="one">%d vote</item>

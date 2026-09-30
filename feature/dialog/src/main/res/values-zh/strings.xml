@@ -31,6 +31,12 @@
         <item quantity="other">%d 个文件</item>
     </plurals>
     <string name="dialog_media_document">文件</string>
+    <string name="dialog_media_link">链接</string>
+    <string name="dialog_media_checklist">清单</string>
+    <string name="dialog_media_poll">投票</string>
+    <string name="dialog_media_location">位置</string>
+    <string name="dialog_media_contact">联系人</string>
+    <string name="dialog_media_dice">骰子</string>
     <string name="dialog_unsupported_message">暂不支持此消息类型</string>
     <string name="dialog_poll_quiz">测验</string>
     <string name="dialog_poll_closed">已结束</string>

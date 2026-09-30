@@ -31,6 +31,12 @@
         <item quantity="other">%d 件のファイル</item>
     </plurals>
     <string name="dialog_media_document">ファイル</string>
+    <string name="dialog_media_link">リンク</string>
+    <string name="dialog_media_checklist">チェックリスト</string>
+    <string name="dialog_media_poll">投票</string>
+    <string name="dialog_media_location">位置情報</string>
+    <string name="dialog_media_contact">連絡先</string>
+    <string name="dialog_media_dice">サイコロ</string>
     <string name="dialog_unsupported_message">このメッセージの種類はまだ未対応です</string>
     <string name="dialog_poll_quiz">クイズ</string>
     <string name="dialog_poll_closed">終了</string>

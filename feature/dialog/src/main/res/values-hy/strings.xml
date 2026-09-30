@@ -32,6 +32,12 @@
         <item quantity="other">%d ֆայլ</item>
     </plurals>
     <string name="dialog_media_document">Փաստաթուղթ</string>
+    <string name="dialog_media_link">Հղում</string>
+    <string name="dialog_media_checklist">Առաջադրանքների ցանկ</string>
+    <string name="dialog_media_poll">Հարցում</string>
+    <string name="dialog_media_location">Գտնվելու վայր</string>
+    <string name="dialog_media_contact">Կոնտակտ</string>
+    <string name="dialog_media_dice">Զառ</string>
     <string name="dialog_unsupported_message">Այս հաղորդագրության տեսակը դեռ չի աջակցվում</string>
     <string name="dialog_poll_quiz">Վիկտորինա</string>
     <string name="dialog_poll_closed">Փակված</string>

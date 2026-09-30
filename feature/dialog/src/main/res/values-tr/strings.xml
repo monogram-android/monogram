@@ -32,6 +32,12 @@
         <item quantity="other">%d dosya</item>
     </plurals>
     <string name="dialog_media_document">Dosya</string>
+    <string name="dialog_media_link">Bağlantı</string>
+    <string name="dialog_media_checklist">Yapılacaklar listesi</string>
+    <string name="dialog_media_poll">Anket</string>
+    <string name="dialog_media_location">Konum</string>
+    <string name="dialog_media_contact">Kişi</string>
+    <string name="dialog_media_dice">Zar</string>
     <string name="dialog_unsupported_message">Bu mesaj türü henüz desteklenmiyor</string>
     <string name="dialog_poll_quiz">Quiz</string>
     <string name="dialog_poll_closed">Kapandı</string>

@@ -32,6 +32,12 @@
         <item quantity="other">%d archivos</item>
     </plurals>
     <string name="dialog_media_document">Archivo</string>
+    <string name="dialog_media_link">Enlace</string>
+    <string name="dialog_media_checklist">Lista de tareas</string>
+    <string name="dialog_media_poll">Encuesta</string>
+    <string name="dialog_media_location">Ubicación</string>
+    <string name="dialog_media_contact">Contacto</string>
+    <string name="dialog_media_dice">Dado</string>
     <string name="dialog_unsupported_message">Este tipo de mensaje aún no es compatible</string>
     <string name="dialog_poll_quiz">Cuestionario</string>
     <string name="dialog_poll_closed">Cerrada</string>

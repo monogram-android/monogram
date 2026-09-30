@@ -7,7 +7,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,11 +28,15 @@ import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.AudioFile
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Casino
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Gif
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Badge
@@ -45,7 +48,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,12 +68,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import java.io.File
-import java.time.ZoneId
 import org.monogram.core.common.Outcome
+import org.monogram.core.models.Checklists
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
+import org.monogram.core.models.WebpagePreviews
+import org.monogram.core.models.contactCard
+import org.monogram.core.models.dice
+import org.monogram.core.models.geoPlace
+import org.monogram.core.models.poll
+import org.monogram.core.models.venueCard
 import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.localizedServiceMessage
 import org.monogram.core.ui.rememberEnsuredFile
@@ -79,6 +86,8 @@ import org.monogram.feature.dialog.DialogTime
 import org.monogram.feature.dialog.R
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
+import java.io.File
+import java.time.ZoneId
 
 /**
  * Telegram's pinned surfaces on the Android shell: the compact banner under the app bar and the
@@ -111,50 +120,53 @@ internal fun PinnedMessageBar(
                 .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-        PinnedLeadingThumb(
-            message = pinned,
-            size = 40.dp,
-            mediaRepository = mediaRepository,
-        )
-        Column(
-            verticalArrangement = Arrangement.spacedBy(1.dp),
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 10.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            PinnedLeadingThumb(
+                message = pinned,
+                size = 40.dp,
+                mediaRepository = mediaRepository,
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 10.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.dialog_pinned),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = scheme.tertiary,
-                    maxLines = 1,
-                )
-                if (total > 1) {
-                    Badge(
-                        containerColor = scheme.tertiaryContainer,
-                        contentColor = scheme.onTertiaryContainer,
-                    ) {
-                        Text(
-                            text = total.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.dialog_pinned),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = scheme.tertiary,
+                        maxLines = 1,
+                    )
+                    if (total > 1) {
+                        Badge(
+                            containerColor = scheme.tertiaryContainer,
+                            contentColor = scheme.onTertiaryContainer,
+                        ) {
+                            Text(
+                                text = total.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
                     }
                 }
+                AnimatedPinnedPreview(message = pinned)
             }
-            AnimatedPinnedPreview(message = pinned)
-        }
-        if (total > 1) {
-            IconButton(onClick = onOpenList) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.List,
-                    contentDescription = stringResource(R.string.dialog_pinned_list_count, total),
-                )
+            if (total > 1) {
+                IconButton(onClick = onOpenList) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.List,
+                        contentDescription = stringResource(
+                            R.string.dialog_pinned_list_count,
+                            total
+                        ),
+                    )
+                }
             }
         }
-    }
     }
 }
 
@@ -298,7 +310,9 @@ private fun PinnedRow(
                 imageVector = Icons.Filled.PushPin,
                 contentDescription = stringResource(R.string.dialog_pinned_current),
                 tint = scheme.tertiary,
-                modifier = Modifier.padding(start = 8.dp).size(14.dp),
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .size(14.dp),
             )
         }
     }
@@ -330,7 +344,9 @@ private fun PinnedLeadingThumb(
                 .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.size(size).clip(shape),
+            modifier = Modifier
+                .size(size)
+                .clip(shape),
         )
         return
     }
@@ -382,10 +398,15 @@ private fun pinnedTypeIcon(mediaKind: String?): ImageVector = when (mediaKind) {
     "photo" -> Icons.Outlined.Image
     "video", "video_note" -> Icons.Outlined.Videocam
     "gif" -> Icons.Outlined.Gif
-    "sticker", "sticker_animated" -> Icons.Outlined.EmojiEmotions
+    "sticker", "sticker_animated", "sticker_video" -> Icons.Outlined.EmojiEmotions
     "document" -> Icons.AutoMirrored.Outlined.InsertDriveFile
     "audio" -> Icons.Outlined.AudioFile
     "voice" -> Icons.Outlined.Mic
+    "todo" -> Icons.AutoMirrored.Outlined.List
+    "poll" -> Icons.Outlined.BarChart
+    "geo", "venue" -> Icons.Outlined.LocationOn
+    "contact" -> Icons.Outlined.Person
+    "dice" -> Icons.Outlined.Casino
     "service" -> Icons.Outlined.Info
     else -> Icons.Outlined.TextFields
 }
@@ -404,10 +425,10 @@ private fun AnimatedPinnedPreview(message: Message) {
         transitionSpec = {
             if (targetState >= initialState) {
                 (slideInVertically { it / 2 } + fadeIn()) togetherWith
-                    (slideOutVertically { -it / 2 } + fadeOut())
+                        (slideOutVertically { -it / 2 } + fadeOut())
             } else {
                 (slideInVertically { -it / 2 } + fadeIn()) togetherWith
-                    (slideOutVertically { it / 2 } + fadeOut())
+                        (slideOutVertically { it / 2 } + fadeOut())
             }
         },
         label = "pinnedPreview",
@@ -429,10 +450,42 @@ private fun pinnedRowTime(epochSeconds: Long): String = DialogTime.formatTime(
     use24Hour = android.text.format.DateFormat.is24HourFormat(LocalContext.current),
 )
 
+private val structuredPinKinds = setOf("poll", "todo", "geo", "venue", "contact", "dice", "webpage")
+
+internal fun structuredPinnedPreview(message: Message): String? = when (message.mediaKind) {
+    "poll" -> message.poll?.question
+    "todo" -> message.checklist?.title ?: Checklists.parse(message.fileName)?.title
+    "venue" -> message.venueCard?.let { venue ->
+        listOf(venue.title, venue.address).filter { it.isNotBlank() }.joinToString(", ")
+    }
+
+    "geo" -> message.geoPlace?.coordinates
+    "contact" -> message.contactCard?.displayName
+    "dice" -> message.dice?.let { dice -> dice.emoticon.ifBlank { "" } + dice.value.toString() }
+    "webpage" -> WebpagePreviews.parse(message.fileName)?.let { page ->
+        page.title?.takeIf { it.isNotBlank() }
+            ?: page.siteName?.takeIf { it.isNotBlank() }
+            ?: page.url
+    }
+
+    else -> null
+}?.takeIf { it.isNotBlank() }
+
 @Composable
 internal fun pinnedPreviewText(message: Message): String {
     if (message.mediaKind == "service") {
         return localizedServiceMessage(message.text.orEmpty(), message.outgoing)
+    }
+    val body = message.text?.trim().orEmpty()
+    if (message.mediaKind in structuredPinKinds) {
+        val decoded = structuredPinnedPreview(message)
+        return when {
+            decoded == null && body.isNotEmpty() -> body
+            decoded == null -> pinnedMediaLabel(message.mediaKind)
+            body.isEmpty() -> decoded
+            body.equals(decoded, ignoreCase = true) -> decoded
+            else -> "$decoded\n$body"
+        }
     }
     return formatPinnedPreview(
         text = message.text,
@@ -446,9 +499,18 @@ internal fun pinnedPreviewText(message: Message): String {
 private fun pinnedMediaLabel(mediaKind: String?): String = when (mediaKind) {
     "photo" -> stringResource(R.string.dialog_media_photo)
     "video" -> stringResource(R.string.dialog_media_video)
-    "sticker", "sticker_animated" -> stringResource(R.string.dialog_media_sticker)
+    "sticker", "sticker_animated", "sticker_video" -> stringResource(R.string.dialog_media_sticker)
     "gif" -> stringResource(R.string.dialog_media_gif)
     "document" -> stringResource(R.string.dialog_media_document)
+    "audio" -> stringResource(R.string.dialog_media_audio)
+    "voice" -> stringResource(R.string.dialog_media_voice)
+    "video_note" -> stringResource(R.string.dialog_media_video_note)
+    "todo" -> stringResource(R.string.dialog_media_checklist)
+    "poll" -> stringResource(R.string.dialog_media_poll)
+    "geo", "venue" -> stringResource(R.string.dialog_media_location)
+    "contact" -> stringResource(R.string.dialog_media_contact)
+    "dice" -> stringResource(R.string.dialog_media_dice)
+    "webpage" -> stringResource(R.string.dialog_media_link)
     else -> stringResource(R.string.dialog_pinned)
 }
 
@@ -464,14 +526,15 @@ internal fun formatPinnedPreview(
     val lead = name.ifEmpty {
         mediaLabel.takeIf { kind ->
             !kind.isNullOrBlank() &&
-                mediaKind != null &&
-                mediaKind != "service" &&
-                !body.equals(kind, ignoreCase = true)
+                    mediaKind != null &&
+                    mediaKind != "service" &&
+                    !body.equals(kind, ignoreCase = true)
         }.orEmpty()
     }
     return when {
         lead.isNotEmpty() && body.isNotEmpty() && !body.equals(lead, ignoreCase = true) ->
             "$lead\n$body"
+
         body.isNotEmpty() -> body
         lead.isNotEmpty() -> lead
         else -> mediaLabel

@@ -34,6 +34,12 @@
         <item quantity="other">%d súborov</item>
     </plurals>
     <string name="dialog_media_document">Dokument</string>
+    <string name="dialog_media_link">Odkaz</string>
+    <string name="dialog_media_checklist">Zoznam úloh</string>
+    <string name="dialog_media_poll">Anketa</string>
+    <string name="dialog_media_location">Poloha</string>
+    <string name="dialog_media_contact">Kontakt</string>
+    <string name="dialog_media_dice">Kocka</string>
     <string name="dialog_unsupported_message">Tento typ správy zatiaľ nie je podporovaný</string>
     <string name="dialog_poll_quiz">Kvíz</string>
     <string name="dialog_poll_closed">Uzavreté</string>

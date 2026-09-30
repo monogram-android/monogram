@@ -57,21 +57,30 @@ internal fun gzipFile(file: File?): Boolean {
 internal fun webmFile(file: File?): Boolean {
     val header = fileHeader(file, 4) ?: return false
     return header.size >= 4 &&
-        header[0] == 0x1a.toByte() &&
-        header[1] == 0x45.toByte() &&
-        header[2] == 0xdf.toByte() &&
-        header[3] == 0xa3.toByte()
+            header[0] == 0x1a.toByte() &&
+            header[1] == 0x45.toByte() &&
+            header[2] == 0xdf.toByte() &&
+            header[3] == 0xa3.toByte()
 }
 
 internal fun videoThumbnail(file: File, maxSizePx: Int = 0): Bitmap? {
     val retriever = MediaMetadataRetriever()
     return try {
         retriever.setDataSource(file.absolutePath)
-        if (maxSizePx > 0) {
-            scaledFrame(retriever, maxSizePx)
-                ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST)
-        } else {
-            retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST)
+        val durationUs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            ?.toLongOrNull()
+            ?.times(1000L)
+            ?.coerceAtLeast(0L)
+            ?: 0L
+        val timestamps = buildList {
+            add(0L)
+            if (durationUs > 0L) {
+                add((durationUs / 10L).coerceAtLeast(1L))
+                add((durationUs / 2L).coerceAtLeast(1L))
+            }
+        }.distinct()
+        timestamps.firstNotNullOfOrNull { timeUs ->
+            frameAt(retriever, timeUs, maxSizePx)
         }
     } catch (_: RuntimeException) {
         null
@@ -80,8 +89,25 @@ internal fun videoThumbnail(file: File, maxSizePx: Int = 0): Bitmap? {
     }
 }
 
+private fun frameAt(
+    retriever: MediaMetadataRetriever,
+    timeUs: Long,
+    maxSizePx: Int,
+): Bitmap? {
+    if (maxSizePx > 0) {
+        scaledFrame(retriever, maxSizePx, timeUs)?.let { return it }
+    }
+    return runCatching {
+        retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+    }.getOrNull()
+}
+
 /** Decodes straight into a capped size; null when the source is small enough already. */
-private fun scaledFrame(retriever: MediaMetadataRetriever, maxSizePx: Int): Bitmap? {
+private fun scaledFrame(
+    retriever: MediaMetadataRetriever,
+    maxSizePx: Int,
+    timeUs: Long,
+): Bitmap? {
     val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
         ?.toIntOrNull() ?: return null
     val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
@@ -92,8 +118,8 @@ private fun scaledFrame(retriever: MediaMetadataRetriever, maxSizePx: Int): Bitm
     val targetHeight = (height * scale).roundToInt().coerceAtLeast(1)
     return runCatching {
         retriever.getScaledFrameAtTime(
-            0L,
-            MediaMetadataRetriever.OPTION_CLOSEST,
+            timeUs,
+            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
             targetWidth,
             targetHeight,
         )

@@ -113,7 +113,7 @@ object PickerMediaPreload {
                 tasks += Task(
                     item = item,
                     fetch = Fetch.Thumb,
-                    priority = if (visible) MediaPriority.THUMB else MediaPriority.IDLE,
+                    priority = if (visible) MediaPriority.DEFAULT else MediaPriority.IDLE,
                     cacheKey = thumbKey,
                 )
             } else {

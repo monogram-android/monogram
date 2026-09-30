@@ -1,5 +1,6 @@
 package org.monogram.feature.dialog.ui
 
+import android.annotation.SuppressLint
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -17,6 +18,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import org.monogram.core.models.InstantViewBlock
 import org.monogram.network.http.MediaRepository
 
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 internal fun InstantViewEmbed(
     block: InstantViewBlock.Embed,
@@ -27,13 +29,17 @@ internal fun InstantViewEmbed(
 ) {
     val html = block.html
     val url = block.url
+    val hasEmbed = !html.isNullOrBlank() || !url.isNullOrBlank()
     val ratio = if ((block.width ?: 0) > 0 && (block.height ?: 0) > 0) {
         block.width!!.toFloat() / block.height!!
-    } else 16f / 9f
-    val hasEmbed = !html.isNullOrBlank() || !url.isNullOrBlank()
+    } else {
+        16f / 9f
+    }
     Column {
         if (!hasEmbed) {
-            block.posterCacheKey?.let { InstantViewPhoto(it, block.width ?: 0, block.height ?: 0, mediaRepository) }
+            block.posterCacheKey?.let {
+                InstantViewPhoto(it, block.width ?: 0, block.height ?: 0, mediaRepository)
+            }
         } else {
             Box {
                 block.posterCacheKey?.let {
@@ -44,14 +50,30 @@ internal fun InstantViewEmbed(
                         WebView(context).apply {
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = false
+                            settings.mediaPlaybackRequiresUserGesture = true
+                            settings.setSupportZoom(false)
+                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
                             webViewClient = object : WebViewClient() {
-                                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                override fun shouldOverrideUrlLoading(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                ): Boolean {
                                     val next = request?.url?.toString().orEmpty()
-                                    return url == null || !next.startsWith(url)
+                                    if (next.isBlank()) return true
+                                    val insideEmbed = url != null && next.startsWith(url)
+                                    if (!insideEmbed) onOpenUrl(next)
+                                    return !insideEmbed
                                 }
                             }
                             when {
-                                !html.isNullOrBlank() -> loadDataWithBaseURL(url, html, "text/html", "utf-8", null)
+                                !html.isNullOrBlank() -> loadDataWithBaseURL(
+                                    url,
+                                    html,
+                                    "text/html",
+                                    "utf-8",
+                                    null
+                                )
+
                                 !url.isNullOrBlank() -> loadUrl(url)
                             }
                         }
@@ -60,7 +82,14 @@ internal fun InstantViewEmbed(
                         .fillMaxWidth()
                         .heightIn(min = 160.dp)
                         .aspectRatio(ratio.coerceIn(0.6f, 2.2f))
-                        .clip(RoundedCornerShape(12.dp)),
+                        .clip(RoundedCornerShape(IvSpacing.CardCorner)),
+                    onRelease = { view ->
+                        runCatching {
+                            view.stopLoading()
+                            view.loadUrl("about:blank")
+                            view.destroy()
+                        }
+                    },
                 )
             }
         }

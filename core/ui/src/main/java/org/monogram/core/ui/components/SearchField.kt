@@ -3,6 +3,8 @@ package org.monogram.core.ui.components
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
@@ -31,6 +33,8 @@ fun SearchField(
     focusRequester: FocusRequester? = null,
     busy: Boolean = false,
     busyLabel: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     TextField(
         value = query,
@@ -42,6 +46,8 @@ fun SearchField(
         singleLine = true,
         placeholder = { Text(placeholder) },
         interactionSource = remember { MutableInteractionSource() },
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
         trailingIcon = {
             when {
                 busy -> MonogramLoading(
@@ -50,6 +56,7 @@ fun SearchField(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     status = busyLabel,
                 )
+
                 query.isNotEmpty() -> IconButton(onClick = { onQueryChanged("") }) {
                     Icon(Icons.Outlined.Close, contentDescription = closeLabel)
                 }

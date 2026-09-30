@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,51 +35,73 @@ fun StickerPlayer(
 ) {
     val animationEnabled = LocalMediaAnimationEnabled.current
     val displaySizePx = with(LocalDensity.current) { displaySize.roundToPx() }
-    var handle by remember { mutableStateOf(0L) }
-    var bitmap by remember(lottieBytes) { mutableStateOf<Bitmap?>(null) }
+    var bitmap by remember(lottieBytes, displaySizePx) { mutableStateOf<Bitmap?>(null) }
+    var frameVersion by remember(lottieBytes, displaySizePx) { mutableStateOf(0) }
 
-    DisposableEffect(lottieBytes) {
-        val created = runCatching { LottieNative.create(lottieBytes) }.getOrDefault(0L)
-        handle = created
-        onDispose {
-            if (created != 0L) {
-                LottieNative.destroy(created)
+    LaunchedEffect(lottieBytes, displaySizePx, active, animationEnabled) {
+        CompactVideoSlots.acquire()
+        var handle = 0L
+        try {
+            handle = withContext(Dispatchers.Default) {
+                runCatching { LottieNative.create(lottieBytes) }.getOrDefault(0L)
             }
-        }
-    }
+            if (handle == 0L) return@LaunchedEffect
 
-    LaunchedEffect(handle, displaySizePx, active, animationEnabled) {
-        if (handle == 0L) return@LaunchedEffect
-        val frames = runCatching { LottieNative.frameCount(handle) }.getOrDefault(1).coerceAtLeast(1)
-        val fps = runCatching { LottieNative.frameRate(handle) }.getOrDefault(30f).coerceAtLeast(1f)
-        val size = runCatching { LottieNative.size(handle) }.getOrNull()
-        val width = max(1, size?.width?.toInt() ?: displaySizePx)
-        val height = max(1, size?.height?.toInt() ?: displaySizePx)
-        val scale = displaySizePx.toFloat() / max(width, height).toFloat()
-        val outW = max(1, (width * scale).roundToInt())
-        val outH = max(1, (height * scale).roundToInt())
-        suspend fun drawFrame(frameIndex: Int) {
-            val bmp = withContext(Dispatchers.Default) {
-                val rgba = runCatching {
-                    LottieNative.renderFrame(handle, frameIndex.toFloat(), outW, outH)
-                }.getOrNull()
-                if (rgba == null) null else argbFrameBitmap(rgba, outW, outH)
-            } ?: return
-            bitmap = bmp
-        }
-        if (bitmap == null) drawFrame(0)
-        if (!active || !animationEnabled) return@LaunchedEffect
-        var frameIndex = 1 % frames
-        while (isActive) {
-            drawFrame(frameIndex)
-            frameIndex = (frameIndex + 1) % frames
-            delay((1000f / fps).toLong().coerceAtLeast(16L))
+            val frames = withContext(Dispatchers.Default) {
+                runCatching { LottieNative.frameCount(handle) }.getOrDefault(1).coerceIn(1, 600)
+            }
+            val fps = withContext(Dispatchers.Default) {
+                runCatching { LottieNative.frameRate(handle) }.getOrDefault(30f)
+                    .coerceIn(1f, 60f)
+            }
+            val size = withContext(Dispatchers.Default) {
+                runCatching { LottieNative.size(handle) }.getOrNull()
+            }
+            val width = max(1, size?.width?.toInt() ?: displaySizePx)
+            val height = max(1, size?.height?.toInt() ?: displaySizePx)
+            val scale = displaySizePx.toFloat() / max(width, height).toFloat()
+            val outW = max(1, (width * scale).roundToInt())
+            val outH = max(1, (height * scale).roundToInt())
+
+            suspend fun drawFrame(frameIndex: Int): Boolean {
+                val frame = withContext(Dispatchers.Default) {
+                    runCatching {
+                        LottieNative.renderFrame(handle, frameIndex.toFloat(), outW, outH)
+                    }.getOrNull()
+                } ?: return false
+                val rendered = withContext(Dispatchers.Default) {
+                    argbFrameBitmap(frame, outW, outH)
+                } ?: return false
+                bitmap = rendered
+                frameVersion++
+                return true
+            }
+
+            if (!drawFrame(0)) return@LaunchedEffect
+            if (!active || !animationEnabled || frames <= 1) return@LaunchedEffect
+
+            val framesPerUpdate = if (fps > 30f) 2 else 1
+            val frameDelay = if (fps > 30f) 33L else (1000f / fps)
+                .toLong().coerceAtLeast(24L)
+            var frameIndex = framesPerUpdate % frames
+            while (isActive) {
+                if (!drawFrame(frameIndex)) return@LaunchedEffect
+                frameIndex = (frameIndex + framesPerUpdate) % frames
+                delay(frameDelay)
+            }
+        } finally {
+            if (handle != 0L) withContext(Dispatchers.Default) { LottieNative.destroy(handle) }
+            CompactVideoSlots.release()
         }
     }
 
     // Animation invalidates drawing, not the composition containing the sticker.
+    val currentBitmap = bitmap
+
+    @Suppress("UNUSED_VARIABLE")
+    val _frameVersion = frameVersion
     Canvas(modifier = modifier.size(displaySize)) {
-        bitmap?.let { frame ->
+        currentBitmap?.let { frame ->
             val scale = minOf(size.width / frame.width, size.height / frame.height)
             val width = (frame.width * scale).roundToInt().coerceAtLeast(1)
             val height = (frame.height * scale).roundToInt().coerceAtLeast(1)

@@ -23,6 +23,15 @@ class DialogMediaPreloader(
     private var lastSignature: String? = null
 
     fun onVisible(messages: List<Message>, visibleIds: Set<Int>) {
+        if (visibleIds.isEmpty()) {
+            lastSignature = null
+            mediaJob?.cancel()
+            ivJob?.cancel()
+            mediaJob = null
+            ivJob = null
+            mediaRepository?.cancelChat(chatId, belowPriority = MediaPriority.VISIBLE)
+            return
+        }
         val plan = DialogMediaPreload.plan(messages, visibleIds)
         val signature = plan.signature()
         if (signature == lastSignature) return
@@ -68,8 +77,10 @@ class DialogMediaPreloader(
                 if (repository?.inlineThumbJpeg(task.message) != null) return
                 repository?.ensureLocalMessageThumb(task.message, task.priority)
             }
+
             DialogMediaPreload.Fetch.Display ->
                 repository?.ensureLocalMessageDisplay(task.message, task.priority)
+
             DialogMediaPreload.Fetch.Full ->
                 repository?.ensureLocalMessageMedia(task.message, task.priority)
         }

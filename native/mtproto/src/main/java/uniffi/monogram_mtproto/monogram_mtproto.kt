@@ -726,6 +726,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_custom_emoji_is_free(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_decode_vpx_alpha_packet(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_decode_vpx_packet(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_decrypt_push_payload(
@@ -988,6 +990,8 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_monogram_mtproto_fn_func_custom_emoji_is_free(`handle`: Long,`documentId`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
+    external fun uniffi_monogram_mtproto_fn_func_decode_vpx_alpha_packet(`handle`: Long,`data`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_decode_vpx_packet(`handle`: Long,`data`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_decrypt_push_payload(`secret`: RustBuffer.ByValue,`payload`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
@@ -1365,6 +1369,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_custom_emoji_is_free() and 0xFFFF) != 48167) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_decode_vpx_alpha_packet() and 0xFFFF) != 29097) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_decode_vpx_packet() and 0xFFFF) != 27223) {
@@ -4242,6 +4249,49 @@ public object FfiConverterTypeUploadItemDto: FfiConverterRustBuffer<UploadItemDt
 
 
 
+data class VpxAlphaFrame (
+    var `width`: kotlin.UInt
+    ,
+    var `height`: kotlin.UInt
+    ,
+    var `alpha`: kotlin.ByteArray
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeVpxAlphaFrame: FfiConverterRustBuffer<VpxAlphaFrame> {
+    override fun read(buf: ByteBuffer): VpxAlphaFrame {
+        return VpxAlphaFrame(
+            FfiConverterUInt.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterByteArray.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: VpxAlphaFrame) = (
+            FfiConverterUInt.allocationSize(value.`width`) +
+            FfiConverterUInt.allocationSize(value.`height`) +
+            FfiConverterByteArray.allocationSize(value.`alpha`)
+    )
+
+    override fun write(value: VpxAlphaFrame, buf: ByteBuffer) {
+            FfiConverterUInt.write(value.`width`, buf)
+            FfiConverterUInt.write(value.`height`, buf)
+            FfiConverterByteArray.write(value.`alpha`, buf)
+    }
+}
+
+
+
 data class VpxFrame (
     var `width`: kotlin.UInt
     ,
@@ -5114,6 +5164,38 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeVpxAlphaFrame: FfiConverterRustBuffer<VpxAlphaFrame?> {
+    override fun read(buf: ByteBuffer): VpxAlphaFrame? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeVpxAlphaFrame.read(buf)
+    }
+
+    override fun allocationSize(value: VpxAlphaFrame?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeVpxAlphaFrame.allocationSize(value)
+        }
+    }
+
+    override fun write(value: VpxAlphaFrame?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeVpxAlphaFrame.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalTypeVpxFrame: FfiConverterRustBuffer<VpxFrame?> {
     override fun read(buf: ByteBuffer): VpxFrame? {
         if (buf.get().toInt() == 0) {
@@ -5887,6 +5969,19 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 
         FfiConverterULong.lower(`handle`),
         FfiConverterLong.lower(`documentId`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `decodeVpxAlphaPacket`(`handle`: kotlin.ULong, `data`: kotlin.ByteArray): VpxAlphaFrame? {
+            return FfiConverterOptionalTypeVpxAlphaFrame.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_decode_vpx_alpha_packet(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterByteArray.lower(`data`),_status)
 }
     )
     }

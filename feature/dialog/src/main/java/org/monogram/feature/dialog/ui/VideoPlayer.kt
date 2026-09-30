@@ -3,6 +3,7 @@ package org.monogram.feature.dialog.ui
 import android.net.Uri
 import android.view.TextureView
 import android.view.ViewGroup
+import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -15,12 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,29 +46,31 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.exoplayer.ExoPlayer
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
 import org.monogram.core.ui.components.MediaPreviewViewer
+import org.monogram.core.ui.loading.MonogramCircularProgress
 import org.monogram.core.ui.media.MediaSeekBar
 import org.monogram.feature.dialog.R
 import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
-import androidx.compose.runtime.mutableIntStateOf
-import org.monogram.core.ui.loading.MonogramCircularProgress
 
 internal object CompactVideoSlots {
-    const val MAX = 8
+    const val MAX = 4
     private val playing = AtomicInteger(0)
 
     fun tryAcquire(): Boolean {
@@ -74,6 +78,14 @@ internal object CompactVideoSlots {
             val current = playing.get()
             if (current >= MAX) return false
             if (playing.compareAndSet(current, current + 1)) return true
+        }
+    }
+
+    suspend fun acquire() {
+        while (true) {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (tryAcquire()) return
+            delay(100L)
         }
     }
 
@@ -86,6 +98,7 @@ internal object CompactVideoSlots {
     }
 }
 
+@OptIn(UnstableApi::class)
 @Composable
 fun VideoPlayer(
     file: File,
@@ -102,28 +115,27 @@ fun VideoPlayer(
     val animationEnabled = LocalMediaAnimationEnabled.current
     val playable = active && animationEnabled
     var compactSlot by remember { mutableStateOf(false) }
-    val compactOwned = remember { AtomicBoolean(false) }
     LaunchedEffect(playable, compact) {
-        if (!compact) return@LaunchedEffect
-        if (playable) {
-            if (!compactOwned.get()) {
-                val acquired = CompactVideoSlots.tryAcquire()
-                compactOwned.set(acquired)
-                compactSlot = acquired
-            }
-        } else if (compactOwned.getAndSet(false)) {
-            CompactVideoSlots.release()
+        if (!compact || !playable) {
             compactSlot = false
+            return@LaunchedEffect
         }
-    }
-    DisposableEffect(Unit) {
-        onDispose {
-            if (compactOwned.getAndSet(false)) CompactVideoSlots.release()
+        CompactVideoSlots.acquire()
+        compactSlot = true
+        try {
+            awaitCancellation()
+        } finally {
+            compactSlot = false
+            CompactVideoSlots.release()
         }
     }
     val compactPlayable = if (compact) playable && compactSlot else playable
     if (compact && !compactPlayable) {
-        VideoStill(file = file, modifier = modifier, contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+        VideoStill(
+            file = file,
+            modifier = modifier,
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit
+        )
         return
     }
     val uri = remember(file) { Uri.fromFile(file) }
@@ -168,10 +180,12 @@ fun VideoPlayer(
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 playing = isPlaying
             }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 buffering = playbackState == Player.STATE_BUFFERING ||
-                    playbackState == Player.STATE_IDLE
+                        playbackState == Player.STATE_IDLE
             }
+
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 if (videoSize.width > 0 && videoSize.height > 0) {
                     videoWidth = videoSize.width
@@ -258,7 +272,8 @@ fun VideoPlayer(
                     text = stringResource(R.string.dialog_media_gif),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.align(Alignment.TopEnd)
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
                         .padding(horizontal = 5.dp, vertical = 2.dp),
@@ -336,14 +351,18 @@ private fun VideoControls(
 ) {
     val totalMs = maxOf(durationMs, (overlayDurationSeconds ?: 0) * 1000L)
     Surface(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 3.dp,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FilledTonalIconButton(onClick = onPlayPause, modifier = Modifier.size(40.dp)) {

@@ -14,7 +14,7 @@ use crate::{
     FolderDto, ForumTopicsPageDto, GlobalMessageSearchDto, InlineBotResultsDto, InstantViewDto,
     LottieSize, MessageDto, MtprotoError, NotifyExceptionDto, NotifySettingsDto, ProfileDto,
     ReactionChoiceDto, ResolvedPeerDto, SavedGifDto, StickerCatalogDto, StickerListDto,
-    StickerPackDto, UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxFrame, WallpaperCatalogDto,
+    StickerPackDto, UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame, WallpaperCatalogDto,
 };
 
 #[uniffi::export]
@@ -1074,4 +1074,13 @@ pub fn get_read_receipt_config(
     handle: u64,
 ) -> Result<read_receipts_rpc::ReadReceiptConfigDto, MtprotoError> {
     client_mgr::get_read_receipt_config(handle)
+}
+
+
+#[uniffi::export]
+pub fn decode_vpx_alpha_packet(
+    handle: u64,
+    data: Vec<u8>,
+) -> Result<Option<VpxAlphaFrame>, MtprotoError> {
+    vpx::decode_vpx_alpha_packet(handle, data)
 }

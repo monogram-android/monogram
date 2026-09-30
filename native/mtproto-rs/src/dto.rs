@@ -373,3 +373,10 @@ pub struct VpxFrame {
     pub height: u32,
     pub rgba: Vec<u8>,
 }
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct VpxAlphaFrame {
+    pub width: u32,
+    pub height: u32,
+    pub alpha: Vec<u8>,
+}

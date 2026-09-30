@@ -8,7 +8,7 @@ import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.photoDisplayCacheKey
 
 object DialogMediaPreload {
-    const val WINDOW_RADIUS = 4
+    const val WINDOW_RADIUS = 6
 
     private val PRELOAD_KINDS = setOf(
         "photo",
@@ -90,7 +90,7 @@ object DialogMediaPreload {
         }
         val visibleRange = visibleIndices.min()..visibleIndices.max()
         val window = (visibleRange.first - radius).coerceAtLeast(0)..
-            (visibleRange.last + radius).coerceAtMost(messages.lastIndex)
+                (visibleRange.last + radius).coerceAtMost(messages.lastIndex)
         val media = ArrayList<MediaTask>()
         val instantViews = ArrayList<InstantViewTask>()
         val seenIv = HashSet<String>()
@@ -121,7 +121,11 @@ object DialogMediaPreload {
                 }
                 if (!fullKey.isNullOrBlank() && wantFull) {
                     media += MediaTask(message, Fetch.Full, priority, fullKey)
-                } else if (visible && !fullKey.isNullOrBlank() && preset.allowsDisplay(kind, size)) {
+                } else if (visible && !fullKey.isNullOrBlank() && preset.allowsDisplay(
+                        kind,
+                        size
+                    )
+                ) {
                     media += MediaTask(
                         message,
                         Fetch.Display,

@@ -20,11 +20,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.TextStyle
@@ -33,14 +34,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.Outcome
 import org.monogram.core.models.TextEntity
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
+import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.network.http.MediaRepository
 import java.io.File
-import org.monogram.core.ui.loading.MonogramLoading
 
 internal val LocalDialogMedia = staticCompositionLocalOf<MediaRepository?> { null }
 
@@ -55,14 +57,23 @@ internal fun isInViewport(
 ): Boolean {
     if (right <= left || bottom <= top || viewportWidth <= 0 || viewportHeight <= 0) return false
     return right > -lookaheadPx &&
-        bottom > -lookaheadPx &&
-        left < viewportWidth + lookaheadPx &&
-        top < viewportHeight + lookaheadPx
+            bottom > -lookaheadPx &&
+            left < viewportWidth + lookaheadPx &&
+            top < viewportHeight + lookaheadPx
 }
 
 @Composable
 internal fun rememberViewportVisible(key: Any?): Pair<Boolean, Modifier> {
+    var measuredVisible by remember(key) { mutableStateOf(false) }
     var visible by remember(key) { mutableStateOf(false) }
+    LaunchedEffect(measuredVisible) {
+        if (measuredVisible) {
+            visible = true
+        } else {
+            delay(250L)
+            visible = false
+        }
+    }
     val modifier = Modifier.onGloballyPositioned { coordinates ->
         if (!coordinates.isAttached) return@onGloballyPositioned
         val bounds = coordinates.boundsInRoot()
@@ -77,7 +88,7 @@ internal fun rememberViewportVisible(key: Any?): Pair<Boolean, Modifier> {
             viewportHeight = root.height,
             lookaheadPx = lookahead,
         )
-        if (visible != next) visible = next
+        if (measuredVisible != next) measuredVisible = next
     }
     return visible to modifier
 }
@@ -110,7 +121,7 @@ internal fun customEmojiInlineMap(
     }
 }
 
-internal fun androidx.compose.ui.text.AnnotatedString.Builder.appendWithCustomEmoji(
+internal fun AnnotatedString.Builder.appendWithCustomEmoji(
     text: String,
     entities: List<TextEntity>,
 ) {
@@ -160,7 +171,10 @@ internal fun CustomEmojiGlyph(
     val click = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     val local = file?.takeIf { it.exists() && it.length() > 0L }
     Box(
-        modifier = Modifier.size(size).then(click).then(visibilityModifier),
+        modifier = Modifier
+            .size(size)
+            .then(click)
+            .then(visibilityModifier),
         contentAlignment = Alignment.Center,
     ) {
         if (local == null) {
@@ -189,6 +203,7 @@ internal fun CustomEmojiGlyph(
                     Text(text = fallback, style = TextStyle(fontSize = 18.sp))
                 }
             }
+
             webmFile(local) && compact -> {
                 VideoStill(
                     file = local,
@@ -197,6 +212,7 @@ internal fun CustomEmojiGlyph(
                     maxSizePx = 128,
                 )
             }
+
             webmFile(local) -> {
                 VpxStickerPlayer(
                     file = local,
@@ -204,6 +220,7 @@ internal fun CustomEmojiGlyph(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+
             else -> {
                 AsyncImage(
                     model = local,

@@ -45,13 +45,35 @@ fn gunzip_if_needed(bytes: &[u8]) -> Result<Vec<u8>, MtprotoError> {
 }
 
 pub fn create_lottie(data: Vec<u8>) -> Result<u64, MtprotoError> {
+    const MAX_INPUT_SIZE: usize = 10 * 1024 * 1024;
+    if data.is_empty() || data.len() > MAX_INPUT_SIZE {
+        return Err(MtprotoError::Message("lottie input is too large".into()));
+    }
     let json = gunzip_if_needed(&data)?;
+    if json.len() > MAX_INPUT_SIZE {
+        return Err(MtprotoError::Message("lottie json is too large".into()));
+    }
     let composition = Composition::parse(&json, &Limits::default())
         .map_err(|e| MtprotoError::Message(format!("lottie parse failed: {e}")))?;
+    const MAX_FRAMES: u32 = 600;
+    const MAX_FPS: f32 = 60.0;
+    const MAX_DIMENSION: u32 = 2048;
     let frame_count = composition.frame_count();
     let frame_rate = composition.frame_rate;
     let width = composition.width.max(1);
     let height = composition.height.max(1);
+    if frame_count == 0
+        || frame_count > MAX_FRAMES
+        || !frame_rate.is_finite()
+        || frame_rate <= 0.0
+        || frame_rate > MAX_FPS
+        || width > MAX_DIMENSION
+        || height > MAX_DIMENSION
+    {
+        return Err(MtprotoError::Message(
+            "lottie animation exceeds limits".into(),
+        ));
+    }
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
     INSTANCES.lock().insert(
         id,
@@ -107,9 +129,13 @@ pub fn render_lottie_frame(
         Arc::clone(&state.composition)
     };
     let mut renderer = CPURenderer::from_shared(composition);
-    let w = width.max(1);
-    let h = height.max(1);
-    let mut pixels = vec![0_u32; (w as usize).saturating_mul(h as usize)];
+    const MAX_RENDER_DIMENSION: u32 = 1024;
+    let w = width.max(1).min(MAX_RENDER_DIMENSION);
+    let h = height.max(1).min(MAX_RENDER_DIMENSION);
+    let pixel_count = (w as usize)
+        .checked_mul(h as usize)
+        .ok_or_else(|| MtprotoError::Message("lottie frame is too large".into()))?;
+    let mut pixels = vec![0_u32; pixel_count];
     renderer
         .render(frame, &mut pixels, w, h, RenderOptions::default())
         .map_err(|e| MtprotoError::Message(format!("lottie render failed: {e}")))?;

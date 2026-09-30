@@ -83,7 +83,6 @@ struct Decoder {
 }
 
 unsafe impl Send for Decoder {}
-unsafe impl Sync for Decoder {}
 
 static NEXT: AtomicU64 = AtomicU64::new(1);
 static INSTANCES: LazyLock<Mutex<HashMap<u64, Decoder>>> =
@@ -152,10 +151,16 @@ pub fn decode_vpx_packet(
     unsafe {
         let mut instances = INSTANCES.lock();
         let decoder = instances.get_mut(&handle).ok_or_else(missing)?;
+        const MAX_PACKET_SIZE: usize = 4 * 1024 * 1024;
+        if data.is_empty() || data.len() > MAX_PACKET_SIZE {
+            return Err(MtprotoError::Message("invalid vpx packet size".into()));
+        }
+        let packet_size = c_uint::try_from(data.len())
+            .map_err(|_| MtprotoError::Message("vpx packet is too large".into()))?;
         let err = vpx_codec_decode(
             &mut decoder.ctx,
             data.as_ptr(),
-            data.len() as c_uint,
+            packet_size,
             ptr::null_mut(),
             0,
         );
@@ -171,9 +176,51 @@ pub fn decode_vpx_packet(
     }
 }
 
-fn image_to_rgba(image: &VpxImage) -> Result<crate::VpxFrame, MtprotoError> {
-    let width = image.d_w.max(1);
-    let height = image.d_h.max(1);
+
+pub fn decode_vpx_alpha_packet(handle: u64, data: Vec<u8>) -> Result<Option<crate::VpxAlphaFrame>, MtprotoError> {
+    #[cfg(not(has_libvpx))]
+    { let _ = (handle, data); return Err(MtprotoError::Message("libvpx not linked".into())); }
+    #[cfg(has_libvpx)]
+    unsafe {
+        let mut instances = INSTANCES.lock();
+        let decoder = instances.get_mut(&handle).ok_or_else(missing)?;
+        const MAX_PACKET_SIZE: usize = 4 * 1024 * 1024;
+        if data.is_empty() || data.len() > MAX_PACKET_SIZE { return Err(MtprotoError::Message("invalid vpx packet size".into())); }
+        let err = vpx_codec_decode(&mut decoder.ctx, data.as_ptr(), c_uint::try_from(data.len()).map_err(|_| MtprotoError::Message("vpx packet is too large".into()))?, ptr::null_mut(), 0);
+        if err != 0 { return Err(MtprotoError::Message(format!("vpx decode failed: {err}"))); }
+        let mut iter: *const c_void = ptr::null();
+        let image = vpx_codec_get_frame(&mut decoder.ctx, &mut iter);
+        if image.is_null() { return Ok(None); }
+        let image = &*image;
+        let width = image.d_w; let height = image.d_h;
+        const MAX_DIMENSION: u32 = 2048;
+        if width == 0 || height == 0 || width > MAX_DIMENSION || height > MAX_DIMENSION || image.w < width || image.h < height { return Err(MtprotoError::Message("invalid vpx alpha dimensions".into())); }
+        let w = width as usize; let h = height as usize;
+        let stride = usize::try_from(image.stride[0]).map_err(|_| MtprotoError::Message("invalid vpx alpha stride".into()))?;
+        if image.planes[0].is_null() || stride < w { return Err(MtprotoError::Message("invalid vpx alpha plane".into())); }
+        let mut alpha = vec![0u8; w.checked_mul(h).ok_or_else(|| MtprotoError::Message("vpx alpha frame is too large".into()))?];
+        for row in 0..h { std::ptr::copy_nonoverlapping(image.planes[0].add(row * stride), alpha.as_mut_ptr().add(row * w), w); }
+        Ok(Some(crate::VpxAlphaFrame { width, height, alpha }))
+    }
+}fn image_to_rgba(image: &VpxImage) -> Result<crate::VpxFrame, MtprotoError> {
+    const MAX_DIMENSION: u32 = 2048;
+    let width = image.d_w;
+    let height = image.d_h;
+    if width == 0 || height == 0 || width > MAX_DIMENSION || height > MAX_DIMENSION {
+        return Err(MtprotoError::Message("invalid vpx frame dimensions".into()));
+    }
+    let w = width as usize;
+    let h = height as usize;
+    let rgba_len = w
+        .checked_mul(h)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or_else(|| MtprotoError::Message("vpx frame is too large".into()))?;
+    if image.w < width || image.h < height || image.w > MAX_DIMENSION || image.h > MAX_DIMENSION {
+        return Err(MtprotoError::Message(
+            "invalid vpx storage dimensions".into(),
+        ));
+    }
+
     let y_plane = image.planes[0];
     let mut u_plane = image.planes[1];
     let mut v_plane = image.planes[2];
@@ -188,12 +235,31 @@ fn image_to_rgba(image: &VpxImage) -> Result<crate::VpxFrame, MtprotoError> {
             image.fmt
         )));
     }
-    let y_stride = image.stride[0] as usize;
-    let u_stride = image.stride[1] as usize;
-    let v_stride = image.stride[2] as usize;
-    let w = width as usize;
-    let h = height as usize;
-    let mut rgba = vec![0u8; w.saturating_mul(h).saturating_mul(4)];
+    let y_stride = usize::try_from(image.stride[0])
+        .map_err(|_| MtprotoError::Message("invalid vpx luma stride".into()))?;
+    let u_stride = usize::try_from(image.stride[1])
+        .map_err(|_| MtprotoError::Message("invalid vpx chroma stride".into()))?;
+    let v_stride = usize::try_from(image.stride[2])
+        .map_err(|_| MtprotoError::Message("invalid vpx chroma stride".into()))?;
+    let chroma_width = (w + 1) / 2;
+    let chroma_height = (h + 1) / 2;
+    if y_stride < w || u_stride < chroma_width || v_stride < chroma_width {
+        return Err(MtprotoError::Message("invalid vpx plane stride".into()));
+    }
+
+    let _ = y_stride
+        .checked_mul(h.saturating_sub(1))
+        .and_then(|offset| offset.checked_add(w))
+        .ok_or_else(|| MtprotoError::Message("invalid vpx luma plane".into()))?;
+    let _ = u_stride
+        .checked_mul(chroma_height.saturating_sub(1))
+        .and_then(|offset| offset.checked_add(chroma_width))
+        .ok_or_else(|| MtprotoError::Message("invalid vpx chroma plane".into()))?;
+    let _ = v_stride
+        .checked_mul(chroma_height.saturating_sub(1))
+        .and_then(|offset| offset.checked_add(chroma_width))
+        .ok_or_else(|| MtprotoError::Message("invalid vpx chroma plane".into()))?;
+    let mut rgba = vec![0u8; rgba_len];
     unsafe {
         for row in 0..h {
             let y_row = y_plane.add(row * y_stride);

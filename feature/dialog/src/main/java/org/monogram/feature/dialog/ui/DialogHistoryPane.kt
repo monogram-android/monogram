@@ -8,6 +8,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Favorite
@@ -97,7 +99,7 @@ import org.monogram.feature.dialog.visibleAlbumMessageIds
 import org.monogram.feature.dialog.visibleUnreadBadgeCount
 import java.time.ZoneId
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun ColumnScope.DialogHistoryPane(
     component: DialogComponent,
@@ -116,7 +118,9 @@ internal fun ColumnScope.DialogHistoryPane(
     clipboard: androidx.compose.ui.platform.Clipboard,
     attachScope: kotlinx.coroutines.CoroutineScope,
 ) {
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(
+        cacheWindow = LazyLayoutCacheWindow(ahead = 1000.dp, behind = 1000.dp),
+    )
     var lastScrolledAnchor by rememberSaveable(state.chatId.value) { mutableStateOf<Int?>(null) }
     var followBottom by rememberSaveable(state.chatId.value) { mutableStateOf(false) }
     var previousCount by rememberSaveable(state.chatId.value) { mutableIntStateOf(0) }
@@ -343,9 +347,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                 listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.index },
                             )
                         }.collect { ids ->
-                            // Start the viewport prefetch during a fling. Waiting for
-                            // isScrollInProgress to clear is what made media pop in late.
-                            if (ids.isNotEmpty()) component.onVisibleWindow(ids)
+                            component.onVisibleWindow(ids)
                         }
                     }
                     LazyColumn(

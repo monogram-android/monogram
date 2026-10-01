@@ -13,6 +13,7 @@ ksp = "2.3.9"
 composeBom = "2026.09.00"
 material3 = "1.5.0-alpha28"
 decompose = "3.5.0"
+androidxWindow = "1.5.1"
 essenty = "2.6.0"
 mvikotlin = "4.4.0"
 ktor = "3.5.2"
@@ -58,6 +59,7 @@ androidx-compose-material-icons = { group = "androidx.compose.material", name = 
 
 decompose = { group = "com.arkivanov.decompose", name = "decompose", version.ref = "decompose" }
 decompose-compose = { group = "com.arkivanov.decompose", name = "extensions-compose", version.ref = "decompose" }
+androidx-window = { group = "androidx.window", name = "window", version.ref = "androidxWindow" }
 essenty-lifecycle = { group = "com.arkivanov.essenty", name = "lifecycle", version.ref = "essenty" }
 
 mvikotlin = { group = "com.arkivanov.mvikotlin", name = "mvikotlin", version.ref = "mvikotlin" }

@@ -169,6 +169,7 @@ dependencies {
 
     implementation(libs.decompose)
     implementation(libs.decompose.compose)
+    implementation(libs.androidx.window)
     implementation(libs.essenty.lifecycle)
     implementation(libs.mvikotlin)
     implementation(libs.mvikotlin.main)

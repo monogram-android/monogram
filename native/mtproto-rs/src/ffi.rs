@@ -9,6 +9,7 @@ use crate::scheduler;
 use crate::session_crypto;
 use crate::session_file;
 use crate::vpx;
+use crate::waveform;
 use crate::{
     AuthCodeSent, AuthSignedIn, BotCallbackAnswerDto, ChatDto, ContactsSearchDto, DiscussionDto,
     FolderDto, ForumTopicsPageDto, GlobalMessageSearchDto, InlineBotResultsDto, InstantViewDto,
@@ -1083,4 +1084,30 @@ pub fn decode_vpx_alpha_packet(
     data: Vec<u8>,
 ) -> Result<Option<VpxAlphaFrame>, MtprotoError> {
     vpx::decode_vpx_alpha_packet(handle, data)
+}
+
+#[uniffi::export]
+pub fn create_waveform(duration_us: u64) -> Result<u64, MtprotoError> {
+    waveform::create(duration_us)
+}
+
+#[uniffi::export]
+pub fn add_waveform_pcm(
+    handle: u64,
+    samples: Vec<i16>,
+    sample_rate: u32,
+    channels: u32,
+    presentation_time_us: u64,
+) -> Result<(), MtprotoError> {
+    waveform::add_pcm(handle, samples, sample_rate, channels, presentation_time_us)
+}
+
+#[uniffi::export]
+pub fn finish_waveform(handle: u64) -> Result<Vec<f32>, MtprotoError> {
+    waveform::finish(handle)
+}
+
+#[uniffi::export]
+pub fn destroy_waveform(handle: u64) {
+    waveform::destroy(handle)
 }

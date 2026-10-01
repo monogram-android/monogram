@@ -157,7 +157,9 @@ fun MessageMedia(
     }.collectAsStateWithLifecycle(
         initialValue = mediaRepository?.isUserDownload(fullKey) == true,
     )
-    val requestFull = wantFull || userOwned
+    val pendingPlayback = LocalAudioMessagePlayback.current?.pendingId ==
+        "audio:" + message.id.chatId.value + ":" + message.id.id
+    val requestFull = wantFull || userOwned || pendingPlayback
     var previewFetchDone by remember(fullKey) {
         mutableStateOf(displayFile != null || fullFile != null)
     }
@@ -188,7 +190,7 @@ fun MessageMedia(
             previewFetchDone = true
             return@LaunchedEffect
         }
-        if (shouldCancelOnViewportDetach(mediaVisible, requestFull, false)) {
+        if (shouldCancelOnViewportDetach(mediaVisible, requestFull, false) && !repo.isUserDownload(fullKey)) {
             repo.cancelRunning(thumbKey)
             displayKey?.let { repo.cancelRunning(it) }
             repo.cancelRunning(fullKey)
@@ -359,6 +361,8 @@ fun MessageMedia(
         }
         kind == "audio" || kind == "voice" -> {
             AudioBubble(
+                message = message,
+                repository = mediaRepository,
                 onLongPress = onLongPress,
                 file = fullFile,
                 title = message.fileName ?: stringResource(
@@ -417,6 +421,7 @@ fun MessageMedia(
                 VideoNoteBubble(
                     message = message,
                     repository = mediaRepository,
+                    visible = mediaVisible,
                     poster = (displayFile ?: fullFile ?: thumbFile)?.takeIf { stillImageFile(it) }
                         ?: thumbFile,
                     onLongPress = onLongPress,

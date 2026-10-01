@@ -65,10 +65,10 @@ import org.monogram.core.ui.components.mediaTime
 val LocalPictureInPictureActive = staticCompositionLocalOf { false }
 
 fun MediaPlaybackSession.keepsMiniPlayer(): Boolean =
-    audioOnly || current?.isVideo == true
+    audioOnly || current?.isPlayable == true
 
 fun MediaPlaybackSession.showsMiniPlayer(pictureInPicture: Boolean = false): Boolean {
-    if (pictureInPicture || current == null) return false
+    if (pictureInPicture || current == null || isMessagePlayback) return false
     if (surface != MediaSurface.MINI_PLAYER && surface != MediaSurface.AUDIO_ONLY) return false
     return keepsMiniPlayer()
 }

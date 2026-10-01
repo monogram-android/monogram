@@ -43,6 +43,7 @@ internal fun ChatInlineVideo(
     val busyElsewhere = session.surface == MediaSurface.VIEWER ||
         session.surface == MediaSurface.PIP
     val shouldPlay = visible && autoplay && animationEnabled &&
+        !session.isMessagePlayback &&
         (!busyElsewhere || session.current?.id == mediaId) &&
         session.surface != MediaSurface.VIEWER &&
         session.surface != MediaSurface.PIP

@@ -56,6 +56,7 @@ mod upload_rpc;
 #[allow(unsafe_code)]
 mod vpx;
 mod wallpaper_rpc;
+mod waveform;
 
 pub(crate) use collections::{
     CompactString, HashMap, HashMapExt, HashSet, HashSetExt, IndexMap, SmallVec,

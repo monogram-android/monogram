@@ -30,6 +30,29 @@ class MediaViewerModelTest {
     }
 
     @Test
+    fun audioAndVoiceArePlayableMessageMediaWithoutVideoOrLooping() {
+        for (kind in listOf(MediaViewerKind.AUDIO, MediaViewerKind.VOICE)) {
+            val item = MediaViewerItem(id = kind.name, kind = kind, durationSeconds = 12, forceLoop = true)
+            assertTrue(item.isPlayable)
+            assertTrue(item.isAudio)
+            assertTrue(item.isMessageMedia)
+            assertFalse(item.isVideo)
+            assertFalse(item.loops)
+        }
+    }
+
+    @Test
+    fun videoNotesNeverLoopEvenWithAnExplicitLoopRequest() {
+        val note = video(12).copy(kind = MediaViewerKind.VIDEO_NOTE)
+        assertTrue(note.isVideo)
+        assertTrue(note.isPlayable)
+        assertTrue(note.isMessageMedia)
+        assertFalse(note.isAudio)
+        assertFalse(note.loops)
+        assertFalse(note.copy(forceLoop = true).loops)
+    }
+
+    @Test
     fun forwardFlagIsExplicitNotHardcodedTrue() {
         assertTrue(MediaViewerActions().canForward)
         assertFalse(MediaViewerActions(canForward = false).canForward)
@@ -39,6 +62,10 @@ class MediaViewerModelTest {
     fun photosNeverLoopAndAreNotVideo() {
         assertFalse(photo().loops)
         assertFalse(photo().isVideo)
+        assertFalse(photo().isAudio)
+        assertFalse(photo().isPlayable)
+        assertFalse(photo().isMessageMedia)
+        assertFalse(photo().copy(forceLoop = true).loops)
     }
 
     @Test

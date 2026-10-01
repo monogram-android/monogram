@@ -42,6 +42,9 @@ import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
+import org.junit.Before
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -52,6 +55,11 @@ import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
+import org.monogram.core.ui.media.MediaPlaybackHolder
+import org.monogram.core.ui.media.MediaSource
+import org.monogram.core.ui.media.MediaSurface
+import org.monogram.core.ui.media.MediaViewerItem
+import org.monogram.core.ui.media.MediaViewerKind
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
@@ -271,8 +279,14 @@ class TabletStateTest {
         compose.onNode(hasSetTextAction()).assertTextContains("applied")
     }
 
+    @Before
+    fun clearPlayback() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { MediaPlaybackHolder.peek()?.stop() }
+    }
+
     @After
     fun tearDown() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { MediaPlaybackHolder.peek()?.stop() }
         scenario?.close()
         repository?.shutdown()
         UiStateTestActivity.content = {}
@@ -391,6 +405,80 @@ class TabletStateTest {
         row("Chat 030").assertIsDisplayed()
     }
 
+    @Test
+    fun messagePlaybackBarSurvivesRootNavigationAndRecreationAndStopsOnLogout() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val file = File(context.cacheDir, "root-playback-short.mp4")
+        instrumentation.context.assets.open("media/video_short.mp4").use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+        val sourceMessage = Message(
+            id = MessageId(PeerId(1), 7), senderId = null, text = "Playback source message",
+            date = 1L, outgoing = false,
+        )
+        launch(expandedInitially = false, messages = listOf(sourceMessage))
+        val voice = MediaViewerItem(
+            id = "root-voice", kind = MediaViewerKind.VOICE, source = MediaSource.Local(file),
+            durationSeconds = 12, senderName = "Root playback sender",
+            sourceChatId = 1L, sourceMessageId = 7,
+        )
+        val session = compose.runOnIdle {
+            MediaPlaybackHolder.session(context).also {
+                it.rememberPosition(voice.id, 0L)
+                it.setQueue(listOf(voice), 0, autoplay = true, startMuted = true)
+                it.changeSpeed(1f)
+            }
+        }
+        compose.waitUntil(15_000) { compose.runOnIdle { session.playing && session.positionMs > 200L } }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle {
+            assertTrue(root.stack.value.active.instance is RootComponent.Child.Home)
+            session.pause()
+            (root.stack.value.active.instance as RootComponent.Child.Home).component.chats.onOpenSettings()
+        }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle {
+            assertTrue(root.stack.value.active.instance is RootComponent.Child.Settings)
+            (root.stack.value.active.instance as RootComponent.Child.Settings).component.onOpenProfile()
+        }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle { assertTrue(root.stack.value.active.instance is RootComponent.Child.Profile) }
+        compose.onNodeWithText("Root playback sender").performClick()
+        compose.runOnIdle {
+            val dialog = root.stack.value.active.configuration as RootComponent.Config.Dialog
+            assertEquals(1L, dialog.chatId)
+            assertEquals(7, dialog.jumpToMessageId)
+            assertSame(session, MediaPlaybackHolder.peek())
+            assertFalse(session.player.playWhenReady)
+        }
+        compose.onNodeWithText("Playback source message").assertIsDisplayed()
+        scenario!!.recreate()
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle {
+            assertSame(session, MediaPlaybackHolder.peek())
+            assertEquals(voice.id, session.current?.id)
+            assertFalse(session.player.playWhenReady)
+            assertEquals(1L, (root.stack.value.active.configuration as RootComponent.Config.Dialog).chatId)
+            expanded = true
+        }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle {
+            val home = root.stack.value.items.first { it.instance is RootComponent.Child.Home }
+            (home.instance as RootComponent.Child.Home).component.chats.onOpenSettings()
+        }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle { (root.stack.value.active.instance as RootComponent.Child.Settings).component.onLogout() }
+        compose.waitUntil(10_000) { compose.runOnIdle { root.stack.value.active.instance is RootComponent.Child.Auth } }
+        compose.onNodeWithText("Root playback sender").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(MediaSurface.STOPPED, session.surface)
+            assertTrue(session.queue.isEmpty())
+            assertEquals(0, session.player.mediaItemCount)
+            assertFalse(session.playing)
+        }
+    }
+
     private fun row(title: String) = compose.onNode(hasText(title) and selectable)
 
     private fun launch(expandedInitially: Boolean, messages: List<Message> = emptyList(), fullWindow: Boolean = false) {
@@ -447,7 +535,7 @@ class TabletStateTest {
                 }
                 "getGroupAdminTags" -> Outcome.Ok(emptyMap<PeerId, String>())
                 "setDialogForeground", "close" -> Unit
-                "updateStatus", "setTyping", "readHistory" -> Outcome.Ok(Unit)
+                "updateStatus", "setTyping", "readHistory", "logout" -> Outcome.Ok(Unit)
                 else -> Outcome.Err("Unsupported in tablet UI test: ${method.name}")
             }
         } as MtprotoClient

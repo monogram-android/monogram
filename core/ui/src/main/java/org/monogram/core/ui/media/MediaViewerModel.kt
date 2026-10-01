@@ -11,7 +11,7 @@ import androidx.media3.datasource.DataSource
 import java.io.File
 
 /** What kind of media a viewer page shows. Mixed albums contain both. */
-enum class MediaViewerKind { PHOTO, VIDEO }
+enum class MediaViewerKind { PHOTO, VIDEO, AUDIO, VOICE, VIDEO_NOTE }
 
 /** Where the bytes come from. [Stream] is used while a video is still downloading. */
 sealed interface MediaSource {
@@ -46,12 +46,20 @@ data class MediaViewerItem(
     val fileName: String? = null,
     /** GIF-style loops requested by the caller, regardless of duration. */
     val forceLoop: Boolean = false,
+    /** Message identity used to reopen the source chat from global playback controls. */
+    val sourceChatId: Long? = null,
+    val sourceMessageId: Int? = null,
 ) {
-    val isVideo: Boolean get() = kind == MediaViewerKind.VIDEO
+    val isVideo: Boolean get() = kind == MediaViewerKind.VIDEO || kind == MediaViewerKind.VIDEO_NOTE
+    val isVideoNote: Boolean get() = kind == MediaViewerKind.VIDEO_NOTE
+    val isAudio: Boolean get() = kind == MediaViewerKind.AUDIO || kind == MediaViewerKind.VOICE
+    val isPlayable: Boolean get() = isVideo || isAudio
+    val isMessageMedia: Boolean
+        get() = isAudio || kind == MediaViewerKind.VIDEO_NOTE
 
     /** Short videos loop while they are the current page; longer ones never do. */
     val loops: Boolean
-        get() = isVideo && !protectedContent &&
+        get() = kind == MediaViewerKind.VIDEO && !protectedContent &&
             (forceLoop || (durationSeconds ?: 0) in 1..LOOP_MAX_SECONDS)
 
     companion object {

@@ -1,38 +1,44 @@
 package org.monogram.root
 
 import com.arkivanov.decompose.ComponentContext
-import com.arkivanov.essenty.lifecycle.doOnStart
-import com.arkivanov.essenty.lifecycle.doOnStop
-import com.arkivanov.essenty.lifecycle.doOnDestroy
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
-import com.arkivanov.decompose.router.stack.pop
-import com.arkivanov.decompose.router.stack.pushNew
-import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.router.stack.navigate
+import com.arkivanov.decompose.router.stack.pop
+import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
+import com.arkivanov.essenty.lifecycle.doOnDestroy
+import com.arkivanov.essenty.lifecycle.doOnStart
+import com.arkivanov.essenty.lifecycle.doOnStop
 import com.arkivanov.mvikotlin.core.store.StoreFactory
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import org.monogram.BuildConfig
+import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.push.NotificationLocalStore
+import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.telegram.TelegramLink
 import org.monogram.core.common.telegram.parseTelegramLink
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.markup.NativeMarkupParser
 import org.monogram.core.models.AccountState
-import org.monogram.core.models.AuthSession
 import org.monogram.core.models.AppUpdate
+import org.monogram.core.models.AuthSession
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.requiresForwardPhotoRight
+import org.monogram.core.ui.ImageCache
+import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.feature.auth.AuthComponent
 import org.monogram.feature.chats.ChatsComponent
 import org.monogram.feature.dialog.DialogComponent
@@ -40,16 +46,10 @@ import org.monogram.feature.folders.FoldersComponent
 import org.monogram.feature.profile.ProfileComponent
 import org.monogram.feature.settings.AppUpdateController
 import org.monogram.feature.settings.SettingsComponent
-import org.monogram.BuildConfig
-import org.monogram.core.common.push.PushRegistration
-import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.network.bridge.BridgedMtprotoClient
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
-import kotlinx.coroutines.CancellationException
-import org.monogram.core.common.AppLog
 import org.monogram.network.http.MediaRepository
-import org.monogram.core.ui.ImageCache
 
 class RootComponent(
     componentContext: ComponentContext,
@@ -71,11 +71,13 @@ class RootComponent(
     private var expiringSession = false
     private var accountFlagsVersion = 0L
     private var listDetailVisible = false
-    private val incomingShareState = kotlinx.coroutines.flow.MutableStateFlow<IncomingShare?>(null)
+    private val incomingShareState = MutableStateFlow<IncomingShare?>(null)
     val incomingShare: kotlinx.coroutines.flow.StateFlow<IncomingShare?> = incomingShareState
     private var pendingIncomingShare: IncomingShare?
         get() = incomingShareState.value
-        set(value) { incomingShareState.value = value }
+        set(value) {
+            incomingShareState.value = value
+        }
 
     fun setListDetailVisible(visible: Boolean) {
         listDetailVisible = visible
@@ -122,10 +124,10 @@ class RootComponent(
     }
 
     fun hasIncomingShare(): Boolean = pendingIncomingShare != null ||
-        stack.value.items.any { item ->
-            (item.configuration as? Config.Dialog)?.incomingShare != null ||
-                (item.configuration as? Config.Recipients)?.request?.share != null
-        }
+            stack.value.items.any { item ->
+                (item.configuration as? Config.Dialog)?.incomingShare != null ||
+                        (item.configuration as? Config.Recipients)?.request?.share != null
+            }
 
     fun cancelIncomingShare() {
         pendingIncomingShare = null
@@ -204,11 +206,14 @@ class RootComponent(
                         resolved.value.peerId.value,
                         link.messageId ?: 0,
                     )
+
                     is Outcome.Err -> AppLog.warn("t.me", "resolve failed")
                 }
             }
+
             is TelegramLink.PrivateChannel ->
                 openFromNotification(link.chatId, link.messageId)
+
             is TelegramLink.Invite, is TelegramLink.Share ->
                 AppLog.api("t.me", "link type ignored")
         }
@@ -238,17 +243,45 @@ class RootComponent(
                     when (update) {
                         is MtprotoUpdate.NewMessage -> warmup?.applyIncomingMessage(update.message)
                         is MtprotoUpdate.MessageEdited -> warmup?.applyMessageEdit(update.message)
-                        is MtprotoUpdate.MessagesDeleted -> warmup?.deleteMessages(update.chatId, update.messageIds)
-                        is MtprotoUpdate.MessageReactions -> warmup?.applyReactions(update.chatId, update.messageId, update.reactionsJson)
-                        is MtprotoUpdate.ReadOutbox -> warmup?.applyOutboxRead(update.chatId, update.maxId)
-                        is MtprotoUpdate.DiscussionInbox -> warmup?.applyDiscussionRead(update.channelId, update.topMessageId, update.readMaxId)
+                        is MtprotoUpdate.MessagesDeleted -> warmup?.deleteMessages(
+                            update.chatId,
+                            update.messageIds
+                        )
+
+                        is MtprotoUpdate.MessageReactions -> warmup?.applyReactions(
+                            update.chatId,
+                            update.messageId,
+                            update.reactionsJson
+                        )
+
+                        is MtprotoUpdate.ReadOutbox -> warmup?.applyOutboxRead(
+                            update.chatId,
+                            update.maxId
+                        )
+
+                        is MtprotoUpdate.DiscussionInbox -> warmup?.applyDiscussionRead(
+                            update.channelId,
+                            update.topMessageId,
+                            update.readMaxId
+                        )
+
                         is MtprotoUpdate.FoldersChanged -> warmup?.replaceFolders(update.folders)
                         is MtprotoUpdate.ChatsChanged -> {
                             warmup?.upsertChats(update.chats)
                             sessionStore?.upsertPeersFromChats(update.chats)
                         }
-                        is MtprotoUpdate.PeerStatus -> sessionStore?.updatePeerStatus(update.userId.value, update.status, update.statusAt)
-                        is MtprotoUpdate.PeerEmojiStatus -> sessionStore?.updatePeerEmojiStatus(update.userId.value, update.documentId)
+
+                        is MtprotoUpdate.PeerStatus -> sessionStore?.updatePeerStatus(
+                            update.userId.value,
+                            update.status,
+                            update.statusAt
+                        )
+
+                        is MtprotoUpdate.PeerEmojiStatus -> sessionStore?.updatePeerEmojiStatus(
+                            update.userId.value,
+                            update.documentId
+                        )
+
                         is MtprotoUpdate.ReadInbox -> {
                             warmup?.applyInboxRead(
                                 update.chatId, update.maxId, update.stillUnread,
@@ -257,28 +290,34 @@ class RootComponent(
                                 pushRegistration?.onChatRead(update.chatId.value)
                             }
                         }
+
                         is MtprotoUpdate.ReadHistoryConfirmed -> {
                             warmup?.markChatRead(
                                 update.chatId, update.maxId,
                             )
                             pushRegistration?.onChatRead(update.chatId.value)
                         }
+
                         is MtprotoUpdate.UnreadMentions -> warmup?.applyUnreadMentions(
                             update.chatId,
                             update.stillUnread,
                         )
+
                         is MtprotoUpdate.UnreadReactions -> warmup?.applyUnreadReactions(
                             update.chatId,
                             update.stillUnread,
                         )
+
                         is MtprotoUpdate.UnreadMentionsDelta -> warmup?.addUnreadMentions(
                             update.chatId,
                             update.delta,
                         )
+
                         is MtprotoUpdate.UnreadReactionsDelta -> warmup?.addUnreadReactions(
                             update.chatId,
                             update.delta,
                         )
+
                         else -> Unit
                     }
                 } catch (e: CancellationException) {
@@ -330,6 +369,7 @@ class RootComponent(
                     sessionStore?.saveAuthorized(AuthSession(profile.value.id, 0))
                 }
             }
+
             is Outcome.Err -> Unit
         }
     }
@@ -340,6 +380,7 @@ class RootComponent(
         accountFlagsVersion++
         accountState.isPremium = false
         // Destroy account screens and their collectors before clearing their cache.
+        MediaPlaybackHolder.peek()?.stop()
         navigation.replaceAll(Config.Auth)
         withContext(Dispatchers.IO) {
             warmup?.clearAccountCache()
@@ -355,6 +396,7 @@ class RootComponent(
                 navigation.pop()
             },
         )
+
         Config.Auth -> Child.Auth(
             AuthComponent(
                 componentContext = context,
@@ -372,6 +414,7 @@ class RootComponent(
                 },
             ),
         )
+
         Config.Home -> Child.Home(
             HomeComponent(
                 componentContext = context,
@@ -387,6 +430,7 @@ class RootComponent(
                 onOpenFolders = { openSettings(openFolders = true) },
             ),
         )
+
         is Config.Dialog -> {
             val component = DialogComponent(
                 componentContext = context,
@@ -417,11 +461,13 @@ class RootComponent(
                     }
                 },
                 onRequestForward = { messages ->
-                    openRecipientPicker(RecipientRequest(
-                        fromChatId = config.chatId,
-                        messageIds = messages.map { it.id.id },
-                        requiresPhotos = messages.any { it.requiresForwardPhotoRight() },
-                    ))
+                    openRecipientPicker(
+                        RecipientRequest(
+                            fromChatId = config.chatId,
+                            messageIds = messages.map { it.id.id },
+                            requiresPhotos = messages.any { it.requiresForwardPhotoRight() },
+                        )
+                    )
                 },
             )
             config.incomingShare?.let { share ->
@@ -431,6 +477,7 @@ class RootComponent(
             }
             Child.Dialog(component)
         }
+
         is Config.Profile -> Child.Profile(
             ProfileComponent(
                 componentContext = context,
@@ -444,6 +491,7 @@ class RootComponent(
                 onOpenProfile = ::openProfile,
             ),
         )
+
         is Config.Settings -> Child.Settings(
             SettingsComponent(
                 componentContext = context,
@@ -456,7 +504,10 @@ class RootComponent(
                 buildStamp = "${BuildConfig.BUILD_TYPE} · ${BuildConfig.GIT_COMMIT}",
                 onBack = { navigation.pop() },
                 onOpenProfile = ::openProfile,
-                onLoggedOut = { navigation.replaceAll(Config.Auth) },
+                onLoggedOut = {
+                    MediaPlaybackHolder.peek()?.stop()
+                    navigation.replaceAll(Config.Auth)
+                },
                 pushRegistration = pushRegistration,
                 debugNotifications = BuildConfig.DEBUG,
                 notificationLocal = notificationLocal,
@@ -489,6 +540,7 @@ class RootComponent(
     sealed interface Config {
         @Serializable
         data class Recipients(val request: RecipientRequest) : Config
+
         @Serializable
         data object Auth : Config
 

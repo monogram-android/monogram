@@ -133,8 +133,11 @@ private suspend fun playAlphaVpxLoop(file: File, onFrame: (ImageBitmap) -> Boole
                 }
                 if (color == null || color.rgba.isEmpty()) continue
                 if (alpha != null && (alpha.width != color.width || alpha.height != color.height || alpha.alpha.size != color.width.toInt() * color.height.toInt())) continue
-                if (alpha != null) for (i in alpha.alpha.indices) color.rgba[i * 4 + 3] =
-                    alpha.alpha[i]
+                if (alpha != null) {
+                    for (i in alpha.alpha.indices) color.rgba[i * 4 + 3] = alpha.alpha[i]
+                } else {
+                    for (i in color.rgba.indices step 4) color.rgba[i + 3] = 255.toByte()
+                }
                 val bitmap = argbFrameBitmap(color.rgba, color.width.toInt(), color.height.toInt())
                     ?: continue
                 rendered = true

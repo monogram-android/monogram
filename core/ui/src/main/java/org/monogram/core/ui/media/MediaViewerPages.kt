@@ -403,6 +403,8 @@ internal fun MediaVideoPage(
                     factory = { ctx ->
                         TextureView(ctx).apply {
                             isOpaque = false
+                            isClickable = false
+                            isFocusable = false
                             player.setVideoTextureView(this)
                         }
                     },

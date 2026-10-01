@@ -694,6 +694,8 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
+    external fun uniffi_monogram_mtproto_checksum_func_add_waveform_pcm(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_animated_emoji_max(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_append_todo_items(
@@ -724,6 +726,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_create_vpx_decoder(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_create_waveform(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_custom_emoji_is_free(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_decode_vpx_alpha_packet(
@@ -741,6 +745,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_monogram_mtproto_checksum_func_destroy_lottie(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_destroy_vpx_decoder(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_destroy_waveform(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_download_chunk_kib(
     ): Int
@@ -763,6 +769,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_monogram_mtproto_checksum_func_edit_forum_topic_hidden(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_edit_text_message(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_finish_waveform(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_forward_messages(
     ): Int
@@ -958,6 +966,8 @@ internal object UniffiLib {
     }
     external fun uniffi_monogram_mtproto_fn_init_callback_vtable_downloadprogresslistener(`vtable`: UniffiVTableCallbackInterfaceDownloadProgressListener,
     ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_add_waveform_pcm(`handle`: Long,`samples`: RustBuffer.ByValue,`sampleRate`: Int,`channels`: Int,`presentationTimeUs`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
     external fun uniffi_monogram_mtproto_fn_func_animated_emoji_max(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
     external fun uniffi_monogram_mtproto_fn_func_append_todo_items(`handle`: Long,`chatId`: Long,`messageId`: Int,`firstId`: Int,`titles`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
@@ -988,6 +998,8 @@ internal object UniffiLib {
     ): Long
     external fun uniffi_monogram_mtproto_fn_func_create_vpx_decoder(uniffi_out_err: UniffiRustCallStatus,
     ): Long
+    external fun uniffi_monogram_mtproto_fn_func_create_waveform(`durationUs`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): Long
     external fun uniffi_monogram_mtproto_fn_func_custom_emoji_is_free(`handle`: Long,`documentId`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
     external fun uniffi_monogram_mtproto_fn_func_decode_vpx_alpha_packet(`handle`: Long,`data`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
@@ -1005,6 +1017,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_destroy_lottie(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_destroy_vpx_decoder(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_destroy_waveform(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_download_chunk_kib(uniffi_out_err: UniffiRustCallStatus,
     ): Int
@@ -1027,6 +1041,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_edit_forum_topic_hidden(`handle`: Long,`chatId`: Long,`topicId`: Int,`hidden`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_edit_text_message(`handle`: Long,`chatId`: Long,`messageId`: Int,`text`: RustBuffer.ByValue,`entitiesJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_finish_waveform(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_forward_messages(`handle`: Long,`fromChatId`: Long,`messageIds`: RustBuffer.ByValue,`toChatId`: Long,`dropAuthor`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1323,6 +1339,9 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_add_waveform_pcm() and 0xFFFF) != 55780) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_animated_emoji_max() and 0xFFFF) != 64831) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1368,6 +1387,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_create_vpx_decoder() and 0xFFFF) != 63512) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_create_waveform() and 0xFFFF) != 24355) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_custom_emoji_is_free() and 0xFFFF) != 48167) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1393,6 +1415,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_destroy_vpx_decoder() and 0xFFFF) != 65432) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_destroy_waveform() and 0xFFFF) != 61308) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_download_chunk_kib() and 0xFFFF) != 41354) {
@@ -1426,6 +1451,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_edit_text_message() and 0xFFFF) != 17813) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_finish_waveform() and 0xFFFF) != 21863) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_forward_messages() and 0xFFFF) != 63264) {
@@ -1816,6 +1844,29 @@ public abstract class FfiConverterCallbackInterface<CallbackInterface: Any>: Ffi
 
     override fun write(value: CallbackInterface, buf: ByteBuffer) {
         buf.putLong(lower(value))
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterShort: FfiConverter<Short, Short> {
+    override fun lift(value: Short): Short {
+        return value
+    }
+
+    override fun read(buf: ByteBuffer): Short {
+        return buf.getShort()
+    }
+
+    override fun lower(value: Short): Short {
+        return value
+    }
+
+    override fun allocationSize(value: Short) = 2UL
+
+    override fun write(value: Short, buf: ByteBuffer) {
+        buf.putShort(value)
     }
 }
 
@@ -5228,6 +5279,34 @@ public object FfiConverterOptionalTypeVpxFrame: FfiConverterRustBuffer<VpxFrame?
 /**
  * @suppress
  */
+public object FfiConverterSequenceShort: FfiConverterRustBuffer<List<kotlin.Short>> {
+    override fun read(buf: ByteBuffer): List<kotlin.Short> {
+        val len = buf.getInt()
+        return List<kotlin.Short>(len) {
+            FfiConverterShort.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<kotlin.Short>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterShort.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<kotlin.Short>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterShort.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceInt: FfiConverterRustBuffer<List<kotlin.Int>> {
     override fun read(buf: ByteBuffer): List<kotlin.Int> {
         val len = buf.getInt()
@@ -5274,6 +5353,34 @@ public object FfiConverterSequenceLong: FfiConverterRustBuffer<List<kotlin.Long>
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterLong.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceFloat: FfiConverterRustBuffer<List<kotlin.Float>> {
+    override fun read(buf: ByteBuffer): List<kotlin.Float> {
+        val len = buf.getInt()
+        return List<kotlin.Float>(len) {
+            FfiConverterFloat.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<kotlin.Float>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterFloat.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<kotlin.Float>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterFloat.write(it, buf)
         }
     }
 }
@@ -5781,6 +5888,21 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         }
     }
 }
+    @Throws(MtprotoException::class) fun `addWaveformPcm`(`handle`: kotlin.ULong, `samples`: List<kotlin.Short>, `sampleRate`: kotlin.UInt, `channels`: kotlin.UInt, `presentationTimeUs`: kotlin.ULong)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_add_waveform_pcm(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterSequenceShort.lower(`samples`),
+        FfiConverterUInt.lower(`sampleRate`),
+        FfiConverterUInt.lower(`channels`),
+        FfiConverterULong.lower(`presentationTimeUs`),_status)
+}
+
+
+
     @Throws(MtprotoException::class) fun `animatedEmojiMax`(`handle`: kotlin.ULong): kotlin.Int {
             return FfiConverterInt.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -5961,6 +6083,18 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+    @Throws(MtprotoException::class) fun `createWaveform`(`durationUs`: kotlin.ULong): kotlin.ULong {
+            return FfiConverterULong.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_create_waveform(
+
+
+        FfiConverterULong.lower(`durationUs`),_status)
+}
+    )
+    }
+
+
     @Throws(MtprotoException::class) fun `customEmojiIsFree`(`handle`: kotlin.ULong, `documentId`: kotlin.Long): kotlin.Boolean {
             return FfiConverterBoolean.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -6062,6 +6196,16 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         =
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_destroy_vpx_decoder(
+
+
+        FfiConverterULong.lower(`handle`),_status)
+}
+
+
+ fun `destroyWaveform`(`handle`: kotlin.ULong)
+        =
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_destroy_waveform(
 
 
         FfiConverterULong.lower(`handle`),_status)
@@ -6216,6 +6360,18 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterInt.lower(`messageId`),
         FfiConverterString.lower(`text`),
         FfiConverterOptionalString.lower(`entitiesJson`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `finishWaveform`(`handle`: kotlin.ULong): List<kotlin.Float> {
+            return FfiConverterSequenceFloat.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_finish_waveform(
+
+
+        FfiConverterULong.lower(`handle`),_status)
 }
     )
     }

@@ -1,10 +1,10 @@
 package org.monogram.feature.dialog.ui
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import org.monogram.core.common.AppLog
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
@@ -24,12 +23,11 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -38,28 +36,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import org.monogram.core.ui.loading.MonogramCircularProgress
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
+import org.monogram.core.common.AppLog
 import org.monogram.core.models.Message
-import org.monogram.core.ui.components.MediaPlaceholder
+import org.monogram.core.ui.loading.MonogramCircularProgress
+import org.monogram.core.ui.loading.MonogramStateSwap
+import org.monogram.core.ui.media.MediaPlaybackHolder
+import org.monogram.core.ui.media.MediaSource
+import org.monogram.core.ui.media.preloadVoiceWaveform
 import org.monogram.feature.dialog.R
 import org.monogram.network.http.MediaRepository
 import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.monogram.core.ui.loading.MonogramStateSwap
 
 @Composable
 internal fun DocumentBubble(
@@ -84,7 +81,10 @@ internal fun DocumentBubble(
         ActivityResultContracts.StartActivityForResult(),
     ) {
         val local = file ?: return@rememberLauncherForActivityResult
-        if (needsUnknownSources(context, mimeFromName(name))) return@rememberLauncherForActivityResult
+        if (needsUnknownSources(
+                context, mimeFromName(name)
+            )
+        ) return@rememberLauncherForActivityResult
         scope.launch { openFailed = !openDownloadedFile(context, local, name) }
     }
     Row(
@@ -110,8 +110,13 @@ internal fun DocumentBubble(
                             try {
                                 unknownSources.launch(unknownSourcesIntent(context.packageName))
                             } catch (e: Exception) {
-                                AppLog.warn("file", "failed to launch unknown sources settings: ${e.message}")
-                                scope.launch { openFailed = !openDownloadedFile(context, file, name) }
+                                AppLog.warn(
+                                    "file",
+                                    "failed to launch unknown sources settings: ${e.message}"
+                                )
+                                scope.launch {
+                                    openFailed = !openDownloadedFile(context, file, name)
+                                }
                             }
                             return@MediaTapModifier
                         }
@@ -140,34 +145,40 @@ internal fun DocumentBubble(
                     else -> "document"
                 },
                 label = "mediaBadge",
-            ) { badge -> when (badge) {
-                "upload" -> DownloadProgressIndicator(
-                    bytes = 0L,
-                    total = null,
-                    modifier = Modifier.size(28.dp),
-                    uploading = true,
-                )
-                "download" -> DownloadCancelBadge(
-                    bytes = downloadedBytes,
-                    total = size,
-                )
-                "failed" -> Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = stringResource(R.string.dialog_media_failed),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-                "thumb" -> AsyncImage(
-                    model = thumb,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                )
-                else -> Icon(
-                    imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
-                    contentDescription = stringResource(R.string.dialog_media_document),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            } }
+            ) { badge ->
+                when (badge) {
+                    "upload" -> DownloadProgressIndicator(
+                        bytes = 0L,
+                        total = null,
+                        modifier = Modifier.size(28.dp),
+                        uploading = true,
+                    )
+
+                    "download" -> DownloadCancelBadge(
+                        bytes = downloadedBytes,
+                        total = size,
+                    )
+
+                    "failed" -> Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(R.string.dialog_media_failed),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+
+                    "thumb" -> AsyncImage(
+                        model = thumb,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    )
+
+                    else -> Icon(
+                        imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
+                        contentDescription = stringResource(R.string.dialog_media_document),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -209,6 +220,8 @@ internal fun DocumentBubble(
 
 @Composable
 internal fun AudioBubble(
+    message: Message,
+    repository: MediaRepository?,
     file: File?,
     title: String,
     durationSeconds: Int?,
@@ -223,103 +236,116 @@ internal fun AudioBubble(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    var playing by remember(file) { mutableStateOf(false) }
-    val player = remember(file) {
-        file?.takeIf { it.exists() }?.let { local ->
-            ExoPlayer.Builder(context).build().apply {
-                setMediaItem(MediaItem.fromUri(Uri.fromFile(local)))
-                prepare()
-            }
+    val session = remember(context) { MediaPlaybackHolder.session(context) }
+    val playback = LocalAudioMessagePlayback.current
+    val mediaId = "audio:" + message.id.chatId.value + ":" + message.id.id
+    val active = session.current?.id == mediaId
+    val sourceFile = (session.current?.source as? MediaSource.Local)?.file.takeIf { active }
+    val cachedFile = sourceFile ?: file
+    val downloading = playback?.pendingId == mediaId || (loading && cachedFile == null)
+    val failedHere = playback?.failedId == mediaId || failed || (active && session.failed)
+    val playing = active && session.playing
+    val position = if (active) session.positionMs else 0L
+    val duration = if (active) session.durationMs else (durationSeconds ?: 0) * 1000L
+    LaunchedEffect(cachedFile, voice) {
+        if (voice && cachedFile != null) preloadVoiceWaveform(cachedFile)
+    }
+    val amplitudes by androidx.compose.runtime.produceState(emptyList(), cachedFile, voice) {
+        if (voice && cachedFile != null) {
+            value = org.monogram.core.ui.media.voiceWaveform(cachedFile)
+        } else {
+            value = emptyList()
         }
     }
-    DisposableEffect(player) {
-        val listener = object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                playing = isPlaying
-            }
-        }
-        player?.addListener(listener)
-        onDispose {
-            player?.removeListener(listener)
-            player?.release()
-        }
+    val toggle: () -> Unit = {
+        if (playback != null) playback.play(message, repository, cachedFile, title)
+        else if (downloading) onCancel() else onRequest()
     }
-    LaunchedEffect(playing, player) {
-        val exo = player ?: return@LaunchedEffect
-        if (playing) exo.play() else exo.pause()
-    }
-    if (failed && file == null) {
-        MediaPlaceholder(
-            failed = true,
-            failedText = stringResource(R.string.dialog_media_failed),
-            modifier = modifier,
-        )
-        return
-    }
+    val playScale by animateFloatAsState(
+        targetValue = if (playing) 1.06f else 1f,
+        animationSpec = spring(stiffness = 700f),
+        label = "voice-play-scale",
+    )
     Row(
         modifier = modifier
             .widthIn(min = 220.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .then(
-                MediaTapModifier(
-                    onTap = {
-                        if (loading && file == null) onCancel()
-                        else if (player == null) onRequest()
-                        else playing = !playing
-                    },
-                    onLongPress = onLongPress,
-                ),
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                if (active) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surfaceContainerHighest,
             )
-            .padding(10.dp),
+            .then(MediaTapModifier(onTap = toggle, onLongPress = onLongPress))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
-            contentAlignment = Alignment.Center,
+        androidx.compose.material3.FilledIconButton(
+            onClick = toggle, modifier = Modifier
+                .size(48.dp)
+                .scale(playScale)
         ) {
             when {
-                loading && file == null -> DownloadCancelBadge(
-                    bytes = downloadedBytes,
-                    total = fileSize,
-                    modifier = Modifier.size(40.dp),
+                downloading -> DownloadCancelBadge(
+                    downloadedBytes,
+                    fileSize,
+                    Modifier.size(40.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
                 )
+
+                active && session.buffering -> MonogramCircularProgress(
+                    visible = true,
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    status = stringResource(R.string.dialog_media_loading)
+                )
+
                 else -> Icon(
-                    imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = stringResource(
-                        if (playing) R.string.dialog_media_pause else R.string.dialog_media_play,
-                    ),
-                    tint = MaterialTheme.colorScheme.primary,
+                    if (failedHere) Icons.Filled.Refresh else if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = stringResource(if (failedHere) R.string.dialog_retry_load else if (playing) R.string.dialog_media_pause else R.string.dialog_media_play),
                 )
             }
         }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
+        Column(Modifier.weight(1f)) {
+            if (!voice) Text(
+                title,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Ellipsis
+            )
+            org.monogram.core.ui.media.VoiceWaveform(
+                amplitudes = amplitudes, positionMs = position, durationMs = duration,
+                enabled = cachedFile != null && duration > 0L,
+                playing = playing,
+                contentDescription = stringResource(R.string.dialog_media_seek),
+                onSeek = { target ->
+                    if (!active && playback != null) {
+                        playback.play(message, repository, cachedFile, title)
+                        session.pause()
+                    }
+                    session.seekTo(target)
+                },
+                modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                text = listOfNotNull(
-                    if (loading && file == null) {
-                        formatDownloadProgress(downloadedBytes, fileSize)
-                    } else {
-                        null
-                    },
-                    if (voice) stringResource(R.string.dialog_media_voice) else null,
-                    durationSeconds?.takeIf { it > 0 }?.let(::formatMediaDuration),
-                ).joinToString(" · ").ifBlank { stringResource(R.string.dialog_media_audio) },
+                when {
+                    downloading -> formatDownloadProgress(downloadedBytes, fileSize)
+                        ?: stringResource(R.string.dialog_media_loading)
+
+                    failedHere -> stringResource(R.string.dialog_media_failed)
+                    active -> formatMediaDuration((position / 1000L).toInt()) + " / " + formatMediaDuration(
+                        (duration / 1000L).toInt()
+                    )
+
+                    else -> formatMediaDuration((duration / 1000L).toInt())
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
+
 
 @Composable
 internal fun DownloadProgressIndicator(
@@ -338,6 +364,7 @@ internal fun DownloadProgressIndicator(
             formatFileSize(bytes),
             formatFileSize(total),
         )
+
         else -> stringResource(R.string.dialog_media_loading)
     }
     var generation by remember { mutableIntStateOf(0) }
@@ -368,7 +395,9 @@ internal fun DownloadCancelBadge(
 ) {
     Box(
         modifier = modifier.then(
-            if (scrim != null) Modifier.clip(CircleShape).background(scrim) else Modifier,
+            if (scrim != null) Modifier
+                .clip(CircleShape)
+                .background(scrim) else Modifier,
         ),
         contentAlignment = Alignment.Center,
     ) {

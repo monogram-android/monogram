@@ -38,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Forward
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Search
@@ -175,8 +176,10 @@ internal fun DialogTopBar(
     onOpenEmojiStatus: (Long) -> Unit,
     selectedMessageCount: Int,
     canForwardSelected: Boolean,
+    canDeleteSelected: Boolean,
     onClearSelectedMessages: () -> Unit,
     onForwardSelectedMessages: () -> Unit,
+    onDeleteSelectedMessages: () -> Unit,
 ) {
     if (selectedMessageCount > 0) {
         TopAppBar(
@@ -201,6 +204,14 @@ internal fun DialogTopBar(
                 }
             },
             actions = {
+                if (canDeleteSelected) {
+                    IconButton(onClick = onDeleteSelectedMessages) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = stringResource(R.string.dialog_delete),
+                        )
+                    }
+                }
                 IconButton(
                     enabled = canForwardSelected,
                     onClick = onForwardSelectedMessages,

@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
@@ -12,12 +13,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.window.Dialog
@@ -39,7 +42,7 @@ internal fun DialogScreenDialogs(
     packDocumentId: MutableState<Long?>,
     instantViewUrl: MutableState<String?>,
     instantViewHash: androidx.compose.runtime.MutableIntState,
-    pendingDeleteId: MutableState<Int?>,
+    pendingDeleteIds: MutableState<List<Int>>,
     taskDraftFor: MutableState<Pair<Int, Int>?>,
     taskDraft: MutableState<String>,
     onPhotos: () -> Unit,
@@ -50,14 +53,14 @@ internal fun DialogScreenDialogs(
     var packDocumentId by packDocumentId
     var instantViewUrl by instantViewUrl
     var instantViewHash by instantViewHash
-    var pendingDeleteId by pendingDeleteId
+    var pendingDeleteIds by pendingDeleteIds
     var taskDraftFor by taskDraftFor
     var taskDraft by taskDraft
     val playbackContext = LocalContext.current
     val playbackSession = remember(playbackContext) { MediaPlaybackHolder.session(playbackContext) }
     val playbackVisible =
         playbackSession.isMessagePlayback && playbackSession.surface != MediaSurface.VIEWER && playbackSession.surface != MediaSurface.PIP
-    val pendingDelete = state.messages.firstOrNull { it.id.id == pendingDeleteId }
+    val pendingDelete = pendingDeleteIds.mapNotNull { id -> state.messages.firstOrNull { it.id.id == id } }
     AnimatedVisibility(
         visible = playbackVisible,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -192,24 +195,27 @@ internal fun DialogScreenDialogs(
             },
         )
     }
-    pendingDelete?.let { deleting ->
-        AlertDialog(
-            onDismissRequest = { pendingDeleteId = null },
-            title = { Text(stringResource(R.string.dialog_delete_confirm)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        component.onDelete(deleting.id.id, revoke = true)
-                        pendingDeleteId = null
-                    },
-                ) {
-                    Text(stringResource(R.string.dialog_delete_for_everyone))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDeleteId = null }) {
-                    Text(stringResource(R.string.dialog_cancel))
-                }
+    val deleteOfferNow = if (pendingDelete.size == pendingDeleteIds.size && pendingDelete.isNotEmpty()) {
+        deleteOffer(state, pendingDelete, System.currentTimeMillis() / 1000)
+    } else {
+        DeleteOffer(forMe = false, forEveryone = false)
+    }
+    LaunchedEffect(pendingDeleteIds, pendingDelete.size, deleteOfferNow.visible) {
+        if (pendingDeleteIds.isNotEmpty() &&
+            (pendingDelete.size != pendingDeleteIds.size || !deleteOfferNow.visible)
+        ) {
+            pendingDeleteIds = emptyList()
+        }
+    }
+    if (deleteOfferNow.visible) {
+        DeleteMessagesDialog(
+            count = pendingDelete.size,
+            offer = deleteOfferNow,
+            onDismiss = { pendingDeleteIds = emptyList() },
+            onConfirm = { forEveryone ->
+                val revoke = deleteRevoke(forEveryone)
+                pendingDelete.forEach { component.onDelete(it.id.id, revoke) }
+                pendingDeleteIds = emptyList()
             },
         )
     }
@@ -229,4 +235,44 @@ internal fun DialogScreenDialogs(
             )
         }
     }
+}
+
+@Composable
+internal fun DeleteMessagesDialog(
+    count: Int,
+    offer: DeleteOffer,
+    onDismiss: () -> Unit,
+    onConfirm: (forEveryone: Boolean) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                if (count == 1) {
+                    stringResource(R.string.dialog_delete_confirm)
+                } else {
+                    pluralStringResource(R.plurals.dialog_delete_confirm_count, count, count)
+                },
+            )
+        },
+        confirmButton = {
+            Column {
+                if (offer.forEveryone) {
+                    TextButton(onClick = { onConfirm(true) }) {
+                        Text(stringResource(R.string.dialog_delete_for_everyone))
+                    }
+                }
+                if (offer.forMe) {
+                    TextButton(onClick = { onConfirm(false) }) {
+                        Text(stringResource(R.string.dialog_delete_for_me))
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_cancel))
+            }
+        },
+    )
 }

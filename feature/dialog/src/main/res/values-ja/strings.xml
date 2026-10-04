@@ -181,6 +181,10 @@
     <string name="dialog_forwarded">%1$s に転送しました</string>
     <string name="dialog_delete_confirm">このメッセージを削除しますか？</string>
     <string name="dialog_delete_for_everyone">全員から削除</string>
+    <string name="dialog_delete_for_me">自分だけ削除</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="other">%1$d件のメッセージを削除しますか？</item>
+    </plurals>
     <string name="dialog_cancel">キャンセル</string>
     <string name="dialog_markdown_editor">Markdown</string>
     <string name="dialog_markdown_preview">プレビュー</string>

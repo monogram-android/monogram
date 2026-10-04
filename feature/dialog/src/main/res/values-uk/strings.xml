@@ -190,6 +190,13 @@
     <string name="dialog_forwarded">Переслано в %1$s</string>
     <string name="dialog_delete_confirm">Видалити це повідомлення?</string>
     <string name="dialog_delete_for_everyone">Видалити для всіх</string>
+    <string name="dialog_delete_for_me">Видалити в мене</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">Видалити %1$d повідомлення?</item>
+        <item quantity="few">Видалити %1$d повідомлення?</item>
+        <item quantity="many">Видалити %1$d повідомлень?</item>
+        <item quantity="other">Видалити %1$d повідомлення?</item>
+    </plurals>
     <string name="dialog_cancel">Скасувати</string>
     <string name="dialog_markdown_editor">Markdown</string>
     <string name="dialog_markdown_preview">Перегляд</string>

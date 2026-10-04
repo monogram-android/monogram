@@ -23,10 +23,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.res.stringResource
 import org.monogram.core.common.Outcome
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
@@ -158,7 +154,8 @@ internal fun MessageMediaViewerScope(
     repository: MediaRepository?,
     chatCanForward: Boolean = true,
     onForward: (List<Message>) -> Unit = {},
-    onDelete: (List<Message>) -> Unit = {},
+    onDelete: (List<Message>, Boolean) -> Unit = { _, _ -> },
+    deleteOffer: (List<Message>) -> DeleteOffer = { DeleteOffer(forMe = true, forEveryone = false) },
     onShowInChat: (Message) -> Unit = {},
     onEnsureReceipts: (Message) -> Unit = {},
     seenByLabel: ((Message) -> String?)? = null,
@@ -204,6 +201,7 @@ internal fun MessageMediaViewerScope(
                 chatCanForward = chatCanForward,
                 onForward = onForward,
                 onDelete = onDelete,
+                deleteOffer = deleteOffer,
                 onShowInChat = onShowInChat,
                 onEnsureReceipts = onEnsureReceipts,
                 seenByLabel = seenByLabel ?: receiptHolder?.label,
@@ -222,7 +220,8 @@ private fun MessageMediaViewer(
     chatTitle: String?,
     chatCanForward: Boolean,
     onForward: (List<Message>) -> Unit,
-    onDelete: (List<Message>) -> Unit,
+    onDelete: (List<Message>, Boolean) -> Unit,
+    deleteOffer: (List<Message>) -> DeleteOffer,
     onShowInChat: (Message) -> Unit,
     onEnsureReceipts: (Message) -> Unit,
     seenByLabel: ((Message) -> String?)?,
@@ -397,7 +396,8 @@ private fun MessageMediaViewer(
             }
         },
         onDelete = { item, wholeAlbum ->
-            pendingDelete = if (wholeAlbum) album else album.filter { messageKey(it) == item.id }
+            val targets = if (wholeAlbum) album else album.filter { messageKey(it) == item.id }
+            if (deleteOffer(targets).visible) pendingDelete = targets
         },
         onShowInChat = { item ->
             album.firstOrNull { messageKey(it) == item.id }?.let(onShowInChat)
@@ -419,7 +419,7 @@ private fun MessageMediaViewer(
             { item -> album.firstOrNull { messageKey(it) == item.id }?.let(open) }
         },
         canRetry = true,
-        canDelete = true,
+        canDelete = album.any { deleteOffer(listOf(it)).visible },
         canForward = chatCanForward,
         canPictureInPicture = pictureInPicture?.supported == true,
         onEnterPictureInPicture = { pictureInPicture?.enter() },
@@ -442,33 +442,19 @@ private fun MessageMediaViewer(
     )
 
     pendingDelete?.let { targets ->
-        val single = targets.size == 1
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text(stringResource(R.string.media_delete_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        if (single) R.string.media_delete_body_single else R.string.media_delete_body_album,
-                        targets.size,
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
+        val offer = deleteOffer(targets)
+        if (offer.visible) {
+            DeleteMessagesDialog(
+                count = targets.size,
+                offer = offer,
+                onDismiss = { pendingDelete = null },
+                onConfirm = { forEveryone ->
                     pendingDelete = null
-                    onDelete(targets)
+                    onDelete(targets, deleteRevoke(forEveryone))
                     onDismiss()
-                }) {
-                    Text(stringResource(R.string.media_delete_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text(stringResource(R.string.media_delete_cancel))
-                }
-            },
-        )
+                },
+            )
+        }
     }
 }
 

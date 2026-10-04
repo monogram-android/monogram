@@ -110,7 +110,7 @@ internal fun ColumnScope.DialogHistoryPane(
     packDocumentId: MutableState<Long?>,
     instantViewUrl: MutableState<String?>,
     instantViewHash: MutableIntState,
-    pendingDeleteId: MutableState<Int?>,
+    pendingDeleteIds: MutableState<List<Int>>,
     taskDraftFor: MutableState<Pair<Int, Int>?>,
     peerListId: MutableState<Int?>,
     peerListKind: MutableState<String?>,
@@ -135,7 +135,7 @@ internal fun ColumnScope.DialogHistoryPane(
     var packDocumentId by packDocumentId
     var instantViewUrl by instantViewUrl
     var instantViewHash by instantViewHash
-    var pendingDeleteId by pendingDeleteId
+    var pendingDeleteIds by pendingDeleteIds
     var taskDraftFor by taskDraftFor
     var peerListId by peerListId
     var peerListKind by peerListKind
@@ -603,7 +603,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                                     )
                                                 },
                                                 onEdit = component::onEdit,
-                                                onDelete = { pendingDeleteId = it.id.id },
+                                                onDelete = { pendingDeleteIds = listOf(it.id.id) },
                                                 onForward = component::onForwardPick,
                                                 onReact = { emoji, doc ->
                                                     component.onReact(message.id.id, emoji, doc)

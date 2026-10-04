@@ -26,6 +26,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         is Msg.IsSelf -> copy(isSelf = msg.value)
         is Msg.IsGroup -> copy(isGroup = msg.value)
         is Msg.IsChannel -> copy(isChannel = msg.value)
+        is Msg.IsBot -> copy(isBot = msg.value)
         is Msg.IsForum -> copy(isForum = msg.value)
         is Msg.Senders -> copy(senders = senders + msg.value)
         is Msg.SenderTags -> copy(senderTags = msg.value)

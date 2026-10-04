@@ -184,6 +184,11 @@
     <string name="dialog_forwarded">Reenviado a %1$s</string>
     <string name="dialog_delete_confirm">¿Eliminar este mensaje?</string>
     <string name="dialog_delete_for_everyone">Eliminar para todos</string>
+    <string name="dialog_delete_for_me">Eliminar para mí</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">¿Eliminar %1$d mensaje?</item>
+        <item quantity="other">¿Eliminar %1$d mensajes?</item>
+    </plurals>
     <string name="dialog_cancel">Cancelar</string>
     <string name="dialog_markdown_editor">Markdown</string>
     <string name="dialog_markdown_preview">Vista previa</string>

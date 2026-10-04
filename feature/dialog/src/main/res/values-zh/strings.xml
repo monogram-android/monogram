@@ -181,6 +181,10 @@
     <string name="dialog_forwarded">已转发到 %1$s</string>
     <string name="dialog_delete_confirm">删除这条消息？</string>
     <string name="dialog_delete_for_everyone">为所有人删除</string>
+    <string name="dialog_delete_for_me">仅为我删除</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="other">删除 %1$d 条消息？</item>
+    </plurals>
     <string name="dialog_cancel">取消</string>
     <string name="dialog_markdown_editor">Markdown</string>
     <string name="dialog_markdown_preview">预览</string>

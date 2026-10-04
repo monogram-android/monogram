@@ -165,7 +165,12 @@ fun DialogContent(component: DialogComponent, modifier: Modifier = Modifier) {
             repository = component.mediaRepository,
             chatCanForward = state.canForward,
             onForward = component::onForwardMessages,
-            onDelete = { messages -> messages.forEach { component.onDelete(it.id.id, revoke = true) } },
+            onDelete = { messages, revoke ->
+                messages.forEach { component.onDelete(it.id.id, revoke) }
+            },
+            deleteOffer = { messages ->
+                deleteOffer(state, messages, System.currentTimeMillis() / 1000)
+            },
             onShowInChat = { message -> component.onJumpToMessage(message.id.id) },
             onEnsureReceipts = { message -> component.onLoadReadReceipts(message.id.id) },
             onOpenSeenBy = { message -> mediaViewerSeenBy = message },

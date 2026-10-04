@@ -201,6 +201,11 @@
     <string name="dialog_forwarded">Forwarded to %1$s</string>
     <string name="dialog_delete_confirm">Delete this message?</string>
     <string name="dialog_delete_for_everyone">Delete for everyone</string>
+    <string name="dialog_delete_for_me">Delete for me</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">Delete %1$d message?</item>
+        <item quantity="other">Delete %1$d messages?</item>
+    </plurals>
     <string name="dialog_cancel">Cancel</string>
     <string name="dialog_markdown_editor">Markdown</string>
     <string name="dialog_markdown_preview">Preview</string>

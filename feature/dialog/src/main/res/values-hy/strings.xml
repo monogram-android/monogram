@@ -184,6 +184,11 @@
     <string name="dialog_forwarded">Վերահասցեավորվեց %1$s</string>
     <string name="dialog_delete_confirm">Ջնջե՞լ այս հաղորդագրությունը։</string>
     <string name="dialog_delete_for_everyone">Ջնջել բոլորի համար</string>
+    <string name="dialog_delete_for_me">Ջնջել ինձ համար</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">Ջնջե՞լ %1$d հաղորդագրություն։</item>
+        <item quantity="other">Ջնջե՞լ %1$d հաղորդագրություն։</item>
+    </plurals>
     <string name="dialog_cancel">Չեղարկել</string>
     <string name="dialog_markdown_editor">Markdown</string>
     <string name="dialog_markdown_preview">Նախադիտում</string>

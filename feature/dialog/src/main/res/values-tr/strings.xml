@@ -184,6 +184,11 @@
     <string name="dialog_forwarded">%1$s sohbetine iletildi</string>
     <string name="dialog_delete_confirm">Bu mesaj silinsin mi?</string>
     <string name="dialog_delete_for_everyone">Herkes için sil</string>
+    <string name="dialog_delete_for_me">Benim için sil</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">%1$d mesaj silinsin mi?</item>
+        <item quantity="other">%1$d mesaj silinsin mi?</item>
+    </plurals>
     <string name="dialog_cancel">İptal</string>
     <string name="dialog_markdown_editor">Markdown</string>
     <string name="dialog_markdown_preview">Önizleme</string>

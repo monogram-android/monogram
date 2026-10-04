@@ -190,6 +190,13 @@
     <string name="dialog_forwarded">Preposlané do %1$s</string>
     <string name="dialog_delete_confirm">Odstrániť túto správu?</string>
     <string name="dialog_delete_for_everyone">Odstrániť pre všetkých</string>
+    <string name="dialog_delete_for_me">Odstrániť pre mňa</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">Odstrániť %1$d správu?</item>
+        <item quantity="few">Odstrániť %1$d správy?</item>
+        <item quantity="many">Odstrániť %1$d správ?</item>
+        <item quantity="other">Odstrániť %1$d správy?</item>
+    </plurals>
     <string name="dialog_cancel">Zrušiť</string>
     <string name="dialog_markdown_editor">Markdown</string>
     <string name="dialog_markdown_preview">Náhľad</string>

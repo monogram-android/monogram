@@ -356,13 +356,7 @@
     <string name="settings_proxy_type_mtproto">MTProto</string>
     <string name="settings_proxy_type_none">Proxy yok</string>
     <string name="settings_proxy_test_failed">Bağlantı başarısız</string>
-    <string name="settings_proxy_import_link">Proxy bağlantısını yapıştır</string>
-    <string name="settings_proxy_import_title">Proxy ekle</string>
-    <string name="settings_proxy_import_hint">Telegram proxy bağlantısı</string>
-    <string name="settings_proxy_import_connect">Bağlan</string>
-    <string name="settings_proxy_import_test">Bağlantıyı test et</string>
     <string name="settings_proxy_cancel">İptal</string>
-    <string name="settings_proxy_import_invalid">Geçersiz proxy bağlantısı</string>
     <string name="settings_proxy_ping_result">Ping: %1$d ms</string>
     <string name="settings_proxy_test_success">Bağlantı etkin</string>
     <string name="settings_proxy_checking">Denetleniyor…</string>
@@ -372,6 +366,8 @@
     <string name="settings_proxy_direct_body">Telegram proxy olmadan bağlanır</string>
     <string name="settings_proxy_in_use">Proxy kullanılıyor</string>
     <string name="settings_proxy_add">Proxy ekle</string>
+    <string name="settings_proxy_add_clipboard">Panodan ekle</string>
+    <string name="settings_proxy_clipboard_invalid">Panoda proxy bağlantısı yok</string>
     <string name="settings_proxy_edit">Proxy’yi düzenle</string>
     <string name="settings_proxy_check_all">Tümünü denetle</string>
     <string name="settings_proxy_empty">Kayıtlı proxy yok. Bir tane ekleyin veya bir Telegram bağlantısı yapıştırın.</string>

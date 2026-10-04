@@ -356,13 +356,7 @@
     <string name="settings_proxy_type_mtproto">MTProto</string>
     <string name="settings_proxy_type_none">No proxy</string>
     <string name="settings_proxy_test_failed">Connection failed</string>
-    <string name="settings_proxy_import_link">Paste proxy link</string>
-    <string name="settings_proxy_import_title">Add proxy</string>
-    <string name="settings_proxy_import_hint">Telegram proxy link</string>
-    <string name="settings_proxy_import_connect">Connect</string>
-    <string name="settings_proxy_import_test">Test connection</string>
     <string name="settings_proxy_cancel">Cancel</string>
-    <string name="settings_proxy_import_invalid">Invalid proxy link</string>
     <string name="settings_proxy_ping_result">Ping: %1$d ms</string>
     <string name="settings_proxy_test_success">Connection is active</string>
     <string name="settings_proxy_checking">Checking…</string>
@@ -372,6 +366,8 @@
     <string name="settings_proxy_direct_body">Telegram connects without a proxy</string>
     <string name="settings_proxy_in_use">Proxy in use</string>
     <string name="settings_proxy_add">Add proxy</string>
+    <string name="settings_proxy_add_clipboard">Add from clipboard</string>
+    <string name="settings_proxy_clipboard_invalid">Clipboard has no proxy link</string>
     <string name="settings_proxy_edit">Edit proxy</string>
     <string name="settings_proxy_check_all">Check all</string>
     <string name="settings_proxy_empty">No saved proxies yet. Add one or paste a Telegram link.</string>

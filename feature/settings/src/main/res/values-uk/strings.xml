@@ -356,13 +356,7 @@
     <string name="settings_proxy_type_mtproto">MTProto</string>
     <string name="settings_proxy_type_none">Без проксі</string>
     <string name="settings_proxy_test_failed">Не вдалося підключитися</string>
-    <string name="settings_proxy_import_link">Вставити посилання на проксі</string>
-    <string name="settings_proxy_import_title">Додати проксі</string>
-    <string name="settings_proxy_import_hint">Посилання на проксі Telegram</string>
-    <string name="settings_proxy_import_connect">Підключитися</string>
-    <string name="settings_proxy_import_test">Перевірити з’єднання</string>
     <string name="settings_proxy_cancel">Скасувати</string>
-    <string name="settings_proxy_import_invalid">Недійсне посилання на проксі</string>
     <string name="settings_proxy_ping_result">Пінг: %1$d мс</string>
     <string name="settings_proxy_test_success">З’єднання активне</string>
     <string name="settings_proxy_checking">Перевірка…</string>
@@ -372,6 +366,8 @@
     <string name="settings_proxy_direct_body">Telegram підключається без проксі</string>
     <string name="settings_proxy_in_use">Проксі використовується</string>
     <string name="settings_proxy_add">Додати проксі</string>
+    <string name="settings_proxy_add_clipboard">Додати з буфера</string>
+    <string name="settings_proxy_clipboard_invalid">У буфері немає посилання на проксі</string>
     <string name="settings_proxy_edit">Змінити проксі</string>
     <string name="settings_proxy_check_all">Перевірити всі</string>
     <string name="settings_proxy_empty">Немає збережених проксі. Додайте один або вставте посилання Telegram.</string>

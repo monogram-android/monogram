@@ -356,13 +356,7 @@
     <string name="settings_proxy_type_mtproto">MTProto</string>
     <string name="settings_proxy_type_none">不使用代理</string>
     <string name="settings_proxy_test_failed">连接失败</string>
-    <string name="settings_proxy_import_link">粘贴代理链接</string>
-    <string name="settings_proxy_import_title">添加代理</string>
-    <string name="settings_proxy_import_hint">Telegram 代理链接</string>
-    <string name="settings_proxy_import_connect">连接</string>
-    <string name="settings_proxy_import_test">测试连接</string>
     <string name="settings_proxy_cancel">取消</string>
-    <string name="settings_proxy_import_invalid">代理链接无效</string>
     <string name="settings_proxy_ping_result">Ping：%1$d 毫秒</string>
     <string name="settings_proxy_test_success">连接已启用</string>
     <string name="settings_proxy_checking">正在检查…</string>
@@ -372,6 +366,8 @@
     <string name="settings_proxy_direct_body">Telegram 不通过代理连接</string>
     <string name="settings_proxy_in_use">正在使用代理</string>
     <string name="settings_proxy_add">添加代理</string>
+    <string name="settings_proxy_add_clipboard">从剪贴板添加</string>
+    <string name="settings_proxy_clipboard_invalid">剪贴板中没有代理链接</string>
     <string name="settings_proxy_edit">编辑代理</string>
     <string name="settings_proxy_check_all">检查全部</string>
     <string name="settings_proxy_empty">还没有已保存的代理。添加一个，或粘贴 Telegram 链接。</string>

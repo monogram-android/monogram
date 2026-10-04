@@ -356,13 +356,7 @@
     <string name="settings_proxy_type_mtproto">MTProto</string>
     <string name="settings_proxy_type_none">Sin proxy</string>
     <string name="settings_proxy_test_failed">Conexión fallida</string>
-    <string name="settings_proxy_import_link">Pegar enlace del proxy</string>
-    <string name="settings_proxy_import_title">Añadir proxy</string>
-    <string name="settings_proxy_import_hint">Enlace de proxy de Telegram</string>
-    <string name="settings_proxy_import_connect">Conectar</string>
-    <string name="settings_proxy_import_test">Probar conexión</string>
     <string name="settings_proxy_cancel">Cancelar</string>
-    <string name="settings_proxy_import_invalid">Enlace de proxy no válido</string>
     <string name="settings_proxy_ping_result">Ping: %1$d ms</string>
     <string name="settings_proxy_test_success">Conexión activa</string>
     <string name="settings_proxy_checking">Comprobando…</string>
@@ -372,6 +366,8 @@
     <string name="settings_proxy_direct_body">Telegram se conecta sin proxy</string>
     <string name="settings_proxy_in_use">Proxy en uso</string>
     <string name="settings_proxy_add">Añadir proxy</string>
+    <string name="settings_proxy_add_clipboard">Añadir desde el portapapeles</string>
+    <string name="settings_proxy_clipboard_invalid">El portapapeles no tiene un enlace de proxy</string>
     <string name="settings_proxy_edit">Editar proxy</string>
     <string name="settings_proxy_check_all">Comprobar todos</string>
     <string name="settings_proxy_empty">Todavía no hay proxies guardados. Añade uno o pega un enlace de Telegram.</string>

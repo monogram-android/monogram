@@ -356,13 +356,7 @@
     <string name="settings_proxy_type_mtproto">MTProto</string>
     <string name="settings_proxy_type_none">Bez proxy</string>
     <string name="settings_proxy_test_failed">Pripojenie zlyhalo</string>
-    <string name="settings_proxy_import_link">Vložiť odkaz proxy</string>
-    <string name="settings_proxy_import_title">Pridať proxy</string>
-    <string name="settings_proxy_import_hint">Odkaz na proxy Telegramu</string>
-    <string name="settings_proxy_import_connect">Pripojiť</string>
-    <string name="settings_proxy_import_test">Testovať pripojenie</string>
     <string name="settings_proxy_cancel">Zrušiť</string>
-    <string name="settings_proxy_import_invalid">Neplatný odkaz proxy</string>
     <string name="settings_proxy_ping_result">Ping: %1$d ms</string>
     <string name="settings_proxy_test_success">Pripojenie je aktívne</string>
     <string name="settings_proxy_checking">Overuje sa…</string>
@@ -372,6 +366,8 @@
     <string name="settings_proxy_direct_body">Telegram sa pripája bez proxy</string>
     <string name="settings_proxy_in_use">Proxy sa používa</string>
     <string name="settings_proxy_add">Pridať proxy</string>
+    <string name="settings_proxy_add_clipboard">Pridať zo schránky</string>
+    <string name="settings_proxy_clipboard_invalid">Schránka neobsahuje odkaz na proxy</string>
     <string name="settings_proxy_edit">Upraviť proxy</string>
     <string name="settings_proxy_check_all">Overiť všetky</string>
     <string name="settings_proxy_empty">Zatiaľ nie sú uložené žiadne proxy. Pridajte jedno alebo vložte odkaz Telegramu.</string>

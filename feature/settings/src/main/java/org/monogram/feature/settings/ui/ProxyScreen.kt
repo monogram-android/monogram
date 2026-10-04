@@ -36,7 +36,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -64,6 +63,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -82,6 +82,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import org.monogram.core.common.Outcome
 import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.components.ItemPosition
@@ -96,7 +97,6 @@ import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.ProxyConfig
 import org.monogram.network.bridge.ProxyType
 import org.monogram.network.bridge.decodeProxySecret
-import org.monogram.network.bridge.parseTelegramProxyLink
 
 internal data class ProxyScreenState(
     val type: ProxyType = ProxyType.SOCKS5,
@@ -136,14 +136,13 @@ internal fun ProxyScreen(
     onDisable: () -> Unit,
     onSave: (ProxyScreenState, String?, (String?) -> Unit) -> Unit,
     onDelete: (ProxyScreenState) -> Unit,
-    onImport: (ProxyConfig, (String?) -> Unit) -> Unit,
-    onTestImported: (ProxyConfig, (Long?) -> Unit) -> Boolean,
+    onPasteAdd: suspend () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val scope = rememberCoroutineScope()
     var editorOpen by rememberSaveable { mutableStateOf(false) }
     var editorNonce by rememberSaveable { mutableIntStateOf(0) }
     var editingKey by rememberSaveable { mutableStateOf("") }
-    var importOpen by rememberSaveable { mutableStateOf(false) }
     val active = profiles.firstOrNull { it.profileKey() == activeKey }
     val motion = mediaViewerMotionEnabled()
     val actionShapes = ButtonDefaults.shapes(
@@ -240,14 +239,12 @@ internal fun ProxyScreen(
                     }
                 }
                 OutlinedButton(
-                    onClick = { importOpen = true },
+                    onClick = { scope.launch { onPasteAdd() } },
                     shapes = actionShapes,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 ) {
-                    Icon(Icons.Outlined.Link, contentDescription = null)
-                    Spacer(Modifier.size(8.dp))
                     Text(
-                        stringResource(R.string.settings_proxy_import_link),
+                        stringResource(R.string.settings_proxy_add_clipboard),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -272,16 +269,6 @@ internal fun ProxyScreen(
                         },
                     )
                 }
-            }
-        }
-        if (importOpen) {
-            AppModalSheet(onDismissRequest = { importOpen = false }) {
-                ProxyImportSheet(
-                    shapes = actionShapes,
-                    onDismiss = { importOpen = false },
-                    onImport = onImport,
-                    onTestImported = onTestImported,
-                )
             }
         }
     }
@@ -739,121 +726,6 @@ private fun Outcome.Err.proxyField(): ProxyFieldError = when {
     else -> ProxyFieldError.OTHER
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun ProxyImportSheet(
-    shapes: androidx.compose.material3.ButtonShapes,
-    onDismiss: () -> Unit,
-    onImport: (ProxyConfig, (String?) -> Unit) -> Unit,
-    onTestImported: (ProxyConfig, (Long?) -> Unit) -> Boolean,
-) {
-    var importText by rememberSaveable { mutableStateOf("") }
-    var saving by rememberSaveable { mutableStateOf(false) }
-    var testing by rememberSaveable { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var latency by remember { mutableStateOf<Long?>(null) }
-    var failed by rememberSaveable { mutableStateOf(false) }
-    val parsed = remember(importText) { parseTelegramProxyLink(importText) }
-    val sheetMax = (LocalConfiguration.current.screenHeightDp * 0.75f).dp
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(max = sheetMax)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(stringResource(R.string.settings_proxy_import_title), style = MaterialTheme.typography.titleLarge)
-        OutlinedTextField(
-            value = importText,
-            onValueChange = {
-                importText = it
-                error = null
-                latency = null
-                failed = false
-            },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.settings_proxy_import_hint)) },
-            minLines = 2,
-        )
-        val config = parsed
-        if (config != null) {
-            Text(
-                "${proxyTypeLabel(config.type)} · ${config.host}:${config.port}",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Button(
-                onClick = {
-                    saving = true
-                    error = null
-                    onImport(config) { failure ->
-                        saving = false
-                        if (failure == null) onDismiss() else error = failure
-                    }
-                },
-                enabled = !saving && !testing,
-                shapes = shapes,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Text(stringResource(R.string.settings_proxy_import_connect))
-            }
-            OutlinedButton(
-                onClick = {
-                    failed = false
-                    latency = null
-                    val accepted = onTestImported(config) { result ->
-                        testing = false
-                        latency = result
-                        failed = result == null
-                    }
-                    if (accepted) testing = true
-                },
-                enabled = !testing && !saving,
-                shapes = shapes,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                if (testing) {
-                    MonogramLoading(
-                        size = MonogramLoadingInlineSize,
-                        status = stringResource(R.string.settings_proxy_checking),
-                    )
-                } else {
-                    Text(stringResource(R.string.settings_proxy_import_test))
-                }
-            }
-            val measured = latency
-            if (measured != null) {
-                Text(
-                    stringResource(R.string.settings_proxy_ping_result, measured),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else if (failed) {
-                Text(
-                    stringResource(R.string.settings_proxy_test_failed),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        } else if (importText.isNotBlank()) {
-            Text(
-                stringResource(R.string.settings_proxy_import_invalid),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-        error?.let { message ->
-            Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-        }
-        TextButton(
-            onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-        ) {
-            Text(stringResource(R.string.settings_proxy_cancel))
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ProxyChoiceGroup(
@@ -1024,7 +896,5 @@ private fun ProxyScreenPreviewContent() {
         onDisable = {},
         onSave = { _, _, done -> done(null) },
         onDelete = {},
-        onImport = { _, done -> done(null) },
-        onTestImported = { _, done -> done(20L); true },
     )
 }

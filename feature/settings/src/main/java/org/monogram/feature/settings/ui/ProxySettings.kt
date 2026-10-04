@@ -15,6 +15,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,6 +32,8 @@ import org.monogram.feature.settings.SettingsComponent
 import org.monogram.feature.settings.StoredProxy
 import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.ProxyConfig
+import org.monogram.network.bridge.parseProxyImport
+import org.monogram.network.bridge.parseTelegramProxyLink
 
 private const val DIRECT = ""
 
@@ -64,6 +67,8 @@ internal fun ProxySettings(
     var sessionJobs by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf<Set<String>>(emptySet()) }
     val failedLabel = stringResource(R.string.settings_proxy_test_failed)
+    val clipboardInvalid = stringResource(R.string.settings_proxy_clipboard_invalid)
+    val clipboard = LocalClipboard.current
     refs.report = { message ->
         status = message
         statusError = true
@@ -230,11 +235,26 @@ internal fun ProxySettings(
                     }
                 }
             },
-            onImport = { config, done ->
+            onPasteAdd = paste@{
+                val text = runCatching {
+                    clipboard.getClipEntry()?.clipData
+                        ?.takeIf { it.itemCount > 0 }
+                        ?.getItemAt(0)
+                        ?.text
+                        ?.toString()
+                }.getOrNull().orEmpty()
+                val config = proxyLinkFromClipboard(text)
+                if (config == null) {
+                    status = clipboardInvalid
+                    statusError = true
+                    return@paste
+                }
+                val draft = stateFromConfig(config)
+                if (refs.profiles.any { it.profileKey() == draft.profileKey() }) return@paste
                 sessionJobs += 1
                 scope.launch {
                     val result = try {
-                        queue.exclusive { saveProfile(refs, stateFromConfig(config), null) }
+                        queue.exclusive { saveProfile(refs, draft, null) }
                     } finally {
                         sessionJobs -= 1
                         sync()
@@ -242,15 +262,13 @@ internal fun ProxySettings(
                     if (result.error == null) {
                         status = null
                         statusError = false
-                        enqueue(stateFromConfig(config))
+                        enqueue(draft)
                     } else {
                         status = result.error
                         statusError = true
                     }
-                    done(result.error)
                 }
             },
-            onTestImported = { config, done -> enqueue(stateFromConfig(config), done) },
         )
     }
 }
@@ -389,3 +407,10 @@ private fun stateFromConfig(config: ProxyConfig) = stateFromStored(
         transportMode = MtprotoTransportMode.PADDED_INTERMEDIATE.name.lowercase(),
     ),
 )
+
+internal fun proxyLinkFromClipboard(text: String): ProxyConfig? {
+    val trimmed = text.trim()
+    val parsed = parseProxyImport(trimmed) ?: return null
+    val scheme = runCatching { java.net.URI(trimmed).scheme }.getOrNull()?.lowercase() ?: return null
+    return if (scheme == "http" || scheme == "https") parseTelegramProxyLink(trimmed) else parsed
+}

@@ -356,13 +356,7 @@
     <string name="settings_proxy_type_mtproto">MTProto</string>
     <string name="settings_proxy_type_none">Առանց պրոքսի</string>
     <string name="settings_proxy_test_failed">Կապը ձախողվեց</string>
-    <string name="settings_proxy_import_link">Տեղադրել պրոքսիի հղումը</string>
-    <string name="settings_proxy_import_title">Ավելացնել պրոքսի</string>
-    <string name="settings_proxy_import_hint">Telegram-ի պրոքսիի հղում</string>
-    <string name="settings_proxy_import_connect">Միանալ</string>
-    <string name="settings_proxy_import_test">Ստուգել կապը</string>
     <string name="settings_proxy_cancel">Չեղարկել</string>
-    <string name="settings_proxy_import_invalid">Անվավեր պրոքսիի հղում</string>
     <string name="settings_proxy_ping_result">Ping՝ %1$d մվ</string>
     <string name="settings_proxy_test_success">Կապը ակտիվ է</string>
     <string name="settings_proxy_checking">Ստուգվում է…</string>
@@ -372,6 +366,8 @@
     <string name="settings_proxy_direct_body">Telegram-ը միանում է առանց պրոքսիի</string>
     <string name="settings_proxy_in_use">Պրոքսին օգտագործվում է</string>
     <string name="settings_proxy_add">Ավելացնել պրոքսի</string>
+    <string name="settings_proxy_add_clipboard">Ավելացնել սեղմատախտակից</string>
+    <string name="settings_proxy_clipboard_invalid">Սեղմատախտակում պրոքսիի հղում չկա</string>
     <string name="settings_proxy_edit">Խմբագրել պրոքսին</string>
     <string name="settings_proxy_check_all">Ստուգել բոլորը</string>
     <string name="settings_proxy_empty">Պահված պրոքսիներ դեռ չկան։ Ավելացրեք կամ տեղադրեք Telegram-ի հղումը։</string>

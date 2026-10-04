@@ -356,13 +356,7 @@
     <string name="settings_proxy_type_mtproto">MTProto</string>
     <string name="settings_proxy_type_none">プロキシなし</string>
     <string name="settings_proxy_test_failed">接続に失敗しました</string>
-    <string name="settings_proxy_import_link">プロキシリンクを貼り付け</string>
-    <string name="settings_proxy_import_title">プロキシを追加</string>
-    <string name="settings_proxy_import_hint">Telegramプロキシリンク</string>
-    <string name="settings_proxy_import_connect">接続</string>
-    <string name="settings_proxy_import_test">接続をテスト</string>
     <string name="settings_proxy_cancel">キャンセル</string>
-    <string name="settings_proxy_import_invalid">無効なプロキシリンク</string>
     <string name="settings_proxy_ping_result">Ping: %1$d ms</string>
     <string name="settings_proxy_test_success">接続中</string>
     <string name="settings_proxy_checking">確認中…</string>
@@ -372,6 +366,8 @@
     <string name="settings_proxy_direct_body">プロキシなしで Telegram に接続します</string>
     <string name="settings_proxy_in_use">プロキシを使用中</string>
     <string name="settings_proxy_add">プロキシを追加</string>
+    <string name="settings_proxy_add_clipboard">クリップボードから追加</string>
+    <string name="settings_proxy_clipboard_invalid">クリップボードにプロキシリンクがありません</string>
     <string name="settings_proxy_edit">プロキシを編集</string>
     <string name="settings_proxy_check_all">すべて確認</string>
     <string name="settings_proxy_empty">保存したプロキシはまだありません。追加するか、Telegram のリンクを貼り付けてください。</string>

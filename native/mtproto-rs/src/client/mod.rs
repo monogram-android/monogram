@@ -170,6 +170,7 @@ pub(crate) fn get_client(handle: u64) -> Result<Arc<Client>, MtprotoError> {
 }
 
 pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64 {
+    let connections = Arc::new(tcp::ConnectionControl::default());
     let path = PathBuf::from(session_path);
     let store = FileSessionStore::new(&path);
     let (loaded, load_failed) = match store.load() {
@@ -238,7 +239,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
         handle,
         Arc::new(Client {
             _session_key: crate::session_crypto::key_for(&path),
-            connections: Arc::new(tcp::ConnectionControl::default()),
+            connections,
             data: Mutex::new(ClientData {
                 api_id,
                 api_hash,

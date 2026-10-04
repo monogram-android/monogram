@@ -42,10 +42,7 @@ pub fn contacts_search_query(query: &str) -> Result<String, MtprotoError> {
 /// `folder_id` is always sent: 0 = main list, 1 = archive.
 /// https://core.telegram.org/api/folders
 pub fn search_global_folder(folder_id: i32) -> (u32, Option<i32>) {
-    (
-        MessagesSearchGlobalRequest::FOLDER_ID_FLAG,
-        Some(folder_id),
-    )
+    (MessagesSearchGlobalRequest::FOLDER_ID_FLAG, Some(folder_id))
 }
 
 pub fn contacts_search(

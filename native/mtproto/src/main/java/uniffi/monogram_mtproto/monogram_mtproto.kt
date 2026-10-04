@@ -708,6 +708,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_clear_active_dialog(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_clear_proxy(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_client_api_id(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_client_exists(
@@ -868,6 +870,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_perf_snapshot(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_ping_proxy(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_read_discussion(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_read_history(
@@ -930,6 +934,10 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_file_part_kib(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_set_proxy(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_set_transport_mode(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_typing(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_sign_in(
@@ -979,6 +987,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_check_password(`handle`: Long,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_clear_active_dialog(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_clear_proxy(uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_client_api_id(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
@@ -1140,6 +1150,8 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_perf_snapshot(`reset`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_ping_proxy(`kind`: RustBuffer.ByValue,`host`: RustBuffer.ByValue,`port`: Short,`username`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`secret`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): Long
     external fun uniffi_monogram_mtproto_fn_func_read_discussion(`handle`: Long,`chatId`: Long,`msgId`: Int,`readMaxId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_read_history(`handle`: Long,`chatId`: Long,`maxId`: Int,uniffi_out_err: UniffiRustCallStatus,
@@ -1201,6 +1213,10 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_set_download_progress_listener(`listener`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_set_file_part_kib(`kib`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_set_proxy(`kind`: RustBuffer.ByValue,`host`: RustBuffer.ByValue,`port`: Short,`username`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`secret`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_set_transport_mode(`mode`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_set_typing(`handle`: Long,`chatId`: Long,`typing`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
@@ -1358,6 +1374,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_clear_active_dialog() and 0xFFFF) != 35684) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_clear_proxy() and 0xFFFF) != 9892) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_client_api_id() and 0xFFFF) != 53318) {
@@ -1600,6 +1619,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_perf_snapshot() and 0xFFFF) != 54140) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_ping_proxy() and 0xFFFF) != 46980) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_read_discussion() and 0xFFFF) != 59067) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1691,6 +1713,12 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_set_file_part_kib() and 0xFFFF) != 34374) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_proxy() and 0xFFFF) != 39093) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_transport_mode() and 0xFFFF) != 17640) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_set_typing() and 0xFFFF) != 45608) {
@@ -1844,6 +1872,33 @@ public abstract class FfiConverterCallbackInterface<CallbackInterface: Any>: Ffi
 
     override fun write(value: CallbackInterface, buf: ByteBuffer) {
         buf.putLong(lower(value))
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterUShort: FfiConverter<UShort, Short> {
+    override fun lift(value: Short): UShort {
+        return value.toUShort()
+    }
+
+    fun lift(value: Int): UShort {
+        return value.toUShort()
+    }
+
+    override fun read(buf: ByteBuffer): UShort {
+        return lift(buf.getShort())
+    }
+
+    override fun lower(value: UShort): Short {
+        return value.toShort()
+    }
+
+    override fun allocationSize(value: UShort) = 2UL
+
+    override fun write(value: UShort, buf: ByteBuffer) {
+        buf.putShort(value.toShort())
     }
 }
 
@@ -5974,6 +6029,16 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 }
 
 
+
+    @Throws(MtprotoException::class) fun `clearProxy`()
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_clear_proxy(
+
+        _status)
+}
+
+
  fun `clientApiId`(`handle`: kotlin.ULong): kotlin.Int {
             return FfiConverterInt.lift(
     uniffiRustCall() { _status ->
@@ -7055,6 +7120,23 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+    @Throws(MtprotoException::class) fun `pingProxy`(`kind`: kotlin.String, `host`: kotlin.String, `port`: kotlin.UShort, `username`: kotlin.String?, `password`: kotlin.String?, `secret`: kotlin.ByteArray): kotlin.Long {
+            return FfiConverterLong.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_ping_proxy(
+
+
+        FfiConverterString.lower(`kind`),
+        FfiConverterString.lower(`host`),
+        FfiConverterUShort.lower(`port`),
+        FfiConverterOptionalString.lower(`username`),
+        FfiConverterOptionalString.lower(`password`),
+        FfiConverterByteArray.lower(`secret`),_status)
+}
+    )
+    }
+
+
     @Throws(MtprotoException::class) fun `readDiscussion`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `msgId`: kotlin.Int, `readMaxId`: kotlin.Int)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -7501,6 +7583,33 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 
 
         FfiConverterInt.lower(`kib`),_status)
+}
+
+
+
+    @Throws(MtprotoException::class) fun `setProxy`(`kind`: kotlin.String, `host`: kotlin.String, `port`: kotlin.UShort, `username`: kotlin.String?, `password`: kotlin.String?, `secret`: kotlin.ByteArray)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_set_proxy(
+
+
+        FfiConverterString.lower(`kind`),
+        FfiConverterString.lower(`host`),
+        FfiConverterUShort.lower(`port`),
+        FfiConverterOptionalString.lower(`username`),
+        FfiConverterOptionalString.lower(`password`),
+        FfiConverterByteArray.lower(`secret`),_status)
+}
+
+
+
+    @Throws(MtprotoException::class) fun `setTransportMode`(`mode`: kotlin.String)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_set_transport_mode(
+
+
+        FfiConverterString.lower(`mode`),_status)
 }
 
 

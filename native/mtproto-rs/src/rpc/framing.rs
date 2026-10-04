@@ -168,7 +168,7 @@ pub(crate) fn open_transport_skip(
             Some(&secret),
         )
     } else {
-        tcp::connect_obfuscated_timeout(addr, connect_secs)
+        tcp::connect_obfuscated_timeout_obf(addr, connect_secs, Some(snapshot.dc_id as i16), None)
     }
     .map_err(|e| MtprotoError::Message(format!("{e} via {addr}")))?;
     Ok((conn, PaddedIntermediate::default(), addr))

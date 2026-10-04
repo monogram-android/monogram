@@ -1,4 +1,18 @@
 use crate::client_mgr;
+
+#[cfg(target_os = "android")]
+#[allow(unsafe_code)]
+#[jni::jni_mangle("org.monogram.mtproto.MtprotoNativeLoader")]
+pub extern "system" fn init_platform_verifier<'caller>(
+    mut unowned_env: jni::EnvUnowned<'caller>,
+    _this: jni::objects::JObject<'caller>,
+    context: jni::objects::JObject<'caller>,
+) {
+    unowned_env
+        .with_env(|env| rustls_platform_verifier::android::init_with_env(env, context))
+        .resolve::<jni::errors::ThrowRuntimeExAndDefault>();
+}
+
 use crate::extras_rpc;
 use crate::lottie;
 use crate::perf;
@@ -15,7 +29,8 @@ use crate::{
     FolderDto, ForumTopicsPageDto, GlobalMessageSearchDto, InlineBotResultsDto, InstantViewDto,
     LottieSize, MessageDto, MtprotoError, NotifyExceptionDto, NotifySettingsDto, ProfileDto,
     ReactionChoiceDto, ResolvedPeerDto, SavedGifDto, StickerCatalogDto, StickerListDto,
-    StickerPackDto, UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame, WallpaperCatalogDto,
+    StickerPackDto, UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame,
+    WallpaperCatalogDto,
 };
 
 #[uniffi::export]
@@ -163,6 +178,91 @@ pub fn create_encrypted_client(
     Ok(handle)
 }
 
+#[uniffi::export]
+pub fn set_proxy(
+    kind: String,
+    host: String,
+    port: u16,
+    username: Option<String>,
+    password: Option<String>,
+    secret: Vec<u8>,
+) -> Result<(), MtprotoError> {
+    let kind = match kind.to_ascii_lowercase().as_str() {
+        "socks5" => monogram_mtproto_transport::ProxyKind::Socks5,
+        "http" => monogram_mtproto_transport::ProxyKind::Http,
+        "https" => monogram_mtproto_transport::ProxyKind::Https,
+        "mtproto" => monogram_mtproto_transport::ProxyKind::Mtproto,
+        _ => return Err(MtprotoError::Message("unsupported proxy type".into())),
+    };
+    let parsed = monogram_mtproto_transport::ProxyConfig::decode_mtproto_secret(&secret)
+        .map_err(|error| MtprotoError::Message(error.to_string()))?;
+    let (secret, fake_tls_domain) = match parsed {
+        Some((key, domain)) => (Some(key), domain),
+        None => (None, None),
+    };
+    crate::tcp::set_proxy(Some(monogram_mtproto_transport::ProxyConfig {
+        kind,
+        host,
+        port,
+        username,
+        password,
+        secret,
+        fake_tls_domain,
+    }))
+    .map_err(|e| MtprotoError::Message(e.to_string()))
+}
+
+#[uniffi::export]
+pub fn ping_proxy(
+    kind: String,
+    host: String,
+    port: u16,
+    username: Option<String>,
+    password: Option<String>,
+    secret: Vec<u8>,
+) -> Result<i64, MtprotoError> {
+    let kind = match kind.to_ascii_lowercase().as_str() {
+        "socks5" => monogram_mtproto_transport::ProxyKind::Socks5,
+        "http" => monogram_mtproto_transport::ProxyKind::Http,
+        "https" => monogram_mtproto_transport::ProxyKind::Https,
+        "mtproto" => monogram_mtproto_transport::ProxyKind::Mtproto,
+        _ => return Err(MtprotoError::Message("unsupported proxy type".into())),
+    };
+    let parsed = monogram_mtproto_transport::ProxyConfig::decode_mtproto_secret(&secret)
+        .map_err(|error| MtprotoError::Message(error.to_string()))?;
+    let (secret, fake_tls_domain) = match parsed {
+        Some((key, domain)) => (Some(key), domain),
+        None => (None, None),
+    };
+    crate::tcp::probe_proxy(monogram_mtproto_transport::ProxyConfig {
+        kind,
+        host,
+        port,
+        username,
+        password,
+        secret,
+        fake_tls_domain,
+    })
+    .map_err(|error| MtprotoError::Message(error.to_string()))
+}
+
+#[uniffi::export]
+pub fn clear_proxy() -> Result<(), MtprotoError> {
+    crate::tcp::set_proxy(None).map_err(|e| MtprotoError::Message(e.to_string()))
+}
+
+#[uniffi::export]
+pub fn set_transport_mode(mode: String) -> Result<(), MtprotoError> {
+    let mode = match mode.to_ascii_lowercase().as_str() {
+        "padded_intermediate" | "padded-intermediate" | "mtproto" => {
+            monogram_mtproto_transport::TransportMode::PaddedIntermediate
+        }
+        "http" => monogram_mtproto_transport::TransportMode::Http,
+        _ => return Err(MtprotoError::Message("unsupported transport mode".into())),
+    };
+    crate::tcp::set_transport_mode(mode);
+    Ok(())
+}
 #[uniffi::export]
 pub fn connect(handle: u64) -> Result<(), MtprotoError> {
     perf::span("connect").with(|| client_mgr::connect(handle))
@@ -1076,7 +1176,6 @@ pub fn get_read_receipt_config(
 ) -> Result<read_receipts_rpc::ReadReceiptConfigDto, MtprotoError> {
     client_mgr::get_read_receipt_config(handle)
 }
-
 
 #[uniffi::export]
 pub fn decode_vpx_alpha_packet(

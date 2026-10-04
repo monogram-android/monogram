@@ -156,9 +156,9 @@ class RootComponent(
         }
     }
 
-    private fun openSettings(openFolders: Boolean) {
+    private fun openSettings(openFolders: Boolean = false, openProxy: Boolean = false) {
         navigation.navigate { configurations ->
-            uniqueStack(configurations, Config.Settings(openFolders = openFolders))
+            uniqueStack(configurations, Config.Settings(openFolders = openFolders, openProxy = openProxy))
         }
     }
 
@@ -426,7 +426,8 @@ class RootComponent(
                 mediaRepository = mediaRepository,
                 onOpenChat = ::openChatFromList,
                 onOpenProfile = ::openProfile,
-                onOpenSettings = { openSettings(openFolders = false) },
+                onOpenSettings = { openSettings() },
+                onOpenProxy = { openSettings(openProxy = true) },
                 onOpenFolders = { openSettings(openFolders = true) },
             ),
         )
@@ -512,6 +513,7 @@ class RootComponent(
                 debugNotifications = BuildConfig.DEBUG,
                 notificationLocal = notificationLocal,
                 openFolders = config.openFolders,
+                openProxy = config.openProxy,
                 appUpdate = appUpdate,
                 updatesEnabled = AppUpdate.inAppUpdatesEnabled(BuildConfig.BUILD_TYPE),
             ),
@@ -561,7 +563,7 @@ class RootComponent(
         data class Profile(val peerId: Long) : Config
 
         @Serializable
-        data class Settings(val openFolders: Boolean = false) : Config
+        data class Settings(val openFolders: Boolean = false, val openProxy: Boolean = false) : Config
     }
 }
 
@@ -604,6 +606,7 @@ class HomeComponent(
     onOpenChat: (PeerId, Boolean, Int) -> Unit,
     onOpenProfile: (PeerId) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenProxy: () -> Unit = {},
     onOpenFolders: () -> Unit,
 ) : ComponentContext by componentContext {
     val chats = ChatsComponent(
@@ -618,6 +621,7 @@ class HomeComponent(
         onOpenProfile = onOpenProfile,
         onOpenSelfProfile = { onOpenProfile(PeerId(0L)) },
         onOpenSettings = onOpenSettings,
+        onOpenProxy = onOpenProxy,
         onOpenFolders = onOpenFolders,
     )
     val folders = FoldersComponent(componentContext, storeFactory, client, warmup)

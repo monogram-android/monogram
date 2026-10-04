@@ -32,6 +32,7 @@ captures/
 
 # Native / Rust
 native/*-rs/target/
+native/mtproto-transport/target/
 vendor/libvpx/
 native/vpx/build/
 native/vpx/tmp/

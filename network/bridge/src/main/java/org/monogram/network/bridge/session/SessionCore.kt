@@ -27,6 +27,8 @@ import org.monogram.core.models.AuthState
 import org.monogram.core.models.PeerId
 import org.monogram.mtproto.MtprotoNative
 import org.monogram.network.bridge.MtprotoUpdate
+import org.monogram.network.bridge.MtprotoTransportMode
+import org.monogram.network.bridge.ProxyConfig
 import uniffi.monogram_mtproto.MtprotoException
 
 internal class SessionCore(
@@ -44,6 +46,8 @@ internal class SessionCore(
     /** Native bootstrap (including TXT config) is valid for this handle. */
     @Volatile
     internal var connectedHandle: Long = 0L
+    @Volatile
+    private var proxyState: ProxyConnectionStatus = ProxyConnectionStatus.Disabled
     @Volatile
     private var updatesStartedHandle: Long = 0L
     private val updatesStartMutex = Mutex()
@@ -317,6 +321,7 @@ internal class SessionCore(
                 return Outcome.Ok(Unit)
             }
             AppLog.api("connect", "start handle=$locked")
+            if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connecting
             val connected = rpc("connect failed") { activeHandle ->
                 refreshDcSidecar(sessionPath)
                 try {
@@ -324,13 +329,17 @@ internal class SessionCore(
                     if (isCurrentHandle(activeHandle)) connectedHandle = activeHandle
                 } catch (e: Exception) {
                     connectedHandle = 0L
+                    if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Failed
                     throw e
                 } finally {
                     DcTxtBootstrap.logNativeStatus(sessionPath)
                 }
                 activeHandle
             }
-            if (connected is Outcome.Ok) maybeStartUpdates(connected.value)
+            if (connected is Outcome.Ok) {
+                if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connected
+                maybeStartUpdates(connected.value)
+            }
             return when (connected) {
                 is Outcome.Ok -> Outcome.Ok(Unit)
                 is Outcome.Err -> connected
@@ -550,6 +559,76 @@ internal class SessionCore(
         resetHandle()
     }
 
+    override fun configureProxy(config: ProxyConfig): Outcome<Unit> {
+        when (val valid = config.validate()) {
+            is Outcome.Err -> return valid
+            is Outcome.Ok -> Unit
+        }
+        return try {
+            if (config.type == org.monogram.network.bridge.ProxyType.NONE) {
+                native.clearProxy()
+                proxyState = ProxyConnectionStatus.Disabled
+            } else {
+                native.setProxy(config.type.name.lowercase(), config.host, config.port, config.username, config.password, config.secret.copyOf())
+                proxyState = ProxyConnectionStatus.Disconnected
+            }
+            resetHandle()
+            Outcome.Ok(Unit)
+        } catch (error: Throwable) {
+            Outcome.Err(error.message ?: "proxy configuration failed", error)
+        }
+    }
+
+    override fun setTransportMode(mode: MtprotoTransportMode): Outcome<Unit> = try {
+        native.setTransportMode(
+            when (mode) {
+                MtprotoTransportMode.PADDED_INTERMEDIATE -> "padded_intermediate"
+                MtprotoTransportMode.HTTP -> "http"
+            },
+        )
+        resetHandle()
+        Outcome.Ok(Unit)
+    } catch (error: Throwable) {
+        Outcome.Err(error.message ?: "transport mode configuration failed", error)
+    }
+
+    override suspend fun pingProxy(config: ProxyConfig): Outcome<Long> {
+        when (val valid = config.validate()) {
+            is Outcome.Err -> return valid
+            is Outcome.Ok -> Unit
+        }
+        if (config.type == org.monogram.network.bridge.ProxyType.NONE) {
+            return Outcome.Err("proxy is disabled")
+        }
+        return withContext(nativeDispatcher) {
+            try {
+                Outcome.Ok(
+                    native.pingProxy(
+                        config.type.name.lowercase(),
+                        config.host,
+                        config.port,
+                        config.username,
+                        config.password,
+                        config.secret.copyOf(),
+                    ),
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                Outcome.Err(error.message ?: "proxy ping failed", error)
+            }
+        }
+    }
+
+    override fun clearProxy(): Outcome<Unit> = try {
+        native.clearProxy()
+        proxyState = ProxyConnectionStatus.Disabled
+        resetHandle()
+        Outcome.Ok(Unit)
+    } catch (error: Throwable) {
+        Outcome.Err(error.message ?: "proxy configuration failed", error)
+    }
+
     override fun close() {
         synchronized(handleLock) {
             if (closed) return
@@ -565,8 +644,13 @@ internal class SessionCore(
             handle.also { handle = 0L }
         }
         connectedHandle = 0L
+        if (proxyState == ProxyConnectionStatus.Connected) proxyState = ProxyConnectionStatus.Disconnected
         if (updatesStartedHandle == oldHandle) updatesStartedHandle = 0L
         if (oldHandle != 0L) native.destroyClient(oldHandle)
         updatesWake.trySend(Unit)
     }
+
+    override fun proxyConnectionStatus(): ProxyConnectionStatus = proxyState
+
+    private fun nativeProxyConfigured(): Boolean = proxyState != ProxyConnectionStatus.Disabled
 }

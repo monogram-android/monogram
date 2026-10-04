@@ -176,33 +176,80 @@ pub fn decode_vpx_packet(
     }
 }
 
-
-pub fn decode_vpx_alpha_packet(handle: u64, data: Vec<u8>) -> Result<Option<crate::VpxAlphaFrame>, MtprotoError> {
+pub fn decode_vpx_alpha_packet(
+    handle: u64,
+    data: Vec<u8>,
+) -> Result<Option<crate::VpxAlphaFrame>, MtprotoError> {
     #[cfg(not(has_libvpx))]
-    { let _ = (handle, data); return Err(MtprotoError::Message("libvpx not linked".into())); }
+    {
+        let _ = (handle, data);
+        return Err(MtprotoError::Message("libvpx not linked".into()));
+    }
     #[cfg(has_libvpx)]
     unsafe {
         let mut instances = INSTANCES.lock();
         let decoder = instances.get_mut(&handle).ok_or_else(missing)?;
         const MAX_PACKET_SIZE: usize = 4 * 1024 * 1024;
-        if data.is_empty() || data.len() > MAX_PACKET_SIZE { return Err(MtprotoError::Message("invalid vpx packet size".into())); }
-        let err = vpx_codec_decode(&mut decoder.ctx, data.as_ptr(), c_uint::try_from(data.len()).map_err(|_| MtprotoError::Message("vpx packet is too large".into()))?, ptr::null_mut(), 0);
-        if err != 0 { return Err(MtprotoError::Message(format!("vpx decode failed: {err}"))); }
+        if data.is_empty() || data.len() > MAX_PACKET_SIZE {
+            return Err(MtprotoError::Message("invalid vpx packet size".into()));
+        }
+        let err = vpx_codec_decode(
+            &mut decoder.ctx,
+            data.as_ptr(),
+            c_uint::try_from(data.len())
+                .map_err(|_| MtprotoError::Message("vpx packet is too large".into()))?,
+            ptr::null_mut(),
+            0,
+        );
+        if err != 0 {
+            return Err(MtprotoError::Message(format!("vpx decode failed: {err}")));
+        }
         let mut iter: *const c_void = ptr::null();
         let image = vpx_codec_get_frame(&mut decoder.ctx, &mut iter);
-        if image.is_null() { return Ok(None); }
+        if image.is_null() {
+            return Ok(None);
+        }
         let image = &*image;
-        let width = image.d_w; let height = image.d_h;
+        let width = image.d_w;
+        let height = image.d_h;
         const MAX_DIMENSION: u32 = 2048;
-        if width == 0 || height == 0 || width > MAX_DIMENSION || height > MAX_DIMENSION || image.w < width || image.h < height { return Err(MtprotoError::Message("invalid vpx alpha dimensions".into())); }
-        let w = width as usize; let h = height as usize;
-        let stride = usize::try_from(image.stride[0]).map_err(|_| MtprotoError::Message("invalid vpx alpha stride".into()))?;
-        if image.planes[0].is_null() || stride < w { return Err(MtprotoError::Message("invalid vpx alpha plane".into())); }
-        let mut alpha = vec![0u8; w.checked_mul(h).ok_or_else(|| MtprotoError::Message("vpx alpha frame is too large".into()))?];
-        for row in 0..h { std::ptr::copy_nonoverlapping(image.planes[0].add(row * stride), alpha.as_mut_ptr().add(row * w), w); }
-        Ok(Some(crate::VpxAlphaFrame { width, height, alpha }))
+        if width == 0
+            || height == 0
+            || width > MAX_DIMENSION
+            || height > MAX_DIMENSION
+            || image.w < width
+            || image.h < height
+        {
+            return Err(MtprotoError::Message("invalid vpx alpha dimensions".into()));
+        }
+        let w = width as usize;
+        let h = height as usize;
+        let stride = usize::try_from(image.stride[0])
+            .map_err(|_| MtprotoError::Message("invalid vpx alpha stride".into()))?;
+        if image.planes[0].is_null() || stride < w {
+            return Err(MtprotoError::Message("invalid vpx alpha plane".into()));
+        }
+        let mut alpha = vec![
+            0u8;
+            w.checked_mul(h).ok_or_else(|| MtprotoError::Message(
+                "vpx alpha frame is too large".into()
+            ))?
+        ];
+        for row in 0..h {
+            std::ptr::copy_nonoverlapping(
+                image.planes[0].add(row * stride),
+                alpha.as_mut_ptr().add(row * w),
+                w,
+            );
+        }
+        Ok(Some(crate::VpxAlphaFrame {
+            width,
+            height,
+            alpha,
+        }))
     }
-}fn image_to_rgba(image: &VpxImage) -> Result<crate::VpxFrame, MtprotoError> {
+}
+fn image_to_rgba(image: &VpxImage) -> Result<crate::VpxFrame, MtprotoError> {
     const MAX_DIMENSION: u32 = 2048;
     let width = image.d_w;
     let height = image.d_h;

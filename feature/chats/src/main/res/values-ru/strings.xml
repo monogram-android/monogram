@@ -70,4 +70,5 @@
     <string name="chats_verified">Подтверждён</string>
     <string name="chats_unread_mentions">Непрочитанные упоминания</string>
     <string name="chats_unread_reactions">Непрочитанные реакции</string>
+    <string name="chats_proxy_status">Proxy connection status</string>
 </resources>

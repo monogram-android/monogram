@@ -66,4 +66,5 @@
     <string name="chats_verified">Verified</string>
     <string name="chats_unread_mentions">Unread mentions</string>
     <string name="chats_unread_reactions">Unread reactions</string>
+    <string name="chats_proxy_status">Proxy connection status</string>
 </resources>

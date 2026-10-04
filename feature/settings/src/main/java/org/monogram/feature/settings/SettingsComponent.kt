@@ -20,14 +20,16 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.monogram.core.common.push.NotificationLocalStore
+import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
+import org.monogram.core.models.AppUpdateState
 import org.monogram.core.models.PeerId
 import org.monogram.network.bridge.MtprotoClient
+import org.monogram.network.bridge.MtprotoTransportMode
+import org.monogram.network.bridge.ProxyConfig
 import org.monogram.network.http.MediaRepository
-import org.monogram.core.common.push.PushRegistration
-import org.monogram.core.common.push.NotificationLocalStore
-import org.monogram.core.models.AppUpdateState
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsComponent(
@@ -46,6 +48,7 @@ class SettingsComponent(
     val debugNotifications: Boolean = false,
     notificationLocal: NotificationLocalStore? = null,
     openFolders: Boolean = false,
+    openProxy: Boolean = false,
     val appUpdate: AppUpdateController? = null,
     val updatesEnabled: Boolean = true,
 ) : ComponentContext by componentContext {
@@ -87,7 +90,11 @@ class SettingsComponent(
     val pages: Value<ChildStack<SettingsPage, SettingsPage>> = childStack(
         source = pageNavigation,
         serializer = SettingsPage.serializer(),
-        initialConfiguration = if (openFolders) SettingsPage.Folders else SettingsPage.Home,
+        initialConfiguration = when {
+            openProxy -> SettingsPage.Proxy
+            openFolders -> SettingsPage.Folders
+            else -> SettingsPage.Home
+        },
         childFactory = { page, _ -> page },
     )
 
@@ -112,13 +119,23 @@ class SettingsComponent(
         lifecycle.doOnDestroy { scope.cancel() }
     }
 
+    fun configureProxy(config: ProxyConfig) = client.configureProxy(config)
+    fun clearProxy() = client.clearProxy()
+    fun setTransportMode(mode: MtprotoTransportMode) = client.setTransportMode(mode)
+    suspend fun testProxyConnection() = client.connect()
+    suspend fun pingProxy(config: ProxyConfig) = client.pingProxy(config)
+
     fun onRefresh() = store.accept(SettingsStore.Intent.Refresh)
-    fun onOpenWallpapers(cacheDirectory: java.io.File) = wallpaperStore.accept(WallpaperStore.Intent.Open(
-        java.io.File(cacheDirectory, "wallpapers/${state.value.profile?.id?.value ?: 0L}"),
-    ))
+    fun onOpenWallpapers(cacheDirectory: java.io.File) = wallpaperStore.accept(
+        WallpaperStore.Intent.Open(
+            java.io.File(cacheDirectory, "wallpapers/${state.value.profile?.id?.value ?: 0L}"),
+        )
+    )
+
     fun onRetryWallpapers() = wallpaperStore.accept(WallpaperStore.Intent.Retry)
     fun onPreviewWallpaper(wallpaper: org.monogram.core.models.Wallpaper) =
         wallpaperStore.accept(WallpaperStore.Intent.Preview(wallpaper))
+
     fun onCloseWallpapers() = wallpaperStore.accept(WallpaperStore.Intent.Close)
     fun onClearCache() = store.accept(SettingsStore.Intent.ClearCache)
     fun onClearChatCache(chatId: Long) = store.accept(SettingsStore.Intent.ClearChatCache(chatId))
@@ -133,8 +150,9 @@ class SettingsComponent(
     fun openPage(page: SettingsPage) = pageNavigation.pushNew(page)
     fun popPage() {
         if (pageBackHandler?.invoke() == true) return
-        pageNavigation.pop()
+        if (pages.value.backStack.isEmpty()) onBack() else pageNavigation.pop()
     }
+
     fun onBack() = onBack.invoke()
     fun onOpenProfile() = onOpenProfile(PeerId(0L))
     fun onNotification(intent: NotificationsStore.Intent) = notificationsStore.accept(intent)

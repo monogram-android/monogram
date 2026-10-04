@@ -14,8 +14,8 @@ import kotlinx.coroutines.withTimeout
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.DebugStats
 import org.monogram.core.common.Outcome
-import org.monogram.core.common.SponsorRegistry
 import org.monogram.core.common.PerfLog
+import org.monogram.core.common.SponsorRegistry
 import org.monogram.core.common.TelegramCredentials
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.database.DatabaseProvider
@@ -29,7 +29,12 @@ import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.DownloadState
 import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.perf.perfSpan
+import org.monogram.feature.settings.ProxySettingsStore
+import org.monogram.mtproto.MtprotoNativeLoader
 import org.monogram.network.bridge.BridgedMtprotoClient
+import org.monogram.network.bridge.MtprotoTransportMode
+import org.monogram.network.bridge.ProxyConfig
+import org.monogram.network.bridge.ProxyType
 import org.monogram.network.http.MediaFetchKind
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
@@ -139,6 +144,7 @@ class MonogramApp : Application() {
                 }
             },
             createClient = {
+                MtprotoNativeLoader.initializePlatformVerifier(this)
                 val sessionFile = File(filesDir, "mtproto.session.json")
                 perfSpan("app:tdlibImport") {
                     runCatching { TdlibSessionImport.maybeImport(filesDir, sessionFile, cacheDir) }
@@ -149,6 +155,32 @@ class MonogramApp : Application() {
                         credentials = credentials,
                         sessionPath = sessionFile.absolutePath,
                     )
+                }
+                ProxySettingsStore.load(this)?.let { saved ->
+                    val applied = runCatching {
+                        val transportMode =
+                            MtprotoTransportMode.valueOf(saved.transportMode.uppercase())
+                        val proxyType = ProxyType.valueOf(saved.kind)
+                        if (proxyType == ProxyType.NONE) false else
+                            client.setTransportMode(transportMode) is Outcome.Ok &&
+                                    client.configureProxy(
+                                        ProxyConfig(
+                                            proxyType,
+                                            saved.host,
+                                            saved.port,
+                                            saved.username,
+                                            saved.password,
+                                            saved.secret
+                                        )
+                                    ) is Outcome.Ok
+                    }.getOrDefault(false)
+                    if (!applied) {
+                        runCatching { client.clearProxy() }
+                        runCatching { client.setTransportMode(MtprotoTransportMode.PADDED_INTERMEDIATE) }
+                        ProxySettingsStore.clearActive(this)
+                        ProxySettingsStore.markStartupFailure(this)
+                        AppLog.warn("proxy", "stored proxy settings rejected")
+                    }
                 }
             },
             installImageCache = {
@@ -164,8 +196,10 @@ class MonogramApp : Application() {
                     when (val result = runCatching { client.connect() }.getOrNull()) {
                         is Outcome.Ok ->
                             PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=ok")
+
                         is Outcome.Err ->
                             PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=err")
+
                         null ->
                             PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=throw")
                     }
@@ -193,11 +227,28 @@ class MonogramApp : Application() {
                         telegramFetcher = TelegramMediaFetcher { chatId, messageId, destPath, kind, priority ->
                             when (kind) {
                                 MediaFetchKind.Thumb ->
-                                    client.downloadMessageThumb(chatId, messageId, destPath, priority)
+                                    client.downloadMessageThumb(
+                                        chatId,
+                                        messageId,
+                                        destPath,
+                                        priority
+                                    )
+
                                 MediaFetchKind.Display ->
-                                    client.downloadMessageDisplay(chatId, messageId, destPath, priority)
+                                    client.downloadMessageDisplay(
+                                        chatId,
+                                        messageId,
+                                        destPath,
+                                        priority
+                                    )
+
                                 MediaFetchKind.Full ->
-                                    client.downloadMessageMedia(chatId, messageId, destPath, priority)
+                                    client.downloadMessageMedia(
+                                        chatId,
+                                        messageId,
+                                        destPath,
+                                        priority
+                                    )
                             }
                         },
                         customEmojiFetcher = { documentId, destPath, priority ->

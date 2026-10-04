@@ -1051,8 +1051,13 @@ fn follow_cdn_redirect(
         .ok_or_else(|| MtprotoError::Message("cdn endpoint".into()))?;
     let mut snap = Snapshot::new(job.dc_id, &mut OsRandom)
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
-    let mut conn = tcp::connect_obfuscated(&endpoint.addr)
-        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    let mut conn = tcp::connect_obfuscated_timeout_obf(
+        &endpoint.addr,
+        5,
+        Some(job.dc_id as i16),
+        endpoint.secret.as_ref().map(|secret| secret.as_slice()),
+    )
+    .map_err(|e| MtprotoError::Message(e.to_string()))?;
     let mut framing = PaddedIntermediate::default();
     create_auth_key_with_pem(&mut conn, &mut framing, &mut snap, &pem)?;
     let mut slot = Some(crate::rpc::LiveTransport {

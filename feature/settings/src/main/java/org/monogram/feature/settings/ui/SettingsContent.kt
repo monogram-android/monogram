@@ -225,6 +225,7 @@ fun SettingsContent(
     val accountSubtitle = profileSubtitle(profile?.username)
     val title = when (page) {
         SettingsPage.Home -> stringResource(R.string.settings_title)
+        SettingsPage.Proxy -> stringResource(R.string.settings_proxy)
         SettingsPage.Data -> stringResource(R.string.settings_data)
         SettingsPage.DebugStats -> stringResource(R.string.settings_debug_stats)
         is SettingsPage.AutoDownload -> stringResource(
@@ -373,6 +374,7 @@ fun SettingsContent(
                             updatesEnabled = component.updatesEnabled,
                         )
                     }
+                    SettingsPage.Proxy -> ProxySettings(component, Modifier.padding(innerPadding))
                     SettingsPage.Data -> SettingsPageList(innerPadding) {
                         dataItems(
                             cacheBytes = state.cacheBytes,
@@ -580,6 +582,7 @@ private fun settingsPageKey(page: SettingsPage): String = when (page) {
     SettingsPage.Home -> "home"
     SettingsPage.Folders -> "folders"
     SettingsPage.Data -> "data"
+    SettingsPage.Proxy -> "proxy"
     SettingsPage.DebugStats -> "debug-stats"
     is SettingsPage.AutoDownload -> "autodownload:${page.network}"
     SettingsPage.Appearance -> "appearance"

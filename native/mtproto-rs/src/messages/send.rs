@@ -323,13 +323,15 @@ pub fn send_text(
                 allow_paid_floodskip: None,
                 peer,
                 reply_to,
-                media: Box::new(InputMedia::InputMediaWebPage(InputMediaWebPageConstructor {
-                    flags: InputMediaWebPageConstructor::OPTIONAL_FLAG,
-                    force_large_media: None,
-                    force_small_media: None,
-                    optional: Some(Box::new(True::True(TrueConstructor {}))),
-                    url: url.to_string(),
-                })),
+                media: Box::new(InputMedia::InputMediaWebPage(
+                    InputMediaWebPageConstructor {
+                        flags: InputMediaWebPageConstructor::OPTIONAL_FLAG,
+                        force_large_media: None,
+                        force_small_media: None,
+                        optional: Some(Box::new(True::True(TrueConstructor {}))),
+                        url: url.to_string(),
+                    },
+                )),
                 message: text.to_string(),
                 random_id: random_id(),
                 reply_markup: None,

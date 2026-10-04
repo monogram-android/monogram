@@ -1,8 +1,8 @@
 package org.monogram.feature.chats.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,33 +10,27 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CloudDone
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.MarkChatRead
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import org.monogram.core.ui.menu.AppMenuGroup
-import org.monogram.core.ui.menu.AppMenuItem
-import org.monogram.core.ui.menu.AppMenuPopup
-import org.monogram.core.ui.menu.AppMenuSurface
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,17 +40,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import java.io.File
 import org.monogram.core.ui.components.PeerAvatar
+import org.monogram.core.ui.menu.AppMenuGroup
+import org.monogram.core.ui.menu.AppMenuItem
+import org.monogram.core.ui.menu.AppMenuPopup
+import org.monogram.core.ui.menu.AppMenuSurface
+import org.monogram.network.bridge.session.ProxyConnectionStatus
 import org.monogram.network.http.MediaRepository
-import org.monogram.core.ui.components.SearchField
+import java.io.File
 
 /**
  * One single-row header. At the top of the list it shows the product name (with the account's
@@ -83,6 +78,7 @@ internal fun ChatsTopBar(
     onToggleSearch: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenProxy: () -> Unit = {},
     onMarkAllRead: () -> Unit,
     searchLabel: String,
     searchCloseLabel: String,
@@ -91,6 +87,8 @@ internal fun ChatsTopBar(
     settingsLabel: String,
     markAllReadLabel: String,
     markAllReadEnabled: Boolean,
+    proxyStatus: ProxyConnectionStatus = ProxyConnectionStatus.Disabled,
+    proxyStatusLabel: String = "Proxy status",
 ) {
     // Pinned single-row bar: it never moves, only its surface tone and content change.
     val containerColor by animateColorAsState(
@@ -127,6 +125,24 @@ internal fun ChatsTopBar(
             }
         },
         actions = {
+            if (proxyStatus != ProxyConnectionStatus.Disabled) {
+                val icon = when (proxyStatus) {
+                    ProxyConnectionStatus.Connected -> Icons.Outlined.CloudDone
+                    ProxyConnectionStatus.Connecting -> Icons.Outlined.Sync
+                    ProxyConnectionStatus.Disconnected,
+                    ProxyConnectionStatus.Failed -> Icons.Outlined.CloudOff
+
+                    ProxyConnectionStatus.Disabled -> Icons.Outlined.CloudOff
+                }
+                val tint = when (proxyStatus) {
+                    ProxyConnectionStatus.Connected -> MaterialTheme.colorScheme.primary
+                    ProxyConnectionStatus.Connecting -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.error
+                }
+                IconButton(onClick = onOpenProxy) {
+                    Icon(icon, contentDescription = proxyStatusLabel, tint = tint)
+                }
+            }
             IconButton(onClick = onToggleSearch) {
                 Icon(
                     imageVector = if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search,

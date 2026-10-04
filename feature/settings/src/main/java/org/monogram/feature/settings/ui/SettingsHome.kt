@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -102,6 +103,17 @@ internal fun LazyListScope.homeItems(
             iconColor = MaterialTheme.colorScheme.secondary,
             position = ItemPosition.MIDDLE,
             onClick = { onOpen(SettingsPage.Notifications) },
+            trailingContent = { Chevron() },
+        )
+    }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.VpnKey,
+            title = stringResource(R.string.settings_proxy),
+            subtitle = stringResource(R.string.settings_proxy_sub),
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = ItemPosition.MIDDLE,
+            onClick = { onOpen(SettingsPage.Proxy) },
             trailingContent = { Chevron() },
         )
     }

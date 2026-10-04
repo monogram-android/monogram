@@ -66,4 +66,5 @@
     <string name="chats_verified">Հաստատված</string>
     <string name="chats_unread_mentions">Չկարդացված նշումներ</string>
     <string name="chats_unread_reactions">Չկարդացված արձագանքներ</string>
+    <string name="chats_proxy_status">Proxy connection status</string>
 </resources>

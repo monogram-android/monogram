@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Edit
@@ -44,9 +43,7 @@ import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -81,10 +78,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import org.monogram.core.common.Outcome
 import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.components.ItemPosition
@@ -541,7 +538,6 @@ private fun ProxyEditor(
                 .map { proxyTypeLabel(it) },
             selected = listOf(ProxyType.SOCKS5, ProxyType.HTTP, ProxyType.HTTPS, ProxyType.MTPROTO)
                 .indexOf(selected),
-            motion = motion,
             onSelect = { index ->
                 val candidate = listOf(ProxyType.SOCKS5, ProxyType.HTTP, ProxyType.HTTPS, ProxyType.MTPROTO)[index]
                 if (!portEdited) port = candidate.defaultPort()
@@ -561,7 +557,6 @@ private fun ProxyEditor(
                         stringResource(R.string.settings_proxy_transport_http),
                     ),
                     selected = if (selectedTransport == MtprotoTransportMode.HTTP) 1 else 0,
-                    motion = motion,
                     onSelect = { index ->
                         transportName = if (index == 0) {
                             MtprotoTransportMode.PADDED_INTERMEDIATE.name
@@ -859,69 +854,49 @@ private fun ProxyImportSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ProxyChoiceGroup(
     labels: List<String>,
     selected: Int,
-    motion: Boolean,
     onSelect: (Int) -> Unit,
     enabled: (Int) -> Boolean = { true },
 ) {
-    val interactions = remember(labels.size) { List(labels.size) { MutableInteractionSource() } }
-    ButtonGroup(
-        modifier = Modifier.fillMaxWidth().selectableGroup(),
-        overflowIndicator = { menuState -> ButtonGroupDefaults.OverflowIndicator(menuState) },
-        expandedRatio = if (motion) ButtonGroupDefaults.ExpandedRatio else 0f,
+    Row(
+        Modifier.fillMaxWidth().selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         labels.forEachIndexed { index, label ->
-            val checked = selected == index
             val itemEnabled = enabled(index)
-            val widthMod = if (motion) Modifier.animateWidth(interactions[index]) else Modifier
-            customItem(
-                buttonGroupContent = {
-                    ToggleButton(
-                        checked = checked,
-                        onCheckedChange = { if (itemEnabled) onSelect(index) },
-                        enabled = itemEnabled,
-                        interactionSource = interactions[index],
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .widthIn(min = 64.dp)
-                            .then(widthMod)
-                            .semantics { role = Role.RadioButton },
-                        shapes = when (index) {
-                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                            labels.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                        },
-                        colors = ToggleButtonDefaults.colors(
-                            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        ),
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                    ) {
-                        if (checked) Icon(Icons.Filled.Check, contentDescription = null)
-                        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, softWrap = false)
-                    }
+            ToggleButton(
+                checked = selected == index,
+                onCheckedChange = { if (itemEnabled) onSelect(index) },
+                enabled = itemEnabled,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .semantics { role = Role.RadioButton },
+                shapes = when {
+                    labels.size == 1 -> ToggleButtonDefaults.shapesFor(ButtonDefaults.MediumContainerHeight)
+                    index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    index == labels.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                 },
-                menuContent = { menuState ->
-                    DropdownMenuItem(
-                        text = { Text(label) },
-                        enabled = itemEnabled,
-                        leadingIcon = if (checked) {
-                            { Icon(Icons.Filled.Check, contentDescription = null) }
-                        } else {
-                            null
-                        },
-                        onClick = {
-                            if (itemEnabled) onSelect(index)
-                            menuState.dismiss()
-                        },
-                    )
-                },
-            )
+                colors = ToggleButtonDefaults.colors(
+                    checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

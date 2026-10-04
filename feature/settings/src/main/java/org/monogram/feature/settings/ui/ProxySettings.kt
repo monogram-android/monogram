@@ -190,8 +190,17 @@ internal fun ProxySettings(
                     }
                 }
             },
-            onSave = { draft, originalKey, done ->
-                val busyKey = originalKey ?: draft.profileKey()
+            onSave = save@{ draft, originalKey, done ->
+                if (originalKey == null) {
+                    storeAdded(refs, listOf(draft))
+                    sync()
+                    status = null
+                    statusError = false
+                    enqueue(draft)
+                    done(null)
+                    return@save
+                }
+                val busyKey = originalKey
                 busy = busy + busyKey
                 sessionJobs += 1
                 scope.launch {
@@ -243,31 +252,21 @@ internal fun ProxySettings(
                         ?.text
                         ?.toString()
                 }.getOrNull().orEmpty()
-                val config = proxyLinkFromClipboard(text)
-                if (config == null) {
+                val drafts = proxyLinksFromClipboard(text).map { stateFromConfig(it) }
+                if (drafts.isEmpty()) {
                     status = clipboardInvalid
                     statusError = true
                     return@paste
                 }
-                val draft = stateFromConfig(config)
-                if (refs.profiles.any { it.profileKey() == draft.profileKey() }) return@paste
-                sessionJobs += 1
-                scope.launch {
-                    val result = try {
-                        queue.exclusive { saveProfile(refs, draft, null) }
-                    } finally {
-                        sessionJobs -= 1
-                        sync()
-                    }
-                    if (result.error == null) {
-                        status = null
-                        statusError = false
-                        enqueue(draft)
-                    } else {
-                        status = result.error
-                        statusError = true
-                    }
+                val fresh = drafts.filter { draft ->
+                    refs.profiles.none { it.profileKey() == draft.profileKey() }
                 }
+                if (fresh.isEmpty()) return@paste
+                storeAdded(refs, fresh)
+                sync()
+                status = null
+                statusError = false
+                fresh.forEach { enqueue(it) }
             },
         )
     }
@@ -298,6 +297,12 @@ private suspend fun activate(refs: ProxyRefs, profile: ProxyScreenState): ProxyC
             restoreDesired(refs, reportFailure = false)
         }
     }
+}
+
+private fun storeAdded(refs: ProxyRefs, drafts: List<ProxyScreenState>) {
+    val keys = drafts.map { it.profileKey() }.toSet()
+    refs.profiles = refs.profiles.filterNot { it.profileKey() in keys } + drafts
+    persist(refs)
 }
 
 private suspend fun saveProfile(
@@ -413,4 +418,15 @@ internal fun proxyLinkFromClipboard(text: String): ProxyConfig? {
     val parsed = parseProxyImport(trimmed) ?: return null
     val scheme = runCatching { java.net.URI(trimmed).scheme }.getOrNull()?.lowercase() ?: return null
     return if (scheme == "http" || scheme == "https") parseTelegramProxyLink(trimmed) else parsed
+}
+
+private val clipboardProxySplit = Regex("[\\s;\uFF1B|,\uFF0C]+")
+
+internal fun proxyLinksFromClipboard(text: String): List<ProxyConfig> {
+    val seen = HashSet<String>()
+    return text.split(clipboardProxySplit).mapNotNull { raw ->
+        val token = raw.trim().trim { it in "\"'<>()[]" }
+        val config = token.takeIf { it.isNotEmpty() }?.let(::proxyLinkFromClipboard) ?: return@mapNotNull null
+        config.takeIf { seen.add(stateFromConfig(it).profileKey()) }
+    }
 }

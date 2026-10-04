@@ -2,6 +2,7 @@ package org.monogram.core.ui.perf
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import org.monogram.core.common.DebugLog
 import org.monogram.core.common.PerfLog
 
 /**
@@ -24,29 +25,44 @@ import org.monogram.core.common.PerfLog
  */
 @Composable
 inline fun RecompositionProbe(name: String) {
-    if (PerfLog.isEnabled()) {
-        SideEffect { PerfLog.event("recomp", name) }
+    if (PerfLog.isEnabled() || DebugLog.enabled) {
+        SideEffect {
+            if (PerfLog.isEnabled()) PerfLog.event("recomp", name)
+            else DebugLog.ingestPerf("recomp", name, null)
+        }
     }
 }
 
 @Composable
 inline fun RecompositionProbe(name: String, detail: Int?) {
-    if (PerfLog.isEnabled()) {
-        SideEffect { PerfLog.event("recomp", if (detail == null) name else "$name $detail") }
+    if (PerfLog.isEnabled() || DebugLog.enabled) {
+        SideEffect {
+            val line = if (detail == null) name else "$name $detail"
+            if (PerfLog.isEnabled()) PerfLog.event("recomp", line)
+            else DebugLog.ingestPerf("recomp", line, null)
+        }
     }
 }
 
 @Composable
 inline fun RecompositionProbe(name: String, detail: Int) {
-    if (PerfLog.isEnabled()) {
-        SideEffect { PerfLog.event("recomp", "$name $detail") }
+    if (PerfLog.isEnabled() || DebugLog.enabled) {
+        SideEffect {
+            val line = "$name $detail"
+            if (PerfLog.isEnabled()) PerfLog.event("recomp", line)
+            else DebugLog.ingestPerf("recomp", line, null)
+        }
     }
 }
 
 @Composable
 inline fun RecompositionProbe(name: String, detail: Long) {
-    if (PerfLog.isEnabled()) {
-        SideEffect { PerfLog.event("recomp", "$name $detail") }
+    if (PerfLog.isEnabled() || DebugLog.enabled) {
+        SideEffect {
+            val line = "$name $detail"
+            if (PerfLog.isEnabled()) PerfLog.event("recomp", line)
+            else DebugLog.ingestPerf("recomp", line, null)
+        }
     }
 }
 

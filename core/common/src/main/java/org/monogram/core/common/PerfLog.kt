@@ -48,12 +48,14 @@ object PerfLog {
 
     fun mark(op: String, millis: Long, detail: String = "") {
         DebugStats.ingestPerfMark(op, millis, detail)
+        DebugLog.ingestPerf(op, detail, millis)
         if (!isEnabled()) return
         runCatching { Log.i(TAG, if (detail.isEmpty()) "$op ${millis}ms" else "$op ${millis}ms $detail") }
     }
 
     /** One log line per event; the harness counts these. Never pass secrets. */
     fun event(op: String, detail: String = "") {
+        DebugLog.ingestPerf(op, detail, null)
         if (!isEnabled()) return
         runCatching { Log.i(TAG, if (detail.isEmpty()) op else "$op $detail") }
     }

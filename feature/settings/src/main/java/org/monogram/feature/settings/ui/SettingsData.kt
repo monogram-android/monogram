@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.BugReport
@@ -119,11 +120,13 @@ private fun ChatStorageRow(
                 topStart = SettingsGroupCorner,
                 topEnd = SettingsGroupCorner,
             )
+
             ItemPosition.MIDDLE -> androidx.compose.foundation.shape.RoundedCornerShape(0.dp)
             ItemPosition.BOTTOM -> RoundedCornerShape(
                 bottomStart = SettingsGroupCorner,
                 bottomEnd = SettingsGroupCorner,
             )
+
             ItemPosition.STANDALONE ->
                 androidx.compose.foundation.shape.RoundedCornerShape(SettingsGroupCorner)
         },
@@ -164,6 +167,7 @@ internal fun LazyListScope.dataItems(
     onClearChat: (Long) -> Unit,
     onClearKind: (String) -> Unit,
     onOpenDebugStats: (() -> Unit)? = null,
+    onOpenLogs: (() -> Unit)? = null,
     mediaRepository: MediaRepository? = null,
 ) {
     item { Spacer(Modifier.height(8.dp)) }
@@ -212,18 +216,33 @@ internal fun LazyListScope.dataItems(
             onClick = DownloadSettings::resetAutoDownload,
         )
     }
-    if (onOpenDebugStats != null) {
+    if (onOpenLogs != null || onOpenDebugStats != null) {
         item { Spacer(Modifier.height(8.dp)) }
-        item {
-            SettingsTile(
-                icon = Icons.Outlined.BugReport,
-                title = stringResource(R.string.settings_debug_stats),
-                subtitle = stringResource(R.string.settings_debug_stats_sub),
-                iconColor = MaterialTheme.colorScheme.tertiary,
-                position = ItemPosition.STANDALONE,
-                onClick = onOpenDebugStats,
-                trailingContent = { DataChevron() },
-            )
+        if (onOpenLogs != null) {
+            item {
+                SettingsTile(
+                    icon = Icons.AutoMirrored.Outlined.Article,
+                    title = stringResource(R.string.settings_logs),
+                    subtitle = stringResource(R.string.settings_logs_sub),
+                    iconColor = MaterialTheme.colorScheme.primary,
+                    position = if (onOpenDebugStats != null) ItemPosition.TOP else ItemPosition.STANDALONE,
+                    onClick = onOpenLogs,
+                    trailingContent = { DataChevron() },
+                )
+            }
+        }
+        if (onOpenDebugStats != null) {
+            item {
+                SettingsTile(
+                    icon = Icons.Outlined.BugReport,
+                    title = stringResource(R.string.settings_debug_stats),
+                    subtitle = stringResource(R.string.settings_debug_stats_sub),
+                    iconColor = MaterialTheme.colorScheme.tertiary,
+                    position = if (onOpenLogs != null) ItemPosition.BOTTOM else ItemPosition.STANDALONE,
+                    onClick = onOpenDebugStats,
+                    trailingContent = { DataChevron() },
+                )
+            }
         }
         item {
             val network = download.activeNetwork

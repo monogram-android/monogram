@@ -42,4 +42,7 @@ sealed interface SettingsPage {
 
     @Serializable
     data object DebugStats : SettingsPage
+
+    @Serializable
+    data object Logs : SettingsPage
 }

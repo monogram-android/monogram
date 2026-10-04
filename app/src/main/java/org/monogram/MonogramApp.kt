@@ -1,6 +1,7 @@
 package org.monogram
 
 import android.app.Application
+import androidx.compose.material3.ComposeMaterial3Flags
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -12,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.monogram.core.common.AppLog
+import org.monogram.core.common.DebugLog
 import org.monogram.core.common.DebugStats
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
@@ -95,7 +97,7 @@ class MonogramApp : Application() {
     @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     override fun onCreate() {
         super.onCreate()
-        androidx.compose.material3.ComposeMaterial3Flags.isCheckboxStylingFixEnabled = true
+        ComposeMaterial3Flags.isCheckboxStylingFixEnabled = true
         val startedAt = PerfLog.nowMs()
         perfSpan("app:settings") {
             AppLog.init(cacheDir)
@@ -103,6 +105,7 @@ class MonogramApp : Application() {
         settingsScope.launch(Dispatchers.IO) {
             perfSpan("app:debugStats") {
                 DebugStats.install(BuildConfig.DEBUG, cacheDir)
+                DebugLog.install(BuildConfig.DEBUG || BuildConfig.BUILD_TYPE == "beta")
             }
         }
         settingsScope.launch(Dispatchers.IO) {

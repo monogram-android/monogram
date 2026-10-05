@@ -9,7 +9,8 @@ use tellers_mtproto::latest::api::{
     ChannelsDeleteMessagesRequest, InputChannel, InputChannelConstructor, InputMedia,
     InputMediaWebPageConstructor, InputReplyTo, InputReplyToMessageConstructor,
     MessagesAffectedMessages, MessagesDeleteMessagesRequest, MessagesEditMessageRequest,
-    MessagesForwardMessagesRequest, MessagesSendMediaRequest, MessagesSendMessageRequest, True,
+    InputPeer, MessageEntity, MessagesForwardMessagesRequest, MessagesSendMediaRequest,
+    MessagesSendMessageRequest, True,
     TrueConstructor, Updates, Vector, VectorConstructor,
 };
 use tellers_mtproto_crypto::fill_random;
@@ -29,6 +30,45 @@ pub(crate) fn random_id() -> i64 {
     let _ = fill_random(&mut bytes);
     let value = i64::from_le_bytes(bytes);
     if value == 0 { 1 } else { value }
+}
+
+/// `0` means the caller has no id yet. A non-zero id is the pending UI id.
+pub(crate) fn outgoing_random_id(requested: i64) -> i64 {
+    if requested == 0 { random_id() } else { requested }
+}
+
+#[cfg(test)]
+mod random_id_tests {
+    use super::outgoing_random_id;
+
+    #[test]
+    fn pending_random_id_is_kept() {
+        assert_eq!(outgoing_random_id(42), 42);
+        assert_ne!(outgoing_random_id(0), 0);
+    }
+
+    #[test]
+    fn pending_random_id_is_encoded_in_send_message() {
+        use tellers_mtproto::codec::{Boxed, Encoder};
+        use tellers_mtproto::latest::api::{InputPeer, InputPeerSelfConstructor};
+        let random_id = 0x0102_0304_0506_0708;
+        let request = super::send_message_request(
+            0,
+            Box::new(InputPeer::InputPeerSelf(InputPeerSelfConstructor {})),
+            None,
+            "hi".into(),
+            random_id,
+            None,
+        );
+        assert_eq!(request.random_id, random_id);
+        let mut encoder = Encoder::new();
+        request.encode_boxed(&mut encoder).expect("encode");
+        let bytes = encoder.into_bytes();
+        assert!(
+            bytes.windows(8).any(|window| window == random_id.to_le_bytes()),
+            "sendMessage must carry the pending random_id"
+        );
+    }
 }
 
 pub(crate) fn message_from_updates(
@@ -292,6 +332,41 @@ pub(crate) fn input_reply_to_thread(
     )
 }
 
+pub(crate) fn send_message_request(
+    flags: u32,
+    peer: Box<InputPeer>,
+    reply_to: Option<Box<InputReplyTo>>,
+    message: String,
+    client_random_id: i64,
+    entities: Option<Box<Vector<Box<MessageEntity>>>>,
+) -> MessagesSendMessageRequest {
+    MessagesSendMessageRequest {
+        flags,
+        no_webpage: None,
+        silent: None,
+        background: None,
+        clear_draft: None,
+        noforwards: None,
+        update_stickersets_order: None,
+        invert_media: None,
+        allow_paid_floodskip: None,
+        peer,
+        reply_to,
+        message,
+        random_id: outgoing_random_id(client_random_id),
+        reply_markup: None,
+        entities,
+        schedule_date: None,
+        schedule_repeat_period: None,
+        send_as: None,
+        quick_reply_shortcut: None,
+        effect: None,
+        allow_paid_stars: None,
+        suggested_post: None,
+        rich_message: None,
+    }
+}
+
 pub fn send_text(
     snapshot: &mut Snapshot,
     api_id: i32,
@@ -303,7 +378,9 @@ pub fn send_text(
     entities_json: Option<&str>,
     top_msg_id: i32,
     webpage_url: Option<&str>,
+    client_random_id: i64,
 ) -> Result<MessageDto, MtprotoError> {
+    let outgoing_id = outgoing_random_id(client_random_id);
     let cached = peers::require_usable_peer(peers, chat_id)?;
     let (reply_flag, reply_to) = input_reply_to_thread(reply_to_msg_id, top_msg_id);
     let (entities_flag, entities) = entities_from_json(entities_json)?;
@@ -333,7 +410,7 @@ pub fn send_text(
                     },
                 )),
                 message: text.to_string(),
-                random_id: random_id(),
+                random_id: outgoing_id,
                 reply_markup: None,
                 entities,
                 schedule_date: None,
@@ -349,31 +426,14 @@ pub fn send_text(
         api_invoke::invoke_api(
             snapshot,
             api_id,
-            MessagesSendMessageRequest {
-                flags: reply_flag | entities_flag,
-                no_webpage: None,
-                silent: None,
-                background: None,
-                clear_draft: None,
-                noforwards: None,
-                update_stickersets_order: None,
-                invert_media: None,
-                allow_paid_floodskip: None,
+            send_message_request(
+                reply_flag | entities_flag,
                 peer,
                 reply_to,
-                message: text.to_string(),
-                random_id: random_id(),
-                reply_markup: None,
+                text.to_string(),
+                client_random_id,
                 entities,
-                schedule_date: None,
-                schedule_repeat_period: None,
-                send_as: None,
-                quick_reply_shortcut: None,
-                effect: None,
-                allow_paid_stars: None,
-                suggested_post: None,
-                rich_message: None,
-            },
+            ),
         )?
     };
     let mut dto = message_from_updates(updates, chat_id, text, media_index);

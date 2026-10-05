@@ -68,6 +68,15 @@ interface MtprotoNative {
 
     fun libraryVersion(): String
 
+    fun setInitConnectionInfo(
+        deviceModel: String,
+        systemVersion: String,
+        appVersion: String,
+        systemLangCode: String,
+        langPack: String,
+        langCode: String,
+    ) = Unit
+
     /** Switches Rust netcode timing spans on or off (off by default). */
     fun perfSetEnabled(enabled: Boolean) = Unit
 
@@ -285,6 +294,7 @@ interface MtprotoNative {
         entitiesJson: String? = null,
         topMsgId: Int = 0,
         webpageUrl: String? = null,
+        randomId: Long = 0,
     ): MessageDto
 
     @Throws(MtprotoException::class)

@@ -8,12 +8,13 @@ mod framing;
 mod inbound;
 mod invoke;
 mod live;
+mod salts;
 mod supervisor;
 mod timeout;
 
 pub use dc::{dc_endpoints, rotated_endpoints, same_ip_endpoints, set_use_test_dc, use_test_dc};
 pub use framing::SystemClock;
-pub(crate) use inbound::ungzip_if_needed;
+pub(crate) use inbound::{gzip_if_smaller, ungzip_if_needed};
 pub use inbound::{
     BoxedQuery, NewSessionMetadata, clear_new_session_metadata, encode_boxed_bytes,
     take_new_session_metadata,

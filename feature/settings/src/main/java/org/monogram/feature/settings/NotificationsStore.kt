@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.PeerNotificationMode
+import org.monogram.core.common.push.PushProviderMode
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.models.Chat
@@ -43,6 +44,11 @@ interface NotificationsStore : Store<NotificationsStore.Intent, NotificationsSto
         data object Reregister : Intent
         data class Simulate(val locKey: String) : Intent
         data object RequestPermission : Intent
+        data class SetProviderMode(val mode: PushProviderMode) : Intent
+        data class SelectDistributor(val packageName: String) : Intent
+        data class SetGateway(val url: String) : Intent
+        data class SetNoMuted(val enabled: Boolean) : Intent
+        data class SetBubbles(val enabled: Boolean) : Intent
     }
 
     /** Local channel preferences of a folder, applied to its `folder_<id>` notification channel. */
@@ -93,6 +99,12 @@ interface NotificationsStore : Store<NotificationsStore.Intent, NotificationsSto
         val repeatMinutes: Int = 0,
         val callsVibrate: String = "default",
         val callsRingtone: String = "default",
+        val providerMode: PushProviderMode = PushProviderMode.Auto,
+        val distributors: List<String> = emptyList(),
+        val distributorPackage: String = "",
+        val gateway: String = "",
+        val noMuted: Boolean = true,
+        val bubbles: Boolean = false,
         val debug: PushDebugState = PushDebugState(),
         val loading: Boolean = false,
         val message: String? = null,
@@ -138,6 +150,12 @@ internal class NotificationsStoreFactory(
                     reactionsPopup = local?.categoryPopup("reactions") ?: true,
                     callsVibrate = local?.callsVibrate ?: "default",
                     callsRingtone = local?.callsRingtone ?: "default",
+                    providerMode = local?.providerMode ?: PushProviderMode.Auto,
+                    distributors = push?.distributors().orEmpty(),
+                    distributorPackage = local?.distributorPackage.orEmpty(),
+                    gateway = local?.simplePushGateway.orEmpty(),
+                    noMuted = local?.noMuted ?: true,
+                    bubbles = local?.bubblesEnabled ?: false,
                     badge = local?.badgeEnabled ?: true,
                     badgeMuted = local?.badgeMuted ?: true,
                     badgeMessages = local?.badgeMessages ?: true,
@@ -266,6 +284,42 @@ internal class NotificationsStoreFactory(
                 NotificationsStore.Intent.RequestPermission -> {
                     push?.requestPermission()
                     dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
+                }
+                is NotificationsStore.Intent.SetProviderMode -> {
+                    local?.providerMode = intent.mode
+                    dispatchLocal()
+                    scope.launch {
+                        push?.reregister()
+                        dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
+                    }
+                }
+                is NotificationsStore.Intent.SelectDistributor -> {
+                    local?.distributorPackage = intent.packageName
+                    dispatchLocal()
+                    scope.launch {
+                        push?.reregister()
+                        dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
+                    }
+                }
+                is NotificationsStore.Intent.SetGateway -> {
+                    local?.simplePushGateway = intent.url
+                    dispatchLocal()
+                    scope.launch {
+                        push?.reregister()
+                        dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
+                    }
+                }
+                is NotificationsStore.Intent.SetNoMuted -> {
+                    local?.noMuted = intent.enabled
+                    dispatchLocal()
+                    scope.launch {
+                        push?.reregister()
+                        dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
+                    }
+                }
+                is NotificationsStore.Intent.SetBubbles -> {
+                    local?.bubblesEnabled = intent.enabled
+                    dispatchLocal()
                 }
             }
         }
@@ -427,6 +481,12 @@ internal class NotificationsStoreFactory(
                         reactionsPopup = local?.categoryPopup("reactions") ?: current.reactionsPopup,
                         callsVibrate = local?.callsVibrate ?: current.callsVibrate,
                         callsRingtone = local?.callsRingtone ?: current.callsRingtone,
+                        providerMode = local?.providerMode ?: current.providerMode,
+                        distributors = push?.distributors().orEmpty(),
+                        distributorPackage = local?.distributorPackage.orEmpty(),
+                        gateway = local?.simplePushGateway.orEmpty(),
+                        noMuted = local?.noMuted ?: current.noMuted,
+                        bubbles = local?.bubblesEnabled ?: current.bubbles,
                         badge = local?.badgeEnabled ?: current.badge,
                         badgeMuted = local?.badgeMuted ?: current.badgeMuted,
                         badgeMessages = local?.badgeMessages ?: current.badgeMessages,

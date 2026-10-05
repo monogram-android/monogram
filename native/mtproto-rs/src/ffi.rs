@@ -156,6 +156,11 @@ pub fn library_version() -> String {
 }
 
 #[uniffi::export]
+pub fn set_init_connection_info(info: crate::InitConnectionInfo) {
+    crate::api_invoke::set_init_connection_info(info);
+}
+
+#[uniffi::export]
 pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64 {
     client_mgr::create_client(api_id, api_hash, session_path)
 }
@@ -496,6 +501,7 @@ pub fn send_text_message(
     entities_json: Option<String>,
     top_msg_id: i32,
     webpage_url: Option<String>,
+    client_random_id: i64,
 ) -> Result<MessageDto, MtprotoError> {
     client_mgr::send_text_message(
         handle,
@@ -505,6 +511,7 @@ pub fn send_text_message(
         entities_json,
         top_msg_id,
         webpage_url,
+        client_random_id,
     )
 }
 

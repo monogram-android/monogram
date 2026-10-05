@@ -22,6 +22,7 @@
     <string name="push_channel_groups">Խմբեր</string>
     <string name="push_channel_channels">Ալիքներ</string>
     <string name="push_channel_other">Այլ</string>
+    <string name="push_channel_calls">Զանգեր</string>
     <string name="push_channel_stories">Պատմություններ</string>
     <string name="push_channel_reactions">Ռեակցիաներ</string>
     <string name="push_folder">Թղթապանակ %1$d</string>
@@ -31,6 +32,9 @@
     <string name="push_reply">Պատասխանել</string>
     <string name="push_reply_hint">Հաղորդագրություն</string>
     <string name="push_mark_read">Նշել որպես կարդացված</string>
+    <string name="push_not_sent">Չուղարկվեց</string>
+    <string name="push_mute_hour">Խլացնել 1 ժամ</string>
+    <string name="push_notification_settings">Ծանուցումների կարգավորումներ</string>
     <string name="push_open_link">Բացել հղումը</string>
     <string name="push_more_chats">ևս %1$d</string>
     <plurals name="push_new_messages">

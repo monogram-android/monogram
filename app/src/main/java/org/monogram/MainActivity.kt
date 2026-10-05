@@ -288,6 +288,10 @@ class MainActivity : ComponentActivity() {
             if (chatId != 0L) root.openFromNotification(chatId, messageId)
             return
         }
+        if (intent.action == NotificationPresenter.ACTION_OPEN_NOTIFICATIONS) {
+            root.openNotificationSettings()
+            return
+        }
         val uri = intent.dataString ?: return
         root.openTelegramUri(uri)
     }

@@ -22,6 +22,7 @@
     <string name="push_channel_groups">群组</string>
     <string name="push_channel_channels">频道</string>
     <string name="push_channel_other">其他</string>
+    <string name="push_channel_calls">通话</string>
     <string name="push_channel_stories">动态</string>
     <string name="push_channel_reactions">表情回应</string>
     <string name="push_folder">文件夹 %1$d</string>
@@ -31,6 +32,9 @@
     <string name="push_reply">回复</string>
     <string name="push_reply_hint">消息</string>
     <string name="push_mark_read">标为已读</string>
+    <string name="push_not_sent">未发送</string>
+    <string name="push_mute_hour">静音 1 小时</string>
+    <string name="push_notification_settings">通知设置</string>
     <string name="push_open_link">打开链接</string>
     <string name="push_more_chats">另有 %1$d 个</string>
     <plurals name="push_new_messages">

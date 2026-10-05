@@ -22,6 +22,7 @@
     <string name="push_channel_groups">Groups</string>
     <string name="push_channel_channels">Channels</string>
     <string name="push_channel_other">Other</string>
+    <string name="push_channel_calls">Calls</string>
     <string name="push_channel_stories">Stories</string>
     <string name="push_channel_reactions">Reactions</string>
     <string name="push_folder">Folder %1$d</string>
@@ -31,6 +32,9 @@
     <string name="push_reply">Reply</string>
     <string name="push_reply_hint">Message</string>
     <string name="push_mark_read">Mark as Read</string>
+    <string name="push_not_sent">Not sent</string>
+    <string name="push_mute_hour">Mute for 1 hour</string>
+    <string name="push_notification_settings">Notification settings</string>
     <string name="push_open_link">Open link</string>
     <string name="push_more_chats">+%1$d more</string>
     <plurals name="push_new_messages">

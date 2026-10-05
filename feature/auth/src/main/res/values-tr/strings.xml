@@ -9,7 +9,7 @@
     <string name="auth_country_selected">Ülke: %1$s</string>
     <string name="auth_phone_hint">90 532 123 4567</string>
     <string name="auth_test_server">Test sunucusu</string>
-    <string name="auth_test_server_sub">Telegram test DC\'leri, üretim değil</string>
+    <string name="auth_test_server_sub">Telegram test sunucusunu kullan</string>
     <string name="auth_code_title">Kodu girin</string>
     <string name="auth_code_label">Kod</string>
     <string name="auth_send_code">İleri</string>
@@ -37,8 +37,9 @@
     <string name="auth_error_restart">Giriş süresi doldu — yeni kod için İleri\'ye dokunun</string>
     <string name="auth_working">Giriş yapılıyor</string>
     <string name="auth_step_indicator">Adım %1$d / %2$d</string>
-    <string name="auth_resend_code">Kodu yeniden gönder</string>
-    <string name="auth_resend_in">%1$d sn sonra yeniden gönder</string>
+    <string name="auth_code_help">Kod gelmedi mi?</string>
+    <string name="auth_code_help_message">Kod gelmezse proxy, VPN veya IP adresini değiştirin ya da daha sonra tekrar deneyin</string>
+    <string name="auth_code_help_ok">Tamam</string>
     <string name="auth_paste_password">Şifreyi yapıştır</string>
     <string name="auth_paste_empty">Pano boş</string>
     <string name="auth_paste_code">Kodu yapıştır</string>

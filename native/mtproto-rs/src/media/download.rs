@@ -90,6 +90,18 @@ fn flood_wait_secs(err: &MtprotoError) -> Option<u64> {
         .max()
 }
 
+fn slow_down_after_premium_flood(err: &MtprotoError) {
+    let MtprotoError::Message(message) = err else {
+        return;
+    };
+    if !message.contains("FLOOD_PREMIUM_WAIT_") {
+        return;
+    }
+    crate::scheduler::set_active_media_lanes(2);
+    crate::client_mgr::set_pipeline_parts(2);
+    set_chunk_size(DEFAULT_CHUNK);
+}
+
 fn sleep_flood_wait(secs: u64) {
     let dur = if cfg!(test) {
         std::time::Duration::from_millis(1)
@@ -516,6 +528,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                         }
                         Err(err) if flood_retries < 3 && flood_wait_secs(&err).is_some() => {
                             flood_retries += 1;
+                            slow_down_after_premium_flood(&err);
                             sleep_flood_wait(flood_wait_secs(&err).unwrap_or(1));
                             continue 'download;
                         }

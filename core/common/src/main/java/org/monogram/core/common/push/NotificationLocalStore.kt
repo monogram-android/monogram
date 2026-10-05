@@ -63,6 +63,9 @@ class NotificationLocalStore(context: Context) {
     var noMuted: Boolean
         get() = prefs.getBoolean(NO_MUTED, true)
         set(value) { prefs.edit().putBoolean(NO_MUTED, value).apply() }
+    var bubblesEnabled: Boolean
+        get() = prefs.getBoolean(BUBBLES, false)
+        set(value) { prefs.edit().putBoolean(BUBBLES, value).apply() }
     var appSandbox: Boolean
         get() = prefs.getBoolean(APP_SANDBOX, false)
         set(value) { prefs.edit().putBoolean(APP_SANDBOX, value).apply() }
@@ -185,6 +188,8 @@ class NotificationLocalStore(context: Context) {
             inAppPreview = inAppPreview,
             inChatSound = inChatSound,
             inAppPriority = inAppPriority,
+            callsVibrate = callsVibrate,
+            callsRingtone = callsRingtone,
             popupUsers = categoryPopup("users") && categoryPriorityHigh("users"),
             popupChats = categoryPopup("chats") && categoryPriorityHigh("chats"),
             popupBroadcasts = categoryPopup("broadcasts") && categoryPriorityHigh("broadcasts"),
@@ -204,6 +209,28 @@ class NotificationLocalStore(context: Context) {
         return generated
     }
 
+    var providerMode: PushProviderMode
+        get() = PushProviderMode.fromStored(prefs.getString(PROVIDER_MODE, null))
+        set(value) { prefs.edit().putString(PROVIDER_MODE, value.name).apply() }
+
+    var distributorPackage: String
+        get() = prefs.getString(DISTRIBUTOR, "").orEmpty()
+        set(value) { prefs.edit().putString(DISTRIBUTOR, value).apply() }
+
+    /** Blank unless the user typed one. Never prefilled with a public gateway. */
+    var simplePushGateway: String
+        get() = prefs.getString(GATEWAY, "").orEmpty()
+        set(value) { prefs.edit().putString(GATEWAY, value.trim()).apply() }
+
+    var pushInstance: String
+        get() = prefs.getString(PUSH_INSTANCE, "").orEmpty()
+        set(value) { prefs.edit().putString(PUSH_INSTANCE, value).apply() }
+
+    /** Recent share-target chats, most recent first. Not cleared when a notification is dismissed. */
+    var shareChatIds: List<Long>
+        get() = prefs.getString(SHARE_CHATS, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
+        set(value) { prefs.edit().putString(SHARE_CHATS, value.joinToString(",")).apply() }
+
     fun token(): String = prefs.getString(TOKEN, "").orEmpty()
     fun tokenType(): Int = prefs.getInt(TOKEN_TYPE, 0)
     fun setToken(type: PushTokenType, token: String) {
@@ -221,30 +248,40 @@ class NotificationLocalStore(context: Context) {
         prefs.edit()
             .putString(LAST_LOC, payload.locKey)
             .putString(LAST_IDS, payload.customIds)
+            .putLong(LAST_MESSAGE_AT, System.currentTimeMillis())
             .apply()
     }
 
     fun debugState(gms: Boolean, distributor: String, permission: Boolean): PushDebugState {
-        val type = PushTokenType.fromCode(tokenType())?.name?.lowercase() ?: "none"
+        val parsed = PushTokenType.fromCode(tokenType())
+        val raw = token()
+        val host = endpointHost(raw, parsed)
+        val type = parsed?.name?.lowercase() ?: "none"
         return PushDebugState(
             transport = type,
-            tokenRedacted = redactToken(token()),
+            tokenRedacted = if (parsed == PushTokenType.Fcm || parsed == null) redactToken(raw) else host,
             gmsAvailable = gms,
             distributor = distributor,
             lastRegister = prefs.getString(LAST_REGISTER, "").orEmpty(),
             lastLocKey = prefs.getString(LAST_LOC, "").orEmpty(),
             lastCustomIds = prefs.getString(LAST_IDS, "").orEmpty(),
             permissionGranted = permission,
+            tokenType = tokenType(),
+            endpointHost = host,
+            lastMessageAt = prefs.getLong(LAST_MESSAGE_AT, 0L),
         )
     }
 
-    fun clearPushIdentity() {
+    fun clearPushIdentity(clearSecret: Boolean = false) {
         prefs.edit()
             .remove(TOKEN)
             .remove(TOKEN_TYPE)
             .remove(LAST_REGISTER)
             .remove(LAST_LOC)
             .remove(LAST_IDS)
+            .apply {
+                if (clearSecret) remove(SECRET)
+            }
             .apply()
     }
 
@@ -268,6 +305,7 @@ class NotificationLocalStore(context: Context) {
         private const val CALLS_VIBRATE = "calls_vibrate"
         private const val CALLS_RINGTONE = "calls_ringtone"
         private const val NO_MUTED = "no_muted"
+        private const val BUBBLES = "bubbles"
         private const val APP_SANDBOX = "app_sandbox"
         private const val MUTED_FOLDERS = "muted_folders"
         private const val PEER_MODES = "peer_modes"
@@ -276,11 +314,17 @@ class NotificationLocalStore(context: Context) {
         private const val NOTIFY_BROADCASTS = "notify_defaults_broadcasts"
         private const val NOTIFY_EXCEPTIONS = "notify_exceptions"
         private const val SECRET = "push_secret_hex"
+        private const val PROVIDER_MODE = "push_provider_mode"
+        private const val DISTRIBUTOR = "push_distributor"
+        private const val GATEWAY = "push_gateway"
+        private const val PUSH_INSTANCE = "push_instance"
+        private const val SHARE_CHATS = "share_chat_ids"
         private const val TOKEN = "push_token"
         private const val TOKEN_TYPE = "push_token_type"
         private const val LAST_REGISTER = "last_register"
         private const val LAST_LOC = "last_loc"
         private const val LAST_IDS = "last_ids"
+        private const val LAST_MESSAGE_AT = "last_message_at"
     }
 }
 
@@ -292,7 +336,11 @@ interface PushRegistration {
     fun applyChannels()
     fun gmsAvailable(): Boolean
     fun distributor(): String
+    fun distributors(): List<String> = emptyList()
+    fun setAccountUserId(userId: Long) {}
     fun onVisibleChat(chatId: Long?) {}
     fun onChatRead(chatId: Long) {}
+    /** Drops the server device token and UnifiedPush registration while the session is still alive. */
+    suspend fun unregisterPush() {}
     fun onLogout() {}
 }

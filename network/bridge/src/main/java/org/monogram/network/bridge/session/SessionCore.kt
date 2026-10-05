@@ -26,6 +26,7 @@ import org.monogram.core.models.AuthSession
 import org.monogram.core.models.AuthState
 import org.monogram.core.models.PeerId
 import org.monogram.mtproto.MtprotoNative
+import org.monogram.network.bridge.ClientInitInfo
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.ProxyConfig
@@ -39,6 +40,7 @@ internal class SessionCore(
     internal val nativeDispatcher: CoroutineDispatcher,
     internal val refreshDcSidecar: (String) -> Unit,
     internal val clock: MonotonicClock = NanoTimeClock,
+    internal val initConnection: ClientInitInfo? = null,
 ) : SessionOps {
     @Volatile
     internal var handle: Long = 0L
@@ -262,6 +264,16 @@ internal class SessionCore(
     internal fun ensureHandleLocked() {
         check(!closed) { "MTProto client is closed" }
         if (handle == 0L) {
+            initConnection?.let { info ->
+                native.setInitConnectionInfo(
+                    deviceModel = info.deviceModel,
+                    systemVersion = info.systemVersion,
+                    appVersion = info.appVersion,
+                    systemLangCode = info.systemLangCode,
+                    langPack = info.langPack,
+                    langCode = info.langCode,
+                )
+            }
             handle = native.createClient(
                 apiId = credentials.apiId,
                 apiHash = credentials.apiHash,

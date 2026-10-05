@@ -66,4 +66,7 @@ data class PushDebugState(
     val lastLocKey: String = "",
     val lastCustomIds: String = "",
     val permissionGranted: Boolean = false,
+    val tokenType: Int = 0,
+    val endpointHost: String = "",
+    val lastMessageAt: Long = 0L,
 )

@@ -14,7 +14,6 @@ import org.monogram.feature.auth.AuthStore
 
 internal const val AuthCodeLength = 5
 internal const val AuthStepCount = 3
-internal const val ResendDelaySeconds = 30
 internal val AuthFormMaxWidth = 440.dp
 internal val AuthExpressiveEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
 
@@ -24,10 +23,10 @@ object AuthTestTags {
     const val STEP_INDICATOR = "auth_step_indicator"
     const val CODE_FIELD = "auth_code_field"
     const val PASTE_CODE = "auth_paste_code"
+    const val CODE_HELP = "auth_code_help"
     const val PASSWORD_FIELD = "auth_password_field"
     const val PASTE_PASSWORD = "auth_paste_password"
     const val TOGGLE_PASSWORD = "auth_toggle_password"
-    const val RESEND = "auth_resend"
     const val ERROR = "auth_error"
     const val PRIMARY = "auth_primary"
     const val PROXY = "auth_proxy"

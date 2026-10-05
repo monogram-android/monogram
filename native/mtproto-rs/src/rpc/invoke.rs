@@ -5,7 +5,151 @@ use tellers_mtproto_engine::{Engine, ExponentialBackoff, Method, RequestHandle};
 use tellers_mtproto_session::{Clock, ReceivedMessageResult, Snapshot};
 use tellers_mtproto_transport::{Error as TransportError, Framing};
 
+use super::salts::SaltWindow;
 use crate::MtprotoError;
+
+/// A bad server salt is retryable. Only a bad message aborts the updates session.
+pub(crate) fn updates_session_should_abort(retryable_salt: bool) -> bool {
+    !retryable_salt
+}
+
+#[cfg(test)]
+mod updates_salt_tests {
+    use super::updates_session_should_abort;
+
+    #[test]
+    fn salt_retry_does_not_abort_updates_session() {
+        assert!(!updates_session_should_abort(true));
+        assert!(updates_session_should_abort(false));
+    }
+
+    #[test]
+    fn bad_server_salt_requeues_the_pending_request() {
+        use super::SystemClock;
+        use tellers_mtproto_engine::{Engine, ExponentialBackoff};
+        use tellers_mtproto_session::{OsRandom, Snapshot};
+        let mut rng = OsRandom;
+        let snapshot = Snapshot::new(2, &mut rng).expect("snapshot");
+        let mut engine = Engine::new(
+            snapshot,
+            ExponentialBackoff {
+                timeout_micros: 5_000_000,
+                initial_delay_micros: 0,
+                max_attempts: 4,
+            },
+        )
+        .expect("engine");
+        let handle = engine
+            .invoke(
+                &super::RawMethod {
+                    body: vec![1, 2, 3, 4],
+                },
+                &SystemClock,
+            )
+            .expect("invoke");
+        let original = handle.message_id();
+        let _ = engine.next_outbound();
+        let resent = super::take_salt_resend(&mut engine, original, &SystemClock).expect("resend");
+        assert_eq!(resent.len(), 1);
+        assert_ne!(resent[0].message_id, original);
+    }
+
+    #[test]
+    fn updates_reader_resends_the_future_salt_query() {
+        use super::SystemClock;
+        use super::super::framing::send_future_salts;
+        use tellers_mtproto::transport::GetFutureSaltsRequest;
+        use tellers_mtproto_engine::{Engine, ExponentialBackoff};
+        use tellers_mtproto_session::{OsRandom, Snapshot};
+        use tellers_mtproto_transport::{
+            Connection, Error as TransportError, PaddedIntermediate,
+        };
+        struct Mem {
+            writes: usize,
+        }
+        impl Connection for Mem {
+            fn send(&mut self, _packet: &[u8]) -> Result<(), TransportError> {
+                self.writes += 1;
+                Ok(())
+            }
+            fn receive(&mut self, _output: &mut [u8]) -> Result<usize, TransportError> {
+                Err(TransportError::Closed)
+            }
+            fn close(&mut self) -> Result<(), TransportError> {
+                Ok(())
+            }
+        }
+        let mut rng = OsRandom;
+        let mut snapshot = Snapshot::new(2, &mut rng).expect("snapshot");
+        snapshot.auth_key = Some(vec![7; 256]);
+        let mut engine = Engine::new(
+            snapshot,
+            ExponentialBackoff {
+                timeout_micros: 5_000_000,
+                initial_delay_micros: 0,
+                max_attempts: 1,
+            },
+        )
+        .expect("engine");
+        let mut conn = Mem { writes: 0 };
+        let mut framing = PaddedIntermediate::default();
+        let message_id =
+            send_future_salts(&mut engine, &mut conn, &mut framing, &SystemClock).expect("send");
+        assert!(
+            super::replay_updates_rejection(
+                &mut engine,
+                &mut conn,
+                &mut framing,
+                &SystemClock,
+                message_id,
+            )
+            .expect("resend")
+        );
+        assert_eq!(conn.writes, 2);
+        assert_eq!(engine.session.content_sequence, 2);
+        let (_, body) = super::super::framing::replay_plaintext(engine.session.session_id, message_id)
+            .expect("original query");
+        assert_eq!(
+            u32::from_le_bytes(body[0..4].try_into().unwrap()),
+            GetFutureSaltsRequest::ID
+        );
+    }
+
+    #[test]
+    fn rpc_read_loops_resend_untracked_salt_queries() {
+        let loops = include_str!("invoke.rs").matches("replay_updates_rejection(").count();
+        assert_eq!(loops, 5);
+    }
+}
+
+fn take_salt_resend<P: tellers_mtproto_engine::RetryPolicy>(
+    engine: &mut Engine<P>,
+    message_id: i64,
+    clock: &SystemClock,
+) -> Result<Vec<tellers_mtproto_engine::OutboundMessage>, MtprotoError> {
+    let err = tellers_mtproto_engine::Error::Authorization("bad_server_salt".into());
+    match engine.fail_request(message_id, clock.unix_micros(), &err) {
+        Ok(()) => {}
+        Err(tellers_mtproto_engine::Error::UnknownRequest(_)) => return Ok(Vec::new()),
+        Err(e) => return Err(MtprotoError::Message(e.to_string())),
+    }
+    engine
+        .poll(clock)
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    let mut resent = Vec::new();
+    while let Some(outbound) = engine.next_outbound() {
+        resent.push(outbound);
+    }
+    Ok(resent)
+}
+
+fn remember_future_salts(snapshot: &mut Snapshot, windows: &[SaltWindow], clock: &SystemClock) {
+    super::salts::store_windows(snapshot.session_id, windows);
+    let now = (clock.unix_micros() / 1_000_000) as i32;
+    if let Some(salt) = super::salts::choose_salt(windows, now) {
+        snapshot.server_salt = salt;
+    }
+}
 
 use super::dc::{extra_reconnect_same_host, reconnect_backoff, same_ip_endpoints};
 use super::framing::{
@@ -633,10 +777,13 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
                     apply_new_session_salt(&mut engine.session, &body)?;
                 }
                 InboundEvent::RetryableFailure { message_id } => {
-                    let now = clock.unix_micros();
-                    let err =
-                        tellers_mtproto_engine::Error::Authorization("bad_server_salt".into());
-                    let _ = engine.fail_request(message_id, now, &err);
+                    replay_updates_rejection(
+                        engine,
+                        &mut transport.conn,
+                        &mut transport.framing,
+                        clock,
+                        message_id,
+                    )?;
                 }
                 InboundEvent::BadMessage {
                     bad_msg_id,
@@ -660,6 +807,9 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
                         "bad_msg_notification {error_code}"
                     ));
                     let _ = engine.fail_request(bad_msg_id, now, &err);
+                }
+                InboundEvent::FutureSalts(windows) => {
+                    remember_future_salts(&mut engine.session, &windows, clock);
                 }
                 InboundEvent::Pong { ping_id } => {
                     if ping_inflight == Some(ping_id) || ping_inflight.is_some() {
@@ -690,6 +840,19 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
         }
         flush_acks(engine, &mut transport.conn, &mut transport.framing, clock)?;
     }
+}
+
+fn replay_updates_rejection<P: tellers_mtproto_engine::RetryPolicy>(
+    engine: &mut Engine<P>,
+    conn: &mut dyn tellers_mtproto_transport::Connection,
+    framing: &mut tellers_mtproto_transport::PaddedIntermediate,
+    clock: &SystemClock,
+    message_id: i64,
+) -> Result<bool, MtprotoError> {
+    let now = clock.unix_micros();
+    let err = tellers_mtproto_engine::Error::Authorization("bad_server_salt".into());
+    let _ = engine.fail_request(message_id, now, &err);
+    super::framing::resend_plaintext(engine, conn, framing, clock, message_id)
 }
 
 fn ingest_update_packet<P: tellers_mtproto_engine::RetryPolicy>(
@@ -728,10 +891,24 @@ fn ingest_update_packet<P: tellers_mtproto_engine::RetryPolicy>(
             InboundEvent::SaltUpdated { body } => {
                 apply_new_session_salt(&mut engine.session, &body)?
             }
-            InboundEvent::BadMessage { .. } | InboundEvent::RetryableFailure { .. } => {
-                return Err(MtprotoError::Message(
-                    "updates session rejected; recovery required".into(),
-                ));
+            InboundEvent::RetryableFailure { message_id } => {
+                replay_updates_rejection(
+                    engine,
+                    &mut transport.conn,
+                    &mut transport.framing,
+                    clock,
+                    message_id,
+                )?;
+            }
+            InboundEvent::FutureSalts(windows) => {
+                remember_future_salts(&mut engine.session, &windows, clock);
+            }
+            InboundEvent::BadMessage { .. } => {
+                if updates_session_should_abort(false) {
+                    return Err(MtprotoError::Message(
+                        "updates session rejected; recovery required".into(),
+                    ));
+                }
             }
             InboundEvent::RpcResult { .. } | InboundEvent::Pong { .. } | InboundEvent::Ignored => {}
         }
@@ -990,10 +1167,13 @@ pub(crate) fn invoke_until_result<P: tellers_mtproto_engine::RetryPolicy>(
                     apply_new_session_salt(&mut engine.session, &body)?;
                 }
                 InboundEvent::RetryableFailure { message_id } => {
-                    let now = clock.unix_micros();
-                    let err =
-                        tellers_mtproto_engine::Error::Authorization("bad_server_salt".into());
-                    let _ = engine.fail_request(message_id, now, &err);
+                    replay_updates_rejection(
+                        engine,
+                        &mut transport.conn,
+                        &mut transport.framing,
+                        clock,
+                        message_id,
+                    )?;
                 }
                 InboundEvent::BadMessage {
                     bad_msg_id,
@@ -1022,6 +1202,9 @@ pub(crate) fn invoke_until_result<P: tellers_mtproto_engine::RetryPolicy>(
                     ));
                     let _ = engine.fail_request(bad_msg_id, now, &err);
                     // A rejected ping/ack is not evidence that the RPC failed.
+                }
+                InboundEvent::FutureSalts(windows) => {
+                    remember_future_salts(&mut engine.session, &windows, clock);
                 }
                 InboundEvent::Pong { ping_id } => {
                     if ping_inflight == Some(ping_id) || ping_inflight.is_some() {

@@ -1,6 +1,7 @@
 package org.monogram
 
 import android.app.Application
+import android.os.Build
 import androidx.compose.material3.ComposeMaterial3Flags
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.CancellationException
@@ -34,6 +35,7 @@ import org.monogram.core.ui.perf.perfSpan
 import org.monogram.feature.settings.ProxySettingsStore
 import org.monogram.mtproto.MtprotoNativeLoader
 import org.monogram.network.bridge.BridgedMtprotoClient
+import org.monogram.network.bridge.ClientInitInfo
 import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.ProxyConfig
 import org.monogram.network.bridge.ProxyType
@@ -48,6 +50,7 @@ import org.monogram.sponsor.SponsorSyncManager
 import org.monogram.update.AndroidAppUpdateInstaller
 import org.monogram.update.AppUpdateManager
 import java.io.File
+import java.util.Locale
 
 class MonogramApp : Application() {
     lateinit var client: BridgedMtprotoClient
@@ -89,7 +92,7 @@ class MonogramApp : Application() {
         }
 
     private fun applyDownloadSettings(state: DownloadState) {
-        client.applyDownloadConcurrency(state.lanes, state.parts)
+        client.applyDownloadConcurrency(state.effectiveLanes, state.parts)
         client.setFilePartKib(state.filePartKib)
         client.setDownloadChunkKib(state.downloadChunkKib)
     }
@@ -157,6 +160,7 @@ class MonogramApp : Application() {
                     BridgedMtprotoClient(
                         credentials = credentials,
                         sessionPath = sessionFile.absolutePath,
+                        initConnection = monogramInitConnection(),
                     )
                 }
                 ProxySettingsStore.load(this)?.let { saved ->
@@ -218,6 +222,7 @@ class MonogramApp : Application() {
             installDownloadSettings = {
                 perfSpan("app:downloadConcurrency") {
                     DownloadSettings.install(this, ::applyDownloadSettings)
+                    DownloadSettings.setPremium(sessionStore.readPremium())
                 }
             },
             createMedia = {
@@ -339,4 +344,44 @@ class MonogramApp : Application() {
             },
         )
     }
+
+    private fun monogramInitConnection(): ClientInitInfo {
+        val locale = Locale.getDefault()
+        return ClientInitInfo(
+            deviceModel = initDeviceModel(),
+            systemVersion = Build.VERSION.RELEASE.orEmpty().ifBlank {
+                "SDK ${Build.VERSION.SDK_INT}"
+            },
+            appVersion = BuildConfig.VERSION_NAME.ifBlank { "0" },
+            systemLangCode = locale.language.ifBlank { "en" },
+            langPack = "android",
+            langCode = locale.toLanguageTag().ifBlank { "en" },
+        )
+    }
+}
+
+private fun initDeviceModel(): String {
+    val manufacturer = Build.MANUFACTURER.orEmpty().trim()
+    val model = Build.MODEL.orEmpty().trim()
+    if (isEmulatorDevice(model)) return "Android Emulator"
+    return when {
+        model.isEmpty() && manufacturer.isEmpty() -> "Android"
+        model.isEmpty() -> manufacturer
+        manufacturer.isEmpty() || model.startsWith(manufacturer, ignoreCase = true) -> model
+        else -> "$manufacturer $model"
+    }
+}
+
+private fun isEmulatorDevice(model: String): Boolean {
+    val fingerprint = Build.FINGERPRINT.orEmpty()
+    val product = Build.PRODUCT.orEmpty()
+    val hardware = Build.HARDWARE.orEmpty()
+    return fingerprint.startsWith("generic") ||
+        fingerprint.contains("emulator", ignoreCase = true) ||
+        product.contains("sdk", ignoreCase = true) ||
+        hardware.contains("goldfish", ignoreCase = true) ||
+        hardware.contains("ranchu", ignoreCase = true) ||
+        model.contains("sdk_gphone", ignoreCase = true) ||
+        model.contains("emulator", ignoreCase = true) ||
+        model.contains("google_sdk", ignoreCase = true)
 }

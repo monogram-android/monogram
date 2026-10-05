@@ -9,7 +9,7 @@
     <string name="auth_country_selected">Країна: %1$s</string>
     <string name="auth_phone_hint">380 67 123 4567</string>
     <string name="auth_test_server">Тестовий сервер</string>
-    <string name="auth_test_server_sub">Тестові DC Telegram, не production</string>
+    <string name="auth_test_server_sub">Використовувати тестовий сервер Telegram</string>
     <string name="auth_code_title">Код</string>
     <string name="auth_code_label">Код</string>
     <string name="auth_send_code">Далі</string>
@@ -37,8 +37,9 @@
     <string name="auth_error_restart">Сеанс входу закінчився — натисніть «Далі», щоб отримати новий код</string>
     <string name="auth_working">Виконується вхід</string>
     <string name="auth_step_indicator">Крок %1$d з %2$d</string>
-    <string name="auth_resend_code">Надіслати код ще раз</string>
-    <string name="auth_resend_in">Повторити через %1$d с</string>
+    <string name="auth_code_help">Код не надійшов?</string>
+    <string name="auth_code_help_message">Якщо код не надходить, змініть проксі, VPN чи IP або спробуйте пізніше</string>
+    <string name="auth_code_help_ok">Гаразд</string>
     <string name="auth_paste_password">Вставити пароль</string>
     <string name="auth_paste_empty">Буфер обміну порожній</string>
     <string name="auth_paste_code">Вставити код</string>

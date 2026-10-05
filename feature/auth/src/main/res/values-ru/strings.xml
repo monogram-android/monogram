@@ -9,7 +9,7 @@
     <string name="auth_country_selected">Страна: %1$s</string>
     <string name="auth_phone_hint">7 999 1234567</string>
     <string name="auth_test_server">Тестовый сервер</string>
-    <string name="auth_test_server_sub">Тестовые DC Telegram, не production</string>
+    <string name="auth_test_server_sub">Использовать тестовый сервер Telegram</string>
     <string name="auth_code_title">Код</string>
     <string name="auth_code_label">Код</string>
     <string name="auth_send_code">Далее</string>
@@ -37,8 +37,9 @@
     <string name="auth_error_restart">Срок входа истёк — нажмите «Далее», чтобы получить новый код</string>
     <string name="auth_working">Выполняется вход</string>
     <string name="auth_step_indicator">Шаг %1$d из %2$d</string>
-    <string name="auth_resend_code">Отправить код ещё раз</string>
-    <string name="auth_resend_in">Повторить через %1$d с</string>
+    <string name="auth_code_help">Не пришёл код?</string>
+    <string name="auth_code_help_message">Если код не приходит, смените прокси, VPN или IP либо попробуйте позже</string>
+    <string name="auth_code_help_ok">ОК</string>
     <string name="auth_paste_password">Вставить пароль</string>
     <string name="auth_paste_empty">Буфер обмена пуст</string>
     <string name="auth_paste_code">Вставить код</string>

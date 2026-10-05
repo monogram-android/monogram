@@ -32,6 +32,133 @@ class PushPayloadTest {
         assertEquals(PushTokenType.Simple, simpleType)
         assertEquals(4, simpleType.code)
         assertEquals("https://push.example/ep", simpleToken)
+        val (blankType, blankToken) = webPushRegistration("https://push.example/ep", "", "auth")
+        assertEquals(PushTokenType.Simple, blankType)
+        assertEquals("https://push.example/ep", blankToken)
+        val (_, escaped) = webPushRegistration("https://push.example/a\"b", "p\\256", "a uth")
+        assertTrue(escaped.contains("\"endpoint\":\"https://push.example/a\\\"b\""))
+        assertTrue(escaped.contains("\"p256dh\":\"p\\\\256\""))
+    }
+
+    @Test
+    fun autoOnGmsUsesFcmButForceUnifiedPushDoesNot() {
+        val auto = planPushProvider(
+            requested = PushProviderMode.Auto,
+            playServices = true,
+            firebaseConfigured = true,
+            unifiedPushAvailable = true,
+        )
+        assertEquals(PushProviderMode.Auto, auto.mode)
+        assertEquals(PushTransport.Fcm, auto.register)
+
+        val noFirebase = planPushProvider(
+            requested = PushProviderMode.Auto,
+            playServices = true,
+            firebaseConfigured = false,
+            unifiedPushAvailable = true,
+        )
+        assertEquals(PushTransport.UnifiedPush, noFirebase.register)
+
+        val forced = planPushProvider(
+            requested = PushProviderMode.ForceUnifiedPush,
+            playServices = true,
+            firebaseConfigured = true,
+            unifiedPushAvailable = false,
+        )
+        assertEquals(PushProviderMode.ForceUnifiedPush, forced.mode)
+        assertEquals(PushTransport.UnifiedPush, forced.register)
+
+        val noPlay = planPushProvider(
+            requested = PushProviderMode.ForceFcm,
+            playServices = false,
+            firebaseConfigured = false,
+            unifiedPushAvailable = true,
+        )
+        assertEquals(PushProviderMode.Auto, noPlay.mode)
+        assertEquals(PushTransport.UnifiedPush, noPlay.register)
+        assertEquals(PLAY_SERVICES_UNAVAILABLE, noPlay.status)
+        assertFalse(acceptsUnifiedPushEndpoint(PushProviderMode.ForceFcm, PushTransport.Fcm))
+        assertFalse(acceptsUnifiedPushEndpoint(PushProviderMode.Off, null))
+        assertTrue(acceptsUnifiedPushEndpoint(PushProviderMode.ForceUnifiedPush, PushTransport.UnifiedPush))
+        assertFalse(acceptsFcmToken(PushTransport.UnifiedPush))
+        assertFalse(acceptsFcmToken(null))
+        assertTrue(acceptsFcmToken(PushTransport.Fcm))
+
+        val nowhere = planPushProvider(
+            requested = PushProviderMode.Auto,
+            playServices = false,
+            firebaseConfigured = false,
+            unifiedPushAvailable = false,
+        )
+        assertEquals(null, nowhere.register)
+        assertEquals(NO_PUSH_STATUS, nowhere.status)
+
+        val off = planPushProvider(
+            requested = PushProviderMode.Off,
+            playServices = true,
+            firebaseConfigured = true,
+            unifiedPushAvailable = true,
+        )
+        assertEquals(PushProviderMode.Off, off.mode)
+        assertEquals(null, off.register)
+        assertEquals(PushProviderMode.Auto, PushProviderMode.fromStored(null))
+        assertEquals(PushProviderMode.Auto, PushProviderMode.fromStored("nope"))
+    }
+
+    @Test
+    fun simplePushUsesGatewayOnlyWithoutKeys() {
+        val (webType, webToken) = webPushRegistration("https://up.example/a", "p256", "auth")
+        assertEquals(PushTokenType.WebPush, webType)
+        assertFalse(webToken.contains("gateway.example"))
+        val raw = simplePushEndpoint("https://up.example/a", "")
+        assertEquals("https://up.example/a", raw.token)
+        assertEquals(SIMPLE_PUSH_PUT_WARNING, raw.warning)
+        val proxied = simplePushEndpoint("https://up.example/a", "https://gateway.example/base")
+        assertEquals(
+            "https://gateway.example/base/?endpoint=https%3A%2F%2Fup.example%2Fa",
+            proxied.token,
+        )
+        assertEquals(null, proxied.warning)
+        assertEquals("up.example", endpointHost(webToken, PushTokenType.WebPush))
+        assertFalse(endpointHost(webToken, PushTokenType.WebPush).contains("p256"))
+        assertEquals("up.example", endpointHost("https://up.example/secret", PushTokenType.Simple))
+        assertTrue(
+            showsUnifiedPushSettings(PushProviderMode.ForceUnifiedPush, playServices = true, transport = "fcm"),
+        )
+        assertFalse(showsUnifiedPushSettings(PushProviderMode.ForceFcm, playServices = true, transport = "fcm"))
+        assertFalse(showsUnifiedPushSettings(PushProviderMode.Auto, playServices = true, transport = "fcm"))
+        assertTrue(showsUnifiedPushSettings(PushProviderMode.Auto, playServices = false, transport = "none"))
+    }
+
+    @Test
+    fun providerSwitchUnregistersPreviousTokenOnlyWhenItChanges() {
+        assertEquals(
+            PushRegistrationChange(),
+            pushRegistrationChange(null, "", PushTokenType.Fcm, "fcm-1"),
+        )
+        assertEquals(
+            PushRegistrationChange(),
+            pushRegistrationChange(PushTokenType.Fcm, "fcm-1", PushTokenType.Fcm, "fcm-1"),
+        )
+        assertEquals(
+            PushRegistrationChange(previous = PushTokenType.Fcm to "fcm-1"),
+            pushRegistrationChange(PushTokenType.Fcm, "fcm-1", PushTokenType.WebPush, "{\"endpoint\"}"),
+        )
+        assertEquals(
+            PushRegistrationChange(
+                previous = PushTokenType.WebPush to "{\"endpoint\"}",
+                unregisterUnifiedPush = true,
+            ),
+            pushRegistrationChange(PushTokenType.WebPush, "{\"endpoint\"}", PushTokenType.Fcm, "fcm-1"),
+        )
+        assertEquals(
+            PushRegistrationChange(previous = PushTokenType.WebPush to "old"),
+            pushRegistrationChange(PushTokenType.WebPush, "old", PushTokenType.WebPush, "new"),
+        )
+        assertEquals(
+            PushRegistrationChange(previous = PushTokenType.Simple to "https://push.example/ep"),
+            pushRegistrationChange(PushTokenType.Simple, "https://push.example/ep", PushTokenType.WebPush, "{\"endpoint\"}"),
+        )
     }
 
     @Test
@@ -119,6 +246,65 @@ class PushPayloadTest {
         val formatted = formatLocKey("CUSTOM_KEY", listOf("Ada", "hi"))
         assertEquals("Ada", formatted.first)
         assertTrue(formatted.second.contains("hi"))
+    }
+
+    @Test
+    fun incomingBodiesCoverBase64QuotedJsonBinaryAndPOnly() {
+        val json = """{"loc_key":"MESSAGE_TEXT","loc_args":["Ada","hi"],"custom":{"from_id":7}}"""
+        val plain = normalizeIncomingBody(fcm = false, json.encodeToByteArray())
+        assertEquals("MESSAGE_TEXT", presentKey(plain))
+
+        val quoted = "\"" + json.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+        assertEquals("MESSAGE_TEXT", presentKey(normalizeIncomingBody(fcm = false, quoted.encodeToByteArray())))
+
+        val brittle = "\"{\"loc_key\":\"READ_HISTORY\",\"custom\":{\"max_id\":4}}\""
+        assertEquals(PushAction.ReadHistory, parsePushPayload(presentJson(normalizeIncomingBody(fcm = false, brittle.encodeToByteArray()))).action)
+
+        val encoded = java.util.Base64.getEncoder().encodeToString(json.toByteArray(Charsets.UTF_8))
+        assertEquals("MESSAGE_TEXT", presentKey(normalizeIncomingBody(fcm = false, encoded.encodeToByteArray())))
+
+        val pOnly = "{\"p\":\"{\\\"loc_key\\\":\\\"MESSAGE_DELETED\\\",\\\"custom\\\":{\\\"from_id\\\":7}}\"}"
+        assertEquals(
+            PushAction.Delete,
+            parsePushPayload(presentJson(normalizeIncomingBody(fcm = false, pOnly.encodeToByteArray()))).action,
+        )
+        assertTrue(normalizeIncomingBody(fcm = false, "{\"p\":\"not-a-payload\"}".encodeToByteArray()) is IncomingPush.Wake)
+        assertTrue(normalizeIncomingBody(fcm = false, "noise loc_key noise".encodeToByteArray()) is IncomingPush.Wake)
+        assertTrue(normalizeIncomingBody(fcm = false, byteArrayOf(0x00, 0xff.toByte(), 0xfe.toByte())) is IncomingPush.Wake)
+        assertTrue(normalizeIncomingBody(fcm = false, ByteArray(0)) is IncomingPush.Wake)
+        assertTrue(normalizeIncomingBody(fcm = true, null) is IncomingPush.Wake)
+        val cipher = normalizeIncomingBody(fcm = true, "cipher".encodeToByteArray())
+        assertTrue(cipher is IncomingPush.Decrypt)
+        assertEquals("cipher", (cipher as IncomingPush.Decrypt).cipher)
+        assertTrue(normalizeDecrypted("not json") is IncomingPush.Wake)
+        assertEquals("MESSAGE_TEXT", presentKey(normalizeDecrypted(json)))
+        assertEquals(PushAction.SessionRevoke, actionFor("SESSION_REVOKE"))
+        assertEquals(PushAction.ReadReaction, actionFor("READ_REACTION"))
+        assertEquals(PushAction.Show, actionFor("MESSAGE_TEXT"))
+    }
+
+    private fun presentKey(incoming: IncomingPush): String = parsePushPayload(presentJson(incoming)).locKey
+
+    private fun presentJson(incoming: IncomingPush): String {
+        assertTrue(incoming is IncomingPush.Present)
+        return (incoming as IncomingPush.Present).json
+    }
+
+    @Test
+    fun giftsAndCallTogglesChangeTheDecision() {
+        val gift = parsePushPayload("""{"loc_key":"MESSAGE_GIFT","loc_args":["Ada"],"custom":{"from_id":7}}""")
+        val hidden = decideNotification(gift, NotificationPolicyState(giftsEnabled = false), 10, false)
+        assertFalse(hidden.show)
+        val call = parsePushPayload("""{"loc_key":"PHONE_CALL_MISSED","loc_args":["Ada"],"custom":{"from_id":7}}""")
+        val quiet = decideNotification(
+            call,
+            NotificationPolicyState(callsRingtone = "none", callsVibrate = "off"),
+            10,
+            false,
+        )
+        assertTrue(quiet.show)
+        assertFalse(quiet.sound)
+        assertFalse(quiet.vibrate)
     }
 
     @Test

@@ -148,6 +148,7 @@ data class DownloadState(
     val lanes: Int = 8,
     val speedUpUploads: Boolean = false,
     val speedUpDownloads: Boolean = false,
+    val premium: Boolean = false,
     val wifi: AutoDownloadPreset = AutoDownloadPreset.WIFI,
     val mobile: AutoDownloadPreset = AutoDownloadPreset.MOBILE,
     val roaming: AutoDownloadPreset = AutoDownloadPreset.ROAMING,
@@ -155,10 +156,18 @@ data class DownloadState(
     val autoplayVideos: Boolean = true,
     val activeNetwork: AutoDownloadNetwork = AutoDownloadNetwork.Wifi,
 ) {
-    val parts: Int get() = if (speedUpDownloads) 8 else 6
-    val concurrency: DownloadConcurrency get() = DownloadConcurrency(lanes = lanes, parts = parts)
+    /** Free accounts trip `FLOOD_PREMIUM_WAIT` above two lanes and two parts. */
+    val effectiveLanes: Int get() = if (premium) lanes.coerceIn(1, 8) else 2
+    val parts: Int
+        get() = when {
+            !premium -> 2
+            speedUpDownloads -> 8
+            else -> 6
+        }
+    val concurrency: DownloadConcurrency
+        get() = DownloadConcurrency(lanes = effectiveLanes, parts = parts)
     val filePartKib: Int get() = if (speedUpUploads) 512 else 32
-    val downloadChunkKib: Int get() = if (speedUpDownloads) 256 else 128
+    val downloadChunkKib: Int get() = if (premium && speedUpDownloads) 256 else 128
 
     fun presetFor(network: AutoDownloadNetwork): AutoDownloadPreset = when (network) {
         AutoDownloadNetwork.Wifi -> wifi
@@ -225,6 +234,12 @@ object DownloadSettings {
     fun setSpeedUpDownloads(enabled: Boolean) {
         mutable.update { it.copy(speedUpDownloads = enabled) }
         persist()
+        apply?.invoke(mutable.value)
+    }
+
+    fun setPremium(premium: Boolean) {
+        if (mutable.value.premium == premium) return
+        mutable.update { it.copy(premium = premium) }
         apply?.invoke(mutable.value)
     }
 

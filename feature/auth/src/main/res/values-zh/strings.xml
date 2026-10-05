@@ -9,7 +9,7 @@
     <string name="auth_country_selected">国家/地区：%1$s</string>
     <string name="auth_phone_hint">86 138 0013 8000</string>
     <string name="auth_test_server">测试服务器</string>
-    <string name="auth_test_server_sub">Telegram 测试数据中心，非正式环境</string>
+    <string name="auth_test_server_sub">使用 Telegram 测试服务器</string>
     <string name="auth_code_title">输入验证码</string>
     <string name="auth_code_label">验证码</string>
     <string name="auth_send_code">下一步</string>
@@ -37,8 +37,9 @@
     <string name="auth_error_restart">登录已过期 — 点下一步获取新验证码</string>
     <string name="auth_working">正在登录</string>
     <string name="auth_step_indicator">第 %1$d 步，共 %2$d 步</string>
-    <string name="auth_resend_code">重新发送验证码</string>
-    <string name="auth_resend_in">%1$d 秒后可重新发送</string>
+    <string name="auth_code_help">没收到验证码？</string>
+    <string name="auth_code_help_message">如果没收到验证码，请更换代理、VPN 或 IP，也可以稍后再试</string>
+    <string name="auth_code_help_ok">确定</string>
     <string name="auth_paste_password">粘贴密码</string>
     <string name="auth_paste_empty">剪贴板为空</string>
     <string name="auth_paste_code">粘贴验证码</string>

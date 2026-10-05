@@ -170,6 +170,17 @@ fn duplicated_auth_key_is_unrecoverable() {
 }
 
 #[test]
+fn unregistered_key_without_a_user_does_not_kill_the_login_session() {
+    let unregistered = MtprotoError::Message("RPC 401: AUTH_KEY_UNREGISTERED".into());
+    assert!(!kills_session(None, &unregistered));
+    assert!(kills_session(Some(7), &unregistered));
+    assert!(kills_session(
+        None,
+        &MtprotoError::Message("RPC 401: SESSION_REVOKED".into()),
+    ));
+}
+
+#[test]
 fn password_required_normalizes_tl_and_text_errors() {
     assert!(is_password_required(&MtprotoError::PasswordRequired));
     assert!(is_password_required(&MtprotoError::Message(

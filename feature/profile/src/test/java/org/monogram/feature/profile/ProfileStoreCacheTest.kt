@@ -98,6 +98,7 @@ class ProfileStoreCacheTest {
             entitiesJson: String?,
             topMsgId: Int,
             webpageUrl: String?,
+            randomId: Long,
         ) = unused<Message>()
         override suspend fun sendPhoto(
             chatId: PeerId,

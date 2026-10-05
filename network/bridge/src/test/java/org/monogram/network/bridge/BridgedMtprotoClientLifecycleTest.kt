@@ -33,6 +33,56 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalCoroutinesApi::class)
 class BridgedMtprotoClientLifecycleTest {
     @Test
+    fun handleCreateAppliesInitConnectionInfo() = runTest {
+        val native = object : RecordingNative() {
+            var applied: List<String>? = null
+            override fun setInitConnectionInfo(
+                deviceModel: String,
+                systemVersion: String,
+                appVersion: String,
+                systemLangCode: String,
+                langPack: String,
+                langCode: String,
+            ) {
+                applied = listOf(
+                    deviceModel,
+                    systemVersion,
+                    appVersion,
+                    systemLangCode,
+                    langPack,
+                    langCode,
+                )
+            }
+            override fun createClient(apiId: Int, apiHash: String, sessionPath: String): Long {
+                assertEquals(
+                    listOf("Pixel 8", "14", "Monogram 0.1", "en", "android", "en-US"),
+                    applied,
+                )
+                return super.createClient(apiId, apiHash, sessionPath)
+            }
+            override fun isAuthorized(handle: Long) = false
+        }
+        val client = client(
+            native,
+            StandardTestDispatcher(testScheduler),
+            initConnection = ClientInitInfo(
+                deviceModel = "Pixel 8",
+                systemVersion = "14",
+                appVersion = "Monogram 0.1",
+                systemLangCode = "en",
+                langPack = "android",
+                langCode = "en-US",
+            ),
+        )
+        try {
+            assertEquals(Outcome.Ok(false), client.isLocallyAuthorized())
+            assertEquals(1, native.created)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
     fun localAuthorizationRestoresSessionWithoutConnecting() = runTest {
         for (authorized in listOf(true, false)) {
             val native = object : RecordingNative() {
@@ -521,6 +571,7 @@ class BridgedMtprotoClientLifecycleTest {
                 entitiesJson: String?,
                 topMsgId: Int,
                 webpageUrl: String?,
+                randomId: Long,
             ) = sampleMessage(chatId, 9)
         }
         val client = client(native, StandardTestDispatcher(testScheduler)) { sidecar++ }
@@ -776,6 +827,7 @@ class BridgedMtprotoClientLifecycleTest {
     private fun client(
         native: MtprotoNative,
         dispatcher: kotlinx.coroutines.CoroutineDispatcher,
+        initConnection: ClientInitInfo? = null,
         refreshDcSidecar: (String) -> Unit = {},
     ) = BridgedMtprotoClient(
         credentials = TelegramCredentials(1, "test"),
@@ -783,6 +835,7 @@ class BridgedMtprotoClientLifecycleTest {
         native = native,
         nativeDispatcher = dispatcher,
         refreshDcSidecar = refreshDcSidecar,
+        initConnection = initConnection,
     )
 
     private fun newMessageEvent(id: Int): UpdateEventDto =

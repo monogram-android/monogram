@@ -2,14 +2,17 @@
 //! https://core.telegram.org/mtproto/service_messages_about_messages
 
 use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use std::cell::RefCell;
-use std::io::Read;
+use std::io::{Read, Write};
 use tellers_mtproto::codec::{Boxed, Decoder, Encoder, Limits, TlDecode};
 use tellers_mtproto::transport::{
     BadMsgNotificationConstructor, BadServerSaltConstructor, GzipPackedConstructor,
     MsgContainerConstructor, MsgCopyConstructor, MsgDetailedInfoConstructor,
     MsgNewDetailedInfoConstructor, MsgsAckConstructor, MsgsStateInfoConstructor,
     NewSessionCreatedConstructor, PongConstructor, RpcErrorConstructor, RpcResultConstructor,
+    FutureSaltsConstructor,
 };
 use tellers_mtproto_session::{Clock, ReceivedMessageResult, Snapshot};
 
@@ -69,6 +72,113 @@ pub(crate) fn ungzip_if_needed(bytes: &[u8]) -> Result<Vec<u8>, MtprotoError> {
     Ok(out)
 }
 
+/// Gzip an API body when the wrapper is smaller. Bodies under 256 bytes stay plain.
+pub(crate) fn gzip_if_smaller(body: &[u8]) -> Vec<u8> {
+    const MIN_BYTES: usize = 256;
+    if body.len() < MIN_BYTES {
+        return body.to_vec();
+    }
+    if body.len() >= 4 {
+        let ctor = u32::from_le_bytes(body[0..4].try_into().unwrap());
+        if ctor == GZIP_PACKED {
+            return body.to_vec();
+        }
+    }
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
+    if encoder.write_all(body).is_err() {
+        return body.to_vec();
+    }
+    let Ok(packed) = encoder.finish() else {
+        return body.to_vec();
+    };
+    if packed.len() >= body.len() {
+        return body.to_vec();
+    }
+    encode_boxed_bytes(&GzipPackedConstructor {
+        packed_data: packed,
+    })
+    .unwrap_or_else(|_| body.to_vec())
+}
+
+/// `future_salts` uses a bare vector of bare `future_salt` values: a count, then
+/// `valid_since`, `valid_until`, and `salt` with no constructor ids. A malformed
+/// answer is ignored so it cannot fail the RPC that shared the socket.
+fn parse_future_salts(body: &[u8]) -> Result<Vec<InboundEvent>, MtprotoError> {
+    let ignore = || Ok(vec![InboundEvent::Ignored]);
+    if body.len() < 20 {
+        return ignore();
+    }
+    let count = u32::from_le_bytes(body[16..20].try_into().unwrap());
+    if count > 64 {
+        return ignore();
+    }
+    let count = count as usize;
+    if body.len() < 20 + count * 16 {
+        return ignore();
+    }
+    let mut windows = Vec::with_capacity(count);
+    for index in 0..count {
+        let at = 20 + index * 16;
+        windows.push(super::salts::SaltWindow {
+            valid_since: i32::from_le_bytes(body[at..at + 4].try_into().unwrap()),
+            valid_until: i32::from_le_bytes(body[at + 4..at + 8].try_into().unwrap()),
+            salt: i64::from_le_bytes(body[at + 8..at + 16].try_into().unwrap()),
+        });
+    }
+    Ok(vec![InboundEvent::FutureSalts(windows)])
+}
+
+#[cfg(test)]
+mod gzip_tests {
+    use super::{gzip_if_smaller, ungzip_if_needed, GZIP_PACKED};
+
+    #[test]
+    fn repetitive_api_body_is_gzip_packed() {
+        let body = vec![b'a'; 2048];
+        let packed = gzip_if_smaller(&body);
+        assert_eq!(u32::from_le_bytes(packed[0..4].try_into().unwrap()), GZIP_PACKED);
+        assert_eq!(ungzip_if_needed(&packed).unwrap(), body);
+    }
+
+    #[test]
+    fn tiny_body_stays_plain() {
+        let body = vec![1, 2, 3, 4];
+        assert_eq!(gzip_if_smaller(&body), body);
+    }
+}
+
+#[cfg(test)]
+mod future_salt_tests {
+    use super::{parse_service_or_result, InboundEvent};
+
+    #[test]
+    fn bare_future_salts_do_not_fail_the_rpc() {
+        let mut body = Vec::new();
+        body.extend_from_slice(&0xae50_0895u32.to_le_bytes());
+        body.extend_from_slice(&7i64.to_le_bytes());
+        body.extend_from_slice(&1_000i32.to_le_bytes());
+        body.extend_from_slice(&1u32.to_le_bytes());
+        body.extend_from_slice(&900i32.to_le_bytes());
+        body.extend_from_slice(&1_900i32.to_le_bytes());
+        body.extend_from_slice(&99i64.to_le_bytes());
+        let events = parse_service_or_result(&body).expect("future salts");
+        let InboundEvent::FutureSalts(windows) = &events[0] else {
+            panic!("bare future_salts was not accepted");
+        };
+        assert_eq!(windows[0].salt, 99);
+        assert_eq!(windows[0].valid_since, 900);
+        assert_eq!(windows[0].valid_until, 1_900);
+
+        let mut boxed = Vec::new();
+        boxed.extend_from_slice(&0xae50_0895u32.to_le_bytes());
+        boxed.extend_from_slice(&0i64.to_le_bytes());
+        boxed.extend_from_slice(&0i32.to_le_bytes());
+        boxed.extend_from_slice(&0x1cb5_c415u32.to_le_bytes());
+        let events = parse_service_or_result(&boxed).expect("malformed salts stay non-fatal");
+        assert!(matches!(events[0], InboundEvent::Ignored));
+    }
+}
+
 pub(crate) enum InboundEvent {
     Updates(Vec<u8>),
     RpcResult { req_msg_id: i64, body: Vec<u8> },
@@ -77,6 +187,7 @@ pub(crate) enum InboundEvent {
     BadMessage { bad_msg_id: i64, error_code: i32 },
     Pong { ping_id: i64 },
     AnswerAvailable { answer_msg_id: i64 },
+    FutureSalts(Vec<super::salts::SaltWindow>),
     Ignored,
 }
 
@@ -234,6 +345,7 @@ pub(crate) fn parse_service_at_depth(
         NEW_SESSION_CREATED => Ok(vec![InboundEvent::SaltUpdated {
             body: body.to_vec(),
         }]),
+        ctor if ctor == FutureSaltsConstructor::ID => parse_future_salts(body),
         BAD_SERVER_SALT => {
             let mut decoder = Decoder::new(body, Limits::default())
                 .map_err(|e| MtprotoError::Message(e.to_string()))?;

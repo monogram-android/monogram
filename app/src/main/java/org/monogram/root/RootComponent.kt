@@ -37,6 +37,7 @@ import org.monogram.core.models.AppUpdate
 import org.monogram.core.models.AuthSession
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.requiresForwardPhotoRight
+import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.feature.auth.AuthComponent
@@ -163,9 +164,24 @@ class RootComponent(
         navigation.navigate { configurations -> uniqueStack(configurations, Config.Proxy) }
     }
 
-    private fun openSettings(openFolders: Boolean = false, openProxy: Boolean = false) {
+    fun openNotificationSettings() {
+        openSettings(openNotifications = true)
+    }
+
+    private fun openSettings(
+        openFolders: Boolean = false,
+        openProxy: Boolean = false,
+        openNotifications: Boolean = false,
+    ) {
         navigation.navigate { configurations ->
-            uniqueStack(configurations, Config.Settings(openFolders = openFolders, openProxy = openProxy))
+            uniqueStack(
+                configurations,
+                Config.Settings(
+                    openFolders = openFolders,
+                    openProxy = openProxy,
+                    openNotifications = openNotifications,
+                ),
+            )
         }
     }
 
@@ -236,7 +252,10 @@ class RootComponent(
         }
         lifecycle.doOnStart {
             if (!stack.value.active.configuration.isAuthArea()) {
-                scope.launch { runCatching { pushRegistration?.reregister() } }
+                scope.launch {
+                    sessionStore?.readAuthorizedUserId()?.value?.let { pushRegistration?.setAccountUserId(it) }
+                    runCatching { pushRegistration?.reregister() }
+                }
             }
         }
         lifecycle.doOnDestroy { scope.cancel() }
@@ -335,6 +354,7 @@ class RootComponent(
                 if (!expiringSession && update is org.monogram.network.bridge.MtprotoUpdate.AccountPremium) {
                     accountFlagsVersion++
                     accountState.isPremium = update.isPremium
+                    DownloadSettings.setPremium(update.isPremium)
                     sessionStore?.savePremium(update.isPremium)
                 }
             }
@@ -366,10 +386,12 @@ class RootComponent(
         val cachedPremium = sessionStore?.readPremium() ?: false
         if (expiringSession || version != accountFlagsVersion) return
         accountState.isPremium = cachedPremium
+        DownloadSettings.setPremium(cachedPremium)
         when (val profile = client.getProfile(PeerId(0))) {
             is Outcome.Ok -> {
                 if (expiringSession || version != accountFlagsVersion) return
                 accountState.isPremium = profile.value.isPremium
+                DownloadSettings.setPremium(profile.value.isPremium)
                 sessionStore?.savePremium(profile.value.isPremium)
                 sessionStore?.upsertProfile(profile.value)
                 if (sessionStore?.readAuthorizedUserId() == null) {
@@ -413,6 +435,7 @@ class RootComponent(
                     expiringSession = false
                     scope.launch {
                         sessionStore?.saveAuthorized(session)
+                        pushRegistration?.setAccountUserId(session.userId.value)
                         refreshAccountFlags()
                         runCatching { pushRegistration?.reregister() }
                     }
@@ -523,6 +546,7 @@ class RootComponent(
                 notificationLocal = notificationLocal,
                 openFolders = config.openFolders,
                 openProxy = config.openProxy,
+                openNotifications = config.openNotifications,
                 appUpdate = appUpdate,
                 updatesEnabled = AppUpdate.inAppUpdatesEnabled(BuildConfig.BUILD_TYPE),
             ),
@@ -576,7 +600,11 @@ class RootComponent(
         data class Profile(val peerId: Long) : Config
 
         @Serializable
-        data class Settings(val openFolders: Boolean = false, val openProxy: Boolean = false) : Config
+        data class Settings(
+            val openFolders: Boolean = false,
+            val openProxy: Boolean = false,
+            val openNotifications: Boolean = false,
+        ) : Config
     }
 }
 

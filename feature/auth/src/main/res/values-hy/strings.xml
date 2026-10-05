@@ -9,7 +9,7 @@
     <string name="auth_country_selected">Երկիր՝ %1$s</string>
     <string name="auth_phone_hint">374 91 123456</string>
     <string name="auth_test_server">Փորձարկման սերվեր</string>
-    <string name="auth_test_server_sub">Telegram-ի փորձարկման DC-ներ, ոչ արտադրական</string>
+    <string name="auth_test_server_sub">Օգտագործել Telegram-ի փորձնական սերվերը</string>
     <string name="auth_code_title">Մուտքագրեք կոդը</string>
     <string name="auth_code_label">Կոդ</string>
     <string name="auth_send_code">Հաջորդը</string>
@@ -37,8 +37,9 @@
     <string name="auth_error_restart">Մուտքն ավարտվել է — սեղմեք «Հաջորդը»՝ նոր կոդ ստանալու համար</string>
     <string name="auth_working">Մուտք է կատարվում</string>
     <string name="auth_step_indicator">Քայլ %1$d / %2$d</string>
-    <string name="auth_resend_code">Կրկին ուղարկել կոդը</string>
-    <string name="auth_resend_in">Կրկին ուղարկել %1$d վրկ հետո</string>
+    <string name="auth_code_help">Կոդը չե՞ք ստացել։</string>
+    <string name="auth_code_help_message">Եթե կոդը չի գալիս, փոխեք պրոքսին, VPN-ը կամ IP-ն, կամ փորձեք ավելի ուշ</string>
+    <string name="auth_code_help_ok">Լավ</string>
     <string name="auth_paste_password">Տեղադրել գաղտնաբառը</string>
     <string name="auth_paste_empty">Սեղմատախտակը դատարկ է</string>
     <string name="auth_paste_code">Տեղադրել կոդը</string>

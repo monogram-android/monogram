@@ -10,6 +10,7 @@ import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.ForumTopicsPageDto
 import uniffi.monogram_mtproto.GlobalMessageSearchDto
 import uniffi.monogram_mtproto.InlineBotResultsDto
+import uniffi.monogram_mtproto.InitConnectionInfo
 import uniffi.monogram_mtproto.InstantViewDto
 import uniffi.monogram_mtproto.MessageDto
 import uniffi.monogram_mtproto.MtprotoException
@@ -54,6 +55,7 @@ import uniffi.monogram_mtproto.getAllStickers as nativeGetAllStickers
 import uniffi.monogram_mtproto.getBotCallbackAnswer as nativeGetBotCallbackAnswer
 import uniffi.monogram_mtproto.getChats as nativeGetChats
 import uniffi.monogram_mtproto.pingProxy as nativePingProxy
+import uniffi.monogram_mtproto.setInitConnectionInfo as nativeSetInitConnectionInfo
 import uniffi.monogram_mtproto.setProxy as nativeSetProxy
 import uniffi.monogram_mtproto.setTransportMode as nativeSetTransportMode
 import uniffi.monogram_mtproto.getCommonChats as nativeGetCommonChats
@@ -186,6 +188,24 @@ object MtprotoNativeUniFfi : MtprotoNative {
     override fun clearProxy() = nativeClearProxy()
 
     override fun libraryVersion(): String = nativeLibraryVersion()
+
+    override fun setInitConnectionInfo(
+        deviceModel: String,
+        systemVersion: String,
+        appVersion: String,
+        systemLangCode: String,
+        langPack: String,
+        langCode: String,
+    ) = nativeSetInitConnectionInfo(
+        InitConnectionInfo(
+            deviceModel = deviceModel,
+            systemVersion = systemVersion,
+            appVersion = appVersion,
+            systemLangCode = systemLangCode,
+            langPack = langPack,
+            langCode = langCode,
+        ),
+    )
 
     override fun perfSetEnabled(enabled: Boolean) =
         uniffi.monogram_mtproto.perfSetEnabled(enabled)
@@ -428,6 +448,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         entitiesJson: String?,
         topMsgId: Int,
         webpageUrl: String?,
+        randomId: Long,
     ): MessageDto =
         nativeSendTextMessage(
             handle.toULong(),
@@ -437,6 +458,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
             entitiesJson,
             topMsgId,
             webpageUrl,
+            randomId,
         )
 
     override fun sendPhotoMessage(

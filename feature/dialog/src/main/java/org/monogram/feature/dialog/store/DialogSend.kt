@@ -512,6 +512,7 @@ internal fun DialogExecutor.send(overrideText: String? = null) {
                 entitiesJson,
                 topId,
                 webpageUrl,
+                randomId,
             )
             PerfLog.event(
                 "send",

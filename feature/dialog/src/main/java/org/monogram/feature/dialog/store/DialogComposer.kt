@@ -68,6 +68,24 @@ import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
 import kotlin.time.Duration.Companion.milliseconds
 
+internal fun contactTypingNeeded(
+    isGroup: Boolean,
+    isChannel: Boolean,
+    peerStatus: String?,
+    peerStatusAt: Long?,
+    nowMillis: Long = System.currentTimeMillis(),
+): Boolean {
+    if (isGroup || isChannel) return true
+    return when (peerStatus) {
+        null, "recently" -> true
+        "online" -> {
+            val expires = peerStatusAt ?: return true
+            expires > nowMillis / 1000L - 30L
+        }
+        else -> false
+    }
+}
+
 internal fun DialogExecutor.publishTyping(typing: Boolean) {
     if (inFlightSends > 0) return
     if (!typing) {
@@ -77,6 +95,10 @@ internal fun DialogExecutor.publishTyping(typing: Boolean) {
             lastTypingSent = false
             work.launch { client.setTyping(chatId, false) }
         }
+        return
+    }
+    val state = snapshot()
+    if (!contactTypingNeeded(state.isGroup, state.isChannel, state.peerStatus, state.peerStatusAt)) {
         return
     }
     if (lastTypingSent == true || typingJob?.isActive == true) return

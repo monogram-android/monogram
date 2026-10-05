@@ -41,6 +41,25 @@ object NotificationBatch {
      */
     fun countHidden(previousCount: Int, isNewPush: Boolean): Int =
         (previousCount.coerceAtLeast(0) + if (isNewPush) 1 else 0).coerceAtLeast(1)
+
+    /**
+     * Drops deleted ids, and every message at or below [upTo] when a read cursor is set.
+     * Messages without an id stay unless the cursor marks the whole chat.
+     */
+    fun retain(
+        existing: List<NotificationMessage>,
+        dropIds: Set<Int> = emptySet(),
+        upTo: Int? = null,
+    ): List<NotificationMessage> = existing.filterNot { message ->
+        message.messageId in dropIds ||
+            (upTo != null && upTo > 0 && message.messageId > 0 && message.messageId <= upTo) ||
+            (upTo != null && upTo >= Int.MAX_VALUE && message.messageId <= 0)
+    }
+}
+
+fun historyReadUpTo(messageId: Int, maxId: Int): Int {
+    val cursor = maxOf(messageId, maxId)
+    return if (cursor > 0) cursor else Int.MAX_VALUE
 }
 
 private fun NotificationMessage.isRepeatOf(other: NotificationMessage): Boolean =

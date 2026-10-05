@@ -9,7 +9,7 @@
     <string name="auth_country_selected">Krajina: %1$s</string>
     <string name="auth_phone_hint">421 900 123 456</string>
     <string name="auth_test_server">Testovací server</string>
-    <string name="auth_test_server_sub">Testovacie DC Telegramu, nie produkcia</string>
+    <string name="auth_test_server_sub">Použiť testovací server Telegramu</string>
     <string name="auth_code_title">Zadajte kód</string>
     <string name="auth_code_label">Kód</string>
     <string name="auth_send_code">Ďalej</string>
@@ -37,8 +37,9 @@
     <string name="auth_error_restart">Prihlásenie vypršalo — klepnite na Ďalej pre nový kód</string>
     <string name="auth_working">Prebieha prihlásenie</string>
     <string name="auth_step_indicator">Krok %1$d z %2$d</string>
-    <string name="auth_resend_code">Poslať kód znova</string>
-    <string name="auth_resend_in">Znova o %1$d s</string>
+    <string name="auth_code_help">Neprišiel kód?</string>
+    <string name="auth_code_help_message">Ak kód nepríde, zmeňte proxy, VPN alebo IP, alebo to skúste neskôr</string>
+    <string name="auth_code_help_ok">OK</string>
     <string name="auth_paste_password">Vložiť heslo</string>
     <string name="auth_paste_empty">Schránka je prázdna</string>
     <string name="auth_paste_code">Vložiť kód</string>

@@ -9,7 +9,7 @@
     <string name="auth_country_selected">País: %1$s</string>
     <string name="auth_phone_hint">34 612 345 678</string>
     <string name="auth_test_server">Servidor de prueba</string>
-    <string name="auth_test_server_sub">DC de prueba de Telegram, no producción</string>
+    <string name="auth_test_server_sub">Usar el servidor de prueba de Telegram</string>
     <string name="auth_code_title">Introduce el código</string>
     <string name="auth_code_label">Código</string>
     <string name="auth_send_code">Siguiente</string>
@@ -37,8 +37,9 @@
     <string name="auth_error_restart">El inicio de sesión caducó — pulsa Siguiente para un código nuevo</string>
     <string name="auth_working">Iniciando sesión</string>
     <string name="auth_step_indicator">Paso %1$d de %2$d</string>
-    <string name="auth_resend_code">Reenviar código</string>
-    <string name="auth_resend_in">Reenviar en %1$d s</string>
+    <string name="auth_code_help">¿No te llegó el código?</string>
+    <string name="auth_code_help_message">Si no te llega el código, cambia el proxy, la VPN o la IP, o inténtalo más tarde</string>
+    <string name="auth_code_help_ok">Aceptar</string>
     <string name="auth_paste_password">Pegar contraseña</string>
     <string name="auth_paste_empty">El portapapeles está vacío</string>
     <string name="auth_paste_code">Pegar código</string>

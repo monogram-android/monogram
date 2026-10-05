@@ -50,6 +50,7 @@ class SettingsComponent(
     notificationLocal: NotificationLocalStore? = null,
     openFolders: Boolean = false,
     openProxy: Boolean = false,
+    openNotifications: Boolean = false,
     val appUpdate: AppUpdateController? = null,
     val updatesEnabled: Boolean = true,
 ) : ComponentContext by componentContext, ProxySession {
@@ -94,6 +95,7 @@ class SettingsComponent(
         initialConfiguration = when {
             openProxy -> SettingsPage.Proxy
             openFolders -> SettingsPage.Folders
+            openNotifications -> SettingsPage.Notifications
             else -> SettingsPage.Home
         },
         childFactory = { page, _ -> page },

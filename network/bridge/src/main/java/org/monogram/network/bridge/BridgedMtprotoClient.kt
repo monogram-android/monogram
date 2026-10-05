@@ -36,6 +36,7 @@ class BridgedMtprotoClient internal constructor(
         historyTimeoutMs: Long = 20_000,
         nativeDispatcher: CoroutineDispatcher = Dispatchers.IO,
         refreshDcSidecar: (String) -> Unit = DcTxtBootstrap::refreshSidecar,
+        initConnection: ClientInitInfo? = null,
     ) : this(
         ClientApis(
             SessionCore(
@@ -45,6 +46,7 @@ class BridgedMtprotoClient internal constructor(
                 historyTimeoutMs,
                 nativeDispatcher,
                 refreshDcSidecar,
+                initConnection = initConnection,
             )
         ),
     )
@@ -57,6 +59,7 @@ class BridgedMtprotoClient internal constructor(
         refreshDcSidecar: (String) -> Unit,
         clock: MonotonicClock,
         historyTimeoutMs: Long = 20_000,
+        initConnection: ClientInitInfo? = null,
     ) : this(
         ClientApis(
             SessionCore(
@@ -67,6 +70,7 @@ class BridgedMtprotoClient internal constructor(
                 nativeDispatcher,
                 refreshDcSidecar,
                 clock,
+                initConnection,
             )
         ),
     )

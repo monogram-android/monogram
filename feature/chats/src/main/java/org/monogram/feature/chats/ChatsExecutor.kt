@@ -389,6 +389,9 @@ internal class ChatsExecutor(
      */
     private suspend fun loadNotifyDefaults(force: Boolean = false) = notifyDefaultsMutex.withLock {
         if (notifyDefaultsRefreshed && !force) return@withLock
+        val loggedOut = sessionStore?.isAuthorized() == false &&
+            client.isLocallyAuthorized() != Outcome.Ok(true)
+        if (loggedOut) return@withLock
         val users = notifySettingsFor("users") ?: return@withLock
         val chats = notifySettingsFor("chats") ?: return@withLock
         val broadcasts = notifySettingsFor("broadcasts") ?: return@withLock

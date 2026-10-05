@@ -9,7 +9,7 @@
     <string name="auth_country_selected">País: %1$s</string>
     <string name="auth_phone_hint">55 11 91234 5678</string>
     <string name="auth_test_server">Servidor de teste</string>
-    <string name="auth_test_server_sub">DCs de teste do Telegram, não produção</string>
+    <string name="auth_test_server_sub">Usar o servidor de teste do Telegram</string>
     <string name="auth_code_title">Digite o código</string>
     <string name="auth_code_label">Código</string>
     <string name="auth_send_code">Avançar</string>
@@ -37,8 +37,9 @@
     <string name="auth_error_restart">O login expirou — toque em Avançar para um código novo</string>
     <string name="auth_working">Entrando</string>
     <string name="auth_step_indicator">Etapa %1$d de %2$d</string>
-    <string name="auth_resend_code">Reenviar código</string>
-    <string name="auth_resend_in">Reenviar em %1$d s</string>
+    <string name="auth_code_help">Não recebeu o código?</string>
+    <string name="auth_code_help_message">Se o código não chegar, altere o proxy, a VPN ou o IP, ou tente de novo mais tarde</string>
+    <string name="auth_code_help_ok">OK</string>
     <string name="auth_paste_password">Colar senha</string>
     <string name="auth_paste_empty">A área de transferência está vazia</string>
     <string name="auth_paste_code">Colar código</string>

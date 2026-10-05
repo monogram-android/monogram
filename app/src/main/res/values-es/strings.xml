@@ -22,6 +22,7 @@
     <string name="push_channel_groups">Grupos</string>
     <string name="push_channel_channels">Canales</string>
     <string name="push_channel_other">Otros</string>
+    <string name="push_channel_calls">Llamadas</string>
     <string name="push_channel_stories">Historias</string>
     <string name="push_channel_reactions">Reacciones</string>
     <string name="push_folder">Carpeta %1$d</string>
@@ -31,6 +32,9 @@
     <string name="push_reply">Responder</string>
     <string name="push_reply_hint">Mensaje</string>
     <string name="push_mark_read">Marcar como leído</string>
+    <string name="push_not_sent">No se envió</string>
+    <string name="push_mute_hour">Silenciar 1 hora</string>
+    <string name="push_notification_settings">Ajustes de notificaciones</string>
     <string name="push_open_link">Abrir enlace</string>
     <string name="push_more_chats">+%1$d más</string>
     <plurals name="push_new_messages">

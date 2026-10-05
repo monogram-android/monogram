@@ -137,7 +137,16 @@ pub fn send_auth_code(handle: u64, phone: String) -> Result<AuthCodeSent, Mtprot
     let sent = with_client_mut(handle, |state| {
         apply_test_dc_for_phone(state, &phone)?;
         if state.session_dead {
-            recreate_mtproto_session(state)?;
+            // account.* before sign-in returns AUTH_KEY_UNREGISTERED. The key is
+            // still the one auth.sendCode must use; replacing it drops the login.
+            let unregistered = state.user_id.is_none()
+                && state.session_dead_reason.as_deref() == Some("AUTH_KEY_UNREGISTERED");
+            if unregistered {
+                state.session_dead = false;
+                state.session_dead_reason = None;
+            } else {
+                recreate_mtproto_session(state)?;
+            }
         }
         let attempt = |state: &mut ClientState| {
             call_with_migrate(state, |state| {

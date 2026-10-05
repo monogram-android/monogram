@@ -9,7 +9,7 @@
     <string name="auth_country_selected">Country: %1$s</string>
     <string name="auth_phone_hint">49 151 1234567</string>
     <string name="auth_test_server">Test server</string>
-    <string name="auth_test_server_sub">Telegram test DCs, not production</string>
+    <string name="auth_test_server_sub">Use the Telegram test server</string>
     <string name="auth_code_title">Enter code</string>
     <string name="auth_code_label">Code</string>
     <string name="auth_send_code">Next</string>
@@ -37,8 +37,9 @@
     <string name="auth_error_restart">This sign-in expired — tap Next to get a new code</string>
     <string name="auth_working">Logging in</string>
     <string name="auth_step_indicator">Step %1$d of %2$d</string>
-    <string name="auth_resend_code">Resend code</string>
-    <string name="auth_resend_in">Resend in %1$d s</string>
+    <string name="auth_code_help">Didn\'t get the code?</string>
+    <string name="auth_code_help_message">If you don\'t get a code, switch your proxy, VPN, or IP, or try again later</string>
+    <string name="auth_code_help_ok">OK</string>
     <string name="auth_paste_password">Paste password</string>
     <string name="auth_paste_empty">Clipboard is empty</string>
     <string name="auth_paste_code">Paste code</string>

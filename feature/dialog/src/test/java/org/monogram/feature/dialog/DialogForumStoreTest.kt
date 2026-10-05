@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.monogram.feature.dialog.store.contactTypingNeeded
 import org.junit.After
 import org.junit.Before
 import org.junit.Assert.assertEquals
@@ -832,6 +833,48 @@ class DialogForumStoreTest {
             advanceUntilIdle()
             assertEquals(listOf(true, false), client.typingSent)
             assertEquals("", store.state.draft)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun contactTypingSkipsOfflineUsersButNotGroupsOrRecent() {
+        assertFalse(contactTypingNeeded(false, false, "last_week", null, 1_000_000L))
+        assertFalse(contactTypingNeeded(false, false, "offline", 1L, 1_000_000_000L))
+        assertTrue(contactTypingNeeded(false, false, "recently", null, 1_000_000L))
+        assertTrue(contactTypingNeeded(false, false, null, null, 1_000_000L))
+        assertTrue(contactTypingNeeded(true, false, "last_week", null, 1_000_000L))
+        val now = 1_700_000_000_000L
+        assertTrue(contactTypingNeeded(false, false, "online", now / 1000L, now))
+        assertFalse(contactTypingNeeded(false, false, "online", now / 1000L - 31, now))
+    }
+
+    @Test
+    fun offlineContactDoesNotSendTyping() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val client = FakeClient().apply { profileUsername = "ada" }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            client.events.emit(MtprotoUpdate.PeerStatus(PeerId(5), "last_week", null))
+            advanceUntilIdle()
+            assertEquals("last_week", store.state.peerStatus)
+            store.accept(DialogStore.Intent.DraftChanged("a"))
+            advanceTimeBy(400)
+            advanceUntilIdle()
+            assertEquals(emptyList<Boolean>(), client.typingSent)
+
+            client.events.emit(MtprotoUpdate.PeerStatus(PeerId(5), "recently", null))
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.DraftChanged("ab"))
+            advanceTimeBy(400)
+            advanceUntilIdle()
+            assertEquals(listOf(true), client.typingSent)
         } finally {
             store.dispose()
         }
@@ -3484,6 +3527,7 @@ class DialogForumStoreTest {
             entitiesJson: String?,
             topMsgId: Int,
             webpageUrl: String?,
+            randomId: Long,
         ): Outcome<Message> {
             lastSendReply = replyToMsgId
             lastSendTop = topMsgId

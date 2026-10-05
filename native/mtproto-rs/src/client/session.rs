@@ -109,6 +109,18 @@ pub(crate) fn is_unrecoverable_session(err: &MtprotoError) -> bool {
         || upper.contains("USER_DEACTIVATED")
 }
 
+/// A pre-login auth key is unregistered until `auth.signIn`. That 401 must not
+/// persist `session_dead`: the next `auth.sendCode` would throw the key away.
+pub(crate) fn kills_session(user_id: Option<i64>, err: &MtprotoError) -> bool {
+    if !is_unrecoverable_session(err) {
+        return false;
+    }
+    let MtprotoError::Message(msg) = err else {
+        return true;
+    };
+    !(user_id.is_none() && msg.to_ascii_uppercase().contains("AUTH_KEY_UNREGISTERED"))
+}
+
 pub(crate) fn mark_session_dead(state: &mut ClientState, err: &MtprotoError) {
     state.session_dead = true;
     state.session_dead_reason = Some(session_dead_token(err));
@@ -198,7 +210,7 @@ pub(crate) fn call_with_migrate<T>(
     let before = state.snapshot.clone();
     match op(state) {
         Ok(v) => Ok(v),
-        Err(err) if is_unrecoverable_session(&err) => {
+        Err(err) if kills_session(state.user_id, &err) => {
             mark_session_dead(state, &err);
             Err(err)
         }
@@ -209,10 +221,13 @@ pub(crate) fn call_with_migrate<T>(
             if api_invoke::migrate_dc(&err).is_some() {
                 state.snapshot = before;
             }
+            if !kills_session(state.user_id, &err) && is_unrecoverable_session(&err) {
+                return Err(err);
+            }
             ensure_ready_after_migrate(state, err)?;
             match op(state) {
                 Ok(v) => Ok(v),
-                Err(err) if is_unrecoverable_session(&err) => {
+                Err(err) if kills_session(state.user_id, &err) => {
                     mark_session_dead(state, &err);
                     Err(err)
                 }

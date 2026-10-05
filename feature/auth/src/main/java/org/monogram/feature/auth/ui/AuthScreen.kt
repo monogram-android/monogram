@@ -32,6 +32,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.VpnKey
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -62,7 +63,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.monogram.core.ui.ExpressiveDefaults
 import org.monogram.core.ui.loading.MonogramBusyButton
@@ -100,9 +100,8 @@ fun AuthScreen(
     var passwordVisible by rememberSaveable(state.phase) { mutableStateOf(false) }
     var pasteEmpty by rememberSaveable(state.phase) { mutableStateOf(false) }
     var submittedCode by rememberSaveable { mutableStateOf("") }
-    var resendSeconds by rememberSaveable(step) { mutableStateOf(0) }
+    var showCodeHelp by rememberSaveable { mutableStateOf(false) }
     val expectedCodeLength = (state.phase as? AuthStore.Phase.CodeEntry)?.codeLength ?: AuthCodeLength
-    val floodSeconds = floodWaitSeconds(state.error)
     LaunchedEffect(state.phase) {
         if (state.phase !is AuthStore.Phase.CodeEntry) {
             submittedCode = ""
@@ -117,13 +116,6 @@ fun AuthScreen(
         ) {
             submittedCode = state.code
             onIntent(AuthStore.Intent.SignIn)
-        }
-    }
-    LaunchedEffect(step, floodSeconds) {
-        resendSeconds = maxOf(if (step == 1) ResendDelaySeconds else 0, floodSeconds)
-        while (resendSeconds > 0) {
-            delay(1000)
-            resendSeconds -= 1
         }
     }
     LaunchedEffect(step) {
@@ -340,17 +332,31 @@ fun AuthScreen(
                             ) {
                                 Text(stringResource(R.string.auth_paste_code))
                             }
-                            AuthResendAction(
-                                seconds = resendSeconds,
+                            TextButton(
+                                onClick = { showCodeHelp = true },
                                 enabled = !state.loading,
-                                onResend = { onIntent(AuthStore.Intent.ResendCode) },
-                            )
+                                modifier = Modifier.testTag(AuthTestTags.CODE_HELP),
+                            ) {
+                                Text(stringResource(R.string.auth_code_help))
+                            }
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
+    if (showCodeHelp) {
+        AlertDialog(
+            onDismissRequest = { showCodeHelp = false },
+            title = { Text(stringResource(R.string.auth_code_help)) },
+            text = { Text(stringResource(R.string.auth_code_help_message)) },
+            confirmButton = {
+                TextButton(onClick = { showCodeHelp = false }) {
+                    Text(stringResource(R.string.auth_code_help_ok))
+                }
+            },
+        )
     }
 }
 
@@ -426,27 +432,6 @@ private fun AuthStepHeader(step: Int, state: AuthStore.State) {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-    }
-}
-
-@Composable
-private fun AuthResendAction(
-    seconds: Int,
-    enabled: Boolean,
-    onResend: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val label = if (seconds > 0) {
-        stringResource(R.string.auth_resend_in, seconds)
-    } else {
-        stringResource(R.string.auth_resend_code)
-    }
-    TextButton(
-        onClick = onResend,
-        enabled = enabled && seconds == 0,
-        modifier = modifier.testTag(AuthTestTags.RESEND),
-    ) {
-        Text(label)
     }
 }
 

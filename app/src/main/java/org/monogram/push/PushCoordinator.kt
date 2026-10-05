@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,16 +26,31 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.push.NO_PUSH_STATUS
+import org.monogram.core.common.push.acceptsFcmToken
+import org.monogram.core.common.push.acceptsUnifiedPushEndpoint
 import org.monogram.core.common.push.NotificationLocalStore
+import org.monogram.core.common.push.PUSH_STATUS_CHOOSE_DISTRIBUTOR
+import org.monogram.core.common.push.PUSH_STATUS_DISTRIBUTOR_GONE
+import org.monogram.core.common.push.PUSH_STATUS_NO_DISTRIBUTOR
 import org.monogram.core.common.push.PushAction
+import org.monogram.core.common.push.PushProviderMode
+import org.monogram.core.common.push.PushTransport
+import org.monogram.core.common.push.planPushProvider
+import org.monogram.core.common.push.simplePushEndpoint
 import org.monogram.core.common.push.PushPayload
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.push.PushWakeGate
 import org.monogram.core.common.push.shouldRefreshDialogsOnWake
 import org.monogram.core.common.push.shouldSyncOnWake
 import org.monogram.core.common.push.decideNotification
+import org.monogram.core.common.push.historyReadUpTo
 import org.monogram.core.common.push.folderMemberIds
+import org.monogram.core.common.push.IncomingPush
+import org.monogram.core.common.push.normalizeDecrypted
+import org.monogram.core.common.push.normalizeIncomingBody
 import org.monogram.core.common.push.parsePushPayload
+import org.monogram.core.common.push.pushRegistrationChange
 import org.monogram.core.common.push.webPushRegistration
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
@@ -74,6 +90,8 @@ class PushCoordinator(
     @Volatile private var notifySettingsLoaded = false
     private var notifySettingsJob: Job? = null
     private var repeatJob: Job? = null
+    private var refreshJob: Job? = null
+    @Volatile private var accountUserId: Long = 0L
 
     init {
         // A push can arrive before the settings RPC (or with no network at all): start from the copy
@@ -92,7 +110,20 @@ class PushCoordinator(
         NotificationChannels.ensure(context)
         NotificationChannels.applyPrefs(context, store)
         scheduleRepeat()
+        refreshJob?.cancel()
+        refreshJob = scope.launch {
+            while (true) {
+                delay(24L * 60L * 60L * 1000L)
+                reregister()
+            }
+        }
     }
+
+    override fun setAccountUserId(userId: Long) {
+        accountUserId = userId
+    }
+
+    override fun distributors(): List<String> = unifiedPushDistributors()
 
     fun requestPermission(activity: Activity) {
         if (Build.VERSION.SDK_INT < 33) return
@@ -132,7 +163,15 @@ class PushCoordinator(
      */
     fun ensureNotifySettings() {
         if (notifySettingsLoaded || notifySettingsJob?.isActive == true) return
-        notifySettingsJob = scope.launch { refreshNotifySettings() }
+        notifySettingsJob = scope.launch {
+            // account.getNotifySettings needs a logged-in auth key. Before sign-in the
+            // server answers 401 AUTH_KEY_UNREGISTERED and that used to kill login.
+            if (client.isLocallyAuthorized() != Outcome.Ok(true)) {
+                notifySettingsJob = null
+                return@launch
+            }
+            refreshNotifySettings()
+        }
     }
 
     override fun onVisibleChat(chatId: Long?) {
@@ -145,13 +184,27 @@ class PushCoordinator(
     }
 
     override fun onLogout() {
+        notifySettingsLoaded = false
+        notifySettingsJob?.cancel()
+        notifySettingsJob = null
         NotificationPresenter.clear(context)
         store.lastShownChatId = 0L
+        store.shareChatIds = emptyList()
+        store.clearPushIdentity(clearSecret = true)
+    }
+
+    override suspend fun unregisterPush() {
+        val token = store.token()
+        val type = PushTokenType.fromCode(store.tokenType())
+        if (type != null && token.isNotBlank()) {
+            runCatching { client.unregisterDevice(tokenType = type, token = token) }
+        }
+        store.clearPushIdentity()
+        unregisterUnifiedPushConnector()
     }
 
     private fun dismissChat(chatId: Long) {
         NotificationPresenter.cancel(context, chatId, store.badgeSettings())
-        NotificationPresenter.removeShortcut(context, chatId)
         if (store.lastShownChatId == chatId) store.lastShownChatId = 0L
     }
 
@@ -169,12 +222,30 @@ class PushCoordinator(
 
     override suspend fun reregister() {
         NotificationChannels.ensure(context, folders, pruneFolders = true)
-        if (gmsAvailable()) {
-            registerFcm()
-        } else {
-            registerUnifiedPush()
+        val plan = planPushProvider(
+            requested = store.providerMode,
+            playServices = gmsAvailable(),
+            firebaseConfigured = firebaseConfigured(),
+            unifiedPushAvailable = unifiedPushAvailable(),
+        )
+        when (plan.register) {
+            PushTransport.Fcm -> registerFcm()
+            PushTransport.UnifiedPush -> {
+                plan.status?.let { store.setLastRegister(it) }
+                registerUnifiedPush()
+            }
+            null -> {
+                unregisterPush()
+                store.setLastRegister(plan.status ?: NO_PUSH_STATUS)
+            }
         }
     }
+
+    private fun firebaseConfigured(): Boolean =
+        runCatching { FirebaseApp.getApps(context).isNotEmpty() }.getOrDefault(false)
+
+    private fun unifiedPushAvailable(): Boolean =
+        runCatching { UnifiedPush.getDistributors(context).isNotEmpty() }.getOrDefault(false)
 
     private suspend fun registerFcm() {
         val token = runCatching {
@@ -184,18 +255,51 @@ class PushCoordinator(
                     cont.resume(if (task.isSuccessful) task.result else null)
                 }
             }
-        }.getOrNull() ?: return
+        }.getOrNull()
+        if (token.isNullOrBlank()) {
+            store.setLastRegister("fcm token unavailable")
+            return
+        }
         registerToken(PushTokenType.Fcm, token)
     }
 
     private fun registerUnifiedPush() {
+        val chosen = store.distributorPackage
+        val available = unifiedPushDistributors()
+        val explicit = store.providerMode == PushProviderMode.ForceUnifiedPush
+        if (chosen.isBlank()) {
+            if (explicit) {
+                store.setLastRegister(
+                    if (available.isEmpty()) PUSH_STATUS_NO_DISTRIBUTOR else PUSH_STATUS_CHOOSE_DISTRIBUTOR,
+                )
+                return
+            }
+        } else if (available.isNotEmpty() && chosen !in available) {
+            store.setLastRegister(PUSH_STATUS_DISTRIBUTOR_GONE)
+            return
+        } else {
+            runCatching { UnifiedPush.saveDistributor(context, chosen) }
+        }
+        val instance = pushInstance()
+        val previous = store.pushInstance
+        if (previous.isNotBlank() && previous != instance) {
+            runCatching { UnifiedPush.unregister(context, previous) }
+        }
+        store.pushInstance = instance
         runCatching {
-            UnifiedPush.tryUseCurrentOrDefaultDistributor(context) { success ->
-                if (success) {
-                    UnifiedPush.register(context, messageForDistributor = "Monogram")
-                } else {
-                    store.setLastRegister("no UnifiedPush distributor")
-                    AppLog.warn("push", "no UnifiedPush distributor")
+            val register = {
+                UnifiedPush.register(context, instance = instance, messageForDistributor = "Monogram")
+            }
+            if (chosen.isNotBlank()) {
+                register()
+            } else {
+                UnifiedPush.tryUseCurrentOrDefaultDistributor(context) { success ->
+                    if (success) {
+                        register()
+                    } else {
+                        store.setLastRegister(PUSH_STATUS_NO_DISTRIBUTOR)
+                        AppLog.warn("push", "no UnifiedPush distributor")
+                    }
                 }
             }
         }.onFailure {
@@ -204,18 +308,65 @@ class PushCoordinator(
         }
     }
 
-    fun onWebPushEndpoint(endpoint: String, p256dh: String?, auth: String?) {
-        scope.launch {
-            val (type, token) = webPushRegistration(endpoint, p256dh, auth)
-            registerToken(type, token)
+    private fun unifiedPushDistributors(): List<String> =
+        runCatching { UnifiedPush.getDistributors(context) }.getOrDefault(emptyList())
+
+    /**
+     * Connector instances are supported. This install keeps one active account, so the instance
+     * is that account's user id when it is known and the connector default otherwise.
+     */
+    private fun pushInstance(): String =
+        accountUserId.takeIf { it != 0L }?.let { "account:$it" } ?: "default"
+
+    private fun unregisterUnifiedPushConnector() {
+        val instance = store.pushInstance
+        runCatching {
+            if (instance.isBlank()) UnifiedPush.unregister(context) else UnifiedPush.unregister(context, instance)
         }
     }
 
+    fun onWebPushEndpoint(endpoint: String, p256dh: String?, auth: String?) {
+        scope.launch {
+            if (!acceptsUnifiedPushEndpoint()) return@launch
+            val (type, token) = webPushRegistration(endpoint, p256dh, auth)
+            if (type == PushTokenType.Simple) {
+                val simple = simplePushEndpoint(token, store.simplePushGateway)
+                simple.warning?.let { store.setLastRegister(it) }
+                registerToken(type, simple.token)
+            } else {
+                registerToken(type, token)
+            }
+        }
+    }
+
+    private fun acceptsUnifiedPushEndpoint(): Boolean =
+        acceptsUnifiedPushEndpoint(store.providerMode, currentPlan().register)
+
+    private fun currentPlan() = planPushProvider(
+        requested = store.providerMode,
+        playServices = gmsAvailable(),
+        firebaseConfigured = firebaseConfigured(),
+        unifiedPushAvailable = unifiedPushAvailable(),
+    )
+
     fun onFcmToken(token: String) {
-        scope.launch { registerToken(PushTokenType.Fcm, token) }
+        scope.launch {
+            if (!acceptsFcmToken(currentPlan().register)) return@launch
+            registerToken(PushTokenType.Fcm, token)
+        }
     }
 
     private suspend fun registerToken(type: PushTokenType, token: String) {
+        val change = pushRegistrationChange(
+            previousType = PushTokenType.fromCode(store.tokenType()),
+            previousToken = store.token(),
+            nextType = type,
+            nextToken = token,
+        )
+        change.previous?.let { (previousType, previousToken) ->
+            runCatching { client.unregisterDevice(tokenType = previousType, token = previousToken) }
+        }
+        if (change.unregisterUnifiedPush) unregisterUnifiedPushConnector()
         store.setToken(type, token)
         val result = client.registerDevice(
             tokenType = type,
@@ -235,24 +386,37 @@ class PushCoordinator(
 
     override fun simulate(locKey: String) {
         val json = """{"loc_key":"$locKey","loc_args":["Debug","Test notification"],"custom":{"from_id":1,"msg_id":1}}"""
-        handlePayloadJson(json, wake = false)
+        scope.launch { handlePayload(json, wake = false, joinWake = false) }
     }
 
-    fun handleFcm(payload: String?) {
-        if (payload.isNullOrBlank()) {
-            wakeFetch()
-            return
-        }
-        val decrypted = client.decryptPushPayload(store.secret(), payload)
-        val json = when (decrypted) {
-            is Outcome.Ok -> decrypted.value
-            is Outcome.Err -> {
-                AppLog.warn("push", "decrypt failed")
-                wakeFetch()
-                return
+    fun handleFcm(payload: String?, onComplete: (() -> Unit)? = null) {
+        handleIncoming(fcm = true, body = payload?.encodeToByteArray(), onComplete = onComplete)
+    }
+
+    fun handleIncoming(fcm: Boolean, body: ByteArray?, onComplete: (() -> Unit)? = null) {
+        scope.launch {
+            try {
+                when (val incoming = normalizeIncomingBody(fcm, body)) {
+                    IncomingPush.Wake -> {
+                        if (!fcm) ensureNotifySettings()
+                        wakeFetchAndJoin()
+                    }
+                    is IncomingPush.Decrypt -> when (val decrypted = client.decryptPushPayload(store.secret(), incoming.cipher)) {
+                        is Outcome.Ok -> when (val plain = normalizeDecrypted(decrypted.value)) {
+                            is IncomingPush.Present -> handlePayload(plain.json, wake = true, joinWake = true)
+                            else -> wakeFetchAndJoin()
+                        }
+                        is Outcome.Err -> {
+                            AppLog.warn("push", "decrypt failed")
+                            wakeFetchAndJoin()
+                        }
+                    }
+                    is IncomingPush.Present -> handlePayload(incoming.json, wake = true, joinWake = true)
+                }
+            } finally {
+                onComplete?.invoke()
             }
         }
-        handlePayloadJson(json, wake = true)
     }
 
     fun handleWake() {
@@ -260,24 +424,41 @@ class PushCoordinator(
         wakeFetch()
     }
 
-    private fun handlePayloadJson(json: String, wake: Boolean) {
+    private suspend fun handlePayload(json: String, wake: Boolean, joinWake: Boolean) {
         val payload = parsePushPayload(json)
         AppLog.api("notify", "parsed loc=${payload.locKey} action=${payload.action}")
         store.recordPayload(payload)
+        suspend fun maybeWake() {
+            if (!wake) return
+            if (joinWake) wakeFetchAndJoin() else wakeFetch()
+        }
         when (payload.action) {
-            PushAction.SessionRevoke -> scope.launch {
+            PushAction.SessionRevoke -> {
+                unregisterPush()
                 onLogout()
                 client.logout()
             }
             PushAction.Delete -> {
-                payload.chatId?.let { dismissChat(it) }
-                if (wake) wakeFetch()
+                payload.chatId?.let { chatId ->
+                    val ids = payload.deletedIds.ifEmpty { listOfNotNull(payload.messageId?.takeIf { it > 0 }) }
+                    if (ids.isEmpty()) dismissChat(chatId)
+                    else NotificationPresenter.dropMessages(context, chatId, ids.toSet(), upTo = null, badge = store.badgeSettings())
+                }
+                maybeWake()
             }
             PushAction.ReadHistory, PushAction.ReadReaction -> {
-                payload.chatId?.let { dismissChat(it) }
-                if (wake) wakeFetch()
+                payload.chatId?.let { chatId ->
+                    NotificationPresenter.dropMessages(
+                        context,
+                        chatId,
+                        dropIds = emptySet(),
+                        upTo = historyReadUpTo(payload.messageId ?: 0, payload.maxId ?: 0),
+                        badge = store.badgeSettings(),
+                    )
+                }
+                maybeWake()
             }
-            PushAction.Wake, PushAction.Ignore -> if (wake) wakeFetch()
+            PushAction.Wake, PushAction.Ignore -> maybeWake()
             PushAction.Show -> {
                 AppLog.api("notify", "loc=${payload.locKey} fg=$appForeground")
                 ensureNotifySettings()
@@ -297,15 +478,17 @@ class PushCoordinator(
                     payload.chatId != null && payload.chatId in folderMemberIds(folder.chatIds, folder.excludeChatIds)
                 }?.id
                 NotificationChannels.ensure(context, folders)
-                if (!decision.show) {
+                val folderPopup = folderId?.let { store.categoryPopup("folder_$it") } ?: true
+                val shown = if (folderPopup) decision else decision.copy(popup = false)
+                if (!shown.show) {
                     AppLog.api("notify", "suppressed loc=${payload.locKey}")
                 }
-                present(payload, decision, folderId)
+                present(payload, shown, folderId)
                 if (decision.show) {
                     payload.chatId?.let { store.lastShownChatId = it }
                     scheduleRepeat()
                 }
-                if (wake) wakeFetch()
+                maybeWake()
             }
         }
     }
@@ -329,18 +512,31 @@ class PushCoordinator(
                             ?.trim()
                             .orEmpty()
                         if (text.isEmpty()) return@launch
-                        when (client.sendText(PeerId(chatId), text, replyToMsgId = messageId)) {
-                            is Outcome.Ok -> dismissChat(chatId)
-                            is Outcome.Err -> AppLog.warn("notify", "reply failed")
-                        }
+                        val replyTo = messageId.takeIf { it > 0 } ?: 0
+                        val sent = client.connect() is Outcome.Ok &&
+                            client.sendText(PeerId(chatId), text, replyToMsgId = replyTo) is Outcome.Ok
+                        if (sent) dismissChat(chatId)
+                        else NotificationPresenter.showNotSent(context, chatId)
                     }
                     NotificationPresenter.ACTION_MARK_READ -> {
-                        dismissChat(chatId)
-                        val maxId = if (messageId > 0) messageId else Int.MAX_VALUE
-                        when (client.readHistory(PeerId(chatId), maxId)) {
-                            is Outcome.Ok -> Unit
-                            is Outcome.Err -> AppLog.warn("notify", "read failed")
-                        }
+                        val upTo = historyReadUpTo(
+                            messageId,
+                            intent.getIntExtra(NotificationPresenter.EXTRA_MAX_ID, 0),
+                        )
+                        val read = client.connect() is Outcome.Ok &&
+                            client.readHistory(PeerId(chatId), upTo) is Outcome.Ok
+                        if (read) dismissChat(chatId)
+                        else NotificationPresenter.showNotSent(context, chatId)
+                    }
+                    NotificationPresenter.ACTION_MUTE -> {
+                        val until = (System.currentTimeMillis() / 1000L).toInt() + 3_600
+                        val muted = client.connect() is Outcome.Ok &&
+                            client.updateNotifySettings(
+                                "peer",
+                                NotifySettings(muteUntil = until),
+                                PeerId(chatId),
+                            ) is Outcome.Ok
+                        if (muted) dismissChat(chatId)
                     }
                 }
             } finally {
@@ -485,17 +681,26 @@ class PushCoordinator(
         if (!shouldSyncOnWake(appForeground)) return
         val generation = wakeGate.tryStart(System.currentTimeMillis()) ?: return
         wakeJob?.cancel()
-        wakeJob = scope.launch {
-            if (!wakeGate.isCurrent(generation)) return@launch
-            when (val connected = client.connect()) {
-                is Outcome.Err -> AppLog.warn("push", "wake connect failed")
-                is Outcome.Ok -> {
-                    if (!wakeGate.isCurrent(generation)) return@launch
-                    if (!shouldRefreshDialogsOnWake(chatPhotos.size)) return@launch
-                    when (val result = client.getChats()) {
-                        is Outcome.Ok -> rememberChatPhotos(result.value)
-                        is Outcome.Err -> Unit
-                    }
+        wakeJob = scope.launch { runWake(generation) }
+    }
+
+    private suspend fun wakeFetchAndJoin() {
+        if (!shouldSyncOnWake(appForeground)) return
+        val generation = wakeGate.tryStart(System.currentTimeMillis()) ?: return
+        wakeJob?.cancel()
+        runWake(generation)
+    }
+
+    private suspend fun runWake(generation: Int) {
+        if (!wakeGate.isCurrent(generation)) return
+        when (val connected = client.connect()) {
+            is Outcome.Err -> AppLog.warn("push", "wake connect failed")
+            is Outcome.Ok -> {
+                if (!wakeGate.isCurrent(generation)) return
+                if (!shouldRefreshDialogsOnWake(chatPhotos.size)) return
+                when (val result = client.getChats()) {
+                    is Outcome.Ok -> rememberChatPhotos(result.value)
+                    is Outcome.Err -> Unit
                 }
             }
         }

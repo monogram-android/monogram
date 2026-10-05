@@ -1,5 +1,6 @@
 use tellers_mtproto::transport::{
-    MsgResendReqConstructor, MsgsAckConstructor, PingRequest, Vector, VectorConstructor,
+    GetFutureSaltsRequest, MsgResendReqConstructor, MsgsAckConstructor, PingRequest, Vector,
+    VectorConstructor,
 };
 use tellers_mtproto_crypto::fill_random;
 use tellers_mtproto_engine::{Engine, OutboundMessage};
@@ -309,6 +310,7 @@ pub(crate) fn send_ping<P: tellers_mtproto_engine::RetryPolicy>(
         .session
         .next_message_id(clock)
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    remember_plaintext(engine.session.session_id, message_id, false, body.clone());
     let sequence = engine
         .session
         .next_sequence(false)
@@ -326,12 +328,120 @@ pub(crate) fn send_ping<P: tellers_mtproto_engine::RetryPolicy>(
     Ok(ping_id)
 }
 
+struct StoredPlain {
+    content_related: bool,
+    body: Vec<u8>,
+}
+
+static PLAINTEXT_SENT: std::sync::LazyLock<
+    std::sync::Mutex<
+        std::collections::HashMap<i64, std::collections::VecDeque<(i64, StoredPlain)>>,
+    >,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+const PLAINTEXT_CAP: usize = 64;
+
+pub(crate) fn remember_plaintext(
+    session_id: i64,
+    message_id: i64,
+    content_related: bool,
+    body: Vec<u8>,
+) {
+    let mut sent = PLAINTEXT_SENT
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
+    let queue = sent.entry(session_id).or_default();
+    queue.push_back((
+        message_id,
+        StoredPlain {
+            content_related,
+            body,
+        },
+    ));
+    while queue.len() > PLAINTEXT_CAP {
+        queue.pop_front();
+    }
+}
+
+pub(crate) fn replay_plaintext(session_id: i64, message_id: i64) -> Option<(bool, Vec<u8>)> {
+    PLAINTEXT_SENT
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+        .get(&session_id)?
+        .iter()
+        .find(|(id, _)| *id == message_id)
+        .map(|(_, stored)| (stored.content_related, stored.body.clone()))
+}
+
+pub(crate) fn resend_plaintext<P: tellers_mtproto_engine::RetryPolicy>(
+    engine: &mut Engine<P>,
+    conn: &mut dyn Connection,
+    framing: &mut PaddedIntermediate,
+    clock: &SystemClock,
+    bad_msg_id: i64,
+) -> Result<bool, MtprotoError> {
+    let session_id = engine.session.session_id;
+    let Some((content_related, body)) = replay_plaintext(session_id, bad_msg_id) else {
+        return Ok(false);
+    };
+    let message_id = engine
+        .session
+        .next_message_id(clock)
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    let sequence = engine
+        .session
+        .next_sequence(content_related)
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    remember_plaintext(session_id, message_id, content_related, body.clone());
+    let outbound = OutboundMessage {
+        message_id,
+        sequence,
+        body,
+    };
+    let padding = make_padding(outbound.body.len())?;
+    let sealed = engine
+        .seal_outbound(&outbound, &padding)
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    send_framed(conn, framing, &sealed)?;
+    Ok(true)
+}
+
+pub(crate) fn send_future_salts<P: tellers_mtproto_engine::RetryPolicy>(
+    engine: &mut Engine<P>,
+    conn: &mut dyn Connection,
+    framing: &mut PaddedIntermediate,
+    clock: &SystemClock,
+) -> Result<i64, MtprotoError> {
+    let body = encode_boxed_bytes(&GetFutureSaltsRequest { num: 32 })?;
+    let message_id = engine
+        .session
+        .next_message_id(clock)
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    remember_plaintext(engine.session.session_id, message_id, true, body.clone());
+    let sequence = engine
+        .session
+        .next_sequence(true)
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    let outbound = OutboundMessage {
+        message_id,
+        sequence,
+        body,
+    };
+    let padding = make_padding(outbound.body.len())?;
+    let sealed = engine
+        .seal_outbound(&outbound, &padding)
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    send_framed(conn, framing, &sealed)?;
+    Ok(message_id)
+}
+
 pub(crate) fn flush_acks<P: tellers_mtproto_engine::RetryPolicy>(
     engine: &mut Engine<P>,
     conn: &mut dyn Connection,
     framing: &mut PaddedIntermediate,
     clock: &SystemClock,
 ) -> Result<(), MtprotoError> {
+    prefetch_future_salts(engine, conn, framing, clock)?;
     let ids = engine.session.take_acknowledgements(64);
     if ids.is_empty() {
         return Ok(());
@@ -348,6 +458,7 @@ pub(crate) fn flush_acks<P: tellers_mtproto_engine::RetryPolicy>(
         .session
         .next_message_id(clock)
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    remember_plaintext(engine.session.session_id, message_id, false, body.clone());
     let sequence = engine
         .session
         .next_sequence(false)
@@ -362,6 +473,22 @@ pub(crate) fn flush_acks<P: tellers_mtproto_engine::RetryPolicy>(
         .seal_outbound(&outbound, &padding)
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
     send_framed(conn, framing, &sealed)
+}
+
+fn prefetch_future_salts<P: tellers_mtproto_engine::RetryPolicy>(
+    engine: &mut Engine<P>,
+    conn: &mut dyn Connection,
+    framing: &mut PaddedIntermediate,
+    clock: &SystemClock,
+) -> Result<(), MtprotoError> {
+    let now = (clock.unix_micros() / 1_000_000) as i32;
+    super::salts::apply_preferred_salt(&mut engine.session, now);
+    if !super::salts::should_prefetch(engine.session.session_id, now) {
+        return Ok(());
+    }
+    send_future_salts(engine, conn, framing, clock)?;
+    super::salts::mark_requested(engine.session.session_id, now);
+    Ok(())
 }
 
 pub(crate) fn bad_msg_should_reconnect(error_code: i32) -> bool {
@@ -406,4 +533,69 @@ pub(crate) fn clock_delta_micros(
         .saturating_add(current_offset)
         .div_euclid(1_000_000);
     server_seconds.saturating_sub(local_seconds) * 1_000_000
+}
+
+#[cfg(test)]
+mod plaintext_tests {
+    use super::{replay_plaintext, resend_plaintext, send_future_salts, SystemClock};
+    use tellers_mtproto::transport::GetFutureSaltsRequest;
+    use tellers_mtproto_engine::{Engine, ExponentialBackoff};
+    use tellers_mtproto_session::{OsRandom, Snapshot};
+    use tellers_mtproto_transport::{Connection, Error as TransportError, PaddedIntermediate};
+
+    struct Mem {
+        writes: usize,
+    }
+
+    impl Connection for Mem {
+        fn send(&mut self, _packet: &[u8]) -> Result<(), TransportError> {
+            self.writes += 1;
+            Ok(())
+        }
+        fn receive(&mut self, _output: &mut [u8]) -> Result<usize, TransportError> {
+            Err(TransportError::Closed)
+        }
+        fn close(&mut self) -> Result<(), TransportError> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn future_salt_query_is_resent_after_bad_server_salt() {
+        let mut rng = OsRandom;
+        let mut snapshot = Snapshot::new(2, &mut rng).expect("snapshot");
+        snapshot.auth_key = Some(vec![7; 256]);
+        let mut engine = Engine::new(
+            snapshot,
+            ExponentialBackoff {
+                timeout_micros: 5_000_000,
+                initial_delay_micros: 0,
+                max_attempts: 1,
+            },
+        )
+        .expect("engine");
+        let mut conn = Mem { writes: 0 };
+        let mut framing = PaddedIntermediate::default();
+        let clock = SystemClock;
+        let message_id = send_future_salts(&mut engine, &mut conn, &mut framing, &clock).expect("send");
+        assert_eq!(conn.writes, 1);
+        let session = engine.session.session_id;
+        let (content_related, body) = replay_plaintext(session, message_id).expect("stored query");
+        assert!(content_related);
+        assert_eq!(
+            u32::from_le_bytes(body[0..4].try_into().unwrap()),
+            GetFutureSaltsRequest::ID
+        );
+        for id in 0..80 {
+            super::remember_plaintext(session.wrapping_add(1), id, false, vec![1]);
+        }
+        assert_eq!(engine.session.content_sequence, 1);
+        assert!(
+            resend_plaintext(&mut engine, &mut conn, &mut framing, &clock, message_id).expect("resend")
+        );
+        assert_eq!(conn.writes, 2);
+        assert_eq!(engine.session.content_sequence, 2);
+        assert!(!resend_plaintext(&mut engine, &mut conn, &mut framing, &clock, 1).expect("miss"));
+        assert_eq!(conn.writes, 2);
+    }
 }

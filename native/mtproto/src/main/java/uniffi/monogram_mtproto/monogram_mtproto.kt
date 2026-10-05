@@ -934,6 +934,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_file_part_kib(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_set_init_connection_info(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_proxy(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_transport_mode(
@@ -1194,7 +1196,7 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_send_saved_gif(`handle`: Long,`chatId`: Long,`documentId`: Long,`replyToMsgId`: Int,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_send_text_message(`handle`: Long,`chatId`: Long,`text`: RustBuffer.ByValue,`replyToMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,`topMsgId`: Int,`webpageUrl`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_send_text_message(`handle`: Long,`chatId`: Long,`text`: RustBuffer.ByValue,`replyToMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,`topMsgId`: Int,`webpageUrl`: RustBuffer.ByValue,`clientRandomId`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_uploaded_album(`handle`: Long,`chatId`: Long,`items`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1213,6 +1215,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_set_download_progress_listener(`listener`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_set_file_part_kib(`kib`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_set_init_connection_info(`info`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_set_proxy(`kind`: RustBuffer.ByValue,`host`: RustBuffer.ByValue,`port`: Short,`username`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`secret`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
@@ -1685,7 +1689,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_saved_gif() and 0xFFFF) != 47209) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_monogram_mtproto_checksum_func_send_text_message() and 0xFFFF) != 21603) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_text_message() and 0xFFFF) != 30448) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_album() and 0xFFFF) != 30233) {
@@ -1713,6 +1717,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_set_file_part_kib() and 0xFFFF) != 34374) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_set_init_connection_info() and 0xFFFF) != 33347) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_set_proxy() and 0xFFFF) != 39093) {
@@ -2886,6 +2893,68 @@ public object FfiConverterTypeGlobalMessageSearchDto: FfiConverterRustBuffer<Glo
             FfiConverterInt.write(value.`nextRate`, buf)
             FfiConverterLong.write(value.`nextPeerId`, buf)
             FfiConverterInt.write(value.`nextOffsetId`, buf)
+    }
+}
+
+
+
+/**
+ * Values sent in `initConnection` on a fresh transport.
+ * https://core.telegram.org/api/invoking
+ */
+data class InitConnectionInfo (
+    var `deviceModel`: kotlin.String
+    ,
+    var `systemVersion`: kotlin.String
+    ,
+    var `appVersion`: kotlin.String
+    ,
+    var `systemLangCode`: kotlin.String
+    ,
+    var `langPack`: kotlin.String
+    ,
+    var `langCode`: kotlin.String
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeInitConnectionInfo: FfiConverterRustBuffer<InitConnectionInfo> {
+    override fun read(buf: ByteBuffer): InitConnectionInfo {
+        return InitConnectionInfo(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: InitConnectionInfo) = (
+            FfiConverterString.allocationSize(value.`deviceModel`) +
+            FfiConverterString.allocationSize(value.`systemVersion`) +
+            FfiConverterString.allocationSize(value.`appVersion`) +
+            FfiConverterString.allocationSize(value.`systemLangCode`) +
+            FfiConverterString.allocationSize(value.`langPack`) +
+            FfiConverterString.allocationSize(value.`langCode`)
+    )
+
+    override fun write(value: InitConnectionInfo, buf: ByteBuffer) {
+            FfiConverterString.write(value.`deviceModel`, buf)
+            FfiConverterString.write(value.`systemVersion`, buf)
+            FfiConverterString.write(value.`appVersion`, buf)
+            FfiConverterString.write(value.`systemLangCode`, buf)
+            FfiConverterString.write(value.`langPack`, buf)
+            FfiConverterString.write(value.`langCode`, buf)
     }
 }
 
@@ -7454,7 +7523,7 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
-    @Throws(MtprotoException::class) fun `sendTextMessage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `text`: kotlin.String, `replyToMsgId`: kotlin.Int, `entitiesJson`: kotlin.String?, `topMsgId`: kotlin.Int, `webpageUrl`: kotlin.String?): MessageDto {
+    @Throws(MtprotoException::class) fun `sendTextMessage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `text`: kotlin.String, `replyToMsgId`: kotlin.Int, `entitiesJson`: kotlin.String?, `topMsgId`: kotlin.Int, `webpageUrl`: kotlin.String?, `clientRandomId`: kotlin.Long): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_text_message(
@@ -7466,7 +7535,8 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterInt.lower(`replyToMsgId`),
         FfiConverterOptionalString.lower(`entitiesJson`),
         FfiConverterInt.lower(`topMsgId`),
-        FfiConverterOptionalString.lower(`webpageUrl`),_status)
+        FfiConverterOptionalString.lower(`webpageUrl`),
+        FfiConverterLong.lower(`clientRandomId`),_status)
 }
     )
     }
@@ -7583,6 +7653,16 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 
 
         FfiConverterInt.lower(`kib`),_status)
+}
+
+
+ fun `setInitConnectionInfo`(`info`: InitConnectionInfo)
+        =
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_set_init_connection_info(
+
+
+        FfiConverterTypeInitConnectionInfo.lower(`info`),_status)
 }
 
 

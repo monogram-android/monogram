@@ -21,6 +21,8 @@ data class NotificationPolicyState(
     val inAppPreview: Boolean = true,
     val inChatSound: Boolean = true,
     val inAppPriority: Boolean = true,
+    val callsVibrate: String = "default",
+    val callsRingtone: String = "default",
     val popupUsers: Boolean = true,
     val popupChats: Boolean = true,
     val popupBroadcasts: Boolean = true,
@@ -63,6 +65,9 @@ fun decideNotification(
     if (payload.locKey == "CONTACT_JOINED" && !state.contactJoinedEnabled) {
         return hidden(payload.channelKind)
     }
+    if (payload.locKey.contains("GIFT") && !state.giftsEnabled) {
+        return hidden(payload.channelKind)
+    }
     val chatId = payload.chatId
     if (chatId != null && chatId == openChatId && appInForeground) {
         return NotificationDecision(
@@ -84,8 +89,11 @@ fun decideNotification(
         return hidden(payload.channelKind)
     }
     val preview = state.showPreview && settings.showPreviews && state.inAppPreview && (mode?.preview ?: true)
-    val sound = !payload.silent && !settings.silent && (mode?.sound ?: true) && (!appInForeground || state.inAppSound)
-    val vibrate = !payload.silent && (!appInForeground || state.inAppVibrate)
+    val calls = payload.channelKind == PushChannelKind.Calls
+    val sound = !payload.silent && !settings.silent && (mode?.sound ?: true) &&
+        (!appInForeground || state.inAppSound) && !(calls && state.callsRingtone == "none")
+    val vibrate = !payload.silent && (!appInForeground || state.inAppVibrate) &&
+        !(calls && state.callsVibrate == "off")
     // A chat mode overrides the category; silently posted messages and a foreground app without
     // in-app priority never pop up.
     val categoryPopup = when (payload.channelKind) {
@@ -94,6 +102,7 @@ fun decideNotification(
         PushChannelKind.Channel -> state.popupBroadcasts
         PushChannelKind.Stories -> state.popupStories
         PushChannelKind.Reactions -> state.popupReactions
+        PushChannelKind.Calls -> true
         PushChannelKind.Other -> state.popupUsers
     }
     val popup = !payload.silent && (mode?.popup ?: (categoryPopup && (!appInForeground || state.inAppPriority)))
@@ -118,6 +127,7 @@ fun settingsFor(
         PushChannelKind.Channel -> state.broadcasts
         PushChannelKind.Stories -> state.broadcasts
         PushChannelKind.Reactions -> state.broadcasts
+        PushChannelKind.Calls -> state.users
         PushChannelKind.Other -> state.users
     }
 }

@@ -20,6 +20,7 @@ object NotificationChannels {
     const val STORIES = "story_messages"
     const val REACTIONS = "reaction_messages"
     const val OTHER = "other_messages"
+    const val CALLS = "call_messages"
     const val GROUP_CHATS = "chats"
     const val GROUP_PRIVATE = "private"
     const val GROUP_GROUPS = "groups"
@@ -51,6 +52,7 @@ object NotificationChannels {
         ensureChannel(manager, context, STORIES, org.monogram.R.string.push_channel_stories, GROUP_STORIES)
         ensureChannel(manager, context, REACTIONS, org.monogram.R.string.push_channel_reactions, GROUP_REACTIONS)
         ensureChannel(manager, context, OTHER, org.monogram.R.string.push_channel_other, GROUP_OTHER)
+        ensureChannel(manager, context, CALLS, org.monogram.R.string.push_channel_calls, GROUP_OTHER)
         folders.forEach { folder ->
             ensureChannel(
                 manager,
@@ -93,6 +95,7 @@ object NotificationChannels {
             PushChannelKind.Channel -> CHANNELS
             PushChannelKind.Stories -> STORIES
             PushChannelKind.Reactions -> REACTIONS
+            PushChannelKind.Calls -> CALLS
             PushChannelKind.Other -> OTHER
         }
     }
@@ -194,6 +197,7 @@ object NotificationChannels {
         kind == PushChannelKind.Channel -> GROUP_CHANNELS
         kind == PushChannelKind.Stories -> GROUP_STORIES
         kind == PushChannelKind.Reactions -> GROUP_REACTIONS
+        kind == PushChannelKind.Calls -> GROUP_OTHER
         else -> GROUP_OTHER
     }
 
@@ -208,6 +212,7 @@ object NotificationChannels {
                     PushChannelKind.Channel -> org.monogram.R.string.push_channel_channels
                     PushChannelKind.Stories -> org.monogram.R.string.push_channel_stories
                     PushChannelKind.Reactions -> org.monogram.R.string.push_channel_reactions
+                    PushChannelKind.Calls -> org.monogram.R.string.push_channel_calls
                     PushChannelKind.Other -> org.monogram.R.string.push_channel_other
                 },
             )

@@ -22,6 +22,7 @@
     <string name="push_channel_groups">Skupiny</string>
     <string name="push_channel_channels">Kanály</string>
     <string name="push_channel_other">Iné</string>
+    <string name="push_channel_calls">Hovory</string>
     <string name="push_channel_stories">Príbehy</string>
     <string name="push_channel_reactions">Reakcie</string>
     <string name="push_folder">Priečinok %1$d</string>
@@ -31,6 +32,9 @@
     <string name="push_reply">Odpovedať</string>
     <string name="push_reply_hint">Správa</string>
     <string name="push_mark_read">Označiť ako prečítané</string>
+    <string name="push_not_sent">Neodoslané</string>
+    <string name="push_mute_hour">Stlmiť na hodinu</string>
+    <string name="push_notification_settings">Nastavenia upozornení</string>
     <string name="push_open_link">Otvoriť odkaz</string>
     <string name="push_more_chats">+ešte %1$d</string>
     <plurals name="push_new_messages">

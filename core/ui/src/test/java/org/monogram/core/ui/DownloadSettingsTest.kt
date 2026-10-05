@@ -13,6 +13,19 @@ class DownloadSettingsTest {
     }
 
     @Test
+    fun nonPremiumDownloadsStayUnderThePremiumFlood() {
+        val free = DownloadState(speedUpDownloads = true, premium = false)
+        val premium = DownloadState(speedUpDownloads = true, premium = true)
+        assertEquals(2, free.effectiveLanes)
+        assertEquals(2, free.parts)
+        assertEquals(128, free.downloadChunkKib)
+        assertEquals(DownloadConcurrency(2, 2), free.concurrency)
+        assertTrue(premium.effectiveLanes > free.effectiveLanes)
+        assertTrue(premium.parts > free.parts)
+        assertEquals(256, premium.downloadChunkKib)
+    }
+
+    @Test
     fun telegramDefaultsMatchWifiMobileRoaming() {
         assertTrue(AutoDownloadPreset.WIFI.photos)
         assertTrue(AutoDownloadPreset.WIFI.videos)

@@ -1,7 +1,9 @@
 //! Shared InvokeWithLayer(InitConnection(...)) helpers for API RPCs.
 
 use std::cell::Cell;
+use std::sync::LazyLock;
 
+use parking_lot::Mutex;
 use tellers_mtproto::LATEST_API_LAYER;
 use tellers_mtproto::codec::{Boxed, BoxedDecode, TlEncode};
 use tellers_mtproto::latest::api::{
@@ -9,11 +11,23 @@ use tellers_mtproto::latest::api::{
 };
 use tellers_mtproto_session::Snapshot;
 
+use crate::InitConnectionInfo;
 use crate::MtprotoError;
 use crate::rpc::{self, BoxedQuery};
 
 thread_local! {
     static WITHOUT_UPDATES: Cell<bool> = const { Cell::new(false) };
+}
+
+static INIT_CONNECTION: LazyLock<Mutex<InitConnectionInfo>> =
+    LazyLock::new(|| Mutex::new(InitConnectionInfo::default()));
+
+pub fn set_init_connection_info(info: InitConnectionInfo) {
+    *INIT_CONNECTION.lock() = info.sanitized();
+}
+
+fn current_init_connection() -> InitConnectionInfo {
+    INIT_CONNECTION.lock().clone()
 }
 
 /// Extra home-DC RPC sessions must not subscribe for updates.
@@ -48,17 +62,18 @@ pub fn wrap_init_connection_at_layer<X: TlEncode>(
     layer: i32,
     query: X,
 ) -> InvokeWithLayerRequest<BoxedQuery<InitConnectionRequest<BoxedQuery<X>>>> {
+    let info = current_init_connection();
     InvokeWithLayerRequest {
         layer,
         query: BoxedQuery(InitConnectionRequest {
             flags: 0,
             api_id,
-            device_model: "Android".into(),
-            system_version: "14".into(),
-            app_version: env!("CARGO_PKG_VERSION").into(),
-            system_lang_code: "en".into(),
-            lang_pack: "android".into(),
-            lang_code: "en".into(),
+            device_model: info.device_model,
+            system_version: info.system_version,
+            app_version: info.app_version,
+            system_lang_code: info.system_lang_code,
+            lang_pack: info.lang_pack,
+            lang_code: info.lang_code,
             proxy: None,
             params: None,
             query: BoxedQuery(query),
@@ -125,6 +140,11 @@ where
 /// `updates.getDifference` / `updates.getState` / channel difference: this
 /// lane is the updates subscriber. Do not wrap `invokeWithoutUpdates`.
 /// https://core.telegram.org/api/invoking#disabling-updates
+/// Body actually written on the updates lane, including gzip when it shrinks the query.
+pub(crate) fn encode_updates_lane_body(body: &[u8]) -> Vec<u8> {
+    rpc::gzip_if_smaller(body)
+}
+
 pub fn invoke_api_allow_updates<Req, Res>(
     snapshot: &mut Snapshot,
     api_id: i32,
@@ -142,8 +162,9 @@ where
             |new_connection| {
                 if new_connection {
                     rpc::encode_boxed_bytes(&wrap_init_connection(api_id, request.clone()))
+                        .map(|body| encode_updates_lane_body(&body))
                 } else {
-                    rpc::encode_boxed_bytes(&request)
+                    rpc::encode_boxed_bytes(&request).map(|body| encode_updates_lane_body(&body))
                 }
             },
         )
@@ -376,6 +397,15 @@ mod tests {
     fn contains_ctor(bytes: &[u8], ctor: u32) -> bool {
         let marker = ctor.to_le_bytes();
         bytes.windows(4).any(|w| w == marker)
+    }
+
+    #[test]
+    fn updates_lane_gzip_packs_a_large_query() {
+        let plain = vec![b'q'; 20_000];
+        let encoded = super::encode_updates_lane_body(&plain);
+        assert_eq!(u32::from_le_bytes(encoded[0..4].try_into().unwrap()), 0x3072_cfa1);
+        assert!(encoded.len() < plain.len());
+        assert_eq!(rpc::ungzip_if_needed(&encoded).expect("ungzip"), plain);
     }
 
     #[test]

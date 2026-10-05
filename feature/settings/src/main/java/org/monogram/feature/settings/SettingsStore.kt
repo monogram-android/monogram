@@ -176,14 +176,17 @@ internal class SettingsStoreFactory(
             dispatch(Msg.Loading(true))
             scope.launch {
                 try {
+                    pushRegistration?.unregisterPush()
                     when (val result = client.logout()) {
                         is Outcome.Err -> dispatch(Msg.Error(result.telegramError))
-                        is Outcome.Ok -> pushRegistration?.onLogout()
+                        is Outcome.Ok -> Unit
                     }
+                    pushRegistration?.onLogout()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     dispatch(Msg.Error(TelegramError.parse(e.message ?: "logout failed")))
+                    pushRegistration?.onLogout()
                 }
                 warmup?.clearAccountCache()
                 sessionStore?.clearSession()

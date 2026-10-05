@@ -41,7 +41,7 @@
         <item quantity="other">%1$d 条新消息</item>
     </plurals>
     <string name="crash_title">出了点问题</string>
-    <string name="crash_subtitle">Monogram 遇到了意外错误。下方报告有助于修复。</string>
+    <string name="crash_subtitle">Monogram 遇到了意外错误。下方报告有助于修复</string>
     <string name="crash_log_label">崩溃日志</string>
     <string name="crash_copy">复制详情</string>
     <string name="crash_copied">已复制崩溃详情</string>
@@ -52,7 +52,7 @@
     <string name="update_prompt_skip">跳过</string>
     <string name="update_prompt_update">更新</string>
     <string name="update_prompt_install">安装</string>
-    <string name="update_prompt_body">有新的构建可用。下载大小 %1$s。</string>
+    <string name="update_prompt_body">有新的构建可用。下载大小 %1$s</string>
     <string name="update_prompt_hide">隐藏</string>
     <string name="update_prompt_progress">正在下载 %1$s / %2$s</string>
     <string name="update_prompt_error">无法下载更新</string>

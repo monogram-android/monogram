@@ -280,8 +280,8 @@
     <string name="dialog_instant_view_media_open">ファイルを開く</string>
     <string name="dialog_instant_view_media_cancel">ダウンロードをキャンセル</string>
     <string name="media_delete_title">メディアを削除</string>
-    <string name="media_delete_body_single">この項目を削除しますか？あなたとこのチャットから削除されます。</string>
-    <string name="media_delete_body_album">%1$d件すべてを削除しますか？あなたとこのチャットから削除されます。</string>
+    <string name="media_delete_body_single">この項目を削除しますか？あなたとこのチャットから削除されます</string>
+    <string name="media_delete_body_album">%1$d件すべてを削除しますか？あなたとこのチャットから削除されます</string>
     <string name="media_delete_confirm">削除</string>
     <string name="media_delete_cancel">キャンセル</string>
     <string name="media_action_copied_image">画像をコピーしました</string>

@@ -292,8 +292,8 @@
     <string name="dialog_instant_view_media_open">Otvoriť súbor</string>
     <string name="dialog_instant_view_media_cancel">Zrušiť sťahovanie</string>
     <string name="media_delete_title">Odstrániť médiá</string>
-    <string name="media_delete_body_single">Odstrániť túto položku? Odstráni sa u vás aj v tomto chate.</string>
-    <string name="media_delete_body_album">Odstrániť všetkých %1$d položiek? Odstránia sa u vás aj v tomto chate.</string>
+    <string name="media_delete_body_single">Odstrániť túto položku? Odstráni sa u vás aj v tomto chate</string>
+    <string name="media_delete_body_album">Odstrániť všetkých %1$d položiek? Odstránia sa u vás aj v tomto chate</string>
     <string name="media_delete_confirm">Odstrániť</string>
     <string name="media_delete_cancel">Zrušiť</string>
     <string name="media_action_copied_image">Obrázok skopírovaný</string>

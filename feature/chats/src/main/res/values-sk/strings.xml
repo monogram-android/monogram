@@ -23,13 +23,13 @@
     <string name="chats_marked_unread">Označené ako neprečítané</string>
     <string name="chats_back">Späť</string>
     <string name="chats_archive_empty">Žiadne archivované chaty</string>
-    <string name="chats_empty_body">Chaty, ktoré začnete alebo do ktorých vstúpite, sa zobrazia tu.</string>
+    <string name="chats_empty_body">Chaty, ktoré začnete alebo do ktorých vstúpite, sa zobrazia tu</string>
     <string name="chats_empty_show_all">Zobraziť všetky chaty</string>
     <string name="chats_folder_empty">Tento priečinok je prázdny</string>
-    <string name="chats_folder_empty_body">Žiadne chaty teraz nezodpovedajú tomuto filtru. Chaty môžete pridať v nastaveniach priečinka.</string>
-    <string name="chats_archive_empty_body">Archivované chaty zmiznú z hlavného zoznamu a sú tu.</string>
+    <string name="chats_folder_empty_body">Žiadne chaty teraz nezodpovedajú tomuto filtru. Chaty môžete pridať v nastaveniach priečinka</string>
+    <string name="chats_archive_empty_body">Archivované chaty zmiznú z hlavného zoznamu a sú tu</string>
     <string name="chats_search_empty">Nič sa nenašlo</string>
-    <string name="chats_search_empty_body">Žiadne chaty pre „%1$s“.</string>
+    <string name="chats_search_empty_body">Žiadne chaty pre „%1$s“</string>
     <string name="chats_search_clear">Vymazať hľadanie</string>
     <string name="chats_search_people">Ľudia</string>
     <string name="chats_search_global_chats">Chaty</string>

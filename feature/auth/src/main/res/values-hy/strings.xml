@@ -19,7 +19,7 @@
     <string name="auth_sign_in">Հաջորդը</string>
     <string name="auth_code_sent_to">Կոդն ուղարկվել է %1$s համարին</string>
     <string name="auth_code_sent_telegram">Ուղարկված է ձեր մյուս Telegram հավելվածներին</string>
-    <string name="auth_error_code_unavailable">Կոդ չի ուղարկվել։ Սպասեք և կրկին սեղմեք «Հաջորդը»։ Եթե պաշտոնական Telegram-ը բաց է, կոդը կգա այնտեղ։</string>
+    <string name="auth_error_code_unavailable">Կոդ չի ուղարկվել։ Սպասեք և կրկին սեղմեք «Հաջորդը»։ Եթե պաշտոնական Telegram-ը բաց է, կոդը կգա այնտեղ</string>
     <string name="auth_code_sent_sms">Telegram-ը SMS է ուղարկել %1$s համարին</string>
     <string name="auth_code_sent_call">Telegram-ը կզանգի %1$s համարին կոդով</string>
     <string name="auth_password_title">Երկու քայլով հաստատում</string>
@@ -37,7 +37,7 @@
     <string name="auth_error_restart">Մուտքն ավարտվել է — սեղմեք «Հաջորդը»՝ նոր կոդ ստանալու համար</string>
     <string name="auth_working">Մուտք է կատարվում</string>
     <string name="auth_step_indicator">Քայլ %1$d / %2$d</string>
-    <string name="auth_code_help">Կոդը չե՞ք ստացել։</string>
+    <string name="auth_code_help">Կոդը չե՞ք ստացել</string>
     <string name="auth_code_help_message">Եթե կոդը չի գալիս, փոխեք պրոքսին, VPN-ը կամ IP-ն, կամ փորձեք ավելի ուշ</string>
     <string name="auth_code_help_ok">Լավ</string>
     <string name="auth_paste_password">Տեղադրել գաղտնաբառը</string>

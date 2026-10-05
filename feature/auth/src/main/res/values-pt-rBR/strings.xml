@@ -19,7 +19,7 @@
     <string name="auth_sign_in">Avançar</string>
     <string name="auth_code_sent_to">Enviamos o código para %1$s</string>
     <string name="auth_code_sent_telegram">Enviado para seus outros apps do Telegram</string>
-    <string name="auth_error_code_unavailable">Nenhum código enviado. Espere e toque em Avançar de novo. Se o Telegram oficial estiver aberto, o código chega lá.</string>
+    <string name="auth_error_code_unavailable">Nenhum código enviado. Espere e toque em Avançar de novo. Se o Telegram oficial estiver aberto, o código chega lá</string>
     <string name="auth_code_sent_sms">O Telegram enviou um SMS para %1$s</string>
     <string name="auth_code_sent_call">O Telegram ligará para %1$s com o código</string>
     <string name="auth_password_title">Verificação em duas etapas</string>

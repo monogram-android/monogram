@@ -42,7 +42,7 @@
         <item quantity="other">%1$d նոր հաղորդագրություն</item>
     </plurals>
     <string name="crash_title">Ինչ-որ բան սխալ գնաց</string>
-    <string name="crash_subtitle">Monogram-ում տեղի ունեցավ անսպասելի սխալ։ Ստորև զեկույցը կօգնի այն շտկել։</string>
+    <string name="crash_subtitle">Monogram-ում տեղի ունեցավ անսպասելի սխալ։ Ստորև զեկույցը կօգնի այն շտկել</string>
     <string name="crash_log_label">Սխալի մատյան</string>
     <string name="crash_copy">Պատճենել մանրամասները</string>
     <string name="crash_copied">Սխալի մանրամասները պատճենվեցին</string>
@@ -53,7 +53,7 @@
     <string name="update_prompt_skip">Բաց թողնել</string>
     <string name="update_prompt_update">Թարմացնել</string>
     <string name="update_prompt_install">Տեղադրել</string>
-    <string name="update_prompt_body">Հասանելի է նոր կառուցում։ Ներբեռնման չափը՝ %1$s։</string>
+    <string name="update_prompt_body">Հասանելի է նոր կառուցում։ Ներբեռնման չափը՝ %1$s</string>
     <string name="update_prompt_hide">Թաքցնել</string>
     <string name="update_prompt_progress">Ներբեռնում %1$s / %2$s</string>
     <string name="update_prompt_error">Չհաջողվեց ներբեռնել թարմացումը</string>

@@ -23,13 +23,13 @@
     <string name="chats_marked_unread">Отмечено непрочитанным</string>
     <string name="chats_back">Назад</string>
     <string name="chats_archive_empty">Архив пуст</string>
-    <string name="chats_empty_body">Чаты, которые вы начнёте или в которые вас добавят, появятся здесь.</string>
+    <string name="chats_empty_body">Чаты, которые вы начнёте или в которые вас добавят, появятся здесь</string>
     <string name="chats_empty_show_all">Показать все чаты</string>
     <string name="chats_folder_empty">В этой папке пусто</string>
-    <string name="chats_folder_empty_body">Ни один чат не подходит под этот фильтр. Чаты можно добавить в папку в её настройках.</string>
-    <string name="chats_archive_empty_body">Архивированные чаты исчезают из общего списка и живут здесь.</string>
+    <string name="chats_folder_empty_body">Ни один чат не подходит под этот фильтр. Чаты можно добавить в папку в её настройках</string>
+    <string name="chats_archive_empty_body">Архивированные чаты исчезают из общего списка и живут здесь</string>
     <string name="chats_search_empty">Ничего не найдено</string>
-    <string name="chats_search_empty_body">Нет чатов по запросу «%1$s».</string>
+    <string name="chats_search_empty_body">Нет чатов по запросу «%1$s»</string>
     <string name="chats_search_clear">Очистить поиск</string>
     <string name="chats_search_people">Люди</string>
     <string name="chats_search_global_chats">Чаты</string>

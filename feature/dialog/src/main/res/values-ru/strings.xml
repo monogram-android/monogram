@@ -334,8 +334,8 @@
     <string name="dialog_instant_view_media_open">Открыть файл</string>
     <string name="dialog_instant_view_media_cancel">Отменить скачивание</string>
     <string name="media_delete_title">Удалить медиа</string>
-    <string name="media_delete_body_single">Удалить этот элемент? Он будет удалён у вас и в этом чате.</string>
-    <string name="media_delete_body_album">Удалить все элементы (%1$d)? Они будут удалены у вас и в этом чате.</string>
+    <string name="media_delete_body_single">Удалить этот элемент? Он будет удалён у вас и в этом чате</string>
+    <string name="media_delete_body_album">Удалить все элементы (%1$d)? Они будут удалены у вас и в этом чате</string>
     <string name="media_delete_confirm">Удалить</string>
     <string name="media_delete_cancel">Отмена</string>
     <string name="media_action_copied_image">Изображение скопировано</string>

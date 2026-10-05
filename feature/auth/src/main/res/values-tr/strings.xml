@@ -19,7 +19,7 @@
     <string name="auth_sign_in">İleri</string>
     <string name="auth_code_sent_to">Kod %1$s numarasına gönderildi</string>
     <string name="auth_code_sent_telegram">Diğer Telegram uygulamalarınıza gönderildi</string>
-    <string name="auth_error_code_unavailable">Kod gönderilmedi. Bekleyin ve İleri\'ye tekrar dokunun. Resmi Telegram açıksa kod oraya gelir.</string>
+    <string name="auth_error_code_unavailable">Kod gönderilmedi. Bekleyin ve İleri\'ye tekrar dokunun. Resmi Telegram açıksa kod oraya gelir</string>
     <string name="auth_code_sent_sms">Telegram %1$s numarasına SMS gönderdi</string>
     <string name="auth_code_sent_call">Telegram kod için %1$s numarasını arayacak</string>
     <string name="auth_password_title">İki Adımlı Doğrulama</string>

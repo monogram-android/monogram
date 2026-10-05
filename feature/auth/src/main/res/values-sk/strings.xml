@@ -19,7 +19,7 @@
     <string name="auth_sign_in">Ďalej</string>
     <string name="auth_code_sent_to">Kód sme odoslali na číslo %1$s</string>
     <string name="auth_code_sent_telegram">Odoslané do vašich ďalších aplikácií Telegram</string>
-    <string name="auth_error_code_unavailable">Kód nebol odoslaný. Počkajte a znova klepnite na Ďalej. Ak je prihlásený oficiálny Telegram, kód príde tam.</string>
+    <string name="auth_error_code_unavailable">Kód nebol odoslaný. Počkajte a znova klepnite na Ďalej. Ak je prihlásený oficiálny Telegram, kód príde tam</string>
     <string name="auth_code_sent_sms">Telegram poslal SMS na číslo %1$s</string>
     <string name="auth_code_sent_call">Telegram zavolá na číslo %1$s s kódom</string>
     <string name="auth_password_title">Overenie v dvoch krokoch</string>

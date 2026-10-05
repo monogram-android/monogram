@@ -23,13 +23,13 @@
     <string name="chats_marked_unread">Marcada como não lida</string>
     <string name="chats_back">Voltar</string>
     <string name="chats_archive_empty">Nenhuma conversa arquivada</string>
-    <string name="chats_empty_body">As conversas que você iniciar ou entrar aparecerão aqui.</string>
+    <string name="chats_empty_body">As conversas que você iniciar ou entrar aparecerão aqui</string>
     <string name="chats_empty_show_all">Mostrar todas as conversas</string>
     <string name="chats_folder_empty">Esta pasta está vazia</string>
-    <string name="chats_folder_empty_body">Nenhuma conversa corresponde a este filtro. Você pode adicionar conversas nas configurações da pasta.</string>
-    <string name="chats_archive_empty_body">Conversas arquivadas saem da lista principal e ficam aqui.</string>
+    <string name="chats_folder_empty_body">Nenhuma conversa corresponde a este filtro. Você pode adicionar conversas nas configurações da pasta</string>
+    <string name="chats_archive_empty_body">Conversas arquivadas saem da lista principal e ficam aqui</string>
     <string name="chats_search_empty">Nada encontrado</string>
-    <string name="chats_search_empty_body">Nenhuma conversa corresponde a “%1$s”.</string>
+    <string name="chats_search_empty_body">Nenhuma conversa corresponde a “%1$s”</string>
     <string name="chats_search_clear">Limpar busca</string>
     <string name="chats_search_people">Pessoas</string>
     <string name="chats_search_global_chats">Conversas</string>

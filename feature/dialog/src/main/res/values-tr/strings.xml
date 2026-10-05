@@ -284,8 +284,8 @@
     <string name="dialog_instant_view_media_open">Dosyayı aç</string>
     <string name="dialog_instant_view_media_cancel">İndirmeyi iptal et</string>
     <string name="media_delete_title">Medyayı sil</string>
-    <string name="media_delete_body_single">Bu öğe silinsin mi? Sizden ve bu sohbetten kaldırılır.</string>
-    <string name="media_delete_body_album">Tüm %1$d öğe silinsin mi? Sizden ve bu sohbetten kaldırılır.</string>
+    <string name="media_delete_body_single">Bu öğe silinsin mi? Sizden ve bu sohbetten kaldırılır</string>
+    <string name="media_delete_body_album">Tüm %1$d öğe silinsin mi? Sizden ve bu sohbetten kaldırılır</string>
     <string name="media_delete_confirm">Sil</string>
     <string name="media_delete_cancel">İptal</string>
     <string name="media_action_copied_image">Görüntü kopyalandı</string>

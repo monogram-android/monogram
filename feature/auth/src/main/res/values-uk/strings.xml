@@ -19,7 +19,7 @@
     <string name="auth_sign_in">Далі</string>
     <string name="auth_code_sent_to">Код надіслано на номер %1$s</string>
     <string name="auth_code_sent_telegram">Надіслано в інші сесії Telegram</string>
-    <string name="auth_error_code_unavailable">Код не надіслано. Зачекайте й натисніть «Далі» ще раз. Якщо офіційний Telegram уже відкритий, код прийде туди.</string>
+    <string name="auth_error_code_unavailable">Код не надіслано. Зачекайте й натисніть «Далі» ще раз. Якщо офіційний Telegram уже відкритий, код прийде туди</string>
     <string name="auth_code_sent_sms">Telegram надіслав SMS на номер %1$s</string>
     <string name="auth_code_sent_call">Telegram зателефонує на номер %1$s з кодом</string>
     <string name="auth_password_title">Двоетапна перевірка</string>

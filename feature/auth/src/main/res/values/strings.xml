@@ -19,7 +19,7 @@
     <string name="auth_sign_in">Next</string>
     <string name="auth_code_sent_to">We sent the code to %1$s</string>
     <string name="auth_code_sent_telegram">Sent to your other Telegram apps</string>
-    <string name="auth_error_code_unavailable">No code sent. Wait, then try Next again. If official Telegram is logged in, the code arrives there.</string>
+    <string name="auth_error_code_unavailable">No code sent. Wait, then try Next again. If official Telegram is logged in, the code arrives there</string>
     <string name="auth_code_sent_sms">Telegram sent an SMS to %1$s</string>
     <string name="auth_code_sent_call">Telegram will call %1$s with the code</string>
     <string name="auth_password_title">Two-Step Verification</string>

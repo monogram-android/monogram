@@ -23,13 +23,13 @@
     <string name="chats_marked_unread">Նշված է որպես չկարդացված</string>
     <string name="chats_back">Հետ</string>
     <string name="chats_archive_empty">Արխիվում զրույցներ չկան</string>
-    <string name="chats_empty_body">Սկսած կամ միացած զրույցները կհայտնվեն այստեղ։</string>
+    <string name="chats_empty_body">Սկսած կամ միացած զրույցները կհայտնվեն այստեղ</string>
     <string name="chats_empty_show_all">Ցույց տալ բոլոր զրույցները</string>
     <string name="chats_folder_empty">Այս թղթապանակը դատարկ է</string>
-    <string name="chats_folder_empty_body">Այս զտիչին համապատասխան զրույցներ չկան։ Զրույցները կարող եք ավելացնել թղթապանակի կարգավորումներից։</string>
-    <string name="chats_archive_empty_body">Արխիվացված զրույցները անհետանում են հիմնական ցանկից և այստեղ են։</string>
+    <string name="chats_folder_empty_body">Այս զտիչին համապատասխան զրույցներ չկան։ Զրույցները կարող եք ավելացնել թղթապանակի կարգավորումներից</string>
+    <string name="chats_archive_empty_body">Արխիվացված զրույցները անհետանում են հիմնական ցանկից և այստեղ են</string>
     <string name="chats_search_empty">Ոչինչ չգտնվեց</string>
-    <string name="chats_search_empty_body">«%1$s» հարցմանը համապատասխան զրույցներ չկան։</string>
+    <string name="chats_search_empty_body">«%1$s» հարցմանը համապատասխան զրույցներ չկան</string>
     <string name="chats_search_clear">Մաքրել որոնումը</string>
     <string name="chats_search_people">Մարդիկ</string>
     <string name="chats_search_global_chats">Զրույցներ</string>

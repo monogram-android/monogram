@@ -182,12 +182,12 @@
     <string name="dialog_forward_search">Որոնել զրույցներ</string>
     <string name="dialog_forward_empty">Ուղարկելու զրույցներ չկան</string>
     <string name="dialog_forwarded">Վերահասցեավորվեց %1$s</string>
-    <string name="dialog_delete_confirm">Ջնջե՞լ այս հաղորդագրությունը։</string>
+    <string name="dialog_delete_confirm">Ջնջե՞լ այս հաղորդագրությունը</string>
     <string name="dialog_delete_for_everyone">Ջնջել բոլորի համար</string>
     <string name="dialog_delete_for_me">Ջնջել ինձ համար</string>
     <plurals name="dialog_delete_confirm_count">
-        <item quantity="one">Ջնջե՞լ %1$d հաղորդագրություն։</item>
-        <item quantity="other">Ջնջե՞լ %1$d հաղորդագրություն։</item>
+        <item quantity="one">Ջնջե՞լ %1$d հաղորդագրություն</item>
+        <item quantity="other">Ջնջե՞լ %1$d հաղորդագրություն</item>
     </plurals>
     <string name="dialog_cancel">Չեղարկել</string>
     <string name="dialog_markdown_editor">Markdown</string>
@@ -284,8 +284,8 @@
     <string name="dialog_instant_view_media_open">Բացել ֆայլը</string>
     <string name="dialog_instant_view_media_cancel">Չեղարկել ներբեռնումը</string>
     <string name="media_delete_title">Ջնջել մեդիան</string>
-    <string name="media_delete_body_single">Ջնջե՞լ այս տարրը։ Այն կհեռացվի ձեզնից և այս զրույցից։</string>
-    <string name="media_delete_body_album">Ջնջե՞լ բոլոր %1$d տարրը։ Դրանք կհեռացվեն ձեզնից և այս զրույցից։</string>
+    <string name="media_delete_body_single">Ջնջե՞լ այս տարրը։ Այն կհեռացվի ձեզնից և այս զրույցից</string>
+    <string name="media_delete_body_album">Ջնջե՞լ բոլոր %1$d տարրը։ Դրանք կհեռացվեն ձեզնից և այս զրույցից</string>
     <string name="media_delete_confirm">Ջնջել</string>
     <string name="media_delete_cancel">Չեղարկել</string>
     <string name="media_action_copied_image">Պատկերը պատճենվեց</string>

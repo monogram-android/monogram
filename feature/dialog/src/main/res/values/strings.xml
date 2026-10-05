@@ -313,8 +313,8 @@
     <string name="dialog_instant_view_media_open">Open file</string>
     <string name="dialog_instant_view_media_cancel">Cancel download</string>
     <string name="media_delete_title">Delete media</string>
-    <string name="media_delete_body_single">Delete this item? It is removed for you and from this chat.</string>
-    <string name="media_delete_body_album">Delete all %1$d items? They are removed for you and from this chat.</string>
+    <string name="media_delete_body_single">Delete this item? It is removed for you and from this chat</string>
+    <string name="media_delete_body_album">Delete all %1$d items? They are removed for you and from this chat</string>
     <string name="media_delete_confirm">Delete</string>
     <string name="media_delete_cancel">Cancel</string>
     <string name="media_action_copied_image">Image copied</string>

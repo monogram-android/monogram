@@ -23,13 +23,13 @@
     <string name="chats_marked_unread">Okunmadı olarak işaretlendi</string>
     <string name="chats_back">Geri</string>
     <string name="chats_archive_empty">Arşivlenmiş sohbet yok</string>
-    <string name="chats_empty_body">Başlattığınız veya katıldığınız sohbetler burada görünür.</string>
+    <string name="chats_empty_body">Başlattığınız veya katıldığınız sohbetler burada görünür</string>
     <string name="chats_empty_show_all">Tüm sohbetleri göster</string>
     <string name="chats_folder_empty">Bu klasör boş</string>
-    <string name="chats_folder_empty_body">Bu süzgece uyan sohbet yok. Klasör ayarlarından sohbet ekleyebilirsiniz.</string>
-    <string name="chats_archive_empty_body">Arşivlediğiniz sohbetler ana listeden kaybolur ve burada durur.</string>
+    <string name="chats_folder_empty_body">Bu süzgece uyan sohbet yok. Klasör ayarlarından sohbet ekleyebilirsiniz</string>
+    <string name="chats_archive_empty_body">Arşivlediğiniz sohbetler ana listeden kaybolur ve burada durur</string>
     <string name="chats_search_empty">Sonuç bulunamadı</string>
-    <string name="chats_search_empty_body">“%1$s” ile eşleşen sohbet yok.</string>
+    <string name="chats_search_empty_body">“%1$s” ile eşleşen sohbet yok</string>
     <string name="chats_search_clear">Aramayı temizle</string>
     <string name="chats_search_people">Kişiler</string>
     <string name="chats_search_global_chats">Sohbetler</string>

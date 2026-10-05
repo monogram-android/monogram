@@ -42,7 +42,7 @@
         <item quantity="other">%1$d mensajes nuevos</item>
     </plurals>
     <string name="crash_title">Algo salió mal</string>
-    <string name="crash_subtitle">Monogram encontró un error inesperado. El informe de abajo ayuda a corregirlo.</string>
+    <string name="crash_subtitle">Monogram encontró un error inesperado. El informe de abajo ayuda a corregirlo</string>
     <string name="crash_log_label">Registro del fallo</string>
     <string name="crash_copy">Copiar detalles</string>
     <string name="crash_copied">Detalles del fallo copiados</string>
@@ -53,7 +53,7 @@
     <string name="update_prompt_skip">Omitir</string>
     <string name="update_prompt_update">Actualizar</string>
     <string name="update_prompt_install">Instalar</string>
-    <string name="update_prompt_body">Hay una versión nueva. Tamaño de descarga: %1$s.</string>
+    <string name="update_prompt_body">Hay una versión nueva. Tamaño de descarga: %1$s</string>
     <string name="update_prompt_hide">Ocultar</string>
     <string name="update_prompt_progress">Descargando %1$s / %2$s</string>
     <string name="update_prompt_error">No se pudo descargar la actualización</string>

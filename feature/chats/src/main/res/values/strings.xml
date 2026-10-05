@@ -23,13 +23,13 @@
     <string name="chats_marked_unread">Marked as unread</string>
     <string name="chats_back">Back</string>
     <string name="chats_archive_empty">No archived chats</string>
-    <string name="chats_empty_body">Chats you start or join will show up here.</string>
+    <string name="chats_empty_body">Chats you start or join will show up here</string>
     <string name="chats_empty_show_all">Show all chats</string>
     <string name="chats_folder_empty">This folder is empty</string>
-    <string name="chats_folder_empty_body">No chats match this filter right now. You can move chats into it from the folder settings.</string>
-    <string name="chats_archive_empty_body">Chats you archive disappear from the main list and live here.</string>
+    <string name="chats_folder_empty_body">No chats match this filter right now. You can move chats into it from the folder settings</string>
+    <string name="chats_archive_empty_body">Chats you archive disappear from the main list and live here</string>
     <string name="chats_search_empty">Nothing found</string>
-    <string name="chats_search_empty_body">No chats match “%1$s”.</string>
+    <string name="chats_search_empty_body">No chats match “%1$s”</string>
     <string name="chats_search_clear">Clear search</string>
     <string name="chats_search_people">People</string>
     <string name="chats_search_global_chats">Chats</string>

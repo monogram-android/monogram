@@ -284,8 +284,8 @@
     <string name="dialog_instant_view_media_open">Abrir arquivo</string>
     <string name="dialog_instant_view_media_cancel">Cancelar download</string>
     <string name="media_delete_title">Excluir mídia</string>
-    <string name="media_delete_body_single">Excluir este item? Ele é removido para você e desta conversa.</string>
-    <string name="media_delete_body_album">Excluir todos os %1$d itens? Eles são removidos para você e desta conversa.</string>
+    <string name="media_delete_body_single">Excluir este item? Ele é removido para você e desta conversa</string>
+    <string name="media_delete_body_album">Excluir todos os %1$d itens? Eles são removidos para você e desta conversa</string>
     <string name="media_delete_confirm">Excluir</string>
     <string name="media_delete_cancel">Cancelar</string>
     <string name="media_action_copied_image">Imagem copiada</string>

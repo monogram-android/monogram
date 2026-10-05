@@ -23,13 +23,13 @@
     <string name="chats_marked_unread">未読にしました</string>
     <string name="chats_back">戻る</string>
     <string name="chats_archive_empty">アーカイブされたチャットはありません</string>
-    <string name="chats_empty_body">開始または参加したチャットがここに表示されます。</string>
+    <string name="chats_empty_body">開始または参加したチャットがここに表示されます</string>
     <string name="chats_empty_show_all">すべてのチャットを表示</string>
     <string name="chats_folder_empty">このフォルダは空です</string>
-    <string name="chats_folder_empty_body">この条件に合うチャットはありません。フォルダ設定からチャットを追加できます。</string>
-    <string name="chats_archive_empty_body">アーカイブしたチャットはメインリストから消え、ここに保存されます。</string>
+    <string name="chats_folder_empty_body">この条件に合うチャットはありません。フォルダ設定からチャットを追加できます</string>
+    <string name="chats_archive_empty_body">アーカイブしたチャットはメインリストから消え、ここに保存されます</string>
     <string name="chats_search_empty">見つかりませんでした</string>
-    <string name="chats_search_empty_body">「%1$s」に一致するチャットはありません。</string>
+    <string name="chats_search_empty_body">「%1$s」に一致するチャットはありません</string>
     <string name="chats_search_clear">検索をクリア</string>
     <string name="chats_search_people">ユーザー</string>
     <string name="chats_search_global_chats">チャット</string>

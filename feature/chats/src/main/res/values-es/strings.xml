@@ -23,13 +23,13 @@
     <string name="chats_marked_unread">Marcado como no leído</string>
     <string name="chats_back">Atrás</string>
     <string name="chats_archive_empty">No hay chats archivados</string>
-    <string name="chats_empty_body">Los chats que inicies o a los que te unas aparecerán aquí.</string>
+    <string name="chats_empty_body">Los chats que inicies o a los que te unas aparecerán aquí</string>
     <string name="chats_empty_show_all">Mostrar todos los chats</string>
     <string name="chats_folder_empty">Esta carpeta está vacía</string>
-    <string name="chats_folder_empty_body">Ningún chat coincide con este filtro. Puedes añadir chats desde los ajustes de la carpeta.</string>
-    <string name="chats_archive_empty_body">Los chats que archives desaparecen de la lista principal y viven aquí.</string>
+    <string name="chats_folder_empty_body">Ningún chat coincide con este filtro. Puedes añadir chats desde los ajustes de la carpeta</string>
+    <string name="chats_archive_empty_body">Los chats que archives desaparecen de la lista principal y viven aquí</string>
     <string name="chats_search_empty">Nada encontrado</string>
-    <string name="chats_search_empty_body">Ningún chat coincide con “%1$s”.</string>
+    <string name="chats_search_empty_body">Ningún chat coincide con “%1$s”</string>
     <string name="chats_search_clear">Borrar búsqueda</string>
     <string name="chats_search_people">Personas</string>
     <string name="chats_search_global_chats">Chats</string>

@@ -19,7 +19,7 @@
     <string name="auth_sign_in">下一步</string>
     <string name="auth_code_sent_to">验证码已发送至 %1$s</string>
     <string name="auth_code_sent_telegram">已发送到你的其他 Telegram 应用</string>
-    <string name="auth_error_code_unavailable">未发送验证码。请稍候再点下一步。如果官方 Telegram 已登录，验证码会发到那里。</string>
+    <string name="auth_error_code_unavailable">未发送验证码。请稍候再点下一步。如果官方 Telegram 已登录，验证码会发到那里</string>
     <string name="auth_code_sent_sms">Telegram 已向 %1$s 发送短信</string>
     <string name="auth_code_sent_call">Telegram 将呼叫 %1$s 并告知验证码</string>
     <string name="auth_password_title">两步验证</string>

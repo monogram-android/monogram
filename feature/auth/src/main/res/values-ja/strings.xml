@@ -19,7 +19,7 @@
     <string name="auth_sign_in">次へ</string>
     <string name="auth_code_sent_to">%1$s にコードを送信しました</string>
     <string name="auth_code_sent_telegram">他の Telegram アプリに送信しました</string>
-    <string name="auth_error_code_unavailable">コードは送信されていません。少し待ってから「次へ」を押してください。公式 Telegram にログインしている場合、コードはそちらに届きます。</string>
+    <string name="auth_error_code_unavailable">コードは送信されていません。少し待ってから「次へ」を押してください。公式 Telegram にログインしている場合、コードはそちらに届きます</string>
     <string name="auth_code_sent_sms">Telegram が %1$s に SMS を送信しました</string>
     <string name="auth_code_sent_call">Telegram が %1$s にコードを電話でお伝えします</string>
     <string name="auth_password_title">2段階認証</string>

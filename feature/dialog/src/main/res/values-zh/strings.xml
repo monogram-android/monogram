@@ -280,8 +280,8 @@
     <string name="dialog_instant_view_media_open">打开文件</string>
     <string name="dialog_instant_view_media_cancel">取消下载</string>
     <string name="media_delete_title">删除媒体</string>
-    <string name="media_delete_body_single">删除此项？将从你和此聊天中移除。</string>
-    <string name="media_delete_body_album">删除全部 %1$d 项？将从你和此聊天中移除。</string>
+    <string name="media_delete_body_single">删除此项？将从你和此聊天中移除</string>
+    <string name="media_delete_body_album">删除全部 %1$d 项？将从你和此聊天中移除</string>
     <string name="media_delete_confirm">删除</string>
     <string name="media_delete_cancel">取消</string>
     <string name="media_action_copied_image">已复制图片</string>

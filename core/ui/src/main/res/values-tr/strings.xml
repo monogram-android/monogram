@@ -273,5 +273,5 @@
     <string name="media_info_no">Hayır</string>
     <string name="media_info_unknown">Bilinmiyor</string>
     <string name="media_action_save_as">Farklı kaydet…</string>
-    <string name="media_copy_hdr_warning">Görüntü kopyalandı. Bazı uygulamalar HDR desteklemeyebilir.</string>
+    <string name="media_copy_hdr_warning">Görüntü kopyalandı. Bazı uygulamalar HDR desteklemeyebilir</string>
 </resources>

@@ -292,8 +292,8 @@
     <string name="dialog_instant_view_media_open">Відкрити файл</string>
     <string name="dialog_instant_view_media_cancel">Скасувати завантаження</string>
     <string name="media_delete_title">Видалити медіа</string>
-    <string name="media_delete_body_single">Видалити цей елемент? Його буде видалено у вас і в цьому чаті.</string>
-    <string name="media_delete_body_album">Видалити всі елементи (%1$d)? Їх буде видалено у вас і в цьому чаті.</string>
+    <string name="media_delete_body_single">Видалити цей елемент? Його буде видалено у вас і в цьому чаті</string>
+    <string name="media_delete_body_album">Видалити всі елементи (%1$d)? Їх буде видалено у вас і в цьому чаті</string>
     <string name="media_delete_confirm">Видалити</string>
     <string name="media_delete_cancel">Скасувати</string>
     <string name="media_action_copied_image">Зображення скопійовано</string>

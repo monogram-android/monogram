@@ -42,7 +42,7 @@
         <item quantity="other">%1$d yeni mesaj</item>
     </plurals>
     <string name="crash_title">Bir şeyler ters gitti</string>
-    <string name="crash_subtitle">Monogram beklenmeyen bir hatayla karşılaştı. Aşağıdaki rapor düzeltmeye yardımcı olur.</string>
+    <string name="crash_subtitle">Monogram beklenmeyen bir hatayla karşılaştı. Aşağıdaki rapor düzeltmeye yardımcı olur</string>
     <string name="crash_log_label">Çökme kaydı</string>
     <string name="crash_copy">Ayrıntıları kopyala</string>
     <string name="crash_copied">Çökme ayrıntıları kopyalandı</string>
@@ -53,7 +53,7 @@
     <string name="update_prompt_skip">Atla</string>
     <string name="update_prompt_update">Güncelle</string>
     <string name="update_prompt_install">Yükle</string>
-    <string name="update_prompt_body">Yeni bir derleme hazır. İndirme boyutu %1$s.</string>
+    <string name="update_prompt_body">Yeni bir derleme hazır. İndirme boyutu %1$s</string>
     <string name="update_prompt_hide">Gizle</string>
     <string name="update_prompt_progress">İndiriliyor %1$s / %2$s</string>
     <string name="update_prompt_error">Güncelleme indirilemedi</string>

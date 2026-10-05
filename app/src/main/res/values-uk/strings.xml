@@ -44,7 +44,7 @@
         <item quantity="other">%1$d нових повідомлень</item>
     </plurals>
     <string name="crash_title">Щось пішло не так</string>
-    <string name="crash_subtitle">У Monogram сталася неочікувана помилка. Звіт нижче допоможе її виправити.</string>
+    <string name="crash_subtitle">У Monogram сталася неочікувана помилка. Звіт нижче допоможе її виправити</string>
     <string name="crash_log_label">Журнал збою</string>
     <string name="crash_copy">Копіювати деталі</string>
     <string name="crash_copied">Деталі збою скопійовано</string>
@@ -55,7 +55,7 @@
     <string name="update_prompt_skip">Пропустити</string>
     <string name="update_prompt_update">Оновити</string>
     <string name="update_prompt_install">Встановити</string>
-    <string name="update_prompt_body">Доступна нова збірка. Розмір завантаження — %1$s.</string>
+    <string name="update_prompt_body">Доступна нова збірка. Розмір завантаження — %1$s</string>
     <string name="update_prompt_hide">Сховати</string>
     <string name="update_prompt_progress">Завантаження %1$s із %2$s</string>
     <string name="update_prompt_error">Не вдалося завантажити оновлення</string>

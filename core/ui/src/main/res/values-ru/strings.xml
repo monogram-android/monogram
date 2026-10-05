@@ -251,9 +251,17 @@
     <string name="media_video_retry">Повторить</string>
     <string name="media_sender_unknown">Неизвестный отправитель</string>
     <string name="media_viewer_album_item">%1$s %2$d из %3$d, от %4$s, %5$s</string>
+    <string name="media_viewer_page_position">%1$d из %2$d</string>
+    <string name="media_viewer_page_item">%1$s, %2$s, %3$s, %4$s</string>
+    <string name="media_viewer_kind_hdr">%1$s, %2$s</string>
+    <string name="media_kind_video_note">видеосообщение</string>
+    <string name="media_kind_voice">голосовое сообщение</string>
+    <string name="media_kind_audio">аудио</string>
+    <string name="media_kind_unknown">неизвестное медиа</string>
     <string name="media_action_share">Поделиться</string>
     <string name="media_action_save">Сохранить на устройство</string>
     <string name="media_action_forward">Переслать</string>
+    <string name="media_action_reply">Ответить</string>
     <string name="media_forward_this">Переслать</string>
     <string name="media_forward_album">Переслать альбом (%1$d)</string>
     <string name="media_action_copy_caption">Скопировать подпись</string>
@@ -265,7 +273,6 @@
     <string name="media_action_show_in_chat">Показать в чате</string>
     <string name="media_action_open_externally">Открыть в другом приложении</string>
     <string name="media_action_delete">Удалить</string>
-    <string name="media_action_caption_sheet">Подпись и подробности</string>
     <string name="media_more_actions">Другие действия</string>
     <string name="media_menu_speed">Скорость воспроизведения %1$s</string>
     <string name="media_menu_loop">Зациклить это видео</string>
@@ -287,4 +294,18 @@
     <string name="media_playback_channel">Воспроизведение медиа</string>
     <string name="media_viewer_label">Просмотр медиа</string>
     <string name="media_mini_player_now_playing">Сейчас играет: %1$s, %2$s из %3$s, объект альбома %4$d из %5$d</string>
+    <string name="media_action_info">Информация</string>
+    <string name="media_info_name">Название файла</string>
+    <string name="media_info_size">Размер</string>
+    <string name="media_info_dimensions">Разрешение</string>
+    <string name="media_info_dimensions_value">%1$d × %2$d</string>
+    <string name="media_info_duration">Длительность</string>
+    <string name="media_info_date">Дата</string>
+    <string name="media_info_hdr">HDR</string>
+    <string name="media_info_gainmap">Карта усиления HDR</string>
+    <string name="media_info_yes">Да</string>
+    <string name="media_info_no">Нет</string>
+    <string name="media_info_unknown">Неизвестно</string>
+    <string name="media_action_save_as">Сохранить как…</string>
+    <string name="media_copy_hdr_warning">Изображение скопировано. Некоторые приложения могут не поддерживать HDR</string>
 </resources>

@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Rational
 import androidx.activity.ComponentActivity
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -23,15 +22,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.arkivanov.decompose.defaultComponentContext
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.ui.AppearanceSettings
@@ -41,14 +42,14 @@ import org.monogram.core.ui.media.LocalPictureInPictureController
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.MediaSurface
 import org.monogram.core.ui.media.MediaViewerPipStage
+import org.monogram.core.ui.media.MediaViewerSharedRoot
 import org.monogram.core.ui.media.PictureInPictureController
 import org.monogram.core.ui.theme.MonogramTheme
-import org.monogram.core.common.AppLog
 import org.monogram.push.NotificationPresenter
-import org.monogram.root.RootComponent
-import org.monogram.root.RootContent
 import org.monogram.root.IncomingShare
 import org.monogram.root.IncomingShareStager
+import org.monogram.root.RootComponent
+import org.monogram.root.RootContent
 import android.graphics.Color as AndroidColor
 
 class MainActivity : ComponentActivity() {
@@ -69,7 +70,7 @@ class MainActivity : ComponentActivity() {
     private val pictureInPicture = object : PictureInPictureController {
         override val supported: Boolean
             get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+                    packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
 
         override fun enter() {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -183,15 +184,20 @@ class MainActivity : ComponentActivity() {
                             if (inPictureInPicture) {
                                 val session = MediaPlaybackHolder.peek()
                                 if (session?.current != null) {
-                                    MediaViewerPipStage(session = session, modifier = Modifier.fillMaxSize())
+                                    MediaViewerPipStage(
+                                        session = session,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
                                 } else {
                                     RootContent(component = root, modifier = Modifier.fillMaxSize())
                                 }
                             } else {
-                                RootContent(
-                                    component = root,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
+                                MediaViewerSharedRoot {
+                                    RootContent(
+                                        component = root,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
                             }
                         }
                     }
@@ -231,8 +237,18 @@ class MainActivity : ComponentActivity() {
             startupReady.await()
             val started = PerfLog.nowMs()
             when (val result = runCatching { app.client.connect() }.getOrNull()) {
-                is Outcome.Ok -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=ok")
-                is Outcome.Err -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=err")
+                is Outcome.Ok -> PerfLog.mark(
+                    "activity:connect",
+                    PerfLog.nowMs() - started,
+                    "result=ok"
+                )
+
+                is Outcome.Err -> PerfLog.mark(
+                    "activity:connect",
+                    PerfLog.nowMs() - started,
+                    "result=err"
+                )
+
                 null -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=throw")
             }
         }

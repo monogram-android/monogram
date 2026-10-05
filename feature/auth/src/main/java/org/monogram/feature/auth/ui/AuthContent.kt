@@ -30,10 +30,15 @@ object AuthTestTags {
     const val RESEND = "auth_resend"
     const val ERROR = "auth_error"
     const val PRIMARY = "auth_primary"
+    const val PROXY = "auth_proxy"
 }
 
 @Composable
-fun AuthContent(component: AuthComponent, modifier: Modifier = Modifier) {
+fun AuthContent(
+    component: AuthComponent,
+    modifier: Modifier = Modifier,
+    onOpenProxy: (() -> Unit)? = null,
+) {
     val state by component.state.collectAsState()
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -47,6 +52,7 @@ fun AuthContent(component: AuthComponent, modifier: Modifier = Modifier) {
     AuthScreen(
         state = state,
         onIntent = component::onIntent,
+        onOpenProxy = onOpenProxy,
         modifier = modifier,
     )
 }

@@ -42,4 +42,5 @@
     <string name="auth_paste_password">Vložiť heslo</string>
     <string name="auth_paste_empty">Schránka je prázdna</string>
     <string name="auth_paste_code">Vložiť kód</string>
+    <string name="auth_connection">Nastavenia pripojenia</string>
 </resources>

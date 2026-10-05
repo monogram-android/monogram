@@ -2,8 +2,6 @@ package org.monogram.feature.settings.ui
 
 import android.content.Context
 import android.os.SystemClock
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,7 +11,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -23,8 +20,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.monogram.core.common.Outcome
-import org.monogram.core.ui.loading.MonogramLoading
-import org.monogram.core.ui.loading.MonogramLoadingHeroSize
 import org.monogram.feature.settings.ProxyCheckQueue
 import org.monogram.feature.settings.ProxySettingsStore
 import org.monogram.feature.settings.R
@@ -38,7 +33,7 @@ import org.monogram.network.bridge.parseTelegramProxyLink
 private const val DIRECT = ""
 
 private class ProxyRefs(
-    val component: SettingsComponent,
+    val session: ProxySession,
     val context: Context,
 ) {
     var profiles: List<ProxyScreenState> = emptyList()
@@ -56,9 +51,19 @@ internal fun ProxySettings(
     component: SettingsComponent,
     modifier: Modifier = Modifier,
 ) {
+    ProxySettingsContent(session = component, modifier = modifier)
+}
+
+@Composable
+fun ProxySettingsContent(
+    session: ProxySession,
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
+    showAppBar: Boolean = false,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val refs = remember(component, context) { ProxyRefs(component, context) }
+    val refs = remember(session, context) { ProxyRefs(session, context) }
     var ready by remember { mutableStateOf(false) }
     var profiles by remember { mutableStateOf<List<ProxyScreenState>>(emptyList()) }
     var activeKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -94,7 +99,7 @@ internal fun ProxySettings(
         busy = busy + key
         scope.launch {
             val latency = try {
-                pingSlots.withPermit { probeProxy(refs.component, profile) }
+                pingSlots.withPermit { probeProxy(refs.session, profile) }
             } finally {
                 busy = busy - key
             }
@@ -121,162 +126,159 @@ internal fun ProxySettings(
         ready = true
     }
 
-    if (!ready) {
-        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            MonogramLoading(size = MonogramLoadingHeroSize)
-        }
-    } else {
-        ProxyScreen(
-            profiles = profiles,
-            activeKey = activeKey,
-            checking = probes + busy,
-            headerBusy = sessionJobs > 0,
-            status = status,
-            statusError = statusError,
-            modifier = modifier,
-            onUse = onUse@{ profile ->
-                val key = profile.profileKey()
-                if (key == refs.activeKey || key in busy) return@onUse
-                busy = busy + key
-                sessionJobs += 1
-                scope.launch {
-                    val result = try {
-                        queue.exclusive { activate(refs, profile) }
-                    } finally {
-                        busy = busy - key
-                        sessionJobs -= 1
-                        sync()
-                    }
-                    if (result.error == null) {
-                        status = null
-                        statusError = false
-                        enqueue(profile)
-                    } else {
-                        status = result.error
-                        statusError = true
-                    }
-                }
-            },
-            onCheckAll = { refs.profiles.forEach { enqueue(it) } },
-            onDisable = {
-                sessionJobs += 1
-                scope.launch {
-                    val error = try {
-                        queue.exclusive {
-                            val previousDesired = refs.desired
-                            val previousKey = refs.activeKey
-                            refs.desired = null
-                            refs.activeKey = null
-                            refs.connectedKey = null
-                            val failure = restoreDesired(refs, reportFailure = false)
-                            if (failure != null) {
-                                refs.desired = previousDesired
-                                refs.activeKey = previousKey
-                            } else {
-                                persist(refs)
-                            }
-                            failure
-                        }
-                    } finally {
-                        sessionJobs -= 1
-                        sync()
-                    }
-                    if (error == null) {
-                        status = null
-                        statusError = false
-                    } else {
-                        status = error
-                        statusError = true
-                    }
-                }
-            },
-            onSave = save@{ draft, originalKey, done ->
-                if (originalKey == null) {
-                    storeAdded(refs, listOf(draft))
+    ProxyScreen(
+        onBack = onBack,
+        loading = !ready,
+        showAppBar = showAppBar,
+        profiles = profiles,
+        activeKey = activeKey,
+        checking = probes + busy,
+        headerBusy = sessionJobs > 0,
+        status = status,
+        statusError = statusError,
+        modifier = modifier,
+        onUse = onUse@{ profile ->
+            val key = profile.profileKey()
+            if (key == refs.activeKey || key in busy) return@onUse
+            busy = busy + key
+            sessionJobs += 1
+            scope.launch {
+                val result = try {
+                    queue.exclusive { activate(refs, profile) }
+                } finally {
+                    busy = busy - key
+                    sessionJobs -= 1
                     sync()
+                }
+                if (result.error == null) {
                     status = null
                     statusError = false
-                    enqueue(draft)
-                    done(null)
-                    return@save
-                }
-                val busyKey = originalKey
-                busy = busy + busyKey
-                sessionJobs += 1
-                scope.launch {
-                    val result = try {
-                        queue.exclusive { saveProfile(refs, draft, originalKey) }
-                    } finally {
-                        busy = busy - busyKey
-                        sessionJobs -= 1
-                        sync()
-                    }
-                    if (result.error == null) {
-                        status = null
-                        statusError = false
-                        enqueue(draft)
-                    } else {
-                        status = result.error
-                        statusError = true
-                    }
-                    done(result.error)
-                }
-            },
-            onDelete = { profile ->
-                val key = profile.profileKey()
-                val wasActive = refs.activeKey == key
-                refs.profiles = refs.profiles.filterNot { it.profileKey() == key }
-                if (wasActive) {
-                    refs.activeKey = null
-                    refs.desired = null
-                    refs.connectedKey = null
-                }
-                persist(refs)
-                sync()
-                if (wasActive) {
-                    sessionJobs += 1
-                    scope.launch {
-                        try {
-                            queue.exclusive { restoreDesired(refs) }
-                        } finally {
-                            sessionJobs -= 1
-                        }
-                    }
-                }
-            },
-            onPasteAdd = paste@{
-                val text = runCatching {
-                    clipboard.getClipEntry()?.clipData
-                        ?.takeIf { it.itemCount > 0 }
-                        ?.getItemAt(0)
-                        ?.text
-                        ?.toString()
-                }.getOrNull().orEmpty()
-                val drafts = proxyLinksFromClipboard(text).map { stateFromConfig(it) }
-                if (drafts.isEmpty()) {
-                    status = clipboardInvalid
+                    enqueue(profile)
+                } else {
+                    status = result.error
                     statusError = true
-                    return@paste
                 }
-                val fresh = drafts.filter { draft ->
-                    refs.profiles.none { it.profileKey() == draft.profileKey() }
+            }
+        },
+        onCheckAll = { refs.profiles.forEach { enqueue(it) } },
+        onDisable = {
+            sessionJobs += 1
+            scope.launch {
+                val error = try {
+                    queue.exclusive {
+                        val previousDesired = refs.desired
+                        val previousKey = refs.activeKey
+                        refs.desired = null
+                        refs.activeKey = null
+                        refs.connectedKey = null
+                        val failure = restoreDesired(refs, reportFailure = false)
+                        if (failure != null) {
+                            refs.desired = previousDesired
+                            refs.activeKey = previousKey
+                        } else {
+                            persist(refs)
+                        }
+                        failure
+                    }
+                } finally {
+                    sessionJobs -= 1
+                    sync()
                 }
-                if (fresh.isEmpty()) return@paste
-                storeAdded(refs, fresh)
+                if (error == null) {
+                    status = null
+                    statusError = false
+                } else {
+                    status = error
+                    statusError = true
+                }
+            }
+        },
+        onSave = save@{ draft, originalKey, done ->
+            if (originalKey == null) {
+                storeAdded(refs, listOf(draft))
                 sync()
                 status = null
                 statusError = false
-                fresh.forEach { enqueue(it) }
-            },
+                enqueue(draft)
+                done(null)
+                return@save
+            }
+            val busyKey = originalKey
+            busy = busy + busyKey
+            sessionJobs += 1
+            scope.launch {
+                val result = try {
+                    queue.exclusive { saveProfile(refs, draft, originalKey) }
+                } finally {
+                    busy = busy - busyKey
+                    sessionJobs -= 1
+                    sync()
+                }
+                if (result.error == null) {
+                    status = null
+                    statusError = false
+                    enqueue(draft)
+                } else {
+                    status = result.error
+                    statusError = true
+                }
+                done(result.error)
+            }
+        },
+        onDelete = { profile ->
+            val key = profile.profileKey()
+            val wasActive = refs.activeKey == key
+            refs.profiles = refs.profiles.filterNot { it.profileKey() == key }
+            if (wasActive) {
+                refs.activeKey = null
+                refs.desired = null
+                refs.connectedKey = null
+            }
+            persist(refs)
+            sync()
+            if (wasActive) {
+                sessionJobs += 1
+                scope.launch {
+                    try {
+                        queue.exclusive { restoreDesired(refs) }
+                    } finally {
+                        sessionJobs -= 1
+                    }
+                }
+            }
+        },
+        onPasteAdd = paste@{
+            val text = runCatching {
+                clipboard.getClipEntry()?.clipData
+                    ?.takeIf { it.itemCount > 0 }
+                    ?.getItemAt(0)
+                    ?.text
+                    ?.toString()
+            }.getOrNull().orEmpty()
+            val drafts = proxyLinksFromClipboard(text).map { stateFromConfig(it) }
+            if (drafts.isEmpty()) {
+                status = clipboardInvalid
+                statusError = true
+                return@paste
+            }
+            val fresh = drafts.filter { draft ->
+                refs.profiles.none { it.profileKey() == draft.profileKey() }
+            }
+            if (fresh.isEmpty()) return@paste
+            storeAdded(refs, fresh)
+            sync()
+            status = null
+            statusError = false
+            fresh.forEach { enqueue(it) }
+        },
         )
-    }
 }
 
 private suspend fun activate(refs: ProxyRefs, profile: ProxyScreenState): ProxyConnect {
     val key = profile.profileKey()
     var committed = false
     try {
-        val connected = connectProfile(refs.component, profile)
+        val connected = connectProfile(refs.session, profile)
         if (connected.error == null) {
             refs.connectedKey = key
             refs.profiles = refs.profiles.map { if (it.profileKey() == key) profile else it }
@@ -312,7 +314,7 @@ private suspend fun saveProfile(
 ): ProxyConnect {
     var committed = false
     try {
-        val connected = connectProfile(refs.component, draft)
+        val connected = connectProfile(refs.session, draft)
         if (connected.error == null) {
             val updated = draft
             val key = updated.profileKey()
@@ -334,23 +336,23 @@ private suspend fun saveProfile(
     }
 }
 
-private suspend fun probeProxy(component: SettingsComponent, profile: ProxyScreenState): Long? =
-    when (val result = component.pingProxy(profile.toProxyConfig())) {
+private suspend fun probeProxy(session: ProxySession, profile: ProxyScreenState): Long? =
+    when (val result = session.pingProxy(profile.toProxyConfig())) {
         is Outcome.Ok -> result.value
         is Outcome.Err -> null
     }
 
-private suspend fun connectProfile(component: SettingsComponent, state: ProxyScreenState): ProxyConnect {
+private suspend fun connectProfile(session: ProxySession, state: ProxyScreenState): ProxyConnect {
     val started = SystemClock.elapsedRealtime()
-    when (val mode = component.setTransportMode(state.transportMode)) {
+    when (val mode = session.setTransportMode(state.transportMode)) {
         is Outcome.Err -> return ProxyConnect(mode.message, null)
         is Outcome.Ok -> Unit
     }
-    when (val configured = component.configureProxy(state.toProxyConfig())) {
+    when (val configured = session.configureProxy(state.toProxyConfig())) {
         is Outcome.Err -> return ProxyConnect(configured.message, null)
         is Outcome.Ok -> Unit
     }
-    return when (val connected = component.testProxyConnection()) {
+    return when (val connected = session.testProxyConnection()) {
         is Outcome.Ok -> ProxyConnect(null, (SystemClock.elapsedRealtime() - started).coerceAtLeast(0))
         is Outcome.Err -> ProxyConnect(connected.message, null)
     }
@@ -362,7 +364,7 @@ private suspend fun restoreDesired(refs: ProxyRefs, reportFailure: Boolean = tru
     if (wanted != null && wanted == refs.connectedKey) return null
     if (desired == null) {
         if (refs.connectedKey == DIRECT) return null
-        return when (val cleared = refs.component.clearProxy()) {
+        return when (val cleared = refs.session.clearProxy()) {
             is Outcome.Err -> {
                 refs.connectedKey = null
                 if (reportFailure) refs.report(cleared.message)
@@ -374,7 +376,7 @@ private suspend fun restoreDesired(refs: ProxyRefs, reportFailure: Boolean = tru
             }
         }
     }
-    val result = connectProfile(refs.component, desired)
+    val result = connectProfile(refs.session, desired)
     return if (result.error == null) {
         refs.connectedKey = wanted
         null

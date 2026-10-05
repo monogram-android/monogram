@@ -149,9 +149,17 @@
     <string name="media_video_retry">Skúsiť znova</string>
     <string name="media_sender_unknown">Neznámy odosielateľ</string>
     <string name="media_viewer_album_item">%1$s %2$d z %3$d, od %4$s, %5$s</string>
+    <string name="media_viewer_page_position">%1$d z %2$d</string>
+    <string name="media_viewer_page_item">%1$s, %2$s, %3$s, %4$s</string>
+    <string name="media_viewer_kind_hdr">%1$s, %2$s</string>
+    <string name="media_kind_video_note">videospráva</string>
+    <string name="media_kind_voice">hlasová správa</string>
+    <string name="media_kind_audio">zvuk</string>
+    <string name="media_kind_unknown">neznáme médium</string>
     <string name="media_action_share">Zdieľať</string>
     <string name="media_action_save">Uložiť do zariadenia</string>
     <string name="media_action_forward">Preposlať</string>
+    <string name="media_action_reply">Odpovedať</string>
     <string name="media_forward_this">Preposlať túto položku</string>
     <string name="media_forward_album">Preposlať všetkých %1$d položiek</string>
     <string name="media_action_copy_caption">Kopírovať popis</string>
@@ -163,7 +171,6 @@
     <string name="media_action_show_in_chat">Zobraziť v chate</string>
     <string name="media_action_open_externally">Otvoriť externe</string>
     <string name="media_action_delete">Odstrániť</string>
-    <string name="media_action_caption_sheet">Popis a podrobnosti</string>
     <string name="media_more_actions">Ďalšie akcie</string>
     <string name="media_menu_speed">Rýchlosť prehrávania %1$s</string>
     <string name="media_menu_loop">Opakovať toto video</string>
@@ -287,4 +294,18 @@
         <item quantity="many">naposledy videný(á) pred %d hodinami</item>
         <item quantity="other">naposledy videný(á) pred %d hodinami</item>
     </plurals>
+    <string name="media_action_info">Informácie</string>
+    <string name="media_info_name">Názov súboru</string>
+    <string name="media_info_size">Veľkosť</string>
+    <string name="media_info_dimensions">Rozmery</string>
+    <string name="media_info_dimensions_value">%1$d × %2$d</string>
+    <string name="media_info_duration">Trvanie</string>
+    <string name="media_info_date">Dátum</string>
+    <string name="media_info_hdr">HDR</string>
+    <string name="media_info_gainmap">Mapa zosilnenia HDR</string>
+    <string name="media_info_yes">Áno</string>
+    <string name="media_info_no">Nie</string>
+    <string name="media_info_unknown">Neznáme</string>
+    <string name="media_action_save_as">Uložiť ako…</string>
+    <string name="media_copy_hdr_warning">Obrázok skopírovaný. Niektoré aplikácie nemusia podporovať HDR</string>
 </resources>

@@ -149,9 +149,17 @@
     <string name="media_video_retry">Повторити</string>
     <string name="media_sender_unknown">Невідомий відправник</string>
     <string name="media_viewer_album_item">%1$s %2$d з %3$d, від %4$s, %5$s</string>
+    <string name="media_viewer_page_position">%1$d з %2$d</string>
+    <string name="media_viewer_page_item">%1$s, %2$s, %3$s, %4$s</string>
+    <string name="media_viewer_kind_hdr">%1$s, %2$s</string>
+    <string name="media_kind_video_note">відеоповідомлення</string>
+    <string name="media_kind_voice">голосове повідомлення</string>
+    <string name="media_kind_audio">аудіо</string>
+    <string name="media_kind_unknown">невідоме медіа</string>
     <string name="media_action_share">Поділитися</string>
     <string name="media_action_save">Зберегти на пристрій</string>
     <string name="media_action_forward">Переслати</string>
+    <string name="media_action_reply">Відповісти</string>
     <string name="media_forward_this">Переслати</string>
     <string name="media_forward_album">Переслати альбом (%1$d)</string>
     <string name="media_action_copy_caption">Копіювати підпис</string>
@@ -163,7 +171,6 @@
     <string name="media_action_show_in_chat">Показати в чаті</string>
     <string name="media_action_open_externally">Відкрити в іншій програмі</string>
     <string name="media_action_delete">Видалити</string>
-    <string name="media_action_caption_sheet">Підпис і деталі</string>
     <string name="media_more_actions">Інші дії</string>
     <string name="media_menu_speed">Швидкість відтворення %1$s</string>
     <string name="media_menu_loop">Зациклити це відео</string>
@@ -287,4 +294,18 @@
         <item quantity="many">був(ла) %d годин тому</item>
         <item quantity="other">був(ла) %d годин тому</item>
     </plurals>
+    <string name="media_action_info">Інформація</string>
+    <string name="media_info_name">Назва файлу</string>
+    <string name="media_info_size">Розмір</string>
+    <string name="media_info_dimensions">Роздільність</string>
+    <string name="media_info_dimensions_value">%1$d × %2$d</string>
+    <string name="media_info_duration">Тривалість</string>
+    <string name="media_info_date">Дата</string>
+    <string name="media_info_hdr">HDR</string>
+    <string name="media_info_gainmap">Карта підсилення HDR</string>
+    <string name="media_info_yes">Так</string>
+    <string name="media_info_no">Ні</string>
+    <string name="media_info_unknown">Невідомо</string>
+    <string name="media_action_save_as">Зберегти як…</string>
+    <string name="media_copy_hdr_warning">Зображення скопійовано. Деякі застосунки можуть не підтримувати HDR</string>
 </resources>

@@ -42,4 +42,5 @@
     <string name="auth_paste_password">Pegar contraseña</string>
     <string name="auth_paste_empty">El portapapeles está vacío</string>
     <string name="auth_paste_code">Pegar código</string>
+    <string name="auth_connection">Ajustes de conexión</string>
 </resources>

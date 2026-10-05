@@ -77,6 +77,8 @@ class MediaPlaybackSession(private val context: Context) {
         private set
     var failed by mutableStateOf(false)
         private set
+    var videoHdr by mutableStateOf<MediaHdr>(MediaHdr.None)
+        private set
 
     var muted by mutableStateOf(true)
         private set
@@ -90,6 +92,7 @@ class MediaPlaybackSession(private val context: Context) {
     private var explicitNoteFloat = false
     private var messageSpeed = 1f
     private var videoSpeed = 1f
+    private val loopOverrides = mutableMapOf<String, Boolean>()
 
     /** Which surface currently draws the video output. */
     var surface by mutableStateOf(MediaSurface.STOPPED)
@@ -118,6 +121,16 @@ class MediaPlaybackSession(private val context: Context) {
     var onVideoQueueStep: ((Int) -> Unit)? = null
 
     private val listener = object : Player.Listener {
+        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+            val format = tracks.groups.firstNotNullOfOrNull { group ->
+                if (group.type != C.TRACK_TYPE_VIDEO) null else {
+                    (0 until group.length).firstOrNull(group::isTrackSelected)?.let(group::getTrackFormat)
+                }
+            }
+            videoHdr = hdrForVideoFormat(format)
+            android.util.Log.d("MediaViewerHDR", "video ColorInfo=${format?.colorInfo}, hdr=$videoHdr")
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             playing = isPlaying
         }
@@ -256,9 +269,10 @@ class MediaPlaybackSession(private val context: Context) {
     }
 
     fun setLoopingCurrent(value: Boolean) = onMain {
-        player.repeatMode = if (value && current?.kind == MediaViewerKind.VIDEO) {
-            Player.REPEAT_MODE_ONE
-        } else Player.REPEAT_MODE_OFF
+        val item = current ?: return@onMain
+        if (item.kind != MediaViewerKind.VIDEO) return@onMain
+        if (!item.forceLoop) loopOverrides[item.id] = value
+        applyPlaybackSettings()
     }
 
     fun selectNextVideo(): Boolean = onMainChecked {
@@ -367,6 +381,7 @@ class MediaPlaybackSession(private val context: Context) {
     }
 
     private fun resetCurrentState() {
+        videoHdr = MediaHdr.None
         playing = false
         buffering = false
         durationMs = (current?.durationSeconds?.toLong() ?: 0L).coerceAtLeast(0L) * 1000L
@@ -388,8 +403,12 @@ class MediaPlaybackSession(private val context: Context) {
     private fun applyPlaybackSettings() {
         speed = if (isMessagePlayback) messageSpeed else videoSpeed
         player.setPlaybackSpeed(speed)
-        player.repeatMode = if (current?.loops == true) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-        player.pauseAtEndOfMediaItems = !isAlbumVideoOnly && !isMessagePlayback
+        val looping = current?.let { item ->
+            item.kind == MediaViewerKind.VIDEO &&
+                (item.forceLoop || (loopOverrides[item.id] ?: item.loops))
+        } == true
+        player.repeatMode = if (looping) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        player.pauseAtEndOfMediaItems = !looping && !isAlbumVideoOnly && !isMessagePlayback
         player.volume = if (muted) 0f else 1f
     }
 
@@ -481,6 +500,17 @@ class MediaPlaybackSession(private val context: Context) {
  * Process-wide holder so the viewer, the mini player and the media session service all
  * talk to the same player instance.
  */
+internal fun hdrForVideoFormat(format: androidx.media3.common.Format?): MediaHdr {
+    val transfer = format?.colorInfo?.colorTransfer
+    val label = when {
+        format?.sampleMimeType == androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION -> "Dolby Vision"
+        transfer == C.COLOR_TRANSFER_ST2084 -> "HDR10"
+        transfer == C.COLOR_TRANSFER_HLG -> "HLG"
+        else -> return MediaHdr.None
+    }
+    return MediaHdr.Video(label)
+}
+
 object MediaPlaybackHolder {
     @Volatile
     private var instance: MediaPlaybackSession? = null

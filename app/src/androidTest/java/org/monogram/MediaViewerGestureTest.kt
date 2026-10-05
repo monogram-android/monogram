@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.net.Uri
-import android.os.ParcelFileDescriptor
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -15,7 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.doubleClick
+import androidx.compose.ui.test.hasText
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -110,12 +113,97 @@ class MediaViewerGestureTest {
     }
 
     @Test
+    fun offCenterDoubleTapKeepsRenderedImageAtTheFocalPointAndHidesBadge() {
+        assertRenderedFocalPoint(pinch = false)
+    }
+
+    @Test
+    fun offCenterPinchKeepsRenderedImageAtTheFocalPointAndHidesBadge() {
+        assertRenderedFocalPoint(pinch = true)
+    }
+
+    private fun assertRenderedFocalPoint(pinch: Boolean) {
+        val photo = compose.onNodeWithContentDescription("Test photo")
+        val bounds = photo.fetchSemanticsNode().boundsInWindow
+        val fit = minOf(bounds.width / 800f, bounds.height / 600f)
+        // Image (360, 100) is inside yellow, near its top and right green boundaries.
+        val focal = Offset(bounds.width / 2f - 40f * fit, bounds.height / 2f - 200f * fit)
+        val global = bounds.topLeft + focal
+        fun awaitBoundary(scale: Float) {
+            compose.waitUntil(5_000) {
+                val shot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                try {
+                    fun matches(dx: Float, expected: Int, dy: Float = 0f): Boolean {
+                        val x = (global.x + dx * fit * scale).roundToInt()
+                        val y = (global.y + dy * fit * scale).roundToInt()
+                        return (-2..2).all { offset ->
+                            val actual = shot.getPixel(x, y + offset)
+                            abs(Color.red(actual) - Color.red(expected)) < 20 &&
+                                abs(Color.green(actual) - Color.green(expected)) < 20 &&
+                                abs(Color.blue(actual) - Color.blue(expected)) < 20
+                        }
+                    }
+                    matches(0f, Color.rgb(240, 214, 88)) &&
+                        matches(28f, Color.rgb(240, 214, 88)) &&
+                        matches(52f, Color.rgb(36, 112, 92)) &&
+                        matches(0f, Color.rgb(240, 214, 88), 28f) &&
+                        matches(0f, Color.rgb(36, 112, 92), -24f)
+                } finally {
+                    shot.recycle()
+                }
+            }
+        }
+        awaitBoundary(1f)
+        photo.performTouchInput {
+            if (pinch) {
+                val start = 40f * fit
+                val end = 100f * fit
+                down(0, focal - Offset(start, 0f))
+                down(1, focal + Offset(start, 0f))
+                repeat(20) { step ->
+                    val radius = start + (end - start) * (step + 1) / 20f
+                    updatePointerTo(0, focal - Offset(radius, 0f))
+                    updatePointerTo(1, focal + Offset(radius, 0f))
+                    move(delayMillis = 16)
+                }
+                up(0)
+                up(1)
+            } else {
+                doubleClick(focal)
+            }
+        }
+        compose.waitUntil(5_000) {
+            photo.fetchSemanticsNode().config[SemanticsProperties.StateDescription]
+                .removeSuffix("%").toInt() > 180
+        }
+        val percent = photo.fetchSemanticsNode().config[SemanticsProperties.StateDescription]
+        if (!pinch) assertEquals("250%", percent)
+        awaitBoundary(percent.removeSuffix("%").toInt() / 100f)
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasText(percent)).fetchSemanticsNodes().isEmpty()
+        }
+        awaitBoundary(percent.removeSuffix("%").toInt() / 100f)
+        photo.assertExists()
+        compose.runOnIdle { assertEquals(0, underlyingBacks) }
+    }
+
+    @Test
     fun dismissSwipeOnlyClosesViewer() {
         compose.onNodeWithContentDescription("Test photo").performTouchInput {
-            swipe(Offset(center.x, height * 0.3f), Offset(center.x, height * 0.85f), 500)
+            swipe(Offset(center.x, height * 0.3f), Offset(center.x, height * 0.6f), 500)
         }
         compose.waitUntil(5_000) { !visible }
         compose.onNodeWithText("Underlying chat").assertExists()
+        compose.runOnIdle { assertEquals(0, underlyingBacks) }
+    }
+
+    @Test
+    fun upwardSwipeDoesNotDismissViewer() {
+        compose.onNodeWithContentDescription("Test photo").performTouchInput {
+            swipe(Offset(center.x, height * 0.8f), Offset(center.x, height * 0.25f), 500)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Test photo").assertExists()
         compose.runOnIdle { assertEquals(0, underlyingBacks) }
     }
 
@@ -130,15 +218,10 @@ class MediaViewerGestureTest {
     @Test
     fun streamedVideoRendersAndDismissesWithoutClosingChat() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val shellRecording = File(compose.activity.getExternalFilesDir(null), "viewer-test.mp4")
         val recording = File(compose.activity.cacheDir, "viewer-test.mp4")
-        val descriptor = instrumentation.uiAutomation.executeShellCommand(
-            "screenrecord --time-limit 3 ${shellRecording.absolutePath}",
-        )
-        ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
-        ParcelFileDescriptor.AutoCloseInputStream(
-            instrumentation.uiAutomation.executeShellCommand("cat ${shellRecording.absolutePath}"),
-        ).use { input -> recording.outputStream().use { input.copyTo(it) } }
+        instrumentation.context.assets.open("media/video_short.mp4").use { input ->
+            recording.outputStream().use { input.copyTo(it) }
+        }
         assertTrue(recording.length() > 0)
         val message = Message(
             id = MessageId(PeerId(42), 1), senderId = null, text = null,
@@ -161,20 +244,28 @@ class MediaViewerGestureTest {
         compose.waitUntil(10_000) {
             compose.onAllNodes(hasTestTag("media-video-ready")).fetchSemanticsNodes().isNotEmpty()
         }
+        var renderedFrame: Bitmap? = null
         compose.waitUntil(5_000) {
             val frame = instrumentation.uiAutomation.takeScreenshot()
-            val colored = coloredPixelCount(frame)
-            frame.recycle()
-            colored > 100
+            if (coloredPixelCount(frame) > 100) {
+                renderedFrame = frame
+                true
+            } else {
+                frame.recycle()
+                false
+            }
         }
-        capture("viewer-video.png")
+        val directory = File(compose.activity.getExternalFilesDir(null), "viewer-qa").apply { mkdirs() }
+        renderedFrame!!.let { frame ->
+            File(directory, "viewer-video.png").outputStream().use { frame.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            frame.recycle()
+        }
         compose.onNode(isDialog()).performTouchInput {
-            swipe(Offset(center.x, height * 0.3f), Offset(center.x, height * 0.65f), 500)
+            swipe(Offset(center.x, height * 0.25f), Offset(center.x, height * 0.8f), 500)
         }
         compose.waitUntil(5_000) { !visible }
         compose.runOnIdle { assertEquals(0, underlyingBacks) }
         recording.delete()
-        shellRecording.delete()
     }
 
     private fun capture(name: String) {

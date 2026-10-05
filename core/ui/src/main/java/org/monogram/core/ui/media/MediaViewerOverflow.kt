@@ -1,14 +1,20 @@
 package org.monogram.core.ui.media
 
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.automirrored.outlined.Notes
+import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.automirrored.filled.Forward
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.filled.Loop
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PictureInPictureAlt
@@ -26,7 +32,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.monogram.core.ui.R
@@ -44,27 +49,52 @@ internal fun MediaViewerOverflow(
     chatKey: String,
     onOpenCaption: () -> Unit,
     onVisibilityChange: (Boolean) -> Unit,
+    albumSize: Int = 1,
+    onOpenOverview: () -> Unit = {},
 ) {
-    val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
     var speedMenu by remember { mutableStateOf(false) }
+    var infoOpen by remember(item.id) { mutableStateOf(false) }
     var loopEnabled by remember(item.id) { mutableStateOf(item.loops) }
-    LaunchedEffect(menuOpen, speedMenu) { onVisibilityChange(menuOpen || speedMenu) }
+    LaunchedEffect(menuOpen, speedMenu, infoOpen) {
+        onVisibilityChange(menuOpen || speedMenu || infoOpen)
+    }
     DisposableEffect(Unit) { onDispose { onVisibilityChange(false) } }
 
     Box {
         IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)) {
-            Icon(Icons.Default.MoreVert, stringResource(R.string.media_more_actions))
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.media_more_actions),
+                tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+            )
         }
         AppMenuPopup(
-            expanded = menuOpen,
-            onDismiss = { menuOpen = false },
+            expanded = menuOpen || speedMenu,
+            onDismiss = { menuOpen = false; speedMenu = false },
             alignToAnchorEnd = true,
         ) {
+            if (speedMenu) {
+                AppMenuSurface {
+                    AppMenuGroup {
+                        SPEEDS.forEach { speed ->
+                            AppMenuItem(
+                                text = formatSpeed(speed),
+                                icon = Icons.Default.Speed,
+                                onClick = {
+                                    speedMenu = false
+                                    menuOpen = false
+                                    session?.changeSpeed(speed)
+                                },
+                            )
+                        }
+                    }
+                }
+            } else {
+            AppMenuSurface(scrollState = rememberScrollState()) {
             val seenBy = actions.seenByLabel?.invoke(item)
             val openSeenBy = actions.onOpenSeenBy
             if (!seenBy.isNullOrBlank() && openSeenBy != null) {
-                AppMenuSurface {
                     AppMenuGroup {
                         AppMenuItem(
                             text = seenBy,
@@ -75,15 +105,13 @@ internal fun MediaViewerOverflow(
                             },
                         )
                     }
-                }
             }
-            if (item.isVideo && session != null) {
-                AppMenuSurface {
+            if (item.isPlayable && session != null) {
                     AppMenuGroup {
                         AppMenuItem(
                             text = stringResource(R.string.media_menu_speed, formatSpeed(session.speed)),
                             icon = Icons.Default.Speed,
-                            onClick = { speedMenu = true },
+                            onClick = { menuOpen = false; speedMenu = true },
                         )
                         AppMenuItem(
                             text = stringResource(R.string.media_menu_loop),
@@ -113,20 +141,66 @@ internal fun MediaViewerOverflow(
                             },
                         )
                     }
-                }
             }
-            AppMenuSurface {
                 AppMenuGroup {
-                    if (item.caption != null) {
+                    actions.onReply?.let { reply ->
                         AppMenuItem(
-                            text = stringResource(R.string.media_action_caption_sheet),
-                            icon = Icons.AutoMirrored.Outlined.Notes,
+                            text = stringResource(R.string.media_action_reply),
+                            icon = Icons.AutoMirrored.Filled.Reply,
                             onClick = {
                                 menuOpen = false
-                                onOpenCaption()
+                                reply(item)
                             },
                         )
                     }
+                    if (!item.protectedContent) {
+                        AppMenuItem(
+                            text = stringResource(R.string.media_action_share),
+                            icon = Icons.Default.Share,
+                            onClick = {
+                                menuOpen = false
+                                actions.onShare(item)
+                            },
+                        )
+                        AppMenuItem(
+                            text = stringResource(R.string.media_action_save),
+                            icon = Icons.Default.Download,
+                            onClick = {
+                                menuOpen = false
+                                actions.onSave(item)
+                            },
+                        )
+                        actions.onSaveAs?.let { saveAs ->
+                            AppMenuItem(
+                                text = stringResource(R.string.media_action_save_as),
+                                icon = Icons.Default.Download,
+                                onClick = {
+                                    menuOpen = false
+                                    saveAs(item)
+                                },
+                            )
+                        }
+                        if (actions.canForward) AppMenuItem(
+                            text = stringResource(R.string.media_action_forward),
+                            icon = Icons.AutoMirrored.Filled.Forward,
+                            onClick = {
+                                menuOpen = false
+                                actions.onForward(item, false)
+                            },
+                        )
+                    }
+                    if (albumSize > 1) AppMenuItem(
+                        text = stringResource(R.string.media_mini_player_expand),
+                        icon = Icons.Outlined.Collections,
+                        onClick = { menuOpen = false; onOpenOverview() },
+                    )
+                }
+                AppMenuGroup {
+                    AppMenuItem(
+                        text = stringResource(R.string.media_action_info),
+                        icon = Icons.Outlined.Info,
+                        onClick = { menuOpen = false; infoOpen = true },
+                    )
                     AppMenuItem(
                         text = stringResource(R.string.media_action_show_in_chat),
                         icon = Icons.Outlined.ChatBubbleOutline,
@@ -137,7 +211,17 @@ internal fun MediaViewerOverflow(
                     )
                 }
                 AppMenuGroup {
-                    if (item.caption != null) {
+                    if (albumSize > 1 && actions.canForward && !item.protectedContent) {
+                        AppMenuItem(
+                            text = stringResource(R.string.media_forward_album, albumSize),
+                            icon = Icons.Outlined.Collections,
+                            onClick = {
+                                menuOpen = false
+                                actions.onForward(item, true)
+                            },
+                        )
+                    }
+                    if (item.caption != null && !item.protectedContent) {
                         AppMenuItem(
                             text = stringResource(R.string.media_action_copy_caption),
                             icon = Icons.Default.ContentCopy,
@@ -183,30 +267,11 @@ internal fun MediaViewerOverflow(
                 }
             }
         }
-        AppMenuPopup(
-            expanded = speedMenu,
-            onDismiss = { speedMenu = false },
-            alignToAnchorEnd = true,
-        ) {
-            AppMenuSurface {
-                AppMenuGroup {
-                    SPEEDS.forEach { speed ->
-                        AppMenuItem(
-                            text = formatSpeed(speed),
-                            onClick = {
-                                speedMenu = false
-                                menuOpen = false
-                                session?.changeSpeed(speed)
-                                MediaViewerPrefs.setSpeed(context, chatKey, speed)
-                            },
-                        )
-                    }
-                }
-            }
         }
     }
+    if (infoOpen) MediaInfoSheet(item = item, session = session, onDismiss = { infoOpen = false })
 }
 
-private val SPEEDS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 2.5f)
+private val SPEEDS = listOf(0.5f, 1f, 1.25f, 1.5f, 2f)
 private fun formatSpeed(speed: Float): String =
     if (speed == speed.toInt().toFloat()) "${speed.toInt()}×" else "$speed×"

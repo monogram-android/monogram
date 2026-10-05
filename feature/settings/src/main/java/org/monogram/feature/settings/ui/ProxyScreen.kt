@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -33,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Edit
@@ -51,11 +53,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -71,8 +76,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
@@ -89,6 +96,7 @@ import org.monogram.core.ui.components.ItemPosition
 import org.monogram.core.ui.components.SettingsCard
 import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.loading.MonogramLoadingContained
+import org.monogram.core.ui.loading.MonogramLoadingHeroSize
 import org.monogram.core.ui.loading.MonogramLoadingInlineSize
 import org.monogram.core.ui.media.mediaViewerMotionEnabled
 import org.monogram.feature.settings.R
@@ -97,6 +105,11 @@ import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.ProxyConfig
 import org.monogram.network.bridge.ProxyType
 import org.monogram.network.bridge.decodeProxySecret
+
+internal object ProxyTestTags {
+    const val ROOT = "proxy_root"
+    const val BACK = "proxy_back"
+}
 
 internal data class ProxyScreenState(
     val type: ProxyType = ProxyType.SOCKS5,
@@ -137,6 +150,9 @@ internal fun ProxyScreen(
     onSave: (ProxyScreenState, String?, (String?) -> Unit) -> Unit,
     onDelete: (ProxyScreenState) -> Unit,
     onPasteAdd: suspend () -> Unit = {},
+    onBack: (() -> Unit)? = null,
+    showAppBar: Boolean = false,
+    loading: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -156,10 +172,29 @@ internal fun ProxyScreen(
         editorOpen = true
     }
 
-    Box(modifier.fillMaxSize()) {
+    Scaffold(
+        modifier = modifier
+            .fillMaxSize()
+            .then(if (showAppBar) Modifier.testTag(ProxyTestTags.ROOT) else Modifier),
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {
+            if (showAppBar && onBack != null) ProxyBackBar(onBack = onBack, busy = headerBusy)
+        },
+    ) { inner ->
+        if (loading) {
+            Box(
+                Modifier.fillMaxSize().padding(inner),
+                contentAlignment = Alignment.Center,
+            ) {
+                MonogramLoading(size = MonogramLoadingHeroSize)
+            }
+            return@Scaffold
+        }
         Column(
             Modifier
                 .fillMaxSize()
+                .padding(inner)
                 .wrapContentWidth(Alignment.CenterHorizontally)
                 .widthIn(max = 720.dp)
                 .verticalScroll(rememberScrollState())
@@ -251,27 +286,57 @@ internal fun ProxyScreen(
                 }
             }
         }
-        if (editorOpen) {
-            val seed = profiles.firstOrNull { it.profileKey() == editingKey } ?: ProxyScreenState()
-            val canDelete = editingKey.isNotEmpty() && profiles.any { it.profileKey() == editingKey }
-            AppModalSheet(onDismissRequest = { editorOpen = false }) {
-                key(editorNonce) {
-                    ProxyEditor(
-                        initial = seed,
-                        editing = canDelete,
-                        shapes = actionShapes,
-                        motion = motion,
-                        onDismiss = { editorOpen = false },
-                        onSave = onSave,
-                        onDelete = {
-                            profiles.firstOrNull { it.profileKey() == editingKey }?.let(onDelete)
-                            editorOpen = false
-                        },
-                    )
-                }
+    }
+    if (editorOpen) {
+        val seed = profiles.firstOrNull { it.profileKey() == editingKey } ?: ProxyScreenState()
+        val canDelete = editingKey.isNotEmpty() && profiles.any { it.profileKey() == editingKey }
+        AppModalSheet(onDismissRequest = { editorOpen = false }) {
+            key(editorNonce) {
+                ProxyEditor(
+                    initial = seed,
+                    editing = canDelete,
+                    shapes = actionShapes,
+                    motion = motion,
+                    onDismiss = { editorOpen = false },
+                    onSave = onSave,
+                    onDelete = {
+                        profiles.firstOrNull { it.profileKey() == editingKey }?.let(onDelete)
+                        editorOpen = false
+                    },
+                )
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProxyBackBar(onBack: () -> Unit, busy: Boolean) {
+    val backLabel = stringResource(R.string.settings_back)
+    TopAppBar(
+        title = {
+            Text(
+                stringResource(R.string.settings_proxy),
+                style = MaterialTheme.typography.titleLargeEmphasized,
+                maxLines = 1,
+            )
+        },
+        navigationIcon = {
+            IconButton(
+                onClick = onBack,
+                enabled = !busy,
+                modifier = Modifier
+                    .testTag(ProxyTestTags.BACK)
+                    .semantics { contentDescription = backLabel },
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = backLabel)
+            }
+        },
+        windowInsets = WindowInsets.statusBars,
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+    )
 }
 
 @Composable

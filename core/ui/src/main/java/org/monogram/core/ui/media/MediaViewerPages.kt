@@ -1,15 +1,24 @@
 package org.monogram.core.ui.media
 
-import android.view.TextureView
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Color.green
+import android.graphics.Color.rgb
+import android.graphics.ImageDecoder
+import android.graphics.Outline
+import android.os.Build
+import android.view.SurfaceView
+import android.view.View
+import android.view.ViewOutlineProvider
+import android.widget.ImageView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -17,9 +26,9 @@ import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -28,6 +37,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,8 +51,8 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +60,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.center
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -61,18 +72,87 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.scale
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.monogram.core.ui.ExpressiveDefaults
 import org.monogram.core.ui.R
 import org.monogram.core.ui.components.boundedMediaOffset
 import org.monogram.core.ui.components.fittedMediaSize
 import org.monogram.core.ui.components.focalMediaOffset
-import org.monogram.core.ui.components.shouldDismissMedia
 import org.monogram.core.ui.loading.MonogramCircularProgress
 import org.monogram.core.ui.loading.MonogramLoadingHeroSize
 import kotlin.math.abs
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ViewerLoadingIndicator(progress: Float?, modifier: Modifier = Modifier) {
+    val bounded = progress?.takeIf { it.isFinite() }?.coerceIn(0f, 1f)
+    if (bounded != null) {
+        androidx.compose.material3.LoadingIndicator(
+            progress = { bounded },
+            modifier = modifier.size(48.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+        )
+    } else {
+        androidx.compose.material3.LoadingIndicator(
+            modifier = modifier.size(48.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+        )
+    }
+}
+
+internal fun decodeSpoilerPreview(file: java.io.File): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    try {
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+    } catch (_: IllegalArgumentException) {
+        return null
+    }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 32) sample *= 2
+    val decoded = try {
+        BitmapFactory.decodeFile(
+            file.absolutePath,
+            BitmapFactory.Options().apply { inSampleSize = sample })
+    } catch (_: IllegalArgumentException) {
+        null
+    } ?: return null
+    val tiny = decoded.scale(12, 12)
+    if (tiny !== decoded) decoded.recycle()
+    val pixels = IntArray(144)
+    tiny.getPixels(pixels, 0, 12, 0, 0, 12, 12)
+    val blurred = IntArray(144)
+    for (y in 0 until 12) for (x in 0 until 12) {
+        var red = 0;
+        var green = 0;
+        var blue = 0;
+        var count = 0
+        for (dy in -2..2) for (dx in -2..2) {
+            val color = pixels[(y + dy).coerceIn(0, 11) * 12 + (x + dx).coerceIn(0, 11)]
+            red += android.graphics.Color.red(color)
+            green += green(color)
+            blue += android.graphics.Color.blue(color)
+            count++
+        }
+        blurred[y * 12 + x] = rgb(red / count, green / count, blue / count)
+    }
+    tiny.recycle()
+    val result = Bitmap.createBitmap(blurred, 12, 12, Bitmap.Config.ARGB_8888)
+    val width = if (bounds.outWidth >= bounds.outHeight) 48 else
+        (48f * bounds.outWidth / bounds.outHeight).toInt().coerceAtLeast(1)
+    val height = if (bounds.outHeight >= bounds.outWidth) 48 else
+        (48f * bounds.outHeight / bounds.outWidth).toInt().coerceAtLeast(1)
+    return result.scale(width, height)
+        .also { if (it !== result) result.recycle() }
+}
+
+internal fun shouldDismissViewer(distance: Float, height: Float): Boolean =
+    height > 0f && distance / height > 0.25f
 
 internal const val MAX_PHOTO_SCALE = 4f
 internal const val DOUBLE_TAP_SCALE = 2.5f
@@ -89,32 +169,92 @@ internal fun MediaPhotoPage(
     onDragEnd: (dismiss: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     label: String? = null,
+    onHdrDetected: (MediaHdr) -> Unit = {},
+    onDimensionsDetected: (width: Int, height: Int) -> Unit = { _, _ -> },
 ) {
     val fullFile = (item.source as? MediaSource.Local)?.file
+    var revealed by rememberSaveable(item.id) { mutableStateOf(!item.spoiler) }
+    val concealed = item.spoiler && !revealed
+    val reportHdr by rememberUpdatedState(onHdrDetected)
+    val reportDimensions by rememberUpdatedState(onDimensionsDetected)
+    var bitmap by remember(item.id, fullFile, concealed) { mutableStateOf<Bitmap?>(null) }
+    var spoilerPreview by remember(
+        item.id,
+        item.preview,
+        concealed
+    ) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(item.id, item.preview, fullFile, concealed) {
+        spoilerPreview = if (concealed) withContext(Dispatchers.IO) {
+            (item.preview ?: fullFile)?.let(::decodeSpoilerPreview)
+        } else null
+    }
     // Zoom survives rotation and process recreation, like any other viewer state.
     var scale by rememberSaveable(item.id) { mutableFloatStateOf(1f) }
     var relativeX by rememberSaveable(item.id) { mutableFloatStateOf(0f) }
     var relativeY by rememberSaveable(item.id) { mutableFloatStateOf(0f) }
     var viewport by remember { mutableStateOf(Size.Zero) }
+    var zoomActivity by remember(item.id) { mutableIntStateOf(0) }
+    var zoomBadgeVisible by remember(item.id) { mutableStateOf(false) }
+    val badgeEffects = MediaMotion.effects<Float>(mediaViewerMotionEnabled())
+    LaunchedEffect(zoomActivity) {
+        if (zoomActivity == 0) return@LaunchedEffect
+        zoomBadgeVisible = true
+        delay(900)
+        zoomBadgeVisible = false
+    }
     var image by remember(item.id) { mutableStateOf(Size.Zero) }
     var aspect by remember(item.id) { mutableStateOf(item.aspectRatio) }
     var failed by remember(item.id) { mutableStateOf(false) }
     var loading by remember(item.id) { mutableStateOf(true) }
 
+    LaunchedEffect(item.id, fullFile, concealed) {
+        if (concealed || fullFile == null) {
+            reportHdr(MediaHdr.None)
+            return@LaunchedEffect
+        }
+        loading = true
+        failed = false
+        val decoded = withContext(Dispatchers.IO) {
+            try {
+                if (Build.VERSION.SDK_INT >= 28) {
+                    ImageDecoder.decodeBitmap(ImageDecoder.createSource(fullFile))
+                } else {
+                    BitmapFactory.decodeFile(fullFile.absolutePath)
+                }
+            } catch (_: java.io.IOException) {
+                null
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+        }
+        bitmap = decoded
+        loading = false
+        failed = decoded == null
+        if (decoded != null) {
+            reportDimensions(decoded.width, decoded.height)
+            image = Size(decoded.width.toFloat(), decoded.height.toFloat())
+            aspect = decoded.width.toFloat() / decoded.height
+        }
+        val hasGainMap = Build.VERSION.SDK_INT >= 34 && decoded?.hasGainmap() == true
+        android.util.Log.d("MediaViewerHDR", "photo hasGainMap=$hasGainMap")
+        reportHdr(if (hasGainMap) MediaHdr.GainMap else MediaHdr.None)
+    }
+
     fun currentOffset(): Offset {
         val fit = fittedMediaSize(viewport, image)
         return boundedMediaOffset(
             Offset(relativeX * fit.width * scale, relativeY * fit.height * scale),
-            scale, viewport, image,
+            scale, fit, image,
         )
     }
 
     fun applyTransform(nextOffset: Offset, nextScale: Float) {
-        val bounded = boundedMediaOffset(nextOffset, nextScale, viewport, image)
         val fit = fittedMediaSize(viewport, image)
+        val bounded = boundedMediaOffset(nextOffset, nextScale, fit, image)
         relativeX = if (fit.width > 0f) bounded.x / (fit.width * nextScale) else 0f
         relativeY = if (fit.height > 0f) bounded.y / (fit.height * nextScale) else 0f
         scale = nextScale
+        zoomActivity++
     }
 
     val readOffset by rememberUpdatedState(::currentOffset)
@@ -126,26 +266,36 @@ internal fun MediaPhotoPage(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
+            .onSizeChanged { viewport = Size(it.width.toFloat(), it.height.toFloat()) }
             .semantics {
                 stateDescription = "${(scale * 100).toInt()}%"
                 if (label != null) contentDescription = label
             }
-            .pointerInput(item.id) {
+            .pointerInput(item.id, concealed) {
                 detectTapGestures(
-                    onTap = { toggle() },
+                    onTap = { if (concealed) revealed = true else toggle() },
                     onDoubleTap = { point ->
-                        if (scale > 1.05f) {
+                        if (concealed) {
+                            revealed = true
+                        } else if (scale > 1.05f) {
                             apply(Offset.Zero, 1f)
                         } else {
                             apply(
-                                focalMediaOffset(readOffset(), point, viewport.center, scale, DOUBLE_TAP_SCALE, Offset.Zero),
+                                focalMediaOffset(
+                                    readOffset(),
+                                    point,
+                                    viewport.center,
+                                    scale,
+                                    DOUBLE_TAP_SCALE,
+                                    Offset.Zero
+                                ),
                                 DOUBLE_TAP_SCALE,
                             )
                         }
                     },
                 )
             }
-            .pointerInput(item.id) {
+            .pointerInput(item.id, concealed) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     var totalPan = Offset.Zero
@@ -167,7 +317,7 @@ internal fun MediaPhotoPage(
                         if (event.changes.count { it.pressed } > 1) transformed = true
                         if (!active) {
                             active = totalPan.getDistance() > viewConfiguration.touchSlop ||
-                                abs(1f - totalZoom) * 100f > viewConfiguration.touchSlop
+                                    abs(1f - totalZoom) * 100f > viewConfiguration.touchSlop
                         }
                         if (active) {
                             // Zoom and pan own the gesture; a vertical drag dismisses.
@@ -191,67 +341,89 @@ internal fun MediaPhotoPage(
                         }
                     } while (event.changes.any { it.pressed })
                     if (released && !transformed && scale <= 1f && abs(totalPan.y) > abs(totalPan.x)) {
-                        endDrag(shouldDismissMedia(totalPan.y, size.height.toFloat()))
+                        endDrag(shouldDismissViewer(totalPan.y, size.height.toFloat()))
                     } else {
                         endDrag(false)
                     }
                 }
             },
     ) {
-        val aspectRatio = aspect ?: 4f / 3f
-        val fittedWidth = if (maxWidth / maxHeight > aspectRatio) maxHeight * aspectRatio else maxWidth
-        val fittedHeight = if (maxWidth / maxHeight > aspectRatio) maxHeight else maxWidth / aspectRatio
+        val aspectRatio = aspect ?: (4f / 3f)
+        val fittedWidth =
+            if (maxWidth / maxHeight > aspectRatio) maxHeight * aspectRatio else maxWidth
+        val fittedHeight =
+            if (maxWidth / maxHeight > aspectRatio) maxHeight else maxWidth / aspectRatio
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(fittedWidth, fittedHeight)
-                .onSizeChanged { viewport = Size(it.width.toFloat(), it.height.toFloat()) },
+                .size(fittedWidth, fittedHeight),
         ) {
-        val model: Any? = fullFile ?: item.preview
-        if (model != null) {
-            val context = LocalContext.current
-            val request = remember(model) {
-                coil.request.ImageRequest.Builder(context)
-                    .data(model)
-                    // Blurhash/thumbnail -> full resolution fades instead of popping.
-                    .crossfade(160)
-                    .build()
-            }
-            AsyncImage(
-                model = request,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                onLoading = { loading = true },
-                onError = { loading = false; failed = true },
-                onSuccess = { result ->
-                    loading = false
-                    failed = false
-                    val width = result.result.drawable.intrinsicWidth.toFloat()
-                    val height = result.result.drawable.intrinsicHeight.toFloat()
-                    image = Size(width, height)
-                    if (aspect == null && width > 0f && height > 0f) aspect = width / height
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                        val offset = currentOffset()
-                        translationX = offset.x
-                        translationY = offset.y
+            val imageModifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    val offset = currentOffset()
+                    translationX = offset.x
+                    translationY = offset.y
+                }
+            if (concealed) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .testTag("media-photo-spoiler")
+                ) {
+                    spoilerPreview?.let { preview ->
+                        Image(
+                            bitmap = preview.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        Box(Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.25f)))
+                    }
+                    Icon(
+                        imageVector = Icons.Default.VisibilityOff,
+                        contentDescription = label,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(48.dp),
+                    )
+                }
+            } else if (bitmap != null) {
+                AndroidView(
+                    factory = { context ->
+                        ImageView(context).apply {
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                            isClickable = false
+                            isFocusable = false
+                        }
                     },
-            )
+                    update = { it.setImageBitmap(bitmap) },
+                    onRelease = { it.setImageDrawable(null) },
+                    modifier = imageModifier,
+                )
+            } else if (item.preview != null) {
+                AsyncImage(
+                    model = item.preview,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    onSuccess = { result ->
+                        val width = result.result.drawable.intrinsicWidth.toFloat()
+                        val height = result.result.drawable.intrinsicHeight.toFloat()
+                        image = Size(width, height)
+                        if (aspect == null && width > 0f && height > 0f) aspect = width / height
+                    },
+                    modifier = imageModifier,
+                )
+            }
         }
-        }
-        // Blurhash / thumbnail first, then the full-size fade-up.
-        if (loading && fullFile == null && item.preview == null) {
-            MonogramCircularProgress(
-                visible = true,
-                modifier = Modifier.align(Alignment.Center),
-                size = MonogramLoadingHeroSize,
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.24f),
-            )
+        if (!concealed && bitmap == null && (item.loading || loading)) {
+            ViewerLoadingIndicator(item.progress, Modifier.align(Alignment.Center))
         }
         if (failed) {
             Surface(Modifier.align(Alignment.Center), shape = MaterialTheme.shapes.large) {
@@ -263,10 +435,13 @@ internal fun MediaPhotoPage(
             }
         }
         AnimatedVisibility(
-            visible = scale > 1.05f,
-            enter = fadeIn() + scaleIn(initialScale = 0.9f),
-            exit = fadeOut() + scaleOut(targetScale = 0.9f),
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 76.dp),
+            visible = zoomBadgeVisible && scale > 1.05f,
+            enter = fadeIn(badgeEffects),
+            exit = fadeOut(badgeEffects),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 76.dp)
+                .testTag("media-zoom-badge"),
         ) {
             Surface(
                 shape = RoundedCornerShape(10.dp),
@@ -303,6 +478,37 @@ internal fun MediaVideoPage(
     label: String? = null,
     testTagPrefix: String = "media-video",
 ) {
+    var revealed by rememberSaveable(item.id) { mutableStateOf(!item.spoiler) }
+    val concealed = item.spoiler && !revealed
+    var spoilerPreview by remember(item.id, item.preview) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(item.id, item.preview, concealed) {
+        spoilerPreview = if (concealed) withContext(Dispatchers.IO) {
+            item.preview?.let(::decodeSpoilerPreview)
+        } else null
+    }
+    LaunchedEffect(active, concealed, session.playing) {
+        if (active && concealed && session.playing) session.pause()
+    }
+    if (concealed) {
+        Box(
+            modifier
+                .fillMaxSize()
+                .testTag("media-video-spoiler")
+                .pointerInput(item.id) {
+                    detectTapGestures(onTap = { revealed = true; if (active) session.play() })
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            spoilerPreview?.let {
+                Image(
+                    bitmap = it.asImageBitmap(), contentDescription = null,
+                    contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Icon(Icons.Default.VisibilityOff, label, modifier = Modifier.size(48.dp))
+        }
+        return
+    }
     var frameRendered by remember(item.id) { mutableStateOf(false) }
     var hint by remember(item.id) { mutableStateOf<String?>(null) }
     var holdSpeed by remember(item.id) { mutableStateOf(false) }
@@ -318,6 +524,7 @@ internal fun MediaVideoPage(
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() {
                 frameRendered = true
+                android.util.Log.d("MediaViewerHDR", "video first frame rendered")
             }
         }
         player.addListener(listener)
@@ -336,7 +543,7 @@ internal fun MediaVideoPage(
             )
             .pointerInput(item.id, active) {
                 detectTapGestures(
-                    onTap = { toggle() },
+                    onTap = { if (item.isVideoNote) session.toggleMuted() else toggle() },
                     onDoubleTap = { point ->
                         val third = size.width / 3f
                         when {
@@ -344,10 +551,12 @@ internal fun MediaVideoPage(
                                 seekBy(-10_000L)
                                 hint = "-10s"
                             }
+
                             point.x > third * 2 -> {
                                 seekBy(10_000L)
                                 hint = "+10s"
                             }
+
                             else -> toggle()
                         }
                     },
@@ -384,7 +593,7 @@ internal fun MediaVideoPage(
                     } else {
                         val vertical = abs(total.y) > abs(total.x)
                         endDragCallback(
-                            vertical && shouldDismissMedia(total.y, size.height.toFloat()),
+                            vertical && shouldDismissViewer(total.y, size.height.toFloat()),
                             vertical && total.y < 0f,
                         )
                     }
@@ -392,39 +601,61 @@ internal fun MediaVideoPage(
             },
     ) {
         val attachSurface = active && !session.audioOnly && item.source != null &&
-            !LocalPictureInPictureActive.current
+                !LocalPictureInPictureActive.current
         val aspect = session.aspectRatio.takeIf { it > 0f } ?: item.aspectRatio ?: (16f / 9f)
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // Letterbox, never squash: the surface keeps the video's own aspect ratio.
             val fittedWidth = if (maxWidth / maxHeight > aspect) maxHeight * aspect else maxWidth
             val fittedHeight = if (maxWidth / maxHeight > aspect) maxHeight else maxWidth / aspect
             if (attachSurface) {
-                AndroidView(
-                    factory = { ctx ->
-                        TextureView(ctx).apply {
-                            isOpaque = false
-                            isClickable = false
-                            isFocusable = false
-                            player.setVideoTextureView(this)
-                        }
-                    },
-                    onRelease = { texture -> runCatching { player.clearVideoTextureView(texture) } },
-                    modifier = Modifier
+                Box(
+                    Modifier
                         .align(Alignment.Center)
-                        .size(fittedWidth, fittedHeight)
+                        .then(
+                            if (item.isVideoNote) Modifier.size(minOf(fittedWidth, fittedHeight))
+                            else Modifier.size(fittedWidth, fittedHeight)
+                        )
                         .testTag(if (frameRendered) "$testTagPrefix-ready" else "$testTagPrefix-loading"),
-                )
+                ) {
+                    AndroidView(
+                        factory = { ctx ->
+                            SurfaceView(ctx).apply {
+                                setZOrderOnTop(false)
+                                if (item.isVideoNote) {
+                                    clipToOutline = true
+                                    outlineProvider = object : ViewOutlineProvider() {
+                                        override fun getOutline(
+                                            view: View,
+                                            outline: Outline
+                                        ) {
+                                            outline.setOval(0, 0, view.width, view.height)
+                                        }
+                                    }
+                                }
+                                isClickable = false
+                                isFocusable = false
+                                player.setVideoSurfaceView(this)
+                            }
+                        },
+                        onRelease = { surface -> runCatching { player.clearVideoSurfaceView(surface) } },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             } else {
-                PosterFrame(item, Modifier.align(Alignment.Center).size(fittedWidth, fittedHeight))
+                PosterFrame(
+                    item, Modifier
+                        .align(Alignment.Center)
+                        .then(
+                            if (item.isVideoNote) Modifier.size(minOf(fittedWidth, fittedHeight))
+                            else Modifier.size(fittedWidth, fittedHeight)
+                        )
+                )
             }
         }
         if (active && !session.audioOnly) {
-            MonogramCircularProgress(
-                visible = session.buffering && !session.failed,
-                modifier = Modifier.align(Alignment.Center),
-                size = MonogramLoadingHeroSize,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            if (session.buffering && !session.failed) {
+                ViewerLoadingIndicator(item.progress, Modifier.align(Alignment.Center))
+            }
         }
         if (active && session.audioOnly) {
             Surface(
@@ -470,7 +701,9 @@ internal fun MediaVideoPage(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.85f),
                 contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                modifier = Modifier.align(Alignment.TopEnd).padding(24.dp),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(24.dp),
             ) {
                 Text(
                     text = "2×",
@@ -500,7 +733,9 @@ private fun PosterFrame(item: MediaViewerItem, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            Box(Modifier.fillMaxSize().background(Color.Transparent))
+            Box(Modifier
+                .fillMaxSize()
+                .background(Color.Transparent))
         }
         MonogramCircularProgress(
             visible = model == null && item.loading,
@@ -520,7 +755,8 @@ internal fun MediaPlayPauseHero(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val interactionSource =
+        remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = when {
@@ -528,12 +764,12 @@ internal fun MediaPlayPauseHero(
             playing -> 1f
             else -> 1.05f
         },
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 800f),
+        animationSpec = MediaMotion.effects(mediaViewerMotionEnabled()),
         label = "heroMorph",
     )
     val rotation by animateFloatAsState(
         targetValue = if (playing) 0f else 0f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 800f),
+        animationSpec = MediaMotion.effects(mediaViewerMotionEnabled()),
         label = "heroRotation",
     )
     FilledIconButton(
@@ -551,7 +787,7 @@ internal fun MediaPlayPauseHero(
     ) {
         Crossfade(
             targetState = playing,
-            animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.8f),
+            animationSpec = MediaMotion.effects(mediaViewerMotionEnabled()),
             label = "heroIcon",
         ) { isPlaying ->
             Icon(

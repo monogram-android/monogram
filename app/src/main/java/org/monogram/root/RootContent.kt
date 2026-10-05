@@ -104,6 +104,7 @@ import org.monogram.feature.chats.ui.ChatsContent
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.ui.DialogContent
 import org.monogram.feature.profile.ui.ProfileContent
+import org.monogram.feature.settings.ui.ProxySettingsContent
 import org.monogram.feature.settings.ui.SettingsContent
 import kotlin.math.roundToInt
 
@@ -112,7 +113,7 @@ import kotlin.math.roundToInt
 fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
     val stack by component.stack.subscribeAsState()
     org.monogram.feature.dialog.ui.AudioMessagePlaybackScope(
-        enabled = stack.active.instance !is RootComponent.Child.Auth,
+        enabled = !stack.active.instance.isSignedOut(),
     ) { togglePlayback -> RootPlaybackContent(component, modifier, togglePlayback) }
 }
 
@@ -127,7 +128,7 @@ private fun RootPlaybackContent(
     val currentStack by component.stack.subscribeAsState()
     val playbackContext = LocalContext.current
     val playbackSession = remember(playbackContext) { MediaPlaybackHolder.session(playbackContext) }
-    val authenticated = currentStack.active.instance !is RootComponent.Child.Auth
+    val authenticated = !currentStack.active.instance.isSignedOut()
     val rootLifecycleState = LocalLifecycleOwner.current.lifecycle.currentStateAsState().value
     val showMessagePlayback = authenticated && playbackSession.isMessagePlayback &&
             rootLifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) &&
@@ -212,7 +213,10 @@ private fun RootPlaybackContent(
                 val settingsNav =
                     child.configuration is RootComponent.Config.Settings ||
                             other.configuration is RootComponent.Config.Settings
-                if (settingsNav) settingsSlide else screenSlide
+                val proxyNav =
+                    child.configuration is RootComponent.Config.Proxy ||
+                            other.configuration is RootComponent.Config.Proxy
+                if (settingsNav || proxyNav) settingsSlide else screenSlide
             },
             selector = { event, _, _ ->
                 predictiveBackAnimatable(
@@ -419,7 +423,7 @@ private fun RootPlaybackContent(
                                 ) {
                                     !expanded && when (component.stack.value.active.instance) {
                                         is RootComponent.Child.Dialog, is RootComponent.Child.Profile,
-                                        is RootComponent.Child.Settings -> true
+                                        is RootComponent.Child.Settings, is RootComponent.Child.Proxy -> true
 
                                         else -> false
                                     }
@@ -451,7 +455,15 @@ private fun RootPlaybackContent(
                                     }
                                 } else Box(Modifier.fillMaxSize())
 
-                                is RootComponent.Child.Auth -> AuthContent(instance.component)
+                                is RootComponent.Child.Auth -> AuthContent(
+                                    component = instance.component,
+                                    onOpenProxy = component::openProxy,
+                                )
+                                is RootComponent.Child.Proxy -> ProxySettingsContent(
+                                    session = component.proxySession,
+                                    onBack = component::onBack,
+                                    showAppBar = true,
+                                )
                                 is RootComponent.Child.Home -> if (expanded) {
                                     EmptyDetailContent()
                                 } else if (compactHome) {
@@ -576,7 +588,7 @@ private fun RootPlaybackContent(
             }
             UpdatePromptSheet(
                 controller = component.appUpdate,
-                enabled = currentStack.active.instance !is RootComponent.Child.Auth,
+                enabled = !currentStack.active.instance.isSignedOut(),
             )
         }
     }

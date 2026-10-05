@@ -2,14 +2,15 @@ package org.monogram.core.ui.media
 
 import android.content.Context
 import android.provider.Settings
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.snap
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 
-/** Product motion scheme. Set to false for the Standard scheme (no overshoot). */
+/** Viewer motion preference. False snaps transitions to their target state. */
 val LocalMediaViewerMotion = staticCompositionLocalOf { true }
 
 /**
@@ -27,20 +28,17 @@ private fun animationsAllowed(context: Context): Boolean = runCatching {
     Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
 }.getOrDefault(true)
 
-/** Expressive vs. reduced-motion spring pairs. */
 object MediaMotion {
-    fun <T> spatial(motion: Boolean): androidx.compose.animation.core.FiniteAnimationSpec<T> =
-        if (motion) spring(dampingRatio = 0.6f, stiffness = 800f)
-        else spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
+    @Composable
+    fun <T> spatial(motion: Boolean): FiniteAnimationSpec<T> =
+        if (motion) MaterialTheme.motionScheme.defaultSpatialSpec() else snap()
 
-    /** Fast transition spec for small UI state changes like thumbnail selection. */
-    fun <T> quick(motion: Boolean): androidx.compose.animation.core.FiniteAnimationSpec<T> =
-        if (motion) androidx.compose.animation.core.tween(durationMillis = 180)
-        else androidx.compose.animation.core.snap()
+    @Composable
+    fun <T> quick(motion: Boolean): FiniteAnimationSpec<T> = spatial(motion)
 
-    fun <T> effects(motion: Boolean): androidx.compose.animation.core.FiniteAnimationSpec<T> =
-        if (motion) androidx.compose.animation.core.tween(durationMillis = 220)
-        else androidx.compose.animation.core.snap()
+    @Composable
+    fun <T> effects(motion: Boolean): FiniteAnimationSpec<T> =
+        if (motion) MaterialTheme.motionScheme.defaultEffectsSpec() else snap()
 }
 
 /** Per-chat playback preferences: speed and mute survive leaving the viewer. */

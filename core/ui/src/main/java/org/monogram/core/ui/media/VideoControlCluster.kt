@@ -47,11 +47,6 @@ internal fun VideoControlCluster(
     val mutedLabel = stringResource(R.string.media_video_mute)
     val unmuteLabel = stringResource(R.string.media_video_unmute)
 
-    LaunchedEffect(chatKey) {
-        val saved = MediaViewerPrefs.speed(context, chatKey)
-        if (saved != session.speed) session.changeSpeed(saved)
-    }
-
     Column(Modifier.fillMaxWidth()) {
         run {
             // Row 1 (timeline): playhead, seek with buffered range, duration.

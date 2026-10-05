@@ -30,6 +30,7 @@ import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.ProxyConfig
 import org.monogram.network.http.MediaRepository
+import org.monogram.feature.settings.ui.ProxySession
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsComponent(
@@ -51,7 +52,7 @@ class SettingsComponent(
     openProxy: Boolean = false,
     val appUpdate: AppUpdateController? = null,
     val updatesEnabled: Boolean = true,
-) : ComponentContext by componentContext {
+) : ComponentContext by componentContext, ProxySession {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val store = instanceKeeper.getStore {
@@ -119,11 +120,11 @@ class SettingsComponent(
         lifecycle.doOnDestroy { scope.cancel() }
     }
 
-    fun configureProxy(config: ProxyConfig) = client.configureProxy(config)
-    fun clearProxy() = client.clearProxy()
-    fun setTransportMode(mode: MtprotoTransportMode) = client.setTransportMode(mode)
-    suspend fun testProxyConnection() = client.connect()
-    suspend fun pingProxy(config: ProxyConfig) = client.pingProxy(config)
+    override fun configureProxy(config: ProxyConfig) = client.configureProxy(config)
+    override fun clearProxy() = client.clearProxy()
+    override fun setTransportMode(mode: MtprotoTransportMode) = client.setTransportMode(mode)
+    override suspend fun testProxyConnection() = client.connect()
+    override suspend fun pingProxy(config: ProxyConfig) = client.pingProxy(config)
 
     fun onRefresh() = store.accept(SettingsStore.Intent.Refresh)
     fun onOpenWallpapers(cacheDirectory: java.io.File) = wallpaperStore.accept(

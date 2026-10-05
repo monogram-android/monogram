@@ -55,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
@@ -109,6 +110,9 @@ fun MiniPlayerBar(
     )
     val tickFraction = if (duration > 0L) position.toFloat() / duration else 0f
     val motion = mediaViewerMotionEnabled()
+    val spatialSpec = MediaMotion.spatial<Float>(motion)
+    val effectsSpec = MediaMotion.effects<Float>(motion)
+    val slideSpec = MediaMotion.spatial<IntOffset>(motion)
     val title = item.senderName?.takeIf { it.isNotBlank() }
         ?: item.caption?.takeIf { it.isNotBlank() }
         ?: item.fileName?.takeIf { it.isNotBlank() }
@@ -154,8 +158,8 @@ fun MiniPlayerBar(
                     AnimatedContent(
                         targetState = playsVideo,
                         transitionSpec = {
-                            fadeIn(MediaMotion.effects(motion)) togetherWith
-                                fadeOut(MediaMotion.quick(motion))
+                            fadeIn(effectsSpec) togetherWith
+                                fadeOut(effectsSpec)
                         },
                         label = "miniTile",
                     ) { video ->
@@ -192,10 +196,10 @@ fun MiniPlayerBar(
                     AnimatedContent(
                         targetState = title,
                         transitionSpec = {
-                            (slideInVertically(MediaMotion.spatial(motion)) { it / 2 } +
-                                fadeIn(MediaMotion.effects(motion))) togetherWith
-                                (slideOutVertically(MediaMotion.quick(motion)) { -it / 2 } +
-                                    fadeOut(MediaMotion.quick(motion)))
+                            (slideInVertically(slideSpec) { it / 2 } +
+                                fadeIn(effectsSpec)) togetherWith
+                                (slideOutVertically(slideSpec) { -it / 2 } +
+                                    fadeOut(effectsSpec))
                         },
                         label = "miniTitle",
                     ) { current ->
@@ -216,9 +220,9 @@ fun MiniPlayerBar(
                 AnimatedVisibility(
                     visible = session.hasNextVideo,
                     enter = expandHorizontally(MediaMotion.spatial(motion)) +
-                        fadeIn(MediaMotion.effects(motion)),
+                        fadeIn(effectsSpec),
                     exit = shrinkHorizontally(MediaMotion.quick(motion)) +
-                        fadeOut(MediaMotion.quick(motion)),
+                        fadeOut(effectsSpec),
                 ) {
                     IconButton(
                         onClick = { session.selectNextVideo() },
@@ -241,10 +245,10 @@ fun MiniPlayerBar(
                     AnimatedContent(
                         targetState = session.playing,
                         transitionSpec = {
-                            (scaleIn(MediaMotion.spatial(motion), initialScale = 0.6f) +
-                                fadeIn(MediaMotion.effects(motion))) togetherWith
-                                (scaleOut(MediaMotion.quick(motion), targetScale = 0.6f) +
-                                    fadeOut(MediaMotion.quick(motion)))
+                            (scaleIn(spatialSpec, initialScale = 0.6f) +
+                                fadeIn(effectsSpec)) togetherWith
+                                (scaleOut(spatialSpec, targetScale = 0.6f) +
+                                    fadeOut(effectsSpec))
                         },
                         label = "miniPlayPause",
                     ) { playing ->

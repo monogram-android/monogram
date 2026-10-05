@@ -11,7 +11,24 @@ import androidx.media3.datasource.DataSource
 import java.io.File
 
 /** What kind of media a viewer page shows. Mixed albums contain both. */
-enum class MediaViewerKind { PHOTO, VIDEO, AUDIO, VOICE, VIDEO_NOTE }
+enum class MediaViewerKind { PHOTO, VIDEO, AUDIO, VOICE, VIDEO_NOTE, UNKNOWN }
+
+@Immutable
+data class CaptionEntity(val offset: Int, val length: Int, val type: Type, val value: String? = null) {
+    enum class Type { URL, MENTION, BOLD }
+}
+
+@Immutable
+sealed interface MediaHdr {
+    data object None : MediaHdr
+    data object GainMap : MediaHdr
+    data class Video(val hdrStaticInfoLabel: String) : MediaHdr
+}
+
+@Immutable
+data class AlbumSelectionState(val active: Boolean = false, val ids: Set<String> = emptySet()) {
+    fun contains(id: String): Boolean = if (active) id in ids else false
+}
 
 /** Where the bytes come from. [Stream] is used while a video is still downloading. */
 sealed interface MediaSource {
@@ -33,7 +50,17 @@ data class MediaViewerItem(
     /** Thumbnail or blurhash stand-in shown before the full media arrives. */
     val preview: File? = null,
     val caption: String? = null,
+    val captionEntities: List<CaptionEntity> = emptyList(),
     val durationSeconds: Int? = null,
+    val albumIndex: Int = 0,
+    val albumCount: Int = 1,
+    val groupedId: Long? = null,
+    val spoiler: Boolean = false,
+    val width: Int? = null,
+    val height: Int? = null,
+    val progress: Float? = null,
+    val hdr: MediaHdr = MediaHdr.None,
+    val qualities: List<String> = emptyList(),
     val aspectRatio: Float? = null,
     val senderName: String? = null,
     /** Pre-formatted relative date ("yesterday", "14:32"). */
@@ -76,6 +103,8 @@ data class MediaViewerActions(
     val onDelete: (item: MediaViewerItem, wholeAlbum: Boolean) -> Unit = { _, _ -> },
     val onEdit: (MediaViewerItem) -> Unit = {},
     val onShowInChat: (MediaViewerItem) -> Unit = {},
+    val onReply: ((MediaViewerItem) -> Unit)? = null,
+    val onSaveAs: ((MediaViewerItem) -> Unit)? = null,
     val onCopyCaption: (MediaViewerItem) -> Unit = {},
     val onReport: (MediaViewerItem) -> Unit = {},
     val onOpenExternally: (MediaViewerItem) -> Unit = {},
@@ -92,6 +121,8 @@ data class MediaViewerActions(
     val canPictureInPicture: Boolean = false,
     val canRetry: Boolean = false,
     val canForward: Boolean = true,
+    val onCaptionUrl: (String) -> Unit = {},
+    val onCaptionMention: (String) -> Unit = {},
 )
 
 /** Which of the four playback surfaces currently owns the session. */
@@ -105,6 +136,9 @@ class MediaAlbumState(
 ) {
     var items by mutableStateOf(initialItems)
     var index by mutableIntStateOf(initialIndex.coerceAtLeast(0))
+    var selection by mutableStateOf(AlbumSelectionState())
+    private val detectedHdr = mutableMapOf<String, MediaHdr>()
+    private val detectedDimensions = mutableMapOf<String, Pair<Int, Int>>()
 
     init {
         // The index is an invariant of the album, not something callers must police.
@@ -115,8 +149,45 @@ class MediaAlbumState(
     val count: Int get() = items.size
     val hasAlbum: Boolean get() = items.size > 1
 
-    fun update(items: List<MediaViewerItem>, index: Int = this.index) {
-        this.items = items
-        this.index = index.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+    fun update(items: List<MediaViewerItem>, index: Int? = null) {
+        val currentId = current?.id
+        val retainedIndex = items.indexOfFirst { it.id == currentId }.takeIf { it >= 0 } ?: this.index
+        this.items = items.map { item ->
+            val hdr = detectedHdr[item.id] ?: item.hdr
+            val dimensions = detectedDimensions[item.id]
+            item.copy(hdr = hdr, width = dimensions?.first ?: item.width, height = dimensions?.second ?: item.height)
+        }
+        this.index = (index ?: retainedIndex).coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        val retained = selection.ids.intersect(items.mapTo(mutableSetOf()) { it.id })
+        selection = AlbumSelectionState(retained.isNotEmpty(), retained)
+    }
+
+    fun setHdr(id: String, hdr: MediaHdr) {
+        detectedHdr[id] = hdr
+        if (items.any { it.id == id && it.hdr != hdr }) {
+            items = items.map { if (it.id == id) it.copy(hdr = hdr) else it }
+        }
+    }
+
+    fun setDimensions(id: String, width: Int, height: Int) {
+        if (width <= 0 || height <= 0) return
+        detectedDimensions[id] = width to height
+        if (items.any { it.id == id && (it.width != width || it.height != height) }) {
+            items = items.map { if (it.id == id) it.copy(width = width, height = height) else it }
+        }
+    }
+
+    fun toggleSelection(id: String) {
+        if (items.none { it.id == id }) return
+        val next = if (id in selection.ids) selection.ids - id else selection.ids + id
+        selection = AlbumSelectionState(active = next.isNotEmpty(), ids = next)
+    }
+
+    fun clearSelection() { selection = AlbumSelectionState() }
+
+    fun selectedItems(): List<MediaViewerItem> = if (selection.active) {
+        items.filter { it.id in selection.ids }
+    } else {
+        listOfNotNull(current)
     }
 }

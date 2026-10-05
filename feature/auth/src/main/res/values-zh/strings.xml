@@ -42,4 +42,5 @@
     <string name="auth_paste_password">粘贴密码</string>
     <string name="auth_paste_empty">剪贴板为空</string>
     <string name="auth_paste_code">粘贴验证码</string>
+    <string name="auth_connection">连接设置</string>
 </resources>

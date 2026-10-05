@@ -6,6 +6,48 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaViewerModelTest {
+    @Test
+    fun viewerDismissRequiresDownwardProgressBeyondThreshold() {
+        assertFalse(shouldDismissViewer(250f, 1000f))
+        assertFalse(shouldDismissViewer(100f, 1000f))
+        assertFalse(shouldDismissViewer(-700f, 1000f))
+        assertFalse(shouldDismissViewer(500f, 0f))
+        assertTrue(shouldDismissViewer(251f, 1000f))
+        assertTrue(shouldDismissViewer(300f, 1000f))
+    }
+
+    @Test
+    fun fillingAndReorderingAlbumKeepsCurrentIdentityUnlessIndexExplicit() {
+        val state = MediaAlbumState(listOf(photo("b")))
+        state.update(listOf(photo("a"), photo("b"), photo("c")))
+        assertEquals(1, state.index)
+        assertEquals("b", state.current?.id)
+        state.update(listOf(photo("c"), photo("a"), photo("b")))
+        assertEquals(2, state.index)
+        assertEquals("b", state.current?.id)
+        state.update(state.items, 0)
+        assertEquals("c", state.current?.id)
+    }
+
+    @Test
+    fun albumSaverRestoresIndexAndSelectionAndDropsMissingIds() {
+        val items = listOf(photo("a"), photo("b"), photo("c"))
+        val original = MediaAlbumState(items, 2).apply {
+            toggleSelection("a")
+            toggleSelection("c")
+        }
+        val saver = albumStateSaver(items)
+        val saved = with(saver) {
+            androidx.compose.runtime.saveable.SaverScope { true }.save(original)!!
+        }
+        val restored = saver.restore(saved)!!
+        assertEquals(2, restored.index)
+        assertEquals(listOf("a", "c"), restored.selectedItems().map { it.id })
+        val reduced = albumStateSaver(items.take(2)).restore(saved)!!
+        assertEquals(1, reduced.index)
+        assertEquals(listOf("a"), reduced.selectedItems().map { it.id })
+    }
+
     private fun video(duration: Int?, id: String = "v", protected: Boolean = false) = MediaViewerItem(
         id = id,
         kind = MediaViewerKind.VIDEO,
@@ -98,6 +140,55 @@ class MediaViewerModelTest {
         // Shrinking the album still clamps into range.
         album.update(listOf(photo("a")), album.index)
         assertEquals(0, album.index)
+    }
+
+    @Test
+    fun emptySelectionTargetsCurrentAndSubsetKeepsAlbumOrder() {
+        val album = MediaAlbumState(listOf(photo("a"), photo("b"), photo("c")), 1)
+        assertEquals(listOf("b"), album.selectedItems().map { it.id })
+        album.toggleSelection("c")
+        album.toggleSelection("a")
+        assertTrue(album.selection.active)
+        assertEquals(listOf("a", "c"), album.selectedItems().map { it.id })
+        album.clearSelection()
+        assertEquals(listOf("b"), album.selectedItems().map { it.id })
+    }
+
+    @Test
+    fun removedSelectionFallsBackToCurrentAndUnknownIdsAreIgnored() {
+        val album = MediaAlbumState(listOf(photo("a"), photo("b")))
+        album.toggleSelection("missing")
+        assertFalse(album.selection.active)
+        album.toggleSelection("b")
+        album.update(listOf(photo("a")))
+        assertFalse(album.selection.active)
+        assertEquals(listOf("a"), album.selectedItems().map { it.id })
+    }
+
+    @Test
+    fun discoveredHdrSurvivesFeatureListRefreshAndCanBeCleared() {
+        val album = MediaAlbumState(listOf(photo("a"), photo("b")))
+        album.setHdr("a", MediaHdr.GainMap)
+        album.update(listOf(photo("a"), photo("b")))
+        assertEquals(MediaHdr.GainMap, album.current?.hdr)
+        assertEquals(MediaHdr.None, album.items[1].hdr)
+        album.setHdr("a", MediaHdr.None)
+        assertEquals(MediaHdr.None, album.current?.hdr)
+    }
+
+    @Test
+    fun hdrRequiresHdrTransferOrDolbyVisionMime() {
+        fun format(transfer: Int) = androidx.media3.common.Format.Builder()
+            .setSampleMimeType(androidx.media3.common.MimeTypes.VIDEO_H265)
+            .setColorInfo(androidx.media3.common.ColorInfo.Builder().setColorTransfer(transfer).build())
+            .build()
+        assertEquals(MediaHdr.None, hdrForVideoFormat(null))
+        assertEquals(MediaHdr.None, hdrForVideoFormat(format(androidx.media3.common.C.COLOR_TRANSFER_SDR)))
+        assertEquals(MediaHdr.Video("HDR10"), hdrForVideoFormat(format(androidx.media3.common.C.COLOR_TRANSFER_ST2084)))
+        assertEquals(MediaHdr.Video("HLG"), hdrForVideoFormat(format(androidx.media3.common.C.COLOR_TRANSFER_HLG)))
+        assertEquals(MediaHdr.Video("Dolby Vision"), hdrForVideoFormat(
+            androidx.media3.common.Format.Builder().setSampleMimeType(androidx.media3.common.MimeTypes.VIDEO_DOLBY_VISION).build(),
+        ))
     }
 
     @Test

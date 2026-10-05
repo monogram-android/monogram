@@ -149,9 +149,17 @@
     <string name="media_video_retry">Tekrar dene</string>
     <string name="media_sender_unknown">Bilinmeyen gönderen</string>
     <string name="media_viewer_album_item">%1$s %2$d / %3$d, %4$s, %5$s</string>
+    <string name="media_viewer_page_position">%2$d öğeden %1$d. öğe</string>
+    <string name="media_viewer_page_item">%1$s, %2$s, %3$s, %4$s</string>
+    <string name="media_viewer_kind_hdr">%1$s, %2$s</string>
+    <string name="media_kind_video_note">video mesajı</string>
+    <string name="media_kind_voice">sesli mesaj</string>
+    <string name="media_kind_audio">ses</string>
+    <string name="media_kind_unknown">bilinmeyen medya</string>
     <string name="media_action_share">Paylaş</string>
     <string name="media_action_save">Cihaza kaydet</string>
     <string name="media_action_forward">İlet</string>
+    <string name="media_action_reply">Yanıtla</string>
     <string name="media_forward_this">Bunu ilet</string>
     <string name="media_forward_album">Albümdeki %1$d öğeyi ilet</string>
     <string name="media_action_copy_caption">Açıklamayı kopyala</string>
@@ -163,7 +171,6 @@
     <string name="media_action_show_in_chat">Sohbette göster</string>
     <string name="media_action_open_externally">Başka uygulamada aç</string>
     <string name="media_action_delete">Sil</string>
-    <string name="media_action_caption_sheet">Açıklama ve ayrıntılar</string>
     <string name="media_more_actions">Diğer işlemler</string>
     <string name="media_menu_speed">Oynatma hızı %1$s</string>
     <string name="media_menu_loop">Bu videoyu döngüye al</string>
@@ -253,4 +260,18 @@
         <item quantity="one">son görülme %d saat önce</item>
         <item quantity="other">son görülme %d saat önce</item>
     </plurals>
+    <string name="media_action_info">Bilgi</string>
+    <string name="media_info_name">Dosya adı</string>
+    <string name="media_info_size">Dosya boyutu</string>
+    <string name="media_info_dimensions">Boyutlar</string>
+    <string name="media_info_dimensions_value">%1$d × %2$d</string>
+    <string name="media_info_duration">Süre</string>
+    <string name="media_info_date">Tarih</string>
+    <string name="media_info_hdr">HDR</string>
+    <string name="media_info_gainmap">HDR kazanç haritası</string>
+    <string name="media_info_yes">Evet</string>
+    <string name="media_info_no">Hayır</string>
+    <string name="media_info_unknown">Bilinmiyor</string>
+    <string name="media_action_save_as">Farklı kaydet…</string>
+    <string name="media_copy_hdr_warning">Görüntü kopyalandı. Bazı uygulamalar HDR desteklemeyebilir.</string>
 </resources>

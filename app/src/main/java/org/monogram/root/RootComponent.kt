@@ -46,6 +46,7 @@ import org.monogram.feature.folders.FoldersComponent
 import org.monogram.feature.profile.ProfileComponent
 import org.monogram.feature.settings.AppUpdateController
 import org.monogram.feature.settings.SettingsComponent
+import org.monogram.feature.settings.ui.ProxySession
 import org.monogram.network.bridge.BridgedMtprotoClient
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
@@ -83,8 +84,10 @@ class RootComponent(
         listDetailVisible = visible
     }
 
+    internal val proxySession: ProxySession = ClientProxySession(client)
+
     fun openFromNotification(chatId: Long, messageId: Int = 0) {
-        if (stack.value.active.configuration is Config.Auth) return
+        if (stack.value.active.configuration.isAuthArea()) return
         AppLog.api("notify", "open chat=$chatId")
         pushRegistration?.onVisibleChat(chatId)
         navigation.navigate { configurations ->
@@ -97,7 +100,7 @@ class RootComponent(
     }
 
     fun openChatForPlayback(chatId: Long, messageId: Int = 0) {
-        if (stack.value.active.configuration is Config.Auth) return
+        if (stack.value.active.configuration.isAuthArea()) return
         navigation.navigate { configurations ->
             chatSelectionStack(
                 configurations,
@@ -110,7 +113,7 @@ class RootComponent(
     fun openIncomingShare(share: IncomingShare) {
         if (share.isEmpty()) return
         pendingIncomingShare = share
-        if (stack.value.active.configuration !is Config.Auth) {
+        if (!stack.value.active.configuration.isAuthArea()) {
             openRecipientPicker(RecipientRequest(share = share))
             pendingIncomingShare = null
             onIncomingShareConsumed()
@@ -156,6 +159,10 @@ class RootComponent(
         }
     }
 
+    fun openProxy() {
+        navigation.navigate { configurations -> uniqueStack(configurations, Config.Proxy) }
+    }
+
     private fun openSettings(openFolders: Boolean = false, openProxy: Boolean = false) {
         navigation.navigate { configurations ->
             uniqueStack(configurations, Config.Settings(openFolders = openFolders, openProxy = openProxy))
@@ -193,7 +200,7 @@ class RootComponent(
 
     fun openTelegramUri(uri: String): Boolean {
         val link = parseTelegramLink(uri) ?: return false
-        if (stack.value.active.configuration is Config.Auth) return true
+        if (stack.value.active.configuration.isAuthArea()) return true
         scope.launch { openTelegramLink(link) }
         return true
     }
@@ -228,7 +235,7 @@ class RootComponent(
             pushRegistration?.onVisibleChat(chatId)
         }
         lifecycle.doOnStart {
-            if (stack.value.active.configuration !is Config.Auth) {
+            if (!stack.value.active.configuration.isAuthArea()) {
                 scope.launch { runCatching { pushRegistration?.reregister() } }
             }
         }
@@ -336,7 +343,7 @@ class RootComponent(
             val bridged = client as? BridgedMtprotoClient ?: return@launch
             val result = withContext(Dispatchers.IO) { bridged.isAuthorized() }
             if (result is Outcome.Ok && result.value) {
-                if (!expiringSession && stack.value.active.configuration is Config.Auth) {
+                if (!expiringSession && stack.value.active.configuration.isAuthArea()) {
                     navigation.replaceAll(Config.Home)
                     pendingIncomingShare?.let(::openIncomingShare)
                 }
@@ -414,6 +421,8 @@ class RootComponent(
                 },
             ),
         )
+
+        Config.Proxy -> Child.Proxy
 
         Config.Home -> Child.Home(
             HomeComponent(
@@ -529,6 +538,7 @@ class RootComponent(
     sealed class Child {
         class Recipients(val component: RecipientPickerComponent) : Child()
         class Auth(val component: AuthComponent) : Child()
+        object Proxy : Child()
         class Home(val component: HomeComponent) : Child()
         class Dialog(val component: DialogComponent) : Child()
         class Profile(val component: ProfileComponent) : Child()
@@ -545,6 +555,9 @@ class RootComponent(
 
         @Serializable
         data object Auth : Config
+
+        @Serializable
+        data object Proxy : Config
 
         @Serializable
         data object Home : Config
@@ -566,6 +579,12 @@ class RootComponent(
         data class Settings(val openFolders: Boolean = false, val openProxy: Boolean = false) : Config
     }
 }
+
+internal fun RootComponent.Config.isAuthArea(): Boolean =
+    this is RootComponent.Config.Auth || this is RootComponent.Config.Proxy
+
+internal fun RootComponent.Child.isSignedOut(): Boolean =
+    this is RootComponent.Child.Auth || this is RootComponent.Child.Proxy
 
 internal fun requiresSessionReset(result: Outcome<Boolean>): Boolean = when (result) {
     is Outcome.Ok -> !result.value

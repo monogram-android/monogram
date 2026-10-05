@@ -149,9 +149,17 @@
     <string name="media_video_retry">Կրկնել</string>
     <string name="media_sender_unknown">Անհայտ ուղարկող</string>
     <string name="media_viewer_album_item">%1$s %2$d / %3$d, %4$s-ից, %5$s</string>
+    <string name="media_viewer_page_position">%1$d՝ %2$d-ից</string>
+    <string name="media_viewer_page_item">%1$s, %2$s, %3$s, %4$s</string>
+    <string name="media_viewer_kind_hdr">%1$s, %2$s</string>
+    <string name="media_kind_video_note">տեսահաղորդագրություն</string>
+    <string name="media_kind_voice">ձայնային հաղորդագրություն</string>
+    <string name="media_kind_audio">ձայնագրություն</string>
+    <string name="media_kind_unknown">անհայտ մեդիա</string>
     <string name="media_action_share">Կիսվել</string>
     <string name="media_action_save">Պահպանել սարքում</string>
     <string name="media_action_forward">Վերահասցեավորել</string>
+    <string name="media_action_reply">Պատասխանել</string>
     <string name="media_forward_this">Վերահասցեավորել սա</string>
     <string name="media_forward_album">Վերահասցեավորել բոլոր %1$d տարրը</string>
     <string name="media_action_copy_caption">Պատճենել ստորագրությունը</string>
@@ -163,7 +171,6 @@
     <string name="media_action_show_in_chat">Ցույց տալ զրույցում</string>
     <string name="media_action_open_externally">Բացել այլ հավելվածով</string>
     <string name="media_action_delete">Ջնջել</string>
-    <string name="media_action_caption_sheet">Ստորագրություն և մանրամասներ</string>
     <string name="media_more_actions">Այլ գործողություններ</string>
     <string name="media_menu_speed">Նվագարկման արագություն %1$s</string>
     <string name="media_menu_loop">Կրկնել այս տեսանյութը</string>
@@ -253,4 +260,18 @@
         <item quantity="one">վերջին անգամ առցանց էր %d ժամ առաջ</item>
         <item quantity="other">վերջին անգամ առցանց էր %d ժամ առաջ</item>
     </plurals>
+    <string name="media_action_info">Տեղեկություններ</string>
+    <string name="media_info_name">Ֆայլի անուն</string>
+    <string name="media_info_size">Ֆայլի չափ</string>
+    <string name="media_info_dimensions">Չափսեր</string>
+    <string name="media_info_dimensions_value">%1$d × %2$d</string>
+    <string name="media_info_duration">Տևողություն</string>
+    <string name="media_info_date">Ամսաթիվ</string>
+    <string name="media_info_hdr">HDR</string>
+    <string name="media_info_gainmap">HDR ուժեղացման քարտեզ</string>
+    <string name="media_info_yes">Այո</string>
+    <string name="media_info_no">Ոչ</string>
+    <string name="media_info_unknown">Անհայտ</string>
+    <string name="media_action_save_as">Պահպանել որպես…</string>
+    <string name="media_copy_hdr_warning">Պատկերը պատճենվեց։ Որոշ հավելվածներ կարող են չաջակցել HDR-ին։</string>
 </resources>

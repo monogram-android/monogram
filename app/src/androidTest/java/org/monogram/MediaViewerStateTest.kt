@@ -1,6 +1,6 @@
 package org.monogram
 
-import android.content.pm.ActivityInfo
+import android.app.UiAutomation
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -60,7 +60,7 @@ class MediaViewerStateTest {
     }
 
     @Test
-    fun photoZoomHiddenChromeAndExpandedCaptionSurviveActivityRecreation() {
+    fun photoZoomAndHiddenChromeSurviveActivityRecreation() {
         launch(photo())
         preparePhotoState()
         var before: UiStateTestActivity? = null
@@ -72,15 +72,50 @@ class MediaViewerStateTest {
     }
 
     @Test
-    fun photoStateSurvivesRequestedLandscapeOrientation() {
-        launch(photo())
-        scenario!!.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
-        awaitOrientation(Configuration.ORIENTATION_PORTRAIT)
-        preparePhotoState()
-        scenario!!.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
-        awaitOrientation(Configuration.ORIENTATION_LANDSCAPE)
-        assertPhotoState()
-        assertEquals(0, underlyingBacks)
+    fun spoilerRevealSurvivesActivityRecreation() {
+        val file = photo()
+        UiStateTestActivity.content = {
+            MonogramTheme {
+                val item = org.monogram.core.ui.media.MediaViewerItem(
+                    id = "spoiler-state", kind = org.monogram.core.ui.media.MediaViewerKind.PHOTO,
+                    source = org.monogram.core.ui.media.MediaSource.Local(file), preview = file,
+                    spoiler = true,
+                )
+                org.monogram.core.ui.media.MediaViewerHost(
+                    album = org.monogram.core.ui.media.rememberAlbumState(listOf(item)),
+                    onDismiss = {},
+                )
+            }
+        }
+        scenario = ActivityScenario.launch(UiStateTestActivity::class.java)
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasTestTag("media-photo-spoiler")).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNode(hasTestTag("media-photo-spoiler")).performTouchInput { click(center) }
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasTestTag("media-photo-spoiler")).fetchSemanticsNodes().isEmpty()
+        }
+        scenario!!.recreate()
+        compose.waitForIdle()
+        compose.onNode(hasTestTag("media-photo-spoiler")).assertDoesNotExist()
+    }
+
+    @Test
+    fun photoStateSurvivesLandscapeRotation() {
+        val automation = instrumentation.uiAutomation
+        try {
+            // Large-screen Android can ignore requestedOrientation; rotate the display itself.
+            assertTrue(automation.setRotation(UiAutomation.ROTATION_FREEZE_0))
+            launch(photo())
+            awaitOrientation(Configuration.ORIENTATION_PORTRAIT)
+            preparePhotoState()
+            assertTrue(automation.setRotation(UiAutomation.ROTATION_FREEZE_90))
+            awaitOrientation(Configuration.ORIENTATION_LANDSCAPE)
+            assertPhotoState()
+            assertEquals(0, underlyingBacks)
+        } finally {
+            assertTrue(automation.setRotation(UiAutomation.ROTATION_UNFREEZE))
+        }
     }
 
     @Test
@@ -143,13 +178,24 @@ class MediaViewerStateTest {
     }
 
     private fun preparePhotoState() {
-        compose.onNodeWithContentDescription(label(R.string.media_caption_expand)).performClick()
-        compose.onNodeWithContentDescription(label(R.string.media_caption_collapse)).assertExists()
         compose.onNodeWithContentDescription("State test media").performTouchInput { doubleClick(center) }
         assertZoom()
         compose.onNodeWithContentDescription("State test media").performTouchInput { advanceEventTime(400); click(center) }
         awaitChrome(false)
         compose.onNodeWithContentDescription(label(R.string.media_preview_close)).assertDoesNotExist()
+    }
+
+    @Test
+    fun captionSheetSurvivesActivityRecreation() {
+        launch(photo())
+        compose.onNodeWithContentDescription(label(R.string.media_caption_expand)).performClick()
+        compose.onNodeWithContentDescription(label(R.string.media_caption_collapse)).assertExists()
+        scenario!!.recreate()
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription(label(R.string.media_caption_collapse)).assertExists()
+        compose.onNodeWithContentDescription(label(R.string.media_caption_collapse)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription(label(R.string.media_caption_expand)).assertExists()
     }
 
     private fun assertPhotoState() {
@@ -159,8 +205,7 @@ class MediaViewerStateTest {
         compose.onNodeWithContentDescription("State test media").performTouchInput { click(center) }
         awaitChrome(true)
         compose.onNodeWithContentDescription(label(R.string.media_preview_close)).assertExists()
-        compose.onNodeWithContentDescription(label(R.string.media_caption_collapse)).assertExists()
-        compose.onNodeWithContentDescription(label(R.string.media_caption_expand)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(label(R.string.media_caption_expand)).assertExists()
         compose.onNodeWithText("Underlying state test chat").assertExists()
     }
 
@@ -202,6 +247,14 @@ class MediaViewerStateTest {
     }
 
     private fun recordFixture(): File {
+        if (android.os.Build.VERSION.SDK_INT < 26) {
+            return File(instrumentation.targetContext.cacheDir, "viewer-state-video.mp4").also { file ->
+                fixtures.add(file)
+                instrumentation.context.assets.open("media/video_short.mp4").use { input ->
+                    file.outputStream().use { input.copyTo(it) }
+                }
+            }
+        }
         compose.runOnIdle { recordingFixture = true }
         val shellFile = File(instrumentation.targetContext.getExternalFilesDir(null), "viewer-state-video.mp4").also(fixtures::add)
         val file = File(instrumentation.targetContext.cacheDir, "viewer-state-video.mp4").also(fixtures::add)

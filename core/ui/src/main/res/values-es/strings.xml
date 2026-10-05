@@ -149,9 +149,17 @@
     <string name="media_video_retry">Reintentar</string>
     <string name="media_sender_unknown">Remitente desconocido</string>
     <string name="media_viewer_album_item">%1$s %2$d de %3$d, de %4$s, %5$s</string>
+    <string name="media_viewer_page_position">%1$d de %2$d</string>
+    <string name="media_viewer_page_item">%1$s, %2$s, %3$s, %4$s</string>
+    <string name="media_viewer_kind_hdr">%1$s, %2$s</string>
+    <string name="media_kind_video_note">videomensaje</string>
+    <string name="media_kind_voice">mensaje de voz</string>
+    <string name="media_kind_audio">audio</string>
+    <string name="media_kind_unknown">contenido multimedia desconocido</string>
     <string name="media_action_share">Compartir</string>
     <string name="media_action_save">Guardar en el dispositivo</string>
     <string name="media_action_forward">Reenviar</string>
+    <string name="media_action_reply">Responder</string>
     <string name="media_forward_this">Reenviar este elemento</string>
     <string name="media_forward_album">Reenviar los %1$d elementos</string>
     <string name="media_action_copy_caption">Copiar pie</string>
@@ -163,7 +171,6 @@
     <string name="media_action_show_in_chat">Mostrar en el chat</string>
     <string name="media_action_open_externally">Abrir externamente</string>
     <string name="media_action_delete">Eliminar</string>
-    <string name="media_action_caption_sheet">Pie y detalles</string>
     <string name="media_more_actions">Más acciones</string>
     <string name="media_menu_speed">Velocidad %1$s</string>
     <string name="media_menu_loop">Repetir este video</string>
@@ -253,4 +260,18 @@
         <item quantity="one">últ. vez hace %d hora</item>
         <item quantity="other">últ. vez hace %d horas</item>
     </plurals>
+    <string name="media_action_info">Información</string>
+    <string name="media_info_name">Nombre del archivo</string>
+    <string name="media_info_size">Tamaño</string>
+    <string name="media_info_dimensions">Dimensiones</string>
+    <string name="media_info_dimensions_value">%1$d × %2$d</string>
+    <string name="media_info_duration">Duración</string>
+    <string name="media_info_date">Fecha</string>
+    <string name="media_info_hdr">HDR</string>
+    <string name="media_info_gainmap">Mapa de ganancia HDR</string>
+    <string name="media_info_yes">Sí</string>
+    <string name="media_info_no">No</string>
+    <string name="media_info_unknown">Desconocido</string>
+    <string name="media_action_save_as">Guardar como…</string>
+    <string name="media_copy_hdr_warning">Imagen copiada. Algunas apps pueden no ser compatibles con HDR</string>
 </resources>

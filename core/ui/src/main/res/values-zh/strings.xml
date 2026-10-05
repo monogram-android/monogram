@@ -149,9 +149,17 @@
     <string name="media_video_retry">重试</string>
     <string name="media_sender_unknown">未知发送者</string>
     <string name="media_viewer_album_item">%1$s 第 %2$d / %3$d 项，来自 %4$s，%5$s</string>
+    <string name="media_viewer_page_position">第 %1$d 项，共 %2$d 项</string>
+    <string name="media_viewer_page_item">%1$s，%2$s，%3$s，%4$s</string>
+    <string name="media_viewer_kind_hdr">%1$s，%2$s</string>
+    <string name="media_kind_video_note">视频消息</string>
+    <string name="media_kind_voice">语音消息</string>
+    <string name="media_kind_audio">音频</string>
+    <string name="media_kind_unknown">未知媒体</string>
     <string name="media_action_share">分享</string>
     <string name="media_action_save">保存到设备</string>
     <string name="media_action_forward">转发</string>
+    <string name="media_action_reply">回复</string>
     <string name="media_forward_this">转发此项</string>
     <string name="media_forward_album">转发全部 %1$d 项</string>
     <string name="media_action_copy_caption">复制说明</string>
@@ -163,7 +171,6 @@
     <string name="media_action_show_in_chat">在聊天中显示</string>
     <string name="media_action_open_externally">用其他应用打开</string>
     <string name="media_action_delete">删除</string>
-    <string name="media_action_caption_sheet">说明和详情</string>
     <string name="media_more_actions">更多操作</string>
     <string name="media_menu_speed">播放速度 %1$s</string>
     <string name="media_menu_loop">循环播放此视频</string>
@@ -236,4 +243,18 @@
     <plurals name="status_last_seen_hours">
         <item quantity="other">最后上线于 %d 小时前</item>
     </plurals>
+    <string name="media_action_info">信息</string>
+    <string name="media_info_name">文件名</string>
+    <string name="media_info_size">文件大小</string>
+    <string name="media_info_dimensions">尺寸</string>
+    <string name="media_info_dimensions_value">%1$d × %2$d</string>
+    <string name="media_info_duration">时长</string>
+    <string name="media_info_date">日期</string>
+    <string name="media_info_hdr">HDR</string>
+    <string name="media_info_gainmap">HDR 增益图</string>
+    <string name="media_info_yes">是</string>
+    <string name="media_info_no">否</string>
+    <string name="media_info_unknown">未知</string>
+    <string name="media_action_save_as">另存为…</string>
+    <string name="media_copy_hdr_warning">已复制图片。部分应用可能不支持 HDR。</string>
 </resources>

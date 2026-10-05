@@ -1,7 +1,11 @@
 package org.monogram.feature.dialog.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -10,15 +14,20 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import android.net.Uri
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.flowOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -36,6 +45,8 @@ import org.monogram.core.ui.media.MediaViewerHost
 import org.monogram.core.ui.media.MediaViewerItem
 import org.monogram.core.ui.media.LocalPictureInPictureController
 import org.monogram.core.ui.media.MediaViewerKind
+import org.monogram.core.ui.media.CaptionEntity
+import org.monogram.core.ui.media.MediaHdr
 import org.monogram.core.ui.media.rememberAlbumState
 import org.monogram.feature.dialog.R
 import org.monogram.network.http.MediaPriority
@@ -79,63 +90,92 @@ private fun MediaRepository.streamUri(message: Message): Uri =
     Uri.parse("telegram://media/${message.id.chatId.value}/${message.id.id}")
 
 /** Only a small descriptor is saved, never file bytes or the chat's history. */
-private val MessageSaver = listSaver<Message?, Any>(
+internal val MessageSaver = listSaver<Message?, Any>(
     save = { message ->
-        if (message == null) emptyList() else listOf(
-            message.id.chatId.value, message.id.id, message.mediaKind.orEmpty(),
-            message.mediaCacheKey.orEmpty(), message.thumbCacheKey.orEmpty(),
-            message.text.orEmpty(), message.fileSize ?: -1L,
-        )
+        if (message == null) emptyList() else encodeViewerMessages(listOf(message))
     },
     restore = { values -> if (values.isEmpty()) null else decodeMessages(values).firstOrNull() },
 )
 
 /** Album identity survives rotation without keeping the whole history in a Bundle. */
-private val AlbumSaver = listSaver<List<Message>, Any>(
-    save = { messages -> messages.flatMap { encodeMessage(it) } },
+internal val AlbumSaver = listSaver<List<Message>, Any>(
+    save = { messages -> encodeViewerMessages(messages) },
     restore = { values -> decodeMessages(values) },
 )
 
-private fun encodeMessage(message: Message): List<Any> = listOf(
-    message.id.chatId.value, message.id.id, message.mediaKind.orEmpty(),
-    message.mediaCacheKey.orEmpty(), message.thumbCacheKey.orEmpty(),
-    message.text.orEmpty(), message.fileSize ?: -1L,
-    message.mediaDuration ?: -1, message.mediaWidth ?: -1, message.mediaHeight ?: -1,
-    message.date, if (message.noforwards) 1L else 0L,
-)
+private const val VIEWER_MESSAGE_FORMAT = "message-media-viewer"
+private const val VIEWER_MESSAGE_VERSION = 1
+
+private fun encodeViewerMessages(messages: List<Message>): List<Any> =
+    listOf(VIEWER_MESSAGE_FORMAT, VIEWER_MESSAGE_VERSION) + messages.map { message ->
+        arrayListOf<Any?>(
+            message.id.chatId.value, message.id.id, message.mediaKind,
+            message.mediaCacheKey, message.thumbCacheKey, message.text, message.fileSize,
+            message.mediaDuration, message.mediaWidth, message.mediaHeight,
+            message.date, message.noforwards, message.groupedId, message.senderId?.value,
+            message.senderName, message.outgoing, message.fileName, message.supportsStreaming,
+            message.reactionsJson,
+            ArrayList(message.entities.map { entity ->
+                arrayListOf<Any?>(entity.kind, entity.offset, entity.length, entity.url)
+            }),
+        )
+    }
 
 private fun decodeMessages(values: List<Any>): List<Message> {
-    val out = ArrayList<Message>()
-    var index = 0
-    while (index + 7 <= values.size) {
-        val chatId = values[index] as Long
-        val id = values[index + 1] as Int
-        val kind = values[index + 2] as String
-        val cacheKey = values[index + 3] as String
-        val thumbKey = values[index + 4] as String
-        val text = values[index + 5] as String
-        val size = values[index + 6] as Long
-        val duration = values.getOrNull(index + 7) as? Int ?: -1
-        val width = values.getOrNull(index + 8) as? Int ?: -1
-        val height = values.getOrNull(index + 9) as? Int ?: -1
-        val date = values.getOrNull(index + 10) as? Long ?: 0L
-        val noforwards = (values.getOrNull(index + 11) as? Long ?: 0L) == 1L
-        out += Message(
-            id = MessageId(PeerId(chatId), id),
-            senderId = null, date = date, outgoing = false,
-            mediaKind = kind.ifEmpty { null },
-            mediaCacheKey = cacheKey.ifEmpty { null },
-            thumbCacheKey = thumbKey.ifEmpty { null },
-            text = text.ifEmpty { null },
-            fileSize = size.takeIf { it >= 0L },
-            mediaDuration = duration.takeIf { it > 0 },
-            mediaWidth = width.takeIf { it > 0 },
-            mediaHeight = height.takeIf { it > 0 },
-            noforwards = noforwards,
-        )
-        index += 12
+    if (values.firstOrNull() == VIEWER_MESSAGE_FORMAT) {
+        if (values.getOrNull(1) != VIEWER_MESSAGE_VERSION) return emptyList()
+        return values.drop(2).map { saved ->
+            val fields = saved as List<*>
+            Message(
+                id = MessageId(PeerId(fields[0] as Long), fields[1] as Int),
+                mediaKind = fields[2] as String?,
+                mediaCacheKey = fields[3] as String?,
+                thumbCacheKey = fields[4] as String?,
+                text = fields[5] as String?,
+                fileSize = fields[6] as Long?,
+                mediaDuration = fields[7] as Int?,
+                mediaWidth = fields[8] as Int?,
+                mediaHeight = fields[9] as Int?,
+                date = fields[10] as Long,
+                noforwards = fields[11] as Boolean,
+                groupedId = fields[12] as Long?,
+                senderId = (fields[13] as Long?)?.let(::PeerId),
+                senderName = fields[14] as String?,
+                outgoing = fields[15] as Boolean,
+                fileName = fields[16] as String?,
+                supportsStreaming = fields[17] as Boolean,
+                reactionsJson = fields[18] as String?,
+                entities = (fields[19] as List<*>).map { savedEntity ->
+                    val entity = savedEntity as List<*>
+                    org.monogram.core.models.TextEntity(
+                        kind = entity[0] as String,
+                        offset = entity[1] as Int,
+                        length = entity[2] as Int,
+                        url = entity[3] as String?,
+                    )
+                },
+            )
+        }
     }
-    return out
+    val recordSize = if (values.size == 7) 7 else 12
+    if (values.size % recordSize != 0) return emptyList()
+    return values.chunked(recordSize).map { fields ->
+        Message(
+            id = MessageId(PeerId(fields[0] as Long), fields[1] as Int),
+            senderId = null,
+            outgoing = false,
+            mediaKind = (fields[2] as String).ifEmpty { null },
+            mediaCacheKey = (fields[3] as String).ifEmpty { null },
+            thumbCacheKey = (fields[4] as String).ifEmpty { null },
+            text = (fields[5] as String).ifEmpty { null },
+            fileSize = (fields[6] as Long).takeIf { it >= 0L },
+            mediaDuration = (fields.getOrNull(7) as? Int)?.takeIf { it > 0 },
+            mediaWidth = (fields.getOrNull(8) as? Int)?.takeIf { it > 0 },
+            mediaHeight = (fields.getOrNull(9) as? Int)?.takeIf { it > 0 },
+            date = fields.getOrNull(10) as? Long ?: 0L,
+            noforwards = fields.getOrNull(11) == 1L,
+        )
+    }
 }
 
 private class Resolved(
@@ -146,8 +186,7 @@ private class Resolved(
 
 /**
  * Owns the modal outside lazy rows so resizing or recycling a row cannot close it.
- * Resolves album media on demand: the shell only asks for the current page and the
- * next one, so opening item 3 of 8 does not download the other nine.
+ * Resolves only the current page and its immediate neighbors on demand.
  */
 @Composable
 internal fun MessageMediaViewerScope(
@@ -157,9 +196,13 @@ internal fun MessageMediaViewerScope(
     onDelete: (List<Message>, Boolean) -> Unit = { _, _ -> },
     deleteOffer: (List<Message>) -> DeleteOffer = { DeleteOffer(forMe = true, forEveryone = false) },
     onShowInChat: (Message) -> Unit = {},
+    onReply: ((Message) -> Unit)? = null,
     onEnsureReceipts: (Message) -> Unit = {},
     seenByLabel: ((Message) -> String?)? = null,
     onOpenSeenBy: ((Message) -> Unit)? = null,
+    knownAlbumMessages: ((Message) -> List<Message>)? = null,
+    onCaptionUrl: (String) -> Unit = {},
+    onCaptionMention: (String) -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     var selected by rememberSaveable(stateSaver = MessageSaver) { mutableStateOf<Message?>(null) }
@@ -179,9 +222,19 @@ internal fun MessageMediaViewerScope(
         }
     }
     val open: (Message, List<Message>) -> Unit = { message, albumMessages ->
-        val resolvedAlbum = albumMessages.ifEmpty { listOf(message) }
-        album = resolvedAlbum
+        album = (albumMessages + message).distinctBy { it.id }
         selected = message
+    }
+    val groupedMessage = selected?.takeIf { it.groupedId != null }
+    val knownSiblings = groupedMessage?.let { knownAlbumMessages?.invoke(it) }.orEmpty()
+    LaunchedEffect(groupedMessage?.id, knownSiblings) {
+        val message = groupedMessage ?: return@LaunchedEffect
+        val siblings = knownSiblings.filter {
+            it.id.chatId == message.id.chatId && it.groupedId == message.groupedId
+        }
+        if (siblings.isNotEmpty()) {
+            album = (album + siblings).distinctBy { it.id }.sortedBy { it.id.id }
+        }
     }
     CompositionLocalProvider(
         LocalOpenMessageMedia provides open,
@@ -192,22 +245,27 @@ internal fun MessageMediaViewerScope(
     )
     selected?.let { message ->
         val startIndex = album.indexOfFirst { it.id == message.id }.coerceAtLeast(0)
-        key(message.id) {
-            MessageMediaViewer(
-                album = album.ifEmpty { listOf(message) },
-                startIndex = startIndex,
-                repository = repository,
-                chatTitle = titleHolder.value,
-                chatCanForward = chatCanForward,
-                onForward = onForward,
-                onDelete = onDelete,
-                deleteOffer = deleteOffer,
-                onShowInChat = onShowInChat,
-                onEnsureReceipts = onEnsureReceipts,
-                seenByLabel = seenByLabel ?: receiptHolder?.label,
-                onOpenSeenBy = onOpenSeenBy,
-                onDismiss = { selected = null },
-            )
+        org.monogram.core.ui.media.MediaViewerOverlay {
+            key(message.id) {
+                MessageMediaViewer(
+                    album = album.ifEmpty { listOf(message) },
+                    startIndex = startIndex,
+                    repository = repository,
+                    chatTitle = titleHolder.value,
+                    chatCanForward = chatCanForward,
+                    onForward = onForward,
+                    onDelete = onDelete,
+                    deleteOffer = deleteOffer,
+                    onShowInChat = onShowInChat,
+                    onReply = onReply,
+                    onEnsureReceipts = onEnsureReceipts,
+                    seenByLabel = seenByLabel ?: receiptHolder?.label,
+                    onOpenSeenBy = onOpenSeenBy,
+                    onCaptionUrl = onCaptionUrl,
+                    onCaptionMention = onCaptionMention,
+                    onDismiss = { selected = null },
+                )
+            }
         }
     }
 }
@@ -223,54 +281,74 @@ private fun MessageMediaViewer(
     onDelete: (List<Message>, Boolean) -> Unit,
     deleteOffer: (List<Message>) -> DeleteOffer,
     onShowInChat: (Message) -> Unit,
+    onReply: ((Message) -> Unit)?,
     onEnsureReceipts: (Message) -> Unit,
     seenByLabel: ((Message) -> String?)?,
     onOpenSeenBy: ((Message) -> Unit)?,
+    onCaptionUrl: (String) -> Unit,
+    onCaptionMention: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val resolved = remember { mutableStateMapOf<String, Resolved>() }
     var pendingDelete by remember { mutableStateOf<List<Message>?>(null) }
-    val inFlight = remember { mutableStateMapOf<String, Boolean>() }
+    var pendingSaveAsPath by rememberSaveable { mutableStateOf<String?>(null) }
+    val saveAsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val source = pendingSaveAsPath?.let(::File)
+        pendingSaveAsPath = null
+        val destination = result.data?.data
+        if (result.resultCode == Activity.RESULT_OK && source != null && destination != null) {
+            scope.launch {
+                val saved = MediaShareActions.saveToDocument(context, source, destination)
+                Toast.makeText(
+                    context,
+                    if (saved) R.string.media_action_saved else R.string.media_action_save_failed,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
+    val inFlight = remember { mutableMapOf<String, Pair<Int, Job>>() }
     val session = remember(context) { MediaPlaybackHolder.session(context) }
 
-    fun resolve(message: Message, force: Boolean = false) {
+    fun resolve(message: Message, force: Boolean = false, priority: Int = MediaPriority.USER) {
         val key = messageKey(message)
-        val video = message.mediaKind == "video" || message.mediaKind == "gif"
+        val video = message.mediaKind == "video" || message.mediaKind == "gif" || message.mediaKind == "video_note"
         val cached = message.mediaCacheKey?.let { repository?.cachedFile(it) }
         if (cached != null) {
             resolved[key] = Resolved(cached, loading = false, failed = false)
             return
         }
         if (repository == null) return
-        if (!force && inFlight[key] == true) return
-        inFlight[key] = true
+        val existing = inFlight[key]
+        if (!force && existing != null && existing.first >= priority) return
+        existing?.second?.cancel()
         resolved[key] = Resolved(null, loading = !video, failed = false)
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                repository.ensureLocalMessageMedia(message, MediaPriority.USER)
-            }
-            inFlight[key] = false
-            when (result) {
-                is Outcome.Ok -> resolved[key] = Resolved(result.value, loading = false, failed = false)
-                is Outcome.Err -> resolved[key] = Resolved(null, loading = false, failed = true)
+        lateinit var request: Job
+        request = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    repository.ensureLocalMessageMedia(message, priority)
+                }
+                when (result) {
+                    is Outcome.Ok -> resolved[key] = Resolved(result.value, loading = false, failed = false)
+                    is Outcome.Err -> resolved[key] = Resolved(null, loading = false, failed = true)
+                }
+            } finally {
+                if (inFlight[key]?.second === request) inFlight.remove(key)
             }
         }
+        inFlight[key] = priority to request
+        request.start()
     }
 
-    LaunchedEffect(album, startIndex) {
-        album.getOrNull(startIndex)?.let { resolve(it) }
-        album.getOrNull(startIndex + 1)?.let { resolve(it) }
-    }
-
-    LaunchedEffect(album, startIndex) {
-        album.getOrNull(startIndex)?.let(onEnsureReceipts)
-    }
-
-    val items = album.map { message ->
+    val progressFlow = remember(repository) { repository?.downloadProgress ?: flowOf(emptyMap()) }
+    val downloadProgress by progressFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
+    val items = album.mapIndexed { albumIndex, message ->
         val key = messageKey(message)
-        val video = message.mediaKind == "video" || message.mediaKind == "gif"
+        val video = message.mediaKind == "video" || message.mediaKind == "gif" || message.mediaKind == "video_note"
+        val kind = viewerKind(message.mediaKind)
         val state = resolved[key]
         val localFile = state?.file
         val preview = remember(key, repository) {
@@ -279,10 +357,10 @@ private fun MessageMediaViewer(
         }
         MediaViewerItem(
             id = key,
-            kind = if (video) MediaViewerKind.VIDEO else MediaViewerKind.PHOTO,
+            kind = kind,
             source = when {
                 localFile != null -> MediaSource.Local(localFile)
-                video && repository != null -> MediaSource.Stream(
+                kind in listOf(MediaViewerKind.VIDEO, MediaViewerKind.VIDEO_NOTE, MediaViewerKind.AUDIO, MediaViewerKind.VOICE) && repository != null -> MediaSource.Stream(
                     uri = repository.streamUri(message),
                     factory = repository.createMessageDataSourceFactory(message),
                 )
@@ -292,20 +370,75 @@ private fun MessageMediaViewer(
             // cell, so an album strip is never a row of empty squares.
             preview = preview,
             caption = message.text,
+            captionEntities = message.entities.mapNotNull { entity ->
+                when (entity.kind.lowercase(Locale.ROOT)) {
+                    "text_url", "url" -> CaptionEntity(entity.offset, entity.length, CaptionEntity.Type.URL, entity.url)
+                    "mention" -> CaptionEntity(entity.offset, entity.length, CaptionEntity.Type.MENTION)
+                    "mention_name", "text_mention" -> CaptionEntity(
+                        entity.offset, entity.length, CaptionEntity.Type.MENTION,
+                        entity.url?.toLongOrNull()?.takeIf { it > 0 }?.let { "tg://user?id=$it" },
+                    )
+                    "bold" -> CaptionEntity(entity.offset, entity.length, CaptionEntity.Type.BOLD)
+                    else -> null
+                }
+            },
             durationSeconds = message.mediaDuration,
+            albumIndex = albumIndex,
+            albumCount = album.size,
+            groupedId = message.groupedId,
+            spoiler = message.entities.any { it.kind.equals("spoiler", ignoreCase = true) },
+            width = message.mediaWidth,
+            height = message.mediaHeight,
+            progress = message.fileSize?.takeIf { it > 0L }?.let { size ->
+                downloadProgress[message.mediaCacheKey]?.let { (it.toDouble() / size).toFloat().coerceIn(0f, 1f) }
+            },
             aspectRatio = mediaAspectRatio(message.mediaWidth, message.mediaHeight),
             senderName = chatTitle ?: message.senderName,
             dateLabel = relativeDateLabel(message.date),
             dateMillis = message.date * 1000L,
             protectedContent = !chatCanForward || message.noforwards,
-            loading = state?.loading ?: !video,
-            failed = state?.failed == true,
+            loading = kind != MediaViewerKind.UNKNOWN && (state?.loading ?: !video),
+            failed = kind == MediaViewerKind.UNKNOWN || state?.failed == true,
+            sourceChatId = message.id.chatId.value,
+            sourceMessageId = message.id.id,
             fileSize = message.fileSize,
             fileName = message.fileName,
             forceLoop = message.mediaKind == "gif",
         )
     }
     val albumState = rememberAlbumState(items, startIndex)
+    val activeId = albumState.current?.id
+    LaunchedEffect(activeId, album.map { it.id }) {
+        val currentIndex = album.indexOfFirst { messageKey(it) == activeId }
+        if (currentIndex < 0) return@LaunchedEffect
+        val window = (currentIndex - 1..currentIndex + 1).mapNotNull(album::getOrNull)
+        val windowIds = window.mapTo(mutableSetOf(), ::messageKey)
+        inFlight.toMap().forEach { (id, request) ->
+            if (request.first == MediaPriority.IDLE && id !in windowIds) {
+                inFlight.remove(id)
+                request.second.cancel()
+                album.firstOrNull { messageKey(it) == id }?.mediaCacheKey?.let {
+                    repository?.cancelRunning(it)
+                }
+            }
+        }
+        resolve(album[currentIndex], priority = MediaPriority.USER)
+        window.filter { messageKey(it) != activeId }.forEach {
+            resolve(it, priority = MediaPriority.IDLE)
+        }
+    }
+    val latestAlbum by rememberUpdatedState(album)
+    DisposableEffect(repository) {
+        onDispose {
+            inFlight.forEach { (id, request) ->
+                if (request.first == MediaPriority.IDLE) {
+                    latestAlbum.firstOrNull { messageKey(it) == id }?.mediaCacheKey?.let {
+                        repository?.cancelRunning(it)
+                    }
+                }
+            }
+        }
+    }
     val pictureInPicture = LocalPictureInPictureController.current
 
     fun withLocalMedia(item: MediaViewerItem, action: (File) -> Unit) {
@@ -343,19 +476,59 @@ private fun MessageMediaViewer(
     }
 
     val actions = MediaViewerActions(
+        onCaptionUrl = { url -> onDismiss(); onCaptionUrl(url) },
+        onCaptionMention = { mention -> onDismiss(); onCaptionMention(mention) },
+        onReply = messageMediaReplyAction(
+            album = album,
+            onDismiss = onDismiss,
+            onReply = onReply.takeIf {
+                album.firstOrNull { messageKey(it) == activeId }
+                    ?.let { !it.pending && it.id.id > 0 } == true
+            },
+        ),
         onShare = { item ->
-            withLocalMedia(item) { file ->
-                val mime = MediaShareActions.mimeFor(mediaName(item, file), item.isVideo)
-                if (!MediaShareActions.share(context, file, mime)) {
-                    Toast.makeText(context, R.string.media_action_no_app, Toast.LENGTH_SHORT).show()
+            val targets = albumState.selectedItems().filterNot { it.protectedContent }
+            scope.launch {
+                val files = withContext(Dispatchers.IO) {
+                    targets.mapNotNull { target ->
+                        val message = album.firstOrNull { messageKey(it) == target.id } ?: return@mapNotNull null
+                        val cached = (target.source as? MediaSource.Local)?.file
+                        cached ?: (repository?.ensureLocalMessageMedia(message, MediaPriority.USER) as? Outcome.Ok)?.value
+                    }
+                }
+                if (files.size != targets.size || files.isEmpty()) {
+                    Toast.makeText(context, R.string.dialog_media_failed, Toast.LENGTH_SHORT).show()
+                } else {
+                    val mime = if (targets.all { it.kind == MediaViewerKind.PHOTO }) "image/*"
+                        else if (targets.all { it.isVideo }) "video/*" else "*/*"
+                    val shared = if (files.size == 1) MediaShareActions.share(context, files.first(), mime)
+                        else MediaShareActions.shareMultiple(context, files, mime)
+                    if (!shared) Toast.makeText(context, R.string.media_action_no_app, Toast.LENGTH_SHORT).show()
+                }
+            }
+        },
+        onSaveAs = { item ->
+            if (!item.protectedContent && pendingSaveAsPath == null) {
+                withLocalMedia(item) { file ->
+                    pendingSaveAsPath = file.absolutePath
+                    val name = mediaName(item, file)
+                    try {
+                        saveAsLauncher.launch(MediaShareActions.createDocumentIntent(
+                            MediaShareActions.mimeFor(name, item.isVideo), name,
+                        ))
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        pendingSaveAsPath = null
+                        Toast.makeText(context, R.string.media_action_no_app, Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         },
         onSave = { item ->
-            withLocalMedia(item) { file ->
+            albumState.selectedItems().filterNot { it.protectedContent }.forEach { target ->
+            withLocalMedia(target) { file ->
                 scope.launch {
-                    val mime = MediaShareActions.mimeFor(mediaName(item, file), item.isVideo)
-                    val saved = MediaShareActions.saveToGallery(context, file, mime, mediaName(item, file))
+                    val mime = MediaShareActions.mimeFor(mediaName(target, file), target.isVideo)
+                    val saved = MediaShareActions.saveToGallery(context, file, mime, mediaName(target, file))
                     Toast.makeText(
                         context,
                         if (saved != null) R.string.media_action_saved else R.string.media_action_save_failed,
@@ -363,20 +536,24 @@ private fun MessageMediaViewer(
                     ).show()
                 }
             }
+            }
         },
         onCopyMedia = { item ->
             withLocalMedia(item) { file ->
                 val mime = MediaShareActions.mimeFor(mediaName(item, file), item.isVideo)
-                val copied = MediaShareActions.copyToClipboard(context, file, mime)
-                Toast.makeText(
-                    context,
-                    when {
-                        !copied -> R.string.media_action_save_failed
-                        item.isVideo -> R.string.media_action_copied_video
-                        else -> R.string.media_action_copied_image
-                    },
-                    Toast.LENGTH_SHORT,
-                ).show()
+                scope.launch {
+                    val copied = withContext(Dispatchers.IO) { MediaShareActions.copyToClipboard(context, file, mime) }
+                    Toast.makeText(
+                        context,
+                        when {
+                            !copied -> R.string.media_action_save_failed
+                            item.hdr == MediaHdr.GainMap -> org.monogram.core.ui.R.string.media_copy_hdr_warning
+                            item.isVideo -> R.string.media_action_copied_video
+                            else -> R.string.media_action_copied_image
+                        },
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
             }
         },
         onCopyCaption = { item ->
@@ -387,8 +564,9 @@ private fun MessageMediaViewer(
             }
         },
         onForward = { item, wholeAlbum ->
+            val ids = albumState.selectedItems().mapTo(mutableSetOf()) { it.id }
             val messages = (if (wholeAlbum) album else {
-                album.filter { messageKey(it) == item.id }
+                album.filter { messageKey(it) in ids }
             }).filter { it.canForwardFrom(chatCanForward) }
             if (messages.isNotEmpty()) {
                 onForward(messages)
@@ -396,7 +574,8 @@ private fun MessageMediaViewer(
             }
         },
         onDelete = { item, wholeAlbum ->
-            val targets = if (wholeAlbum) album else album.filter { messageKey(it) == item.id }
+            val ids = albumState.selectedItems().mapTo(mutableSetOf()) { it.id }
+            val targets = if (wholeAlbum) album else album.filter { messageKey(it) in ids }
             if (deleteOffer(targets).visible) pendingDelete = targets
         },
         onShowInChat = { item ->
@@ -436,7 +615,14 @@ private fun MessageMediaViewer(
         chatKey = album.firstOrNull()?.id?.chatId?.value?.toString().orEmpty(),
         headerTitle = chatTitle,
         session = session,
-        onRequestItem = { item -> album.firstOrNull { messageKey(it) == item.id }?.let { resolve(it) } },
+        onRequestItem = { item ->
+            val target = album.firstOrNull { messageKey(it) == item.id } ?: return@MediaViewerHost
+            val targetIndex = album.indexOfFirst { it.id == target.id }
+            if (kotlin.math.abs(targetIndex - albumState.index) <= 1) {
+                val priority = if (targetIndex == albumState.index) MediaPriority.USER else MediaPriority.IDLE
+                resolve(target, priority = priority)
+            }
+        },
         onIndexChange = { index -> album.getOrNull(index)?.let(onEnsureReceipts) },
         testTagPrefix = "media-video",
     )
@@ -458,7 +644,29 @@ private fun MessageMediaViewer(
     }
 }
 
-private const val SECONDS_PER_DAY = 86_400L
+internal fun messageMediaReplyAction(
+    album: List<Message>,
+    onDismiss: () -> Unit,
+    onReply: ((Message) -> Unit)?,
+): ((MediaViewerItem) -> Unit)? = onReply?.let { reply ->
+    { item ->
+        album.firstOrNull { messageKey(it) == item.id && !it.pending && it.id.id > 0 }?.let { message ->
+            onDismiss()
+            reply(message)
+        }
+    }
+}
+
+internal fun viewerKind(mediaKind: String?): MediaViewerKind = when (mediaKind?.lowercase(Locale.ROOT)) {
+    "photo" -> MediaViewerKind.PHOTO
+    "video" -> MediaViewerKind.VIDEO
+    "gif" -> MediaViewerKind.VIDEO
+    "video_note" -> MediaViewerKind.VIDEO_NOTE
+    "voice" -> MediaViewerKind.VOICE
+    "audio" -> MediaViewerKind.AUDIO
+    else -> MediaViewerKind.UNKNOWN
+}
+
 
 /** "14:32" today, "yesterday", "12 Sep" this year, otherwise a dated label. */
 internal fun relativeDateLabel(epochSeconds: Long, nowSeconds: Long = System.currentTimeMillis() / 1000): String {

@@ -42,4 +42,5 @@
     <string name="auth_paste_password">Colar senha</string>
     <string name="auth_paste_empty">A área de transferência está vazia</string>
     <string name="auth_paste_code">Colar código</string>
+    <string name="auth_connection">Configurações de conexão</string>
 </resources>

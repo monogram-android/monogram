@@ -6,8 +6,8 @@ use crate::{HashMap, HashMapExt, HashSet, HashSetExt};
 use tellers_mtproto::latest::api::{
     Chat as TlChat, ChatPhoto, Dialog, InputPeer, InputPeerEmptyConstructor, Message,
     MessagesDialogs, MessagesGetDialogsRequest, MessagesGetPinnedDialogsRequest,
-    MessagesPeerDialogs, Peer, PeerNotifySettings, True, TrueConstructor, User,
-    UserProfilePhoto, Vector,
+    MessagesPeerDialogs, Peer, PeerNotifySettings, True, TrueConstructor, User, UserProfilePhoto,
+    Vector,
 };
 use tellers_mtproto_session::Snapshot;
 
@@ -86,7 +86,15 @@ pub fn get_dialogs(
         }
         _ => return Err(MtprotoError::Message("unexpected messages.dialogs".into())),
     };
-    let mut out = map_peer_dialogs(peers, media_index, channel_pts, dialogs, messages, chats, users);
+    let mut out = map_peer_dialogs(
+        peers,
+        media_index,
+        channel_pts,
+        dialogs,
+        messages,
+        chats,
+        users,
+    );
     if offset_date == 0 && offset_id == 0 && offset_peer_id == 0 {
         if let Ok(pinned) = fetch_pinned_dialogs(
             snapshot,

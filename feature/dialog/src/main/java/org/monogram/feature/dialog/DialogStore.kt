@@ -140,6 +140,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val isSelf: Boolean = false,
         val isGroup: Boolean = false,
         val isChannel: Boolean = false,
+        val isBot: Boolean = false,
         val isForum: Boolean = false,
         val emojiStatusDocumentId: Long? = null,
         val messages: List<Message> = emptyList(),

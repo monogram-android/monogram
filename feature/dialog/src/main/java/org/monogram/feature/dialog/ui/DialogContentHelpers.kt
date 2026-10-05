@@ -175,9 +175,7 @@ internal fun messageMenuActions(
             !message.pending &&
             !message.text.isNullOrBlank() &&
             state.canSendPlain,
-        canDelete = !message.pending &&
-            message.id.id > 0 &&
-            (message.outgoing || state.canDeleteOthers),
+        canDelete = canDeleteMessage(state, message),
         canForward = canForward,
         forwardRestricted = sourceShape && state.canForward && message.noforwards,
         canSelectForForwarding = canForward,

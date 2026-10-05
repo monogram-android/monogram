@@ -547,6 +547,7 @@ internal class DialogExecutor(
             dispatch(Msg.IsSelf(sessionStore?.readAuthorizedUserId() == chatId))
             dispatch(Msg.IsGroup(isGroup))
             dispatch(Msg.IsChannel(isChannel))
+            cachedChat?.let { dispatch(Msg.IsBot(it.isBot)) }
             dispatch(Msg.IsForum(forum))
             cachedChat?.let { dispatch(rightsMsg(it)) }
             cachedChat?.unreadCount?.let { dispatch(Msg.UnreadCount(it)) }

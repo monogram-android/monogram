@@ -36,6 +36,7 @@ import uniffi.monogram_mtproto.clearActiveDialog as nativeClearActiveDialog
 import uniffi.monogram_mtproto.clientApiId as nativeClientApiId
 import uniffi.monogram_mtproto.clientExists as nativeClientExists
 import uniffi.monogram_mtproto.connect as nativeConnect
+import uniffi.monogram_mtproto.clearProxy as nativeClearProxy
 import uniffi.monogram_mtproto.contactsSearch as nativeContactsSearch
 import uniffi.monogram_mtproto.createEncryptedClient as nativeCreateEncryptedClient
 import uniffi.monogram_mtproto.customEmojiIsFree as nativeCustomEmojiIsFree
@@ -52,6 +53,9 @@ import uniffi.monogram_mtproto.forwardMessages as nativeForwardMessages
 import uniffi.monogram_mtproto.getAllStickers as nativeGetAllStickers
 import uniffi.monogram_mtproto.getBotCallbackAnswer as nativeGetBotCallbackAnswer
 import uniffi.monogram_mtproto.getChats as nativeGetChats
+import uniffi.monogram_mtproto.pingProxy as nativePingProxy
+import uniffi.monogram_mtproto.setProxy as nativeSetProxy
+import uniffi.monogram_mtproto.setTransportMode as nativeSetTransportMode
 import uniffi.monogram_mtproto.getCommonChats as nativeGetCommonChats
 import uniffi.monogram_mtproto.getDiscussionMessage as nativeGetDiscussionMessage
 import uniffi.monogram_mtproto.getEmojiStickers as nativeGetEmojiStickers
@@ -166,6 +170,20 @@ object MtprotoNativeUniFfi : MtprotoNative {
     init {
         uniffiEnsureInitialized()
     }
+
+    override fun setTransportMode(mode: String) = nativeSetTransportMode(mode)
+    override fun setProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray) = nativeSetProxy(kind, host, port.toUShort(), username, password, secret)
+
+    override fun pingProxy(
+        kind: String,
+        host: String,
+        port: Int,
+        username: String?,
+        password: String?,
+        secret: ByteArray,
+    ): Long = nativePingProxy(kind, host, port.toUShort(), username, password, secret)
+
+    override fun clearProxy() = nativeClearProxy()
 
     override fun libraryVersion(): String = nativeLibraryVersion()
 

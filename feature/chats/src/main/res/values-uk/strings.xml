@@ -70,4 +70,5 @@
     <string name="chats_verified">Підтверджений</string>
     <string name="chats_unread_mentions">Непрочитані згадки</string>
     <string name="chats_unread_reactions">Непрочитані реакції</string>
+    <string name="chats_proxy_status">Proxy connection status</string>
 </resources>

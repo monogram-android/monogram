@@ -2,6 +2,10 @@ package org.monogram.feature.chats.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -12,22 +16,35 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.MarkChatRead
 import androidx.compose.material.icons.outlined.MarkChatUnread
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -45,84 +62,68 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.arkivanov.essenty.backhandler.BackCallback
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.telegram.TelegramError
+import org.monogram.core.models.ARCHIVE_FOLDER_ID
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
-import org.monogram.core.models.displayPreview
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.AppearanceSettings
+import org.monogram.core.ui.ExpressiveDefaults
+import org.monogram.core.ui.collectWhenActive
 import org.monogram.core.ui.components.AppStatusBanner
 import org.monogram.core.ui.components.AppSyncStatus
 import org.monogram.core.ui.components.ChatListSkeleton
 import org.monogram.core.ui.components.FolderChipItem
 import org.monogram.core.ui.components.FolderChipRow
 import org.monogram.core.ui.components.FolderChips
+import org.monogram.core.ui.components.SearchField
 import org.monogram.core.ui.components.isPeerOnline
 import org.monogram.core.ui.components.uiLabel
-import org.monogram.core.ui.collectWhenActive
-import org.monogram.core.ui.perf.RecompositionProbe
-import org.monogram.core.ui.perf.perfSpan
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.showsMiniPlayer
 import org.monogram.core.ui.menu.AppMenuGroup
 import org.monogram.core.ui.menu.AppMenuItem
 import org.monogram.core.ui.menu.AppMenuPopup
 import org.monogram.core.ui.menu.AppMenuSurface
+import org.monogram.core.ui.perf.RecompositionProbe
+import org.monogram.core.ui.perf.perfSpan
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
-import org.monogram.core.models.ARCHIVE_FOLDER_ID
 import org.monogram.feature.chats.ChatsComponent
-import org.monogram.feature.chats.archivePreviewTitles
 import org.monogram.feature.chats.FolderListScroll
+import org.monogram.feature.chats.R
+import org.monogram.feature.chats.archivePreviewTitles
 import org.monogram.feature.chats.clampFolderScroll
 import org.monogram.feature.chats.defaultFolderId
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.outlined.Forum
-import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.SearchOff
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.style.TextAlign
-import org.monogram.core.ui.ExpressiveDefaults
-import org.monogram.feature.chats.R
 import org.monogram.feature.chats.folderChipItems
-import org.monogram.feature.chats.showsFolderChipRow
 import org.monogram.feature.chats.folderScrollKey
 import org.monogram.feature.chats.folderUnreadBadge
-import org.monogram.feature.chats.onFolderChipClick
-import org.monogram.feature.chats.unreadChatIds
 import org.monogram.feature.chats.matchesSearchQuery
+import org.monogram.feature.chats.onFolderChipClick
+import org.monogram.feature.chats.showsFolderChipRow
+import org.monogram.feature.chats.unreadChatIds
 import org.monogram.feature.chats.visibleChats
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
-import org.monogram.core.ui.components.SearchField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -141,10 +142,18 @@ fun ChatsContent(
     selectionBottomBar: @Composable () -> Unit = {},
 ) {
     val state = collectWhenActive(component.state, listActive)
+    var proxyStatus by remember { mutableStateOf(component.proxyConnectionStatus()) }
+    LaunchedEffect(component, listActive) {
+        while (isActive) {
+            proxyStatus = component.proxyConnectionStatus()
+            delay(750)
+        }
+    }
     val appearance by AppearanceSettings.state.collectAsState()
     val cancelSelection by rememberUpdatedState(onCancelSelection)
     DisposableEffect(component, selectingRecipient, listActive) {
-        val callback = BackCallback(isEnabled = selectingRecipient && listActive) { cancelSelection() }
+        val callback =
+            BackCallback(isEnabled = selectingRecipient && listActive) { cancelSelection() }
         component.backHandler.register(callback)
         onDispose { component.backHandler.unregister(callback) }
     }
@@ -157,7 +166,12 @@ fun ChatsContent(
     var selectedFolderId by rememberSaveable { mutableStateOf<Int?>(null) }
     // The list opens on the first folder; a tap or the archive outranks that default.
     var folderChoiceMade by rememberSaveable { mutableStateOf(false) }
-    val defaultFolder = remember(folders, appearance.showAllChats) { defaultFolderId(folders, appearance.showAllChats) }
+    val defaultFolder = remember(folders, appearance.showAllChats) {
+        defaultFolderId(
+            folders,
+            appearance.showAllChats
+        )
+    }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var folderMenu by remember { mutableStateOf<FolderChipItem?>(null) }
@@ -253,8 +267,8 @@ fun ChatsContent(
         if (archiveOpen) return@LaunchedEffect
         val current = selectedFolderId
         val missing = (current != null && current != ARCHIVE_FOLDER_ID &&
-            folders.isNotEmpty() && folders.none { it.id == current }) ||
-            (current == null && !appearance.showAllChats && defaultFolder != null)
+                folders.isNotEmpty() && folders.none { it.id == current }) ||
+                (current == null && !appearance.showAllChats && defaultFolder != null)
         if (missing) {
             selectedFolderId = defaultFolder
             folderChoiceMade = defaultFolder != null
@@ -334,7 +348,12 @@ fun ChatsContent(
     val archivedChats = remember { ChatListSnapshot() }
     allChats.replace(state.chats)
     perfSpan("shownChats") {
-        shownChats.replace(filterChats(visibleChats(state.chats, folders, homeFolderId), state.query))
+        shownChats.replace(
+            filterChats(
+                visibleChats(state.chats, folders, homeFolderId),
+                state.query
+            )
+        )
     }
     val archivedSlice = remember(state.chats) {
         perfSpan("archiveSlice") {
@@ -377,7 +396,7 @@ fun ChatsContent(
         val atTop by remember(paneListState) {
             derivedStateOf {
                 paneListState.firstVisibleItemIndex == 0 &&
-                    paneListState.firstVisibleItemScrollOffset <= AtTopTolerance
+                        paneListState.firstVisibleItemScrollOffset <= AtTopTolerance
             }
         }
         val rawSync = when {
@@ -399,8 +418,10 @@ fun ChatsContent(
             overlayTitle != null -> null
             state.error?.kind == TelegramError.Kind.Network ->
                 stringResource(R.string.chats_waiting_network)
+
             unreadChats > 0 ->
                 pluralStringResource(R.plurals.chats_unread_chats, unreadChats, unreadChats)
+
             else -> null
         }
         val folderTitle = when {
@@ -448,35 +469,38 @@ fun ChatsContent(
                         },
                     )
                 } else {
-                ChatsTopBar(
-                    atTop = atTop,
-                    brandTitle = if (archive) archiveLabel else brandLabel,
-                    brandEmojiDocumentId = if (archive) null else state.self?.emojiStatusDocumentId,
-                    folderTitle = folderTitle,
-                    folderSubtitle = subtitle,
-                    overlayTitle = overlayTitle,
-                    archive = archive,
-                    selfTitle = state.self?.title ?: stringResource(R.string.chats_profile),
-                    selfAvatar = rememberSelfAvatar(
-                        self = state.self,
+                    ChatsTopBar(
+                        atTop = atTop,
+                        brandTitle = if (archive) archiveLabel else brandLabel,
+                        brandEmojiDocumentId = if (archive) null else state.self?.emojiStatusDocumentId,
+                        folderTitle = folderTitle,
+                        folderSubtitle = subtitle,
+                        overlayTitle = overlayTitle,
+                        archive = archive,
+                        selfTitle = state.self?.title ?: stringResource(R.string.chats_profile),
+                        selfAvatar = rememberSelfAvatar(
+                            self = state.self,
+                            mediaRepository = component.mediaRepository,
+                        ),
+                        selfOnline = selfOnline,
                         mediaRepository = component.mediaRepository,
-                    ),
-                    selfOnline = selfOnline,
-                    mediaRepository = component.mediaRepository,
-                    searchOpen = searchOpen,
-                    onBack = closeArchive,
-                    onToggleSearch = { searchOpen = !searchOpen },
-                    onOpenProfile = component::onOpenSelfProfile,
-                    onOpenSettings = component::onOpenSettings,
-                    onMarkAllRead = { component.onMarkRead(markAllIds) },
-                    searchLabel = stringResource(R.string.chats_search),
-                    searchCloseLabel = stringResource(R.string.chats_search_close),
-                    backLabel = stringResource(R.string.chats_back),
-                    profileLabel = stringResource(R.string.chats_my_profile),
-                    settingsLabel = stringResource(R.string.chats_settings),
-                    markAllReadLabel = markAllReadLabel,
-                    markAllReadEnabled = markAllIds.isNotEmpty(),
-                )
+                        searchOpen = searchOpen,
+                        onBack = closeArchive,
+                        onToggleSearch = { searchOpen = !searchOpen },
+                        onOpenProfile = component::onOpenSelfProfile,
+                        onOpenSettings = component::onOpenSettings,
+                        onOpenProxy = component::onOpenProxy,
+                        onMarkAllRead = { component.onMarkRead(markAllIds) },
+                        searchLabel = stringResource(R.string.chats_search),
+                        searchCloseLabel = stringResource(R.string.chats_search_close),
+                        backLabel = stringResource(R.string.chats_back),
+                        profileLabel = stringResource(R.string.chats_my_profile),
+                        settingsLabel = stringResource(R.string.chats_settings),
+                        markAllReadLabel = markAllReadLabel,
+                        markAllReadEnabled = markAllIds.isNotEmpty(),
+                        proxyStatus = proxyStatus,
+                        proxyStatusLabel = stringResource(R.string.chats_proxy_status),
+                    )
                 }
             },
             bottomBar = {
@@ -515,7 +539,9 @@ fun ChatsContent(
                         component::onRefresh
                     },
                 )
-                Column(modifier = Modifier.weight(1f).fillMaxSize()) {
+                Column(modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize()) {
                     if (!archive && !searchOpen && !foldersAtBottom && showFolderChips) {
                         Box {
                             FolderChipRow(
@@ -544,7 +570,9 @@ fun ChatsContent(
                             }
                         }
                     }
-                    Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                    Box(modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()) {
                         androidx.compose.animation.AnimatedVisibility(
                             visible = state.loading && paneEmpty && !folderMoving,
                             modifier = Modifier.fillMaxSize(),
@@ -668,7 +696,7 @@ fun ChatsContent(
                                     archivedUnmuted = archivedPreview.unmuted,
                                     archivedMuted = if (showMutedCounter) archivedPreview.muted else 0,
                                     showArchiveRow = folderId == null && !searchOpen &&
-                                        state.query.isBlank() && archivedCount > 0,
+                                            state.query.isBlank() && archivedCount > 0,
                                     loading = state.loading && activePage,
                                     error = state.error,
                                     hasMore = state.hasMore && activePage,
@@ -881,7 +909,14 @@ private fun rememberSelfAvatar(
 ) = rememberEnsuredFile(
     generation = rememberCacheGeneration(
         remember(mediaRepository, self?.id, self?.avatarCacheKey) {
-            self?.id?.let { mediaRepository?.cacheGeneration(peerAvatarCacheKey(it, self.avatarCacheKey)) }
+            self?.id?.let {
+                mediaRepository?.cacheGeneration(
+                    peerAvatarCacheKey(
+                        it,
+                        self.avatarCacheKey
+                    )
+                )
+            }
         },
     ),
     identity = self?.id?.value to self?.avatarCacheKey,
@@ -937,7 +972,15 @@ private fun filterChats(
 private const val AtTopTolerance = 8
 
 private val FolderScrollSaver = listSaver<Map<Int, FolderListScroll>, Int>(
-    save = { entries -> entries.flatMap { (id, scroll) -> listOf(id, scroll.index, scroll.offset) } },
+    save = { entries ->
+        entries.flatMap { (id, scroll) ->
+            listOf(
+                id,
+                scroll.index,
+                scroll.offset
+            )
+        }
+    },
     restore = { values ->
         values.chunked(3).associate { (id, index, offset) -> id to FolderListScroll(index, offset) }
     },

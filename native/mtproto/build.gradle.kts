@@ -35,8 +35,16 @@ android {
     }
 }
 
+val platformVerifierVersion = providers.fileContents(
+    rootProject.layout.projectDirectory.file("native/mtproto-rs/Cargo.lock"),
+).asText.map { lock ->
+    Regex("""name = "rustls-platform-verifier-android"\s+version = "([^"]+)"""").find(lock)?.groupValues?.get(1)
+        ?: error("rustls-platform-verifier-android not found in Cargo.lock")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(platformVerifierVersion.map { "org.rustls:rustls-platform-verifier:$it" })
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)
     // Android needs the AAR (ships libjnidispatch.so); plain JAR is desktop-only.
@@ -44,6 +52,7 @@ dependencies {
 }
 
 val rustCrate = rootProject.layout.projectDirectory.dir("native/mtproto-rs")
+val transportCrate = rootProject.layout.projectDirectory.dir("native/mtproto-transport")
 val jniLibs = layout.projectDirectory.dir("src/main/jniLibs")
 val skipNativeBuild =
     providers.gradleProperty("skipNativeBuild").map { it.toBoolean() }.orElse(false)
@@ -113,6 +122,8 @@ val buildNativeMtproto =
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
+        inputs.file(transportCrate.file("Cargo.toml"))
+        inputs.dir(transportCrate.dir("src"))
         inputs.property("abis", abis)
         outputs.files(
             abis.map { jniLibs.file("$it/libmonogram_mtproto.so") },
@@ -169,6 +180,8 @@ val buildHostUniffiMtproto =
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
+        inputs.file(transportCrate.file("Cargo.toml"))
+        inputs.dir(transportCrate.dir("src"))
         outputs.file(hostUniffiLib)
         enabled = !skipNativeBuild.get()
     }

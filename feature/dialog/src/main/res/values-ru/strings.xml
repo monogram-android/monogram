@@ -240,6 +240,13 @@
     <string name="dialog_forwarded">Переслано в %1$s</string>
     <string name="dialog_delete_confirm">Удалить это сообщение?</string>
     <string name="dialog_delete_for_everyone">Удалить для всех</string>
+    <string name="dialog_delete_for_me">Удалить у меня</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">Удалить %1$d сообщение?</item>
+        <item quantity="few">Удалить %1$d сообщения?</item>
+        <item quantity="many">Удалить %1$d сообщений?</item>
+        <item quantity="other">Удалить %1$d сообщения?</item>
+    </plurals>
     <string name="dialog_cancel">Отмена</string>
     <string name="dialog_cant_view">Вы не можете просматривать сообщения в этом чате</string>
     <string name="dialog_cant_send">Вы не можете отправлять сообщения в этот чат</string>

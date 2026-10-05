@@ -66,4 +66,5 @@
     <string name="chats_verified">Onaylı</string>
     <string name="chats_unread_mentions">Okunmamış bahsetmeler</string>
     <string name="chats_unread_reactions">Okunmamış tepkiler</string>
+    <string name="chats_proxy_status">Proxy connection status</string>
 </resources>

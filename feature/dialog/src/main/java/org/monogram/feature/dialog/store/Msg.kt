@@ -27,6 +27,7 @@ internal sealed interface Msg {
     data class IsSelf(val value: Boolean) : Msg
     data class IsGroup(val value: Boolean) : Msg
     data class IsChannel(val value: Boolean) : Msg
+    data class IsBot(val value: Boolean) : Msg
     data class Senders(val value: Map<PeerId, Profile>) : Msg
     data class SenderTags(val value: Map<PeerId, String>) : Msg
     data class Draft(val value: String) : Msg

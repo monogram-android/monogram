@@ -18,6 +18,10 @@ import uniffi.monogram_mtproto.UploadItemDto
 object MtprotoNativeStub : MtprotoNative {
     override fun libraryVersion(): String = "stub-0.0.1"
 
+    override fun setTransportMode(mode: String) = Unit
+    override fun setProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray) = Unit
+    override fun clearProxy() = Unit
+
     override fun createClient(apiId: Int, apiHash: String, sessionPath: String): Long = 1L
 
     override fun isAuthorized(handle: Long): Boolean = false

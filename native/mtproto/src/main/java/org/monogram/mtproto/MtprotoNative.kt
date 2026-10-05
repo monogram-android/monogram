@@ -35,6 +35,11 @@ import uniffi.monogram_mtproto.PollVotersDto
  * Low-level UniFFI surface backed by the Tellers MTProto runtime.
  */
 interface MtprotoNative {
+    fun setTransportMode(mode: String) = Unit
+    fun setProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray) = Unit
+    fun pingProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray): Long =
+        throw UnsupportedOperationException("proxy ping")
+    fun clearProxy() = Unit
     fun createRequestControl(): Long = 0L
     fun bindRequestControl(id: Long): Long = 0L
     fun cancelRequestControl(id: Long) = Unit

@@ -1,10 +1,23 @@
 package org.monogram.mtproto
 
+import android.content.Context
 import android.util.Log
 
 object MtprotoNativeLoader {
     @Volatile
     private var cached: MtprotoNative? = null
+
+    private var platformVerifierInitialized = false
+
+    @Synchronized
+    fun initializePlatformVerifier(context: Context) {
+        if (platformVerifierInitialized || loadOrStub() === MtprotoNative.Stub) return
+        System.loadLibrary("monogram_mtproto")
+        initPlatformVerifier(context.applicationContext)
+        platformVerifierInitialized = true
+    }
+
+    private external fun initPlatformVerifier(context: Context)
 
     /**
      * Loads the real UniFFI backend. Falls back to [MtprotoNative.Stub] only if the

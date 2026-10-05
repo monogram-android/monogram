@@ -176,7 +176,7 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
         galleryAccessDenied = !galleryAccess
         if (galleryAccess) reloadGallery()
     }
-    val pendingDeleteId = rememberSaveable { mutableStateOf<Int?>(null) }
+    val pendingDeleteIds = remember { mutableStateOf<List<Int>>(emptyList()) }
     val instantViewUrl = rememberSaveable { mutableStateOf<String?>(null) }
     val instantViewHash = rememberSaveable { mutableIntStateOf(0) }
     val clipboard = LocalClipboard.current
@@ -343,11 +343,17 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                 onOpenEmojiStatus = { packDocumentId.value = it },
                 selectedMessageCount = selectedMessageIds.value.size,
                 canForwardSelected = forwardableSelectedMessages.isNotEmpty() && forwardableSelectedMessages.size == selectedMessageIds.value.size,
+                canDeleteSelected = deleteOffer(
+                    state,
+                    state.messages.filter { it.id.id in selectedMessageIds.value },
+                    System.currentTimeMillis() / 1000,
+                ).visible,
                 onClearSelectedMessages = { selectedMessageIds.value = emptyList() },
                 onForwardSelectedMessages = {
                     component.onForwardMessages(forwardableSelectedMessages)
                     selectedMessageIds.value = emptyList()
                 },
+                onDeleteSelectedMessages = { pendingDeleteIds.value = selectedMessageIds.value },
             )
         },
     ) { inner ->
@@ -559,7 +565,7 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                         packDocumentId = packDocumentId,
                         instantViewUrl = instantViewUrl,
                         instantViewHash = instantViewHash,
-                        pendingDeleteId = pendingDeleteId,
+                        pendingDeleteIds = pendingDeleteIds,
                         taskDraftFor = taskDraftFor,
                         peerListId = peerListId,
                         peerListKind = peerListKind,
@@ -574,7 +580,7 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                         packDocumentId = packDocumentId,
                         instantViewUrl = instantViewUrl,
                         instantViewHash = instantViewHash,
-                        pendingDeleteId = pendingDeleteId,
+                        pendingDeleteIds = pendingDeleteIds,
                         taskDraftFor = taskDraftFor,
                         taskDraft = taskDraft,
                         onPhotos = {

@@ -717,8 +717,12 @@ mod membership_tests {
             boxed_vec(vec![group(11, true, false), group(12, false, false)]),
             boxed_vec(Vec::<User>::new()),
         );
-        let left = out.iter().find(|c| c.id == crate::peers::chat_id_for_chat(11));
-        let joined = out.iter().find(|c| c.id == crate::peers::chat_id_for_chat(12));
+        let left = out
+            .iter()
+            .find(|c| c.id == crate::peers::chat_id_for_chat(11));
+        let joined = out
+            .iter()
+            .find(|c| c.id == crate::peers::chat_id_for_chat(12));
         assert!(left.expect("left dialog").left);
         assert!(!joined.expect("joined dialog").left);
     }

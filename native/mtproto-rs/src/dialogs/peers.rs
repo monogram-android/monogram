@@ -4,8 +4,7 @@ use tellers_mtproto::latest::api::{Chat as TlChat, ChatPhoto, Peer, User, UserPr
 
 use super::permissions::{
     admin_can_delete, admin_can_manage_topics, admin_can_post, banned_media, banned_photos,
-    banned_plain, banned_send,
-    banned_view, resolve_permissions,
+    banned_plain, banned_send, banned_view, resolve_permissions,
 };
 use crate::media::{self, MediaIndex};
 use crate::peers::{

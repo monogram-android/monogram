@@ -38,6 +38,7 @@ cipher = "0.5"
 pbkdf2 = { version = "0.13", default-features = false, features = ["hmac"] }
 flate2 = "1"
 tlottie = { path = "../../vendor/tlottie", default-features = false, features = ["cpu", "std"] }
+monogram-mtproto-transport = { path = "../mtproto-transport" }
 
 tellers-mtproto = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto" }
 tellers-mtproto-codec = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-codec" }
@@ -48,6 +49,10 @@ tellers-mtproto-engine = { path = "../../../telers-mtproto-impl/crates/tellers-m
 
 [build-dependencies]
 uniffi = { version = "0.32", features = ["build"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.22", default-features = false }
+rustls-platform-verifier = "0.7"
 
 [[bin]]
 name = "uniffi-bindgen"

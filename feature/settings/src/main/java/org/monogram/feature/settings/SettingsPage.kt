@@ -9,6 +9,9 @@ sealed interface SettingsPage {
     data object Home : SettingsPage
 
     @Serializable
+    data object Proxy : SettingsPage
+
+    @Serializable
     data object Data : SettingsPage
 
     /** Auto-download rules for `wifi`, `mobile`, or `roaming`. */
@@ -39,4 +42,7 @@ sealed interface SettingsPage {
 
     @Serializable
     data object DebugStats : SettingsPage
+
+    @Serializable
+    data object Logs : SettingsPage
 }

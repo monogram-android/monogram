@@ -88,6 +88,8 @@ interface MtprotoNative {
     @Throws(MtprotoException::class)
     fun setTestDc(handle: Long, enabled: Boolean) = Unit
 
+    fun usesTestDc(handle: Long): Boolean = false
+
     @Throws(MtprotoException::class)
     fun isAuthorized(handle: Long): Boolean
 

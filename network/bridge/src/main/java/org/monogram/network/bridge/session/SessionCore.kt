@@ -318,6 +318,11 @@ internal class SessionCore(
             native.setTestDc(activeHandle, enabled)
         }
 
+    override suspend fun usesTestDc(): Outcome<Boolean> =
+        rpc("usesTestDc failed") { activeHandle ->
+            native.usesTestDc(activeHandle)
+        }
+
     override suspend fun connect(): Outcome<Unit> {
         if (sessionDead) return deadSessionError()
         val already = if (closed) 0L else handle

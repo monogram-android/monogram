@@ -6,7 +6,7 @@ use tellers_mtproto_transport::PaddedIntermediate;
 
 use crate::MtprotoError;
 use crate::api_invoke;
-use crate::auth_key::create_auth_key_with_pem;
+use crate::auth::auth_key::create_auth_key_with_pem;
 use crate::dialogs;
 use crate::media;
 use crate::peers::vector_boxed_items;
@@ -23,7 +23,7 @@ pub fn download_wallpaper(
     let client = get_client(handle)?;
     let (api_id, home, media) = with_client_mut(handle, |state| {
         let media = call_with_migrate(state, |state| {
-            crate::wallpaper_rpc::wallpaper_media(
+            crate::media::wallpaper_rpc::wallpaper_media(
                 &mut state.snapshot,
                 state.api_id,
                 id,
@@ -47,7 +47,7 @@ pub fn download_wallpaper(
                     return Err(expired_session_lease());
                 }
                 let media = call_with_migrate(state, |state| {
-                    crate::wallpaper_rpc::wallpaper_media(
+                    crate::media::wallpaper_rpc::wallpaper_media(
                         &mut state.snapshot,
                         state.api_id,
                         id,
@@ -127,9 +127,8 @@ pub(crate) fn refresh_file_source(
         .media
         .get(&(chat_id, message_id))
         .map(|media| media::location_token(&media.location));
-    if let Some(url) = crate::instant_view_rpc::media_refresh_url(&state.media, chat_id, message_id)
-    {
-        let _ = crate::instant_view_rpc::get_web_page(
+    if let Some(url) = crate::instant_view::media_refresh_url(&state.media, chat_id, message_id) {
+        let _ = crate::instant_view::get_web_page(
             &mut state.snapshot,
             state.api_id,
             &mut state.peers,
@@ -139,7 +138,7 @@ pub(crate) fn refresh_file_source(
         );
         return Ok(());
     }
-    if message_id == crate::instant_view_rpc::INSTANT_VIEW_MEDIA_MSG {
+    if message_id == crate::instant_view::INSTANT_VIEW_MEDIA_MSG {
         return Ok(());
     }
     if message_id == 0 {
@@ -163,7 +162,7 @@ pub(crate) fn refresh_file_source(
             .get(&(chat_id, message_id))
             .is_some_and(|media| matches!(media.location, media::MediaLocation::Document { .. }))
         {
-            let _ = crate::extras_rpc::get_saved_gifs(
+            let _ = crate::client::extras_rpc::get_saved_gifs(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.media,
@@ -206,7 +205,7 @@ pub(crate) fn refresh_last_inline(state: &mut ClientState) {
     {
         return;
     }
-    if crate::inline_rpc::get_inline_bot_results(
+    if crate::messages::inline_rpc::get_inline_bot_results(
         &mut state.snapshot,
         state.api_id,
         &mut state.peers,
@@ -286,7 +285,7 @@ pub fn download_message_media_range(
         with_client_mut(handle, |state| {
             ensure_ready(state)?;
             if !state.media.contains_key(&(chat_id, message_id)) {
-                if message_id == crate::instant_view_rpc::INSTANT_VIEW_MEDIA_MSG {
+                if message_id == crate::instant_view::INSTANT_VIEW_MEDIA_MSG {
                     // Indexed only by messages.getWebPage as (media_id, -1).
                     // Never treat a photo/document id as a dialog for history.
                 } else if message_id == 0 {

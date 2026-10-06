@@ -213,5 +213,5 @@ fn hex_nibble(ch: u8) -> Result<u8, crate::MtprotoError> {
 }
 
 #[cfg(test)]
-#[path = "reply_markup_tests.rs"]
+#[path = "../tests/unit/reply_markup_tests.rs"]
 mod tests;

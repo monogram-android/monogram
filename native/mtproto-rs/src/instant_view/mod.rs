@@ -13,3 +13,10 @@ pub use index::INSTANT_VIEW_MEDIA_MSG;
 pub(crate) use index::*;
 pub(crate) use rich::*;
 pub use rpc::*;
+
+#[cfg(test)]
+#[path = "../../tests/unit/instant_view_block_tests.rs"]
+mod block_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/instant_view_page_tests.rs"]
+mod page_tests;

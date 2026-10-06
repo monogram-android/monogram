@@ -19,6 +19,7 @@ interface SessionOps {
 
     suspend fun connect(): Outcome<Unit>
     suspend fun setTestDc(enabled: Boolean): Outcome<Unit> = Outcome.Ok(Unit)
+    suspend fun usesTestDc(): Outcome<Boolean> = Outcome.Ok(false)
     suspend fun sendAuthCode(phone: String): Outcome<AuthState.AwaitingCode>
     suspend fun resendAuthCode(
         phone: String,

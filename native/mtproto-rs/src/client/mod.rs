@@ -6,9 +6,11 @@
 mod auth;
 mod dispatch;
 mod extras;
+pub(crate) mod extras_rpc;
 mod lanes;
 mod media_download;
 mod persist;
+pub(crate) mod push_rpc;
 mod session;
 mod updates;
 
@@ -20,6 +22,24 @@ pub use media_download::*;
 pub(crate) use persist::*;
 pub(crate) use session::*;
 pub use updates::*;
+
+#[cfg(test)]
+use crate::media as media_rpc;
+#[cfg(test)]
+use crate::peers;
+
+#[cfg(test)]
+#[path = "../../tests/unit/client_mgr_channel_tests.rs"]
+mod channel_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/client_mgr_lane_tests.rs"]
+mod lane_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/client_mgr_logout_tests.rs"]
+mod logout_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/client_mgr_session_tests.rs"]
+mod session_tests;
 
 use crate::{HashMap, HashMapExt, HashSet, HashSetExt};
 use std::cell::Cell;
@@ -363,6 +383,12 @@ pub fn client_api_id(handle: u64) -> i32 {
     get_client(handle)
         .map(|c| c.data.lock().api_id)
         .unwrap_or(0)
+}
+
+pub fn client_uses_test_dc(handle: u64) -> bool {
+    get_client(handle)
+        .map(|c| c.data.lock().test_dc)
+        .unwrap_or(false)
 }
 
 pub(crate) fn with_client_mut<T>(

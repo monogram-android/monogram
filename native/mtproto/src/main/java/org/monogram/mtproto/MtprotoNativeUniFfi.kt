@@ -121,6 +121,7 @@ import uniffi.monogram_mtproto.sendSavedGif as nativeSendSavedGif
 import uniffi.monogram_mtproto.sendTextMessage as nativeSendTextMessage
 import uniffi.monogram_mtproto.sendUploadedAlbum as nativeSendUploadedAlbum
 import uniffi.monogram_mtproto.sendUploadedMedia as nativeSendUploadedMedia
+import uniffi.monogram_mtproto.clientUsesTestDc as nativeClientUsesTestDc
 import uniffi.monogram_mtproto.setClientTestDc as nativeSetClientTestDc
 import uniffi.monogram_mtproto.setContactJoinedSilent as nativeSetContactJoinedSilent
 import uniffi.monogram_mtproto.setTyping as nativeSetTyping
@@ -229,6 +230,9 @@ object MtprotoNativeUniFfi : MtprotoNative {
     override fun setTestDc(handle: Long, enabled: Boolean) {
         nativeSetClientTestDc(handle.toULong(), enabled)
     }
+
+    override fun usesTestDc(handle: Long): Boolean =
+        nativeClientUsesTestDc(handle.toULong())
 
     override fun isAuthorized(handle: Long): Boolean =
         nativeIsAuthorized(handle.toULong())

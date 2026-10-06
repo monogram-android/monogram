@@ -5,7 +5,7 @@ use super::*;
 pub fn get_wallpapers(handle: u64, hash: i64) -> Result<crate::WallpaperCatalogDto, MtprotoError> {
     with_client_mut(handle, |state| {
         let catalog = call_with_migrate(state, |state| {
-            crate::wallpaper_rpc::get_wallpapers(&mut state.snapshot, state.api_id, hash)
+            crate::media::wallpaper_rpc::get_wallpapers(&mut state.snapshot, state.api_id, hash)
         })?;
         Ok(catalog)
     })
@@ -19,7 +19,7 @@ pub fn get_web_page(
     with_client_mut(handle, |state| {
         ensure_ready(state)?;
         let page = call_with_migrate(state, |state| {
-            crate::instant_view_rpc::get_web_page(
+            crate::instant_view::get_web_page(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.peers,
@@ -39,7 +39,7 @@ pub fn get_web_page_preview(
     with_client_mut(handle, |state| {
         ensure_ready(state)?;
         let page = call_with_migrate(state, |state| {
-            crate::instant_view_rpc::get_web_page_preview(
+            crate::instant_view::get_web_page_preview(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.peers,
@@ -63,7 +63,7 @@ pub fn send_location(
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::send_location(
+                crate::client::extras_rpc::send_location(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -83,11 +83,11 @@ pub fn get_message_reactions_list(
     handle: u64,
     chat_id: i64,
     message_id: i32,
-) -> Result<crate::extras_rpc::ReactionPeersDto, MtprotoError> {
+) -> Result<crate::client::extras_rpc::ReactionPeersDto, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::get_message_reactions_list(
+                crate::client::extras_rpc::get_message_reactions_list(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -103,11 +103,11 @@ pub fn get_poll_votes(
     handle: u64,
     chat_id: i64,
     message_id: i32,
-) -> Result<crate::extras_rpc::PollVotersDto, MtprotoError> {
+) -> Result<crate::client::extras_rpc::PollVotersDto, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::get_poll_votes(
+                crate::client::extras_rpc::get_poll_votes(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -128,7 +128,7 @@ pub fn send_poll_vote(
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::send_poll_vote(
+                crate::client::extras_rpc::send_poll_vote(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -151,7 +151,7 @@ pub fn append_todo_items(
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::append_todo_items(
+                crate::client::extras_rpc::append_todo_items(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -175,7 +175,7 @@ pub fn toggle_todo_completed(
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::toggle_todo_completed(
+                crate::client::extras_rpc::toggle_todo_completed(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -199,7 +199,7 @@ pub fn get_bot_callback_answer(
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::get_bot_callback_answer(
+                crate::client::extras_rpc::get_bot_callback_answer(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -216,7 +216,7 @@ pub fn get_bot_callback_answer(
 pub fn get_saved_gifs(handle: u64) -> Result<Vec<crate::SavedGifDto>, MtprotoError> {
     with_client_mut(handle, |state| {
         let (_hash, list) = call_with_migrate(state, |state| {
-            crate::extras_rpc::get_saved_gifs(
+            crate::client::extras_rpc::get_saved_gifs(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.media,
@@ -233,7 +233,7 @@ pub fn resolve_username(
 ) -> Result<crate::ResolvedPeerDto, MtprotoError> {
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
-            crate::inline_rpc::resolve_username(
+            crate::messages::inline_rpc::resolve_username(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.peers,
@@ -254,7 +254,7 @@ pub fn get_inline_bot_results(
 ) -> Result<crate::InlineBotResultsDto, MtprotoError> {
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
-            crate::inline_rpc::get_inline_bot_results(
+            crate::messages::inline_rpc::get_inline_bot_results(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.peers,
@@ -287,7 +287,7 @@ pub fn send_inline_bot_result(
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::inline_rpc::send_inline_bot_result(
+                crate::messages::inline_rpc::send_inline_bot_result(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -314,7 +314,7 @@ pub fn send_saved_gif(
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::send_saved_gif(
+                crate::client::extras_rpc::send_saved_gif(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -340,7 +340,7 @@ pub fn send_reaction(
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::send_reaction(
+                crate::client::extras_rpc::send_reaction(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -357,7 +357,7 @@ pub fn send_reaction(
 pub fn get_recent_reactions(handle: u64) -> Result<Vec<crate::ReactionChoiceDto>, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::extras_rpc::get_recent_reactions(&mut state.snapshot, state.api_id)
+            crate::client::extras_rpc::get_recent_reactions(&mut state.snapshot, state.api_id)
         })
     })
 }
@@ -365,7 +365,7 @@ pub fn get_recent_reactions(handle: u64) -> Result<Vec<crate::ReactionChoiceDto>
 pub fn animated_emoji_max(handle: u64) -> Result<i32, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::extras_rpc::animated_emoji_max(&mut state.snapshot, state.api_id)
+            crate::client::extras_rpc::animated_emoji_max(&mut state.snapshot, state.api_id)
         })
     })
 }
@@ -373,7 +373,11 @@ pub fn animated_emoji_max(handle: u64) -> Result<i32, MtprotoError> {
 pub fn custom_emoji_is_free(handle: u64, document_id: i64) -> Result<bool, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::extras_rpc::custom_emoji_is_free(&mut state.snapshot, state.api_id, document_id)
+            crate::client::extras_rpc::custom_emoji_is_free(
+                &mut state.snapshot,
+                state.api_id,
+                document_id,
+            )
         })
     })
 }
@@ -386,7 +390,7 @@ pub fn get_discussion_message(
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::extras_rpc::get_discussion_message(
+                crate::client::extras_rpc::get_discussion_message(
                     &mut state.snapshot,
                     state.api_id,
                     &mut state.peers,
@@ -405,7 +409,7 @@ pub fn get_sticker_pack(
 ) -> Result<crate::StickerPackDto, MtprotoError> {
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
-            crate::sticker_rpc::get_sticker_pack(
+            crate::messages::sticker_rpc::get_sticker_pack(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.media,
@@ -423,7 +427,7 @@ pub fn get_sticker_set(
 ) -> Result<crate::StickerPackDto, MtprotoError> {
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
-            crate::sticker_rpc::get_sticker_set(
+            crate::messages::sticker_rpc::get_sticker_set(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.media,
@@ -438,7 +442,7 @@ pub fn get_sticker_set(
 pub fn get_all_stickers(handle: u64, hash: i64) -> Result<crate::StickerCatalogDto, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::sticker_rpc::get_all_stickers(&mut state.snapshot, state.api_id, hash)
+            crate::messages::sticker_rpc::get_all_stickers(&mut state.snapshot, state.api_id, hash)
         })
     })
 }
@@ -449,7 +453,11 @@ pub fn get_emoji_stickers(
 ) -> Result<crate::StickerCatalogDto, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::sticker_rpc::get_emoji_stickers(&mut state.snapshot, state.api_id, hash)
+            crate::messages::sticker_rpc::get_emoji_stickers(
+                &mut state.snapshot,
+                state.api_id,
+                hash,
+            )
         })
     })
 }
@@ -461,7 +469,7 @@ pub fn get_stickers(
 ) -> Result<crate::StickerListDto, MtprotoError> {
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
-            crate::sticker_rpc::get_stickers(
+            crate::messages::sticker_rpc::get_stickers(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.media,
@@ -477,11 +485,11 @@ pub fn get_message_read_participants(
     handle: u64,
     chat_id: i64,
     msg_id: i32,
-) -> Result<crate::read_receipts_rpc::ReadParticipantsDto, MtprotoError> {
+) -> Result<crate::messages::read_receipts_rpc::ReadParticipantsDto, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::read_receipts_rpc::get_message_read_participants(
+                crate::messages::read_receipts_rpc::get_message_read_participants(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -497,11 +505,11 @@ pub fn get_outbox_read_date(
     handle: u64,
     chat_id: i64,
     msg_id: i32,
-) -> Result<crate::read_receipts_rpc::OutboxReadDto, MtprotoError> {
+) -> Result<crate::messages::read_receipts_rpc::OutboxReadDto, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::read_receipts_rpc::get_outbox_read_date(
+                crate::messages::read_receipts_rpc::get_outbox_read_date(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -515,10 +523,13 @@ pub fn get_outbox_read_date(
 
 pub fn get_read_receipt_config(
     handle: u64,
-) -> Result<crate::read_receipts_rpc::ReadReceiptConfigDto, MtprotoError> {
+) -> Result<crate::messages::read_receipts_rpc::ReadReceiptConfigDto, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::read_receipts_rpc::fetch_read_receipt_config(&mut state.snapshot, state.api_id)
+            crate::messages::read_receipts_rpc::fetch_read_receipt_config(
+                &mut state.snapshot,
+                state.api_id,
+            )
         })
     })
 }

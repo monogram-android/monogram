@@ -98,7 +98,7 @@ fn slow_down_after_premium_flood(err: &MtprotoError) {
         return;
     }
     crate::scheduler::set_active_media_lanes(2);
-    crate::client_mgr::set_pipeline_parts(2);
+    crate::client::set_pipeline_parts(2);
     set_chunk_size(DEFAULT_CHUNK);
 }
 

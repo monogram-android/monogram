@@ -36,7 +36,7 @@ android {
 }
 
 val platformVerifierVersion = providers.fileContents(
-    rootProject.layout.projectDirectory.file("native/mtproto-rs/Cargo.lock"),
+    rootProject.layout.projectDirectory.file("native/Cargo.lock"),
 ).asText.map { lock ->
     Regex("""name = "rustls-platform-verifier-android"\s+version = "([^"]+)"""").find(lock)?.groupValues?.get(1)
         ?: error("rustls-platform-verifier-android not found in Cargo.lock")
@@ -53,6 +53,27 @@ dependencies {
 
 val rustCrate = rootProject.layout.projectDirectory.dir("native/mtproto-rs")
 val transportCrate = rootProject.layout.projectDirectory.dir("native/mtproto-transport")
+val workspaceLock = rootProject.layout.projectDirectory.file("native/Cargo.lock")
+val workspaceTarget = rootProject.layout.projectDirectory.dir("native/target")
+val cargoConfigFiles = rootProject.layout.projectDirectory.dir(".cargo").asFileTree.matching {
+    include("config.toml")
+}
+val tellersCrates = listOf(
+    "tellers-mtproto",
+    "tellers-mtproto-codec",
+    "tellers-mtproto-crypto",
+    "tellers-mtproto-transport",
+    "tellers-mtproto-session",
+    "tellers-mtproto-engine",
+).map { rootProject.layout.projectDirectory.dir("../telers-mtproto-impl/crates/$it") }
+
+fun Task.fingerprintCargoConfigAndTellers() {
+    inputs.files(cargoConfigFiles)
+    tellersCrates.forEach { crate ->
+        inputs.file(crate.file("Cargo.toml"))
+        inputs.dir(crate.dir("src"))
+    }
+}
 val jniLibs = layout.projectDirectory.dir("src/main/jniLibs")
 val skipNativeBuild =
     providers.gradleProperty("skipNativeBuild").map { it.toBoolean() }.orElse(false)
@@ -98,7 +119,7 @@ fun hostCdylibName(libName: String): String {
     }
 }
 
-val hostUniffiLib = rustCrate.file("target/debug/${hostCdylibName("monogram_mtproto")}")
+val hostUniffiLib = workspaceTarget.file("debug/${hostCdylibName("monogram_mtproto")}")
 val uniffiKotlin = layout.projectDirectory.file(
     "src/main/java/uniffi/monogram_mtproto/monogram_mtproto.kt",
 )
@@ -118,12 +139,13 @@ val buildNativeMtproto =
         val jobs = maxOf(2, Runtime.getRuntime().availableProcessors() / maxOf(1, abis.size))
         inputs.files(
             rustCrate.file("Cargo.toml"),
-            rustCrate.file("Cargo.lock"),
+            workspaceLock,
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
         inputs.file(transportCrate.file("Cargo.toml"))
         inputs.dir(transportCrate.dir("src"))
+        fingerprintCargoConfigAndTellers()
         inputs.property("abis", abis)
         outputs.files(
             abis.map { jniLibs.file("$it/libmonogram_mtproto.so") },
@@ -176,12 +198,13 @@ val buildHostUniffiMtproto =
         commandLine(cargoCommand(listOf("cargo", "build", "--lib", "--features", "bindgen-cli")))
         inputs.files(
             rustCrate.file("Cargo.toml"),
-            rustCrate.file("Cargo.lock"),
+            workspaceLock,
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
         inputs.file(transportCrate.file("Cargo.toml"))
         inputs.dir(transportCrate.dir("src"))
+        fingerprintCargoConfigAndTellers()
         outputs.file(hostUniffiLib)
         enabled = !skipNativeBuild.get()
     }
@@ -197,7 +220,7 @@ val generateUniffiMtproto =
         commandLine(
             cargoCommand(
                 listOf(
-                    "cargo", "run", "--features", "bindgen-cli", "--bin", "uniffi-bindgen", "--",
+                    "cargo", "run", "-p", "monogram-mtproto", "--features", "bindgen-cli", "--bin", "uniffi-bindgen", "--",
                     "generate",
                     "--library", hostUniffiLib.asFile.absolutePath,
                     "--language", "kotlin",
@@ -208,12 +231,13 @@ val generateUniffiMtproto =
         )
         inputs.files(
             rustCrate.file("Cargo.toml"),
-            rustCrate.file("Cargo.lock"),
+            workspaceLock,
             rustCrate.file("build.rs"),
             rustCrate.file("uniffi-bindgen.rs"),
             hostUniffiLib,
         )
         inputs.dir(rustCrate.dir("src"))
+        fingerprintCargoConfigAndTellers()
         outputs.file(uniffiKotlin)
         enabled = !skipNativeBuild.get()
         doLast {

@@ -1,0 +1,10 @@
+[workspace]
+resolver = "3"
+members = ["mtproto-rs", "mtproto-transport", "markup-rs"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

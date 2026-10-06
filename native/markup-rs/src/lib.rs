@@ -8,11 +8,9 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 mod highlight;
 mod html;
-mod lexical_highlight;
 mod markdown;
 mod math;
 mod render;
-mod simple_highlight;
 mod utf16;
 
 uniffi::setup_scaffolding!();
@@ -123,13 +121,5 @@ pub fn supported_highlight_languages() -> Vec<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_export_roundtrip() {
-        let styled = parse_telegram_markdown("**hi**".into());
-        assert_eq!(styled.text, "hi");
-        assert_eq!(styled.entities[0].kind, "bold");
-    }
-}
+#[path = "../tests/unit/lib_tests.rs"]
+mod tests;

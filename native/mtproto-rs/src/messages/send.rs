@@ -7,11 +7,10 @@ use crate::{HashMap, HashMapExt};
 
 use tellers_mtproto::latest::api::{
     ChannelsDeleteMessagesRequest, InputChannel, InputChannelConstructor, InputMedia,
-    InputMediaWebPageConstructor, InputReplyTo, InputReplyToMessageConstructor,
-    MessagesAffectedMessages, MessagesDeleteMessagesRequest, MessagesEditMessageRequest,
-    InputPeer, MessageEntity, MessagesForwardMessagesRequest, MessagesSendMediaRequest,
-    MessagesSendMessageRequest, True,
-    TrueConstructor, Updates, Vector, VectorConstructor,
+    InputMediaWebPageConstructor, InputPeer, InputReplyTo, InputReplyToMessageConstructor,
+    MessageEntity, MessagesAffectedMessages, MessagesDeleteMessagesRequest,
+    MessagesEditMessageRequest, MessagesForwardMessagesRequest, MessagesSendMediaRequest,
+    MessagesSendMessageRequest, True, TrueConstructor, Updates, Vector, VectorConstructor,
 };
 use tellers_mtproto_crypto::fill_random;
 use tellers_mtproto_session::Snapshot;
@@ -34,42 +33,16 @@ pub(crate) fn random_id() -> i64 {
 
 /// `0` means the caller has no id yet. A non-zero id is the pending UI id.
 pub(crate) fn outgoing_random_id(requested: i64) -> i64 {
-    if requested == 0 { random_id() } else { requested }
+    if requested == 0 {
+        random_id()
+    } else {
+        requested
+    }
 }
 
 #[cfg(test)]
-mod random_id_tests {
-    use super::outgoing_random_id;
-
-    #[test]
-    fn pending_random_id_is_kept() {
-        assert_eq!(outgoing_random_id(42), 42);
-        assert_ne!(outgoing_random_id(0), 0);
-    }
-
-    #[test]
-    fn pending_random_id_is_encoded_in_send_message() {
-        use tellers_mtproto::codec::{Boxed, Encoder};
-        use tellers_mtproto::latest::api::{InputPeer, InputPeerSelfConstructor};
-        let random_id = 0x0102_0304_0506_0708;
-        let request = super::send_message_request(
-            0,
-            Box::new(InputPeer::InputPeerSelf(InputPeerSelfConstructor {})),
-            None,
-            "hi".into(),
-            random_id,
-            None,
-        );
-        assert_eq!(request.random_id, random_id);
-        let mut encoder = Encoder::new();
-        request.encode_boxed(&mut encoder).expect("encode");
-        let bytes = encoder.into_bytes();
-        assert!(
-            bytes.windows(8).any(|window| window == random_id.to_le_bytes()),
-            "sendMessage must carry the pending random_id"
-        );
-    }
-}
+#[path = "../../tests/unit/messages_send_random_id_tests.rs"]
+mod random_id_tests;
 
 pub(crate) fn message_from_updates(
     updates: Updates,
@@ -446,8 +419,8 @@ pub fn send_text(
     Ok(dto)
 }
 
-pub(crate) const PHOTO_PART: usize = crate::upload_rpc::FILE_PART;
-pub(crate) const PHOTO_MAX: u64 = crate::upload_rpc::PHOTO_MAX;
+pub(crate) const PHOTO_PART: usize = crate::upload::upload_rpc::FILE_PART;
+pub(crate) const PHOTO_MAX: u64 = crate::upload::upload_rpc::PHOTO_MAX;
 
 pub fn edit_text(
     snapshot: &mut Snapshot,

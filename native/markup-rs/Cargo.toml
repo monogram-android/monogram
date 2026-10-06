@@ -29,10 +29,3 @@ uniffi = { version = "0.32", features = ["build"] }
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 required-features = ["bindgen-cli"]
-
-[profile.release]
-opt-level = "z"
-lto = true
-strip = true
-codegen-units = 1
-panic = "abort"

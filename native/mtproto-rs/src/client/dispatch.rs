@@ -1,7 +1,7 @@
 use crate::dialogs;
 use crate::peers;
 use crate::scheduler;
-use crate::upload_rpc::UploadStaging;
+use crate::upload::upload_rpc::UploadStaging;
 use crate::{
     ChatDto, FolderDto, ForumTopicsPageDto, MessageDto, MtprotoError, NotifyExceptionDto,
     NotifySettingsDto, ProfileDto,
@@ -461,7 +461,7 @@ pub fn contacts_search(
 ) -> Result<crate::ContactsSearchDto, MtprotoError> {
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
-            crate::search_rpc::contacts_search(
+            crate::messages::search_rpc::contacts_search(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.peers,
@@ -485,7 +485,7 @@ pub fn search_global(
 ) -> Result<crate::GlobalMessageSearchDto, MtprotoError> {
     with_client_mut(handle, |state| {
         let dto = call_with_migrate(state, |state| {
-            crate::search_rpc::search_global(
+            crate::messages::search_rpc::search_global(
                 &mut state.snapshot,
                 state.api_id,
                 &mut state.peers,
@@ -559,7 +559,7 @@ pub fn send_text_message(
 pub(crate) fn upload_batches(
     staging: &mut UploadStaging,
     width: usize,
-    mut accept: impl FnMut(&crate::upload_rpc::UploadBatch) -> Result<(), MtprotoError>,
+    mut accept: impl FnMut(&crate::upload::upload_rpc::UploadBatch) -> Result<(), MtprotoError>,
 ) -> Result<(), MtprotoError> {
     while let Some(batch) = staging.next_batch(width) {
         accept(&batch?)?;
@@ -571,13 +571,13 @@ pub(crate) fn save_items(
     state: &mut ClientState,
     items: &[crate::UploadItemDto],
 ) -> Result<Vec<UploadStaging>, MtprotoError> {
-    let width = pipeline_parts().clamp(1, crate::upload_rpc::MAX_PARTS_IN_FLIGHT);
+    let width = pipeline_parts().clamp(1, crate::upload::upload_rpc::MAX_PARTS_IN_FLIGHT);
     scheduler::with_class(scheduler::RequestClass::InteractiveMedia, || {
         let mut out = Vec::with_capacity(items.len());
         for item in items {
-            let mut staging = crate::upload_rpc::open_staging(item)?;
+            let mut staging = crate::upload::upload_rpc::open_staging(item)?;
             upload_batches(&mut staging, width, |batch| {
-                crate::upload_rpc::save_batch(&mut state.snapshot, state.api_id, batch)
+                crate::upload::upload_rpc::save_batch(&mut state.snapshot, state.api_id, batch)
             })?;
             out.push(staging);
         }
@@ -633,14 +633,14 @@ pub fn send_photo_message(
                 chat_id,
                 std::slice::from_ref(&item),
                 |state, staging| {
-                    crate::upload_rpc::send_uploaded(
+                    crate::upload::upload_rpc::send_uploaded(
                         &mut state.snapshot,
                         state.api_id,
                         &state.peers,
                         &mut state.media,
                         chat_id,
                         &item,
-                        crate::upload_rpc::staged_input_file(&item, &staging[0]),
+                        crate::upload::upload_rpc::staged_input_file(&item, &staging[0]),
                         reply_to_msg_id,
                         top_msg_id,
                         entities_json.as_deref(),
@@ -667,14 +667,14 @@ pub fn send_uploaded_media(
                 chat_id,
                 std::slice::from_ref(&item),
                 |state, staging| {
-                    crate::upload_rpc::send_uploaded(
+                    crate::upload::upload_rpc::send_uploaded(
                         &mut state.snapshot,
                         state.api_id,
                         &state.peers,
                         &mut state.media,
                         chat_id,
                         &item,
-                        crate::upload_rpc::staged_input_file(&item, &staging[0]),
+                        crate::upload::upload_rpc::staged_input_file(&item, &staging[0]),
                         reply_to_msg_id,
                         top_msg_id,
                         entities_json.as_deref(),
@@ -699,9 +699,11 @@ pub fn send_uploaded_album(
                 let inputs: Vec<_> = items
                     .iter()
                     .zip(staging)
-                    .map(|(item, staged)| crate::upload_rpc::staged_input_file(item, staged))
+                    .map(|(item, staged)| {
+                        crate::upload::upload_rpc::staged_input_file(item, staged)
+                    })
                     .collect();
-                crate::upload_rpc::send_album(
+                crate::upload::upload_rpc::send_album(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -988,7 +990,7 @@ pub fn register_device(
 ) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::push_rpc::register_device(
+            crate::client::push_rpc::register_device(
                 &mut state.snapshot,
                 state.api_id,
                 token_type,
@@ -1010,7 +1012,7 @@ pub fn unregister_device(
 ) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::push_rpc::unregister_device(
+            crate::client::push_rpc::unregister_device(
                 &mut state.snapshot,
                 state.api_id,
                 token_type,
@@ -1028,7 +1030,7 @@ pub fn get_notify_settings(
 ) -> Result<NotifySettingsDto, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::push_rpc::get_notify_settings(
+            crate::client::push_rpc::get_notify_settings(
                 &mut state.snapshot,
                 state.api_id,
                 &state.peers,
@@ -1051,7 +1053,7 @@ pub fn update_notify_settings(
 ) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::push_rpc::update_notify_settings(
+            crate::client::push_rpc::update_notify_settings(
                 &mut state.snapshot,
                 state.api_id,
                 &state.peers,
@@ -1070,7 +1072,7 @@ pub fn update_notify_settings(
 pub fn reset_notify_settings(handle: u64) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::push_rpc::reset_notify_settings(&mut state.snapshot, state.api_id)
+            crate::client::push_rpc::reset_notify_settings(&mut state.snapshot, state.api_id)
         })
     })
 }
@@ -1078,7 +1080,11 @@ pub fn reset_notify_settings(handle: u64) -> Result<(), MtprotoError> {
 pub fn set_contact_joined_silent(handle: u64, silent: bool) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::push_rpc::set_contact_joined_silent(&mut state.snapshot, state.api_id, silent)
+            crate::client::push_rpc::set_contact_joined_silent(
+                &mut state.snapshot,
+                state.api_id,
+                silent,
+            )
         })
     })
 }
@@ -1089,7 +1095,11 @@ pub fn get_notify_exceptions(
 ) -> Result<Vec<NotifyExceptionDto>, MtprotoError> {
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
-            crate::push_rpc::get_notify_exceptions(&mut state.snapshot, state.api_id, compare_sound)
+            crate::client::push_rpc::get_notify_exceptions(
+                &mut state.snapshot,
+                state.api_id,
+                compare_sound,
+            )
         })
     })
 }

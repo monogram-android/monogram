@@ -3,7 +3,7 @@ use tellers_mtproto_transport::PaddedIntermediate;
 
 use crate::MtprotoError;
 use crate::api_invoke;
-use crate::auth_key::create_auth_key;
+use crate::auth::auth_key::create_auth_key;
 use crate::rpc::dc_endpoints;
 use crate::tcp;
 

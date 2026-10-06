@@ -52,3 +52,4 @@ google-services.json
 **/google-services.json
 *firebase-adminsdk*
 /native/mtproto/src/main/jniLibs
+/native/target

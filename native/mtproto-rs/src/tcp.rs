@@ -179,13 +179,16 @@ impl ObfuscatedTcp {
 
     pub fn set_io_timeout_ms(&mut self, ms: u64) {
         self.read_timeout = Duration::from_millis(ms.max(50));
+        let read = self.read_timeout.min(Duration::from_millis(250));
         let _ = match &mut self.inner {
             NativeTransportConnection::Obfuscated(connection) => connection.set_io_timeout_ms(ms),
             NativeTransportConnection::Http(connection) => connection.set_io_timeout_ms(ms),
         };
-        let _ = self
-            .stream
-            .set_read_timeout(Some(self.read_timeout.min(Duration::from_millis(250))));
+        let _ = match &mut self.inner {
+            NativeTransportConnection::Obfuscated(connection) => connection.set_read_timeout(read),
+            NativeTransportConnection::Http(connection) => connection.set_read_timeout(read),
+        };
+        let _ = self.stream.set_read_timeout(Some(read));
     }
 }
 
@@ -261,9 +264,11 @@ pub fn connect_obfuscated_timeout_obf(
 ) -> Result<ObfuscatedTcp, TransportError> {
     let secret = if let Some(config) = proxy() {
         if config.kind == monogram_mtproto_transport::ProxyKind::Mtproto {
-            Some(config.secret.ok_or_else(|| {
-                TransportError::Connection("invalid proxy secret".into())
-            })?)
+            Some(
+                config
+                    .secret
+                    .ok_or_else(|| TransportError::Connection("invalid proxy secret".into()))?,
+            )
         } else {
             normalize_dc_secret(secret)?
         }
@@ -323,13 +328,12 @@ fn probe_packet() -> Result<Vec<u8>, TransportError> {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|elapsed| elapsed.as_secs() as i64)
         .unwrap_or(0);
-    let plain = tellers_mtproto_engine::encode_plain_message(
-        &tellers_mtproto_engine::PlainMessage {
+    let plain =
+        tellers_mtproto_engine::encode_plain_message(&tellers_mtproto_engine::PlainMessage {
             message_id: secs << 32,
             body: encoder.into_bytes(),
-        },
-    )
-    .map_err(|error| TransportError::Connection(error.to_string()))?;
+        })
+        .map_err(|error| TransportError::Connection(error.to_string()))?;
     let mut framing = tellers_mtproto_transport::PaddedIntermediate::default();
     tellers_mtproto_transport::Framing::encode(&mut framing, &plain)
         .map_err(|error| TransportError::Connection(error.to_string()))
@@ -345,8 +349,9 @@ pub fn probe_proxy(proxy: monogram_mtproto_transport::ProxyConfig) -> Result<i64
         .copied()
         .ok_or_else(|| TransportError::Connection("no DC endpoints".into()))?;
     let timeout = Duration::from_secs(10);
-    let connection = monogram_mtproto_transport::TcpConnection::connect(addr, timeout, Some(&proxy))
-        .map_err(|error| TransportError::Connection(format!("connect: {error}")))?;
+    let connection =
+        monogram_mtproto_transport::TcpConnection::connect(addr, timeout, Some(&proxy))
+            .map_err(|error| TransportError::Connection(format!("connect: {error}")))?;
     let started = std::time::Instant::now();
     let secret = if proxy.kind == monogram_mtproto_transport::ProxyKind::Mtproto {
         proxy.secret
@@ -410,142 +415,5 @@ pub fn connect_obfuscated_dc(addrs: &[&str]) -> Result<ObfuscatedTcp, TransportE
     Err(last_err.unwrap_or_else(|| TransportError::Connection("no DC endpoints".into())))
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::net::TcpListener;
-
-    #[test]
-    fn persistence_does_not_block_io_and_close_joins_active_save() {
-        let control = Arc::new(ConnectionControl::default());
-        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
-        let (release_tx, release_rx) = std::sync::mpsc::channel();
-        let saving = control.clone();
-        let saver = std::thread::spawn(move || {
-            saving
-                .while_open(|| {
-                    entered_tx.send(()).unwrap();
-                    release_rx.recv_timeout(Duration::from_secs(5)).unwrap();
-                })
-                .unwrap()
-        });
-        entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-        let checking = control.clone();
-        let (checked_tx, checked_rx) = std::sync::mpsc::channel();
-        let checker = std::thread::spawn(move || {
-            checked_tx
-                .send(checking.wait(Duration::ZERO).is_ok())
-                .unwrap();
-        });
-        let checked = checked_rx.recv_timeout(Duration::from_millis(500));
-        let closing = control.clone();
-        let (closed_tx, closed_rx) = std::sync::mpsc::channel();
-        let closer = std::thread::spawn(move || {
-            closing.close();
-            closed_tx.send(()).unwrap();
-        });
-        let observing = control.clone();
-        let (observed_tx, observed_rx) = std::sync::mpsc::channel();
-        let observer = std::thread::spawn(move || {
-            observed_tx
-                .send(observing.wait(Duration::from_secs(3)).is_err())
-                .unwrap();
-        });
-        let observed = observed_rx.recv_timeout(Duration::from_millis(500));
-        let closed_early = closed_rx.try_recv().is_ok();
-        release_tx.send(()).unwrap();
-        saver.join().unwrap();
-        checker.join().unwrap();
-        closer.join().unwrap();
-        observer.join().unwrap();
-        assert_eq!(checked.ok(), Some(true), "save blocked socket state checks");
-        assert_eq!(observed.ok(), Some(true), "save delayed I/O shutdown");
-        assert!(!closed_early, "close returned before persistence completed");
-        assert!(control.while_open(|| panic!("save after close")).is_err());
-    }
-
-    #[test]
-    fn close_wakes_receive_and_prevents_new_connections() {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let control = Arc::new(ConnectionControl::default());
-        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
-        let (done_tx, done_rx) = std::sync::mpsc::channel();
-        let addr = listener.local_addr().unwrap().to_string();
-        let worker_control = control.clone();
-        let worker = std::thread::spawn(move || {
-            with_connection_control(&worker_control, || {
-                let mut conn = TcpConnection::connect_timeout_secs(&addr, 1).unwrap();
-                ready_tx.send(()).unwrap();
-                let result = conn.receive(&mut [0; 4]);
-                assert!(matches!(result, Ok(0) | Err(_)));
-                assert!(TcpConnection::connect_timeout_secs(&addr, 1).is_err());
-                done_tx.send(()).unwrap();
-            });
-        });
-        let (_peer, _) = listener.accept().unwrap();
-        ready_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-        control.close();
-        control.close();
-        done_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn close_wakes_obfuscated_receive() {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let control = Arc::new(ConnectionControl::default());
-        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
-        let (done_tx, done_rx) = std::sync::mpsc::channel();
-        let addr = listener.local_addr().unwrap().to_string();
-        let worker_control = control.clone();
-        let worker = std::thread::spawn(move || {
-            with_connection_control(&worker_control, || {
-                let mut connection = connect_obfuscated_timeout(&addr, 30).unwrap();
-                ready_tx.send(()).unwrap();
-                let result = connection.receive(&mut [0; 4]);
-                assert!(matches!(result, Ok(0) | Err(_)));
-                done_tx.send(()).unwrap();
-            });
-        });
-        let (_peer, _) = listener.accept().unwrap();
-        ready_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-        control.close();
-        done_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-        worker.join().unwrap();
-    }
-
-    #[test]
-    fn close_cancels_backoff_without_affecting_other_clients() {
-        let control = Arc::new(ConnectionControl::default());
-        let worker_control = control.clone();
-        let (done_tx, done_rx) = std::sync::mpsc::channel();
-        let worker = std::thread::spawn(move || {
-            with_connection_control(&worker_control, || {
-                done_tx
-                    .send(wait_reconnect(Duration::from_secs(60)).is_err())
-                    .unwrap();
-            });
-        });
-        control.close();
-        assert!(done_rx.recv_timeout(Duration::from_secs(2)).unwrap());
-        worker.join().unwrap();
-        with_connection_control(&Arc::new(ConnectionControl::default()), || {
-            assert!(check_open().is_ok());
-            with_connection_control(&control, || assert!(check_open().is_err()));
-            assert!(check_open().is_ok());
-        });
-    }
-
-    #[test]
-    fn framing_survives_fragmented_tcp_and_eof() {
-        use tellers_mtproto_transport::{Framing, PaddedIntermediate};
-        let mut framing = PaddedIntermediate::default();
-        let wire = framing.encode(&[7; 32]).unwrap();
-        for length in 0..wire.len() {
-            assert!(matches!(
-                framing.decode(&wire[..length]),
-                Err(TransportError::Incomplete { .. })
-            ));
-        }
-        assert!(framing.decode(&wire).unwrap().payload.starts_with(&[7; 32]));
-    }
-}
+#[path = "../tests/unit/tcp_tests.rs"]
+mod tests;

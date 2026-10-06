@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use crate::peers::channel_id_from_chat_id;
 use crate::session_file::ChannelRecovery;
 use crate::tcp;
-use crate::updates_rpc;
+use crate::updates::updates_rpc;
 use crate::{MtprotoError, UpdateEventDto, UpdatesStateDto};
 
 use super::*;

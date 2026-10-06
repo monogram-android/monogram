@@ -162,6 +162,7 @@
     <string name="dialog_panel_emoji">Эмодзи</string>
     <string name="dialog_panel_stickers">Стикеры</string>
     <string name="dialog_emoji_open">Эмодзи, стикеры и GIF</string>
+    <string name="dialog_emoji_recent">Недавние</string>
     <string name="dialog_emoji_category_smileys">Смайлы и эмоции</string>
     <string name="dialog_emoji_category_people">Люди и жесты</string>
     <string name="dialog_emoji_category_nature">Животные и природа</string>

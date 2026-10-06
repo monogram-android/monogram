@@ -47,6 +47,10 @@ internal fun ChatInlineVideo(
     val mediaId = "${message.id.chatId.value}:${message.id.id}"
     var playingHere by remember(mediaId) { mutableStateOf(false) }
     var failedHere by remember(mediaId) { mutableStateOf(false) }
+    var onScreen by remember(mediaId) { mutableStateOf(false) }
+    LaunchedEffect(visible) {
+        if (visible) onScreen = true
+    }
     val item = remember(mediaId, message.fileSize, message.mediaDuration, repository) {
         MediaViewerItem(
             id = mediaId,
@@ -62,12 +66,12 @@ internal fun ChatInlineVideo(
         )
     }
 
-    LaunchedEffect(visible, autoplay, animationEnabled, mediaId, item) {
+    LaunchedEffect(autoplay, animationEnabled, mediaId, item) {
         snapshotFlow {
             val surface = session.surface
             val currentId = session.current?.id
             val busyElsewhere = surface == MediaSurface.VIEWER || surface == MediaSurface.PIP
-            visible && autoplay && animationEnabled &&
+            onScreen && autoplay && animationEnabled &&
                     !session.isMessagePlayback &&
                     (!busyElsewhere || currentId == mediaId) &&
                     surface != MediaSurface.VIEWER &&

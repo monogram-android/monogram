@@ -118,6 +118,7 @@
     <string name="dialog_panel_emoji">Emoji</string>
     <string name="dialog_panel_stickers">Nálepky</string>
     <string name="dialog_emoji_open">Emoji, nálepky a GIF</string>
+    <string name="dialog_emoji_recent">Nedávne</string>
     <string name="dialog_emoji_category_smileys">Smajlíky a emócie</string>
     <string name="dialog_emoji_category_people">Ľudia a telo</string>
     <string name="dialog_emoji_category_nature">Zvieratá a príroda</string>

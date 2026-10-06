@@ -45,16 +45,16 @@ class PickerMediaPreloader(
 
     private suspend fun fetch(repository: MediaRepository?, task: PickerMediaPreload.Task) {
         val repo = repository ?: return
-        when (task.fetch) {
-            PickerMediaPreload.Fetch.Thumb -> repo.ensureIndexedMedia(
+        when {
+            task.fetch == PickerMediaPreload.Fetch.Thumb || task.item.gif -> repo.ensureIndexedMedia(
                 peerId = PeerId(task.item.documentId),
                 messageId = 0,
                 cacheKey = task.cacheKey,
-                thumb = true,
+                thumb = task.fetch == PickerMediaPreload.Fetch.Thumb,
                 priority = task.priority,
             )
-            PickerMediaPreload.Fetch.Document ->
-                repo.ensureCustomEmoji(task.item.documentId, priority = task.priority)
+
+            else -> repo.ensureCustomEmoji(task.item.documentId, priority = task.priority)
         }
     }
 }

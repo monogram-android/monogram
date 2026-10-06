@@ -353,17 +353,10 @@ fun MessageMedia(
                     file = fullFile!!,
                     isGif = true,
                     durationSeconds = message.mediaDuration,
-                    active = mediaAnimationEnabled,
+                    active = animationEnabled,
                     caption = message.text,
                     modifier = Modifier.fillMaxSize(),
                 )
-                if (!mediaAnimationEnabled) {
-                    VideoStill(
-                        file = fullFile!!,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
             }
         }
         kind == "audio" || kind == "voice" -> {
@@ -434,7 +427,7 @@ fun MessageMedia(
                 VideoNoteBubble(
                     message = message,
                     repository = mediaRepository,
-                    visible = mediaVisible,
+                    visible = true,
                     poster = (displayFile ?: fullFile ?: thumbFile)?.takeIf { stillImageFile(it) }
                         ?: thumbFile,
                     onLongPress = onLongPress,
@@ -471,7 +464,7 @@ fun MessageMedia(
                 ChatInlineVideo(
                     message = message,
                     repository = mediaRepository,
-                    visible = mediaVisible,
+                    visible = true,
                     autoplay = true,
                     poster = sharpStill ?: stillThumb,
                     durationSeconds = message.mediaDuration,

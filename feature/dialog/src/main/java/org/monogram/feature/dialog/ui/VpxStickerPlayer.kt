@@ -3,14 +3,15 @@ package org.monogram.feature.dialog.ui
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.IntOffset
@@ -24,6 +25,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
 import org.monogram.core.ui.components.argbFrameBitmap
+import org.monogram.feature.dialog.PanelFrameClip
+import org.monogram.feature.dialog.PanelTag
+import org.monogram.feature.dialog.scaleRgba
+import org.monogram.feature.dialog.scaledSize
+import org.monogram.feature.dialog.webmHasAlpha
 import org.monogram.mtproto.VpxNative
 import java.io.File
 import java.nio.ByteBuffer
@@ -62,16 +68,22 @@ internal fun VpxStickerPlayer(
 ) {
     val animationEnabled = LocalMediaAnimationEnabled.current
     val playable = active && animationEnabled
-    var image by remember(file.absolutePath) { mutableStateOf<ImageBitmap?>(null) }
+    val frame = remember(file.absolutePath) { mutableStateOf<ImageBitmap?>(null) }
+    val hasFrame = remember(file.absolutePath) { mutableStateOf(false) }
     LaunchedEffect(file.absolutePath, playable) {
         if (!playable) return@LaunchedEffect
 
         VpxStickerSlots.acquire()
         try {
             withContext(Dispatchers.Default) {
-                playVpxLoop(file) { frame ->
+                playVpxLoop(file) { next ->
                     if (!isActive) return@playVpxLoop false
-                    image = frame
+                    val previous = frame.value
+                    frame.value = next
+                    if (!hasFrame.value) hasFrame.value = true
+                    if (previous != null && previous !== next) {
+                        previous.asAndroidBitmap().takeIf { !it.isRecycled }?.recycle()
+                    }
                     true
                 }
             }
@@ -79,24 +91,155 @@ internal fun VpxStickerPlayer(
             VpxStickerSlots.release()
         }
     }
-    if (image == null) {
-        VideoStill(file = file, modifier = modifier, contentScale = ContentScale.Fit)
-        return
-    }
-    Canvas(modifier = modifier) {
-        image?.let { frame ->
-            val scale = minOf(size.width / frame.width, size.height / frame.height)
-            val width = (frame.width * scale).roundToInt().coerceAtLeast(1)
-            val height = (frame.height * scale).roundToInt().coerceAtLeast(1)
-            drawImage(
-                image = frame,
-                dstOffset = IntOffset(
-                    ((size.width - width) / 2).roundToInt(),
-                    ((size.height - height) / 2).roundToInt(),
-                ),
-                dstSize = IntSize(width, height),
+    Box(modifier) {
+        if (!hasFrame.value) {
+            VideoStill(
+                file = file,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
             )
         }
+        Canvas(Modifier.fillMaxSize()) {
+            frame.value?.let { drawn ->
+                val scale = minOf(size.width / drawn.width, size.height / drawn.height)
+                val width = (drawn.width * scale).roundToInt().coerceAtLeast(1)
+                val height = (drawn.height * scale).roundToInt().coerceAtLeast(1)
+                drawImage(
+                    image = drawn,
+                    dstOffset = IntOffset(
+                        ((size.width - width) / 2).roundToInt(),
+                        ((size.height - height) / 2).roundToInt(),
+                    ),
+                    dstSize = IntSize(width, height),
+                )
+            }
+        }
+    }
+}
+
+internal fun sniffStickerTag(file: File): PanelTag {
+    if (gzipFile(file)) return PanelTag.Tgs
+    if (!webmFile(file)) return PanelTag.Webp
+    val alpha = runCatching { MatroskaAlphaReader(file).hasAlpha }.getOrNull()
+        ?: return PanelTag.WebmAlpha
+    return if (alpha) PanelTag.WebmAlpha else PanelTag.Webm
+}
+
+internal suspend fun decodePanelVpx(
+    file: File,
+    maxSide: Int,
+    alpha: Boolean,
+    maxFrames: Int = 1,
+): PanelFrameClip? {
+    val limit = maxFrames.coerceIn(1, 16)
+    return if (alpha) decodeAlphaPanel(file, maxSide, limit) else decodeColorPanel(
+        file,
+        maxSide,
+        limit
+    )
+}
+
+private suspend fun decodeAlphaPanel(file: File, maxSide: Int, maxFrames: Int): PanelFrameClip? {
+    var colorHandle = 0L
+    var alphaHandle = 0L
+    return try {
+        val reader = MatroskaAlphaReader(file)
+        colorHandle = VpxNative.create()
+        alphaHandle = VpxNative.create()
+        val frames = ArrayList<ByteArray>(8)
+        var width = 0
+        var height = 0
+        for (sample in reader.samples()) {
+            currentCoroutineContext().ensureActive()
+            if (frames.size >= maxFrames) break
+            val color = runCatching { VpxNative.decode(colorHandle, sample.color) }.getOrNull()
+                ?: continue
+            if (color.rgba.isEmpty() || color.width == 0u || color.height == 0u) continue
+            val mask = sample.alpha?.let {
+                runCatching { VpxNative.decodeAlpha(alphaHandle, it) }.getOrNull()
+            }
+            val pixels = color.width.toInt() * color.height.toInt()
+            if (mask != null && (mask.width != color.width || mask.height != color.height || mask.alpha.size != pixels)) {
+                continue
+            }
+            val rgba = color.rgba
+            if (mask != null) {
+                for (i in mask.alpha.indices) rgba[i * 4 + 3] = mask.alpha[i]
+            } else {
+                for (i in rgba.indices step 4) rgba[i + 3] = 255.toByte()
+            }
+            val sourceWidth = color.width.toInt()
+            val sourceHeight = color.height.toInt()
+            val (scaledWidth, scaledHeight) = scaledSize(sourceWidth, sourceHeight, maxSide)
+            val scaled = scaleRgba(rgba, sourceWidth, sourceHeight, scaledWidth, scaledHeight)
+            if (scaled.size != scaledWidth * scaledHeight * 4) continue
+            width = scaledWidth
+            height = scaledHeight
+            frames += scaled
+        }
+        if (frames.isEmpty()) null else PanelFrameClip(width, height, 33, frames)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    } finally {
+        if (alphaHandle != 0L) VpxNative.destroy(alphaHandle)
+        if (colorHandle != 0L) VpxNative.destroy(colorHandle)
+    }
+}
+
+private suspend fun decodeColorPanel(file: File, maxSide: Int, maxFrames: Int): PanelFrameClip? {
+    val extractor = MediaExtractor()
+    var handle = 0L
+    return try {
+        extractor.setDataSource(file.absolutePath)
+        val track = selectVpxTrack(extractor) ?: return null
+        extractor.selectTrack(track)
+        val format = extractor.getTrackFormat(track)
+        handle = VpxNative.create()
+        val packet = ByteBuffer.allocate(format.maxInputSizeOr(256 * 1024))
+        val frames = ArrayList<ByteArray>(8)
+        var width = 0
+        var height = 0
+        var badPackets = 0
+        while (frames.size < maxFrames) {
+            currentCoroutineContext().ensureActive()
+            packet.clear()
+            val size = extractor.readSampleData(packet, 0)
+            if (size < 0) break
+            extractor.advance()
+            val bytes = ByteArray(size)
+            packet.position(0)
+            packet.get(bytes)
+            val frame = runCatching { VpxNative.decode(handle, bytes) }.getOrNull()
+            if (frame == null || frame.rgba.isEmpty() || frame.width == 0u || frame.height == 0u) {
+                badPackets++
+                if (badPackets >= 120) break
+                continue
+            }
+            badPackets = 0
+            val sourceWidth = frame.width.toInt()
+            val sourceHeight = frame.height.toInt()
+            val (scaledWidth, scaledHeight) = scaledSize(sourceWidth, sourceHeight, maxSide)
+            val scaled = scaleRgba(frame.rgba, sourceWidth, sourceHeight, scaledWidth, scaledHeight)
+            if (scaled.size != scaledWidth * scaledHeight * 4) continue
+            width = scaledWidth
+            height = scaledHeight
+            frames += scaled
+        }
+        if (frames.isEmpty()) null else PanelFrameClip(
+            width,
+            height,
+            frameDelayMs(format).toInt(),
+            frames
+        )
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    } finally {
+        if (handle != 0L) VpxNative.destroy(handle)
+        extractor.release()
     }
 }
 
@@ -104,10 +247,10 @@ private suspend fun playVpxLoop(
     file: File,
     onFrame: (ImageBitmap) -> Boolean,
 ) {
-    if (runCatching { MatroskaAlphaReader(file).hasAlpha }.getOrDefault(false)) {
-        playAlphaVpxLoop(file, onFrame)
-    } else {
-        playExtractorVpxLoop(file, onFrame)
+    when (runCatching { MatroskaAlphaReader(file).hasAlpha }.getOrNull()) {
+        true -> playAlphaVpxLoop(file, onFrame)
+        false -> playExtractorVpxLoop(file, onFrame)
+        null -> return
     }
 }
 
@@ -200,14 +343,14 @@ private suspend fun playExtractorVpxLoop(file: File, onFrame: (ImageBitmap) -> B
 
 data class AlphaSample(val color: ByteArray, val alpha: ByteArray?)
 
-private class MatroskaAlphaReader(file: File) {
+internal class MatroskaAlphaReader(file: File) {
     private val data = run { require(file.length() <= 64L * 1024 * 1024); file.readBytes() }
     val hasAlpha: Boolean
     private val parsedSamples: List<AlphaSample>
 
     init {
         val result = EbmlParser(data).parse()
-        hasAlpha = result.alphaMode
+        hasAlpha = webmHasAlpha(result.alphaMode, result.samples.any { it.alpha != null })
         parsedSamples = result.samples
     }
 
@@ -247,11 +390,11 @@ private class EbmlParser(private val data: ByteArray) {
     }
 
     private fun parseBlockGroup(begin: Int, end: Int, depth: Int) {
-        var color: ByteArray? = null;
-        var alpha: ByteArray? = null;
+        var color: ByteArray? = null
+        var alpha: ByteArray? = null
         var p = begin
         while (p < end) {
-            val id = readId(p) ?: return; p += id.second;
+            val id = readId(p) ?: return; p += id.second
             val size = readVint(p) ?: return; p += size.second
             val stop = minOf(
                 end,
@@ -270,7 +413,7 @@ private class EbmlParser(private val data: ByteArray) {
     private fun parseAdditions(begin: Int, end: Int): ByteArray? {
         var p = begin
         while (p < end) {
-            val id = readId(p) ?: return null; p += id.second;
+            val id = readId(p) ?: return null; p += id.second
             val size = readVint(p) ?: return null; p += size.second
             val stop = minOf(
                 end,
@@ -278,12 +421,12 @@ private class EbmlParser(private val data: ByteArray) {
                     .toInt()
             )
             if (id.first == 0xA6L) {
-                var q = p;
-                var addId = 0L;
+                var q = p
+                var addId = 0L
                 var payload: ByteArray? = null
                 while (q < stop) {
-                    val child = readId(q) ?: break; q += child.second;
-                    val cs = readVint(q) ?: break; q += cs.second;
+                    val child = readId(q) ?: break; q += child.second
+                    val cs = readVint(q) ?: break; q += cs.second
                     val ce = minOf(
                         stop,
                         q + if (cs.first < 0) stop - q else cs.first.coerceAtMost(Int.MAX_VALUE.toLong())
@@ -312,19 +455,19 @@ private class EbmlParser(private val data: ByteArray) {
     }
 
     private fun readId(p: Int): Pair<Long, Int>? {
-        if (p >= data.size) return null;
-        val v = data[p].toInt() and 255;
+        if (p >= data.size) return null
+        val v = data[p].toInt() and 255
         val n = when {
             v and 0x80 != 0 -> 1; v and 0x40 != 0 -> 2; v and 0x20 != 0 -> 3; v and 0x10 != 0 -> 4; else -> return null
         }; if (p + n > data.size) return null; return number(p, p + n) to n
     }
 
     private fun readVint(p: Int): Pair<Long, Int>? {
-        if (p >= data.size) return null;
-        val v = data[p].toInt() and 255;
+        if (p >= data.size) return null
+        val v = data[p].toInt() and 255
         val n = when {
             v and 0x80 != 0 -> 1; v and 0x40 != 0 -> 2; v and 0x20 != 0 -> 3; v and 0x10 != 0 -> 4; v and 0x08 != 0 -> 5; v and 0x04 != 0 -> 6; v and 0x02 != 0 -> 7; v and 0x01 != 0 -> 8; else -> return null
-        }; if (p + n > data.size) return null;
+        }; if (p + n > data.size) return null
         var x = (v and ((1 shl (8 - n)) - 1)).toLong(); for (i in 1 until n) x =
             (x shl 8) or (data[p + i].toLong() and 255); return (if (x == (1L shl (7 * n)) - 1) -1 else x) to n
     }

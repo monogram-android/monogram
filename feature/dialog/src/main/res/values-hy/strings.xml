@@ -114,6 +114,7 @@
     <string name="dialog_panel_emoji">Էմոջի</string>
     <string name="dialog_panel_stickers">Կպչուն պիտակներ</string>
     <string name="dialog_emoji_open">Էմոջի, կպչուն պիտակներ և GIF</string>
+    <string name="dialog_emoji_recent">Վերջինները</string>
     <string name="dialog_emoji_category_smileys">Ժպիտներ և զգացմունքներ</string>
     <string name="dialog_emoji_category_people">Մարդիկ և ժեստեր</string>
     <string name="dialog_emoji_category_nature">Կենդանիներ և բնություն</string>

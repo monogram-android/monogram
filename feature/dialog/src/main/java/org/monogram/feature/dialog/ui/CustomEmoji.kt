@@ -150,11 +150,13 @@ internal fun CustomEmojiGlyph(
     size: Dp = 20.dp,
     compact: Boolean = false,
     onClick: (() -> Unit)? = null,
+    playback: PanelCellPlayback? = null,
 ) {
     val repo = LocalDialogMedia.current
     val animationEnabled = LocalMediaAnimationEnabled.current
     val (mediaVisible, visibilityModifier) = rememberViewportVisible(documentId)
-    val mediaAnimationEnabled = animationEnabled && mediaVisible
+    val mediaAnimationEnabled = playback == null && animationEnabled && mediaVisible
+    val placedVisibility = if (playback == null) visibilityModifier else Modifier
     val cacheGeneration = repo?.cacheGeneration?.collectAsState()?.value ?: 0L
     val file = rememberEnsuredFile(
         generation = cacheGeneration,
@@ -174,7 +176,7 @@ internal fun CustomEmojiGlyph(
         modifier = Modifier
             .size(size)
             .then(click)
-            .then(visibilityModifier),
+            .then(placedVisibility),
         contentAlignment = Alignment.Center,
     ) {
         if (local == null) {
@@ -186,6 +188,13 @@ internal fun CustomEmojiGlyph(
             return@Box
         }
         when {
+            playback != null && (gzipFile(local) || webmFile(local)) -> PanelPooledGlyph(
+                documentId = documentId,
+                file = local,
+                playback = playback,
+                modifier = Modifier.fillMaxSize(),
+            )
+
             gzipFile(local) -> {
                 val bytes by produceState<ByteArray?>(initialValue = null, local) {
                     value = withContext(Dispatchers.IO) {

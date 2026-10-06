@@ -127,6 +127,7 @@
     <string name="dialog_panel_emoji">Emoji</string>
     <string name="dialog_panel_stickers">Stickers</string>
     <string name="dialog_emoji_open">Emoji, stickers, and GIFs</string>
+    <string name="dialog_emoji_recent">Recent</string>
     <string name="dialog_emoji_category_smileys">Smileys and emotions</string>
     <string name="dialog_emoji_category_people">People and body</string>
     <string name="dialog_emoji_category_nature">Animals and nature</string>

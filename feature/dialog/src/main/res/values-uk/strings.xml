@@ -118,6 +118,7 @@
     <string name="dialog_panel_emoji">Емодзі</string>
     <string name="dialog_panel_stickers">Стікери</string>
     <string name="dialog_emoji_open">Емодзі, стікери і GIF</string>
+    <string name="dialog_emoji_recent">Нещодавні</string>
     <string name="dialog_emoji_category_smileys">Смайли та емоції</string>
     <string name="dialog_emoji_category_people">Люди та жести</string>
     <string name="dialog_emoji_category_nature">Тварини та природа</string>

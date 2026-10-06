@@ -34,7 +34,9 @@ import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.loading.MonogramLoadingInlineSize
 import org.monogram.core.ui.mp4File
 import org.monogram.core.ui.webmFile
+import org.monogram.feature.dialog.GifCellPlayer
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.gifCellPlayer
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 import org.monogram.network.http.mediaThumbCacheKey
@@ -46,9 +48,11 @@ internal fun SavedGifCell(
     mediaRepository: MediaRepository?,
     onClick: () -> Unit,
     thumbOnly: Boolean = false,
+    panelLoop: Boolean? = null,
 ) {
     val animationEnabled = LocalMediaAnimationEnabled.current
-    val (visible, visibilityModifier) = rememberViewportVisible("gif:${gif.documentId}")
+    val (measuredVisible, visibilityModifier) = rememberViewportVisible("gif:${gif.documentId}")
+    val visible = if (panelLoop == null) measuredVisible else panelLoop
     val thumbKey = gif.thumbCacheKey ?: mediaThumbCacheKey(gif.cacheKey)
     val cacheChanges = remember(mediaRepository, gif.cacheKey, thumbKey) {
         mediaRepository?.cacheGeneration(listOf(gif.cacheKey, thumbKey))
@@ -141,8 +145,8 @@ internal fun SavedGifCell(
                     mediaRepository?.cachedFile(gif.cacheKey)?.let { cached ->
                         cached.exists() && cached.absolutePath == local.absolutePath
                     } == true
-            when {
-                (webmFile(local) || mp4File(local)) && playableFile -> VideoPlayer(
+            when (gifCellPlayer(webmFile(local), mp4File(local), gzipFile(local), playableFile)) {
+                GifCellPlayer.Video -> VideoPlayer(
                     file = local,
                     isGif = true,
                     durationSeconds = null,
@@ -152,7 +156,7 @@ internal fun SavedGifCell(
                     modifier = Modifier.fillMaxSize(),
                 )
 
-                gzipFile(local) && playableFile -> {
+                GifCellPlayer.Tgs -> {
                     val bytes by produceState<ByteArray?>(initialValue = null, local) {
                         value = withContext(Dispatchers.IO) {
                             runCatching { local.readBytes() }.getOrNull()
@@ -168,13 +172,13 @@ internal fun SavedGifCell(
                     }
                 }
 
-                webmFile(local) || mp4File(local) -> VideoStill(
+                GifCellPlayer.Still -> VideoStill(
                     file = local,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
                 )
 
-                else -> AsyncImage(
+                GifCellPlayer.Image -> AsyncImage(
                     model = local,
                     contentDescription = stringResource(R.string.dialog_saved_gifs),
                     modifier = Modifier.fillMaxSize(),

@@ -35,9 +35,7 @@ internal fun AnnotatedString.Builder.applyMessageEntities(
             "bold" -> addStyle(SpanStyle(fontWeight = FontWeight.Bold), start, end)
             "italic" -> addStyle(SpanStyle(fontStyle = FontStyle.Italic), start, end)
             "underline" -> addStyle(
-                SpanStyle(textDecoration = TextDecoration.Underline),
-                start,
-                end
+                SpanStyle(textDecoration = TextDecoration.Underline), start, end
             )
 
             "strike" -> addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough), start, end)
@@ -119,10 +117,17 @@ internal fun entityHref(kind: String, url: String?, slice: String): String? = wh
     "text_url" -> absoluteLink(url)
     "anchor" -> url?.let { if (it.startsWith("#")) it else "#$it" }
     "url" -> absoluteLink(slice) ?: absoluteLink(url)
-    "email" -> "mailto:$slice"
+    "email" -> {
+        val target = url?.trim()?.takeIf { it.isNotEmpty() } ?: slice.trim()
+        val bare = target.removePrefix("mailto:").removePrefix("MAILTO:")
+        bare.takeIf { it.isNotEmpty() && it.none { ch -> ch.isWhitespace() } }?.let { "mailto:$it" }
+    }
+
     "phone" -> {
-        val digits = slice.filter { it.isDigit() || it == '+' }
-        digits.takeIf { it.isNotBlank() }?.let { "tel:$it" }
+        val target = url?.trim()?.takeIf { it.isNotEmpty() } ?: slice
+        val bare = target.removePrefix("tel:").removePrefix("TEL:")
+        val dial = bare.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }
+        dial.takeIf { it.isNotBlank() }?.let { "tel:$it" }
     }
 
     "mention" -> {

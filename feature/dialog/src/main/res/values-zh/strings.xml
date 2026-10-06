@@ -340,4 +340,5 @@
     <string name="dialog_editor_url">链接地址</string>
     <string name="dialog_editor_language">语言（可选）</string>
     <string name="dialog_editor_open">展开编辑器</string>
+    <string name="dialog_rich_date_at_time">%1$s %2$s</string>
 </resources>

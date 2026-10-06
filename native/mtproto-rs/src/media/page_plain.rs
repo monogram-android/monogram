@@ -149,14 +149,12 @@ fn push_block(block: &PageBlock, out: &mut FormattedText, photos: &[Photo]) {
         }
         PageBlock::PageBlockList(b) => push_unordered_list(b, out, 0, photos),
         PageBlock::PageBlockOrderedList(b) => push_ordered_list(b, out, 0, photos),
-        PageBlock::PageBlockTable(b) => {
-            let start = utf16_len(&out.text);
-            push_table(b, out);
-            mark(out, start, "pre", Some("table".into()));
-        }
+        PageBlock::PageBlockTable(b) => push_table(b, out),
         PageBlock::PageBlockDivider(_) => {
             ensure_nl(out);
+            let start = utf16_len(&out.text);
             out.text.push_str("---");
+            mark(out, start, "rule", None);
         }
         PageBlock::PageBlockDetails(b) => {
             let start = utf16_len(&out.text);
@@ -169,7 +167,7 @@ fn push_block(block: &PageBlock, out: &mut FormattedText, photos: &[Photo]) {
         PageBlock::PageBlockMath(b) => {
             let start = utf16_len(&out.text);
             out.text.push_str(&b.source);
-            mark(out, start, "code", None);
+            mark(out, start, "math", Some("block".into()));
         }
         _ => {}
     }
@@ -378,25 +376,116 @@ fn push_table(
     table: &tellers_mtproto::latest::api::PageBlockTableConstructor,
     out: &mut FormattedText,
 ) {
+    if !matches!(table.title.as_ref(), RichText::TextEmpty(_)) {
+        push_rich(&table.title, out);
+        ensure_nl(out);
+    }
+    let mut grid = Vec::new();
     for row in vector_boxed_items(&table.rows) {
         let tellers_mtproto::latest::api::PageTableRow::PageTableRow(row) = row else {
             continue;
         };
-        if !out.text.is_empty() && !out.text.ends_with('\n') {
-            out.text.push('\n');
-        }
-        out.text.push('|');
+        let mut cells = Vec::new();
         for cell in vector_boxed_items(&row.cells) {
             let tellers_mtproto::latest::api::PageTableCell::PageTableCell(cell) = cell else {
                 continue;
             };
+            cells.push(
+                cell.text
+                    .as_deref()
+                    .map(rich_plain)
+                    .unwrap_or_default(),
+            );
+        }
+        if !cells.is_empty() {
+            grid.push(cells);
+        }
+    }
+    if grid.is_empty() {
+        return;
+    }
+    let headers = grid[0].clone();
+    let body = grid[1..].to_vec();
+    let start = utf16_len(&out.text);
+    for (index, row) in grid.iter().enumerate() {
+        if index > 0 {
+            out.text.push('\n');
+        }
+        out.text.push('|');
+        for cell in row {
             out.text.push(' ');
-            if let Some(text) = cell.text.as_ref() {
-                push_rich(text, out);
-            }
+            out.text.push_str(&cell.replace(['\n', '\r'], " "));
             out.text.push_str(" |");
         }
     }
+    mark(
+        out,
+        start,
+        "table",
+        Some(encode_table_payload(&headers, &body)),
+    );
+}
+
+fn rich_plain(text: &RichText) -> String {
+    let mut plain = FormattedText::default();
+    push_rich(text, &mut plain);
+    plain.text
+}
+
+/// Server cells travel in `url`. `\u{1e}` separates rows and `\u{1f}` separates cells.
+fn encode_table_payload(headers: &[String], rows: &[Vec<String>]) -> String {
+    let mut records = Vec::with_capacity(1 + rows.len());
+    records.push(join_cells(headers));
+    for row in rows {
+        records.push(join_cells(row));
+    }
+    records.join("\u{1e}")
+}
+
+fn join_cells(cells: &[String]) -> String {
+    cells
+        .iter()
+        .map(|cell| escape_table_cell(cell))
+        .collect::<Vec<_>>()
+        .join("\u{1f}")
+}
+
+fn escape_table_cell(text: &str) -> String {
+    let mut out = String::new();
+    for ch in text.chars() {
+        match ch {
+            '\\' => out.push_str("\\\\"),
+            '\u{1e}' => out.push_str("\\R"),
+            '\u{1f}' => out.push_str("\\C"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+fn date_flag_bits(date: &tellers_mtproto::latest::api::TextDateConstructor) -> u32 {
+    let mut bits = date.flags;
+    if date.relative.is_some() {
+        bits |= tellers_mtproto::latest::api::TextDateConstructor::RELATIVE_FLAG;
+    }
+    if date.short_time.is_some() {
+        bits |= tellers_mtproto::latest::api::TextDateConstructor::SHORT_TIME_FLAG;
+    }
+    if date.long_time.is_some() {
+        bits |= tellers_mtproto::latest::api::TextDateConstructor::LONG_TIME_FLAG;
+    }
+    if date.short_date.is_some() {
+        bits |= tellers_mtproto::latest::api::TextDateConstructor::SHORT_DATE_FLAG;
+    }
+    if date.long_date.is_some() {
+        bits |= tellers_mtproto::latest::api::TextDateConstructor::LONG_DATE_FLAG;
+    }
+    if date.day_of_week.is_some() {
+        bits |= tellers_mtproto::latest::api::TextDateConstructor::DAY_OF_WEEK_FLAG;
+    }
+    bits
 }
 
 pub(crate) fn rich_formatted(text: &RichText) -> FormattedText {
@@ -448,7 +537,7 @@ fn push_rich(text: &RichText, out: &mut FormattedText) {
         }
         RichText::TextMarked(t) => {
             push_rich(&t.text, out);
-            mark(out, start, "spoiler", None);
+            mark(out, start, "marked", None);
         }
         RichText::TextUrl(t) => {
             push_rich(&t.text, out);
@@ -456,7 +545,8 @@ fn push_rich(text: &RichText, out: &mut FormattedText) {
         }
         RichText::TextEmail(t) => {
             push_rich(&t.text, out);
-            mark(out, start, "email", None);
+            let email = (!t.email.is_empty()).then(|| t.email.clone());
+            mark(out, start, "email", email);
         }
         RichText::TextAutoEmail(t) => {
             push_rich(&t.text, out);
@@ -464,7 +554,8 @@ fn push_rich(text: &RichText, out: &mut FormattedText) {
         }
         RichText::TextPhone(t) => {
             push_rich(&t.text, out);
-            mark(out, start, "phone", None);
+            let phone = (!t.phone.is_empty()).then(|| t.phone.clone());
+            mark(out, start, "phone", phone);
         }
         RichText::TextAutoPhone(t) => {
             push_rich(&t.text, out);
@@ -480,7 +571,7 @@ fn push_rich(text: &RichText, out: &mut FormattedText) {
         }
         RichText::TextMentionName(t) => {
             push_rich(&t.text, out);
-            mark(out, start, "mention", None);
+            mark(out, start, "mention_name", Some(t.user_id.to_string()));
         }
         RichText::TextBotCommand(t) => {
             push_rich(&t.text, out);
@@ -494,7 +585,16 @@ fn push_rich(text: &RichText, out: &mut FormattedText) {
             push_rich(&t.text, out);
             mark(out, start, "url", None);
         }
-        RichText::TextCustomEmoji(t) => out.text.push_str(&t.alt),
+        RichText::TextCustomEmoji(t) => {
+            let alt = if t.alt.is_empty() { "\u{FFFC}" } else { t.alt.as_str() };
+            out.text.push_str(alt);
+            mark(
+                out,
+                start,
+                "custom_emoji",
+                Some(t.document_id.to_string()),
+            );
+        }
         RichText::TextSubscript(t) => {
             push_rich(&t.text, out);
             mark(out, start, "subscript", None);
@@ -503,9 +603,24 @@ fn push_rich(text: &RichText, out: &mut FormattedText) {
             push_rich(&t.text, out);
             mark(out, start, "superscript", None);
         }
-        RichText::TextAnchor(t) => push_rich(&t.text, out),
-        RichText::TextMath(t) => out.text.push_str(&t.source),
-        RichText::TextDate(t) => push_rich(&t.text, out),
+        RichText::TextAnchor(t) => {
+            push_rich(&t.text, out);
+            let name = (!t.name.is_empty()).then(|| t.name.clone());
+            mark(out, start, "anchor", name);
+        }
+        RichText::TextMath(t) => {
+            out.text.push_str(&t.source);
+            mark(out, start, "math", Some("inline".into()));
+        }
+        RichText::TextDate(t) => {
+            push_rich(&t.text, out);
+            mark(
+                out,
+                start,
+                "date",
+                Some(format!("{}|{}", t.date, date_flag_bits(t))),
+            );
+        }
         RichText::TextDiff(t) => push_rich(&t.text, out),
         RichText::TextButton(t) => push_rich(&t.text, out),
     }

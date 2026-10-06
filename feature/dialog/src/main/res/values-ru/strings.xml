@@ -373,4 +373,5 @@
     <string name="dialog_editor_url">Адрес ссылки</string>
     <string name="dialog_editor_language">Язык (необязательно)</string>
     <string name="dialog_editor_open">Развернуть редактор</string>
+    <string name="dialog_rich_date_at_time">%1$s в %2$s</string>
 </resources>

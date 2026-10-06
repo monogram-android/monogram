@@ -3,14 +3,14 @@ package org.monogram.core.markup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.core.models.RichBlock
 import org.monogram.core.models.StyledText
 import org.monogram.core.models.TextEntity
 import org.monogram.markup.NativeHighlightSpan
+import org.monogram.markup.NativeMarkupBlock
 import org.monogram.markup.NativeMarkupEntity
 import org.monogram.markup.NativeMathSpan
 import org.monogram.markup.NativeStyledMarkup
-import org.monogram.markup.NativeMarkupBlock
-import org.monogram.core.models.RichBlock
 
 class MarkupParserTest {
     @Test
@@ -154,5 +154,13 @@ class MarkupParserTest {
         val math = NativeMathSpan(1, 6, true, "x^2").toMathSpan()
         assertTrue(math.display)
         assertEquals("x^2", math.source)
+    }
+
+    @Test
+    fun ordinaryTextIsNotMarkdownGuessed() {
+        val blocks = KotlinMarkupParser().renderBlocks("# Hi\n---\n**x**", emptyList(), false)
+        val paragraph = blocks.single() as RichBlock.Paragraph
+        assertEquals("# Hi\n---\n**x**", paragraph.text)
+        assertTrue(paragraph.entities.isEmpty())
     }
 }

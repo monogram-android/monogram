@@ -351,4 +351,5 @@
     <string name="dialog_editor_url">URL do link</string>
     <string name="dialog_editor_language">Linguagem (opcional)</string>
     <string name="dialog_editor_open">Expandir editor</string>
+    <string name="dialog_rich_date_at_time">%1$s às %2$s</string>
 </resources>

@@ -121,6 +121,48 @@ fn rules_after_heading_are_not_literal_text() {
 }
 
 #[test]
+fn server_table_entity_becomes_table() {
+    let text = "| A | B |\n| 1 | 2 |";
+    let blocks = render_blocks(
+        text,
+        vec![MarkupEntityDto {
+            kind: "table".into(),
+            offset: 0,
+            length: utf16_len(text) as i32,
+            extra: Some("A\u{1f}B\u{1e}1\u{1f}2".into()),
+        }],
+        false,
+    );
+    assert_eq!(blocks[0].kind, "table");
+    assert_eq!(blocks[0].headers, ["A", "B"]);
+    assert_eq!(blocks[0].rows, [vec!["1", "2"]]);
+    assert!(!blocks.iter().any(|block| block.kind == "code"));
+}
+
+#[test]
+fn server_rule_entity_is_not_literal_text() {
+    let blocks = render_blocks(
+        "---",
+        vec![MarkupEntityDto {
+            kind: "rule".into(),
+            offset: 0,
+            length: 3,
+            extra: None,
+        }],
+        false,
+    );
+    assert_eq!(blocks[0].kind, "rule");
+    assert!(blocks.iter().all(|block| block.text != "---"));
+}
+
+#[test]
+fn literal_dashes_without_markdown_stay_text() {
+    let blocks = render_blocks("---\n# Hi", vec![], false);
+    assert_eq!(blocks[0].kind, "paragraph");
+    assert_eq!(blocks[0].text, "---\n# Hi");
+}
+
+#[test]
 fn server_table_pre_stays_code() {
     let text = "| Header One | Header Two |\n| Lorem | Ipsum |\n| Sit | Amet |";
     let blocks = render_blocks(

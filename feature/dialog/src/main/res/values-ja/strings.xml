@@ -340,4 +340,5 @@
     <string name="dialog_editor_url">リンクのURL</string>
     <string name="dialog_editor_language">言語（任意）</string>
     <string name="dialog_editor_open">エディターを展開</string>
+    <string name="dialog_rich_date_at_time">%1$s %2$s</string>
 </resources>

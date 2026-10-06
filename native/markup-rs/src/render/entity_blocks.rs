@@ -56,7 +56,14 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
         .filter(|entity| {
             matches!(
                 entity.kind.as_str(),
-                "pre" | "blockquote" | "heading" | "details" | "rule" | "task" | "photo"
+                "pre"
+                    | "blockquote"
+                    | "heading"
+                    | "details"
+                    | "rule"
+                    | "task"
+                    | "photo"
+                    | "table"
             )
         })
         .collect();
@@ -74,13 +81,14 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
         if cursor < entity.offset {
             push_entity_paragraph(text, &valid, cursor, entity.offset, &mut blocks);
         }
-        let kind = match entity.kind.as_str() {
+        let mut kind = match entity.kind.as_str() {
             "pre" => "code",
             "blockquote" => "quote",
             "details" => "details",
             "rule" => "rule",
             "task" => "tasks",
             "photo" => "photo",
+            "table" => "table",
             _ => "heading",
         };
         let source =
@@ -96,6 +104,21 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
             blocks.push(block("rule", String::new(), Vec::new()));
             cursor = end;
             continue;
+        }
+        if kind == "table" {
+            if let Some((headers, rows)) =
+                decode_table_payload(entity.extra.as_deref().unwrap_or(""))
+            {
+                if !headers.is_empty() {
+                    let mut table = block("table", String::new(), Vec::new());
+                    table.headers = headers;
+                    table.rows = rows;
+                    blocks.push(table);
+                    cursor = end;
+                    continue;
+                }
+            }
+            kind = "paragraph";
         }
         if kind == "details" {
             let split = source.find('\n');
@@ -210,6 +233,53 @@ fn push_entity_paragraph(
         return;
     }
     push_plain_gap(content, entities, from, blocks);
+}
+
+/// Inverse of the mtproto table payload: `\u{1e}` rows, `\u{1f}` cells.
+fn decode_table_payload(payload: &str) -> Option<(Vec<String>, Vec<Vec<String>>)> {
+    if payload.is_empty() {
+        return None;
+    }
+    let records: Vec<Vec<String>> = payload
+        .split('\u{1e}')
+        .map(|row| row.split('\u{1f}').map(unescape_table_cell).collect())
+        .filter(|row: &Vec<String>| !row.is_empty())
+        .collect();
+    let mut records = records.into_iter();
+    let headers = records.next()?;
+    if headers.iter().all(|cell| cell.is_empty()) {
+        return None;
+    }
+    let width = headers.len();
+    let rows = records
+        .map(|row| {
+            (0..width)
+                .map(|index| row.get(index).cloned().unwrap_or_default())
+                .collect()
+        })
+        .collect();
+    Some((headers, rows))
+}
+
+fn unescape_table_cell(text: &str) -> String {
+    let mut out = String::new();
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            out.push(ch);
+            continue;
+        }
+        match chars.next() {
+            Some('\\') => out.push('\\'),
+            Some('R') => out.push('\u{1e}'),
+            Some('C') => out.push('\u{1f}'),
+            Some('n') => out.push('\n'),
+            Some('r') => out.push('\r'),
+            Some(other) => out.push(other),
+            None => out.push('\\'),
+        }
+    }
+    out
 }
 
 fn push_plain_gap(

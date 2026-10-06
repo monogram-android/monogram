@@ -57,7 +57,8 @@ fun splitRichText(text: String, entities: List<TextEntity> = emptyList()): List<
     if (text.isEmpty()) return emptyList()
     val hasBlockEntities = entities.any {
         it.kind == "pre" || it.kind == "blockquote" || it.kind == "heading" ||
-            it.kind == "details" || it.kind == "photo"
+                it.kind == "details" || it.kind == "photo" || it.kind == "rule" ||
+                it.kind == "table"
     }
     val blocks = when {
         hasBlockEntities -> splitByBlockEntities(text, entities)
@@ -76,7 +77,8 @@ private fun splitByBlockEntities(text: String, entities: List<TextEntity>): List
     val sorted = entities
         .filter {
             it.kind == "pre" || it.kind == "blockquote" || it.kind == "heading" ||
-                it.kind == "details" || it.kind == "photo"
+                    it.kind == "details" || it.kind == "photo" || it.kind == "rule" ||
+                    it.kind == "table"
         }
         .sortedBy { it.offset }
     var cursor = 0
@@ -86,7 +88,10 @@ private fun splitByBlockEntities(text: String, entities: List<TextEntity>): List
         val end = (entity.offset + entity.length).coerceIn(start, len)
         if (start < cursor) continue
         if (start > cursor) {
-            blocks += explodeParagraph(text.substring(cursor, start), shiftEntities(entities, cursor, start))
+            blocks += explodeParagraph(
+                text.substring(cursor, start),
+                shiftEntities(entities, cursor, start)
+            )
         }
         val slice = text.substring(start, end)
         when (entity.kind) {
@@ -95,6 +100,7 @@ private fun splitByBlockEntities(text: String, entities: List<TextEntity>): List
                 parseMarkdownTable(body)?.let { blocks += it }
                     ?: blocks.add(RichBlock.Code(text = body, language = entity.url))
             }
+
             "heading" -> {
                 val level = entity.url?.toIntOrNull()?.coerceIn(1, 6) ?: 1
                 blocks += RichBlock.Heading(
@@ -103,9 +109,19 @@ private fun splitByBlockEntities(text: String, entities: List<TextEntity>): List
                     entities = shiftEntities(entities, start, end, skipBlock = true),
                 )
             }
+
             "photo" -> {
                 blocks += parsePhotoEntity(entity.url)
             }
+
+            "rule" -> blocks += RichBlock.Rule
+            "table" -> {
+                blocks += decodeRichTable(entity.url) ?: RichBlock.Paragraph(
+                    text = slice.trim(),
+                    entities = shiftEntities(entities, start, end, skipBlock = true),
+                )
+            }
+
             "details" -> {
                 val splitAt = slice.indexOf('\n')
                 val title = if (splitAt < 0) slice.trim() else slice.take(splitAt).trim()
@@ -118,6 +134,7 @@ private fun splitByBlockEntities(text: String, entities: List<TextEntity>): List
                 }
                 blocks += RichBlock.Details(title = title, children = children)
             }
+
             else -> blocks += RichBlock.Quote(
                 text = slice.trim(),
                 entities = shiftEntities(entities, start, end, skipBlock = true),
@@ -150,7 +167,11 @@ private fun splitMarkdownFallback(text: String): List<RichBlock> {
             }
             if (i < lines.size) i++
             val code = body.toString()
-            parseMarkdownTable(code)?.let { blocks += it } ?: blocks.add(RichBlock.Code(code, fence.ifBlank { null }))
+            parseMarkdownTable(code)?.let { blocks += it } ?: blocks.add(
+                RichBlock.Code(
+                    code,
+                    fence.ifBlank { null })
+            )
             continue
         }
         if (isRuleLine(line)) {
@@ -233,7 +254,10 @@ private fun explodeParagraph(text: String, entities: List<TextEntity>): List<Ric
         while (from < text.length) {
             val at = text.indexOf(OBJECT_REPLACEMENT, from)
             if (at < 0) {
-                out += explodePlainGap(text.substring(from), shiftEntities(entities, from, text.length))
+                out += explodePlainGap(
+                    text.substring(from),
+                    shiftEntities(entities, from, text.length)
+                )
                 break
             }
             if (at > from) {
@@ -287,7 +311,53 @@ private fun explodePlainGap(text: String, entities: List<TextEntity>): List<Rich
             )
         }
     }
-    return out.ifEmpty { listOf(RichBlock.Paragraph(trimmed.replace(OBJECT_REPLACEMENT.toString(), ""), entities)) }
+    return out.ifEmpty {
+        listOf(
+            RichBlock.Paragraph(
+                trimmed.replace(
+                    OBJECT_REPLACEMENT.toString(),
+                    ""
+                ), entities
+            )
+        )
+    }
+}
+
+internal fun decodeRichTable(payload: String?): RichBlock.Table? {
+    val raw = payload?.takeIf { it.isNotEmpty() } ?: return null
+    val records = raw.split('\u001e').map { row ->
+        row.split('\u001f').map(::unescapeTableCell)
+    }.filter { it.isNotEmpty() }
+    val headers =
+        records.firstOrNull()?.takeIf { row -> row.any { it.isNotEmpty() } } ?: return null
+    val width = headers.size
+    val rows = records.drop(1).map { row ->
+        List(width) { index -> row.getOrElse(index) { "" } }
+    }
+    return RichBlock.Table(headers, rows)
+}
+
+private fun unescapeTableCell(text: String): String {
+    val out = StringBuilder()
+    var index = 0
+    while (index < text.length) {
+        val ch = text[index]
+        if (ch != '\\' || index + 1 >= text.length) {
+            out.append(ch)
+            index++
+            continue
+        }
+        when (text[index + 1]) {
+            '\\' -> out.append('\\')
+            'R' -> out.append('\u001e')
+            'C' -> out.append('\u001f')
+            'n' -> out.append('\n')
+            'r' -> out.append('\r')
+            else -> out.append(text[index + 1])
+        }
+        index += 2
+    }
+    return out.toString()
 }
 
 private fun parseMarkdownTable(text: String): RichBlock.Table? {
@@ -298,7 +368,8 @@ private fun parseMarkdownTable(text: String): RichBlock.Table? {
         .filter { it.size >= 2 }
     if (rows.size < 2) return null
     val header = rows.first()
-    val body = rows.drop(1).filterNot { row -> row.all { cell -> cell.all { it == '-' || it == ':' || it == ' ' } } }
+    val body = rows.drop(1)
+        .filterNot { row -> row.all { cell -> cell.all { it == '-' || it == ':' || it == ' ' } } }
     if (body.isEmpty()) return null
     val width = header.size
     return RichBlock.Table(
@@ -340,6 +411,7 @@ private fun normalizeListLine(line: String): String {
     val bullet = when {
         trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("+ ") ->
             "• " + trimmed.drop(2)
+
         else -> {
             var i = 0
             while (i < trimmed.length && trimmed[i].isDigit()) i++
@@ -372,6 +444,7 @@ private fun fenceLanguage(line: String): String? {
 
 internal fun markdownQuote(lines: List<String>): RichBlock.Quote {
     data class QuoteLine(val depth: Int, val collapsed: Boolean, val body: String)
+
     val parsed = lines.map { line ->
         var s = line
         if (s.startsWith("**>")) {
@@ -414,7 +487,11 @@ internal fun markdownQuote(lines: List<String>): RichBlock.Quote {
     var level = 0
     val inner = mutableListOf<TextEntity>()
     for ((start, length, _) in runs) {
-        if (start <= 0 && start + length >= text.length) level++ else inner += TextEntity("blockquote", start, length)
+        if (start <= 0 && start + length >= text.length) level++ else inner += TextEntity(
+            "blockquote",
+            start,
+            length
+        )
     }
     return RichBlock.Quote(
         text = text,
@@ -446,7 +523,10 @@ internal fun taskLine(line: String): TaskItem? {
         return TaskItem(trimmed.drop(1).trim(), done = false)
     }
     val rest = when {
-        trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("+ ") -> trimmed.drop(2)
+        trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("+ ") -> trimmed.drop(
+            2
+        )
+
         else -> trimmed
     }
     return when {
@@ -463,10 +543,10 @@ private fun shiftEntities(
     skipBlock: Boolean = false,
 ): List<TextEntity> = entities.mapNotNull { entity ->
     val covers = entity.offset <= start && entity.offset + entity.length >= end
-    if (skipBlock && covers && (entity.kind == "pre" || entity.kind == "blockquote" || entity.kind == "heading" || entity.kind == "details" || entity.kind == "photo")) {
+    if (skipBlock && covers && (entity.kind == "pre" || entity.kind == "blockquote" || entity.kind == "heading" || entity.kind == "details" || entity.kind == "photo" || entity.kind == "rule" || entity.kind == "table")) {
         return@mapNotNull null
     }
-    if (entity.kind == "pre" || entity.kind == "heading" || entity.kind == "details" || entity.kind == "photo") {
+    if (entity.kind == "pre" || entity.kind == "heading" || entity.kind == "details" || entity.kind == "photo" || entity.kind == "rule" || entity.kind == "table") {
         return@mapNotNull null
     }
     if (entity.kind == "blockquote" && covers) {
@@ -492,6 +572,7 @@ private fun RichBlock.trimBlock(): RichBlock = when (this) {
         title = title.trim('\n'),
         children = children.map { it.trimBlock() },
     )
+
     is RichBlock.Photo -> this
 }
 

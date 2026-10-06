@@ -351,4 +351,5 @@
     <string name="dialog_editor_url">Հղման հասցե</string>
     <string name="dialog_editor_language">Լեզու (ըստ ցանկության)</string>
     <string name="dialog_editor_open">Ընդլայնել խմբագիրը</string>
+    <string name="dialog_rich_date_at_time">%1$s, %2$s</string>
 </resources>

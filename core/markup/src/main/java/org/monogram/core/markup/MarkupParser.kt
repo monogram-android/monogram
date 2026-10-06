@@ -64,6 +64,16 @@ class NativeMarkupParser : MarkupParser {
         MarkupNative.supportedHighlightLanguages()
 }
 
+private val STRUCTURAL_ENTITY_KINDS = setOf(
+    "pre",
+    "blockquote",
+    "heading",
+    "details",
+    "photo",
+    "rule",
+    "table",
+)
+
 /** Portable parser for previews and callers without a native runtime. */
 class KotlinMarkupParser : MarkupParser {
     override fun renderBlocks(
@@ -71,8 +81,12 @@ class KotlinMarkupParser : MarkupParser {
         entities: List<TextEntity>,
         parseMarkdown: Boolean
     ): List<RichBlock> =
-        if (parseMarkdown && entities.isEmpty()) splitRichText(text)
-        else if (text.isEmpty()) emptyList() else listOf(RichBlock.Paragraph(text, entities))
+        when {
+            text.isEmpty() -> emptyList()
+            parseMarkdown && entities.isEmpty() -> splitRichText(text)
+            entities.any { it.kind in STRUCTURAL_ENTITY_KINDS } -> splitRichText(text, entities)
+            else -> listOf(RichBlock.Paragraph(text, entities))
+        }
 
     override fun parseTelegramMarkdown(raw: String): StyledText = parseMarkdownToStyled(raw)
     override fun highlightCode(code: String, language: String): List<CodeHighlight> = emptyList()

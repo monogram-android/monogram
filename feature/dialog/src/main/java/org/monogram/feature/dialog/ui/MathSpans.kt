@@ -1,30 +1,33 @@
 package org.monogram.feature.dialog.ui
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.getValue
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.monogram.core.markup.MathSpan
 import org.monogram.core.models.TextEntity
+import org.monogram.core.models.replaceRichDates
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.theme.scaledToMessageSize
+import org.monogram.feature.dialog.R
 
 @Composable
 internal fun MathAwareText(
@@ -53,32 +56,63 @@ internal fun MathAwareText(
     } else {
         textStyle
     }
-    val markup = LocalMarkupParser.current
-    val math = remember(markup, text, entities, revealSpoilers, selectable) {
-        if (selectable) emptyList() else eligibleMathSpans(
-            text, markup.extractMath(text), entities, revealSpoilers,
-        )
+    val dateAtTime = stringResource(R.string.dialog_rich_date_at_time)
+    val dated = remember(text, entities, dateAtTime) {
+        replaceRichDates(
+            text,
+            entities,
+            dateAtTime = { date, time -> dateAtTime.format(date, time) })
     }
-    val displays = math.filter { it.display && '\n' in text.substring(it.start, it.end) }
+    val renderedText = dated.first
+    val renderedEntities = dated.second
+    val markup = LocalMarkupParser.current
+    val math = remember(markup, renderedText, renderedEntities, revealSpoilers, selectable) {
+        if (selectable) {
+            emptyList()
+        } else {
+            val fromEntities = mathSpansFromEntities(renderedText, renderedEntities)
+            val detected =
+                if (fromEntities.isEmpty()) markup.extractMath(renderedText) else emptyList()
+            eligibleMathSpans(
+                renderedText,
+                fromEntities + detected,
+                renderedEntities,
+                revealSpoilers
+            )
+        }
+    }
+    val displays = math.filter { span ->
+        span.display && (
+                '\n' in renderedText.substring(span.start, span.end) ||
+                        renderedEntities.any { it.kind == "math" && it.url == "block" && it.offset == span.start }
+                )
+    }
     if (displays.isNotEmpty()) {
         Column(modifier) {
             var cursor = 0
             for (span in displays) {
                 if (cursor < span.start) {
                     MathAwareText(
-                        text.substring(cursor, span.start), sliceMathEntities(entities, cursor, span.start),
+                        renderedText.substring(cursor, span.start),
+                        sliceMathEntities(renderedEntities, cursor, span.start),
                         contentColor, linkColor, revealSpoilers, textStyle = sizedStyle,
                         onOpenStickerPack = onOpenStickerPack,
                         onSpoilerClick = onSpoilerClick,
                         scaleMessageText = false,
                     )
                 }
-                DisplayFormula(span, text.substring(span.start, span.end), contentColor, sizedStyle)
+                DisplayFormula(
+                    span,
+                    renderedText.substring(span.start, span.end),
+                    contentColor,
+                    sizedStyle
+                )
                 cursor = span.end
             }
-            if (cursor < text.length) {
+            if (cursor < renderedText.length) {
                 MathAwareText(
-                    text.substring(cursor), sliceMathEntities(entities, cursor, text.length),
+                    renderedText.substring(cursor),
+                    sliceMathEntities(renderedEntities, cursor, renderedText.length),
                     contentColor, linkColor, revealSpoilers, textStyle = sizedStyle,
                     onOpenStickerPack = onOpenStickerPack,
                     onSpoilerClick = onSpoilerClick,
@@ -89,8 +123,8 @@ internal fun MathAwareText(
         return
     }
     MessageText(
-        text = text,
-        entities = entities,
+        text = renderedText,
+        entities = renderedEntities,
         contentColor = contentColor,
         linkColor = linkColor,
         revealSpoilers = revealSpoilers,
@@ -105,6 +139,20 @@ internal fun MathAwareText(
         textStyle = sizedStyle,
     )
 }
+
+internal fun mathSpansFromEntities(text: String, entities: List<TextEntity>): List<MathSpan> =
+    entities.mapNotNull { entity ->
+        if (entity.kind != "math") return@mapNotNull null
+        val start = entity.offset
+        val end = entity.offset + entity.length
+        if (start < 0 || end > text.length || start >= end) return@mapNotNull null
+        MathSpan(
+            start = start,
+            end = end,
+            display = entity.url == "block",
+            source = text.substring(start, end),
+        )
+    }
 
 internal fun eligibleMathSpans(
     text: String,

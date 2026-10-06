@@ -12,13 +12,15 @@ import androidx.compose.material.icons.automirrored.outlined.Help
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -33,19 +35,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import org.monogram.core.ui.components.ItemPosition
-import org.monogram.core.ui.components.PeerAvatar
-import org.monogram.core.ui.components.SectionHeader
+import org.monogram.core.common.CountryManager
 import org.monogram.core.models.AppUpdate
 import org.monogram.core.models.AppUpdateState
 import org.monogram.core.ui.AppUpdateSettings
+import org.monogram.core.ui.components.ItemPosition
+import org.monogram.core.ui.components.PeerAvatar
+import org.monogram.core.ui.components.SectionHeader
 import org.monogram.core.ui.components.SettingsTile
 import org.monogram.feature.settings.R
 import org.monogram.feature.settings.SettingsComponent
 import org.monogram.feature.settings.SettingsPage
 import java.io.File
-import androidx.compose.material.icons.outlined.Favorite
-import androidx.compose.material.icons.outlined.Star
 
 private const val SPONSOR_BOOSTY_URL = "https://boosty.to/monogram"
 
@@ -287,7 +288,9 @@ internal fun LazyListScope.homeItems(
             text = "${stringResource(R.string.settings_about)} $appVersion\n$buildStamp",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
     }
@@ -297,7 +300,8 @@ internal fun LazyListScope.homeItems(
 private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
     return when (state) {
         AppUpdateState.Idle -> stringResource(R.string.settings_update_check) to
-            stringResource(R.string.settings_update_check_sub)
+                stringResource(R.string.settings_update_check_sub)
+
         AppUpdateState.Checking -> stringResource(R.string.settings_update_checking) to null
         is AppUpdateState.Available -> {
             val sub = stringResource(
@@ -312,8 +316,10 @@ private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
                 state.info.versionCode,
             ) to if (commit == null) sub else "$sub · $commit"
         }
+
         AppUpdateState.UpToDate -> stringResource(R.string.settings_update_up_to_date) to
-            stringResource(R.string.settings_update_up_to_date_sub)
+                stringResource(R.string.settings_update_up_to_date_sub)
+
         is AppUpdateState.Downloading -> {
             val total = state.info.fileSize.takeIf { it > 0L } ?: 1L
             val percent = ((state.bytes * 100L) / total).toInt().coerceIn(0, 100)
@@ -323,14 +329,16 @@ private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
                 formatUpdateBytes(state.info.fileSize),
             )
         }
+
         is AppUpdateState.ReadyToInstall -> stringResource(R.string.settings_update_ready) to
-            stringResource(R.string.settings_update_ready_sub, state.info.version)
+                stringResource(R.string.settings_update_ready_sub, state.info.version)
+
         is AppUpdateState.Error -> stringResource(R.string.settings_update_error) to
-            if (state.message == AppUpdate.NO_UPDATE) {
-                stringResource(R.string.settings_update_none)
-            } else {
-                stringResource(R.string.settings_update_error_sub)
-            }
+                if (state.message == AppUpdate.NO_UPDATE) {
+                    stringResource(R.string.settings_update_none)
+                } else {
+                    stringResource(R.string.settings_update_error_sub)
+                }
     }
 }
 
@@ -376,8 +384,10 @@ private fun AccountHeader(
         modifier = Modifier.fillMaxWidth(),
     ) {
         ListItem(
-            supportingContent = {
-                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            supportingContent = subtitle.takeIf { it.isNotBlank() }?.let {
+                {
+                    Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             },
             leadingContent = {
                 PeerAvatar(title = title, size = 64.dp, imageFile = avatarFile)
@@ -397,7 +407,25 @@ private fun AccountHeader(
 
 // The signed-in account has no presence to show: Telegram reports its own status too.
 @Composable
-internal fun profileSubtitle(username: String?): String {
+internal fun profileSubtitle(username: String?, phone: String?, loaded: Boolean): String {
     val handle = username?.takeIf { it.isNotBlank() }?.let { "@$it" }
-    return handle ?: stringResource(R.string.settings_account_loading)
+    val number = phone?.takeIf { it.isNotBlank() }?.let(::displayPhone)
+    return when {
+        handle != null && number != null -> "$handle\n$number"
+        handle != null -> handle
+        number != null -> number
+        loaded -> ""
+        else -> stringResource(R.string.settings_account_loading)
+    }
+}
+
+private fun displayPhone(raw: String): String {
+    val trimmed = raw.trim()
+    val international = runCatching { CountryManager.formatPhoneNumber(trimmed) }.getOrNull()
+        ?.takeIf { it.isNotBlank() && it != trimmed }
+    if (international != null) return international
+    val withPlus = if (trimmed.startsWith("+")) trimmed else "+${trimmed.filter { it.isDigit() }}"
+    return runCatching { CountryManager.formatPhoneNumber(withPlus) }.getOrNull()
+        ?.takeIf { it.isNotBlank() }
+        ?: withPlus
 }

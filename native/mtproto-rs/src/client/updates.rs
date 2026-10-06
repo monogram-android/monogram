@@ -32,6 +32,7 @@ struct AppliedDrain {
     channel_pts: crate::HashMap<i64, i32>,
     recovery: VecDeque<ChannelRecovery>,
     seen_messages: crate::HashSet<(i64, i32)>,
+    lazy_queue: crate::HashSet<i64>,
     cursor: Option<UpdatesStateDto>,
 }
 
@@ -167,6 +168,9 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         let mut media;
         let mut channel_pts;
         let mut seen_messages;
+        let mut lazy_queue;
+        let lazy_enabled;
+        let lazy_exceptions;
         {
             let d = client.data.lock();
             if d.session_dead {
@@ -186,6 +190,9 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             media = d.media.clone();
             channel_pts = d.channel_pts.clone();
             seen_messages = d.seen_messages.clone();
+            lazy_queue = d.lazy_channel_recovery.clone();
+            lazy_enabled = d.lazy_channel_updates;
+            lazy_exceptions = d.lazy_sync_exceptions.clone();
         }
         let before_peers = peers.clone();
         let before_media = media.clone();
@@ -258,6 +265,16 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             io.last_difference = (!has_more).then(std::time::Instant::now);
         }
         let now = recovery_now();
+        if lazy_enabled {
+            pending_channels.retain(|&chat_id| {
+                if lazy_exceptions.contains(&chat_id) || chat_id == open_chat {
+                    true
+                } else {
+                    lazy_queue.insert(chat_id);
+                    false
+                }
+            });
+        }
         prepare_channel_recovery(&mut recovery, pending_channels, open_chat, now);
         // Round robin pages, bounded per poll; a failed channel cannot
         // prevent the common cursor or another channel from progressing.
@@ -297,7 +314,18 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
                         open_chat,
                         now,
                     );
-                    prepare_channel_recovery(&mut recovery, page.pending_channels, open_chat, now);
+                    let mut page_pending = page.pending_channels;
+                    if lazy_enabled {
+                        page_pending.retain(|&chat_id| {
+                            if lazy_exceptions.contains(&chat_id) || chat_id == open_chat {
+                                true
+                            } else {
+                                lazy_queue.insert(chat_id);
+                                false
+                            }
+                        });
+                    }
+                    prepare_channel_recovery(&mut recovery, page_pending, open_chat, now);
                 }
                 Err(err) => {
                     if is_unrecoverable_session(&err) {
@@ -309,6 +337,37 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
                 }
             }
         }
+
+        let lazy_batch: Vec<i64> = lazy_queue.iter().take(100).copied().collect();
+        for id in &lazy_batch {
+            lazy_queue.remove(id);
+        }
+
+        if !lazy_batch.is_empty() {
+            let _span = crate::perf::span("updates.lazy_channels");
+            match crate::rpc::with_rpc_timeout_secs(12, || {
+                updates_rpc::drain_lazy_channels(
+                    &mut io.snapshot,
+                    api_id,
+                    &mut peers,
+                    &mut media,
+                    &mut channel_pts,
+                    lazy_batch.clone(),
+                )
+            }) {
+                Ok(lazy_events) => {
+                    events.extend(lazy_events);
+                }
+                Err(err) => {
+                    if is_unrecoverable_session(&err) {
+                        return Err(err);
+                    }
+                    lazy_queue.extend(lazy_batch);
+                    crate::rpc::drop_live_transport();
+                }
+            }
+        }
+
         let mut saw_chats = false;
         if seen_messages.len() > 4_000 {
             seen_messages.clear();
@@ -352,6 +411,7 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
                 channel_pts,
                 recovery,
                 seen_messages,
+                lazy_queue,
                 cursor: Some(live),
             }),
         ))
@@ -397,7 +457,9 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
     };
     let persist_needed;
     let should_emit_sync_state;
-    let is_syncing_now = io.last_difference.is_none() || !applied.recovery.is_empty();
+    let is_syncing_now = io.last_difference.is_none()
+        || !applied.recovery.is_empty()
+        || !applied.lazy_queue.is_empty();
     {
         let mut d = client.data.lock();
         // A completed old-account poll must not repopulate state after logout
@@ -425,6 +487,7 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             || media_changed
             || d.channel_pts != applied.channel_pts
             || d.channel_recovery != applied.recovery
+            || d.lazy_channel_recovery != applied.lazy_queue
             || d.seen_messages != applied.seen_messages
             || next_cursor != d.updates
             || should_emit_sync_state;
@@ -434,6 +497,7 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         d.updates = next_cursor;
         d.channel_pts = applied.channel_pts;
         d.channel_recovery = applied.recovery;
+        d.lazy_channel_recovery = applied.lazy_queue;
         d.seen_messages = applied.seen_messages;
         if new_session.is_some() {
             d.new_session = new_session.clone();

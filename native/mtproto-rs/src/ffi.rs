@@ -284,6 +284,11 @@ pub fn destroy_client(handle: u64) {
 }
 
 #[uniffi::export]
+pub fn update_lazy_sync_config(handle: u64, lazy: bool, exceptions: Vec<i64>) {
+    client::update_lazy_sync_config(handle, lazy, exceptions);
+}
+
+#[uniffi::export]
 pub fn client_exists(handle: u64) -> bool {
     client::client_exists(handle)
 }

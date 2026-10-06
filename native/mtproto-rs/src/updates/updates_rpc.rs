@@ -758,3 +758,61 @@ pub(crate) fn next_channel_pts_after_too_long(
 #[cfg(test)]
 #[path = "../../tests/unit/updates_rpc_tests.rs"]
 mod tests;
+
+pub(crate) fn drain_lazy_channels(
+    snapshot: &mut tellers_mtproto_session::Snapshot,
+    api_id: i32,
+    peers_cache: &mut crate::HashMap<i64, crate::peers::CachedPeer>,
+    media_index: &mut crate::media::MediaIndex,
+    channel_pts: &mut crate::HashMap<i64, i32>,
+    lazy_batch: Vec<i64>,
+) -> Result<Vec<crate::UpdateEventDto>, crate::MtprotoError> {
+    use tellers_mtproto::latest::api::{
+        InputDialogPeer, InputDialogPeerConstructor, MessagesGetPeerDialogsRequest,
+        MessagesPeerDialogs, Vector, VectorConstructor,
+    };
+
+    let mut input_peers = Vec::new();
+    for chat_id in lazy_batch {
+        if let Ok(cached) = crate::peers::require_usable_peer(peers_cache, chat_id) {
+            let input_peer = crate::peers::input_peer_from_cached(cached);
+            input_peers.push(Box::new(InputDialogPeer::InputDialogPeer(InputDialogPeerConstructor {
+                peer: Box::new(input_peer),
+            })));
+        }
+    }
+
+    if input_peers.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let request = MessagesGetPeerDialogsRequest {
+        peers: Box::new(Vector::Vector(VectorConstructor {
+            field_0: input_peers.len() as u32,
+            field_1: input_peers,
+        })),
+    };
+
+    let response: MessagesPeerDialogs = crate::api_invoke::invoke_api(snapshot, api_id, request)?;
+    let MessagesPeerDialogs::MessagesPeerDialogs(d) = response;
+
+    let _chat_dtos = crate::dialogs::map_peer_dialogs(
+        peers_cache,
+        media_index,
+        channel_pts,
+        d.dialogs,
+        d.messages.clone(),
+        d.chats,
+        d.users,
+    );
+
+    let mut events = Vec::new();
+    for msg in crate::peers::vector_boxed_items(&d.messages) {
+        if let Some(dto) = crate::dialogs::message_to_dto(msg, media_index) {
+            events.push(crate::UpdateEventDto::NewMessage { message: dto });
+        }
+    }
+    events.push(crate::UpdateEventDto::ChatsChanged);
+
+    Ok(events)
+}

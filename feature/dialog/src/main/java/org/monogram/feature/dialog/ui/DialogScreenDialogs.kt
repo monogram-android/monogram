@@ -27,6 +27,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.monogram.core.models.ReplyMarkupKind
 import org.monogram.core.models.ReplyMarkups
+import org.monogram.core.models.chatListPreviewSource
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.MediaSurface
 import org.monogram.core.ui.media.MessagePlaybackBar
@@ -89,7 +90,7 @@ internal fun DialogScreenDialogs(
         editing = state.editing != null,
         editingBody = state.editing?.text.orEmpty(),
         replyBody = state.replyTo?.let {
-            it.text ?: stringResource(R.string.dialog_media_photo)
+            it.chatListPreviewSource() ?: stringResource(R.string.dialog_media_photo)
         },
         pendingAttach = state.pendingAttach,
         hasFailed = state.messages.any { it.failed },

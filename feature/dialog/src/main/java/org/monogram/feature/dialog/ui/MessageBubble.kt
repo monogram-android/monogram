@@ -173,8 +173,7 @@ fun MessageBubble(
             outgoing = quoted.outgoing,
         )
     } else {
-        message.replyQuote?.takeIf { it.isNotBlank() }
-            ?: quoted?.text?.takeIf { it.isNotBlank() }
+        replyQuoteText(message.replyQuote, quoted)
     }
     val showReplyQuote = !hideTopicRootReply &&
         (message.replyToMsgId != null || !quote.isNullOrBlank())

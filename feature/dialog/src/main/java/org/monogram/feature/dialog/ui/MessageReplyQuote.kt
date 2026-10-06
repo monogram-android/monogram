@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.monogram.core.models.Message
+import org.monogram.core.models.chatListPreviewSource
 import org.monogram.feature.dialog.R
 
 @Composable
@@ -92,6 +94,10 @@ internal fun replyQuoteAuthor(
     !quotedSender.isNullOrBlank() -> quotedSender
     else -> null
 }
+
+internal fun replyQuoteText(replyQuote: String?, quoted: Message?): String? =
+    replyQuote?.takeIf { it.isNotBlank() }
+        ?: quoted?.chatListPreviewSource()
 
 @Composable
 private fun replyMediaFallbackLabel(kind: String?): String = stringResource(

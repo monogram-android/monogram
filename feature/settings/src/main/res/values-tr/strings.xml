@@ -114,8 +114,8 @@
     <string name="settings_notifications_gateway">Özel sunucu</string>
     <string name="settings_notifications_gateway_sub">Bildirimler geliyorsa boş bırakın</string>
     <string name="settings_notifications_retry">Yeniden dene</string>
-    <string name="settings_notifications_nomuted">Sessiz sohbetler</string>
-    <string name="settings_notifications_nomuted_sub">Sessiz sohbetlerde uyarı yok</string>
+    <string name="settings_notifications_nomuted">Pil tasarrufu</string>
+    <string name="settings_notifications_nomuted_sub">Sessize alınan sohbetlerde arka plan etkinliğini azalt</string>
     <string name="settings_notifications_bubbles">Balonlar</string>
     <string name="settings_notifications_bubbles_sub">Sohbetleri yüzen pencerede aç</string>
     <string name="settings_privacy">Gizlilik ve güvenlik</string>
@@ -399,4 +399,5 @@
     <string name="settings_proxy_latency">%1$d ms</string>
     <string name="settings_proxy_test_named">%1$s bağlantısını dene</string>
     <string name="settings_proxy_edit_named">%1$s proxy’sini düzenle</string>
+    <string name="settings_notifications_chat_mentions">Bahsetmeler ve yanıtlar</string>
 </resources>

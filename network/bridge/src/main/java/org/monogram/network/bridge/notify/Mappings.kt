@@ -18,6 +18,7 @@ internal fun NotifySettingsDto.toModel(): NotifySettings = NotifySettings(
 internal fun NotifyExceptionDto.toModel(): NotifyException = NotifyException(
     peerKind = peerKind,
     chatId = PeerId(chatId),
+    topicId = topicId,
     settings = NotifySettings(
         showPreviews = showPreviews,
         silent = silent,

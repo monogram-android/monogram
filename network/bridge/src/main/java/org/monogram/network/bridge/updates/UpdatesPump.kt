@@ -236,6 +236,8 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                                             peerKind = peerKind,
                                             chatId = PeerId(chatId),
                                             muteUntil = muteUntil,
+                                            topicId = parts.getOrNull(4)?.toIntOrNull()
+                                                ?.takeIf { it > 0 },
                                         ),
                                     )
                                 }

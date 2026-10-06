@@ -222,15 +222,24 @@ internal class NotificationsStoreFactory(
                     dispatchLocal()
                 }
                 is NotificationsStore.Intent.ResetException -> scope.launch {
-                    client.updateNotifySettings("peer", NotifySettings(), PeerId(intent.chatId))
+                    if (client.updateNotifySettings(
+                            "peer",
+                            NotifySettings(),
+                            PeerId(intent.chatId)
+                        ) is Outcome.Ok
+                    ) {
+                        local?.cacheNotifySettings("peer", intent.chatId, NotifySettings())
+                    }
                     refresh()
                 }
                 is NotificationsStore.Intent.AddException -> scope.launch {
-                    client.updateNotifySettings(
+                    val settings = NotifySettings(muteUntil = Int.MAX_VALUE, showPreviews = true)
+                    if (client.updateNotifySettings(
                         "peer",
-                        NotifySettings(muteUntil = Int.MAX_VALUE, showPreviews = true),
+                            settings,
                         PeerId(intent.chatId),
-                    )
+                        ) is Outcome.Ok
+                    ) local?.cacheNotifySettings("peer", intent.chatId, settings)
                     refresh()
                 }
                 is NotificationsStore.Intent.SetPeerMode -> {
@@ -270,7 +279,10 @@ internal class NotificationsStoreFactory(
                     dispatchLocal()
                 }
                 NotificationsStore.Intent.Reset -> scope.launch {
-                    client.resetNotifySettings()
+                    if (client.resetNotifySettings() is Outcome.Ok) {
+                        local?.notifyDefaults = org.monogram.core.models.NotifyDefaults()
+                        local?.notifyExceptions = emptyList()
+                    }
                     refresh()
                 }
                 NotificationsStore.Intent.Reregister -> scope.launch {
@@ -332,13 +344,15 @@ internal class NotificationsStoreFactory(
                 val cachedChats = warmup?.chats().orEmpty()
                 if (cachedExceptions.isNotEmpty() || cachedFolders.isNotEmpty() || cachedChats.isNotEmpty()) {
                     val titles = cachedChats.associate { it.id.value to it.title }
-                    val exceptIds = cachedExceptions.map { it.chatId.value }.toSet()
+                    val exceptIds =
+                        cachedExceptions.filter { it.topicId == null }.map { it.chatId.value }
+                            .toSet()
                     dispatch(
                         Msg.Loaded(
                             users = local?.notifyDefaults?.users ?: NotifySettings(),
                             chats = local?.notifyDefaults?.chats ?: NotifySettings(),
                             broadcasts = local?.notifyDefaults?.broadcasts ?: NotifySettings(),
-                            exceptions = cachedExceptions,
+                            exceptions = cachedExceptions.filter { it.topicId == null },
                             folders = cachedFolders,
                             chatsById = titles,
                             addableChats = cachedChats.filter { it.id.value !in exceptIds }.take(40),
@@ -351,10 +365,9 @@ internal class NotificationsStoreFactory(
                 val chats = settings("chats")
                 val broadcasts = settings("broadcasts")
                 val exceptions = when (val result = client.getNotifyExceptions()) {
-                    is Outcome.Ok -> result.value
+                    is Outcome.Ok -> result.value.also { local?.notifyExceptions = it }
                     is Outcome.Err -> cachedExceptions
                 }
-                local?.notifyExceptions = exceptions
                 val folders = when (val result = client.getFolders()) {
                     is Outcome.Ok -> result.value
                     is Outcome.Err -> cachedFolders
@@ -368,14 +381,15 @@ internal class NotificationsStoreFactory(
                     }
                 }
                 val titles = dialogs.associate { it.id.value to it.title }
-                val exceptIds = exceptions.map { it.chatId.value }.toSet()
+                val exceptIds =
+                    exceptions.filter { it.topicId == null }.map { it.chatId.value }.toSet()
                 val addable = dialogs.filter { it.id.value !in exceptIds }.take(40)
                 dispatch(
                     Msg.Loaded(
                         users = users,
                         chats = chats,
                         broadcasts = broadcasts,
-                        exceptions = exceptions,
+                        exceptions = exceptions.filter { it.topicId == null },
                         folders = folders,
                         chatsById = titles,
                         addableChats = addable,
@@ -390,8 +404,12 @@ internal class NotificationsStoreFactory(
 
         private suspend fun settings(kind: String): NotifySettings =
             when (val result = client.getNotifySettings(kind)) {
-                is Outcome.Ok -> result.value
-                is Outcome.Err -> NotifySettings()
+                is Outcome.Ok -> result.value.also { local?.cacheNotifySettings(kind, 0L, it) }
+                is Outcome.Err -> when (kind) {
+                    "chats" -> local?.notifyDefaults?.chats ?: state().chats
+                    "broadcasts" -> local?.notifyDefaults?.broadcasts ?: state().broadcasts
+                    else -> local?.notifyDefaults?.users ?: state().users
+                }
             }
 
         private fun toggleGlobal(kind: String, enabled: Boolean) {
@@ -402,7 +420,10 @@ internal class NotificationsStoreFactory(
                     "broadcasts" -> state().broadcasts
                     else -> state().users
                 }
-                client.updateNotifySettings(kind, current.copy(muteUntil = muteUntil), PeerId(0))
+                val settings = current.copy(muteUntil = muteUntil)
+                if (client.updateNotifySettings(kind, settings, PeerId(0)) is Outcome.Ok) {
+                    local?.cacheNotifySettings(kind, 0L, settings)
+                }
                 if (kind == "stories") local?.storiesEnabled = enabled
                 if (kind == "reactions") local?.reactionsEnabled = enabled
                 refresh()
@@ -420,7 +441,10 @@ internal class NotificationsStoreFactory(
                     "broadcasts" -> state().broadcasts
                     else -> state().users
                 }
-                client.updateNotifySettings(kind, transform(current), PeerId(0))
+                val settings = transform(current)
+                if (client.updateNotifySettings(kind, settings, PeerId(0)) is Outcome.Ok) {
+                    local?.cacheNotifySettings(kind, 0L, settings)
+                }
                 refresh()
             }
         }

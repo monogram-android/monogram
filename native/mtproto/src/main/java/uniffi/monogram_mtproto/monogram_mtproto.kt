@@ -983,6 +983,7 @@ internal object UniffiLib {
         uniffiCallbackInterfaceDownloadProgressListener.register(this)
 
     }
+
     external fun uniffi_monogram_mtproto_fn_init_callback_vtable_downloadprogresslistener(
         `vtable`: UniffiVTableCallbackInterfaceDownloadProgressListener,
     )
@@ -3675,6 +3676,8 @@ data class NotifyExceptionDto (
     ,
     var `chatId`: Long
     ,
+    var `topicId`: Int?
+    ,
     var `showPreviews`: Boolean
     ,
     var `silent`: Boolean
@@ -3683,8 +3686,7 @@ data class NotifyExceptionDto (
     ,
     var `storiesMuted`: Boolean
     ,
-    var `storiesHideSender`: Boolean
-    ,
+    var `storiesHideSender`: Boolean,
     var `sound`: String
 
 ){
@@ -3704,6 +3706,7 @@ object FfiConverterTypeNotifyExceptionDto : FfiConverterRustBuffer<NotifyExcepti
         return NotifyExceptionDto(
             FfiConverterString.read(buf),
             FfiConverterLong.read(buf),
+            FfiConverterOptionalInt.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterInt.read(buf),
@@ -3716,6 +3719,7 @@ object FfiConverterTypeNotifyExceptionDto : FfiConverterRustBuffer<NotifyExcepti
     override fun allocationSize(value: NotifyExceptionDto) = (
             FfiConverterString.allocationSize(value.`peerKind`) +
             FfiConverterLong.allocationSize(value.`chatId`) +
+                    FfiConverterOptionalInt.allocationSize(value.`topicId`) +
             FfiConverterBoolean.allocationSize(value.`showPreviews`) +
             FfiConverterBoolean.allocationSize(value.`silent`) +
             FfiConverterInt.allocationSize(value.`muteUntil`) +
@@ -3727,6 +3731,7 @@ object FfiConverterTypeNotifyExceptionDto : FfiConverterRustBuffer<NotifyExcepti
     override fun write(value: NotifyExceptionDto, buf: ByteBuffer) {
             FfiConverterString.write(value.`peerKind`, buf)
             FfiConverterLong.write(value.`chatId`, buf)
+        FfiConverterOptionalInt.write(value.`topicId`, buf)
             FfiConverterBoolean.write(value.`showPreviews`, buf)
             FfiConverterBoolean.write(value.`silent`, buf)
             FfiConverterInt.write(value.`muteUntil`, buf)

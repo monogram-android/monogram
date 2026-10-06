@@ -2,6 +2,10 @@ package org.monogram.core.models
 
 data class PeerId(val value: Long)
 
+const val CHANNEL_PEER_OFFSET: Long = 1_000_000_000_000L
+
+fun channelPeerId(channelId: Long): Long = -(CHANNEL_PEER_OFFSET + channelId)
+
 fun peerAvatarCacheKey(peerId: PeerId, stored: String? = null): String =
     stored?.takeIf { it.isNotBlank() } ?: "avatar:${peerId.value}"
 

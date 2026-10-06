@@ -61,7 +61,9 @@ fun conversationStyle(
         markRead = chat,
         shortcutBeforeNotify = chat,
         messageSenderName = if (title != null) sender else null,
-        messagePersonKey = if (chat) NotificationConversation.peerPersonKey(chatId) else null,
+        messagePersonKey = if (chat) NotificationConversation.peerPersonKey(
+            payload.senderId ?: chatId
+        ) else null,
     )
 }
 
@@ -94,8 +96,7 @@ private fun isConversationChat(payload: PushPayload): Boolean {
         return false
     }
     val key = payload.locKey
-    if (key.startsWith("CONTACT_") || key.startsWith("AUTH_") || key.startsWith("PHONE_")) return false
-    return true
+    return !(key.startsWith("CONTACT_") || key.startsWith("AUTH_") || key.startsWith("PHONE_"))
 }
 
 private fun conversationTitle(payload: PushPayload, chat: Boolean): String? {

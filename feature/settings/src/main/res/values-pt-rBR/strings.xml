@@ -114,8 +114,8 @@
     <string name="settings_notifications_gateway">Servidor personalizado</string>
     <string name="settings_notifications_gateway_sub">Deixe vazio se os alertas chegarem</string>
     <string name="settings_notifications_retry">Tentar de novo</string>
-    <string name="settings_notifications_nomuted">Conversas silenciadas</string>
-    <string name="settings_notifications_nomuted_sub">Sem alertas em conversas silenciadas</string>
+    <string name="settings_notifications_nomuted">Economizar bateria</string>
+    <string name="settings_notifications_nomuted_sub">Reduzir a atividade em segundo plano das conversas silenciadas</string>
     <string name="settings_notifications_bubbles">Balões</string>
     <string name="settings_notifications_bubbles_sub">Abrir conversas em uma janela flutuante</string>
     <string name="settings_privacy">Privacidade e segurança</string>
@@ -399,4 +399,5 @@
     <string name="settings_proxy_latency">%1$d ms</string>
     <string name="settings_proxy_test_named">Testar %1$s</string>
     <string name="settings_proxy_edit_named">Editar %1$s</string>
+    <string name="settings_notifications_chat_mentions">Menções e respostas</string>
 </resources>

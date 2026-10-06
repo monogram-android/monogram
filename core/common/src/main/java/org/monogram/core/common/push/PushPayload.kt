@@ -1,12 +1,14 @@
 package org.monogram.core.common.push
 
+import org.monogram.core.models.CHANNEL_PEER_OFFSET
 import org.monogram.core.models.CompactJson
+import org.monogram.core.models.channelPeerId
 import org.monogram.core.models.jsonLenientLong
 import org.monogram.core.models.jsonMap
 import org.monogram.core.models.jsonString
 import org.monogram.core.models.jsonStringList
 
-const val CHANNEL_ID_OFFSET: Long = 1_000_000_000_000L
+const val CHANNEL_ID_OFFSET: Long = CHANNEL_PEER_OFFSET
 
 enum class PushAction {
     Show,
@@ -47,6 +49,8 @@ data class PushPayload(
     val channelKind: PushChannelKind,
     val topicId: Int? = null,
     val topicTitle: String? = null,
+    val senderId: Long? = null,
+    val scheduled: Boolean = false,
 ) {
     val customIds: String
         get() = buildString {
@@ -80,20 +84,25 @@ fun parsePushPayload(json: String): PushPayload {
         messageId = messageId,
         maxId = maxId,
         deletedIds = deleted,
-        mention = custom.jsonLenientLong("mention") == 1L || custom.jsonString("mention") == "true",
-        silent = custom.jsonLenientLong("silent") == 1L || custom.jsonString("silent") == "true",
+        mention = custom.pushFlag("mention"),
+        silent = custom.pushFlag("silent"),
         sound = root.jsonString("sound"),
         attachB64 = custom.jsonString("attachb64"),
         userId = root.jsonLenientLong("user_id"),
         action = actionFor(locKey),
         channelKind = channelKindFor(locKey),
-        topicId = custom.jsonLenientLong("topic_id")?.toInt()?.takeIf { it != 0 },
+        topicId = (custom.jsonLenientLong("topic_id")?.takeIf { it > 0 }
+            ?: custom.jsonLenientLong("top_msg_id"))?.takeIf { it in 1..Int.MAX_VALUE.toLong() }
+            ?.toInt(),
         topicTitle = custom.jsonString("topic_title")?.takeIf { it.isNotBlank() },
+        senderId = resolveSenderId(custom),
+        scheduled = custom.pushFlag("schedule"),
     )
 }
 
 fun actionFor(locKey: String): PushAction = when (locKey) {
-    "WAKE", "MESSAGE_MUTED", "GEO_LIVE_PENDING", "DC_UPDATE" -> PushAction.Wake
+    "WAKE", "MESSAGE_MUTED", "GEO_LIVE_PENDING", "DC_UPDATE",
+    "ENCRYPTED_MESSAGE", "ENCRYPTION_REQUEST", "ENCRYPTION_ACCEPT" -> PushAction.Wake
     "MESSAGE_DELETED", "STORY_DELETED" -> PushAction.Delete
     "READ_HISTORY", "READ_STORIES" -> PushAction.ReadHistory
     "READ_REACTION" -> PushAction.ReadReaction
@@ -103,10 +112,10 @@ fun actionFor(locKey: String): PushAction = when (locKey) {
 
 fun channelKindFor(locKey: String): PushChannelKind = when {
     locKey.startsWith("PHONE_CALL_") || locKey.contains("VOICECHAT") -> PushChannelKind.Calls
+    locKey.contains("REACT") -> PushChannelKind.Reactions
     locKey.startsWith("CHANNEL_") -> PushChannelKind.Channel
     locKey.startsWith("CHAT_") -> PushChannelKind.Group
     locKey.startsWith("STORY_") -> PushChannelKind.Stories
-    locKey.contains("REACT") -> PushChannelKind.Reactions
     locKey.startsWith("MESSAGE_") ||
         locKey.startsWith("PINNED_") ||
         locKey.startsWith("CONTACT_") ||
@@ -142,10 +151,22 @@ fun callNotice(locKey: String, canAnswer: Boolean, fullScreenAllowed: Boolean): 
 
 fun resolveChatId(custom: Map<*, *>): Long? {
     custom.jsonLenientLong("chat_id")?.let { if (it != 0L) return -it }
-    custom.jsonLenientLong("channel_id")?.let { if (it != 0L) return -(CHANNEL_ID_OFFSET + it) }
+    custom.jsonLenientLong("channel_id")?.let { if (it != 0L) return channelPeerId(it) }
     custom.jsonLenientLong("from_id")?.let { if (it != 0L) return it }
     return null
 }
+
+fun resolveSenderId(custom: Map<*, *>): Long? {
+    custom.jsonLenientLong("chat_from_broadcast_id")?.takeIf { it != 0L }
+        ?.let { return channelPeerId(it) }
+    custom.jsonLenientLong("chat_from_group_id")?.takeIf { it != 0L }
+        ?.let { return channelPeerId(it) }
+    return custom.jsonLenientLong("chat_from_id")?.takeIf { it != 0L }
+        ?: custom.jsonLenientLong("from_id")?.takeIf { it != 0L }
+}
+
+private fun Map<*, *>.pushFlag(key: String): Boolean =
+    jsonLenientLong(key)?.let { it != 0L } ?: (this[key] == true || jsonString(key) == "true")
 
 fun redactToken(token: String): String {
     val value = token.trim()

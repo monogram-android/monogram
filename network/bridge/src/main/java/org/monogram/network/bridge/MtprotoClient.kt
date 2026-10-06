@@ -67,6 +67,7 @@ sealed class MtprotoUpdate {
         val peerKind: String,
         val chatId: PeerId,
         val muteUntil: Int,
+        val topicId: Int? = null,
     ) : MtprotoUpdate()
 
     data class ReadOutbox(

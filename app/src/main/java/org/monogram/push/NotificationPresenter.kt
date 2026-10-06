@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
@@ -14,16 +13,19 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.app.RemoteInput
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.LocusIdCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.drawable.toBitmap
 import org.monogram.MainActivity
 import org.monogram.R
 import org.monogram.core.common.push.BadgeSettings
@@ -32,20 +34,18 @@ import org.monogram.core.common.push.NotificationBatch
 import org.monogram.core.common.push.NotificationConversation
 import org.monogram.core.common.push.NotificationDecision
 import org.monogram.core.common.push.NotificationLocalStore
+import org.monogram.core.common.push.NotificationMessage
+import org.monogram.core.common.push.PeerNotificationMode
+import org.monogram.core.common.push.PushPayload
 import org.monogram.core.common.push.callNotice
 import org.monogram.core.common.push.conversationStyle
 import org.monogram.core.common.push.evictedShareChatIds
 import org.monogram.core.common.push.mayPostNotifications
+import org.monogram.core.common.push.notificationHttpUrl
 import org.monogram.core.common.push.rankedShareChatIds
 import org.monogram.core.common.push.shadeText
 import org.monogram.core.common.push.shouldAttachBubble
-import org.monogram.core.common.push.NotificationMessage
-import org.monogram.core.common.push.PeerNotificationMode
-import org.monogram.core.common.push.PushPayload
-import org.monogram.core.common.push.notificationHttpUrl
 import java.io.File
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.toBitmap
 
 object NotificationPresenter {
     const val ACTION_OPEN_CHAT = "org.monogram.push.OPEN_CHAT"
@@ -69,6 +69,7 @@ object NotificationPresenter {
 
     private const val MAX_SUMMARY_LINES = 5
     private const val EXTRA_BATCH_MESSAGE_ID = "org.monogram.push.batch_msg_id"
+    private const val EXTRA_BATCH_TOPIC_ID = "org.monogram.push.batch_topic_id"
 
     private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
 
@@ -146,7 +147,11 @@ object NotificationPresenter {
                 ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
             }
         }
-        val incoming = NotificationMessage(payload.messageId ?: 0, body, System.currentTimeMillis())
+        val incoming = NotificationMessage(
+            payload.messageId ?: 0, body, System.currentTimeMillis(),
+            outgoing = payload.scheduled, senderName = style.messageSenderName,
+            senderKey = style.messagePersonKey, topicId = payload.topicId
+        )
         val previous = active?.messages.orEmpty().filter { it.messageId != HIDDEN_MESSAGE_ID }
         val batch = if (quiet) {
             previous.ifEmpty { listOf(incoming) }
@@ -163,6 +168,7 @@ object NotificationPresenter {
                     messageId = HIDDEN_MESSAGE_ID,
                     text = context.resources.getQuantityString(R.plurals.push_new_messages, total, total),
                     timestamp = active?.messages?.lastOrNull()?.timestamp ?: incoming.timestamp,
+                    topicId = payload.topicId,
                 ),
             )
         } else {
@@ -390,8 +396,14 @@ object NotificationPresenter {
         val self = selfPerson(context)
         val style = NotificationCompat.MessagingStyle(self)
         messages.forEachIndexed { index, message ->
+            val senderName = message.senderName
             val author = when {
                 message.outgoing -> self
+                senderName != null -> senderPerson(
+                    senderName,
+                    message.senderKey ?: NotificationConversation.senderPersonKey(senderName),
+                    null,
+                )
                 messageSenderName != null -> senderPerson(
                     messageSenderName,
                     person.key ?: NotificationConversation.peerPersonKey(chatId),
@@ -401,6 +413,7 @@ object NotificationPresenter {
             }
             val entry = NotificationCompat.MessagingStyle.Message(message.text, message.timestamp, author)
             if (message.messageId != 0) entry.extras.putInt(EXTRA_BATCH_MESSAGE_ID, message.messageId)
+            message.topicId?.let { entry.extras.putInt(EXTRA_BATCH_TOPIC_ID, it) }
             // Attach the picture to the newest message so the shade renders it inside the
             // conversation instead of replacing MessagingStyle (Telegram serves it the same way,
             // through its NotificationImageProvider).
@@ -467,6 +480,9 @@ object NotificationPresenter {
                 text = text,
                 timestamp = message.timestamp,
                 outgoing = NotificationConversation.isOutgoing(message.person?.key, userKey),
+                senderName = message.person?.name?.toString(),
+                senderKey = message.person?.key,
+                topicId = message.extras.getInt(EXTRA_BATCH_TOPIC_ID, 0).takeIf { it > 0 },
             )
         }
     }
@@ -660,10 +676,16 @@ object NotificationPresenter {
         dropIds: Set<Int>,
         upTo: Int?,
         badge: BadgeSettings,
+        topicId: Int? = null,
     ) {
         val id = notificationId(chatId)
         val active = NotificationManagerCompat.from(context).activeNotifications.firstOrNull { it.id == id } ?: return
-        val kept = NotificationBatch.retain(batchMessages(active.notification), dropIds, upTo)
+        val messages = batchMessages(active.notification)
+        val kept = if (topicId == null) NotificationBatch.retain(messages, dropIds, upTo)
+        else messages.filter { message ->
+            message.topicId != topicId || NotificationBatch.retain(listOf(message), dropIds, upTo)
+                .isNotEmpty()
+        }
         if (kept.isEmpty()) cancel(context, chatId, badge)
         else repost(context, chatId, active.notification, kept, silent = true, onlyAlertOnce = true)
     }

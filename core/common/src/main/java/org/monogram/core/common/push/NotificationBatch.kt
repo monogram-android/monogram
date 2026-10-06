@@ -10,6 +10,9 @@ data class NotificationMessage(
     val text: String,
     val timestamp: Long,
     val outgoing: Boolean = false,
+    val senderName: String? = null,
+    val senderKey: String? = null,
+    val topicId: Int? = null,
 )
 
 /**

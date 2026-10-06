@@ -302,6 +302,7 @@ pub struct NotifySettingsDto {
 pub struct NotifyExceptionDto {
     pub peer_kind: String,
     pub chat_id: i64,
+    pub topic_id: Option<i32>,
     pub show_previews: bool,
     pub silent: bool,
     pub mute_until: i32,

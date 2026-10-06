@@ -119,17 +119,18 @@ pub(crate) fn exception_from_update(update: &Update) -> Option<NotifyExceptionDt
         return None;
     };
     let settings = settings_dto(body.notify_settings.as_ref());
-    let (peer_kind, chat_id) = match body.peer.as_ref() {
-        NotifyPeer::NotifyUsers(_) => ("users", 0_i64),
-        NotifyPeer::NotifyChats(_) => ("chats", 0_i64),
-        NotifyPeer::NotifyBroadcasts(_) => ("broadcasts", 0_i64),
-        NotifyPeer::NotifyPeer(peer) => ("peer", peer_chat_id(peer.peer.as_ref())),
-        NotifyPeer::NotifyForumTopic(topic) => ("peer", peer_chat_id(topic.peer.as_ref())),
+    let (peer_kind, chat_id, topic_id) = match body.peer.as_ref() {
+        NotifyPeer::NotifyUsers(_) => ("users", 0_i64, None),
+        NotifyPeer::NotifyChats(_) => ("chats", 0_i64, None),
+        NotifyPeer::NotifyBroadcasts(_) => ("broadcasts", 0_i64, None),
+        NotifyPeer::NotifyPeer(peer) => ("peer", peer_chat_id(peer.peer.as_ref()), None),
+        NotifyPeer::NotifyForumTopic(topic) => ("peer", peer_chat_id(topic.peer.as_ref()), Some(topic.top_msg_id)),
         _ => return None,
     };
     Some(NotifyExceptionDto {
         peer_kind: peer_kind.into(),
         chat_id,
+        topic_id,
         show_previews: settings.show_previews,
         silent: settings.silent,
         mute_until: settings.mute_until,

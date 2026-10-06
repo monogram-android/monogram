@@ -426,8 +426,8 @@ pub(crate) fn collect_other_updates<'a>(
                 if let Some(ex) = crate::client::push_rpc::exception_from_update(update) {
                     events.push(UpdateEventDto::Ignored {
                         kind: format!(
-                            "notify_settings:{}:{}:{}",
-                            ex.peer_kind, ex.chat_id, ex.mute_until
+                            "notify_settings:{}:{}:{}:{}",
+                            ex.peer_kind, ex.chat_id, ex.mute_until, ex.topic_id.unwrap_or(0)
                         ),
                     });
                 }

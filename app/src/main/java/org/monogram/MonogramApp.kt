@@ -280,6 +280,7 @@ class MonogramApp : Application() {
                         notifications,
                         mediaRepository,
                         DefaultStoreFactory(),
+                        sessionStore,
                     )
                 }
                 sponsorSync = SponsorSyncManager(
@@ -325,7 +326,7 @@ class MonogramApp : Application() {
                     currentVersionCode = { BuildConfig.VERSION_CODE },
                     currentCommit = { BuildConfig.GIT_COMMIT },
                     buildType = BuildConfig.BUILD_TYPE,
-                    supportedAbis = { android.os.Build.SUPPORTED_ABIS.toList() },
+                    supportedAbis = { Build.SUPPORTED_ABIS.toList() },
                     installer = AndroidAppUpdateInstaller(this),
                     updateDir = File(cacheDir, "updates"),
                 )

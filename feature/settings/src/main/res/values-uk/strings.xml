@@ -114,8 +114,8 @@
     <string name="settings_notifications_gateway">Власний сервер</string>
     <string name="settings_notifications_gateway_sub">Залиште порожнім, якщо сповіщення надходять</string>
     <string name="settings_notifications_retry">Повторити</string>
-    <string name="settings_notifications_nomuted">Приглушені чати</string>
-    <string name="settings_notifications_nomuted_sub">Без сповіщень у приглушених чатах</string>
+    <string name="settings_notifications_nomuted">Економія заряду</string>
+    <string name="settings_notifications_nomuted_sub">Менше фонової активності в чатах без звуку</string>
     <string name="settings_notifications_bubbles">Спливаючі чати</string>
     <string name="settings_notifications_bubbles_sub">Відкривати чати у плаваючому вікні</string>
     <string name="settings_privacy">Конфіденційність і безпека</string>
@@ -399,4 +399,5 @@
     <string name="settings_proxy_latency">%1$d мс</string>
     <string name="settings_proxy_test_named">Перевірити %1$s</string>
     <string name="settings_proxy_edit_named">Змінити %1$s</string>
+    <string name="settings_notifications_chat_mentions">Згадки й відповіді</string>
 </resources>

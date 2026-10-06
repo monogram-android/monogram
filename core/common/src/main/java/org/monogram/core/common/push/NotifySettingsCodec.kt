@@ -25,7 +25,8 @@ object NotifySettingsCodec {
     fun decode(raw: String?): NotifySettings? {
         val parts = raw?.trim()?.split(SEPARATOR, limit = FIELD_COUNT) ?: return null
         if (parts.isEmpty() || parts[0].isBlank()) return null
-        val muteUntil = parts[0].toIntOrNull() ?: return null
+        val muteUntil =
+            parts[0].toLongOrNull()?.coerceIn(0, Int.MAX_VALUE.toLong())?.toInt() ?: return null
         return NotifySettings(
             muteUntil = muteUntil,
             showPreviews = flag(parts.getOrNull(1)),

@@ -57,6 +57,7 @@ fn fill_zero_peer_photo_hashes_from_full_peer() {
             2,
             "avatar:-1000000000042".into(),
             false,
+            None,
         ),
     );
     let mut peers = HashMap::new();

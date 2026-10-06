@@ -103,6 +103,7 @@ pub(crate) fn index_user_avatar(
                     p.dc_id,
                     media::avatar_cache_key(peer_chat_id, has_video),
                     has_video,
+                    p.stripped_thumb.as_deref(),
                 );
                 return Some(media::index_avatar(media_index, peer_chat_id, media));
             }
@@ -131,6 +132,7 @@ pub(crate) fn index_chat_photo(
         p.dc_id,
         media::avatar_cache_key(peer_chat_id, has_video),
         has_video,
+        p.stripped_thumb.as_deref(),
     );
     Some(media::index_avatar(media_index, peer_chat_id, media))
 }

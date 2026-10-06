@@ -5,9 +5,6 @@
 
 #![deny(unsafe_code)]
 
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
 mod api_invoke;
 mod auth;
 mod client;

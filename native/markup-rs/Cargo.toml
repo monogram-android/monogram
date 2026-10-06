@@ -17,7 +17,6 @@ bindgen-cli = ["uniffi/cli"]
 
 [dependencies]
 uniffi = { version = "0.32", default-features = false }
-mimalloc = { version = "0.1", default-features = false, features = ["local_dynamic_tls", "v2"] }
 compact_str = "0.9"
 tree-sitter = "0.25"
 tree-sitter-md = "0.5"

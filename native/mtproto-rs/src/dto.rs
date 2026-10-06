@@ -275,6 +275,9 @@ pub enum UpdateEventDto {
         top_message_id: i32,
         read_max_id: i32,
     },
+    SyncState {
+        is_syncing: bool,
+    },
     Ignored {
         kind: String,
     },

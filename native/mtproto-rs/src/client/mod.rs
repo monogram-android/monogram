@@ -92,6 +92,7 @@ pub(crate) struct ClientData {
     pub(crate) last_inline: Option<LastInlineQuery>,
     pub(crate) persist_epoch: u64,
     pub(crate) persisted_epoch: u64,
+    pub(crate) is_syncing: bool,
 }
 
 #[derive(Clone)]
@@ -287,6 +288,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                 last_inline: None,
                 persist_epoch: 0,
                 persisted_epoch: 0,
+                is_syncing: false,
             }),
             main_gate: scheduler::LaneGate::new(),
             main: Mutex::new(SessionIo {

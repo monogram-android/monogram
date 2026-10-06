@@ -356,7 +356,7 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             }),
         ))
     });
-    let (events, applied) = match drained {
+    let (mut events, applied) = match drained {
         Ok(pair) => {
             io.transport = slot;
             pair
@@ -396,6 +396,8 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         return Ok(events);
     };
     let persist_needed;
+    let should_emit_sync_state;
+    let is_syncing_now = io.last_difference.is_none() || !applied.recovery.is_empty();
     {
         let mut d = client.data.lock();
         // A completed old-account poll must not repopulate state after logout
@@ -412,13 +414,20 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         let media_changed =
             merge_changed_entries(&mut d.media, &applied.before_media, applied.media);
         let next_cursor = prefer_newer_cursor(d.updates.clone(), applied.cursor);
+
+        should_emit_sync_state = d.is_syncing != is_syncing_now;
+        if should_emit_sync_state {
+            d.is_syncing = is_syncing_now;
+        }
+
         persist_needed = new_session.is_some()
             || peers_changed
             || media_changed
             || d.channel_pts != applied.channel_pts
             || d.channel_recovery != applied.recovery
             || d.seen_messages != applied.seen_messages
-            || next_cursor != d.updates;
+            || next_cursor != d.updates
+            || should_emit_sync_state;
         if persist_needed {
             d.persist_epoch = d.persist_epoch.saturating_add(1);
         }
@@ -443,6 +452,9 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
     if persist_needed {
         crate::perf::count("updates.persist");
         schedule_persist(&client, session_id);
+    }
+    if should_emit_sync_state {
+        events.push(UpdateEventDto::SyncState { is_syncing: is_syncing_now });
     }
     Ok(events)
 }

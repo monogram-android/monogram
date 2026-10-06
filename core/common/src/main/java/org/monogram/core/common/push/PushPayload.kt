@@ -141,9 +141,9 @@ fun callNotice(locKey: String, canAnswer: Boolean, fullScreenAllowed: Boolean): 
 }
 
 fun resolveChatId(custom: Map<*, *>): Long? {
-    custom.jsonLenientLong("from_id")?.let { if (it != 0L) return it }
     custom.jsonLenientLong("chat_id")?.let { if (it != 0L) return -it }
     custom.jsonLenientLong("channel_id")?.let { if (it != 0L) return -(CHANNEL_ID_OFFSET + it) }
+    custom.jsonLenientLong("from_id")?.let { if (it != 0L) return it }
     return null
 }
 

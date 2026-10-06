@@ -1410,7 +1410,7 @@ internal object UniffiLib {
         `handle`: Long,
         `peerKind`: RustBuffer.ByValue,
         `chatId`: Long,
-        `showPreviews`: Byte,
+        `showPreviews`: RustBuffer.ByValue,
         `silent`: Byte,
         `muteUntil`: Int,
         `storiesMuted`: Byte,
@@ -2012,7 +2012,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_update_lazy_sync_config() and 0xFFFF) != 64388) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_monogram_mtproto_checksum_func_update_notify_settings() and 0xFFFF) != 576) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_update_notify_settings() and 0xFFFF) != 40937) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_update_status() and 0xFFFF) != 57001) {
@@ -3678,7 +3678,7 @@ data class NotifyExceptionDto (
     ,
     var `topicId`: Int?
     ,
-    var `showPreviews`: Boolean
+    var `showPreviews`: Boolean?
     ,
     var `silent`: Boolean
     ,
@@ -3707,7 +3707,7 @@ object FfiConverterTypeNotifyExceptionDto : FfiConverterRustBuffer<NotifyExcepti
             FfiConverterString.read(buf),
             FfiConverterLong.read(buf),
             FfiConverterOptionalInt.read(buf),
-            FfiConverterBoolean.read(buf),
+            FfiConverterOptionalBoolean.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterInt.read(buf),
             FfiConverterBoolean.read(buf),
@@ -3720,7 +3720,7 @@ object FfiConverterTypeNotifyExceptionDto : FfiConverterRustBuffer<NotifyExcepti
             FfiConverterString.allocationSize(value.`peerKind`) +
             FfiConverterLong.allocationSize(value.`chatId`) +
                     FfiConverterOptionalInt.allocationSize(value.`topicId`) +
-            FfiConverterBoolean.allocationSize(value.`showPreviews`) +
+                    FfiConverterOptionalBoolean.allocationSize(value.`showPreviews`) +
             FfiConverterBoolean.allocationSize(value.`silent`) +
             FfiConverterInt.allocationSize(value.`muteUntil`) +
             FfiConverterBoolean.allocationSize(value.`storiesMuted`) +
@@ -3732,7 +3732,7 @@ object FfiConverterTypeNotifyExceptionDto : FfiConverterRustBuffer<NotifyExcepti
             FfiConverterString.write(value.`peerKind`, buf)
             FfiConverterLong.write(value.`chatId`, buf)
         FfiConverterOptionalInt.write(value.`topicId`, buf)
-            FfiConverterBoolean.write(value.`showPreviews`, buf)
+        FfiConverterOptionalBoolean.write(value.`showPreviews`, buf)
             FfiConverterBoolean.write(value.`silent`, buf)
             FfiConverterInt.write(value.`muteUntil`, buf)
             FfiConverterBoolean.write(value.`storiesMuted`, buf)
@@ -3744,7 +3744,7 @@ object FfiConverterTypeNotifyExceptionDto : FfiConverterRustBuffer<NotifyExcepti
 
 
 data class NotifySettingsDto (
-    var `showPreviews`: Boolean
+    var `showPreviews`: Boolean?
     ,
     var `silent`: Boolean
     ,
@@ -3771,7 +3771,7 @@ data class NotifySettingsDto (
 object FfiConverterTypeNotifySettingsDto : FfiConverterRustBuffer<NotifySettingsDto> {
     override fun read(buf: ByteBuffer): NotifySettingsDto {
         return NotifySettingsDto(
-            FfiConverterBoolean.read(buf),
+            FfiConverterOptionalBoolean.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterInt.read(buf),
             FfiConverterBoolean.read(buf),
@@ -3781,7 +3781,7 @@ object FfiConverterTypeNotifySettingsDto : FfiConverterRustBuffer<NotifySettings
     }
 
     override fun allocationSize(value: NotifySettingsDto) = (
-            FfiConverterBoolean.allocationSize(value.`showPreviews`) +
+            FfiConverterOptionalBoolean.allocationSize(value.`showPreviews`) +
             FfiConverterBoolean.allocationSize(value.`silent`) +
             FfiConverterInt.allocationSize(value.`muteUntil`) +
             FfiConverterBoolean.allocationSize(value.`storiesMuted`) +
@@ -3790,7 +3790,7 @@ object FfiConverterTypeNotifySettingsDto : FfiConverterRustBuffer<NotifySettings
     )
 
     override fun write(value: NotifySettingsDto, buf: ByteBuffer) {
-            FfiConverterBoolean.write(value.`showPreviews`, buf)
+        FfiConverterOptionalBoolean.write(value.`showPreviews`, buf)
             FfiConverterBoolean.write(value.`silent`, buf)
             FfiConverterInt.write(value.`muteUntil`, buf)
             FfiConverterBoolean.write(value.`storiesMuted`, buf)
@@ -5578,6 +5578,36 @@ object FfiConverterOptionalLong : FfiConverterRustBuffer<Long?> {
 }
 
 
+
+
+/**
+ * @suppress
+ */
+object FfiConverterOptionalBoolean : FfiConverterRustBuffer<Boolean?> {
+    override fun read(buf: ByteBuffer): Boolean? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterBoolean.read(buf)
+    }
+
+    override fun allocationSize(value: Boolean?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterBoolean.allocationSize(value)
+        }
+    }
+
+    override fun write(value: Boolean?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterBoolean.write(value, buf)
+        }
+    }
+}
 
 
 /**
@@ -8560,7 +8590,7 @@ fun `updateNotifySettings`(
     `handle`: ULong,
     `peerKind`: String,
     `chatId`: Long,
-    `showPreviews`: Boolean,
+    `showPreviews`: Boolean?,
     `silent`: Boolean,
     `muteUntil`: Int,
     `storiesMuted`: Boolean,
@@ -8574,7 +8604,7 @@ fun `updateNotifySettings`(
         FfiConverterULong.lower(`handle`),
         FfiConverterString.lower(`peerKind`),
         FfiConverterLong.lower(`chatId`),
-        FfiConverterBoolean.lower(`showPreviews`),
+        FfiConverterOptionalBoolean.lower(`showPreviews`),
         FfiConverterBoolean.lower(`silent`),
         FfiConverterInt.lower(`muteUntil`),
         FfiConverterBoolean.lower(`storiesMuted`),

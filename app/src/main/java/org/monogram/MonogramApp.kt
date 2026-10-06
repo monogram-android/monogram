@@ -117,6 +117,7 @@ class MonogramApp : Application() {
                 runFirstPaintStartup(settingsScope, steps)
                 ready.complete(Unit)
                 PerfLog.mark("app:ready", PerfLog.nowMs() - startedAt)
+                settingsScope.launch { steps.mediaMigration() }
                 startAfterFirstPaint(steps)
             } catch (cancelled: CancellationException) {
                 ready.completeExceptionally(cancelled)
@@ -194,7 +195,7 @@ class MonogramApp : Application() {
                 perfSpan("app:imageCache") { ImageCache.install(this) }
             },
             cleanup = {
-                runCatching { warmup.ensureStartupCleanup() }
+                runCatching { warmup.prepareStartupSnapshot(sessionStore) }
                     .onFailure { AppLog.warn("warmup", "startup cleanup failed") }
             },
             prewarm = {

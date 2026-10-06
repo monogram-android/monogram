@@ -99,6 +99,7 @@ class MediaRepository(
 
     private val telegramMutex = Mutex()
     private val telegramWake = Channel<Unit>(Channel.CONFLATED)
+    private val thumbWake = Channel<Unit>(Channel.CONFLATED)
     private val telegramPending = PriorityQueue<QueuedTelegram>()
     private val telegramJobs = HashMap<String, TelegramJob>()
     private val telegramWorkers = mutableListOf<Job>()
@@ -112,6 +113,10 @@ class MediaRepository(
     val cacheGeneration: StateFlow<Long> = generation.asStateFlow()
 
     fun isUserDownload(key: String): Boolean = key in userDownloadsState.value
+
+    fun protectCacheKeys(owner: String, keys: Collection<String>) {
+        cache.setProtectedKeys(owner, keys)
+    }
     private val inlineThumbs = ConcurrentHashMap<String, ByteArray>()
 
     fun inlineThumbJpeg(message: Message): ByteArray? {
@@ -402,6 +407,7 @@ class MediaRepository(
             name = name,
             totalBytes = totalBytes,
             large = kind != MediaFetchKind.Thumb && isLargeDownload(totalBytes),
+            thumbnail = kind == MediaFetchKind.Thumb,
         ) { activePriority ->
             val waited = PerfLog.nowMs() - queuedAt
             PerfLog.mark("queue_wait:${kind.name.lowercase()}", waited)
@@ -516,6 +522,7 @@ class MediaRepository(
         telegramWorkers.forEach { it.cancel() }
         telegramWorkers.clear()
         telegramWake.close()
+        thumbWake.close()
         if (queueDelegate.isInitialized()) queue.shutdown()
         scope.cancel()
     }
@@ -561,14 +568,14 @@ class MediaRepository(
     private fun hasDisplayPendingLocked(): Boolean =
         hasPendingAtLeastLocked(MediaPriority.DISPLAY)
 
-    private fun hasPendingAtLeastLocked(minPriority: Int): Boolean =
+    private fun hasPendingAtLeastLocked(minPriority: Int, thumbnail: Boolean? = null): Boolean =
         telegramPending.any { queued ->
             val job = queued.job
             queued.generation == job.generation &&
                 !job.running &&
                 !job.cancelled &&
                 !job.deferred.isCompleted &&
-                job.priority >= minPriority
+                    job.priority >= minPriority && (thumbnail == null || job.thumbnail == thumbnail)
         }
 
     private suspend fun enqueueTelegram(
@@ -578,6 +585,7 @@ class MediaRepository(
         name: String? = null,
         totalBytes: Long? = null,
         large: Boolean = false,
+        thumbnail: Boolean = false,
         work: suspend (Int) -> Outcome<File>,
     ): Outcome<File> {
         cache.get(key)?.let { return Outcome.Ok(it) }
@@ -607,6 +615,7 @@ class MediaRepository(
                     priority = priority,
                     sequence = telegramSequence++,
                     large = large,
+                    thumbnail = thumbnail,
                     work = work,
                 )
                 telegramJobs[key] = created
@@ -620,6 +629,7 @@ class MediaRepository(
             }
         }
         telegramWake.trySend(Unit)
+        thumbWake.trySend(Unit)
         if (job.cancelled) {
             job.deferred.await()
             return enqueueTelegram(
@@ -629,6 +639,7 @@ class MediaRepository(
                 name = name,
                 totalBytes = totalBytes,
                 large = large,
+                thumbnail = thumbnail,
                 work = work,
             )
         }
@@ -637,28 +648,30 @@ class MediaRepository(
 
     private fun ensureTelegramWorkerLocked() {
         if (telegramStopped) return
-        val want = maxConcurrentTelegram.coerceAtLeast(1)
+        val fullWorkers = maxConcurrentTelegram.coerceAtLeast(1)
+        val want = fullWorkers + THUMB_WORKERS
         while (telegramWorkers.size < want) {
+            val thumbnail = telegramWorkers.size >= fullWorkers
             telegramWorkers += scope.launch(Dispatchers.IO) {
                 while (isActive && !telegramStopped) {
-                    takeNextTelegram()?.let { runTelegram(it) }
+                    takeNextTelegram(thumbnail)?.let { runTelegram(it) }
                 }
             }
         }
     }
 
-    private suspend fun takeNextTelegram(): TelegramJob? {
+    private suspend fun takeNextTelegram(thumbnail: Boolean): TelegramJob? {
         while (!telegramStopped) {
-            val next = telegramMutex.withLock { pollTelegramLocked() }
+            val next = telegramMutex.withLock { pollTelegramLocked(thumbnail) }
             if (next != null) return next
-            telegramWake.receiveCatching()
+            (if (thumbnail) thumbWake else telegramWake).receiveCatching()
         }
         return null
     }
 
-    private fun pollTelegramLocked(): TelegramJob? {
-        val holdIdle = hasInteractivePendingLocked()
-        val holdDefault = hasDisplayPendingLocked()
+    private fun pollTelegramLocked(thumbnail: Boolean): TelegramJob? {
+        val holdIdle = hasPendingAtLeastLocked(MediaPriority.IDLE + 1, thumbnail)
+        val holdDefault = hasPendingAtLeastLocked(MediaPriority.DISPLAY, thumbnail)
         val skipped = ArrayList<QueuedTelegram>()
         try {
             while (true) {
@@ -667,6 +680,7 @@ class MediaRepository(
                 if (queued.generation != job.generation) continue
                 if (job.cancelled || job.running || job.deferred.isCompleted) continue
                 val hold = when {
+                    job.thumbnail != thumbnail -> true
                     job.large && runningLargeLocked() >= MAX_LARGE_PIPELINES -> true
                     holdDefault && job.priority < MediaPriority.DISPLAY -> true
                     holdIdle && job.priority <= MediaPriority.IDLE -> true
@@ -723,6 +737,7 @@ class MediaRepository(
         if (requeued) {
             AppLog.api("media", "requeue key=${job.key} pri=${job.priority}")
             telegramWake.trySend(Unit)
+            thumbWake.trySend(Unit)
             return
         }
         if (!job.deferred.isCompleted) {
@@ -733,6 +748,7 @@ class MediaRepository(
             untrackUserDownloadLocked(job.key)
         }
         telegramWake.trySend(Unit)
+        thumbWake.trySend(Unit)
     }
 
     private fun runningLargeLocked(): Int =
@@ -818,6 +834,7 @@ class MediaRepository(
         var sequence: Long,
         val work: suspend (Int) -> Outcome<File>,
         var large: Boolean = false,
+        val thumbnail: Boolean = false,
         val deferred: CompletableDeferred<Outcome<File>> = CompletableDeferred(),
         var generation: Int = 0,
         var running: Boolean = false,
@@ -841,6 +858,7 @@ class MediaRepository(
     }
 
     companion object {
+        const val THUMB_WORKERS = 2
         const val TELEGRAM_WORKERS = 5
         const val MAX_LARGE_PIPELINES = 2
         @Volatile

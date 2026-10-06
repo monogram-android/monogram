@@ -290,7 +290,7 @@ pub enum UpdateEventDto {
 
 #[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct NotifySettingsDto {
-    pub show_previews: bool,
+    pub show_previews: Option<bool>,
     pub silent: bool,
     pub mute_until: i32,
     pub stories_muted: bool,
@@ -303,7 +303,7 @@ pub struct NotifyExceptionDto {
     pub peer_kind: String,
     pub chat_id: i64,
     pub topic_id: Option<i32>,
-    pub show_previews: bool,
+    pub show_previews: Option<bool>,
     pub silent: bool,
     pub mute_until: i32,
     pub stories_muted: bool,

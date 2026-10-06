@@ -4,8 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import org.monogram.core.database.entity.ChatEntity
 import kotlinx.coroutines.flow.Flow
+import org.monogram.core.database.entity.ChatEntity
 
 data class ChatReadState(
     val id: Long,
@@ -39,14 +39,14 @@ interface ChatDao {
     @Query("UPDATE chats SET unreadReactionsCount = MAX(0, unreadReactionsCount + :delta) WHERE id = :chatId")
     suspend fun addUnreadReactions(chatId: Long, delta: Int)
 
-    @Query("SELECT * FROM chats ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC")
+    @Query("SELECT * FROM chats ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC")
     suspend fun observeAll(): List<ChatEntity>
 
     @Query(
         """
         SELECT * FROM chats
         WHERE `left` = 0 AND archived = 0
-        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC
+        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC
         LIMIT :limit OFFSET :offset
         """,
     )
@@ -56,7 +56,7 @@ interface ChatDao {
         """
         SELECT * FROM chats
         WHERE `left` = 0 AND archived = 1
-        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC
+        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC
         LIMIT :limit
         """,
     )
@@ -66,11 +66,14 @@ interface ChatDao {
         """
         SELECT * FROM chats
         WHERE `left` = 0 AND archived = 1 AND id NOT IN (:excludeIds)
-        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC
+        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC
         LIMIT :limit
         """,
     )
     suspend fun archiveExcluding(excludeIds: List<Long>, limit: Int): List<ChatEntity>
+
+    @Query("SELECT * FROM chats WHERE lastMessageId IN (:ids) AND (:chatId IS NULL OR id = :chatId) AND (:chatId IS NOT NULL OR id > -1000000000000)")
+    suspend fun withLastMessageIds(chatId: Long?, ids: List<Int>): List<ChatEntity>
 
     @Query("SELECT COUNT(*) FROM chats WHERE `left` = 0 AND archived = 0")
     suspend fun mainListCount(): Int
@@ -79,11 +82,35 @@ interface ChatDao {
         """
         SELECT * FROM chats
         WHERE `left` = 0 AND archived = 0 AND id NOT IN (:excludeIds)
-        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC
+        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC
         LIMIT :limit
         """,
     )
     suspend fun mainListExcluding(excludeIds: List<Long>, limit: Int): List<ChatEntity>
+
+    @Query(
+        """
+        SELECT * FROM chats
+        WHERE `left` = 0 AND archived = :archived AND (
+            pinned < :pinned OR
+            (pinned = :pinned AND pinnedOrder > :pinnedOrder) OR
+            (pinned = :pinned AND pinnedOrder = :pinnedOrder AND
+                (:date IS NOT NULL AND (lastMessageDate < :date OR lastMessageDate IS NULL))) OR
+            (pinned = :pinned AND pinnedOrder = :pinnedOrder AND
+                lastMessageDate IS :date AND id < :id)
+        )
+        ORDER BY pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun afterCursor(
+        archived: Boolean,
+        pinned: Boolean,
+        pinnedOrder: Int,
+        date: Long?,
+        id: Long,
+        limit: Int
+    ): List<ChatEntity>
 
     @Query("SELECT * FROM chats WHERE id = :id LIMIT 1")
     suspend fun get(id: Long): ChatEntity?

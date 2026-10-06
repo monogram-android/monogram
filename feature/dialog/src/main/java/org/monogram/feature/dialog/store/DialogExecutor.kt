@@ -23,23 +23,21 @@ import org.monogram.core.models.UploadItem
 import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.preferredPeerTitle
 import org.monogram.core.models.replaceComposedDialogSeed
-import org.monogram.core.models.replaceComposedDialogSeed
-import org.monogram.core.models.toggleChosenReaction
 import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.HISTORY_CACHE_LIMIT
 import org.monogram.feature.dialog.HISTORY_FIRST_LIMIT
 import org.monogram.feature.dialog.PinnedBarMemory
-import org.monogram.feature.dialog.encodeSenderTags
-import org.monogram.feature.dialog.pinnedMetaKey
-import org.monogram.feature.dialog.tagsMetaKey
 import org.monogram.feature.dialog.SavedGifMemory
 import org.monogram.feature.dialog.SenderTagMemory
 import org.monogram.feature.dialog.applyMessageEdit
 import org.monogram.feature.dialog.contiguousHistoryFromNewest
+import org.monogram.feature.dialog.encodeSenderTags
 import org.monogram.feature.dialog.historyHasMore
 import org.monogram.feature.dialog.mergeSenderTags
 import org.monogram.feature.dialog.parseUpdateMessageId
+import org.monogram.feature.dialog.pinnedMetaKey
+import org.monogram.feature.dialog.tagsMetaKey
 import org.monogram.feature.dialog.unreadDividerIndex
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
@@ -98,6 +96,7 @@ internal class DialogExecutor(
     internal var forumUnknown: Boolean = seedIsForum == null
     internal var pendingJump = jumpToMessageId
     internal var inFlightSends = 0
+    internal var draftPreviewJob: Job? = null
     internal val typingJobs = HashMap<Long, Job>()
     internal val viewersInFlight = mutableSetOf<Int>()
     internal val readDatesInFlight = mutableSetOf<Int>()
@@ -299,6 +298,15 @@ internal class DialogExecutor(
             }
             DialogStore.Intent.LoadOlder -> loadOlder()
             DialogStore.Intent.LoadNewer -> loadNewer()
+            is DialogStore.Intent.SetDraftFormatting -> {
+                dispatch(Msg.DraftFormatting(intent.enabled))
+                scheduleDraftPreview()
+            }
+            is DialogStore.Intent.SetDraftEntities -> {
+                dispatch(Msg.DraftEntities(intent.entities))
+                dispatch(Msg.DraftFormatting(true))
+                scheduleDraftPreview()
+            }
             is DialogStore.Intent.DraftChanged -> {
                 if (state().draft != intent.value) {
                     applyDraft(intent.value)
@@ -343,6 +351,9 @@ internal class DialogExecutor(
                 dispatch(Msg.PendingAttach(emptyList()))
                 dispatch(Msg.Editing(intent.message))
                 applyDraft(intent.message.text.orEmpty())
+                dispatch(Msg.DraftFormatting(false))
+                dispatch(Msg.DraftEntities(intent.message.entities))
+                scheduleDraftPreview()
             }
             DialogStore.Intent.CancelEdit -> {
                 dispatch(Msg.Editing(null))

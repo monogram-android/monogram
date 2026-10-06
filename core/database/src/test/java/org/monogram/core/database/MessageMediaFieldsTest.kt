@@ -16,7 +16,7 @@ import org.monogram.core.models.ReplyMarkupKind
 class MessageMediaFieldsTest {
     @Test
     fun schemaVersionIsCurrent() {
-        assertEquals(4, DatabaseProvider.SCHEMA_VERSION)
+        assertEquals(5, DatabaseProvider.SCHEMA_VERSION)
     }
 
     @Test
@@ -94,7 +94,7 @@ class MessageMediaFieldsTest {
     @Test
     fun chatRoundtripsUnreadMentionAndReactionCounts() {
         val chat = org.monogram.core.models.Chat(
-            id = org.monogram.core.models.PeerId(9),
+            id = PeerId(9),
             title = "Ada",
             unreadMentionsCount = 3,
             unreadReactionsCount = 2,

@@ -123,6 +123,7 @@ internal fun ColumnScope.DialogHistoryPane(
     )
     var lastScrolledAnchor by rememberSaveable(state.chatId.value) { mutableStateOf<Int?>(null) }
     var followBottom by rememberSaveable(state.chatId.value) { mutableStateOf(false) }
+    var previousFromCache by rememberSaveable(state.chatId.value) { mutableStateOf(false) }
     var previousCount by rememberSaveable(state.chatId.value) { mutableIntStateOf(0) }
     var previousNewestId by rememberSaveable(state.chatId.value) { mutableStateOf<Int?>(null) }
     var menuMessageId by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -202,7 +203,12 @@ internal fun ColumnScope.DialogHistoryPane(
                             )
                         }
                     }
-                    LaunchedEffect(state.messages.firstOrNull()?.id?.id, state.messages.size) {
+                    LaunchedEffect(
+                        state.messages.firstOrNull()?.id?.id,
+                        state.messages.size,
+                        state.fromCache,
+                    ) {
+                        val cacheToNetwork = previousFromCache && !state.fromCache
                         val newestId = state.messages.firstOrNull()?.id?.id
                         val grew = state.messages.size > previousCount && previousCount > 0
                         val newestArrived =
@@ -216,10 +222,12 @@ internal fun ColumnScope.DialogHistoryPane(
                                 scrolling = listState.isScrollInProgress,
                                 newestArrived = newestArrived,
                                 olderPageGrew = olderPageGrew,
+                                cacheToNetwork = cacheToNetwork,
                             )
                         ) {
                             listState.scrollToItem(0)
                         }
+                        previousFromCache = state.fromCache
                     }
                     val zone = remember { ZoneId.systemDefault() }
                     val messageHeads = remember(state.messages) {
@@ -792,7 +800,7 @@ internal fun ColumnScope.DialogHistoryPane(
             }
             var dateOverlayEpoch by remember { mutableStateOf<Long?>(null) }
             var dateOverlayVisible by remember { mutableStateOf(false) }
-            val overlayZone = remember { java.time.ZoneId.systemDefault() }
+            val overlayZone = remember { ZoneId.systemDefault() }
             LaunchedEffect(listState, state.messages) {
                 snapshotFlow {
                     val scrolling = listState.isScrollInProgress

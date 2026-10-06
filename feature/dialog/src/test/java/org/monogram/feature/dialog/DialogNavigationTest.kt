@@ -511,6 +511,16 @@ class DialogNavigationTest {
                 olderPageGrew = false,
             ),
         )
+        assertEquals(
+            false,
+            shouldFollowIncomingNewest(
+                followBottom = true,
+                scrolling = false,
+                newestArrived = true,
+                olderPageGrew = false,
+                cacheToNetwork = true,
+            ),
+        )
     }
 
     @Test

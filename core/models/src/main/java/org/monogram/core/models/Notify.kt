@@ -18,6 +18,7 @@ data class NotifySettings(
     val storiesMuted: Boolean = false,
     val storiesHideSender: Boolean = false,
     val sound: String = "default",
+    val previewInherited: Boolean = false,
 ) {
     /** `mute_until` at or before [now] is unmuted; 0 is unmuted and `Int.MAX_VALUE` is forever. */
     fun isMuted(now: Int): Boolean = muteUntil > now

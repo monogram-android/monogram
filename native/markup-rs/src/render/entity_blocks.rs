@@ -2,7 +2,6 @@ use crate::utf16::utf16_len;
 use crate::{MarkupBlockDto, MarkupEntityDto};
 
 use super::block;
-use super::markdown_blocks::{is_rule_line, parse_loose_pipe_table};
 
 fn byte_at_utf16(text: &str, offset: i32) -> Option<usize> {
     if offset < 0 {
@@ -124,20 +123,6 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
             slice_entities(&valid, entity.offset, end),
         );
         if kind == "code" {
-            let source = &current.text;
-            let language = entity
-                .extra
-                .as_deref()
-                .unwrap_or("")
-                .trim()
-                .to_ascii_lowercase();
-            if language == "table" || language == "markdown-table" {
-                if let Some(table) = parse_loose_pipe_table(source) {
-                    blocks.push(table);
-                    cursor = end;
-                    continue;
-                }
-            }
             current.language = entity.extra.clone();
             current.entities.clear();
         }
@@ -228,85 +213,13 @@ fn push_entity_paragraph(
     push_plain_gap(content, entities, from, blocks);
 }
 
-fn unicode_task_line(line: &str) -> Option<(bool, String)> {
-    let trimmed = line
-        .trim_start()
-        .replace('\u{fe0f}', "")
-        .replace('\u{fe0e}', "");
-    let mut chars = trimmed.chars();
-    let mark = chars.next()?;
-    let rest = chars.as_str().trim().to_string();
-    match mark {
-        '\u{2611}' | '\u{2705}' | '\u{2714}' | '\u{2612}' => Some((true, rest)),
-        '\u{2610}' | '\u{25A1}' | '\u{25A2}' | '\u{25CB}' => Some((false, rest)),
-        _ => None,
-    }
-}
-
 fn push_plain_gap(
     content: &str,
     entities: &[MarkupEntityDto],
     from: i32,
     blocks: &mut Vec<MarkupBlockDto>,
 ) {
-    let lines: Vec<&str> = content.lines().collect();
-    let mut i = 0;
-    let mut utf16 = from;
-    while i < lines.len() {
-        if let Some((done, item)) = unicode_task_line(lines[i]) {
-            let mut rows = vec![vec![if done { "1".into() } else { "0".into() }, item]];
-            utf16 += utf16_len(lines[i]) + 1;
-            i += 1;
-            while i < lines.len() {
-                let Some((done, item)) = unicode_task_line(lines[i]) else {
-                    break;
-                };
-                rows.push(vec![if done { "1".into() } else { "0".into() }, item]);
-                utf16 += utf16_len(lines[i]) + 1;
-                i += 1;
-            }
-            let text = rows
-                .iter()
-                .map(|row| row.get(1).cloned().unwrap_or_default())
-                .collect::<Vec<_>>()
-                .join("\n");
-            blocks.push(MarkupBlockDto {
-                kind: "tasks".into(),
-                text,
-                entities: Vec::new(),
-                language: None,
-                level: 0,
-                headers: Vec::new(),
-                rows,
-            });
-            continue;
-        }
-        if is_rule_line(lines[i].trim()) {
-            blocks.push(block("rule", String::new(), Vec::new()));
-            utf16 += utf16_len(lines[i]) + 1;
-            i += 1;
-            continue;
-        }
-        let para_from = utf16;
-        let mut paragraph = String::new();
-        while i < lines.len()
-            && unicode_task_line(lines[i]).is_none()
-            && !is_rule_line(lines[i].trim())
-        {
-            if !paragraph.is_empty() {
-                paragraph.push('\n');
-            }
-            paragraph.push_str(lines[i]);
-            utf16 += utf16_len(lines[i]) + 1;
-            i += 1;
-        }
-        if !paragraph.trim().is_empty() {
-            let cleaned = paragraph.replace('\u{FFFC}', "");
-            blocks.push(block(
-                "paragraph",
-                cleaned.clone(),
-                slice_entities(entities, para_from, para_from + utf16_len(&cleaned)),
-            ));
-        }
+    if !content.is_empty() {
+        blocks.push(block("paragraph", content.into(), slice_entities(entities, from, from + utf16_len(content))));
     }
 }

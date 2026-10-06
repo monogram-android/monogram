@@ -9,15 +9,17 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
+import org.monogram.core.common.PerfLog
 import org.monogram.core.database.dao.ChatReadState
+import org.monogram.core.database.entity.MessageHoleEntity
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
 import org.monogram.core.models.Message
-import org.monogram.core.models.Profile
-import org.monogram.core.models.isPlaceholderPeerTitle
-import org.monogram.core.models.chatListPreviewSource
-import org.monogram.core.models.mergeLocalCache
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.Profile
+import org.monogram.core.models.chatListPreviewSource
+import org.monogram.core.models.isPlaceholderPeerTitle
+import org.monogram.core.models.mergeLocalCache
 
 /**
  * Reads cached dialogs/folders/messages for UI hydration before network sync.
@@ -29,6 +31,36 @@ open class OfflineWarmup(
     private val db: MonogramDatabase? = null,
 ) {
     private val cleanupMutex = Mutex()
+    @Volatile
+    private var firstPaintSnapshot: OfflineWarmupSnapshot? = null
+
+    fun startupSnapshot(): OfflineWarmupSnapshot? = firstPaintSnapshot
+
+    fun takeStartupSnapshot(): OfflineWarmupSnapshot? = synchronized(this) {
+        firstPaintSnapshot.also { firstPaintSnapshot = null }
+    }
+
+    suspend fun prepareStartupSnapshot(sessionStore: SessionMetadataStore) {
+        ensureStartupCleanup()
+        val started = PerfLog.nowMs()
+        val chats = chatsWindow(40)
+        val selfId = sessionStore.readAuthorizedUserId()
+        val snapshot = OfflineWarmupSnapshot(
+            chats = chats,
+            folders = folders(),
+            self = selfId?.let { sessionStore.readProfile(it.value) },
+            mainCount = mainListCount(),
+        )
+        synchronized(this) { firstPaintSnapshot = snapshot }
+        PerfLog.mark("cache:startupSnapshot", PerfLog.nowMs() - started, "count=${chats.size}")
+    }
+
+    open suspend fun chatsAfter(cursor: ChatCacheCursor, limit: Int): List<Chat> = roomIo {
+        db?.chatDao()?.afterCursor(
+            cursor.archived, cursor.pinned, cursor.pinnedOrder,
+            cursor.lastMessageDate, cursor.id, limit
+        )?.map { it.toModel() }.orEmpty()
+    }
 
     /** Callers use this to skip redundant dispatcher hops for in-memory cache adapters. */
     open val usesIoDispatcher: Boolean get() = db != null
@@ -46,6 +78,7 @@ open class OfflineWarmup(
         if (startupCleanupDone) return
         cleanupMutex.withLock {
             if (startupCleanupDone) return@withLock
+            val started = PerfLog.nowMs()
             try {
                 dropUnsentAfterRestart()
             } catch (cancellation: CancellationException) {
@@ -54,6 +87,7 @@ open class OfflineWarmup(
                 AppLog.warn("warmup", "startup cleanup failed")
             }
             startupCleanupDone = true
+            PerfLog.mark("cache:startupCleanup", PerfLog.nowMs() - started)
         }
     }
 
@@ -286,6 +320,9 @@ open class OfflineWarmup(
         }
         return withContext(Dispatchers.IO) {
             ensureStartupCleanup()
+            val holes =
+                database.messageHoleDao().forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
+            if (ids.any { id -> holes.any { id in it.startId..it.endId } }) return@withContext emptyList()
             val rows = database.messageDao().byIds(chatId.value, ids).map { it.toModel() }
             val byId = rows.associateBy { it.id.id }
             ids.mapNotNull { byId[it] }
@@ -299,7 +336,14 @@ open class OfflineWarmup(
         }
         return withContext(Dispatchers.IO) {
             ensureStartupCleanup()
-            database.messageDao().olderThan(chatId.value, beforeId, limit).map { it.toModel() }
+            val rows = database.messageDao().olderThan(chatId.value, beforeId, limit)
+            if (rows.isEmpty()) return@withContext emptyList()
+            if (database.messageHoleDao().overlaps(
+                    chatId.value, rows.minOf { it.id }, beforeId - 1,
+                    MessageHoleEntity.SOURCE_HISTORY
+                )
+            ) return@withContext emptyList()
+            rows.map { it.toModel() }
         }
     }
 
@@ -310,7 +354,73 @@ open class OfflineWarmup(
         }
         return withContext(Dispatchers.IO) {
             ensureStartupCleanup()
-            database.messageDao().newerThan(chatId.value, afterId, limit).map { it.toModel() }
+            val rows = database.messageDao().newerThan(chatId.value, afterId, limit)
+            if (rows.isEmpty()) return@withContext emptyList()
+            if (database.messageHoleDao().overlaps(
+                    chatId.value, afterId + 1, rows.maxOf { it.id },
+                    MessageHoleEntity.SOURCE_HISTORY
+                )
+            ) return@withContext emptyList()
+            rows.map { it.toModel() }
+        }
+    }
+
+    open suspend fun hasHistoryHole(chatId: PeerId, startId: Int, endId: Int): Boolean = roomIo {
+        db?.messageHoleDao()
+            ?.overlaps(chatId.value, startId, endId, MessageHoleEntity.SOURCE_HISTORY) ?: false
+    }
+
+    open suspend fun cacheHistoryPage(
+        chatId: PeerId,
+        messages: List<Message>,
+        reachesNewest: Boolean = false,
+        reachesOldest: Boolean = false,
+        olderBoundary: Int? = null,
+    ) = roomIo {
+        val database = db
+        if (database == null) {
+            upsertMessages(messages)
+            return@roomIo
+        }
+        database.withTransaction {
+            val metaKey = "history_coverage:${chatId.value}"
+            if (database.metaDao().get(metaKey) == null) {
+                markHistoryHole(chatId, 1, Int.MAX_VALUE)
+                database.metaDao()
+                    .upsert(org.monogram.core.database.entity.MetaEntity(metaKey, "1"))
+            }
+            upsertMessages(messages)
+            val ids = messages.filter { !it.pending && it.id.id > 0 }.map { it.id.id }
+            val min = if (reachesOldest) 1 else ids.minOrNull()
+            val max =
+                if (reachesNewest) Int.MAX_VALUE else olderBoundary?.minus(1) ?: ids.maxOrNull()
+            if (min != null && max != null && min <= max) closeHistoryHole(chatId, min, max)
+        }
+    }
+
+    open suspend fun markHistoryHole(chatId: PeerId, startId: Int, endId: Int) = roomIo {
+        if (startId > endId) return@roomIo
+        val database = db ?: return@roomIo
+        database.withTransaction {
+            val dao = database.messageHoleDao()
+            val holes = mergeHistoryHoles(
+                dao.forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY) +
+                        MessageHoleEntity(chatId.value, startId, endId)
+            )
+            dao.clearChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
+            holes.forEach { dao.insert(it) }
+        }
+    }
+
+    open suspend fun closeHistoryHole(chatId: PeerId, startId: Int, endId: Int) = roomIo {
+        if (startId > endId) return@roomIo
+        val database = db ?: return@roomIo
+        database.withTransaction {
+            val dao = database.messageHoleDao()
+            val holes = dao.forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
+                .flatMap { subtractHistoryRange(it, startId, endId) }
+            dao.clearChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
+            holes.forEach { dao.insert(it) }
         }
     }
 
@@ -331,19 +441,7 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun replaceChats(chats: List<Chat>) = roomIo {
-        val database = db ?: return@roomIo
-        database.withTransaction {
-            val stored = database.chatDao().observeAll().associateBy { it.id }
-            database.chatDao().clear()
-            if (chats.isEmpty()) return@withTransaction
-            database.chatDao().upsertAll(
-                chats.map { chat ->
-                    chat.mergeLocalCache(stored[chat.id.value]?.toModel()).toEntity()
-                },
-            )
-        }
-    }
+    open suspend fun replaceChats(chats: List<Chat>) = upsertChats(chats)
 
     open suspend fun applyProfileToChat(profile: Profile) {
         val stored = roomIo { db?.chatDao()?.get(profile.id.value)?.toModel() } ?: return
@@ -410,10 +508,8 @@ open class OfflineWarmup(
         database.withTransaction {
             // DAO read, not `chats()`: a gated read here would wait on the startup-cleanup mutex
             // while this transaction is open and then open a nested one.
-            val affected = database.chatDao().observeAll().map { it.toModel() }.filter {
-                (chatId == it.id || (chatId == null && it.id.value > -1_000_000_000_000L)) &&
-                    it.lastMessageId in ids
-            }
+            val affected =
+                database.chatDao().withLastMessageIds(chatId?.value, ids).map { it.toModel() }
             if (chatId != null) {
                 database.messageDao().deleteInChat(chatId.value, ids)
             } else {
@@ -487,6 +583,7 @@ open class OfflineWarmup(
 
     /** Drops cached chats/history/peers/folders. Auth flags are [SessionMetadataStore.clearSession]. */
     open suspend fun clearAccountCache() = roomIo {
+        firstPaintSnapshot = null
         val database = db ?: return@roomIo
         database.messageDao().clearAll()
         database.chatDao().clear()
@@ -497,6 +594,8 @@ open class OfflineWarmup(
         database.profileMembersDao().clear()
         database.profileMediaDao().clear()
         database.profileCommonDao().clear()
+        database.messageHoleDao().clearAll()
+        database.metaDao().deleteLike("history_coverage:%")
         database.metaDao().deleteLike("${DRAFT_META_PREFIX}%")
     }
 

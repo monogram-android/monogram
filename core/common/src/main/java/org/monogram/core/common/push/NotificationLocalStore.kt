@@ -236,7 +236,6 @@ class NotificationLocalStore(context: Context) {
             popupStories = categoryPopup("stories"),
             popupReactions = categoryPopup("reactions"),
             badgeMuted = badgeMuted,
-            showPreview = inAppPreview,
         )
 
     fun secret(): ByteArray {

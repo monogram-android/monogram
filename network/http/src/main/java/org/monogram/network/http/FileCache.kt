@@ -19,6 +19,7 @@ class FileCache(
     private val records = LinkedHashMap<String, CacheRecord>()
     private val recordsLock = Any()
     private var indexLoaded = false
+    private val protectedKeys = HashMap<String, Set<String>>()
 
     init {
         root.mkdirs()
@@ -44,6 +45,11 @@ class FileCache(
         if (!file.exists()) return null
         file.setLastModified(System.currentTimeMillis())
         return file
+    }
+
+    fun setProtectedKeys(owner: String, keys: Collection<String>) = synchronized(recordsLock) {
+        if (keys.isEmpty()) protectedKeys.remove(owner)
+        else protectedKeys[owner] = keys.filter(String::isNotBlank).toSet()
     }
 
     fun put(key: String, bytes: ByteArray, chatId: Long? = null, kind: String? = null): File =
@@ -152,6 +158,9 @@ class FileCache(
         val ordered = files.sortedBy { it.lastModified() }
         for (file in ordered) {
             if (total <= maxBytes) break
+            val recordKey =
+                records.keys.firstOrNull { fileFor(it).canonicalFile == file.canonicalFile }
+            if (protectedKeys.values.any { recordKey in it }) continue
             val len = file.length()
             if (file.delete()) {
                 total -= len

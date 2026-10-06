@@ -9,7 +9,7 @@ import org.monogram.core.models.TextEntity
 internal fun rememberMessageBlocks(
     text: String,
     entities: List<TextEntity>,
-    parseMarkdown: Boolean = true,
+    parseMarkdown: Boolean = false,
 ): List<RichBlock> {
     val parser = LocalMarkupParser.current
     return remember(text, entities, parseMarkdown, parser) {

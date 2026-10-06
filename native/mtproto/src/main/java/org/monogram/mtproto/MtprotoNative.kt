@@ -433,7 +433,7 @@ interface MtprotoNative {
         handle: Long,
         peerKind: String,
         chatId: Long,
-        showPreviews: Boolean,
+        showPreviews: Boolean?,
         silent: Boolean,
         muteUntil: Int,
         storiesMuted: Boolean,

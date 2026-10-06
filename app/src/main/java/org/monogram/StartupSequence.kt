@@ -31,10 +31,10 @@ internal suspend fun runFirstPaintStartup(
         val database = async { steps.openDatabase() }
         val client = async { steps.createClient() }
         database.await()
-        background.launch { steps.cleanup() }
+        steps.cleanup()
         client.await()
         background.launch { steps.prewarm() }
-        background.launch { steps.mediaMigration() }
+
         steps.installDownloadSettings()
         steps.createMedia()
         steps.createPush()

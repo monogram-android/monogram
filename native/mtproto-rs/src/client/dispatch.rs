@@ -1093,7 +1093,7 @@ pub fn update_notify_settings(
     handle: u64,
     peer_kind: String,
     chat_id: i64,
-    show_previews: bool,
+    show_previews: Option<bool>,
     silent: bool,
     mute_until: i32,
     stories_muted: bool,

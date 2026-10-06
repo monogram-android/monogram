@@ -104,7 +104,13 @@ fun decideNotification(
     if ((settings.isMuted(nowSeconds) || mode?.isMuted(nowSeconds) == true) && !mentionAllowed) {
         return hidden(kind)
     }
-    val preview = state.showPreview && settings.showPreviews && state.inAppPreview && (mode?.preview ?: true)
+    val parentSettings = settingsFor(chatId, kind, state)
+    val categorySettings = settingsFor(chatId, kind, state.copy(exceptions = emptyMap()))
+    val parentPreview = if (parentSettings.previewInherited) categorySettings.showPreviews
+    else parentSettings.showPreviews
+    val settingsPreview = if (settings.previewInherited) parentPreview else settings.showPreviews
+    val preview = state.showPreview && settingsPreview &&
+            (!appInForeground || state.inAppPreview) && (mode?.preview ?: true)
     val calls = kind == PushChannelKind.Calls
     val sound = !payload.silent && !settings.silent && (mode?.sound ?: true) &&
         (!appInForeground || state.inAppSound) && !(calls && state.callsRingtone == "none")

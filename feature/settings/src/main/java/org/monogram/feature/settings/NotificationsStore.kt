@@ -431,7 +431,7 @@ internal class NotificationsStoreFactory(
         }
 
         private fun setPreview(kind: String, preview: Boolean) {
-            updateKind(kind) { it.copy(showPreviews = preview) }
+            updateKind(kind) { it.copy(showPreviews = preview, previewInherited = false) }
         }
 
         private fun updateKind(kind: String, transform: (NotifySettings) -> NotifySettings) {

@@ -38,7 +38,6 @@ import androidx.compose.material.icons.outlined.MarkChatUnread
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -109,6 +108,7 @@ import org.monogram.core.ui.perf.perfSpan
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.feature.chats.ChatsComponent
+import org.monogram.feature.chats.DIALOGS_PAINT_LIMIT
 import org.monogram.feature.chats.FolderListScroll
 import org.monogram.feature.chats.R
 import org.monogram.feature.chats.archivePreviewTitles
@@ -159,7 +159,10 @@ fun ChatsContent(
     }
     if (!selectingRecipient && state.chats.isEmpty() && state.loading && state.error == null) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+            ChatListSkeleton(
+                itemCount = DIALOGS_PAINT_LIMIT,
+                showAvatar = appearance.showChatAvatars
+            )
         }
         return
     }
@@ -446,7 +449,7 @@ fun ChatsContent(
                         },
                         navigationIcon = {
                             androidx.compose.material3.IconButton(onClick = onCancelSelection) {
-                                androidx.compose.material3.Icon(
+                                Icon(
                                     imageVector = Icons.Outlined.Close,
                                     contentDescription = stringResource(R.string.chats_share_cancel),
                                 )
@@ -459,7 +462,7 @@ fun ChatsContent(
                                     if (searchOpen) searchFocusRequest += 1
                                 },
                             ) {
-                                androidx.compose.material3.Icon(
+                                Icon(
                                     imageVector = if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search,
                                     contentDescription = stringResource(
                                         if (searchOpen) R.string.chats_search_close else R.string.chats_search,
@@ -573,7 +576,7 @@ fun ChatsContent(
                     Box(modifier = Modifier
                         .weight(1f)
                         .fillMaxSize()) {
-                        androidx.compose.animation.AnimatedVisibility(
+                        AnimatedVisibility(
                             visible = state.loading && paneEmpty && !folderMoving,
                             modifier = Modifier.fillMaxSize(),
                             enter = fadeIn(animationSpec = tween(180)),
@@ -951,7 +954,7 @@ private fun rememberDebouncedSync(
             status == AppSyncStatus.Hidden -> shown = AppSyncStatus.Hidden
             immediate -> shown = status
             else -> {
-                kotlinx.coroutines.delay(220)
+                delay(220)
                 shown = status
             }
         }
@@ -1106,7 +1109,7 @@ internal fun FolderEmptyState(
 @Composable
 private fun listMotionEnabled(): Boolean =
     android.provider.Settings.Global.getFloat(
-        androidx.compose.ui.platform.LocalContext.current.contentResolver,
+        LocalContext.current.contentResolver,
         android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
         1f,
     ) > 0f

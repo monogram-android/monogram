@@ -101,7 +101,8 @@ fn settings_dto(settings: &PeerNotifySettings) -> NotifySettingsDto {
         return NotifySettingsDto::default();
     };
     NotifySettingsDto {
-        show_previews: as_bool(&body.show_previews),
+        show_previews: body.show_previews.as_ref()
+            .map(|flag| matches!(flag.as_ref(), Bool::BoolTrue(_))),
         silent: as_bool(&body.silent),
         mute_until: body.mute_until.unwrap_or(0),
         stories_muted: as_bool(&body.stories_muted),
@@ -239,17 +240,19 @@ pub fn update_notify_settings(
     peers: &HashMap<i64, CachedPeer>,
     peer_kind: String,
     chat_id: i64,
-    show_previews: bool,
+    show_previews: Option<bool>,
     silent: bool,
     mute_until: i32,
     stories_muted: bool,
     sound: String,
 ) -> Result<(), MtprotoError> {
-    let mut flags = InputPeerNotifySettingsConstructor::SHOW_PREVIEWS_FLAG
-        | InputPeerNotifySettingsConstructor::SILENT_FLAG
+    let mut flags = InputPeerNotifySettingsConstructor::SILENT_FLAG
         | InputPeerNotifySettingsConstructor::MUTE_UNTIL_FLAG
         | InputPeerNotifySettingsConstructor::STORIES_MUTED_FLAG;
     let sound_value = sound_from_name(&sound);
+    if show_previews.is_some() {
+        flags |= InputPeerNotifySettingsConstructor::SHOW_PREVIEWS_FLAG;
+    }
     if sound_value.is_some() {
         flags |= InputPeerNotifySettingsConstructor::SOUND_FLAG;
     }
@@ -261,7 +264,7 @@ pub fn update_notify_settings(
             settings: Box::new(InputPeerNotifySettings::InputPeerNotifySettings(
                 InputPeerNotifySettingsConstructor {
                     flags,
-                    show_previews: Some(tl_bool(show_previews)),
+                    show_previews: show_previews.map(tl_bool),
                     silent: Some(tl_bool(silent)),
                     mute_until: Some(mute_until),
                     sound: sound_value,

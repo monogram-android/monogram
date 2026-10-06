@@ -12,7 +12,7 @@ object DatabaseProvider {
     @Volatile
     private var instance: MonogramDatabase? = null
 
-    const val SCHEMA_VERSION = 4
+    const val SCHEMA_VERSION = 5
 
     val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -36,6 +36,12 @@ object DatabaseProvider {
             db.execSQL(
                 "ALTER TABLE chats ADD COLUMN canManageTopics INTEGER NOT NULL DEFAULT 0",
             )
+        }
+    }
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_chats_archived_left_pinned_pinnedOrder_lastMessageDate_id ON chats (archived ASC, `left` ASC, pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS message_holes (chatId INTEGER NOT NULL, startId INTEGER NOT NULL, endId INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(chatId, startId, endId, source))")
         }
     }
     private const val DB_NAME = "monogram.db"
@@ -84,7 +90,13 @@ object DatabaseProvider {
 
     private fun build(app: Context): MonogramDatabase =
         Room.databaseBuilder(app, MonogramDatabase::class.java, DB_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+            .addCallback(object : androidx.room.RoomDatabase.Callback() {
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    db.execSQL("PRAGMA synchronous=NORMAL")
+                }
+            })
             .fallbackToDestructiveMigration(dropAllTables = true)
             .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
             .build()

@@ -7,7 +7,8 @@ import uniffi.monogram_mtproto.NotifyExceptionDto
 import uniffi.monogram_mtproto.NotifySettingsDto
 
 internal fun NotifySettingsDto.toModel(): NotifySettings = NotifySettings(
-    showPreviews = showPreviews,
+    showPreviews = showPreviews ?: true,
+    previewInherited = showPreviews == null,
     silent = silent,
     muteUntil = muteUntil,
     storiesMuted = storiesMuted,
@@ -20,7 +21,8 @@ internal fun NotifyExceptionDto.toModel(): NotifyException = NotifyException(
     chatId = PeerId(chatId),
     topicId = topicId,
     settings = NotifySettings(
-        showPreviews = showPreviews,
+        showPreviews = showPreviews ?: true,
+        previewInherited = showPreviews == null,
         silent = silent,
         muteUntil = muteUntil,
         storiesMuted = storiesMuted,

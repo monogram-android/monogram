@@ -530,10 +530,11 @@ internal class ChatsExecutor(
         dispatch(Msg.Error(null))
         scope.launch {
             try {
-                val cached = warmup?.chatsWindow(DIALOGS_NETWORK_PAGE).orEmpty()
-                roomMainCount = warmup?.mainListCount()?.takeIf { it > 0 }
+                val snapshot = if (!force) warmup?.takeStartupSnapshot() else null
+                val cached = snapshot?.chats ?: warmup?.chatsWindow(DIALOGS_NETWORK_PAGE).orEmpty()
+                roomMainCount = snapshot?.mainCount ?: warmup?.mainListCount()?.takeIf { it > 0 }
                     ?: cached.count { it.isMainListRow() }
-                if (cached.isNotEmpty() && (!hasMemory || force)) {
+                if (cached.isNotEmpty() && (!hasMemory || force || snapshot != null)) {
                     AppLog.api(
                         "chats",
                         "cache hit count=${cached.size} main=$roomMainCount",

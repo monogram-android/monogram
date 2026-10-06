@@ -320,7 +320,8 @@ fun shouldFollowIncomingNewest(
     scrolling: Boolean,
     newestArrived: Boolean,
     olderPageGrew: Boolean,
-): Boolean = followBottom && !scrolling && newestArrived && !olderPageGrew
+    cacheToNetwork: Boolean = false,
+): Boolean = followBottom && !scrolling && newestArrived && !olderPageGrew && !cacheToNetwork
 
 /** Content inserts can bump [firstVisibleIndex] without a user gesture. Only drop
  * follow-bottom while a scroll is in progress; restore it when the latest row is

@@ -29,10 +29,12 @@ class DialogMediaPreloader(
             ivJob?.cancel()
             mediaJob = null
             ivJob = null
+            mediaRepository?.protectCacheKeys("dialog:${chatId.value}", emptySet())
             mediaRepository?.cancelChat(chatId, belowPriority = MediaPriority.VISIBLE)
             return
         }
         val plan = DialogMediaPreload.plan(messages, visibleIds)
+        mediaRepository?.protectCacheKeys("dialog:${chatId.value}", plan.mediaKeys)
         val signature = plan.signature()
         if (signature == lastSignature) return
         lastSignature = signature
@@ -68,6 +70,7 @@ class DialogMediaPreloader(
         ivJob?.cancel()
         mediaJob = null
         ivJob = null
+        mediaRepository?.protectCacheKeys("dialog:${chatId.value}", emptySet())
         mediaRepository?.cancelChat(chatId, belowPriority = MediaPriority.USER)
     }
 
@@ -85,4 +88,5 @@ class DialogMediaPreloader(
                 repository?.ensureLocalMessageMedia(task.message, task.priority)
         }
     }
+
 }

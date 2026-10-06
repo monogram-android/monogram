@@ -1,7 +1,6 @@
 package org.monogram.feature.dialog.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -20,6 +19,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -32,43 +34,38 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.dp
-import kotlin.math.max
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import org.monogram.core.markup.CodeHighlight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.monogram.core.models.RichBlock
 import org.monogram.core.models.TaskItem
 import org.monogram.core.models.TextEntity
 import org.monogram.feature.dialog.R
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
+import kotlin.math.max
 
 @Composable
 internal fun RichMessageContent(
@@ -85,7 +82,7 @@ internal fun RichMessageContent(
     onTextLayout: (androidx.compose.ui.text.TextLayoutResult) -> Unit = {},
     onOpenStickerPack: ((Long) -> Unit)? = null,
     preparedBlocks: List<RichBlock>? = null,
-    parseMarkdown: Boolean = true,
+    parseMarkdown: Boolean = false,
     hostMessage: org.monogram.core.models.Message? = null,
     mediaRepository: org.monogram.network.http.MediaRepository? = null,
 ) {
@@ -404,7 +401,14 @@ private fun CodeBlockView(
                 .clip(CircleShape)
                 .clickable {
                     scope.launch {
-                        clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("text", code)))
+                        clipboard.setClipEntry(
+                            ClipEntry(
+                                android.content.ClipData.newPlainText(
+                                    "text",
+                                    code
+                                )
+                            )
+                        )
                     }
                     copied = true
                 },

@@ -108,7 +108,8 @@ pub(crate) fn advance_push_update(
         if result.is_err() && !pending_channels.contains(&id) {
             pending_channels.push(id);
         }
-        return result;
+        // Channel gaps are independent of the common pts/seq sequence.
+        return Ok(result.unwrap_or(false));
     }
     let qts = match update {
         Update::UpdateNewEncryptedMessage(u) => Some(u.qts),

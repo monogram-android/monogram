@@ -531,7 +531,7 @@ pub(crate) fn extract_from_media(media: &MessageMedia) -> Option<(MediaRef, Medi
                     DocumentAttribute::DocumentAttributeAudio(a) => {
                         audio_label = match (a.title.as_ref(), a.performer.as_ref()) {
                             (Some(title), Some(performer)) => {
-                                Some(format!("{title} вЂ” {performer}"))
+                                Some(format!("{title} — {performer}"))
                             }
                             (Some(title), None) => Some(title.clone()),
                             (None, Some(performer)) => Some(performer.clone()),

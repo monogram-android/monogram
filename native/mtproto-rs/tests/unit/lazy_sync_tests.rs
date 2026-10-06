@@ -51,6 +51,7 @@ fn lazy_gap_survives_session_reload_without_advancing_pts() {
     destroy_client(handle);
     let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
     let client = get_client(handle).unwrap();
+    update_lazy_sync_config(handle, true, Vec::new());
     {
         let data = client.data.lock();
         assert_eq!(data.channel_pts.get(&chat), Some(&20));
@@ -59,9 +60,86 @@ fn lazy_gap_survives_session_reload_without_advancing_pts() {
                 .iter()
                 .any(|entry| entry.chat_id == chat && !entry.watching)
         );
+        assert!(data.lazy_channel_recovery.contains(&chat));
+        assert!(!visible_gap_recovery_pending(
+            &data.channel_recovery,
+            0,
+            &HashSet::new(),
+            true
+        ));
+        assert_eq!(
+            next_channel_recovery(
+                &data.channel_recovery,
+                chat,
+                &HashSet::new(),
+                true,
+                recovery_now(),
+            ),
+            Some(0)
+        );
     }
     destroy_client(handle);
     std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn lazy_background_gaps_do_not_block_sync_or_run_until_opened() {
+    let mut queue = VecDeque::new();
+    let channels: Vec<_> = (1..=100).map(peers::chat_id_for_channel).collect();
+    prepare_channel_recovery(&mut queue, channels, 0, 100);
+    let exceptions = HashSet::new();
+    assert!(gap_recovery_pending(&queue));
+    assert!(!visible_gap_recovery_pending(&queue, 0, &exceptions, true));
+    assert_eq!(
+        next_channel_recovery(&queue, 0, &exceptions, true, 100),
+        None
+    );
+    assert_eq!(
+        next_channel_recovery(&queue, 0, &exceptions, true, 100_000),
+        None
+    );
+    assert_eq!(
+        next_channel_recovery(&queue, 0, &exceptions, false, 100),
+        Some(0)
+    );
+    assert!(visible_gap_recovery_pending(&queue, 0, &exceptions, false));
+}
+
+#[test]
+fn opening_a_previewed_gap_prioritizes_recovery_but_preserves_flood_wait() {
+    let background = peers::chat_id_for_channel(1);
+    let open = peers::chat_id_for_channel(2);
+    let exception = peers::chat_id_for_channel(3);
+    let mut queue = VecDeque::new();
+    prepare_channel_recovery(&mut queue, vec![background, exception, open], 0, 100);
+    let exceptions = HashSet::from_iter([exception]);
+    assert_eq!(
+        next_channel_recovery(&queue, open, &exceptions, true, 100),
+        Some(2)
+    );
+    assert!(visible_gap_recovery_pending(
+        &queue,
+        open,
+        &exceptions,
+        true
+    ));
+    queue[2].due_at = 220;
+    let mut previews = HashSet::from_iter([open]);
+    pull_priority_channels(&mut previews, &mut queue, open, &exceptions, 100);
+    assert!(previews.is_empty());
+    assert_eq!(queue[2].due_at, 220);
+    assert_eq!(
+        next_channel_recovery(&queue, open, &exceptions, true, 100),
+        Some(1)
+    );
+    assert_eq!(
+        next_channel_recovery(&queue, open, &HashSet::new(), true, 100),
+        None
+    );
+    assert_eq!(
+        next_channel_recovery(&queue, open, &HashSet::new(), true, 220),
+        Some(2)
+    );
 }
 
 #[test]

@@ -2,14 +2,13 @@ package org.monogram.network.bridge
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
@@ -20,13 +19,13 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.common.TelegramCredentials
 import org.monogram.core.models.PeerId
 import org.monogram.mtproto.MtprotoNative
+import org.monogram.network.bridge.session.nativeFailureLogLine
 import uniffi.monogram_mtproto.AuthSignedIn
 import uniffi.monogram_mtproto.ChatDto
-import uniffi.monogram_mtproto.MtprotoException
 import uniffi.monogram_mtproto.MessageDto
+import uniffi.monogram_mtproto.MtprotoException
 import uniffi.monogram_mtproto.UpdateEventDto
 import uniffi.monogram_mtproto.UpdatesStateDto
-import org.monogram.network.bridge.session.nativeFailureLogLine
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -233,7 +232,7 @@ class BridgedMtprotoClientLifecycleTest {
                 connects++
             }
 
-            override fun getChats(handle: Long): List<uniffi.monogram_mtproto.ChatDto> = emptyList()
+            override fun getChats(handle: Long): List<ChatDto> = emptyList()
 
             override fun getFolders(handle: Long): List<uniffi.monogram_mtproto.FolderDto> = emptyList()
         }
@@ -256,7 +255,7 @@ class BridgedMtprotoClientLifecycleTest {
             override fun startUpdates(handle: Long) {
                 starts++
             }
-            override fun getChats(handle: Long): List<uniffi.monogram_mtproto.ChatDto> = emptyList()
+            override fun getChats(handle: Long): List<ChatDto> = emptyList()
             override fun getFolders(handle: Long): List<uniffi.monogram_mtproto.FolderDto> = emptyList()
         }
         val client = client(native, StandardTestDispatcher(testScheduler))
@@ -279,7 +278,7 @@ class BridgedMtprotoClientLifecycleTest {
                 connects++
             }
 
-            override fun getChats(handle: Long): List<uniffi.monogram_mtproto.ChatDto> {
+            override fun getChats(handle: Long): List<ChatDto> {
                 chats++
                 if (chats == 1) throw IllegalStateException("connection closed")
                 return emptyList()
@@ -326,10 +325,10 @@ class BridgedMtprotoClientLifecycleTest {
 
     @Test
     fun hibernateWaitsForInFlightRequestsBeforeDroppingTheHandle() = runBlocking {
-        val started = java.util.concurrent.CountDownLatch(1)
-        val release = java.util.concurrent.CountDownLatch(1)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
         val native = object : RecordingNative() {
-            override fun getChats(handle: Long): List<uniffi.monogram_mtproto.ChatDto> {
+            override fun getChats(handle: Long): List<ChatDto> {
                 started.countDown()
                 release.await()
                 return emptyList()
@@ -339,7 +338,7 @@ class BridgedMtprotoClientLifecycleTest {
         try {
             assertTrue(client.connect() is Outcome.Ok)
             val call = async(Dispatchers.IO) { client.getChats() }
-            assertTrue("request never reached native", started.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            assertTrue("request never reached native", started.await(5, TimeUnit.SECONDS))
             // Backgrounding the app must not destroy a handle a request is using.
             client.hibernate()
             assertEquals(emptyList<Long>(), native.destroyed)
@@ -360,7 +359,7 @@ class BridgedMtprotoClientLifecycleTest {
     fun staleHandleIsRecreatedAndTheCallRetriedOnce() = runTest {
         var calls = 0
         val native = object : RecordingNative() {
-            override fun getChats(handle: Long): List<uniffi.monogram_mtproto.ChatDto> {
+            override fun getChats(handle: Long): List<ChatDto> {
                 calls++
                 if (calls == 1) throw MtprotoException.UnknownClient()
                 return emptyList()
@@ -561,7 +560,7 @@ class BridgedMtprotoClientLifecycleTest {
                 connects++
             }
             override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> = emptyList()
-            override fun getChats(handle: Long) = emptyList<uniffi.monogram_mtproto.ChatDto>()
+            override fun getChats(handle: Long) = emptyList<ChatDto>()
             override fun getUpdatesState(handle: Long) = UpdatesStateDto(1, 0, 1, 0)
             override fun sendTextMessage(
                 handle: Long,
@@ -602,7 +601,7 @@ class BridgedMtprotoClientLifecycleTest {
             override fun connect(handle: Long) {
                 connects++
             }
-            override fun getChats(handle: Long): List<uniffi.monogram_mtproto.ChatDto> {
+            override fun getChats(handle: Long): List<ChatDto> {
                 chats++
                 if (chats == 1) throw IllegalStateException("connection closed")
                 return emptyList()
@@ -651,7 +650,7 @@ class BridgedMtprotoClientLifecycleTest {
     fun closeStopsUpdateDraining() = runTest {
         var drains = 0
         val native = object : RecordingNative() {
-            override fun drainUpdates(handle: Long): List<uniffi.monogram_mtproto.UpdateEventDto> {
+            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
                 drains++
                 return emptyList()
             }
@@ -719,9 +718,9 @@ class BridgedMtprotoClientLifecycleTest {
     fun revokedHomeSessionStopsUpdateDraining() = runTest {
         var drains = 0
         val native = object : RecordingNative() {
-            override fun drainUpdates(handle: Long): List<uniffi.monogram_mtproto.UpdateEventDto> {
+            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
                 drains++
-                throw uniffi.monogram_mtproto.MtprotoException.Message("RPC 406: AUTH_KEY_DUPLICATED")
+                throw MtprotoException.Message("RPC 406: AUTH_KEY_DUPLICATED")
             }
         }
         val client = client(native, StandardTestDispatcher(testScheduler))
@@ -734,23 +733,102 @@ class BridgedMtprotoClientLifecycleTest {
     }
 
     @Test
-    fun networkFailurePausesUpdateDrainingUntilReconnect() = runTest {
+    fun socketCloseReconnectsUpdateDrainingWithoutAnotherRequest() = runTest {
         var drains = 0
+        var connects = 0
         val native = object : RecordingNative() {
-            override fun drainUpdates(handle: Long): List<uniffi.monogram_mtproto.UpdateEventDto> {
+            override fun connect(handle: Long) {
+                connects++
+            }
+            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
                 drains++
-                throw uniffi.monogram_mtproto.MtprotoException.Message("RPC 500: transport closed")
+                if (drains == 1) throw MtprotoException.Message("connection closed recv=0")
+                return listOf(newMessageEvent(9))
+            }
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        val received = mutableListOf<Int>()
+        val collector = backgroundScope.launch {
+            client.updates().filterIsInstance<MtprotoUpdate.NewMessage>().collect {
+                received += it.message.id.id
+            }
+        }
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            testScheduler.runCurrent()
+            testScheduler.advanceTimeBy(3_999)
+            testScheduler.runCurrent()
+            assertEquals(1, connects)
+            assertEquals(1, drains)
+            testScheduler.advanceTimeBy(1)
+            testScheduler.runCurrent()
+            assertEquals(2, connects)
+            assertEquals(2, drains)
+            assertEquals(1, native.created)
+            assertEquals(listOf(9), received)
+        } finally {
+            collector.cancel()
+            client.close()
+        }
+    }
+
+    @Test
+    fun failedUpdateReconnectBacksOffUntilConnectionRecovers() = runTest {
+        var drains = 0
+        var connects = 0
+        val native = object : RecordingNative() {
+            override fun connect(handle: Long) {
+                connects++
+                if (connects in 2..3) throw MtprotoException.Message("connection closed")
+            }
+
+            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                drains++
+                if (drains == 1) throw MtprotoException.Message("connection closed")
+                return emptyList()
             }
         }
         val client = client(native, StandardTestDispatcher(testScheduler))
         try {
             assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.advanceTimeBy(100)
             testScheduler.runCurrent()
-            val afterFailure = drains
+            for ((elapsed, expected) in listOf(4_000L to 2, 8_000L to 3, 16_000L to 4)) {
+                testScheduler.advanceTimeBy(elapsed - 1)
+                testScheduler.runCurrent()
+                assertEquals(expected - 1, connects)
+                assertEquals(1, drains)
+                testScheduler.advanceTimeBy(1)
+                testScheduler.runCurrent()
+                assertEquals(expected, connects)
+            }
+            assertEquals(2, drains)
+            assertEquals(1, native.created)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun hibernateStopsPendingUpdateReconnect() = runTest {
+        var connects = 0
+        val native = object : RecordingNative() {
+            override fun connect(handle: Long) {
+                connects++
+            }
+
+            override fun drainUpdates(handle: Long): List<UpdateEventDto> =
+                throw MtprotoException.Message("connection closed")
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            testScheduler.runCurrent()
+            client.hibernate()
             testScheduler.advanceTimeBy(60_000)
             testScheduler.runCurrent()
-            assertEquals(afterFailure, drains)
+            assertEquals(1, connects)
+            assertEquals(1, native.created)
+            assertEquals(listOf(1L), native.destroyed)
         } finally {
             client.close()
         }
@@ -785,12 +863,13 @@ class BridgedMtprotoClientLifecycleTest {
         try {
             assertTrue(client.connect() is Outcome.Ok)
             testScheduler.runCurrent()
-            testScheduler.advanceTimeBy(4_000)
+            testScheduler.advanceTimeBy(1_000)
             testScheduler.runCurrent()
             assertEquals(1, drains)
             assertEquals(1, starts)
 
             assertTrue(client.connect() is Outcome.Ok)
+            testScheduler.advanceTimeBy(3_000)
             testScheduler.runCurrent()
 
             assertEquals(1, native.created)
@@ -811,7 +890,7 @@ class BridgedMtprotoClientLifecycleTest {
         )) {
             val native = object : RecordingNative() {
                 override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> =
-                    throw uniffi.monogram_mtproto.MtprotoException.Message(raw)
+                    throw MtprotoException.Message(raw)
             }
             val client = client(native, StandardTestDispatcher(testScheduler))
             try {

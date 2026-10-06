@@ -49,6 +49,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
 
     private suspend fun drainUpdatesLoop() {
         var drainDelayMs = 25L
+        var reconnectHandle = 0L
         var premiumRefreshPending = false
         var chatsRefreshPending = false
         var foldersRefreshPending = false
@@ -65,10 +66,15 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         }
         while (true) {
             val activeHandle = core.activeHandleOrZero()
-            // A network failure clears connectedHandle while the native handle
-            // remains allocated. Wait for connect() to re-establish the handle
-            // instead of repeatedly polling a dead transport.
             if (activeHandle == 0L || core.sessionDead || core.connectedHandle != activeHandle) {
+                if (activeHandle != 0L && !core.sessionDead && reconnectHandle == activeHandle) {
+                    if (core.connect() is Outcome.Err) {
+                        drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
+                        delay(drainDelayMs)
+                    }
+                    continue
+                }
+                reconnectHandle = 0L
                 // `close()` shuts the wake channel down; a closed channel ends the loop
                 // instead of failing this coroutine with an uncaught exception.
                 try {
@@ -110,12 +116,18 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     )
                 }
                 drainDelayMs = 25L
+                reconnectHandle = 0L
                 if (core.isCurrentHandle(activeHandle)) drained else emptyList()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 if (core.isCurrentHandle(activeHandle)) {
-                    core.fail(e, "drain updates failed")
+                    val failure = core.fail(e, "drain updates failed")
+                    if (failure.telegramError.kind == TelegramError.Kind.Network ||
+                        failure.telegramError.kind == TelegramError.Kind.Internal
+                    ) {
+                        reconnectHandle = activeHandle
+                    }
                     drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
                 }
                 emptyList()

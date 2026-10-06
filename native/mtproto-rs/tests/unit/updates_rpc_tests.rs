@@ -296,7 +296,7 @@ fn push_counter_checks_zero_count_overflow_and_qts() {
 }
 
 #[test]
-fn push_channel_gaps_schedule_recovery_without_advancing_state() {
+fn push_channel_gaps_defer_channel_but_apply_common_updates() {
     let id = chat_id_for_channel(42);
     let update = Update::UpdateDeleteChannelMessages(UpdateDeleteChannelMessagesConstructor {
         channel_id: 42,
@@ -310,18 +310,18 @@ fn push_channel_gaps_schedule_recovery_without_advancing_state() {
     let mut state = cursor();
     let mut channels = HashMap::from_iter([(id, 10)]);
     let mut pending = Vec::new();
-    assert!(
-        apply_push(
-            &packet(4, vec![delete(11), update]),
-            &mut HashMap::new(),
-            &mut HashMap::new(),
-            &mut state,
-            &mut channels,
-            &mut pending
-        )
-        .is_err()
-    );
-    assert_eq!(state.pts, 10);
+    let events = apply_push(
+        &packet(4, vec![delete(11), update]),
+        &mut HashMap::new(),
+        &mut HashMap::new(),
+        &mut state,
+        &mut channels,
+        &mut pending,
+    )
+    .unwrap();
+    assert_eq!(state.pts, 11);
+    assert_eq!(state.seq, 4);
+    assert_eq!(events.len(), 1);
     assert_eq!(channels[&id], 10);
     assert_eq!(pending, vec![id]);
 }

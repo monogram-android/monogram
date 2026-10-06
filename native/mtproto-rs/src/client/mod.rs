@@ -797,13 +797,25 @@ pub(crate) fn ensure_ready(state: &mut ClientState) -> Result<(), MtprotoError> 
     ensure_auth_key(state)
 }
 
-/// Offscreen metadata previews supplement durable channel difference recovery.
-/// The open chat and exceptions receive difference recovery first.
+/// Offscreen previews leave gaps durable; only the open chat and exceptions recover them.
 pub(crate) fn update_lazy_sync_config(handle: u64, lazy: bool, exceptions: Vec<i64>) {
     let Ok(client) = get_client(handle) else {
         return;
     };
     let mut d = client.data.lock();
+    if lazy && !d.lazy_channel_updates {
+        let pending: Vec<_> = d
+            .channel_recovery
+            .iter()
+            .filter(|entry| {
+                !entry.watching
+                    && entry.chat_id != d.last_history_chat_id
+                    && !exceptions.contains(&entry.chat_id)
+            })
+            .map(|entry| entry.chat_id)
+            .collect();
+        d.lazy_channel_recovery.extend(pending);
+    }
     d.lazy_channel_updates = lazy;
     d.lazy_sync_exceptions = exceptions.into_iter().collect();
     if lazy {

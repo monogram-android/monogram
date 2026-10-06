@@ -131,7 +131,14 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             d.home_time_offset,
             d.last_history_chat_id,
             d.home_session_id,
-            d.channel_recovery.iter().any(|entry| entry.due_at <= now)
+            next_channel_recovery(
+                &d.channel_recovery,
+                d.last_history_chat_id,
+                &d.lazy_sync_exceptions,
+                d.lazy_channel_updates,
+                now,
+            )
+            .is_some()
                 || (channel_id_from_chat_id(d.last_history_chat_id).is_some()
                     && !d
                         .channel_recovery
@@ -214,7 +221,11 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         let mut stopped_channel = None;
         let mut events = Vec::new();
         let sync_started = !client.data.lock().is_syncing
-            && catch_up_active(!needs_difference, gap_recovery_pending(&recovery), false);
+            && catch_up_active(
+                !needs_difference,
+                visible_gap_recovery_pending(&recovery, open_chat, &lazy_exceptions, lazy_enabled),
+                false,
+            );
         if sync_started {
             events.push(UpdateEventDto::SyncState { is_syncing: true });
         }
@@ -314,10 +325,8 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             {
                 break;
             }
-            let Some(index) = recovery
-                .iter()
-                .position(|entry| entry.due_at <= now && entry.chat_id == open_chat)
-                .or_else(|| recovery.iter().position(|entry| entry.due_at <= now))
+            let Some(index) =
+                next_channel_recovery(&recovery, open_chat, &lazy_exceptions, lazy_enabled, now)
             else {
                 break;
             };
@@ -529,11 +538,7 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         return Ok(events);
     };
     let persist_needed;
-    let is_syncing_now = catch_up_active(
-        io.last_difference.is_some(),
-        gap_recovery_pending(&applied.recovery),
-        false,
-    );
+    let is_syncing_now;
     let should_emit_sync_state;
     {
         let mut d = client.data.lock();
@@ -546,6 +551,16 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             io.transport = None;
             return Err(expired_session_lease());
         }
+        is_syncing_now = catch_up_active(
+            io.last_difference.is_some(),
+            visible_gap_recovery_pending(
+                &applied.recovery,
+                d.last_history_chat_id,
+                &d.lazy_sync_exceptions,
+                d.lazy_channel_updates,
+            ),
+            false,
+        );
         let peers_changed =
             merge_changed_entries(&mut d.peers, &applied.before_peers, applied.peers);
         let media_changed =
@@ -731,8 +746,38 @@ pub(crate) fn catch_up_active(
     !difference_settled || recovery_pending || lazy_pending
 }
 
+#[cfg(test)]
 pub(crate) fn gap_recovery_pending(recovery: &VecDeque<ChannelRecovery>) -> bool {
     recovery.iter().any(|entry| !entry.watching)
+}
+
+pub(crate) fn visible_gap_recovery_pending(
+    recovery: &VecDeque<ChannelRecovery>,
+    open_chat: i64,
+    exceptions: &crate::HashSet<i64>,
+    lazy: bool,
+) -> bool {
+    recovery.iter().any(|entry| {
+        !entry.watching
+            && (!lazy || entry.chat_id == open_chat || exceptions.contains(&entry.chat_id))
+    })
+}
+
+pub(crate) fn next_channel_recovery(
+    recovery: &VecDeque<ChannelRecovery>,
+    open_chat: i64,
+    exceptions: &crate::HashSet<i64>,
+    lazy: bool,
+    now: u64,
+) -> Option<usize> {
+    recovery
+        .iter()
+        .position(|entry| entry.due_at <= now && entry.chat_id == open_chat)
+        .or_else(|| {
+            recovery.iter().position(|entry| {
+                entry.due_at <= now && (!lazy || exceptions.contains(&entry.chat_id))
+            })
+        })
 }
 
 /// Chats the user opened, or listed as exceptions, must not stay on the lazy
@@ -752,8 +797,10 @@ pub(crate) fn pull_priority_channels(
     for chat_id in promoted {
         lazy_queue.remove(&chat_id);
         if let Some(entry) = recovery.iter_mut().find(|entry| entry.chat_id == chat_id) {
-            entry.watching = false;
-            entry.due_at = now;
+            if entry.watching {
+                entry.watching = false;
+                entry.due_at = now;
+            }
         } else {
             recovery.push_back(ChannelRecovery {
                 chat_id,
@@ -785,7 +832,7 @@ pub(crate) fn plan_lazy_failure(unrecoverable: bool) -> LazyFailurePlan {
     }
 }
 
-/// Preview offscreen dialogs, but retain durable difference recovery for every gap.
+/// Retain offscreen gaps durably until the channel is opened or lazy mode is disabled.
 pub(crate) fn route_lazy_channels(
     pending: Vec<i64>,
     open_chat: i64,

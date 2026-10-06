@@ -2,10 +2,13 @@ package org.monogram.feature.dialog.ui
 
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +38,46 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
+
+internal class VpxFrameRetirement<T> {
+    private data class Retired<T>(val frame: T, val retiredAtDraw: Int)
+
+    private val pending = ArrayDeque<Retired<T>>()
+    private var draws = 0
+
+    fun retire(frame: T) {
+        synchronized(pending) { pending.addLast(Retired(frame, draws)) }
+    }
+
+    fun pollRecyclable(current: T?): List<T> = synchronized(pending) {
+        draws += 1
+        val ready = ArrayList<T>()
+        while (pending.isNotEmpty()) {
+            val head = pending.first()
+            if (head.frame === current || head.retiredAtDraw > draws - 2) break
+            pending.removeFirst()
+            ready += head.frame
+        }
+        ready
+    }
+
+    fun takeAll(): MutableList<T> = synchronized(pending) {
+        val rest = pending.mapTo(ArrayList()) { it.frame }
+        pending.clear()
+        rest
+    }
+}
+
+private fun recycleBitmap(image: ImageBitmap) {
+    image.asAndroidBitmap().takeIf { !it.isRecycled }?.recycle()
+}
+
+private fun recycleBitmapLater(image: ImageBitmap) {
+    val bitmap = image.asAndroidBitmap()
+    if (bitmap.isRecycled) return
+    val handler = Handler(Looper.getMainLooper())
+    handler.post { handler.post { if (!bitmap.isRecycled) bitmap.recycle() } }
+}
 
 private object VpxStickerSlots {
     private const val MAX = 8
@@ -70,6 +113,16 @@ internal fun VpxStickerPlayer(
     val playable = active && animationEnabled
     val frame = remember(file.absolutePath) { mutableStateOf<ImageBitmap?>(null) }
     val hasFrame = remember(file.absolutePath) { mutableStateOf(false) }
+    val retirement = remember(file.absolutePath) { VpxFrameRetirement<ImageBitmap>() }
+    DisposableEffect(file.absolutePath) {
+        onDispose {
+            val pending = retirement.takeAll()
+            val shown = frame.value
+            frame.value = null
+            if (shown != null && pending.none { it === shown }) pending.add(shown)
+            pending.forEach(::recycleBitmapLater)
+        }
+    }
     LaunchedEffect(file.absolutePath, playable) {
         if (!playable) return@LaunchedEffect
 
@@ -77,13 +130,14 @@ internal fun VpxStickerPlayer(
         try {
             withContext(Dispatchers.Default) {
                 playVpxLoop(file) { next ->
-                    if (!isActive) return@playVpxLoop false
+                    if (!isActive) {
+                        recycleBitmapLater(next)
+                        return@playVpxLoop false
+                    }
                     val previous = frame.value
                     frame.value = next
                     if (!hasFrame.value) hasFrame.value = true
-                    if (previous != null && previous !== next) {
-                        previous.asAndroidBitmap().takeIf { !it.isRecycled }?.recycle()
-                    }
+                    if (previous != null && previous !== next) retirement.retire(previous)
                     true
                 }
             }
@@ -100,19 +154,22 @@ internal fun VpxStickerPlayer(
             )
         }
         Canvas(Modifier.fillMaxSize()) {
-            frame.value?.let { drawn ->
-                val scale = minOf(size.width / drawn.width, size.height / drawn.height)
-                val width = (drawn.width * scale).roundToInt().coerceAtLeast(1)
-                val height = (drawn.height * scale).roundToInt().coerceAtLeast(1)
-                drawImage(
-                    image = drawn,
-                    dstOffset = IntOffset(
-                        ((size.width - width) / 2).roundToInt(),
-                        ((size.height - height) / 2).roundToInt(),
-                    ),
-                    dstSize = IntSize(width, height),
-                )
+            val current = frame.value
+            retirement.pollRecyclable(current).forEach { old ->
+                if (old !== current) recycleBitmap(old)
             }
+            val drawn = current?.takeIf { !it.asAndroidBitmap().isRecycled } ?: return@Canvas
+            val scale = minOf(size.width / drawn.width, size.height / drawn.height)
+            val width = (drawn.width * scale).roundToInt().coerceAtLeast(1)
+            val height = (drawn.height * scale).roundToInt().coerceAtLeast(1)
+            drawImage(
+                image = drawn,
+                dstOffset = IntOffset(
+                    ((size.width - width) / 2).roundToInt(),
+                    ((size.height - height) / 2).roundToInt(),
+                ),
+                dstSize = IntSize(width, height),
+            )
         }
     }
 }

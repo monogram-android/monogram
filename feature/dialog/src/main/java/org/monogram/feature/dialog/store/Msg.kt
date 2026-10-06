@@ -6,6 +6,7 @@ import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.InlineBotResults
 import org.monogram.core.models.Message
+import org.monogram.core.models.MessageViewer
 import org.monogram.core.models.MessageViewers
 import org.monogram.core.models.OutboxReadState
 import org.monogram.core.models.PeerId
@@ -13,7 +14,10 @@ import org.monogram.core.models.Profile
 import org.monogram.core.models.ReactionChoice
 import org.monogram.core.models.SavedGif
 import org.monogram.core.models.StickerPack
+import org.monogram.core.models.StyledText
+import org.monogram.core.models.TextEntity
 import org.monogram.core.models.UploadItem
+import org.monogram.core.models.WebpagePreview
 import org.monogram.feature.dialog.DraftMention
 import org.monogram.feature.dialog.InlineBotQuery
 import org.monogram.feature.dialog.MentionCandidate
@@ -31,6 +35,9 @@ internal sealed interface Msg {
     data class Senders(val value: Map<PeerId, Profile>) : Msg
     data class SenderTags(val value: Map<PeerId, String>) : Msg
     data class Draft(val value: String) : Msg
+    data class DraftFormatting(val value: Boolean) : Msg
+    data class DraftEntities(val value: List<TextEntity>) : Msg
+    data class DraftPreview(val value: StyledText?, val hasMarkdown: Boolean) : Msg
     data class PendingAttach(val items: List<UploadItem>) : Msg
     data class ReplyTo(val value: Message?, val focusComposer: Boolean = false) : Msg
     data class Editing(val value: Message?) : Msg
@@ -47,6 +54,7 @@ internal sealed interface Msg {
         val canDeleteOthers: Boolean,
         val canManageTopics: Boolean = false,
     ) : Msg
+
     data class SearchQuery(val value: String) : Msg
     data class Searching(val value: Boolean) : Msg
     data class Messages(
@@ -56,6 +64,7 @@ internal sealed interface Msg {
         val liveEdge: Boolean = false,
         val searchHit: Boolean = false,
     ) : Msg
+
     data class Prepend(val value: List<Message>) : Msg
     data class AppendOlder(val value: List<Message>) : Msg
     data class ReplacePending(val pendingId: Int, val sent: Message) : Msg
@@ -79,6 +88,7 @@ internal sealed interface Msg {
         val active: Boolean,
         val action: String = ChatActionKind.Typing.wire,
     ) : Msg
+
     data class PeerStatus(val status: String?, val at: Long?) : Msg
     data class EmojiStatus(val documentId: Long?) : Msg
     data class ChatProfile(
@@ -86,17 +96,20 @@ internal sealed interface Msg {
         val online: Int?,
         val authoritative: Boolean = false,
     ) : Msg
+
     data class ReadOutbox(val value: Int) : Msg
     data class ReadReceiptConfig(val value: org.monogram.core.models.ReadReceiptConfig) : Msg
     data class Viewers(val messageId: Int, val value: MessageViewers) : Msg
     data class ReactionUsers(
         val messageId: Int,
-        val value: List<org.monogram.core.models.MessageViewer>,
+        val value: List<MessageViewer>,
     ) : Msg
+
     data class PollVoters(
         val messageId: Int,
-        val value: List<org.monogram.core.models.MessageViewer>,
+        val value: List<MessageViewer>,
     ) : Msg
+
     data class OutboxRead(val messageId: Int, val value: OutboxReadState) : Msg
     data class MarkFailed(val pendingId: Int) : Msg
     data class Drop(val messageId: Int) : Msg
@@ -122,6 +135,7 @@ internal sealed interface Msg {
         val count: Int,
         val append: Boolean = false,
     ) : Msg
+
     data class LoadingTopics(val value: Boolean) : Msg
     data class HasMoreTopics(val value: Boolean) : Msg
     data class TopicClosed(val value: Boolean) : Msg
@@ -130,6 +144,7 @@ internal sealed interface Msg {
         val iconColor: Int,
         val iconEmojiId: Long?,
     ) : Msg
+
     data class BotNotice(val text: String?, val alert: Boolean = false) : Msg
     data class BotUrl(val value: String?) : Msg
     data class CopyText(val value: String?) : Msg
@@ -140,15 +155,17 @@ internal sealed interface Msg {
         val loading: Boolean = false,
         val error: Boolean = false,
     ) : Msg
+
     data class MentionQuery(val value: String?) : Msg
     data class MentionPage(
         val candidates: List<MentionCandidate>,
         val loading: Boolean = false,
         val hasMore: Boolean = false,
     ) : Msg
+
     data class DraftMentions(val value: List<DraftMention>) : Msg
     data class LinkPreview(
-        val preview: org.monogram.core.models.WebpagePreview?,
+        val preview: WebpagePreview?,
         val url: String? = null,
         val fixed: Boolean = false,
         val loading: Boolean = false,

@@ -299,12 +299,12 @@ internal class DialogExecutor(
             DialogStore.Intent.LoadOlder -> loadOlder()
             DialogStore.Intent.LoadNewer -> loadNewer()
             is DialogStore.Intent.SetDraftFormatting -> {
-                dispatch(Msg.DraftFormatting(intent.enabled))
+                dispatch(Msg.DraftFormatting(intent.enabled && isPremium()))
                 scheduleDraftPreview()
             }
             is DialogStore.Intent.SetDraftEntities -> {
                 dispatch(Msg.DraftEntities(intent.entities))
-                dispatch(Msg.DraftFormatting(true))
+                dispatch(Msg.DraftFormatting(state().draftFormatting))
                 scheduleDraftPreview()
             }
             is DialogStore.Intent.DraftChanged -> {

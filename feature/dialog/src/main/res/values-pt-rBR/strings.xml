@@ -191,7 +191,7 @@
         <item quantity="other">Excluir %1$d mensagens?</item>
     </plurals>
     <string name="dialog_cancel">Cancelar</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Prévia</string>
     <string name="dialog_markdown_expand">Abrir editor</string>
     <string name="dialog_markdown_apply">Aplicar</string>
@@ -340,4 +340,15 @@
         <item quantity="one">%1$s inscrito</item>
         <item quantity="other">%1$s inscritos</item>
     </plurals>
+    <string name="dialog_send_formatted">Enviar com formatação</string>
+    <string name="dialog_editor_title">Editor de mensagens</string>
+    <string name="dialog_editor_send_preview">Prévia do envio</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Texto selecionado</string>
+    <string name="dialog_editor_select_hint">Selecione o texto para formatar</string>
+    <string name="dialog_editor_expandable_quote">Citação expansível</string>
+    <string name="dialog_editor_clear">Remover formatação</string>
+    <string name="dialog_editor_url">URL do link</string>
+    <string name="dialog_editor_language">Linguagem (opcional)</string>
+    <string name="dialog_editor_open">Expandir editor</string>
 </resources>

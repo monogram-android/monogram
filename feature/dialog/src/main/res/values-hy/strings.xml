@@ -191,7 +191,7 @@
         <item quantity="other">Ջնջե՞լ %1$d հաղորդագրություն</item>
     </plurals>
     <string name="dialog_cancel">Չեղարկել</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Նախադիտում</string>
     <string name="dialog_markdown_expand">Բացել խմբագրիչը</string>
     <string name="dialog_markdown_apply">Կիրառել</string>
@@ -340,4 +340,15 @@
         <item quantity="one">%1$s բաժանորդ</item>
         <item quantity="other">%1$s բաժանորդ</item>
     </plurals>
+    <string name="dialog_send_formatted">Ուղարկել ձևաչափմամբ</string>
+    <string name="dialog_editor_title">Հաղորդագրության խմբագիր</string>
+    <string name="dialog_editor_send_preview">Ուղարկման նախադիտում</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Ընտրված տեքստ</string>
+    <string name="dialog_editor_select_hint">Ձևաչափելու համար ընտրեք տեքստը</string>
+    <string name="dialog_editor_expandable_quote">Ընդլայնվող մեջբերում</string>
+    <string name="dialog_editor_clear">Հեռացնել ձևաչափումը</string>
+    <string name="dialog_editor_url">Հղման հասցե</string>
+    <string name="dialog_editor_language">Լեզու (ըստ ցանկության)</string>
+    <string name="dialog_editor_open">Ընդլայնել խմբագիրը</string>
 </resources>

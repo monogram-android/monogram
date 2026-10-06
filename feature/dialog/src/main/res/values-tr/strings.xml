@@ -191,7 +191,7 @@
         <item quantity="other">%1$d mesaj silinsin mi?</item>
     </plurals>
     <string name="dialog_cancel">İptal</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Önizleme</string>
     <string name="dialog_markdown_expand">Düzenleyiciyi aç</string>
     <string name="dialog_markdown_apply">Uygula</string>
@@ -340,4 +340,15 @@
         <item quantity="one">%1$s abone</item>
         <item quantity="other">%1$s abone</item>
     </plurals>
+    <string name="dialog_send_formatted">Biçimlendirerek gönder</string>
+    <string name="dialog_editor_title">Mesaj düzenleyici</string>
+    <string name="dialog_editor_send_preview">Gönderim önizlemesi</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Seçili metin</string>
+    <string name="dialog_editor_select_hint">Biçimlendirmek için metin seçin</string>
+    <string name="dialog_editor_expandable_quote">Genişletilebilir alıntı</string>
+    <string name="dialog_editor_clear">Biçimlendirmeyi kaldır</string>
+    <string name="dialog_editor_url">Bağlantı adresi</string>
+    <string name="dialog_editor_language">Dil (isteğe bağlı)</string>
+    <string name="dialog_editor_open">Düzenleyiciyi genişlet</string>
 </resources>

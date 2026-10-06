@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.FormatBold
 import androidx.compose.material.icons.outlined.FormatItalic
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.FormatStrikethrough
+import androidx.compose.material.icons.outlined.FormatUnderlined
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.TextFormat
@@ -124,6 +125,8 @@ internal fun ComposerSelectionMenu(
     onSelectAll: () -> Unit,
     onWrap: (String, String) -> Unit,
     onQuote: () -> Unit,
+    onUnderline: () -> Unit,
+    onEditor: () -> Unit,
 ) {
     val visibleState = remember { MutableTransitionState(false) }
     visibleState.targetState = visible
@@ -261,7 +264,14 @@ internal fun ComposerSelectionMenu(
                                     icon = Icons.Outlined.FormatItalic,
                                     colors = itemColors,
                                     tint = iconTint,
-                                    onClick = { onWrap("*", "*") },
+                                    onClick = { onWrap("__", "__") },
+                                )
+                                ComposerMenuRow(
+                                    label = stringResource(R.string.dialog_markdown_underline),
+                                    icon = Icons.Outlined.FormatUnderlined,
+                                    colors = itemColors,
+                                    tint = iconTint,
+                                    onClick = onUnderline,
                                 )
                                 ComposerMenuRow(
                                     label = stringResource(R.string.dialog_format_code),
@@ -297,6 +307,13 @@ internal fun ComposerSelectionMenu(
                                     colors = itemColors,
                                     tint = iconTint,
                                     onClick = onQuote,
+                                )
+                                ComposerMenuRow(
+                                    label = stringResource(R.string.dialog_markdown_expand),
+                                    icon = Icons.Outlined.TextFormat,
+                                    colors = itemColors,
+                                    tint = iconTint,
+                                    onClick = onEditor,
                                 )
                             }
                         }

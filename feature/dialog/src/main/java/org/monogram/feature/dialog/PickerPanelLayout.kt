@@ -21,8 +21,9 @@ internal data class PickerHeaderCell(
 
 internal data class PickerGlyphCell(
     val glyph: String,
+    val index: Int,
 ) : PickerGridCell {
-    override val key: String = "glyph:$glyph"
+    override val key: String = "glyph:$index:$glyph"
     override val span: Boolean = false
     override val documentId: Long? = null
 }
@@ -73,12 +74,12 @@ internal fun emojiPanelLayout(
     val packStart = LinkedHashMap<Long, Int>()
     if (recent.isNotEmpty()) {
         cells += PickerHeaderCell(key = "recent", recent = true)
-        recent.forEach { cells += PickerGlyphCell(it) }
+        recent.forEachIndexed { index, glyph -> cells += PickerGlyphCell(glyph, index) }
     }
     categories.forEach { category ->
         categoryStart[category.kind] = cells.size
         cells += PickerHeaderCell(key = "cat:${category.kind}", category = category.kind)
-        category.glyphs.forEach { cells += PickerGlyphCell(it) }
+        category.glyphs.forEachIndexed { index, glyph -> cells += PickerGlyphCell(glyph, index) }
     }
     packs.forEach { pack ->
         packStart[pack.id] = cells.size

@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@file:OptIn(ExperimentalFoundationApi::class)
 
 package org.monogram.feature.dialog.ui
 
@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -37,8 +38,10 @@ import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMen
 import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMenuToolbarProvider
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.OpenInFull
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -48,6 +51,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,7 +81,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalTextToolbar
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -96,6 +99,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
+import org.monogram.core.models.StyledText
+import org.monogram.core.models.TextEntity
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.WebpagePreview
 import org.monogram.core.ui.AppearanceSettings
@@ -118,6 +123,14 @@ import kotlin.math.abs
 internal fun DialogWriteBar(
     composer: TextFieldValue,
     onComposerChange: (TextFieldValue) -> Unit,
+    draftFormatting: Boolean = false,
+    markdownAvailable: Boolean = false,
+    onOpenEditor: (() -> Unit)? = null,
+    draftPreview: StyledText? = null,
+    draftHasMarkdown: Boolean = false,
+    draftHasEntities: Boolean = false,
+    draftEntities: List<TextEntity> = emptyList(),
+    onDraftFormatting: (Boolean) -> Unit = {},
     sending: Boolean,
     canSendPlain: Boolean,
     canSendPhotos: Boolean,
@@ -150,26 +163,17 @@ internal fun DialogWriteBar(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val composeView = LocalView.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val composerFocus = remember { androidx.compose.ui.focus.FocusRequester() }
     val closePanel = rememberUpdatedState(onClosePanel)
-    var resumeKeyboard by remember { mutableStateOf(false) }
-    LaunchedEffect(resumeKeyboard, panelOpen) {
-        if (!resumeKeyboard || panelOpen) return@LaunchedEffect
-        // The attach sheet is its own window and keeps focus until it finishes leaving.
-        repeat(20) {
-            runCatching { composerFocus.requestFocus() }
-            if (composeView.hasWindowFocus()) {
-                keyboard?.show()
-                resumeKeyboard = false
-                return@LaunchedEffect
-            }
-            delay(40)
+    var panelWasOpen by remember { mutableStateOf(panelOpen) }
+    LaunchedEffect(panelOpen) {
+        val closedAfterPanel = panelWasOpen && !panelOpen
+        panelWasOpen = panelOpen
+        if (closedAfterPanel) {
+            composerFocus.requestFocus()
+            keyboard?.show()
         }
-        runCatching { composerFocus.requestFocus() }
-        keyboard?.show()
-        resumeKeyboard = false
     }
     LaunchedEffect(composerFocusSeq) {
         if (composerFocusSeq <= 0) return@LaunchedEffect
@@ -190,7 +194,7 @@ internal fun DialogWriteBar(
     }
 
     val sendEnabled = when {
-        sending && editing -> false
+        sending -> false
         editing -> composer.text.isNotBlank()
         else -> (composer.text.isNotBlank() && canSendPlain) ||
                 (pendingAttach.isNotEmpty() && canSendPhotos)
@@ -208,6 +212,22 @@ internal fun DialogWriteBar(
                 .padding(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            val longDraft =
+                remember(composer.text) { shouldShowFullScreenEditor(composer.text, false) }
+            val currentFormattingCallback by rememberUpdatedState(onDraftFormatting)
+            val currentEditorCallback by rememberUpdatedState(onOpenEditor)
+            val setFormatting =
+                remember { { enabled: Boolean -> currentFormattingCallback(enabled) } }
+            val openEditor = remember { { currentEditorCallback?.invoke(); Unit } }
+            ComposerFormattingActions(
+                markdownAvailable, draftHasMarkdown, draftFormatting, longDraft,
+                draftHasEntities, onOpenEditor != null,
+                setFormatting, openEditor,
+            )
+            ComposerSendPreview(
+                draftPreview,
+                composer.text.isNotEmpty() && ((markdownAvailable && draftFormatting) || draftHasEntities),
+            )
             if (hasFailed) {
                 TextButton(
                     onClick = onRetryFailed,
@@ -281,8 +301,14 @@ internal fun DialogWriteBar(
                 leftDescription = composerSlotDescription(leftAction),
                 rightDescription = composerSlotDescription(rightAction),
                 sendDescription = stringResource(if (editing) R.string.dialog_editing else R.string.dialog_send),
-                onLeft = { onSlot(leftAction) },
-                onRight = { onSlot(rightAction) },
+                onLeft = {
+                    keyboard?.hide()
+                    onSlot(leftAction)
+                },
+                onRight = {
+                    keyboard?.hide()
+                    onSlot(rightAction)
+                },
                 onSend = onSend,
             ) {
                 Box(contentAlignment = Alignment.CenterStart) {
@@ -299,14 +325,12 @@ internal fun DialogWriteBar(
                             ),
                         )
                     }
-                    val markdownPreview = remember(scheme.primary) {
-                        markdownOutputTransformation(scheme.primary)
-                    }
                     val textFieldState = rememberTextFieldState(
                         initialText = composer.text,
                         initialSelection = composer.selection,
                     )
                     val latestComposer by rememberUpdatedState(composer)
+                    val publishedEdits = remember { mutableListOf<TextFieldValue>() }
                     val latestComposerChange by rememberUpdatedState(onComposerChange)
                     val latestReceiveMedia by rememberUpdatedState(onReceiveMedia)
                     LaunchedEffect(textFieldState) {
@@ -317,10 +341,22 @@ internal fun DialogWriteBar(
                                 composition = textFieldState.composition,
                             )
                         }.collect { updated ->
-                            if (updated != latestComposer) latestComposerChange(updated)
+                            if (updated != latestComposer) {
+                                publishedEdits.add(updated)
+                                latestComposerChange(updated)
+                            }
                         }
                     }
                     LaunchedEffect(composer.text, composer.selection) {
+                        val acknowledged = publishedEdits.indexOfLast {
+                            it.text == composer.text && it.selection == composer.selection
+                        }
+                        if (acknowledged >= 0) {
+                            // Parent acknowledgements can arrive after the IME has advanced.
+                            publishedEdits.subList(0, acknowledged + 1).clear()
+                            return@LaunchedEffect
+                        }
+                        publishedEdits.clear()
                         val fieldText = textFieldState.text.toString()
                         val fieldSelection = textFieldState.selection
                         if (fieldText == composer.text && fieldSelection == composer.selection) {
@@ -356,7 +392,19 @@ internal fun DialogWriteBar(
                             }
                         }
                     }
-                    val emojiSpans = remember(composer.text) { composerEmojiSpans(composer.text) }
+                    val emojiSpans = remember(composer.text, draftEntities) {
+                        composerEmojiSpans(composer.text) + draftEntities.asSequence()
+                            .filter { it.kind == "custom_emoji" }
+                            .mapNotNull { entity ->
+                                val documentId = entity.url?.toLongOrNull() ?: return@mapNotNull null
+                                ComposerEmojiSpan(
+                                    documentId = documentId,
+                                    displayStart = entity.offset,
+                                    displayLength = entity.length,
+                                )
+                            }
+                            .toList()
+                    }.distinctBy { it.displayStart to it.documentId }
                     val measurer = rememberTextMeasurer()
                     val fieldStyle =
                         MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface)
@@ -387,7 +435,6 @@ internal fun DialogWriteBar(
                                     .focusRequester(composerFocus)
                                     .closePanelOnTap(panelOpen) {
                                         closePanel.value()
-                                        resumeKeyboard = true
                                     }
                                     .contentReceiver(receiveMedia)
                                     .onPreviewKeyEvent { event ->
@@ -405,7 +452,7 @@ internal fun DialogWriteBar(
                                     }
                                     .onSizeChanged { fieldWidth = it.width },
                                 enabled = editing || canSendPlain,
-                                outputTransformation = markdownPreview,
+                                outputTransformation = null,
                                 textStyle = fieldStyle,
                                 cursorBrush = SolidColor(scheme.primary),
                                 lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 4),
@@ -782,4 +829,67 @@ private fun DialogWriteBarRestrictedPreview() {
             onClearAttach = {},
         )
     }
+}
+
+@Composable
+private fun ComposerFormattingActions(
+    markdownAvailable: Boolean,
+    draftHasMarkdown: Boolean,
+    draftFormatting: Boolean,
+    longDraft: Boolean,
+    hasEntities: Boolean,
+    editorAvailable: Boolean,
+    onDraftFormatting: (Boolean) -> Unit,
+    onOpenEditor: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    AnimatedVisibility(
+        visible = (markdownAvailable && (draftHasMarkdown || draftFormatting)) ||
+                (editorAvailable && (longDraft || hasEntities)),
+        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) + expandVertically(
+            MaterialTheme.motionScheme.fastSpatialSpec()
+        ),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkVertically(
+            MaterialTheme.motionScheme.fastSpatialSpec()
+        ),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            if (markdownAvailable && (draftHasMarkdown || draftFormatting)) FilterChip(
+                selected = draftFormatting,
+                onClick = { onDraftFormatting(!draftFormatting) },
+                label = { Text(stringResource(R.string.dialog_send_formatted)) },
+                modifier = Modifier.weight(1f, fill = false),
+            ) else androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            if (editorAvailable) SmallFloatingActionButton(
+                onClick = onOpenEditor,
+                containerColor = scheme.secondaryContainer,
+                contentColor = scheme.onSecondaryContainer,
+            ) { Icon(Icons.Outlined.OpenInFull, stringResource(R.string.dialog_editor_open)) }
+        }
+    }
+}
+
+@Composable
+private fun ComposerSendPreview(preview: StyledText?, enabled: Boolean) {
+    var displayed by remember { mutableStateOf<StyledText?>(null) }
+    LaunchedEffect(preview, enabled) {
+        if (!enabled) displayed = null
+        else if (preview != null) displayed = preview
+    }
+    val current = displayed?.takeIf { enabled && it.text.isNotEmpty() } ?: return
+    RichMessageContent(
+        text = current.text, entities = current.entities,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        linkColor = MaterialTheme.colorScheme.primary,
+        revealSpoilers = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 120.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp),
+    )
 }

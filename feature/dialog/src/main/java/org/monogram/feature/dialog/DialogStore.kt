@@ -14,6 +14,7 @@ import org.monogram.core.models.ForumIo
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.InlineBotResults
 import org.monogram.core.models.Message
+import org.monogram.core.models.MessageViewer
 import org.monogram.core.models.MessageViewers
 import org.monogram.core.models.OutboxReadState
 import org.monogram.core.models.PeerId
@@ -23,6 +24,8 @@ import org.monogram.core.models.ReadReceiptConfig
 import org.monogram.core.models.ReplyButton
 import org.monogram.core.models.SavedGif
 import org.monogram.core.models.StickerPack
+import org.monogram.core.models.StyledText
+import org.monogram.core.models.TextEntity
 import org.monogram.core.models.TypingPresence
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.WebpagePreview
@@ -38,6 +41,8 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data object LoadOlder : Intent
         data object LoadNewer : Intent
         data class DraftChanged(val value: String) : Intent
+        data class SetDraftFormatting(val enabled: Boolean) : Intent
+        data class SetDraftEntities(val entities: List<TextEntity>) : Intent
         data class AttachPhoto(val path: String) : Intent
         data class AttachMedia(val items: List<UploadItem>) : Intent
         data class AppendMedia(val items: List<UploadItem>) : Intent
@@ -92,11 +97,14 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
             val width: Int = 0,
             val height: Int = 0,
         ) : Intent
+
         data class SendAlbum(val items: List<UploadItem>) : Intent
         data class OpenStickerPack(val setId: Long, val accessHash: Long) : Intent
         data object LoadSavedGifs : Intent
         data class SendSavedGif(val documentId: Long) : Intent
-        data class React(val messageId: Int, val emoticon: String = "", val documentId: Long = 0L) : Intent
+        data class React(val messageId: Int, val emoticon: String = "", val documentId: Long = 0L) :
+            Intent
+
         data class OpenComments(val message: Message) : Intent
         data object ClearPendingChat : Intent
         data object LoadMoreTopics : Intent
@@ -111,7 +119,9 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
             val button: ReplyButton,
             val fromKeyboard: Boolean,
         ) : Intent
+
         data class ToggleChecklist(val messageId: Int, val itemId: Int) : Intent
+
         /** Raw option bytes from the poll payload; the optimistic state arrives with the update. */
         data class VotePoll(val messageId: Int, val options: List<ByteArray>) : Intent
         data class AppendChecklistItems(
@@ -119,11 +129,13 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
             val firstId: Int,
             val titles: List<String>,
         ) : Intent
+
         data class SendLocation(
             val latitude: Double,
             val longitude: Double,
             val livePeriodSeconds: Int,
         ) : Intent
+
         data object ClearBotNotice : Intent
         data object DismissBotAlert : Intent
         data object ClearBotUrl : Intent
@@ -147,6 +159,10 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val senders: Map<PeerId, Profile> = emptyMap(),
         val senderTags: Map<PeerId, String> = emptyMap(),
         val draft: String = "",
+        val draftFormatting: Boolean = false,
+        val draftEntities: List<TextEntity> = emptyList(),
+        val draftPreview: StyledText? = null,
+        val draftHasMarkdown: Boolean = false,
         val pendingAttach: List<UploadItem> = emptyList(),
         val linkPreview: WebpagePreview? = null,
         val linkPreviewUrl: String? = null,
@@ -236,8 +252,8 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val readReceiptConfig: ReadReceiptConfig =
             ReadReceiptConfig.Fallback,
         val messageViewers: Map<Int, MessageViewers> = emptyMap(),
-        val reactionUsers: Map<Int, List<org.monogram.core.models.MessageViewer>> = emptyMap(),
-        val pollVoters: Map<Int, List<org.monogram.core.models.MessageViewer>> = emptyMap(),
+        val reactionUsers: Map<Int, List<MessageViewer>> = emptyMap(),
+        val pollVoters: Map<Int, List<MessageViewer>> = emptyMap(),
         val outboxReadStates: Map<Int, OutboxReadState> = emptyMap(),
         val keyboardDismissedKey: String? = null,
         val inlineQuery: InlineBotQuery? = null,

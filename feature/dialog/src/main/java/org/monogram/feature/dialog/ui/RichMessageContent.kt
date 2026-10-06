@@ -1,5 +1,6 @@
 package org.monogram.feature.dialog.ui
 
+import android.content.ClipData
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +30,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +53,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -61,10 +64,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.monogram.core.models.Message
 import org.monogram.core.models.RichBlock
 import org.monogram.core.models.TaskItem
 import org.monogram.core.models.TextEntity
 import org.monogram.feature.dialog.R
+import org.monogram.network.http.MediaRepository
 import kotlin.math.max
 
 @Composable
@@ -79,12 +84,12 @@ internal fun RichMessageContent(
     selectable: Boolean = false,
     selectAllNonce: Int = 0,
     onSelectedText: (String) -> Unit = {},
-    onTextLayout: (androidx.compose.ui.text.TextLayoutResult) -> Unit = {},
+    onTextLayout: (TextLayoutResult) -> Unit = {},
     onOpenStickerPack: ((Long) -> Unit)? = null,
     preparedBlocks: List<RichBlock>? = null,
     parseMarkdown: Boolean = false,
-    hostMessage: org.monogram.core.models.Message? = null,
-    mediaRepository: org.monogram.network.http.MediaRepository? = null,
+    hostMessage: Message? = null,
+    mediaRepository: MediaRepository? = null,
 ) {
     val blocks = preparedBlocks?.takeIf { it.isNotEmpty() }
         ?: rememberMessageBlocks(text, entities, parseMarkdown)
@@ -158,8 +163,8 @@ private fun RichBlockList(
     selectAllNonce: Int,
     onSelectedText: (String) -> Unit,
     onOpenStickerPack: ((Long) -> Unit)? = null,
-    hostMessage: org.monogram.core.models.Message? = null,
-    mediaRepository: org.monogram.network.http.MediaRepository? = null,
+    hostMessage: Message? = null,
+    mediaRepository: MediaRepository? = null,
 ) {
     blocks.forEach { block ->
         when (block) {
@@ -177,12 +182,14 @@ private fun RichBlockList(
                     onOpenStickerPack = onOpenStickerPack,
                 )
             }
+
             is RichBlock.Rule -> {
                 HorizontalDivider(
                     color = contentColor.copy(alpha = 0.35f),
                     modifier = Modifier.padding(vertical = 6.dp),
                 )
             }
+
             is RichBlock.Code -> {
                 CodeBlockView(
                     code = block.text,
@@ -190,6 +197,7 @@ private fun RichBlockList(
                     contentColor = contentColor,
                 )
             }
+
             is RichBlock.Quote -> {
                 QuoteBlockView(
                     text = block.text,
@@ -202,6 +210,7 @@ private fun RichBlockList(
                     onSpoilerClick = onSpoilerClick,
                 )
             }
+
             is RichBlock.TaskList -> {
                 TaskListView(
                     items = block.items,
@@ -211,23 +220,24 @@ private fun RichBlockList(
                     onSpoilerClick = onSpoilerClick,
                 )
             }
+
             is RichBlock.Photo -> {
-                val host = hostMessage
-                if (host != null) {
-                    val key = block.cacheKey.takeIf { it.isNotBlank() } ?: host.mediaCacheKey
+                if (hostMessage != null) {
+                    val key = block.cacheKey.takeIf { it.isNotBlank() } ?: hostMessage.mediaCacheKey
                     MessageMedia(
-                        message = host.copy(
+                        message = hostMessage.copy(
                             mediaKind = "photo",
-                            mediaCacheKey = key ?: host.mediaCacheKey,
-                            thumbCacheKey = host.thumbCacheKey ?: key?.let { "$it:thumb" },
-                            mediaWidth = block.width.takeIf { it > 0 } ?: host.mediaWidth,
-                            mediaHeight = block.height.takeIf { it > 0 } ?: host.mediaHeight,
+                            mediaCacheKey = key ?: hostMessage.mediaCacheKey,
+                            thumbCacheKey = hostMessage.thumbCacheKey ?: key?.let { "$it:thumb" },
+                            mediaWidth = block.width.takeIf { it > 0 } ?: hostMessage.mediaWidth,
+                            mediaHeight = block.height.takeIf { it > 0 } ?: hostMessage.mediaHeight,
                             text = null,
                         ),
                         mediaRepository = mediaRepository,
                     )
                 }
             }
+
             is RichBlock.Heading -> {
                 MathAwareText(
                     text = block.text,
@@ -243,6 +253,7 @@ private fun RichBlockList(
                     onOpenStickerPack = onOpenStickerPack,
                 )
             }
+
             is RichBlock.Table -> {
                 TableView(
                     table = block,
@@ -250,6 +261,7 @@ private fun RichBlockList(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+
             is RichBlock.Details -> {
                 var open by remember(block.title) { mutableStateOf(false) }
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -403,7 +415,7 @@ private fun CodeBlockView(
                     scope.launch {
                         clipboard.setClipEntry(
                             ClipEntry(
-                                android.content.ClipData.newPlainText(
+                                ClipData.newPlainText(
                                     "text",
                                     code
                                 )
@@ -464,7 +476,11 @@ internal fun splitQuoteSlices(text: String, entities: List<TextEntity>): List<Qu
         if (start > cursor) {
             slices += QuoteSlice(
                 text = text.substring(cursor, start).trim('\n'),
-                entities = shiftSliceEntities(entities, cursor, start).filterNot { it.kind == "blockquote" },
+                entities = shiftSliceEntities(
+                    entities,
+                    cursor,
+                    start
+                ).filterNot { it.kind == "blockquote" },
             )
         }
         slices += QuoteSlice(
@@ -477,7 +493,7 @@ internal fun splitQuoteSlices(text: String, entities: List<TextEntity>): List<Qu
             level = levels.getValue(start to end),
             collapsed = entities.any {
                 it.kind == "blockquote" && it.url == "collapsed" &&
-                    it.offset == start && it.offset + it.length == end
+                        it.offset == start && it.offset + it.length == end
             },
         )
         cursor = end
@@ -485,7 +501,11 @@ internal fun splitQuoteSlices(text: String, entities: List<TextEntity>): List<Qu
     if (cursor < text.length) {
         slices += QuoteSlice(
             text = text.substring(cursor).trim('\n'),
-            entities = shiftSliceEntities(entities, cursor, text.length).filterNot { it.kind == "blockquote" },
+            entities = shiftSliceEntities(
+                entities,
+                cursor,
+                text.length
+            ).filterNot { it.kind == "blockquote" },
         )
     }
     return slices.filter { it.text.isNotBlank() || it.nested }
@@ -511,7 +531,11 @@ private fun QuoteBlockView(
     level: Int = 1,
 ) {
     var expanded by remember(text, collapsed) { mutableStateOf(!collapsed) }
-    val slices = remember(text, entities) { splitQuoteSlices(text, entities) }
+    val visibleText =
+        if (collapsed && !expanded) text.lineSequence().take(3).joinToString("\n") else text
+    val slices = remember(visibleText, entities) {
+        splitQuoteSlices(visibleText, shiftSliceEntities(entities, 0, visibleText.length))
+    }
     QuoteFrame(level = level.coerceAtLeast(1), contentColor = contentColor, modifier = modifier) {
         slices.forEach { slice ->
             if (slice.nested) {
@@ -536,15 +560,10 @@ private fun QuoteBlockView(
                 )
             }
         }
-        if (collapsed && !expanded) {
-            Text(
-                text = stringResource(R.string.dialog_quote_show_more),
-                color = linkColor,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .clickable { expanded = true }
-                    .padding(top = 2.dp),
-            )
+        if (collapsed) {
+            TextButton(onClick = { expanded = !expanded }) {
+                Text(stringResource(if (expanded) R.string.dialog_instant_view_collapse else R.string.dialog_quote_show_more))
+            }
         }
     }
 }
@@ -669,47 +688,47 @@ private fun TableGrid(
     val bodyStyle = MaterialTheme.typography.bodySmall
     val density = LocalDensity.current
     val colWidths = remember(table, minTableWidthPx, headerStyle, bodyStyle, density) {
-    with(density) {
-        val padPx = 16.dp.roundToPx()
-        val minCol = 56.dp.roundToPx()
-        val fittedMax = if (minTableWidthPx > 0 && columnCount > 0) {
-            max(minCol, minTableWidthPx / columnCount)
-        } else {
-            180.dp.roundToPx()
-        }
-        val textMax = (fittedMax - padPx).coerceAtLeast(minCol / 2)
-        val textConstraints = Constraints(maxWidth = textMax)
-        val widths = IntArray(columnCount) { col ->
-            val headerWidth = measurer.measure(
-                text = table.headers.getOrElse(col) { "" },
-                style = headerStyle,
-                constraints = textConstraints,
-            ).size.width
-            var bodyWidth = 0
-            table.rows.forEach { row ->
-                bodyWidth = max(
-                    bodyWidth,
-                    measurer.measure(
-                        text = row.getOrElse(col) { "" },
-                        style = bodyStyle,
-                        constraints = textConstraints,
-                    ).size.width,
-                )
+        with(density) {
+            val padPx = 16.dp.roundToPx()
+            val minCol = 56.dp.roundToPx()
+            val fittedMax = if (minTableWidthPx > 0 && columnCount > 0) {
+                max(minCol, minTableWidthPx / columnCount)
+            } else {
+                180.dp.roundToPx()
             }
-            (max(headerWidth, bodyWidth) + padPx).coerceIn(minCol, fittedMax)
-        }
-        var tableWidth = widths.sum()
-        val target = max(tableWidth, minTableWidthPx)
-        if (target > tableWidth && columnCount > 0) {
-            val extra = target - tableWidth
-            val each = extra / columnCount
-            val rem = extra % columnCount
-            for (col in 0 until columnCount) {
-                widths[col] += each + if (col < rem) 1 else 0
+            val textMax = (fittedMax - padPx).coerceAtLeast(minCol / 2)
+            val textConstraints = Constraints(maxWidth = textMax)
+            val widths = IntArray(columnCount) { col ->
+                val headerWidth = measurer.measure(
+                    text = table.headers.getOrElse(col) { "" },
+                    style = headerStyle,
+                    constraints = textConstraints,
+                ).size.width
+                var bodyWidth = 0
+                table.rows.forEach { row ->
+                    bodyWidth = max(
+                        bodyWidth,
+                        measurer.measure(
+                            text = row.getOrElse(col) { "" },
+                            style = bodyStyle,
+                            constraints = textConstraints,
+                        ).size.width,
+                    )
+                }
+                (max(headerWidth, bodyWidth) + padPx).coerceIn(minCol, fittedMax)
             }
+            val tableWidth = widths.sum()
+            val target = max(tableWidth, minTableWidthPx)
+            if (target > tableWidth && columnCount > 0) {
+                val extra = target - tableWidth
+                val each = extra / columnCount
+                val rem = extra % columnCount
+                for (col in 0 until columnCount) {
+                    widths[col] += each + if (col < rem) 1 else 0
+                }
+            }
+            widths.map { it.toDp() }
         }
-        widths.map { it.toDp() }
-    }
     }
     Column {
         Row(modifier = Modifier.height(IntrinsicSize.Max)) {

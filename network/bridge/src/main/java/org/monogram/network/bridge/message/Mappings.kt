@@ -51,6 +51,7 @@ internal fun UploadItem.toDto() = uniffi.monogram_mtproto.UploadItemDto(
     mimeType = mimeType,
     fileName = fileName,
     caption = caption,
+    entitiesJson = TextEntities.serialize(captionEntities),
     duration = duration,
     width = width,
     height = height,

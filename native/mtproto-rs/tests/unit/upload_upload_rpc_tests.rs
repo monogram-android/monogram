@@ -22,6 +22,7 @@ fn item(path: &std::path::Path, kind: &str) -> UploadItemDto {
         mime_type: String::new(),
         file_name: "fixture.bin".into(),
         caption: String::new(),
+        entities_json: None,
         duration: 0,
         width: 0,
         height: 0,
@@ -180,4 +181,40 @@ fn slow_network_preserves_large_file_support_and_premium_part_limit() {
     drop(staging);
     drop(file);
     std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn album_entry_preserves_caption_entities_and_literal_fallback() {
+    let mut fixture = item(std::path::Path::new("fixture.jpg"), "photo");
+    fixture.caption = "🙂 title".into();
+    fixture.random_id = 7;
+    let input = InputFile::InputFile(InputFileConstructor {
+        id: 42,
+        parts: 1,
+        name: "fixture.jpg".into(),
+        md5_checksum: String::new(),
+    });
+    fixture.entities_json = Some(r#"[{"kind":"italic","offset":3,"length":5}]"#.into());
+    let InputSingleMedia::InputSingleMedia(styled) =
+        album_entry(&fixture, input_media(&fixture, input.clone()).unwrap()).unwrap();
+    assert_eq!(styled.message, fixture.caption);
+    assert_eq!(styled.random_id, 7);
+    assert_eq!(styled.flags, InputSingleMediaConstructor::ENTITIES_FLAG);
+    let Vector::Vector(entities) = *styled.entities.unwrap();
+    assert_eq!(entities.field_0, 1);
+    let tellers_mtproto::latest::api::MessageEntity::MessageEntityItalic(entity) =
+        &*entities.field_1[0]
+    else {
+        panic!("italic");
+    };
+    assert_eq!((entity.offset, entity.length), (3, 5));
+    fixture.caption = "mediatek,gpio_usage_mapping".into();
+    fixture.entities_json = None;
+    let InputSingleMedia::InputSingleMedia(literal) =
+        album_entry(&fixture, input_media(&fixture, input.clone()).unwrap()).unwrap();
+    assert_eq!(literal.message, fixture.caption);
+    assert_eq!(literal.flags, 0);
+    assert!(literal.entities.is_none());
+    fixture.entities_json = Some("invalid".into());
+    assert!(album_entry(&fixture, input_media(&fixture, input).unwrap()).is_err());
 }

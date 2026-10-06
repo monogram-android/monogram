@@ -1,71 +1,14 @@
 package org.monogram.feature.dialog.store
 
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.monogram.core.common.AppLog
-import org.monogram.core.common.Outcome
-import org.monogram.core.common.PerfLog
-import org.monogram.core.common.telegram.TelegramError
-import org.monogram.core.markup.forSend
-import org.monogram.core.models.Chat
 import org.monogram.core.models.ChatActionKind
-import org.monogram.core.models.ForumIo
-import org.monogram.core.models.ForumTopic
-import org.monogram.core.models.InlineBotResult
-import org.monogram.core.models.InlineBotResults
-import org.monogram.core.models.Message
-import org.monogram.core.models.MessageId
-import org.monogram.core.models.MessageViewers
-import org.monogram.core.models.OutboxReadState
 import org.monogram.core.models.PeerId
-import org.monogram.core.models.Profile
-import org.monogram.core.models.ReactionChoice
-import org.monogram.core.models.ReadReceiptConfig
-import org.monogram.core.models.ReplyButton
-import org.monogram.core.models.ReplyButtonType
-import org.monogram.core.models.ReplyMarkups
-import org.monogram.core.models.SavedGif
-import org.monogram.core.models.StickerPack
-import org.monogram.core.models.StyledText
-import org.monogram.core.models.TextEntities
-import org.monogram.core.models.TextEntity
-import org.monogram.core.models.TypingPresence
-import org.monogram.core.models.UploadItem
-import org.monogram.core.models.canShowMessageViewers
-import org.monogram.core.models.canShowOutboxReadDate
-import org.monogram.core.models.geoPlace
-import org.monogram.core.models.isPlaceholderPeerTitle
-import org.monogram.core.models.peerAvatarCacheKey
-import org.monogram.core.models.playedMediaKind
-import org.monogram.core.models.preferredPeerTitle
+import org.monogram.core.models.prepareComposerText
+import org.monogram.core.models.remapTextEntities
 import org.monogram.feature.dialog.ComposerAt
-import org.monogram.feature.dialog.ComposerAtToken
-import org.monogram.feature.dialog.ComposerPanels
-import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.DraftMention
-import org.monogram.feature.dialog.InlineBotQuery
-import org.monogram.feature.dialog.MentionCandidate
-import org.monogram.feature.dialog.PinnedBarMemory
-import org.monogram.feature.dialog.SEARCH_DEBOUNCE_MS
-import org.monogram.feature.dialog.SavedGifMemory
-import org.monogram.feature.dialog.SenderTagMemory
-import org.monogram.feature.dialog.StickerCatalogMemory
-import org.monogram.feature.dialog.StickerPackMemory
-import org.monogram.feature.dialog.applyMessageEdit
-import org.monogram.feature.dialog.historyPagingAllowed
-import org.monogram.feature.dialog.isTransientSendFailure
-import org.monogram.feature.dialog.jumpNeedsFetch
-import org.monogram.feature.dialog.localMediaCacheKey
-import org.monogram.feature.dialog.localMediaPath
-import org.monogram.feature.dialog.mergeSenderTags
-import org.monogram.feature.dialog.nextRetryText
-import org.monogram.feature.dialog.parseUpdateMessageId
-import org.monogram.network.bridge.MtprotoClient
-import org.monogram.network.bridge.MtprotoUpdate
 import kotlin.time.Duration.Companion.milliseconds
 
 internal fun contactTypingNeeded(
@@ -82,6 +25,7 @@ internal fun contactTypingNeeded(
             val expires = peerStatusAt ?: return true
             expires > nowMillis / 1000L - 30L
         }
+
         else -> false
     }
 }
@@ -98,7 +42,13 @@ internal fun DialogExecutor.publishTyping(typing: Boolean) {
         return
     }
     val state = snapshot()
-    if (!contactTypingNeeded(state.isGroup, state.isChannel, state.peerStatus, state.peerStatusAt)) {
+    if (!contactTypingNeeded(
+            state.isGroup,
+            state.isChannel,
+            state.peerStatus,
+            state.peerStatusAt
+        )
+    ) {
         return
     }
     if (lastTypingSent == true || typingJob?.isActive == true) return
@@ -115,7 +65,9 @@ internal fun DialogExecutor.applyDraft(text: String, mentions: List<DraftMention
         mentions != null -> mentions
         else -> ComposerAt.remapMentions(snapshot().draft, text, snapshot().draftMentions)
     }
+    val entities = remapTextEntities(snapshot().draft, text, snapshot().draftEntities)
     emit(Msg.Draft(text))
+    emit(Msg.DraftEntities(entities))
     emit(Msg.DraftMentions(nextMentions))
     if (text.isEmpty()) {
         mentionJob?.cancel()
@@ -124,13 +76,13 @@ internal fun DialogExecutor.applyDraft(text: String, mentions: List<DraftMention
         clearInline()
         clearLinkPreview()
     }
+    scheduleDraftPreview()
     work.launch { warmup?.setDraft(chatId, threadTopMsgId, text) }
 }
 
 internal fun DialogExecutor.applyTyping(userId: PeerId, typing: Boolean, action: String) {
     typingJobs.remove(userId.value)?.cancel()
-    val active = typing
-    if (!active) {
+    if (!typing) {
         if (userId in snapshot().typingUsers) {
             emit(Msg.Typing(userId, null, false))
         }
@@ -164,3 +116,24 @@ internal fun DialogExecutor.applyTyping(userId: PeerId, typing: Boolean, action:
     }
 }
 
+
+internal fun DialogExecutor.scheduleDraftPreview() {
+    draftPreviewJob?.cancel()
+    val current = snapshot()
+    draftPreviewJob = work.launch {
+        delay(150)
+        val candidate = withContext(markupContext) {
+            prepareComposerText(current.draft, true, current.draftEntities)
+        }
+        val literal = prepareComposerText(current.draft, false, current.draftEntities)
+        val preview =
+            if (current.draftFormatting || current.draftEntities.isNotEmpty() || current.draftMentions.isNotEmpty()) {
+                prepareDraftPayload(current.draft, current)
+            } else literal
+        if (snapshot().draft == current.draft && snapshot().draftFormatting == current.draftFormatting &&
+            snapshot().draftEntities == current.draftEntities
+        ) {
+            emit(Msg.DraftPreview(preview, candidate != literal))
+        }
+    }
+}

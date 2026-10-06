@@ -26,7 +26,7 @@ use tellers_mtproto_session::Snapshot;
 use crate::api_invoke;
 use crate::media::MediaIndex;
 use crate::messages::{self, input_reply_to_thread, random_id};
-use crate::peers::{self, CachedPeer, input_peer_from_cached};
+use crate::peers::{self, input_peer_from_cached, CachedPeer};
 use crate::{MessageDto, MtprotoError, UploadItemDto};
 
 pub const FILE_PART_SMALL: usize = 32 * 1024;
@@ -188,6 +188,28 @@ pub fn send_uploaded(
     ))
 }
 
+fn album_entry(item: &UploadItemDto, media: InputMedia) -> Result<InputSingleMedia, MtprotoError> {
+    let random = if item.random_id != 0 {
+        item.random_id
+    } else {
+        random_id()
+    };
+    let (_, entities) = messages::entities_from_json(item.entities_json.as_deref())?;
+    Ok(InputSingleMedia::InputSingleMedia(
+        InputSingleMediaConstructor {
+            flags: if entities.is_some() {
+                InputSingleMediaConstructor::ENTITIES_FLAG
+            } else {
+                0
+            },
+            media: Box::new(media),
+            random_id: random,
+            message: item.caption.clone(),
+            entities,
+        },
+    ))
+}
+
 pub fn send_album(
     snapshot: &mut Snapshot,
     api_id: i32,
@@ -209,20 +231,7 @@ pub fn send_album(
     for (item, input) in items.iter().zip(inputs) {
         let uploaded = input_media(item, input.clone())?;
         let media = commit_album_media(snapshot, api_id, cached, uploaded)?;
-        let random = if item.random_id != 0 {
-            item.random_id
-        } else {
-            random_id()
-        };
-        multi.push(Box::new(InputSingleMedia::InputSingleMedia(
-            InputSingleMediaConstructor {
-                flags: 0,
-                media: Box::new(media),
-                random_id: random,
-                message: item.caption.clone(),
-                entities: None,
-            },
-        )));
+        multi.push(Box::new(album_entry(item, media)?));
     }
     let (reply_flag, reply_to) = input_reply_to_thread(reply_to_msg_id, top_msg_id);
     let request = MessagesSendMultiMediaRequest {

@@ -1,29 +1,28 @@
 package org.monogram.feature.dialog
 
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.yield
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import org.monogram.feature.dialog.store.contactTypingNeeded
+import kotlinx.coroutines.yield
 import org.junit.After
-import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.monogram.core.common.Outcome
 import org.monogram.core.database.OfflineWarmup
@@ -46,8 +45,8 @@ import org.monogram.core.models.ProfileMemberPage
 import org.monogram.core.models.SearchPeer
 import org.monogram.core.models.StickerCatalog
 import org.monogram.core.models.StickerPack
-import org.monogram.core.models.StyledText
 import org.monogram.core.models.TextEntity
+import org.monogram.feature.dialog.store.contactTypingNeeded
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.UpdatesCursor
@@ -519,17 +518,6 @@ class DialogForumStoreTest {
     @Test
     fun sendDropsUnsendableHeadingEntity() = runBlocking {
         val client = FakeClient()
-        val markup = FakeMarkupParser(
-            parse = {
-                StyledText(
-                    text = "Title",
-                    entities = listOf(
-                        TextEntity("heading", 0, 5, url = "1"),
-                        TextEntity("bold", 0, 5),
-                    ),
-                )
-            },
-        )
         val store = DialogStoreFactory(
             DefaultStoreFactory(),
             client,
@@ -538,9 +526,15 @@ class DialogForumStoreTest {
             chatId = PeerId(5),
             mainContext = Dispatchers.Unconfined,
             markupContext = Dispatchers.Unconfined,
-            markup = markup,
         ).create()
-        store.accept(DialogStore.Intent.DraftChanged("x"))
+        store.accept(DialogStore.Intent.DraftChanged("Title"))
+        store.accept(
+            DialogStore.Intent.SetDraftEntities(
+                listOf(
+                    TextEntity("heading", 0, 5, "1"), TextEntity("bold", 0, 5),
+                )
+            )
+        )
         store.accept(DialogStore.Intent.Send())
         val json = client.lastSendEntities
         assertTrue(json != null && json.contains("bold"))
@@ -559,15 +553,17 @@ class DialogForumStoreTest {
                 DefaultStoreFactory(), client, warmup = null, sessionStore = null,
                 chatId = PeerId(5), mainContext = dispatcher, markupContext = dispatcher,
                 isPremium = { premium },
-                markup = FakeMarkupParser(parse = {
-                    StyledText("xx", listOf(
-                        TextEntity("custom_emoji", 0, 1, "42"),
-                        TextEntity("custom_emoji", 1, 1, "42"),
-                    ))
-                }),
             ).create()
             try {
-                store.accept(DialogStore.Intent.DraftChanged("x"))
+                store.accept(DialogStore.Intent.DraftChanged("xx"))
+                store.accept(
+                    DialogStore.Intent.SetDraftEntities(
+                        listOf(
+                            TextEntity("custom_emoji", 0, 1, "42"),
+                            TextEntity("custom_emoji", 1, 1, "42"),
+                        )
+                    )
+                )
                 store.accept(DialogStore.Intent.Send())
                 assertEquals(1, client.emojiConfigCalls)
                 assertEquals(if (premium) emptyList<Long>() else listOf(42L), client.emojiFreeCalls)
@@ -1956,7 +1952,7 @@ class DialogForumStoreTest {
     }
 
     @Test
-    fun sendAppendsPendingBeforeMarkupAndRpc() = runTest {
+    fun sendAppendsPreparedPendingBeforeRpc() = runTest {
         val main = UnconfinedTestDispatcher(testScheduler)
         val markupDispatcher = StandardTestDispatcher(testScheduler)
         val gate = CompletableDeferred<Unit>()
@@ -1968,7 +1964,8 @@ class DialogForumStoreTest {
         ).create()
         try {
             store.accept(DialogStore.Intent.Send("hello"))
-            assertTrue(store.state.messages.any { it.outgoing && it.pending && it.text == "hello" })
+            assertTrue(store.state.sending)
+            assertTrue(store.state.messages.none { it.outgoing && it.pending })
             assertEquals(null, client.lastSendText)
             advanceUntilIdle()
             assertEquals("hello", client.lastSendText)
@@ -2003,10 +2000,11 @@ class DialogForumStoreTest {
     }
 
     @Test
-    fun sendResetsSendingWhenMarkupFails() = runTest {
+    fun literalSendDoesNotInvokeMarkdownParser() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient()
         val store = DialogStoreFactory(
-            DefaultStoreFactory(), FakeClient(), warmup = null, sessionStore = null,
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
             chatId = PeerId(5), seedIsForum = false,
             mainContext = dispatcher, markupContext = dispatcher,
             markup = FakeMarkupParser(parse = { error("parse") }),
@@ -2016,7 +2014,8 @@ class DialogForumStoreTest {
             store.accept(DialogStore.Intent.Send())
             advanceUntilIdle()
             assertFalse(store.state.sending)
-            assertEquals("hello", store.state.draft)
+            assertEquals("", store.state.draft)
+            assertEquals("hello", client.lastSendText)
         } finally {
             store.dispose()
         }
@@ -3013,7 +3012,7 @@ class DialogForumStoreTest {
     @Test
     fun overlappingVisibleWindowsReadEachMessageOnce() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
-        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val gate = CompletableDeferred<Unit>()
         val client = FakeClient().apply {
             unreadMentions = listOf(topicMessage(44), topicMessage(45))
             readContentsGate = gate
@@ -3340,6 +3339,339 @@ class DialogForumStoreTest {
         }
     }
 
+    @Test
+    fun htmlAndHeadingsSharePreviewPendingAndRpcPayload() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient().apply { sendGate = CompletableDeferred() }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup = null,
+            sessionStore = null,
+            chatId = PeerId(5),
+            mainContext = dispatcher,
+            markupContext = dispatcher,
+            isPremium = { true },
+        ).create()
+        try {
+            val raw = "## Title\n<b>👋</b> <a href=\"https://example.com\">link</a>"
+            store.accept(DialogStore.Intent.DraftChanged(raw))
+            advanceTimeBy(151)
+            runCurrent()
+            assertTrue(store.state.draftHasMarkdown)
+            assertEquals(raw, store.state.draftPreview?.text)
+            assertFalse(store.state.draftFormatting)
+            store.accept(DialogStore.Intent.SetDraftFormatting(true))
+            advanceTimeBy(151)
+            runCurrent()
+            val preview = store.state.draftPreview!!
+            assertEquals("Title\n👋 link", preview.text)
+            store.accept(DialogStore.Intent.Send())
+            assertEquals(preview.text, client.lastSendText)
+            assertEquals(
+                preview.entities,
+                org.monogram.core.models.TextEntities.parse(client.lastSendEntities)
+            )
+            val pending = store.state.messages.single { it.pending }
+            assertEquals(preview.text, pending.text)
+            assertEquals(preview.entities, pending.entities)
+            client.sendGate!!.complete(Unit)
+            advanceUntilIdle()
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun markdownDetectionWaitsForTypingPauseWithoutHidingKnownFormatting() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(),
+            FakeClient(),
+            warmup = null,
+            sessionStore = null,
+            chatId = PeerId(5),
+            mainContext = dispatcher,
+            markupContext = dispatcher,
+            isPremium = { true },
+        ).create()
+        try {
+            store.accept(DialogStore.Intent.DraftChanged("**bold**"))
+            assertFalse(store.state.draftHasMarkdown)
+            advanceTimeBy(151)
+            runCurrent()
+            assertTrue(store.state.draftHasMarkdown)
+            store.accept(DialogStore.Intent.DraftChanged("**bold** a"))
+            assertTrue(store.state.draftHasMarkdown)
+            assertEquals(null, store.state.draftPreview)
+            advanceTimeBy(100)
+            store.accept(DialogStore.Intent.DraftChanged("plain"))
+            advanceTimeBy(100)
+            assertTrue(store.state.draftHasMarkdown)
+            assertEquals(null, store.state.draftPreview)
+            advanceTimeBy(51)
+            runCurrent()
+            assertFalse(store.state.draftHasMarkdown)
+            assertEquals("plain", store.state.draftPreview?.text)
+            store.accept(DialogStore.Intent.DraftChanged(""))
+            assertFalse(store.state.draftHasMarkdown)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun literalAndFormattedPayloadsMatchPendingAndPreview() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient().apply { sendGate = CompletableDeferred() }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup = null,
+            sessionStore = null,
+            chatId = PeerId(5),
+            mainContext = dispatcher,
+            markupContext = dispatcher,
+            isPremium = { true },
+        ).create()
+        try {
+            store.accept(DialogStore.Intent.DraftChanged("mediatek,gpio_usage_mapping"))
+            store.accept(DialogStore.Intent.Send())
+            assertEquals("mediatek,gpio_usage_mapping", client.lastSendText)
+            assertTrue(
+                org.monogram.core.models.TextEntities.parse(client.lastSendEntities).isEmpty()
+            )
+            val literal = store.state.messages.single { it.pending }
+            assertEquals(client.lastSendText, literal.text)
+            assertTrue(literal.entities.isEmpty())
+            client.sendGate!!.complete(Unit)
+            advanceUntilIdle()
+            client.sendGate = CompletableDeferred()
+            store.accept(DialogStore.Intent.DraftChanged("👋 **bold** and __italic__"))
+            advanceTimeBy(151)
+            runCurrent()
+            assertTrue(store.state.draftHasMarkdown)
+            assertFalse(store.state.draftFormatting)
+            store.accept(DialogStore.Intent.SetDraftFormatting(true))
+            advanceTimeBy(151)
+            runCurrent()
+            val preview = store.state.draftPreview!!
+            store.accept(DialogStore.Intent.Send())
+            assertEquals(preview.text, client.lastSendText)
+            assertEquals(
+                preview.entities,
+                org.monogram.core.models.TextEntities.parse(client.lastSendEntities)
+            )
+            val pending = store.state.messages.single { it.pending }
+            assertEquals(preview.text, pending.text)
+            assertEquals(preview.entities, pending.entities)
+            assertFalse(store.state.draftFormatting)
+            client.sendGate!!.complete(Unit)
+            advanceUntilIdle()
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun formattedAlbumCaptionAndRetryKeepEntities() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient().apply { uploadError = "MEDIA_INVALID" }
+        val files = List(2) {
+            kotlin.io.path.createTempFile(suffix = ".jpg").toFile()
+                .apply { writeBytes(byteArrayOf(1, 2)) }
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup = null,
+            sessionStore = null,
+            chatId = PeerId(5),
+            mainContext = dispatcher,
+            markupContext = dispatcher,
+            isPremium = { true },
+        ).create()
+        try {
+            store.accept(DialogStore.Intent.DraftChanged("**caption**"))
+            store.accept(DialogStore.Intent.SetDraftFormatting(true))
+            store.accept(DialogStore.Intent.SendAlbum(files.map {
+                org.monogram.core.models.UploadItem(
+                    it.absolutePath,
+                    "photo"
+                )
+            }))
+            advanceUntilIdle()
+            val item = client.lastAlbum!!.first()
+            assertEquals("caption", item.caption)
+            assertEquals(listOf(TextEntity("bold", 0, 7)), item.captionEntities)
+            assertTrue(store.state.messages.any { it.failed && it.entities == item.captionEntities })
+            client.uploadError = null
+            store.accept(DialogStore.Intent.RetryFailed)
+            advanceUntilIdle()
+            val retried = client.lastAlbum!!.single { it.path == item.path }
+            assertEquals(item.caption, retried.caption)
+            assertEquals(item.captionEntities, retried.captionEntities)
+        } finally {
+            store.dispose(); files.forEach { it.delete() }
+        }
+    }
+
+    @Test
+    fun singleMediaAndIndependentAlbumCaptionsKeepTheirPayloads() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val files = List(2) {
+            kotlin.io.path.createTempFile(suffix = ".jpg").toFile()
+                .apply { writeBytes(byteArrayOf(1)) }
+        }
+        val client = FakeClient()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup = null,
+            sessionStore = null,
+            chatId = PeerId(5),
+            mainContext = dispatcher,
+            markupContext = dispatcher,
+            isPremium = { true }).create()
+        try {
+            store.accept(DialogStore.Intent.DraftChanged("mediatek,gpio_usage_mapping"))
+            store.accept(DialogStore.Intent.SendUpload(files[0].absolutePath, "photo"))
+            advanceUntilIdle()
+            assertEquals("mediatek,gpio_usage_mapping", client.lastUpload!!.caption)
+            assertTrue(client.lastUpload!!.captionEntities.isEmpty())
+            store.accept(DialogStore.Intent.DraftChanged("__caption__"))
+            store.accept(DialogStore.Intent.SetDraftFormatting(true))
+            store.accept(DialogStore.Intent.SendUpload(files[0].absolutePath, "photo"))
+            advanceUntilIdle()
+            assertEquals("caption", client.lastUpload!!.caption)
+            assertEquals(listOf(TextEntity("italic", 0, 7)), client.lastUpload!!.captionEntities)
+            store.accept(
+                DialogStore.Intent.AttachMedia(
+                    listOf(
+                        org.monogram.core.models.UploadItem(
+                            files[0].absolutePath,
+                            "photo",
+                            caption = "**literal**"
+                        )
+                    )
+                )
+            )
+            store.accept(DialogStore.Intent.Send())
+            advanceUntilIdle()
+            assertEquals("**literal**", client.lastUpload!!.caption)
+            assertTrue(client.lastUpload!!.captionEntities.isEmpty())
+            val items = files.mapIndexed { i, file ->
+                org.monogram.core.models.UploadItem(
+                    file.absolutePath,
+                    "photo",
+                    caption = "**literal$i**"
+                )
+            }
+            store.accept(DialogStore.Intent.SendAlbum(items))
+            advanceUntilIdle()
+            assertEquals(items.map { it.caption }, client.lastAlbum!!.map { it.caption })
+            assertTrue(client.lastAlbum!!.all { it.captionEntities.isEmpty() })
+        } finally {
+            store.dispose(); files.forEach { it.delete() }
+        }
+    }
+
+    @Test
+    fun restoredRetryKeepsPayloadAndCurrentDraft() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val entities = listOf(TextEntity("underline", 0, 4))
+        val saved = Message(
+            MessageId(PeerId(5), -9), null, "**literal**", 1L,
+            outgoing = true, failed = true, entities = entities
+        )
+        val warmup = FakeWarmup().apply { storedMessages[5L] = listOf(saved) }
+        val client = FakeClient()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup,
+            sessionStore = null,
+            chatId = PeerId(5),
+            mainContext = dispatcher,
+            markupContext = dispatcher,
+            isPremium = { true }).create()
+        try {
+            store.accept(DialogStore.Intent.DraftChanged("__new draft__"))
+            store.accept(DialogStore.Intent.SetDraftFormatting(true))
+            store.accept(DialogStore.Intent.RetryFailed)
+            advanceUntilIdle()
+            assertEquals(saved.text, client.lastSendText)
+            assertEquals(
+                entities,
+                org.monogram.core.models.TextEntities.parse(client.lastSendEntities)
+            )
+            assertEquals("__new draft__", store.state.draft)
+            assertTrue(store.state.draftFormatting)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun editingKeepsServerEntitiesAndLiteralMarkers() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val entities = listOf(TextEntity("underline", 0, 4), TextEntity("bold", 5, 4))
+        val message = Message(
+            MessageId(PeerId(5), 77), null, "keep bold **literal**", 1L,
+            outgoing = true, entities = entities
+        )
+        val client = FakeClient()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), mainContext = dispatcher, markupContext = dispatcher
+        ).create()
+        try {
+            store.accept(DialogStore.Intent.Edit(message))
+            assertFalse(store.state.draftFormatting)
+            assertEquals(entities, store.state.draftEntities)
+            store.accept(DialogStore.Intent.Send())
+            advanceUntilIdle()
+            assertEquals(message.text, client.lastEditText)
+            assertEquals(
+                entities,
+                org.monogram.core.models.TextEntities.parse(client.lastEditEntities)
+            )
+        } finally {
+            store.dispose()
+        }
+    }
+
+
+    @Test
+    fun nonPremiumMarkdownIntentKeepsLiteralSourceAndExplicitEntities() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup = null,
+            sessionStore = null,
+            chatId = PeerId(5),
+            mainContext = dispatcher,
+            markupContext = dispatcher,
+            isPremium = { false }).create()
+        try {
+            store.accept(DialogStore.Intent.DraftChanged("**literal**"))
+            store.accept(DialogStore.Intent.SetDraftFormatting(true))
+            assertFalse(store.state.draftFormatting)
+            store.accept(DialogStore.Intent.SetDraftEntities(listOf(TextEntity("underline", 2, 7))))
+            store.accept(DialogStore.Intent.Send())
+            advanceUntilIdle()
+            assertEquals("**literal**", client.lastSendText)
+            assertEquals(
+                listOf(TextEntity("underline", 2, 7)),
+                org.monogram.core.models.TextEntities.parse(client.lastSendEntities)
+            )
+        } finally {
+            store.dispose()
+        }
+    }
+
     private class FakeClient(
         private val topicCount: Int = 1,
     ) : MtprotoClient {
@@ -3364,7 +3696,7 @@ class DialogForumStoreTest {
         var lastReactionAddOffset = 0
         val readContentIds = mutableListOf<List<Int>>()
         var failReadContents = false
-        var readContentsGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+        var readContentsGate: CompletableDeferred<Unit>? = null
         var topicUnreadMentions = 0
         var topicUnreadReactions = 0
         var readMentionsCalls = 0
@@ -3381,6 +3713,8 @@ class DialogForumStoreTest {
         var lastSendTop = 0
         var lastSendEntities: String? = null
         var lastSendText: String? = null
+        var lastEditText: String? = null
+        var lastEditEntities: String? = null
         val sentTexts = mutableListOf<String>()
         var nextSendId = 200
         var sendGate: CompletableDeferred<Unit>? = null
@@ -3700,7 +4034,20 @@ class DialogForumStoreTest {
             messageId: Int,
             text: String,
             entitiesJson: String?,
-        ) = unused<Message>()
+        ): Outcome<Message> {
+            lastEditText = text
+            lastEditEntities = entitiesJson
+            return Outcome.Ok(
+                Message(
+                    MessageId(chatId, messageId),
+                    null,
+                    text,
+                    1L,
+                    outgoing = true,
+                    entities = org.monogram.core.models.TextEntities.parse(entitiesJson)
+                )
+            )
+        }
         override suspend fun deleteMessage(chatId: PeerId, messageId: Int, revoke: Boolean) =
             Outcome.Ok(Unit)
         override suspend fun forwardMessage(

@@ -1,9 +1,7 @@
 //! Telegram Markdown/HTML → plain text + MessageEntity.
 //! Docs: https://core.telegram.org/api/entities
-//! Nested blockquotes are overlapping entities (outer contains inner).
 
-use crate::html::parse_html;
-use crate::utf16::{OutBuf, rtrim_utf16_len};
+use crate::utf16::{rtrim_utf16_len, OutBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MarkupEntity {
@@ -28,35 +26,52 @@ pub fn parse_telegram_markdown(raw: &str) -> StyledMarkup {
     }
     let mut out = OutBuf::with_capacity(raw.len());
     let mut entities = Vec::new();
-    if looks_like_html(raw) {
-        parse_html(raw, &mut out, &mut entities);
-    } else {
-        parse_markdown(raw, 0, raw.len(), &mut out, &mut entities, true);
-    }
+    parse_markdown(raw, 0, raw.len(), &mut out, &mut entities, true);
+    let code: Vec<_> = entities
+        .iter()
+        .filter(|e| e.kind == "code" || e.kind == "pre")
+        .cloned()
+        .collect();
+    entities = entities
+        .into_iter()
+        .flat_map(|entity| {
+            if entity.kind == "code" || entity.kind == "pre" {
+                return vec![entity];
+            }
+            let mut parts = vec![entity];
+            for opaque in &code {
+                parts = parts
+                    .into_iter()
+                    .flat_map(|part| {
+                        let end = part.offset + part.length;
+                        let opaque_end = opaque.offset + opaque.length;
+                        if end <= opaque.offset || part.offset >= opaque_end {
+                            return vec![part];
+                        }
+                        let mut result = Vec::new();
+                        if part.offset < opaque.offset {
+                            let mut before = part.clone();
+                            before.length = opaque.offset - part.offset;
+                            result.push(before);
+                        }
+                        if end > opaque_end {
+                            let mut after = part;
+                            after.offset = opaque_end;
+                            after.length = end - opaque_end;
+                            result.push(after);
+                        }
+                        result
+                    })
+                    .collect();
+            }
+            parts
+        })
+        .collect();
     entities.sort_by(|a, b| a.offset.cmp(&b.offset).then(b.length.cmp(&a.length)));
     StyledMarkup {
         text: out.text,
         entities,
     }
-}
-
-fn looks_like_html(raw: &str) -> bool {
-    let lower = raw.to_ascii_lowercase();
-    lower.contains("<blockquote")
-        || lower.contains("<tg-spoiler")
-        || lower.contains("<tg-emoji")
-        || lower.contains("<strong")
-        || lower.contains("<pre")
-        || lower.contains("<details")
-        || lower.contains("<table")
-        || lower.contains("<ul")
-        || lower.contains("<ol")
-        || lower.contains("<h1")
-        || lower.contains("<h2")
-        || lower.contains("<h3")
-        || (lower.contains("<b>") && lower.contains("</b>"))
-        || (lower.contains("<i>") && lower.contains("</i>"))
-        || lower.contains("<a href")
 }
 
 fn parse_markdown(
@@ -76,20 +91,8 @@ fn parse_markdown(
                     continue;
                 }
             }
-            if is_rule_line(&raw[i..to]) {
-                i = emit_rule(raw, i, to, out, entities);
-                continue;
-            }
-            if let Some(next) = emit_heading(raw, i, to, out, entities) {
-                i = next;
-                continue;
-            }
             if quote_depth(&raw[i..to]) > 0 {
                 i = emit_quote_run(raw, i, to, from, out, entities);
-                continue;
-            }
-            if let Some(next) = emit_task_run(raw, i, to, from, out, entities) {
-                i = next;
                 continue;
             }
         }
@@ -109,39 +112,6 @@ fn at_line_start(raw: &str, i: usize, from: usize) -> bool {
 
 fn line_end(raw: &str, i: usize, to: usize) -> usize {
     raw[i..to].find('\n').map(|n| i + n).unwrap_or(to)
-}
-
-fn is_rule_line(rest: &str) -> bool {
-    let line = rest.split('\n').next().unwrap_or(rest).trim();
-    let compact: String = line.chars().filter(|ch| !ch.is_whitespace()).collect();
-    compact.len() >= 3
-        && (compact.chars().all(|ch| ch == '-')
-            || compact.chars().all(|ch| ch == '*')
-            || compact.chars().all(|ch| ch == '_'))
-}
-
-fn emit_rule(
-    raw: &str,
-    i: usize,
-    to: usize,
-    out: &mut OutBuf,
-    entities: &mut Vec<MarkupEntity>,
-) -> usize {
-    let end = line_end(raw, i, to);
-    let mark = out.utf16_len();
-    out.push_str("---");
-    entities.push(MarkupEntity {
-        kind: "rule".into(),
-        offset: mark,
-        length: 3,
-        extra: None,
-    });
-    if end < to {
-        out.push_char('\n');
-        end + 1
-    } else {
-        end
-    }
 }
 
 fn quote_depth(rest: &str) -> usize {
@@ -171,7 +141,6 @@ fn emit_quote_run(
     entities: &mut Vec<MarkupEntity>,
 ) -> usize {
     struct Line {
-        depth: usize,
         collapsed: bool,
         start: usize,
         end: usize,
@@ -185,7 +154,6 @@ fn emit_quote_run(
             break;
         }
         lines.push(Line {
-            depth,
             collapsed,
             start: i + body_off,
             end,
@@ -195,41 +163,15 @@ fn emit_quote_run(
     if lines.is_empty() {
         return i;
     }
-    // Every depth level emits its own blockquote range, so nesting survives.
-    let max_depth = lines.iter().map(|l| l.depth).max().unwrap_or(1);
-    let mut line_spans: Vec<(i32, i32, usize, bool)> = Vec::new();
+    let start = out.utf16_len();
+    let collapsed = lines.iter().any(|line| line.collapsed);
     for (idx, line) in lines.iter().enumerate() {
         if idx > 0 {
             out.push_char('\n');
         }
-        let start = out.utf16_len();
         parse_markdown(raw, line.start, line.end, out, entities, false);
-        line_spans.push((start, out.utf16_len(), line.depth, line.collapsed));
     }
-    let mut ranges: Vec<(i32, i32, bool)> = Vec::new();
-    for depth in 1..=max_depth {
-        let mut run_start: Option<i32> = None;
-        let mut run_end: i32 = 0;
-        let mut collapsed = false;
-        for (start, end, line_depth, line_collapsed) in &line_spans {
-            if *line_depth >= depth {
-                if run_start.is_none() {
-                    run_start = Some(*start);
-                    collapsed = *line_collapsed && depth == 1;
-                }
-                run_end = *end;
-                if *line_collapsed && depth == 1 {
-                    collapsed = true;
-                }
-            } else if let Some(from) = run_start.take() {
-                ranges.push((from, run_end, collapsed));
-                collapsed = false;
-            }
-        }
-        if let Some(from) = run_start {
-            ranges.push((from, run_end, collapsed));
-        }
-    }
+    let ranges = vec![(start, out.utf16_len(), collapsed)];
     for (start, end, collapsed) in ranges {
         let slice_start = utf16_to_byte(&out.text, start);
         let slice_end = utf16_to_byte(&out.text, end);
@@ -261,70 +203,6 @@ fn utf16_to_byte(text: &str, offset: i32) -> usize {
         }
     }
     text.len()
-}
-
-fn emit_task_run(
-    raw: &str,
-    mut i: usize,
-    to: usize,
-    from: usize,
-    out: &mut OutBuf,
-    entities: &mut Vec<MarkupEntity>,
-) -> Option<usize> {
-    let mut emitted = false;
-    let mut first = true;
-    while i < to && at_line_start(raw, i, from) {
-        let end = line_end(raw, i, to);
-        let line = &raw[i..end];
-        let Some((done, body_from)) = task_line(line) else {
-            break;
-        };
-        if !first {
-            out.push_char('\n');
-        }
-        first = false;
-        emitted = true;
-        let mark = out.utf16_len();
-        let body_at = out.text.len();
-        parse_markdown(raw, i + body_from, end, out, entities, false);
-        let body = &out.text[body_at..];
-        let len = rtrim_utf16_len(body);
-        if len > 0 {
-            entities.push(MarkupEntity {
-                kind: "task".into(),
-                offset: mark,
-                length: len,
-                extra: Some(if done { "1".into() } else { "0".into() }),
-            });
-        }
-        i = if end < to { end + 1 } else { to };
-    }
-    if i > 0 && emitted && raw.as_bytes().get(i.wrapping_sub(1)) == Some(&b'\n') {
-        out.push_char('\n');
-    }
-    emitted.then_some(i)
-}
-
-fn task_line(line: &str) -> Option<(bool, usize)> {
-    let trimmed = line.trim_start();
-    let indent = line.len() - trimmed.len();
-    let rest = trimmed
-        .strip_prefix("- ")
-        .or_else(|| trimmed.strip_prefix("* "))
-        .or_else(|| trimmed.strip_prefix("+ "))
-        .unwrap_or(trimmed);
-    let (done, after) = if let Some(tail) = rest
-        .strip_prefix("[x] ")
-        .or_else(|| rest.strip_prefix("[X] "))
-    {
-        (true, tail)
-    } else if let Some(tail) = rest.strip_prefix("[ ] ") {
-        (false, tail)
-    } else {
-        return None;
-    };
-    let body_from = indent + (trimmed.len() - rest.len()) + (rest.len() - after.len());
-    Some((done, body_from))
 }
 
 fn emit_fence(
@@ -371,50 +249,6 @@ fn emit_fence(
     Some(i)
 }
 
-fn emit_heading(
-    raw: &str,
-    start: usize,
-    to: usize,
-    out: &mut OutBuf,
-    entities: &mut Vec<MarkupEntity>,
-) -> Option<usize> {
-    let mut hashes = 0usize;
-    while start + hashes < to && raw.as_bytes()[start + hashes] == b'#' && hashes < 6 {
-        hashes += 1;
-    }
-    if hashes == 0 || start + hashes >= to || raw.as_bytes()[start + hashes] != b' ' {
-        return None;
-    }
-    let content_start = start + hashes + 1;
-    let line_end = raw[start..to].find('\n').map(|n| start + n).unwrap_or(to);
-    let mark = out.utf16_len();
-    let body_at = out.text.len();
-    parse_markdown(raw, content_start, line_end, out, entities, false);
-    let body = &out.text[body_at..];
-    let len = rtrim_utf16_len(body);
-    if len > 0 {
-        entities.push(MarkupEntity {
-            kind: "heading".into(),
-            offset: mark,
-            length: len,
-            extra: Some(hashes.to_string()),
-        });
-        entities.push(MarkupEntity {
-            kind: "bold".into(),
-            offset: mark,
-            length: len,
-            extra: None,
-        });
-    }
-    let i = if line_end < to {
-        out.push_char('\n');
-        line_end + 1
-    } else {
-        to
-    };
-    Some(i)
-}
-
 fn emit_inline(
     raw: &str,
     start: usize,
@@ -437,14 +271,11 @@ fn emit_inline(
             return Some(start + 1 + escaped.len_utf8());
         }
     }
-    if rest.starts_with("***") {
-        return emit_kinds_wrap(raw, start, to, "***", &["bold", "italic"], out, entities);
-    }
     if rest.starts_with("**") {
         return emit_wrap(raw, start, to, "**", "bold", out, entities);
     }
     if rest.starts_with("__") {
-        return emit_wrap(raw, start, to, "__", "underline", out, entities);
+        return emit_wrap(raw, start, to, "__", "italic", out, entities);
     }
     if rest.starts_with("~~") {
         return emit_wrap(raw, start, to, "~~", "strike", out, entities);
@@ -461,95 +292,32 @@ fn emit_inline(
     if rest.starts_with('[') {
         return emit_link(raw, start, to, out, entities);
     }
-    if rest.starts_with('*') {
-        return emit_single_wrap(raw, start, to, '*', "italic", out, entities);
-    }
-    if rest.starts_with('_') {
-        return emit_single_wrap(raw, start, to, '_', "italic", out, entities);
-    }
+
     None
 }
 
-/// Closing marker for a single delimiter; `*` inside `**` is not a match.
-fn find_single_close(raw: &str, from: usize, to: usize, ch: char) -> Option<usize> {
-    let marker = ch as u8;
-    let bytes = raw.as_bytes();
+fn find_close(raw: &str, from: usize, to: usize, delim: &str) -> Option<usize> {
     let mut i = from;
     while i < to {
-        let c = raw[i..].chars().next()?;
-        if c == ch {
-            let prev_same = i > from && bytes.get(i - 1) == Some(&marker);
-            let next_same = i + 1 < to && bytes.get(i + 1) == Some(&marker);
-            if !prev_same && !next_same {
-                return Some(i);
+        if raw[i..to].starts_with('\\') {
+            i += 1;
+            if i < to {
+                i += raw[i..to].chars().next()?.len_utf8();
+            }
+            continue;
+        }
+        if raw[i..to].starts_with(delim) {
+            return Some(i);
+        }
+        if delim != "`" && raw[i..to].starts_with('`') {
+            if let Some(close) = raw[i + 1..to].find('`') {
+                i += close + 2;
+                continue;
             }
         }
-        i += c.len_utf8();
+        i += raw[i..to].chars().next()?.len_utf8();
     }
     None
-}
-
-fn emit_single_wrap(
-    raw: &str,
-    start: usize,
-    to: usize,
-    ch: char,
-    kind: &str,
-    out: &mut OutBuf,
-    entities: &mut Vec<MarkupEntity>,
-) -> Option<usize> {
-    let inner_from = start + ch.len_utf8();
-    let end = find_single_close(raw, inner_from, to, ch)?;
-    if end == inner_from {
-        return None;
-    }
-    let mark = out.utf16_len();
-    let body_at = out.text.len();
-    parse_markdown(raw, inner_from, end, out, entities, false);
-    let len = rtrim_utf16_len(&out.text[body_at..]);
-    if len > 0 {
-        entities.push(MarkupEntity {
-            kind: kind.into(),
-            offset: mark,
-            length: len,
-            extra: None,
-        });
-    }
-    Some(end + ch.len_utf8())
-}
-
-fn emit_kinds_wrap(
-    raw: &str,
-    start: usize,
-    to: usize,
-    delim: &str,
-    kinds: &[&str],
-    out: &mut OutBuf,
-    entities: &mut Vec<MarkupEntity>,
-) -> Option<usize> {
-    let inner_from = start + delim.len();
-    if inner_from >= to {
-        return None;
-    }
-    let end = raw[inner_from..to].find(delim).map(|n| inner_from + n)?;
-    if end == inner_from {
-        return None;
-    }
-    let mark = out.utf16_len();
-    let body_at = out.text.len();
-    parse_markdown(raw, inner_from, end, out, entities, false);
-    let len = rtrim_utf16_len(&out.text[body_at..]);
-    if len > 0 {
-        for kind in kinds {
-            entities.push(MarkupEntity {
-                kind: (*kind).into(),
-                offset: mark,
-                length: len,
-                extra: None,
-            });
-        }
-    }
-    Some(end + delim.len())
 }
 
 fn emit_wrap(
@@ -565,7 +333,7 @@ fn emit_wrap(
     if inner_from >= to {
         return None;
     }
-    let end = raw[inner_from..to].find(delim).map(|n| inner_from + n)?;
+    let end = find_close(raw, inner_from, to, delim)?;
     if end == inner_from {
         return None;
     }

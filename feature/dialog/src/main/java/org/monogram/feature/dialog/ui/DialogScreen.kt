@@ -45,7 +45,9 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.launch
 import org.monogram.core.models.GeoPlace
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.TextEntity
 import org.monogram.core.models.poll
+import org.monogram.core.models.remapTextEntities
 import org.monogram.core.ui.components.AppStatusBanner
 import org.monogram.core.ui.components.AppSyncStatus
 import org.monogram.core.ui.components.OnlineLeaseExpiry
@@ -494,9 +496,23 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                             component.onDraftChanged(composer.value.text)
                         },
                         onInsertCustomEmoji = { documentId ->
-                            val token = "![🙂](tg://emoji?id=$documentId)"
-                            composer.value = insertComposerText(composer.value, token)
+                            val before = composer.value
+                            val offset = before.selection.min
+                            val glyph = "🙂"
+                            composer.value = insertComposerText(before, glyph)
+                            val entities = remapTextEntities(
+                                before.text,
+                                composer.value.text,
+                                state.draftEntities
+                            ) +
+                                    TextEntity(
+                                        "custom_emoji",
+                                        offset,
+                                        glyph.length,
+                                        documentId.toString()
+                                    )
                             component.onDraftChanged(composer.value.text)
+                            component.onDraftEntities(entities)
                         },
                         onOpenPack = { pack ->
                             component.onOpenStickerPack(

@@ -1,173 +1,68 @@
 package org.monogram.feature.dialog.ui
 
-import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.content.TransferableContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.content.TransferableContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
-import androidx.core.content.ContextCompat
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import org.monogram.core.common.Outcome
-import org.monogram.core.models.GeoPlace
-import org.monogram.core.models.Message
-import org.monogram.core.models.PeerId
+import org.monogram.core.models.ReplyMarkup
+import org.monogram.core.models.StyledText
+import org.monogram.core.models.TextEntities
+import org.monogram.core.models.TextEntity
 import org.monogram.core.models.UploadItem
-import org.monogram.core.models.displayedChatAction
-import org.monogram.core.models.peerAvatarCacheKey
-import org.monogram.core.ui.AppearanceSettings
-import org.monogram.core.ui.components.AppModalSheet
-import org.monogram.core.ui.components.AppStatusBanner
-import org.monogram.core.ui.components.AppSyncStatus
-import org.monogram.core.ui.components.ChatWallpaper
-import org.monogram.core.ui.components.MessageListSkeleton
-import org.monogram.core.ui.components.OnlineLeaseExpiry
-import org.monogram.core.ui.components.PeerAvatar
-import org.monogram.core.ui.components.SearchField
-import org.monogram.core.ui.components.TypingDots
-import org.monogram.core.ui.components.UnreadBadge
-import org.monogram.core.ui.components.listItemMotion
-import org.monogram.core.ui.components.liveActionTransition
-import org.monogram.core.ui.components.peerStatusLabel
-import org.monogram.core.ui.components.rememberPeerStatusNow
-import org.monogram.core.ui.components.typingStatusText
-import org.monogram.core.ui.components.uiLabel
-import org.monogram.core.ui.loading.MonogramLoading
-import org.monogram.core.ui.loading.MonogramLoadingListSize
-import org.monogram.core.ui.menu.AppMenuPlacementState
-import org.monogram.core.ui.menu.AppMenuScrimPopup
-import org.monogram.core.ui.rememberEnsuredFile
-import org.monogram.feature.dialog.ComposerAt
+import org.monogram.core.models.WebpagePreview
+import org.monogram.core.models.remapTextEntities
+import org.monogram.core.models.toggleComposerEntity
 import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.DialogComponent
-import org.monogram.feature.dialog.DialogDayKind
-import org.monogram.feature.dialog.DialogStore
-import org.monogram.feature.dialog.DialogTime
 import org.monogram.feature.dialog.R
-import org.monogram.feature.dialog.albumSlice
-import org.monogram.feature.dialog.dialogSyncStatus
-import org.monogram.feature.dialog.followBottomFromScroll
-import org.monogram.feature.dialog.historyPagingAllowed
-import org.monogram.feature.dialog.isAlbumHead
-import org.monogram.feature.dialog.liftAnchorTarget
-import org.monogram.feature.dialog.shouldFollowIncomingNewest
-import org.monogram.feature.dialog.shouldPageNewer
-import org.monogram.feature.dialog.shouldPageOlder
-import org.monogram.feature.dialog.unreadDividerIndex
-import org.monogram.network.http.MediaPriority
-import java.io.File
-import java.time.ZoneId
-import java.util.Locale
-import kotlin.time.Duration.Companion.milliseconds
-import org.monogram.core.ui.components.SponsorBadge
 import org.monogram.feature.dialog.performComposerSlot
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun DialogComposerDock(
     component: DialogComponent,
-    composer: androidx.compose.runtime.MutableState<TextFieldValue>,
+    composer: MutableState<TextFieldValue>,
     draft: String,
+    draftFormatting: Boolean,
+    draftEntities: List<TextEntity>,
+    draftPreview: StyledText?,
+    draftHasMarkdown: Boolean,
     sending: Boolean,
     canView: Boolean,
     canSendPlain: Boolean,
@@ -178,11 +73,11 @@ internal fun DialogComposerDock(
     replyBody: String?,
     pendingAttach: List<UploadItem>,
     hasFailed: Boolean,
-    botKeyboard: org.monogram.core.models.ReplyMarkup? = null,
+    botKeyboard: ReplyMarkup? = null,
     botKeyboardMessageId: Int = 0,
     botPlaceholder: String? = null,
     composerFocusSeq: Int = 0,
-    linkPreview: org.monogram.core.models.WebpagePreview? = null,
+    linkPreview: WebpagePreview? = null,
     linkPreviewLoading: Boolean = false,
     linkPreviewHidden: Boolean = false,
     linkPreviewUrls: List<String> = emptyList(),
@@ -200,8 +95,25 @@ internal fun DialogComposerDock(
     var value by composer
     val context = LocalContext.current
     val editorSlot by component.editorSlot.subscribeAsState()
+    var editorMarkdown by rememberSaveable { mutableStateOf(false) }
+    var editorInitialized by rememberSaveable { mutableStateOf(false) }
+    var editorEntities by rememberSaveable(
+        stateSaver = Saver<List<TextEntity>, String>(
+            save = { TextEntities.serialize(it) ?: "[]" },
+            restore = { TextEntities.parse(it) },
+        )
+    ) { mutableStateOf(emptyList()) }
     var editorValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue())
+    }
+    LaunchedEffect(editorSlot.child) {
+        if (editorSlot.child == null) editorInitialized = false
+        else if (!editorInitialized) {
+            editorInitialized = true
+            editorValue = value
+            editorEntities = draftEntities
+            editorMarkdown = draftFormatting && component.markdownAvailable
+        }
     }
     val clipboard = LocalClipboard.current
     val clipboardScope = rememberCoroutineScope()
@@ -263,7 +175,7 @@ internal fun DialogComposerDock(
     }
     LaunchedEffect(value.text) {
         if (value.text == draft) return@LaunchedEffect
-        delay(400)
+        delay(100)
         component.onDraftChanged(value.text)
     }
     if (!canView) {
@@ -293,114 +205,169 @@ internal fun DialogComposerDock(
             )
         }
         Box(modifier = Modifier.fillMaxWidth()) {
-        ComposerSelectionMenu(
-            visible = hasComposerSelection && selectionMenuRequested,
-            onDismiss = {
-                selectionMenuRequested = false
-            },
-            canPaste = pasteText.isNotEmpty() || pasteMedia.isNotEmpty(),
-            onCopy = {
-                val slice = selectedComposerPlain(value)
-                if (slice.isNotBlank()) clipboardScope.launch {
-                    clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("text", slice)))
-                }
-            },
-            onCut = {
-                val slice = selectedComposerPlain(value)
-                if (slice.isNotBlank()) clipboardScope.launch {
-                    clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("text", slice)))
-                }
-                value = deleteComposerSelection(value)
-                component.onDraftChanged(value.text)
-            },
-            onPaste = {
-                if (pasteText.isNotEmpty()) {
-                    val lo = value.selection.min
-                    val hi = value.selection.max
-                    val next = value.text.substring(0, lo) + pasteText +
-                        value.text.substring(hi)
-                    value = TextFieldValue(
-                        text = next,
-                        selection = TextRange(lo + pasteText.length),
-                    )
+            ComposerSelectionMenu(
+                visible = hasComposerSelection && selectionMenuRequested,
+                onDismiss = {
+                    selectionMenuRequested = false
+                },
+                canPaste = pasteText.isNotEmpty() || pasteMedia.isNotEmpty(),
+                onCopy = {
+                    val slice = value.text.substring(value.selection.min, value.selection.max)
+                    if (slice.isNotBlank()) clipboardScope.launch {
+                        clipboard.setClipEntry(
+                            ClipEntry(
+                                android.content.ClipData.newPlainText(
+                                    "text",
+                                    slice
+                                )
+                            )
+                        )
+                    }
+                },
+                onCut = {
+                    val slice = value.text.substring(value.selection.min, value.selection.max)
+                    if (slice.isNotBlank()) clipboardScope.launch {
+                        clipboard.setClipEntry(
+                            ClipEntry(
+                                android.content.ClipData.newPlainText(
+                                    "text",
+                                    slice
+                                )
+                            )
+                        )
+                    }
+                    value = deleteComposerSelection(value)
                     component.onDraftChanged(value.text)
-                }
-                receiveMedia(pasteMedia, null)
-            },
-            onSelectAll = {
-                value = selectAllComposer(value)
-            },
-            onWrap = { left, right ->
-                value = wrapMarkdown(value, left, right)
-                component.onDraftChanged(value.text)
-            },
-            onQuote = {
-                value = wrapQuote(value)
-                component.onDraftChanged(value.text)
-            },
-        )
-        DialogWriteBar(
-            composer = value,
-            onComposerChange = {
-                value = it
-                if (ComposerAt.mentionToken(it.text) != null) {
+                },
+                onPaste = {
+                    if (pasteText.isNotEmpty()) {
+                        val lo = value.selection.min
+                        val hi = value.selection.max
+                        val next = value.text.substring(0, lo) + pasteText +
+                                value.text.substring(hi)
+                        value = TextFieldValue(
+                            text = next,
+                            selection = TextRange(lo + pasteText.length),
+                        )
+                        component.onDraftChanged(value.text)
+                    }
+                    receiveMedia(pasteMedia, null)
+                },
+                onSelectAll = {
+                    value = selectAllComposer(value)
+                },
+                onWrap = { left, _ ->
+                    if (left == "[") {
+                        selectionMenuRequested = false
+                        component.openMarkdownEditor()
+                    } else {
+                        val kind = when (left) {
+                            "**" -> "bold"; "__" -> "italic"; "~~" -> "strike"; "||" -> "spoiler"; else -> "code"
+                        }
+                        component.onDraftEntities(
+                            toggleComposerEntity(
+                                value.text,
+                                draftEntities,
+                                value.selection.min,
+                                value.selection.max,
+                                kind
+                            )
+                        )
+                    }
+                },
+                onUnderline = {
+                    component.onDraftChanged(value.text)
+                    component.onDraftEntities(
+                        toggleComposerEntity(
+                            value.text,
+                            draftEntities,
+                            value.selection.min,
+                            value.selection.max,
+                            "underline"
+                        )
+                    )
+                },
+                onEditor = {
+                    selectionMenuRequested = false
+                    component.openMarkdownEditor()
+                },
+                onQuote = {
+                    component.onDraftEntities(
+                        toggleComposerEntity(
+                            value.text,
+                            draftEntities,
+                            value.selection.min,
+                            value.selection.max,
+                            "blockquote"
+                        )
+                    )
+                },
+            )
+            DialogWriteBar(
+                composer = value,
+                draftFormatting = draftFormatting,
+                markdownAvailable = component.markdownAvailable,
+                onOpenEditor = component::openMarkdownEditor,
+                draftPreview = draftPreview?.takeIf { value.text == draft },
+                draftHasMarkdown = draftHasMarkdown,
+                draftHasEntities = draftEntities.any { it.kind != "custom_emoji" },
+                draftEntities = draftEntities,
+                onDraftFormatting = component::onDraftFormatting,
+                onComposerChange = {
+                    value = it
                     component.onDraftChanged(it.text)
-                }
-            },
-            sending = sending,
-            canSendPlain = canSendPlain,
-            canSendPhotos = canSendPhotos,
-            isChannel = isChannel,
-            editing = editing,
-            editingBody = editingBody,
-            replyBody = replyBody,
-            pendingAttach = pendingAttach,
-            hasFailed = hasFailed,
-            composerFocusSeq = composerFocusSeq,
-            linkPreview = linkPreview,
-            linkPreviewLoading = linkPreviewLoading,
-            linkPreviewHidden = linkPreviewHidden,
-            linkPreviewUrls = linkPreviewUrls,
-            linkPreviewChoice = linkPreviewChoice,
-            onSelectLinkPreview = onSelectLinkPreview,
-            onDismissLinkPreview = onDismissLinkPreview,
-            onRestoreLinkPreview = onRestoreLinkPreview,
-            panelOpen = composerPanel != null,
-            onClosePanel = {
-                when (composerPanel) {
-                    ComposerPanels.ATTACH -> onCloseAttachAnimated()
-                    ComposerPanels.EMOJI -> component.onToggleEmojiPanel()
-                }
-            },
-            onSend = {
-                val sent = value.text
-                if (!editing) {
-                    value = TextFieldValue("")
-                }
-                component.onSend(sent)
-            },
-            onSlot = { action ->
-                performComposerSlot(
-                    action = action,
-                    panel = composerPanel,
-                    tab = emojiTab,
-                    closeEmoji = component::onToggleEmojiPanel,
-                    closeAttach = component::onCloseAttachSheet,
-                    openEmojiTab = component::onSetEmojiTab,
-                    openAttach = component::onToggleAttachSheet,
-                    openPhotos = onPhotos,
-                    openFile = onFile,
-                    openLocation = onLocation,
-                )
-            },
-            onRetryFailed = component::onRetryFailed,
-            onCancelEdit = component::onCancelEdit,
-            onClearReply = component::onClearReply,
-            onClearAttach = component::onClearAttach,
-            onReceiveMedia = receiveMedia,
-            hint = botPlaceholder,
-            onSelectionMenuVisibilityChange = { selectionMenuRequested = it },
-        )
+                },
+                sending = sending,
+                canSendPlain = canSendPlain,
+                canSendPhotos = canSendPhotos,
+                isChannel = isChannel,
+                editing = editing,
+                editingBody = editingBody,
+                replyBody = replyBody,
+                pendingAttach = pendingAttach,
+                hasFailed = hasFailed,
+                composerFocusSeq = composerFocusSeq,
+                linkPreview = linkPreview,
+                linkPreviewLoading = linkPreviewLoading,
+                linkPreviewHidden = linkPreviewHidden,
+                linkPreviewUrls = linkPreviewUrls,
+                linkPreviewChoice = linkPreviewChoice,
+                onSelectLinkPreview = onSelectLinkPreview,
+                onDismissLinkPreview = onDismissLinkPreview,
+                onRestoreLinkPreview = onRestoreLinkPreview,
+                panelOpen = composerPanel != null,
+                onClosePanel = {
+                    when (composerPanel) {
+                        ComposerPanels.ATTACH -> onCloseAttachAnimated()
+                        ComposerPanels.EMOJI -> component.onToggleEmojiPanel()
+                    }
+                },
+                onSend = {
+                    val sent = value.text
+                    component.onSend(sent)
+                },
+                onSlot = { action ->
+                    performComposerSlot(
+                        action = action,
+                        panel = composerPanel,
+                        tab = emojiTab,
+                        closeEmoji = component::onToggleEmojiPanel,
+                        closeAttach = component::onCloseAttachSheet,
+                        openEmojiTab = component::onSetEmojiTab,
+                        openAttach = component::onToggleAttachSheet,
+                        openPhotos = onPhotos,
+                        openFile = onFile,
+                        openLocation = onLocation,
+                    )
+                },
+                onRetryFailed = component::onRetryFailed,
+                onCancelEdit = component::onCancelEdit,
+                onClearReply = component::onClearReply,
+                onClearAttach = component::onClearAttach,
+                onReceiveMedia = receiveMedia,
+                hint = botPlaceholder,
+                onSelectionMenuVisibilityChange = { selectionMenuRequested = it },
+            )
         }
     }
     val editorTransition = remember { MutableTransitionState(false) }
@@ -408,7 +375,10 @@ internal fun DialogComposerDock(
     if (editorTransition.currentState || editorTransition.targetState) {
         Dialog(
             onDismissRequest = component::closeMarkdownEditor,
-            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            ),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AnimatedVisibility(
@@ -419,11 +389,34 @@ internal fun DialogComposerDock(
                 ) {
                     MarkdownEditorScreen(
                         value = editorValue,
-                        onValueChange = { editorValue = it },
+                        entities = editorEntities,
+                        markdownAvailable = component.markdownAvailable,
+                        markdownEnabled = editorMarkdown,
+                        onMarkdownEnabled = { editorMarkdown = it },
+                        preparePreview = component::prepareEditorPayload,
+                        onEntitiesChange = { editorEntities = it },
+                        onValueChange = {
+                            editorEntities = remapTextEntities(
+                                editorValue.text,
+                                it.text,
+                                editorEntities
+                            )
+                            editorValue = it
+                        },
                         onApply = {
                             value = finishMarkdownEditor(value, editorValue, apply = true)
                             component.onDraftChanged(value.text)
+                            component.onDraftEntities(editorEntities)
+                            component.onDraftFormatting(editorMarkdown)
                             component.closeMarkdownEditor()
+                        },
+                        onEmoji = {
+                            value = editorValue
+                            component.onDraftChanged(value.text)
+                            component.onDraftEntities(editorEntities)
+                            component.onDraftFormatting(editorMarkdown)
+                            component.closeMarkdownEditor()
+                            component.onToggleEmojiPanel()
                         },
                         onDismiss = component::closeMarkdownEditor,
                         modifier = Modifier.fillMaxSize(),

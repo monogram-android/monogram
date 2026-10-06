@@ -199,7 +199,7 @@
         <item quantity="other">Odstrániť %1$d správy?</item>
     </plurals>
     <string name="dialog_cancel">Zrušiť</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Náhľad</string>
     <string name="dialog_markdown_expand">Otvoriť editor</string>
     <string name="dialog_markdown_apply">Použiť</string>
@@ -362,4 +362,15 @@
         <item quantity="many">%1$s odberateľov</item>
         <item quantity="other">%1$s odberateľov</item>
     </plurals>
+    <string name="dialog_send_formatted">Odoslať s formátovaním</string>
+    <string name="dialog_editor_title">Editor správ</string>
+    <string name="dialog_editor_send_preview">Ukážka odoslania</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Vybraný text</string>
+    <string name="dialog_editor_select_hint">Vyberte text na formátovanie</string>
+    <string name="dialog_editor_expandable_quote">Rozbaliteľný citát</string>
+    <string name="dialog_editor_clear">Odstrániť formátovanie</string>
+    <string name="dialog_editor_url">Adresa odkazu</string>
+    <string name="dialog_editor_language">Jazyk (voliteľné)</string>
+    <string name="dialog_editor_open">Rozbaliť editor</string>
 </resources>

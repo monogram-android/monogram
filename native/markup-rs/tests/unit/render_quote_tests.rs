@@ -132,19 +132,19 @@ inner";
 fn markdown_nesting_becomes_levels_and_regions() {
     for (raw, level, inner) in [
         ("> quote", 1, 0),
-        (">> two", 2, 0),
-        (">>> three", 3, 0),
+        (">> two", 1, 0),
+        (">>> three", 1, 0),
         (
             "> outer
 >> inner",
             1,
-            1,
+            0,
         ),
         (
             "> outer
 >>> inner",
             1,
-            2,
+            0,
         ),
     ] {
         let styled = crate::markdown::parse_telegram_markdown(raw);

@@ -61,24 +61,24 @@ fn custom_emoji_markdown() {
 #[test]
 fn bold_italic_combinations() {
     let cases: [(&str, &str, &[(&str, i32, i32)]); 7] = [
-        ("***both***", "both", &[("bold", 0, 4), ("italic", 0, 4)]),
+        ("**__both__**", "both", &[("bold", 0, 4), ("italic", 0, 4)]),
         (
-            "*italic **bold** italic*",
+            "__italic **bold** italic__",
             "italic bold italic",
             &[("italic", 0, 18), ("bold", 7, 4)],
         ),
         (
-            "**bold *italic* bold**",
+            "**bold __italic__ bold**",
             "bold italic bold",
             &[("bold", 0, 16), ("italic", 5, 6)],
         ),
         (
             "__under **bold**__",
             "under bold",
-            &[("underline", 0, 10), ("bold", 6, 4)],
+            &[("italic", 0, 10), ("bold", 6, 4)],
         ),
         (
-            "~~strike *italic*~~",
+            "~~strike __italic__~~",
             "strike italic",
             &[("strike", 0, 13), ("italic", 7, 6)],
         ),
@@ -90,7 +90,7 @@ fn bold_italic_combinations() {
         (
             "**bold __under__**",
             "bold under",
-            &[("bold", 0, 10), ("underline", 5, 5)],
+            &[("bold", 0, 10), ("italic", 5, 5)],
         ),
     ];
     for (raw, text, expected) in cases {
@@ -107,4 +107,31 @@ fn bold_italic_combinations() {
             );
         }
     }
+}
+
+#[test]
+fn identifiers_and_single_delimiters_are_literal() {
+    for raw in [
+        "mediatek,gpio_usage_mapping",
+        "foo_bar_baz",
+        "*x*",
+        "# Title",
+        "---",
+        "* item",
+        "**unclosed",
+    ] {
+        let styled = parse_telegram_markdown(raw);
+        assert_eq!(styled.text, raw);
+        assert!(styled.entities.is_empty(), "{raw:?}");
+    }
+}
+
+#[test]
+fn code_is_opaque_inside_style() {
+    let styled = parse_telegram_markdown("**a `**b**` c**");
+    assert_eq!(styled.text, "a **b** c");
+    let code = styled.entities.iter().find(|e| e.kind == "code").unwrap();
+    assert!(!styled.entities.iter().any(|e| e.kind != "code"
+        && e.offset < code.offset + code.length
+        && e.offset + e.length > code.offset));
 }

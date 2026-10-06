@@ -22,7 +22,7 @@ fn structural_entity_separators_do_not_render_empty_paragraphs() {
 
 #[test]
 fn raw_inline_markdown_has_utf16_entities() {
-    let blocks = render_blocks("👋 **bold _italic_**", vec![], true);
+    let blocks = render_blocks("👋 **bold __italic__**", vec![], true);
     assert_eq!(blocks[0].text, "👋 bold italic");
     assert!(
         blocks[0]
@@ -121,7 +121,7 @@ fn rules_after_heading_are_not_literal_text() {
 }
 
 #[test]
-fn server_table_pre_is_rendered_as_table() {
+fn server_table_pre_stays_code() {
     let text = "| Header One | Header Two |\n| Lorem | Ipsum |\n| Sit | Amet |";
     let blocks = render_blocks(
         text,
@@ -133,8 +133,8 @@ fn server_table_pre_is_rendered_as_table() {
         }],
         true,
     );
-    assert_eq!(blocks[0].kind, "table");
-    assert_eq!(blocks[0].headers, ["Header One", "Header Two"]);
+    assert_eq!(blocks[0].kind, "code");
+    assert_eq!(blocks[0].text, text);
 }
 
 #[test]
@@ -275,7 +275,7 @@ fn photo_entity_is_a_photo_block() {
 }
 
 #[test]
-fn unicode_checklist_lines_become_tasks() {
+fn unicode_checklist_lines_stay_literal() {
     let text = "Tasks\n\u{2611} Milk\n\u{2610} Eggs";
     let blocks = render_blocks(
         text,
@@ -288,6 +288,6 @@ fn unicode_checklist_lines_become_tasks() {
         false,
     );
     assert_eq!(blocks[0].kind, "heading");
-    assert_eq!(blocks[1].kind, "tasks");
-    assert_eq!(blocks[1].rows, vec![vec!["1", "Milk"], vec!["0", "Eggs"]]);
+    assert_eq!(blocks[1].kind, "paragraph");
+    assert_eq!(blocks[1].text, "\u{2611} Milk\n\u{2610} Eggs");
 }

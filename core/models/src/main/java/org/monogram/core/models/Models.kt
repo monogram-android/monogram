@@ -104,6 +104,11 @@ fun Chat.mergeLocalCache(stored: Chat?): Chat {
     return copy(
         title = preferredPeerTitle(title, stored?.title, id.value),
         dialogScrollMessageId = dialogScrollMessageId ?: stored?.dialogScrollMessageId,
+        pinnedOrder = if (pinned && stored?.pinned == true && pinnedOrder == Int.MAX_VALUE) {
+            stored.pinnedOrder
+        } else {
+            pinnedOrder
+        },
         photoCacheKey = photoCacheKey ?: stored?.photoCacheKey,
         emojiStatusDocumentId = emojiStatusDocumentId ?: stored?.emojiStatusDocumentId,
         readInboxMaxId = maxOf(readInboxMaxId, stored?.readInboxMaxId ?: 0),
@@ -414,6 +419,7 @@ data class UploadItem(
     val width: Int = 0,
     val height: Int = 0,
     val randomId: Long = 0L,
+    val captionEntities: List<TextEntity> = emptyList(),
 )
 
 sealed class AuthState {

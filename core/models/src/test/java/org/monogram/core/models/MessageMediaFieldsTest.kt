@@ -103,4 +103,16 @@ class MessageMediaFieldsTest {
                 .left,
         )
     }
+
+    @Test
+    fun partialChatKeepsCachedPinOrderWithoutBlockingRepinOrUnpin() {
+        val stored = Chat(PeerId(7), "Ada", pinned = true, pinnedOrder = 3)
+        val partial = stored.copy(pinnedOrder = Int.MAX_VALUE, lastMessageDate = 99)
+        assertEquals(3, partial.mergeLocalCache(stored).pinnedOrder)
+        assertEquals(0, partial.copy(pinnedOrder = 0).mergeLocalCache(stored).pinnedOrder)
+        assertEquals(
+            Int.MAX_VALUE,
+            partial.copy(pinned = false).mergeLocalCache(stored).pinnedOrder
+        )
+    }
 }

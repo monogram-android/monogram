@@ -140,9 +140,8 @@ internal class ChatsExecutor(
                                 } else {
                                     mergeChats(listed, mapped)
                                 }
-                                val merged = mergeChats(allListed(), rebuilt)
                                 republishListedLocked(
-                                    merged,
+                                    rebuilt,
                                     fromCache = false,
                                     hasMore = null,
                                     keep = paintKeep(),
@@ -152,8 +151,12 @@ internal class ChatsExecutor(
                                     previous.muted != row.muted ||
                                         previous.title != row.title ||
                                         previous.muteOverride != row.muteOverride ||
-                                        previous.unreadMark != row.unreadMark
-                                }
+                                            previous.unreadMark != row.unreadMark ||
+                                            previous.left != row.left ||
+                                            previous.archived != row.archived ||
+                                            previous.pinned != row.pinned ||
+                                            (row.pinnedOrder != Int.MAX_VALUE && previous.pinnedOrder != row.pinnedOrder)
+                                }.map { row -> rebuilt.firstOrNull { it.id == row.id } ?: row }
                             }
                             if (changed.isNotEmpty()) scope.launch { warmup?.upsertChats(changed) }
                         }

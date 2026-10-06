@@ -13,11 +13,13 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.ReactionChoice
 import org.monogram.core.models.ReadReceiptConfig
 import org.monogram.core.models.SavedGif
+import org.monogram.core.models.TextEntities.serialize
 import org.monogram.core.models.UploadItem
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.profile.ProfileOps
 import org.monogram.network.bridge.session.DispatchClass
 import org.monogram.network.bridge.session.SessionCore
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class MessageApi(
     private val core: SessionCore,
@@ -29,7 +31,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         val historyAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
-        val outcome = withTimeoutOrNull(core.historyTimeoutMs) {
+        val outcome = withTimeoutOrNull(core.historyTimeoutMs.milliseconds) {
             core.rpc("getHistory failed") { activeHandle ->
                 core.native.getHistory(activeHandle, chatId.value, limit).map { it.toModel() }
             }
@@ -302,7 +304,7 @@ internal class MessageApi(
                 item.toDto(),
                 replyToMsgId,
                 topMsgId,
-                entitiesJson,
+                entitiesJson ?: serialize(item.captionEntities),
             ).toModel()
         }
     }

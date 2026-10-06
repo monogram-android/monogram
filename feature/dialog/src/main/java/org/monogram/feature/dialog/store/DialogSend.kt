@@ -1,9 +1,5 @@
 package org.monogram.feature.dialog.store
 
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
@@ -11,64 +7,24 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.markup.forSend
-import org.monogram.core.models.Chat
-import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.FixedLinkPreviewRules
 import org.monogram.core.models.ForumIo
-import org.monogram.core.models.ForumTopic
-import org.monogram.core.models.InlineBotResult
-import org.monogram.core.models.InlineBotResults
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
-import org.monogram.core.models.MessageViewers
-import org.monogram.core.models.OutboxReadState
-import org.monogram.core.models.PeerId
-import org.monogram.core.models.Profile
-import org.monogram.core.models.ReactionChoice
-import org.monogram.core.models.ReadReceiptConfig
-import org.monogram.core.models.ReplyButton
-import org.monogram.core.models.ReplyButtonType
-import org.monogram.core.models.ReplyMarkups
-import org.monogram.core.models.SavedGif
-import org.monogram.core.models.StickerPack
 import org.monogram.core.models.StyledText
 import org.monogram.core.models.TextEntities
 import org.monogram.core.models.TextEntity
-import org.monogram.core.models.TypingPresence
 import org.monogram.core.models.UploadItem
-import org.monogram.core.models.canShowMessageViewers
-import org.monogram.core.models.canShowOutboxReadDate
-import org.monogram.core.models.geoPlace
-import org.monogram.core.models.isPlaceholderPeerTitle
-import org.monogram.core.models.peerAvatarCacheKey
-import org.monogram.core.models.playedMediaKind
-import org.monogram.core.models.preferredPeerTitle
+import org.monogram.core.models.prepareComposerText
+import org.monogram.core.models.remapTextEntities
 import org.monogram.core.ui.AppearanceSettings
-import org.monogram.feature.dialog.ComposerAt
-import org.monogram.feature.dialog.ComposerAtToken
-import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.DialogStore
-import org.monogram.feature.dialog.DraftMention
-import org.monogram.feature.dialog.InlineBotQuery
-import org.monogram.feature.dialog.MentionCandidate
-import org.monogram.feature.dialog.PinnedBarMemory
-import org.monogram.feature.dialog.SEARCH_DEBOUNCE_MS
-import org.monogram.feature.dialog.SavedGifMemory
-import org.monogram.feature.dialog.SenderTagMemory
-import org.monogram.feature.dialog.StickerCatalogMemory
-import org.monogram.feature.dialog.StickerPackMemory
-import org.monogram.feature.dialog.applyMessageEdit
-import org.monogram.feature.dialog.historyPagingAllowed
 import org.monogram.feature.dialog.isTransientSendFailure
-import org.monogram.feature.dialog.jumpNeedsFetch
 import org.monogram.feature.dialog.localMediaCacheKey
 import org.monogram.feature.dialog.localMediaPath
-import org.monogram.feature.dialog.mergeSenderTags
 import org.monogram.feature.dialog.nextRetryText
-import org.monogram.feature.dialog.parseUpdateMessageId
 import org.monogram.network.bridge.MtprotoClient
-import org.monogram.network.bridge.MtprotoUpdate
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.coroutines.cancellation.CancellationException
 
 internal fun DialogExecutor.sendUpload(
     path: String,
@@ -79,6 +35,7 @@ internal fun DialogExecutor.sendUpload(
     width: Int = 0,
     height: Int = 0,
     caption: String? = null,
+    captionEntities: List<TextEntity> = emptyList(),
 ) {
     if (path.isBlank()) return
     if ((kind == "photo" || kind == "video") && !snapshot().canSendPhotos) return
@@ -86,7 +43,25 @@ internal fun DialogExecutor.sendUpload(
     if (!file.isFile || file.length() <= 0L) return
     emit(Msg.ComposerPanel(null))
     val current = snapshot()
-    val text = caption ?: current.draft.trim()
+    if (caption == null && current.draft.isNotEmpty()) {
+        work.launch {
+            val wire = prepareDraftPayload(current.draft, current)
+            if (snapshot().draft == current.draft) applyDraft("")
+            sendUpload(
+                path,
+                kind,
+                fileName,
+                mimeType,
+                duration,
+                width,
+                height,
+                wire.text,
+                wire.entities
+            )
+        }
+        return
+    }
+    val text = caption.orEmpty()
     if (caption == null && text.isNotEmpty()) applyDraft("")
     val reply = current.replyTo
     emit(Msg.ReplyTo(null))
@@ -104,7 +79,7 @@ internal fun DialogExecutor.sendUpload(
         randomId = randomId,
         groupedId = null,
         reply = reply,
-        entities = emptyList(),
+        entities = captionEntities,
     )
     emit(Msg.Append(pending))
     work.launch {
@@ -116,6 +91,7 @@ internal fun DialogExecutor.sendUpload(
             mimeType = mimeType,
             fileName = name,
             caption = text,
+            captionEntities = captionEntities,
             duration = duration,
             width = width,
             height = height,
@@ -123,12 +99,18 @@ internal fun DialogExecutor.sendUpload(
         )
         finishOutgoingSend(
             pendingId = pending.id.id,
-            result = client.sendUploadedMedia(chatId, item, replyId, topId),
+            result = client.sendUploadedMedia(
+                chatId,
+                item,
+                replyId,
+                topId,
+                TextEntities.serialize(captionEntities)
+            ),
         )
     }
 }
 
-internal fun DialogExecutor.sendAlbum(items: List<UploadItem>) {
+internal fun DialogExecutor.sendAlbum(items: List<UploadItem>, useDraft: Boolean = true) {
     if (items.isEmpty() || items.size > 10) return
     val kinds = items.map { it.kind }
     val photos = kinds.all { it == "photo" || it == "video" }
@@ -137,8 +119,20 @@ internal fun DialogExecutor.sendAlbum(items: List<UploadItem>) {
     if (photos && !snapshot().canSendPhotos) return
     emit(Msg.ComposerPanel(null))
     val current = snapshot()
-    val draft = current.draft.trim()
-    if (draft.isNotEmpty() && items.all { it.caption.isBlank() }) applyDraft("")
+    val draft = if (useDraft) current.draft.trim() else ""
+    if (draft.isNotEmpty() && items.first().caption.isBlank()) {
+        work.launch {
+            val wire = prepareDraftPayload(current.draft, current)
+            if (snapshot().draft == current.draft) applyDraft("")
+            sendAlbum(items.mapIndexed { index, item ->
+                if (index == 0) item.copy(
+                    caption = wire.text,
+                    captionEntities = wire.entities
+                ) else item
+            })
+        }
+        return
+    }
     val reply = current.replyTo
     emit(Msg.ReplyTo(null))
     val groupedId = pendingRandomId()
@@ -161,7 +155,7 @@ internal fun DialogExecutor.sendAlbum(items: List<UploadItem>) {
             randomId = randomId,
             groupedId = groupedId,
             reply = reply.takeIf { index == 0 },
-            entities = emptyList(),
+            entities = raw.captionEntities,
         ) to raw.copy(
             fileName = name,
             caption = caption,
@@ -191,8 +185,14 @@ internal fun DialogExecutor.sendAlbum(items: List<UploadItem>) {
                     warmup?.upsertMessages(result.value.drop(pending.size))
                 }
             }
+
             is Outcome.Err -> {
-                pending.forEach { (local, _) -> failOrKeepOutgoing(local.id.id, result.telegramError) }
+                pending.forEach { (local, _) ->
+                    failOrKeepOutgoing(
+                        local.id.id,
+                        result.telegramError
+                    )
+                }
             }
         }
     }
@@ -210,31 +210,31 @@ internal fun DialogExecutor.pendingOutgoing(
     randomId: Long,
     groupedId: Long?,
     reply: Message?,
-    entities: List<org.monogram.core.models.TextEntity>,
+    entities: List<TextEntity>,
 ): Message {
     val replyIds = ForumIo.sendReplyIds(threadTopMsgId, reply?.id?.id)
     return Message(
-    id = MessageId(chatId, pendingMessageId()),
-    senderId = null,
-    text = caption?.takeIf { it.isNotBlank() },
-    date = System.currentTimeMillis() / 1000,
-    outgoing = true,
-    mediaCacheKey = localMediaCacheKey(path),
-    mediaKind = kind,
-    thumbCacheKey = localMediaCacheKey(path),
-    mediaDuration = duration.takeIf { it > 0 },
-    mediaWidth = width.takeIf { it > 0 },
-    mediaHeight = height.takeIf { it > 0 },
-    groupedId = groupedId,
-    fileName = fileName.takeIf { it.isNotBlank() },
-    fileSize = fileSize?.takeIf { it > 0L },
-    pending = true,
-    randomId = randomId,
-    replyQuote = reply?.text,
-    replyToMsgId = replyIds.first.takeIf { it > 0 },
-    replyToTopId = replyIds.second.takeIf { it > 0 },
-    forumTopic = ForumIo.historyThreadId(threadTopMsgId) > 0,
-    entities = entities,
+        id = MessageId(chatId, pendingMessageId()),
+        senderId = null,
+        text = caption?.takeIf { it.isNotBlank() },
+        date = System.currentTimeMillis() / 1000,
+        outgoing = true,
+        mediaCacheKey = localMediaCacheKey(path),
+        mediaKind = kind,
+        thumbCacheKey = localMediaCacheKey(path),
+        mediaDuration = duration.takeIf { it > 0 },
+        mediaWidth = width.takeIf { it > 0 },
+        mediaHeight = height.takeIf { it > 0 },
+        groupedId = groupedId,
+        fileName = fileName.takeIf { it.isNotBlank() },
+        fileSize = fileSize?.takeIf { it > 0L },
+        pending = true,
+        randomId = randomId,
+        replyQuote = reply?.text,
+        replyToMsgId = replyIds.first.takeIf { it > 0 },
+        replyToTopId = replyIds.second.takeIf { it > 0 },
+        forumTopic = ForumIo.historyThreadId(threadTopMsgId) > 0,
+        entities = entities,
     )
 }
 
@@ -247,9 +247,13 @@ internal suspend fun DialogExecutor.finishOutgoingSend(pendingId: Int, result: O
 
 internal suspend fun DialogExecutor.replaceOutgoing(pendingId: Int, sent: Message) {
     if (sent.id.id <= 0) return
-    emit(Msg.ReplacePending(pendingId, sent))
+    val pending = snapshot().messages.firstOrNull { it.id.id == pendingId }
+    val resolved = if (sent.entities.isEmpty() && sent.text == pending?.text) {
+        sent.copy(entities = pending?.entities.orEmpty())
+    } else sent
+    emit(Msg.ReplacePending(pendingId, resolved))
     warmup?.deleteMessage(chatId, pendingId)
-    warmup?.upsertMessages(listOf(sent))
+    warmup?.upsertMessages(listOf(resolved))
 }
 
 internal fun DialogExecutor.failOrKeepOutgoing(pendingId: Int, error: TelegramError) {
@@ -286,10 +290,10 @@ internal suspend fun DialogExecutor.absorbIncoming(incoming: Message) {
 internal fun DialogExecutor.uniqueUnmatchedPending(): Message? {
     val unmatched = snapshot().messages.filter {
         it.outgoing &&
-            it.pending &&
-            !it.failed &&
-            (it.randomId ?: 0L) != 0L &&
-            it.id.id < 0
+                it.pending &&
+                !it.failed &&
+                (it.randomId ?: 0L) != 0L &&
+                it.id.id < 0
     }
     return unmatched.singleOrNull()
 }
@@ -325,39 +329,29 @@ internal fun DialogExecutor.sendSavedGif(documentId: Long) {
                 warmup?.upsertMessages(listOf(result.value))
                 emit(Msg.ReplyTo(null))
             }
+
             is Outcome.Err -> handleError(result.telegramError, false)
         }
         emit(Msg.Sending(false))
     }
 }
 
-internal fun DialogExecutor.serializeSendEntities(
-    styled: StyledText,
-    mentions: List<DraftMention>,
-): String? {
-    val extra = mentions.mapNotNull { mention ->
-        val end = mention.start + mention.length
-        if (mention.start < 0 || end > styled.text.length) return@mapNotNull null
-        TextEntity(
-            kind = "mention_name",
-            offset = mention.start,
-            length = mention.length,
-            url = mention.peerId.value.toString(),
-        )
-    }
-    return TextEntities.serialize((styled.entities + extra).sortedBy { it.offset })
-}
+internal suspend fun DialogExecutor.styleForSend(parsed: StyledText): StyledText =
+    filterComposerPayload(parsed, client, isPremium())
 
-internal suspend fun DialogExecutor.styleForSend(parsed: StyledText): StyledText {
+internal suspend fun filterComposerPayload(
+    parsed: StyledText,
+    client: MtprotoClient,
+    premium: Boolean
+): StyledText {
     val documentIds = parsed.entities
         .asSequence()
         .filter { it.kind == "custom_emoji" }
         .mapNotNull { it.url?.toLongOrNull()?.takeIf { id -> id > 0 } }
         .distinct()
         .toList()
-    if (documentIds.isEmpty()) return parsed.forSend(isPremium = isPremium())
+    if (documentIds.isEmpty()) return parsed.forSend(isPremium = premium)
 
-    val premium = isPremium()
     val maxCustomEmoji = when (val result = client.animatedEmojiMax()) {
         is Outcome.Ok -> result.value.coerceAtLeast(0)
         is Outcome.Err -> null
@@ -382,7 +376,8 @@ internal suspend fun DialogExecutor.styleForSend(parsed: StyledText): StyledText
 internal fun webpageUrlForSend(text: String, current: DialogStore.State): String? {
     if (current.linkPreviewHidden) return null
     val urls = FixedLinkPreviewRules.urls(text)
-    val selected = current.linkPreviewChoice?.takeIf { it in urls } ?: urls.firstOrNull() ?: return null
+    val selected =
+        current.linkPreviewChoice?.takeIf { it in urls } ?: urls.firstOrNull() ?: return null
     val fixed = if (AppearanceSettings.state.value.fixLinkPreviews) {
         FixedLinkPreviewRules.previewUrlFor(
             selected,
@@ -395,35 +390,72 @@ internal fun webpageUrlForSend(text: String, current: DialogStore.State): String
     return page.takeIf { urls.size > 1 || page != urls.first() }
 }
 
-internal fun DialogExecutor.send(overrideText: String? = null) {
-    val current = snapshot()
+internal suspend fun DialogExecutor.prepareDraftPayload(
+    raw: String,
+    current: DialogStore.State
+): StyledText {
+    val mentions = current.draftMentions.map { mention ->
+        TextEntity("mention_name", mention.start, mention.length, mention.peerId.value.toString())
+    }
+    val parsed = withContext(markupContext) {
+        prepareComposerText(
+            raw, current.draftFormatting && isPremium(),
+            remapTextEntities(current.draft, raw, current.draftEntities + mentions)
+        )
+    }
+    return styleForSend(parsed)
+}
+
+internal fun DialogExecutor.send(
+    overrideText: String? = null,
+    prepared: StyledText? = null,
+    captured: DialogStore.State? = null,
+    consumeDraft: Boolean = true,
+) {
+    val current = captured ?: snapshot()
     val raw = overrideText ?: current.draft
+    if (prepared == null) {
+        if (current.sending) return
+        emit(Msg.Sending(true))
+        work.launch {
+            try {
+                val wire =
+                    current.draftPreview?.takeIf { raw == current.draft && (!current.draftFormatting || isPremium()) }
+                        ?: prepareDraftPayload(raw, current)
+                emit(Msg.Sending(false))
+                send(raw, wire, current, consumeDraft)
+            } catch (error: CancellationException) {
+                emit(Msg.Sending(false))
+                throw error
+            } catch (_: Throwable) {
+                emit(Msg.Sending(false))
+                AppLog.warn("dialog", "formatting failed")
+            }
+        }
+        return
+    }
     val text = raw.trim()
-    val leading = raw.length - raw.trimStart().length
     val attach = current.pendingAttach
     val editing = current.editing
-    val mentions = current.draftMentions.map { mention ->
-        mention.copy(start = mention.start - leading)
-    }
     if (editing != null) {
         if (current.sending || text.isEmpty() || !current.canSendPlain) return
         emit(Msg.Sending(true))
         work.launch {
             try {
-                val parsed = withContext(markupContext) { markup.parseTelegramMarkdown(text) }
-                val styled = styleForSend(parsed)
+                val styled = prepared
                 when (val result = client.editText(
                     chatId,
                     editing.id.id,
                     styled.text,
-                    serializeSendEntities(styled, mentions),
+                    TextEntities.serialize(styled.entities),
                 )) {
                     is Outcome.Ok -> {
                         emit(Msg.ReplacePending(editing.id.id, result.value))
                         warmup?.upsertMessages(listOf(result.value))
                         emit(Msg.Editing(null))
-                        applyDraft("")
+                        if (consumeDraft && snapshot().draft == current.draft) applyDraft("")
                     }
+
                     is Outcome.Err -> handleError(result.telegramError, false)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -441,12 +473,15 @@ internal fun DialogExecutor.send(overrideText: String? = null) {
         val photos = attach.any { it.kind == "photo" || it.kind == "video" }
         if (photos && !current.canSendPhotos) return
         if (!photos && !current.canSendPlain) return
-        applyDraft("")
+        if (consumeDraft && snapshot().draft == current.draft) applyDraft("")
         emit(Msg.PendingAttach(emptyList()))
         if (attach.size > 1) {
             sendAlbum(
                 attach.mapIndexed { index, item ->
-                    item.copy(caption = if (index == 0) text else "")
+                    if (index == 0 && prepared.text.isNotEmpty()) item.copy(
+                        caption = prepared.text,
+                        captionEntities = prepared.entities
+                    ) else item
                 },
             )
         } else {
@@ -459,7 +494,8 @@ internal fun DialogExecutor.send(overrideText: String? = null) {
                 duration = item.duration,
                 width = item.width,
                 height = item.height,
-                caption = text,
+                caption = prepared.text.ifEmpty { item.caption },
+                captionEntities = if (prepared.text.isNotEmpty()) prepared.entities else item.captionEntities,
             )
         }
         return
@@ -470,14 +506,16 @@ internal fun DialogExecutor.send(overrideText: String? = null) {
     val randomId = pendingRandomId()
     val sendOp = sendSeq.incrementAndGet()
     inFlightSends += 1
-    applyDraft("")
-    emit(Msg.PendingAttach(emptyList()))
-    emit(Msg.ReplyTo(null))
+    if (consumeDraft && snapshot().draft == current.draft) applyDraft("")
+    if (consumeDraft) {
+        emit(Msg.PendingAttach(emptyList()))
+        emit(Msg.ReplyTo(null))
+    }
     PerfLog.event("send", "id=$sendOp phase=intent")
     val pending = Message(
         id = MessageId(chatId, pendingId),
         senderId = null,
-        text = text.ifEmpty { null },
+        text = prepared.text.ifEmpty { null },
         date = System.currentTimeMillis() / 1000,
         outgoing = true,
         pending = true,
@@ -486,23 +524,15 @@ internal fun DialogExecutor.send(overrideText: String? = null) {
         replyToMsgId = replyId.takeIf { it > 0 },
         replyToTopId = topId.takeIf { it > 0 },
         forumTopic = ForumIo.historyThreadId(threadTopMsgId) > 0,
-        entities = emptyList(),
+        entities = prepared.entities,
     )
     emit(Msg.Append(pending))
     PerfLog.event("send", "id=$sendOp phase=pending_append")
     work.launch {
-        val persistAt = PerfLog.nowMs()
-        warmup?.upsertMessages(listOf(pending))
-        PerfLog.event(
-            "send",
-            "id=$sendOp phase=pending_persist elapsed_ms=${PerfLog.nowMs() - persistAt}",
-        )
-    }
-    work.launch {
         try {
-            val parsed = withContext(markupContext) { markup.parseTelegramMarkdown(text) }
-            val wire = styleForSend(parsed)
-            val entitiesJson = serializeSendEntities(wire, mentions)
+            warmup?.upsertMessages(listOf(pending))
+            val wire = prepared
+            val entitiesJson = TextEntities.serialize(wire.entities)
             PerfLog.event("send", "id=$sendOp phase=bridge_send")
             val webpageUrl = webpageUrlForSend(wire.text, current)
             val result = client.sendText(
@@ -528,13 +558,19 @@ internal fun DialogExecutor.send(overrideText: String? = null) {
                     replaceOutgoing(pendingId, sent)
                     PerfLog.event("send", "id=$sendOp phase=pending_reconcile")
                 }
+
                 is Outcome.Err -> failOrKeepOutgoing(pendingId, result.telegramError)
             }
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (_: Throwable) {
             AppLog.warn("dialog", "send failed")
-            if (inFlightSends == 1 && snapshot().draft.isEmpty()) applyDraft(text)
+            if (consumeDraft && inFlightSends == 1 && snapshot().draft.isEmpty()) {
+                applyDraft(raw)
+                emit(Msg.DraftFormatting(current.draftFormatting))
+                emit(Msg.DraftEntities(current.draftEntities))
+                scheduleDraftPreview()
+            }
         } finally {
             inFlightSends -= 1
         }
@@ -577,11 +613,13 @@ internal fun DialogExecutor.retryFailed() {
                         kind = message.mediaKind.orEmpty(),
                         fileName = message.fileName.orEmpty(),
                         caption = message.text.orEmpty(),
+                        captionEntities = message.entities,
                         duration = message.mediaDuration ?: 0,
                         width = message.mediaWidth ?: 0,
                         height = message.mediaHeight ?: 0,
                     )
                 },
+                useDraft = false,
             )
         } else {
             sendUpload(
@@ -592,13 +630,18 @@ internal fun DialogExecutor.retryFailed() {
                 width = failed.mediaWidth ?: 0,
                 height = failed.mediaHeight ?: 0,
                 caption = failed.text.orEmpty(),
+                captionEntities = failed.entities,
             )
         }
         return
     }
     val text = nextRetryText(snapshot().messages) ?: return
     emit(Msg.Drop(failed.id.id))
-    applyDraft(text)
-    send()
+    send(
+        text,
+        StyledText(text, failed.entities),
+        snapshot().copy(editing = null, pendingAttach = emptyList()),
+        consumeDraft = false
+    )
 }
 

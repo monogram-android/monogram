@@ -208,7 +208,7 @@
         <item quantity="other">Delete %1$d messages?</item>
     </plurals>
     <string name="dialog_cancel">Cancel</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Preview</string>
     <string name="dialog_markdown_expand">Open markdown editor</string>
     <string name="dialog_markdown_apply">Apply</string>
@@ -341,4 +341,15 @@
     <string name="dialog_read_receipts_expired">Read receipts expired</string>
     <string name="dialog_read_expired_hint">To protect privacy, views are only stored for 7 days</string>
     <string name="dialog_seen_accessibility">%1$s has seen</string>
+    <string name="dialog_send_formatted">Send with formatting</string>
+    <string name="dialog_editor_title">Message editor</string>
+    <string name="dialog_editor_send_preview">Sending preview</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Selected text</string>
+    <string name="dialog_editor_select_hint">Select text to format</string>
+    <string name="dialog_editor_expandable_quote">Expandable quote</string>
+    <string name="dialog_editor_clear">Remove formatting</string>
+    <string name="dialog_editor_url">Link URL</string>
+    <string name="dialog_editor_language">Language (optional)</string>
+    <string name="dialog_editor_open">Expand editor</string>
 </resources>

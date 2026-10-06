@@ -199,7 +199,7 @@
         <item quantity="other">Видалити %1$d повідомлення?</item>
     </plurals>
     <string name="dialog_cancel">Скасувати</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Перегляд</string>
     <string name="dialog_markdown_expand">На весь екран</string>
     <string name="dialog_markdown_apply">Застосувати</string>
@@ -362,4 +362,15 @@
         <item quantity="many">%1$s підписників</item>
         <item quantity="other">%1$s підписників</item>
     </plurals>
+    <string name="dialog_send_formatted">Надіслати з форматуванням</string>
+    <string name="dialog_editor_title">Редактор повідомлення</string>
+    <string name="dialog_editor_send_preview">Так буде надіслано</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Вибраний текст</string>
+    <string name="dialog_editor_select_hint">Виділіть текст для форматування</string>
+    <string name="dialog_editor_expandable_quote">Розгортана цитата</string>
+    <string name="dialog_editor_clear">Прибрати форматування</string>
+    <string name="dialog_editor_url">Адреса посилання</string>
+    <string name="dialog_editor_language">Мова (необов’язково)</string>
+    <string name="dialog_editor_open">Розгорнути редактор</string>
 </resources>

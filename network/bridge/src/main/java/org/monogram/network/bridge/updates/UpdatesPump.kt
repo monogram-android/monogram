@@ -293,7 +293,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     is UpdateEventDto.DialogsPatched -> {
                         if (event.chats.isNotEmpty()) {
                             core.updatesEvents.emit(
-                                MtprotoUpdate.ChatsChanged(event.chats.toChatModels()),
+                                MtprotoUpdate.ChatsChanged(event.chats.toChatModels(assignPinOrder = false)),
                             )
                         }
                     }

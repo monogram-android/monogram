@@ -1,17 +1,17 @@
 package org.monogram.core.markup
 
-import org.monogram.core.models.StyledText
 import org.monogram.core.models.RichBlock
+import org.monogram.core.models.StyledText
 import org.monogram.core.models.TaskItem
-import org.monogram.core.models.splitRichText
 import org.monogram.core.models.TextEntity
 import org.monogram.core.models.parseMarkdownToStyled
+import org.monogram.core.models.splitRichText
 import org.monogram.markup.MarkupNative
 import org.monogram.markup.NativeHighlightSpan
+import org.monogram.markup.NativeMarkupBlock
 import org.monogram.markup.NativeMarkupEntity
 import org.monogram.markup.NativeMathSpan
 import org.monogram.markup.NativeStyledMarkup
-import org.monogram.markup.NativeMarkupBlock
 
 data class CodeHighlight(
     val start: Int,
@@ -32,11 +32,19 @@ interface MarkupParser {
     fun highlightCode(code: String, language: String): List<CodeHighlight>
     fun extractMath(raw: String): List<MathSpan>
     fun supportedHighlightLanguages(): List<String>
-    fun renderBlocks(text: String, entities: List<TextEntity>, parseMarkdown: Boolean): List<RichBlock>
+    fun renderBlocks(
+        text: String,
+        entities: List<TextEntity>,
+        parseMarkdown: Boolean
+    ): List<RichBlock>
 }
 
 class NativeMarkupParser : MarkupParser {
-    override fun renderBlocks(text: String, entities: List<TextEntity>, parseMarkdown: Boolean): List<RichBlock> =
+    override fun renderBlocks(
+        text: String,
+        entities: List<TextEntity>,
+        parseMarkdown: Boolean
+    ): List<RichBlock> =
         MarkupNative.renderBlocks(
             text,
             entities.map { NativeMarkupEntity(it.kind, it.offset, it.length, it.url) },
@@ -58,9 +66,14 @@ class NativeMarkupParser : MarkupParser {
 
 /** Portable parser for previews and callers without a native runtime. */
 class KotlinMarkupParser : MarkupParser {
-    override fun renderBlocks(text: String, entities: List<TextEntity>, parseMarkdown: Boolean): List<RichBlock> =
+    override fun renderBlocks(
+        text: String,
+        entities: List<TextEntity>,
+        parseMarkdown: Boolean
+    ): List<RichBlock> =
         if (parseMarkdown && entities.isEmpty()) splitRichText(text)
         else if (text.isEmpty()) emptyList() else listOf(RichBlock.Paragraph(text, entities))
+
     override fun parseTelegramMarkdown(raw: String): StyledText = parseMarkdownToStyled(raw)
     override fun highlightCode(code: String, language: String): List<CodeHighlight> = emptyList()
     override fun extractMath(raw: String): List<MathSpan> = extractMathSpans(raw)
@@ -147,7 +160,7 @@ fun StyledText.forSend(
             ) return@mapNotNull null
             val end = entity.offset + entity.length
             if ((entity.offset > 0 && text[entity.offset].isLowSurrogate() &&
-                    text[entity.offset - 1].isHighSurrogate()) ||
+                        text[entity.offset - 1].isHighSurrogate()) ||
                 (end < text.length && text[end].isLowSurrogate() && text[end - 1].isHighSurrogate())
             ) return@mapNotNull null
             if (entity.kind == "custom_emoji") {
@@ -170,13 +183,20 @@ class FakeMarkupParser(
     private val math: (String) -> List<MathSpan> = { emptyList() },
     private val languages: List<String> = emptyList(),
 ) : MarkupParser {
-    override fun renderBlocks(text: String, entities: List<TextEntity>, parseMarkdown: Boolean): List<RichBlock> {
-        val styled = if (parseMarkdown && entities.isEmpty()) parse(text) else StyledText(text, entities)
+    override fun renderBlocks(
+        text: String,
+        entities: List<TextEntity>,
+        parseMarkdown: Boolean
+    ): List<RichBlock> {
+        val styled =
+            if (parseMarkdown && entities.isEmpty()) parse(text) else StyledText(text, entities)
         return listOf(RichBlock.Paragraph(styled.text, styled.entities))
     }
+
     override fun parseTelegramMarkdown(raw: String): StyledText = parse(raw)
     override fun highlightCode(code: String, language: String): List<CodeHighlight> =
         highlight(code, language)
+
     override fun extractMath(raw: String): List<MathSpan> = math(raw)
     override fun supportedHighlightLanguages(): List<String> = languages
 }
@@ -189,6 +209,7 @@ fun NativeMarkupBlock.toRichBlock(): RichBlock = when (kind) {
         collapsed = language == "collapsed",
         level = level.coerceAtLeast(1),
     )
+
     "photo" -> {
         val parts = (language ?: "").split(':')
         val id = parts.getOrNull(1).orEmpty()
@@ -199,6 +220,7 @@ fun NativeMarkupBlock.toRichBlock(): RichBlock = when (kind) {
             height = dims.getOrNull(1)?.toIntOrNull() ?: 0,
         )
     }
+
     "tasks" -> RichBlock.TaskList(
         items = rows.mapNotNull { row ->
             val done = row.getOrNull(0) == "1"
@@ -206,13 +228,26 @@ fun NativeMarkupBlock.toRichBlock(): RichBlock = when (kind) {
             TaskItem(item, done)
         },
     )
+
     "heading" -> RichBlock.Heading(text, level.coerceIn(1, 6), entities.map { it.toTextEntity() })
     "table" -> RichBlock.Table(headers, rows)
     "details" -> {
         val split = text.indexOf('\n')
         if (split < 0) RichBlock.Details(text, emptyList())
-        else RichBlock.Details(text.substring(0, split), listOf(RichBlock.Paragraph(text.substring(split + 1))))
+        else {
+            val bodyStart = split + 1
+            val bodyEntities = entities.mapNotNull { entity ->
+                val start = maxOf(bodyStart, entity.offset)
+                val end = minOf(text.length, entity.offset + entity.length)
+                entity.copy(offset = start - bodyStart, length = end - start)
+                    .takeIf { it.length > 0 }
+            }
+            val children = MarkupNative.renderBlocks(text.substring(bodyStart), bodyEntities, false)
+                .map { it.toRichBlock() }
+            RichBlock.Details(text.substring(0, split), children)
+        }
     }
+
     "rule" -> RichBlock.Rule
     else -> RichBlock.Paragraph(text, entities.map { it.toTextEntity() })
 }

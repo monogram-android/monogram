@@ -105,15 +105,14 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
             blocks.push(MarkupBlockDto {
                 kind: kind.into(),
                 text: format!("{title}\n{body}"),
-                entities: Vec::new(),
+                entities: slice_entities(&valid, entity.offset, end).into_iter().filter(|inner| {
+                    inner.kind != "details" || inner.offset > 0 || inner.length < entity.length
+                }).collect(),
                 language: None,
                 level: 0,
                 headers: Vec::new(),
                 rows: Vec::new(),
             });
-            // Details children are carried by the DTO text and mapped in Kotlin.
-            // Keep the block range atomic so nested structural entities cannot
-            // render after the collapsed section.
             cursor = end;
             continue;
         }

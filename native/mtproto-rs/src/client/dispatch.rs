@@ -687,6 +687,7 @@ pub fn send_photo_message(
         mime_type: String::new(),
         file_name: filename,
         caption,
+        entities_json: entities_json.clone(),
         duration: 0,
         width: 0,
         height: 0,

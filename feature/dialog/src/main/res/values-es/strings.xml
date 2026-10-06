@@ -191,7 +191,7 @@
         <item quantity="other">¿Eliminar %1$d mensajes?</item>
     </plurals>
     <string name="dialog_cancel">Cancelar</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Vista previa</string>
     <string name="dialog_markdown_expand">Abrir editor</string>
     <string name="dialog_markdown_apply">Aplicar</string>
@@ -340,4 +340,15 @@
         <item quantity="one">%1$s suscriptor</item>
         <item quantity="other">%1$s suscriptores</item>
     </plurals>
+    <string name="dialog_send_formatted">Enviar con formato</string>
+    <string name="dialog_editor_title">Editor de mensajes</string>
+    <string name="dialog_editor_send_preview">Vista previa del envío</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Texto seleccionado</string>
+    <string name="dialog_editor_select_hint">Selecciona texto para darle formato</string>
+    <string name="dialog_editor_expandable_quote">Cita desplegable</string>
+    <string name="dialog_editor_clear">Quitar formato</string>
+    <string name="dialog_editor_url">URL del enlace</string>
+    <string name="dialog_editor_language">Lenguaje (opcional)</string>
+    <string name="dialog_editor_open">Ampliar editor</string>
 </resources>

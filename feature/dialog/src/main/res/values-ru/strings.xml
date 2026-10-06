@@ -286,7 +286,7 @@
     <string name="dialog_reply_sticker">Стикер</string>
     <string name="dialog_reply_gif">GIF</string>
     <string name="dialog_reply_document">Файл</string>
-    <string name="dialog_markdown_editor">Редактор Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_bot_ok">ОК</string>
     <string name="dialog_bot_callback_password">Для этой кнопки требуется пароль двухэтапной аутентификации</string>
     <string name="dialog_bot_switch_inline">Встроенный режим пока недоступен</string>
@@ -362,4 +362,15 @@
     <string name="dialog_read_receipts_expired">Отчёты о прочтении истекли</string>
     <string name="dialog_read_expired_hint">Для защиты приватности просмотры хранятся только 7 дней</string>
     <string name="dialog_seen_accessibility">%1$s просмотрел(а)</string>
+    <string name="dialog_send_formatted">Отправить с форматированием</string>
+    <string name="dialog_editor_title">Редактор сообщения</string>
+    <string name="dialog_editor_send_preview">Так будет отправлено</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Выбранный текст</string>
+    <string name="dialog_editor_select_hint">Выделите текст для форматирования</string>
+    <string name="dialog_editor_expandable_quote">Раскрываемая цитата</string>
+    <string name="dialog_editor_clear">Убрать форматирование</string>
+    <string name="dialog_editor_url">Адрес ссылки</string>
+    <string name="dialog_editor_language">Язык (необязательно)</string>
+    <string name="dialog_editor_open">Развернуть редактор</string>
 </resources>

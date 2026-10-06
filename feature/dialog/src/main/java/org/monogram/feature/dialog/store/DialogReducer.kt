@@ -30,7 +30,21 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         is Msg.IsForum -> copy(isForum = msg.value)
         is Msg.Senders -> copy(senders = senders + msg.value)
         is Msg.SenderTags -> copy(senderTags = msg.value)
-        is Msg.Draft -> if (draft == msg.value) this else copy(draft = msg.value)
+        is Msg.Draft -> if (draft == msg.value) this else copy(
+            draft = msg.value,
+            draftFormatting = draftFormatting && msg.value.isNotEmpty(),
+            draftEntities = if (msg.value.isEmpty()) emptyList() else draftEntities,
+            draftPreview = null,
+            draftHasMarkdown = draftHasMarkdown && msg.value.isNotEmpty(),
+        )
+
+        is Msg.DraftFormatting -> copy(
+            draftFormatting = msg.value && draft.isNotEmpty(),
+            draftPreview = null
+        )
+
+        is Msg.DraftEntities -> copy(draftEntities = msg.value, draftPreview = null)
+        is Msg.DraftPreview -> copy(draftPreview = msg.value, draftHasMarkdown = msg.hasMarkdown)
         is Msg.PendingAttach -> copy(pendingAttach = msg.items)
         is Msg.LinkPreview -> copy(
             linkPreview = msg.preview,

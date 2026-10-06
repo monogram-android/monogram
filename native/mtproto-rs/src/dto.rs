@@ -412,6 +412,7 @@ pub struct UploadItemDto {
     pub mime_type: String,
     pub file_name: String,
     pub caption: String,
+    pub entities_json: Option<String>,
     pub duration: i32,
     pub width: i32,
     pub height: i32,

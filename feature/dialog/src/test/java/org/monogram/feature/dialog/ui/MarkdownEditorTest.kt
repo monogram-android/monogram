@@ -8,29 +8,24 @@ import org.junit.Test
 
 class MarkdownEditorTest {
     @Test
-    fun expandButtonAppearsForLongOrStructuredText() {
+    fun expandButtonAppearsForMeaningfulLongDraftsOrPremiumMarkdown() {
         org.junit.Assert.assertFalse(shouldShowFullScreenEditor(""))
         org.junit.Assert.assertFalse(shouldShowFullScreenEditor("\n".repeat(60)))
-        org.junit.Assert.assertFalse(shouldShowFullScreenEditor("a".repeat(50)))
-        org.junit.Assert.assertFalse(shouldShowFullScreenEditor("\uD83D\uDE00".repeat(50)))
-        assertTrue(shouldShowFullScreenEditor("a".repeat(51)))
-        assertTrue(shouldShowFullScreenEditor("\uD83D\uDE00".repeat(51)))
-        assertTrue(shouldShowFullScreenEditor("one\ntwo"))
-        assertTrue(shouldShowFullScreenEditor("```kotlin"))
-        org.junit.Assert.assertFalse(shouldShowFullScreenEditor("**hello**"))
+        org.junit.Assert.assertFalse(shouldShowFullScreenEditor("a".repeat(179), false))
+        assertTrue(shouldShowFullScreenEditor("a".repeat(180), false))
+        org.junit.Assert.assertFalse(shouldShowFullScreenEditor("🙂".repeat(179), false))
+        assertTrue(shouldShowFullScreenEditor("🙂".repeat(180), false))
+        org.junit.Assert.assertFalse(shouldShowFullScreenEditor("one\ntwo", false))
+        assertTrue(shouldShowFullScreenEditor("one\ntwo\nthree", false))
+        assertTrue(shouldShowFullScreenEditor("**hello**", true))
+        org.junit.Assert.assertFalse(shouldShowFullScreenEditor("**hello**", false))
         org.junit.Assert.assertFalse(
-            shouldShowFullScreenEditor("![🙂](tg://emoji?id=123456789012345)".repeat(4)),
+            shouldShowFullScreenEditor(
+                "mediatek,gpio_usage_mapping",
+                true
+            )
         )
-    }
-
-    @Test
-    fun expandsOnlyStructuredDrafts() {
-        assertTrue(needsFullScreenEditor("```kotlin"))
-        assertTrue(needsFullScreenEditor("before\n\$\$x^2\$\$"))
-        assertTrue(needsFullScreenEditor("**title**\nfirst\nsecond\nthird"))
-        org.junit.Assert.assertFalse(needsFullScreenEditor("**hello**"))
-        org.junit.Assert.assertFalse(needsFullScreenEditor("one\ntwo\nthree\nfour"))
-        org.junit.Assert.assertFalse(needsFullScreenEditor("price \$20 and inline `code`"))
+        org.junit.Assert.assertFalse(shouldShowFullScreenEditor("**unclosed", true))
     }
 
     @Test

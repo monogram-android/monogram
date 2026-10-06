@@ -6,9 +6,11 @@
 mod auth;
 mod dispatch;
 mod extras;
+pub(crate) mod extras_rpc;
 mod lanes;
 mod media_download;
 mod persist;
+pub(crate) mod push_rpc;
 mod session;
 mod updates;
 
@@ -20,6 +22,30 @@ pub use media_download::*;
 pub(crate) use persist::*;
 pub(crate) use session::*;
 pub use updates::*;
+
+#[cfg(test)]
+use crate::media as media_rpc;
+#[cfg(test)]
+use crate::peers;
+
+#[cfg(test)]
+#[path = "../../tests/unit/client_mgr_channel_tests.rs"]
+mod channel_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/client_mgr_lane_tests.rs"]
+mod lane_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/lazy_sync_tests.rs"]
+mod lazy_sync_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/client_mgr_logout_tests.rs"]
+mod logout_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/client_mgr_session_tests.rs"]
+mod session_tests;
+#[cfg(test)]
+#[path = "../../tests/unit/transfer_policy_tests.rs"]
+mod transfer_policy_tests;
 
 use crate::{HashMap, HashMapExt, HashSet, HashSetExt};
 use std::cell::Cell;
@@ -72,6 +98,13 @@ pub(crate) struct ClientData {
     pub(crate) last_inline: Option<LastInlineQuery>,
     pub(crate) persist_epoch: u64,
     pub(crate) persisted_epoch: u64,
+    /// In-memory catch-up edge. Not written into the session file.
+    pub(crate) is_syncing: bool,
+    pub(crate) lazy_channel_updates: bool,
+    pub(crate) lazy_sync_exceptions: HashSet<i64>,
+    /// Optional metadata previews; gaps remain durable in `channel_recovery`.
+    pub(crate) lazy_channel_recovery: HashSet<i64>,
+    pub(crate) lazy_retry_at: u64,
 }
 
 #[derive(Clone)]
@@ -86,6 +119,7 @@ pub(crate) struct LastInlineQuery {
 pub(crate) struct Client {
     pub(crate) _session_key: Option<Arc<crate::session_crypto::SessionKey>>,
     pub(crate) connections: Arc<tcp::ConnectionControl>,
+    pub(crate) policy: std::sync::Arc<crate::transfer_policy::TransferPolicy>,
     pub(crate) data: Mutex<ClientData>,
     pub(crate) main_gate: scheduler::LaneGate,
     pub(crate) main: Mutex<SessionIo>,
@@ -93,6 +127,11 @@ pub(crate) struct Client {
     pub(crate) rpc: [Lane; scheduler::READ_LANES],
     /// File RPCs on separate sessions.
     pub(crate) media: crate::SmallVec<[Lane; scheduler::MAX_MEDIA_LANES]>,
+    /// One upload session. Not the main sender and not a download lane.
+    pub(crate) upload: Mutex<SessionIo>,
+    pub(crate) file_cleanup_running: AtomicBool,
+    pub(crate) media_open: std::sync::atomic::AtomicUsize,
+    pub(crate) media_gate: scheduler::LaneGate,
     pub(crate) persist_queued: AtomicBool,
     pub(crate) persist_running: AtomicBool,
     pub(crate) interactive_waiters: AtomicU64,
@@ -169,6 +208,12 @@ pub(crate) fn get_client(handle: u64) -> Result<Arc<Client>, MtprotoError> {
         .ok_or(MtprotoError::UnknownClient)
 }
 
+pub(crate) fn visit_policies(visit: impl Fn(&crate::transfer_policy::TransferPolicy)) {
+    for client in CLIENTS.lock().values() {
+        visit(&client.policy);
+    }
+}
+
 pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64 {
     let connections = Arc::new(tcp::ConnectionControl::default());
     let path = PathBuf::from(session_path);
@@ -223,6 +268,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
     };
     crate::rpc::set_use_test_dc(test_dc);
     let media_snapshot = fork_session(&snapshot);
+    let upload_snapshot = fork_session(&snapshot);
     let rpc_snapshot = fork_session(&snapshot);
     let rpc_snapshot_b = fork_session(&snapshot);
     let media_snapshots: Vec<Snapshot> = (0..scheduler::MAX_MEDIA_LANES)
@@ -240,6 +286,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
         Arc::new(Client {
             _session_key: crate::session_crypto::key_for(&path),
             connections,
+            policy: crate::transfer_policy::snapshot(),
             data: Mutex::new(ClientData {
                 api_id,
                 api_hash,
@@ -267,6 +314,11 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                 last_inline: None,
                 persist_epoch: 0,
                 persisted_epoch: 0,
+                is_syncing: false,
+                lazy_channel_updates: false,
+                lazy_sync_exceptions: HashSet::new(),
+                lazy_channel_recovery: HashSet::new(),
+                lazy_retry_at: 0,
             }),
             main_gate: scheduler::LaneGate::new(),
             main: Mutex::new(SessionIo {
@@ -300,6 +352,15 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                     })
                 })
                 .collect(),
+            upload: Mutex::new(SessionIo {
+                pending_push: Default::default(),
+                last_difference: None,
+                snapshot: upload_snapshot,
+                transport: None,
+            }),
+            file_cleanup_running: AtomicBool::new(false),
+            media_open: std::sync::atomic::AtomicUsize::new(1),
+            media_gate: scheduler::LaneGate::new(),
             persist_queued: AtomicBool::new(false),
             persist_running: AtomicBool::new(false),
             interactive_waiters: AtomicU64::new(0),
@@ -359,10 +420,59 @@ pub fn client_exists(handle: u64) -> bool {
     CLIENTS.lock().contains_key(&handle)
 }
 
+pub(crate) fn schedule_transfer_config(handle: u64) {
+    let Ok(client) = get_client(handle) else {
+        return;
+    };
+    if client.data.lock().user_id.is_none() {
+        return;
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let due = client.policy.config_due.load(Ordering::Acquire);
+    if due > now
+        || client
+            .policy
+            .config_due
+            .compare_exchange(due, now + 3600, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+    {
+        return;
+    }
+    let weak = Arc::downgrade(&client);
+    let spawned = std::thread::Builder::new()
+        .name("mtproto-transfer-config".into())
+        .spawn(move || {
+            let result = scheduler::with_class(scheduler::RequestClass::BackgroundRead, || {
+                with_client_mut(handle, |state| {
+                    crate::rpc::with_rpc_timeout_secs(8, || {
+                        extras_rpc::animated_emoji_max(&mut state.snapshot, state.api_id)
+                    })
+                })
+            });
+            if result.is_err() {
+                if let Some(client) = weak.upgrade() {
+                    client.policy.config_due.store(now + 60, Ordering::Release);
+                }
+            }
+        });
+    if spawned.is_err() {
+        client.policy.config_due.store(now + 60, Ordering::Release);
+    }
+}
+
 pub fn client_api_id(handle: u64) -> i32 {
     get_client(handle)
         .map(|c| c.data.lock().api_id)
         .unwrap_or(0)
+}
+
+pub fn client_uses_test_dc(handle: u64) -> bool {
+    get_client(handle)
+        .map(|c| c.data.lock().test_dc)
+        .unwrap_or(false)
 }
 
 pub(crate) fn with_client_mut<T>(
@@ -370,6 +480,7 @@ pub(crate) fn with_client_mut<T>(
     f: impl FnOnce(&mut ClientState) -> Result<T, MtprotoError>,
 ) -> Result<T, MtprotoError> {
     let client = get_client(handle)?;
+    let _policy = crate::transfer_policy::bind(std::sync::Arc::clone(&client.policy));
     let class = scheduler::current_class();
     let _waiter = match class {
         scheduler::RequestClass::InteractiveRead | scheduler::RequestClass::InteractiveWrite => {
@@ -440,6 +551,12 @@ pub(crate) fn with_client_mut<T>(
     }
     let identity_changed =
         before_user_id != state.user_id || before_snapshot.auth_key != state.snapshot.auth_key;
+    if identity_changed {
+        if state.user_id.is_none() || before_user_id.is_some() {
+            client.policy.premium.store(false, Ordering::Relaxed);
+        }
+        *client.policy.upload_rtt.lock() = None;
+    }
     let updates_changed = before_updates != state.updates;
     let tokens_changed = before_logout != state.logout_tokens;
     let session_meta_changed = before_new_session != state.new_session
@@ -504,6 +621,7 @@ pub(crate) fn with_client_mut<T>(
         let persist_id = client.data.lock().home_session_id;
         schedule_persist(&client, persist_id);
     }
+    schedule_file_cleanup(&client);
     result
 }
 
@@ -655,6 +773,7 @@ pub(crate) fn with_read_lane<T>(
         }
     }
     drop(io);
+    schedule_file_cleanup(&client);
     if result
         .as_ref()
         .err()
@@ -676,4 +795,44 @@ pub(crate) fn with_read_lane<T>(
 
 pub(crate) fn ensure_ready(state: &mut ClientState) -> Result<(), MtprotoError> {
     ensure_auth_key(state)
+}
+
+/// Offscreen previews leave gaps durable; only the open chat and exceptions recover them.
+pub(crate) fn update_lazy_sync_config(handle: u64, lazy: bool, exceptions: Vec<i64>) {
+    let Ok(client) = get_client(handle) else {
+        return;
+    };
+    let mut d = client.data.lock();
+    if lazy && !d.lazy_channel_updates {
+        let pending: Vec<_> = d
+            .channel_recovery
+            .iter()
+            .filter(|entry| {
+                !entry.watching
+                    && entry.chat_id != d.last_history_chat_id
+                    && !exceptions.contains(&entry.chat_id)
+            })
+            .map(|entry| entry.chat_id)
+            .collect();
+        d.lazy_channel_recovery.extend(pending);
+    }
+    d.lazy_channel_updates = lazy;
+    d.lazy_sync_exceptions = exceptions.into_iter().collect();
+    if lazy {
+        return;
+    }
+    let pending = std::mem::take(&mut d.lazy_channel_recovery);
+    for chat_id in pending {
+        if d.channel_recovery
+            .iter()
+            .any(|entry| entry.chat_id == chat_id)
+        {
+            continue;
+        }
+        d.channel_recovery.push_back(ChannelRecovery {
+            chat_id,
+            due_at: 0,
+            watching: false,
+        });
+    }
 }

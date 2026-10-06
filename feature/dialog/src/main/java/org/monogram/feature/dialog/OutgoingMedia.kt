@@ -29,6 +29,10 @@ internal fun parseUpdateMessageId(kind: String): Pair<Long, Int>? {
     return randomId to messageId
 }
 
+/** The row stays pending until `updateMessageID` assigns a positive server id. */
+internal fun staysPendingUntilMessageId(pending: Boolean, messageId: Int): Boolean =
+    pending || messageId <= 0
+
 internal fun isTransientSendFailure(error: TelegramError): Boolean =
     error.kind == TelegramError.Kind.Network ||
         error.httpCode == -503 ||

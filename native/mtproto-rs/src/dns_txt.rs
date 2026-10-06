@@ -291,7 +291,7 @@ fn fetch_home_options_once(
     let mut framing = PaddedIntermediate::default();
     let mut snap = Snapshot::new(backup.dc_id, &mut OsRandom)
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
-    crate::auth_key::create_auth_key(&mut conn, &mut framing, &mut snap)?;
+    crate::auth::auth_key::create_auth_key(&mut conn, &mut framing, &mut snap)?;
     let mut slot = Some(LiveTransport {
         ping_sent: None,
         updates: Vec::new(),
@@ -721,5 +721,5 @@ fn read_tl_bytes(buf: &[u8], off: &mut usize) -> Result<Vec<u8>, MtprotoError> {
 }
 
 #[cfg(test)]
-#[path = "dns_txt_tests.rs"]
+#[path = "../tests/unit/dns_txt_tests.rs"]
 mod tests;

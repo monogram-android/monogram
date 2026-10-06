@@ -6,15 +6,19 @@ import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.mediaThumbCacheKey
 
 object PickerMediaPreload {
-    const val RADIUS = 24
+    const val THUMB_RADIUS = 24
+    const val DOCUMENT_RADIUS = 8
 
     enum class Fetch { Thumb, Document }
+
+    enum class DocKind { Unknown, Tgs, Webm, Webp, Gif }
 
     data class Item(
         val documentId: Long,
         val cacheKey: String,
         val thumbCacheKey: String? = null,
         val gif: Boolean = false,
+        val kind: DocKind = if (gif) DocKind.Gif else DocKind.Unknown,
     )
 
     data class Task(
@@ -89,7 +93,9 @@ object PickerMediaPreload {
     fun plan(
         items: List<Item>,
         visibleDocumentIds: Set<Long>,
-        radius: Int = RADIUS,
+        thumbRadius: Int = THUMB_RADIUS,
+        documentRadius: Int = DOCUMENT_RADIUS,
+        idle: Boolean = false,
     ): Plan {
         if (items.isEmpty()) {
             return Plan(IntRange.EMPTY, IntRange.EMPTY, emptyList())
@@ -102,9 +108,9 @@ object PickerMediaPreload {
         } else {
             visibleIndices.min()..visibleIndices.max()
         }
-        val window = (visibleRange.first - radius).coerceAtLeast(0)..
-            (visibleRange.last + radius).coerceAtMost(items.lastIndex)
-        val tasks = ArrayList<Task>(window.last - window.first + 1)
+        val window = expanded(visibleRange, thumbRadius, items.lastIndex)
+        val documents = expanded(visibleRange, documentRadius, items.lastIndex)
+        val tasks = ArrayList<Task>()
         for (index in window) {
             val item = items[index]
             val visible = index in visibleRange
@@ -116,16 +122,50 @@ object PickerMediaPreload {
                     priority = if (visible) MediaPriority.DEFAULT else MediaPriority.IDLE,
                     cacheKey = thumbKey,
                 )
-            } else {
+                if (idle && visible) {
+                    tasks += Task(
+                        item = item,
+                        fetch = Fetch.Document,
+                        priority = MediaPriority.DEFAULT,
+                        cacheKey = item.cacheKey,
+                    )
+                }
+            } else if (index in documents) {
+                val priority = when {
+                    visible -> MediaPriority.VISIBLE
+                    item.kind == DocKind.Webm -> MediaPriority.DEFAULT
+                    else -> MediaPriority.IDLE
+                }
                 tasks += Task(
                     item = item,
                     fetch = Fetch.Document,
-                    priority = if (visible) MediaPriority.VISIBLE else MediaPriority.IDLE,
+                    priority = priority,
                     cacheKey = item.cacheKey,
+                )
+            } else if (item.thumbCacheKey != null) {
+                tasks += Task(
+                    item = item,
+                    fetch = Fetch.Thumb,
+                    priority = if (visible) MediaPriority.DEFAULT else MediaPriority.IDLE,
+                    cacheKey = item.thumbCacheKey,
                 )
             }
         }
-        tasks.sortByDescending { it.priority }
+        tasks.sortWith(
+            compareByDescending<Task> { it.priority }
+                .thenByDescending { kindRank(it.item.kind) },
+        )
         return Plan(visibleRange, window, tasks)
+    }
+
+    private fun expanded(range: IntRange, radius: Int, lastIndex: Int): IntRange {
+        if (range.isEmpty()) return IntRange.EMPTY
+        return (range.first - radius).coerceAtLeast(0)..(range.last + radius).coerceAtMost(lastIndex)
+    }
+
+    private fun kindRank(kind: DocKind): Int = when (kind) {
+        DocKind.Webm -> 2
+        DocKind.Tgs -> 0
+        else -> 1
     }
 }

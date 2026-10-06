@@ -32,6 +32,8 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.canForwardFrom
 import org.monogram.core.ui.DownloadSettings
+import org.monogram.core.ui.gzipFile
+import org.monogram.core.ui.webmFile
 import org.monogram.feature.dialog.ui.InstantViewController
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
@@ -129,18 +131,34 @@ class DialogComponent(
     }
 
     fun onPickerDocumentsVisible(documentIds: List<Long>, visibleIds: Set<Long>) {
-        pickerPreloader.onPlan(
-            PickerMediaPreload.plan(PickerMediaPreload.documents(documentIds), visibleIds),
-        )
+        preloadScope.launch {
+            val items = PickerMediaPreload.documents(documentIds).map { item ->
+                item.copy(kind = pickerDocKind(mediaRepository?.cachedFile(item.cacheKey)))
+            }
+            pickerPreloader.onPlan(PickerMediaPreload.plan(items, visibleIds))
+        }
     }
 
-    fun onPickerGifsVisible(gifs: List<org.monogram.core.models.SavedGif>, visibleIds: Set<Long>) {
+    fun onPickerGifsVisible(
+        gifs: List<org.monogram.core.models.SavedGif>,
+        visibleIds: Set<Long>,
+        idle: Boolean,
+    ) {
         pickerPreloader.onPlan(
-            PickerMediaPreload.plan(PickerMediaPreload.gifs(gifs), visibleIds),
+            PickerMediaPreload.plan(PickerMediaPreload.gifs(gifs), visibleIds, idle = idle),
         )
     }
 
     fun onPickerClosed() = pickerPreloader.close()
+
+    private fun pickerDocKind(file: java.io.File?): PickerMediaPreload.DocKind {
+        if (file == null || !file.isFile || file.length() <= 0L) return PickerMediaPreload.DocKind.Unknown
+        return when {
+            webmFile(file) -> PickerMediaPreload.DocKind.Webm
+            gzipFile(file) -> PickerMediaPreload.DocKind.Tgs
+            else -> PickerMediaPreload.DocKind.Webp
+        }
+    }
 
     fun onRefresh() = store.accept(DialogStore.Intent.Refresh)
     fun onRefreshPresence() = store.accept(DialogStore.Intent.RefreshPresence)

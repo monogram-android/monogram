@@ -114,8 +114,8 @@
     <string name="settings_notifications_gateway">Servidor personalizado</string>
     <string name="settings_notifications_gateway_sub">Déjalo vacío si los avisos llegan</string>
     <string name="settings_notifications_retry">Reintentar</string>
-    <string name="settings_notifications_nomuted">Chats silenciados</string>
-    <string name="settings_notifications_nomuted_sub">Sin avisos en chats silenciados</string>
+    <string name="settings_notifications_nomuted">Ahorrar batería</string>
+    <string name="settings_notifications_nomuted_sub">Reducir la actividad en segundo plano de los chats silenciados</string>
     <string name="settings_notifications_bubbles">Burbujas</string>
     <string name="settings_notifications_bubbles_sub">Abrir chats en una ventana flotante</string>
     <string name="settings_privacy">Privacidad y seguridad</string>
@@ -127,8 +127,6 @@
     <string name="settings_data">Datos y almacenamiento</string>
     <string name="settings_data_sub">Descarga automática y caché</string>
     <string name="settings_data_transfers">Transferencias</string>
-    <string name="settings_speed_up_uploads">Acelerar subidas</string>
-    <string name="settings_speed_up_uploads_sub">Enviar fotos y archivos más rápido con buena conexión</string>
     <string name="settings_speed_up_downloads">Acelerar descargas</string>
     <string name="settings_speed_up_downloads_sub">Descargar fotos, videos y archivos más rápido con buena conexión</string>
     <string name="settings_autodownload">Descarga automática de medios</string>
@@ -401,4 +399,5 @@
     <string name="settings_proxy_latency">%1$d ms</string>
     <string name="settings_proxy_test_named">Probar %1$s</string>
     <string name="settings_proxy_edit_named">Editar %1$s</string>
+    <string name="settings_notifications_chat_mentions">Menciones y respuestas</string>
 </resources>

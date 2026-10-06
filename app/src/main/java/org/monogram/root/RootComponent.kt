@@ -247,8 +247,10 @@ class RootComponent(
             navigation.replaceAll(Config.Home)
         }
         stack.subscribe { childStack ->
-            val chatId = (childStack.active.configuration as? Config.Dialog)?.chatId
-            pushRegistration?.onVisibleChat(chatId)
+            val dialog = childStack.active.configuration as? Config.Dialog
+            pushRegistration?.onVisibleChat(
+                dialog?.chatId,
+                dialog?.threadTopMsgId?.takeIf { it > 0 })
         }
         lifecycle.doOnStart {
             if (!stack.value.active.configuration.isAuthArea()) {
@@ -351,7 +353,7 @@ class RootComponent(
                 } catch (_: Exception) {
                     AppLog.warn("read-state", "cache update failed")
                 }
-                if (!expiringSession && update is org.monogram.network.bridge.MtprotoUpdate.AccountPremium) {
+                if (!expiringSession && update is MtprotoUpdate.AccountPremium) {
                     accountFlagsVersion++
                     accountState.isPremium = update.isPremium
                     DownloadSettings.setPremium(update.isPremium)

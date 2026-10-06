@@ -114,8 +114,8 @@
     <string name="settings_notifications_gateway">Свой сервер</string>
     <string name="settings_notifications_gateway_sub">Оставьте пустым, если уведомления приходят</string>
     <string name="settings_notifications_retry">Повторить</string>
-    <string name="settings_notifications_nomuted">Заглушенные чаты</string>
-    <string name="settings_notifications_nomuted_sub">Без уведомлений в заглушенных чатах</string>
+    <string name="settings_notifications_nomuted">Экономия заряда</string>
+    <string name="settings_notifications_nomuted_sub">Меньше фоновой активности в чатах без звука</string>
     <string name="settings_notifications_bubbles">Всплывающие чаты</string>
     <string name="settings_notifications_bubbles_sub">Открывать чаты в плавающем окне</string>
     <string name="settings_privacy">Конфиденциальность и безопасность</string>
@@ -127,8 +127,6 @@
     <string name="settings_data">Данные и память</string>
     <string name="settings_data_sub">Автозагрузка и кэш</string>
     <string name="settings_data_transfers">Передача</string>
-    <string name="settings_speed_up_uploads">Ускорить отправку</string>
-    <string name="settings_speed_up_uploads_sub">Фото и файлы уходят быстрее на хорошей сети</string>
     <string name="settings_speed_up_downloads">Ускорить скачивание</string>
     <string name="settings_speed_up_downloads_sub">Скачивать фото, видео и файлы быстрее при хорошем соединении</string>
     <string name="settings_autodownload">Автозагрузка медиа</string>
@@ -401,4 +399,5 @@
     <string name="settings_proxy_latency">%1$d мс</string>
     <string name="settings_proxy_test_named">Проверить %1$s</string>
     <string name="settings_proxy_edit_named">Изменить %1$s</string>
+    <string name="settings_notifications_chat_mentions">Упоминания и ответы</string>
 </resources>

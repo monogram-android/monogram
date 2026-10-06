@@ -160,7 +160,11 @@ fun SettingsContent(
     )
 
     val accountTitle = profile?.title ?: stringResource(R.string.settings_account)
-    val accountSubtitle = profileSubtitle(profile?.username)
+    val accountSubtitle = profileSubtitle(
+        username = profile?.username,
+        phone = profile?.phone,
+        loaded = profile != null,
+    )
     val title = when (page) {
         SettingsPage.Home -> stringResource(R.string.settings_title)
         SettingsPage.Proxy -> stringResource(R.string.settings_proxy)
@@ -343,7 +347,6 @@ fun SettingsContent(
                                 cacheMessage = state.cacheMessage,
                                 loading = state.loading || state.loggingOut,
                                 download = download,
-                                onSpeedUpUploads = DownloadSettings::setSpeedUpUploads,
                                 onSpeedUpDownloads = DownloadSettings::setSpeedUpDownloads,
                                 onOpenAutoDownload = { network ->
                                     component.openPage(

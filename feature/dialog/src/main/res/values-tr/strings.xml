@@ -114,6 +114,7 @@
     <string name="dialog_panel_emoji">Emoji</string>
     <string name="dialog_panel_stickers">Stickerlar</string>
     <string name="dialog_emoji_open">Emoji, sticker ve GIF</string>
+    <string name="dialog_emoji_recent">Son kullanılanlar</string>
     <string name="dialog_emoji_category_smileys">Suratlar ve duygular</string>
     <string name="dialog_emoji_category_people">İnsanlar ve vücut</string>
     <string name="dialog_emoji_category_nature">Hayvanlar ve doğa</string>

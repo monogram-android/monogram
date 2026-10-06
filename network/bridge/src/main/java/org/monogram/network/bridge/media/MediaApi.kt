@@ -12,10 +12,10 @@ import org.monogram.core.models.Wallpaper
 import org.monogram.core.models.WallpaperCatalog
 import org.monogram.network.bridge.session.DispatchClass
 import org.monogram.network.bridge.session.SessionCore
-import org.monogram.network.http.MediaPriority
 import org.monogram.network.bridge.session.isFileMigrateError
 import org.monogram.network.bridge.session.isMissingThumbError
 import org.monogram.network.bridge.session.nativeExceptionMessage
+import org.monogram.network.http.MediaPriority
 
 internal class MediaApi(private val core: SessionCore) : MediaOps {
     override suspend fun getWallpapers(hash: Long): Outcome<WallpaperCatalog> {
@@ -151,8 +151,12 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
     private enum class TelegramFileKind { Full, Thumb, Display }
 
     private fun mediaDispatchClass(priority: Int): Int =
-        if (MediaPriority.isBackground(priority)) DispatchClass.BACKGROUND_MEDIA
-        else DispatchClass.INTERACTIVE_MEDIA
+        when {
+            MediaPriority.isBackground(priority) -> DispatchClass.BACKGROUND_MEDIA
+            priority >= MediaPriority.USER -> DispatchClass.USER_MEDIA
+            priority >= MediaPriority.VISIBLE -> DispatchClass.VISIBLE_MEDIA
+            else -> DispatchClass.ORDINARY_MEDIA
+        }
 
     private suspend fun downloadTelegramFile(
         chatId: PeerId,

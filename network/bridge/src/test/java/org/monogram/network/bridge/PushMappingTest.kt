@@ -5,9 +5,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.PushTokenType
+import org.monogram.network.bridge.notify.toModel
 import uniffi.monogram_mtproto.NotifyExceptionDto
 import uniffi.monogram_mtproto.NotifySettingsDto
-import org.monogram.network.bridge.notify.toModel
 
 class PushMappingTest {
     @Test
@@ -34,6 +34,7 @@ class PushMappingTest {
         val exception = NotifyExceptionDto(
             peerKind = "peer",
             chatId = 7,
+            topicId = null,
             showPreviews = false,
             silent = true,
             muteUntil = 1,

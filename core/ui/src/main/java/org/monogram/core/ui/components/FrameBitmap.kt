@@ -21,3 +21,24 @@ fun argbFrameBitmap(rgba: ByteArray, width: Int, height: Int): Bitmap? {
     bitmap.setPixels(argb, 0, width, 0, 0, width, height)
     return bitmap
 }
+
+fun writeArgbFrame(target: Bitmap, rgba: ByteArray): Boolean {
+    val width = target.width
+    val height = target.height
+    val pixels = width * height
+    if (width <= 0 || height <= 0 || target.isRecycled || rgba.size < pixels * 4) return false
+    val argb = IntArray(pixels)
+    var i = 0
+    var p = 0
+    while (p < pixels) {
+        val r = rgba[i].toInt() and 0xFF
+        val g = rgba[i + 1].toInt() and 0xFF
+        val b = rgba[i + 2].toInt() and 0xFF
+        val a = rgba[i + 3].toInt() and 0xFF
+        argb[p] = (a shl 24) or (r shl 16) or (g shl 8) or b
+        i += 4
+        p += 1
+    }
+    target.setPixels(argb, 0, width, 0, 0, width, height)
+    return true
+}

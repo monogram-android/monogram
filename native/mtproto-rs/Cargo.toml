@@ -17,7 +17,6 @@ bindgen-cli = ["uniffi/cli"]
 
 [dependencies]
 uniffi = { version = "0.32", default-features = false }
-mimalloc = { version = "0.1", default-features = false, features = ["local_dynamic_tls", "v2"] }
 parking_lot = "0.12"
 rapidhash = "4"
 compact_str = { version = "0.9", features = ["serde"] }
@@ -58,10 +57,3 @@ rustls-platform-verifier = "0.7"
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 required-features = ["bindgen-cli"]
-
-[profile.release]
-opt-level = "z"
-lto = true
-strip = true
-codegen-units = 1
-panic = "abort"

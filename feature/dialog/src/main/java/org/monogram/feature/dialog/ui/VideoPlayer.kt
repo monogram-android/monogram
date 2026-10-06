@@ -56,8 +56,6 @@ import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
@@ -114,27 +112,15 @@ fun VideoPlayer(
     val lifecycleOwner = LocalLifecycleOwner.current
     val animationEnabled = LocalMediaAnimationEnabled.current
     val playable = active && animationEnabled
-    var compactSlot by remember { mutableStateOf(false) }
-    LaunchedEffect(playable, compact) {
-        if (!compact || !playable) {
-            compactSlot = false
-            return@LaunchedEffect
-        }
-        CompactVideoSlots.acquire()
-        compactSlot = true
-        try {
-            awaitCancellation()
-        } finally {
-            compactSlot = false
-            CompactVideoSlots.release()
-        }
+    var engaged by remember(file) { mutableStateOf(playable) }
+    LaunchedEffect(playable) {
+        if (playable) engaged = true
     }
-    val compactPlayable = if (compact) playable && compactSlot else playable
-    if (compact && !compactPlayable) {
+    if (compact && !engaged) {
         VideoStill(
             file = file,
             modifier = modifier,
-            contentScale = androidx.compose.ui.layout.ContentScale.Fit
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
         )
         return
     }

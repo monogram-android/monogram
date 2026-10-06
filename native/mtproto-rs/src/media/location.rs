@@ -43,6 +43,8 @@ pub enum MediaLocation {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MediaRef {
+    #[serde(default)]
+    pub file_size: Option<i64>,
     pub kind: String,
     pub cache_key: String,
     pub location: MediaLocation,
@@ -327,6 +329,7 @@ pub fn media_for_download(
                 if location_is_getfile_thumb(loc) {
                     let mut copy = media.clone();
                     copy.location = loc.clone();
+                    copy.file_size = None;
                     copy.cache_key = media
                         .display_cache_key
                         .clone()
@@ -341,6 +344,7 @@ pub fn media_for_download(
                 if location_is_getfile_thumb(loc) {
                     let mut copy = media.clone();
                     copy.location = loc.clone();
+                    copy.file_size = None;
                     copy.cache_key = media
                         .thumb_cache_key
                         .clone()

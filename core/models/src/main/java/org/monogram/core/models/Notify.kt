@@ -55,6 +55,7 @@ data class NotifyException(
     val peerKind: String,
     val chatId: PeerId,
     val settings: NotifySettings,
+    val topicId: Int? = null,
 )
 
 data class PushDebugState(

@@ -3,11 +3,28 @@ use tellers_mtproto_transport::PaddedIntermediate;
 
 use crate::MtprotoError;
 use crate::api_invoke;
-use crate::auth_key::create_auth_key;
+use crate::auth::auth_key::create_auth_key;
 use crate::rpc::dc_endpoints;
 use crate::tcp;
 
 use super::*;
+
+/// File parts use one extra session on the same datacenter authorization.
+/// It keeps its own `session_id` so it is not a second main session.
+/// https://core.telegram.org/api/optimisation
+/// https://core.telegram.org/api/datacenter#parallel-sessions
+pub(crate) fn sync_upload_snapshot(upload: &mut Snapshot, home: &Snapshot) -> bool {
+    let replaced = upload.dc_id != home.dc_id
+        || upload.auth_key != home.auth_key
+        || upload.session_id == home.session_id;
+    if replaced {
+        *upload = fork_session(home);
+        return true;
+    }
+    upload.server_salt = home.server_salt;
+    upload.time_offset_micros = home.time_offset_micros;
+    false
+}
 
 pub(crate) fn fork_session(home: &Snapshot) -> Snapshot {
     let mut forked = Snapshot::new(home.dc_id, &mut OsRandom).expect("updates session");
@@ -257,6 +274,7 @@ pub(crate) fn drop_all_transports(handle: u64) {
         for lane in client.media.iter() {
             lane.io.lock().transport = None;
         }
+        client.upload.lock().transport = None;
     }
 }
 

@@ -114,6 +114,41 @@ class NotificationLocalStore(context: Context) {
         prefs.edit().putStringSet(PEER_MODES, next).apply()
     }
 
+    @Synchronized
+    fun cacheNotifySettings(
+        kind: String,
+        chatId: Long,
+        settings: NotifySettings,
+        topicId: Int? = null
+    ) {
+        if (kind == "peer") {
+            val complete =
+                prefs.contains(NOTIFY_EXCEPTIONS) && prefs.getBoolean(NOTIFY_EXCEPTIONS_READY, true)
+            notifyExceptions = notifyExceptions.orEmpty()
+                .filterNot { it.chatId.value == chatId && it.topicId == topicId } +
+                    NotifyException(
+                        kind,
+                        org.monogram.core.models.PeerId(chatId),
+                        settings,
+                        topicId
+                    )
+            if (!complete) prefs.edit().putBoolean(NOTIFY_EXCEPTIONS_READY, false).apply()
+        } else {
+            val key = when (kind) {
+                "users" -> NOTIFY_USERS
+                "chats" -> NOTIFY_CHATS
+                "broadcasts" -> NOTIFY_BROADCASTS
+                else -> return
+            }
+            prefs.edit().putString(key, NotifySettingsCodec.encode(settings)).apply()
+        }
+    }
+
+    val hasNotifySettingsCache: Boolean
+        get() = listOf(NOTIFY_USERS, NOTIFY_CHATS, NOTIFY_BROADCASTS).all {
+            NotifySettingsCodec.decode(prefs.getString(it, null)) != null
+        } && prefs.contains(NOTIFY_EXCEPTIONS) && prefs.getBoolean(NOTIFY_EXCEPTIONS_READY, true)
+
     fun setFolderMuted(folderId: Int, muted: Boolean) {
         val next = mutedFolders().toMutableSet()
         if (muted) next.add(folderId) else next.remove(folderId)
@@ -159,8 +194,13 @@ class NotificationLocalStore(context: Context) {
         }
         set(value) {
             prefs.edit().apply {
-                if (value == null) remove(NOTIFY_EXCEPTIONS)
-                else putString(NOTIFY_EXCEPTIONS, NotifyExceptionCodec.encodeAll(value))
+                if (value == null) {
+                    remove(NOTIFY_EXCEPTIONS)
+                    remove(NOTIFY_EXCEPTIONS_READY)
+                } else {
+                    putString(NOTIFY_EXCEPTIONS, NotifyExceptionCodec.encodeAll(value))
+                    putBoolean(NOTIFY_EXCEPTIONS_READY, true)
+                }
             }.apply()
         }
 
@@ -286,6 +326,7 @@ class NotificationLocalStore(context: Context) {
     }
 
     companion object {
+        private const val NOTIFY_EXCEPTIONS_READY = "notify_exceptions_ready"
         private const val PREFS = "monogram_notifications"
         private const val INAPP_SOUND = "inapp_sound"
         private const val INAPP_VIBRATE = "inapp_vibrate"
@@ -338,7 +379,7 @@ interface PushRegistration {
     fun distributor(): String
     fun distributors(): List<String> = emptyList()
     fun setAccountUserId(userId: Long) {}
-    fun onVisibleChat(chatId: Long?) {}
+    fun onVisibleChat(chatId: Long?, topicId: Int? = null) {}
     fun onChatRead(chatId: Long) {}
     /** Drops the server device token and UnifiedPush registration while the session is still alive. */
     suspend fun unregisterPush() {}

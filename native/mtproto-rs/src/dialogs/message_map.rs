@@ -126,14 +126,14 @@ pub(crate) fn message_to_dto_named(
                 file_name: indexed.file_name,
                 file_size: indexed.file_size,
                 supports_streaming: indexed.supports_streaming,
-                reactions_json: crate::extras_rpc::reactions_to_json(
+                reactions_json: crate::client::extras_rpc::reactions_to_json(
                     m.reactions.as_ref().map(|r| r.as_ref()),
                 ),
-                replies_count: crate::extras_rpc::replies_meta(
+                replies_count: crate::client::extras_rpc::replies_meta(
                     m.replies.as_ref().map(|r| r.as_ref()),
                 )
                 .0,
-                discussion_peer_id: crate::extras_rpc::replies_meta(
+                discussion_peer_id: crate::client::extras_rpc::replies_meta(
                     m.replies.as_ref().map(|r| r.as_ref()),
                 )
                 .1,

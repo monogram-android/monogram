@@ -8,25 +8,27 @@ mod framing;
 mod inbound;
 mod invoke;
 mod live;
+mod main_policy;
 mod salts;
 mod supervisor;
 mod timeout;
 
 pub use dc::{dc_endpoints, rotated_endpoints, same_ip_endpoints, set_use_test_dc, use_test_dc};
 pub use framing::SystemClock;
-pub(crate) use inbound::{gzip_if_smaller, ungzip_if_needed};
 pub use inbound::{
     BoxedQuery, NewSessionMetadata, clear_new_session_metadata, encode_boxed_bytes,
     take_new_session_metadata,
 };
+pub(crate) use inbound::{gzip_if_smaller, ungzip_if_needed};
 pub use invoke::invoke_raw;
 pub use live::{LiveTransport, drop_live_transport, with_live_transport};
 pub use timeout::with_rpc_timeout_secs;
 
 pub(crate) use invoke::{
-    invoke_batch_raw_with_retry, invoke_batch_raw_with_retry_streaming,
-    invoke_raw_with_retry_factory, receive_updates,
+    flush_pending_acks, invoke_batch_raw_with_retry, invoke_batch_raw_with_retry_streaming,
+    invoke_raw_with_retry_factory, ping_existing_rtt, receive_updates,
 };
+pub(crate) use main_policy::ACK_DELAY;
 
 #[cfg(test)]
 use crate::MtprotoError;
@@ -83,5 +85,20 @@ pub(crate) use timeout::{
 };
 
 #[cfg(test)]
-#[path = "rpc_tests.rs"]
-mod tests;
+#[path = "../tests/unit/rpc_container_tests.rs"]
+mod container_tests;
+#[cfg(test)]
+#[path = "../tests/unit/rpc_dc_tests.rs"]
+mod dc_tests;
+#[cfg(test)]
+#[path = "../tests/unit/rpc_gzip_tests.rs"]
+mod gzip_tests;
+#[cfg(test)]
+#[path = "../tests/unit/rpc_push_tests.rs"]
+mod push_tests;
+#[cfg(test)]
+#[path = "../tests/unit/rpc_session_tests.rs"]
+mod session_tests;
+#[cfg(test)]
+#[path = "../tests/unit/rpc_timeout_tests.rs"]
+mod timeout_tests;

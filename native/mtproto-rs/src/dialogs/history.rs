@@ -40,7 +40,9 @@ pub fn get_history(
     };
     let response: MessagesMessages = api_invoke::invoke_api(snapshot, api_id, request)?;
     let mut dtos = dtos_from_messages(response, peers, media_index)?;
-    crate::rich_rpc::fill_unsupported_rich_text(snapshot, api_id, peers, user_id, &mut dtos);
+    crate::dialogs::rich_rpc::fill_unsupported_rich_text(
+        snapshot, api_id, peers, user_id, &mut dtos,
+    );
     Ok(dtos)
 }
 
@@ -72,7 +74,9 @@ pub fn get_replies(
     };
     let response: MessagesMessages = api_invoke::invoke_api(snapshot, api_id, request)?;
     let mut dtos = dtos_from_messages(response, peers, media_index)?;
-    crate::rich_rpc::fill_unsupported_rich_text(snapshot, api_id, peers, user_id, &mut dtos);
+    crate::dialogs::rich_rpc::fill_unsupported_rich_text(
+        snapshot, api_id, peers, user_id, &mut dtos,
+    );
     Ok(dtos)
 }
 

@@ -114,8 +114,8 @@
     <string name="settings_notifications_gateway">カスタムサーバー</string>
     <string name="settings_notifications_gateway_sub">通知が届く場合は空のまま</string>
     <string name="settings_notifications_retry">再試行</string>
-    <string name="settings_notifications_nomuted">ミュート中のチャット</string>
-    <string name="settings_notifications_nomuted_sub">ミュート中のチャットは通知しません</string>
+    <string name="settings_notifications_nomuted">バッテリーを節約</string>
+    <string name="settings_notifications_nomuted_sub">ミュート中のチャットのバックグラウンド動作を減らします</string>
     <string name="settings_notifications_bubbles">バブル</string>
     <string name="settings_notifications_bubbles_sub">チャットをフローティング表示で開く</string>
     <string name="settings_privacy">プライバシーとセキュリティ</string>
@@ -127,8 +127,6 @@
     <string name="settings_data">データとストレージ</string>
     <string name="settings_data_sub">自動ダウンロードとキャッシュ</string>
     <string name="settings_data_transfers">転送</string>
-    <string name="settings_speed_up_uploads">アップロードを高速化</string>
-    <string name="settings_speed_up_uploads_sub">良好な接続時に写真やファイルをより速く送信します</string>
     <string name="settings_speed_up_downloads">ダウンロードを高速化</string>
     <string name="settings_speed_up_downloads_sub">良好な接続時に写真、動画、ファイルをより速くダウンロードします</string>
     <string name="settings_autodownload">メディアの自動ダウンロード</string>
@@ -401,4 +399,5 @@
     <string name="settings_proxy_latency">%1$d ms</string>
     <string name="settings_proxy_test_named">%1$s をテスト</string>
     <string name="settings_proxy_edit_named">%1$s を編集</string>
+    <string name="settings_notifications_chat_mentions">メンションと返信</string>
 </resources>

@@ -13,15 +13,15 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.automirrored.outlined.VolumeUp
-import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -700,7 +700,8 @@ private fun position(index: Int, size: Int): ItemPosition = when {
 
 /** Mute options offered per chat; [seconds] of 0 clears the mute and [Int.MAX_VALUE] mutes forever. */
 private data class ChatMuteChoice(val labelRes: Int, val seconds: Int) {
-    fun until(now: Int): Int = if (seconds == Int.MAX_VALUE) Int.MAX_VALUE else now + seconds
+    fun until(now: Int): Int = if (seconds == Int.MAX_VALUE) Int.MAX_VALUE
+    else (now.toLong() + seconds).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 }
 
 private val CHAT_MUTE_CHOICES = listOf(
@@ -766,6 +767,22 @@ internal fun NotificationChatModeDialog(
                 modeSwitch(R.string.settings_notifications_popup, mode.popup) { value ->
                     component.onNotification(NotificationsStore.Intent.SetPeerMode(chatId, mode.copy(popup = value)))
                 }
+                modeSwitch(R.string.settings_notifications_chat_mentions, mode.mentions) { value ->
+                    component.onNotification(
+                        NotificationsStore.Intent.SetPeerMode(
+                            chatId,
+                            mode.copy(mentions = value)
+                        )
+                    )
+                }
+                modeSwitch(R.string.settings_notifications_pinned, mode.pinned) { value ->
+                    component.onNotification(
+                        NotificationsStore.Intent.SetPeerMode(
+                            chatId,
+                            mode.copy(pinned = value)
+                        )
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = stringResource(R.string.settings_notifications_chat_mute),
@@ -809,8 +826,12 @@ internal fun NotificationChatModeDialog(
 
 @Composable
 private fun modeSwitch(labelRes: Int, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(stringResource(labelRes))
+    Row(modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(stringResource(labelRes), modifier = Modifier
+            .weight(1f)
+            .padding(end = 12.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

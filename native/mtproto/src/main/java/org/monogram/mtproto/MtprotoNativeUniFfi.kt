@@ -9,18 +9,20 @@ import uniffi.monogram_mtproto.DiscussionDto
 import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.ForumTopicsPageDto
 import uniffi.monogram_mtproto.GlobalMessageSearchDto
-import uniffi.monogram_mtproto.InlineBotResultsDto
 import uniffi.monogram_mtproto.InitConnectionInfo
+import uniffi.monogram_mtproto.InlineBotResultsDto
 import uniffi.monogram_mtproto.InstantViewDto
 import uniffi.monogram_mtproto.MessageDto
 import uniffi.monogram_mtproto.MtprotoException
 import uniffi.monogram_mtproto.NotifyExceptionDto
 import uniffi.monogram_mtproto.NotifySettingsDto
 import uniffi.monogram_mtproto.OutboxReadDto
+import uniffi.monogram_mtproto.PollVotersDto
 import uniffi.monogram_mtproto.ProfileDto
+import uniffi.monogram_mtproto.ReactionChoiceDto
+import uniffi.monogram_mtproto.ReactionPeersDto
 import uniffi.monogram_mtproto.ReadParticipantsDto
 import uniffi.monogram_mtproto.ReadReceiptConfigDto
-import uniffi.monogram_mtproto.ReactionChoiceDto
 import uniffi.monogram_mtproto.ResolvedPeerDto
 import uniffi.monogram_mtproto.SavedGifDto
 import uniffi.monogram_mtproto.StickerCatalogDto
@@ -32,60 +34,51 @@ import uniffi.monogram_mtproto.UploadItemDto
 import uniffi.monogram_mtproto.uniffiEnsureInitialized
 import java.io.File
 import uniffi.monogram_mtproto.animatedEmojiMax as nativeAnimatedEmojiMax
+import uniffi.monogram_mtproto.appendTodoItems as nativeAppendTodoItems
 import uniffi.monogram_mtproto.checkPassword as nativeCheckPassword
 import uniffi.monogram_mtproto.clearActiveDialog as nativeClearActiveDialog
+import uniffi.monogram_mtproto.clearProxy as nativeClearProxy
 import uniffi.monogram_mtproto.clientApiId as nativeClientApiId
 import uniffi.monogram_mtproto.clientExists as nativeClientExists
+import uniffi.monogram_mtproto.clientUsesTestDc as nativeClientUsesTestDc
 import uniffi.monogram_mtproto.connect as nativeConnect
-import uniffi.monogram_mtproto.clearProxy as nativeClearProxy
 import uniffi.monogram_mtproto.contactsSearch as nativeContactsSearch
 import uniffi.monogram_mtproto.createEncryptedClient as nativeCreateEncryptedClient
 import uniffi.monogram_mtproto.customEmojiIsFree as nativeCustomEmojiIsFree
 import uniffi.monogram_mtproto.decryptPushPayload as nativeDecryptPushPayload
+import uniffi.monogram_mtproto.deleteFolder as nativeDeleteFolder
 import uniffi.monogram_mtproto.deleteMessage as nativeDeleteMessage
 import uniffi.monogram_mtproto.destroyClient as nativeDestroyClient
 import uniffi.monogram_mtproto.downloadCustomEmoji as nativeDownloadCustomEmoji
 import uniffi.monogram_mtproto.downloadMessageMedia as nativeDownloadMessageMedia
 import uniffi.monogram_mtproto.downloadMessageThumb as nativeDownloadMessageThumb
-import uniffi.monogram_mtproto.peekMessageInlineThumb as nativePeekMessageInlineThumb
 import uniffi.monogram_mtproto.drainUpdates as nativeDrainUpdates
+import uniffi.monogram_mtproto.editForumTopicHidden as nativeEditForumTopicHidden
 import uniffi.monogram_mtproto.editTextMessage as nativeEditTextMessage
 import uniffi.monogram_mtproto.forwardMessages as nativeForwardMessages
 import uniffi.monogram_mtproto.getAllStickers as nativeGetAllStickers
 import uniffi.monogram_mtproto.getBotCallbackAnswer as nativeGetBotCallbackAnswer
 import uniffi.monogram_mtproto.getChats as nativeGetChats
-import uniffi.monogram_mtproto.pingProxy as nativePingProxy
-import uniffi.monogram_mtproto.setInitConnectionInfo as nativeSetInitConnectionInfo
-import uniffi.monogram_mtproto.setProxy as nativeSetProxy
-import uniffi.monogram_mtproto.setTransportMode as nativeSetTransportMode
 import uniffi.monogram_mtproto.getCommonChats as nativeGetCommonChats
 import uniffi.monogram_mtproto.getDiscussionMessage as nativeGetDiscussionMessage
 import uniffi.monogram_mtproto.getEmojiStickers as nativeGetEmojiStickers
 import uniffi.monogram_mtproto.getFolders as nativeGetFolders
-import uniffi.monogram_mtproto.updateFolder as nativeUpdateFolder
-import uniffi.monogram_mtproto.deleteFolder as nativeDeleteFolder
-import uniffi.monogram_mtproto.updateFolderOrder as nativeUpdateFolderOrder
 import uniffi.monogram_mtproto.getForumTopics as nativeGetForumTopics
 import uniffi.monogram_mtproto.getForumTopicsById as nativeGetForumTopicsById
-import uniffi.monogram_mtproto.editForumTopicHidden as nativeEditForumTopicHidden
 import uniffi.monogram_mtproto.getGroupAdminTags as nativeGetGroupAdminTags
 import uniffi.monogram_mtproto.getHistory as nativeGetHistory
 import uniffi.monogram_mtproto.getHistoryPage as nativeGetHistoryPage
-import uniffi.monogram_mtproto.getUnreadMentions as nativeGetUnreadMentions
-import uniffi.monogram_mtproto.getUnreadReactions as nativeGetUnreadReactions
 import uniffi.monogram_mtproto.getInlineBotResults as nativeGetInlineBotResults
+import uniffi.monogram_mtproto.getMessageReactionsList as nativeGetMessageReactionsList
+import uniffi.monogram_mtproto.getMessageReadParticipants as nativeGetMessageReadParticipants
 import uniffi.monogram_mtproto.getNotifyExceptions as nativeGetNotifyExceptions
 import uniffi.monogram_mtproto.getNotifySettings as nativeGetNotifySettings
-import uniffi.monogram_mtproto.getParticipants as nativeGetParticipants
-import uniffi.monogram_mtproto.getMessageReadParticipants as nativeGetMessageReadParticipants
-import uniffi.monogram_mtproto.getMessageReactionsList as nativeGetMessageReactionsList
-import uniffi.monogram_mtproto.getPollVotes as nativeGetPollVotes
-import uniffi.monogram_mtproto.ReactionPeersDto
-import uniffi.monogram_mtproto.PollVotersDto
 import uniffi.monogram_mtproto.getOutboxReadDate as nativeGetOutboxReadDate
+import uniffi.monogram_mtproto.getParticipants as nativeGetParticipants
 import uniffi.monogram_mtproto.getPinnedMessages as nativeGetPinnedMessages
-import uniffi.monogram_mtproto.getReadReceiptConfig as nativeGetReadReceiptConfig
+import uniffi.monogram_mtproto.getPollVotes as nativeGetPollVotes
 import uniffi.monogram_mtproto.getProfile as nativeGetProfile
+import uniffi.monogram_mtproto.getReadReceiptConfig as nativeGetReadReceiptConfig
 import uniffi.monogram_mtproto.getRecentReactions as nativeGetRecentReactions
 import uniffi.monogram_mtproto.getReplies as nativeGetReplies
 import uniffi.monogram_mtproto.getSavedGifs as nativeGetSavedGifs
@@ -93,6 +86,8 @@ import uniffi.monogram_mtproto.getSearchCounters as nativeGetSearchCounters
 import uniffi.monogram_mtproto.getStickerPack as nativeGetStickerPack
 import uniffi.monogram_mtproto.getStickerSet as nativeGetStickerSet
 import uniffi.monogram_mtproto.getStickers as nativeGetStickers
+import uniffi.monogram_mtproto.getUnreadMentions as nativeGetUnreadMentions
+import uniffi.monogram_mtproto.getUnreadReactions as nativeGetUnreadReactions
 import uniffi.monogram_mtproto.getUpdatesState as nativeGetUpdatesState
 import uniffi.monogram_mtproto.getWebPage as nativeGetWebPage
 import uniffi.monogram_mtproto.getWebPagePreview as nativeGetWebPagePreview
@@ -100,12 +95,14 @@ import uniffi.monogram_mtproto.isAuthorized as nativeIsAuthorized
 import uniffi.monogram_mtproto.libraryVersion as nativeLibraryVersion
 import uniffi.monogram_mtproto.loadMoreChats as nativeLoadMoreChats
 import uniffi.monogram_mtproto.logout as nativeLogout
+import uniffi.monogram_mtproto.markDialogUnread as nativeMarkDialogUnread
+import uniffi.monogram_mtproto.peekMessageInlineThumb as nativePeekMessageInlineThumb
+import uniffi.monogram_mtproto.pingProxy as nativePingProxy
 import uniffi.monogram_mtproto.readDiscussion as nativeReadDiscussion
 import uniffi.monogram_mtproto.readHistory as nativeReadHistory
-import uniffi.monogram_mtproto.readMessageContents as nativeReadMessageContents
 import uniffi.monogram_mtproto.readMentions as nativeReadMentions
+import uniffi.monogram_mtproto.readMessageContents as nativeReadMessageContents
 import uniffi.monogram_mtproto.readReactions as nativeReadReactions
-import uniffi.monogram_mtproto.markDialogUnread as nativeMarkDialogUnread
 import uniffi.monogram_mtproto.registerDevice as nativeRegisterDevice
 import uniffi.monogram_mtproto.resendAuthCode as nativeResendAuthCode
 import uniffi.monogram_mtproto.resetNotifySettings as nativeResetNotifySettings
@@ -115,7 +112,9 @@ import uniffi.monogram_mtproto.searchMessages as nativeSearchMessages
 import uniffi.monogram_mtproto.searchMessagesFiltered as nativeSearchMessagesFiltered
 import uniffi.monogram_mtproto.sendAuthCode as nativeSendAuthCode
 import uniffi.monogram_mtproto.sendInlineBotResult as nativeSendInlineBotResult
+import uniffi.monogram_mtproto.sendLocation as nativeSendLocation
 import uniffi.monogram_mtproto.sendPhotoMessage as nativeSendPhotoMessage
+import uniffi.monogram_mtproto.sendPollVote as nativeSendPollVote
 import uniffi.monogram_mtproto.sendReaction as nativeSendReaction
 import uniffi.monogram_mtproto.sendSavedGif as nativeSendSavedGif
 import uniffi.monogram_mtproto.sendTextMessage as nativeSendTextMessage
@@ -123,14 +122,17 @@ import uniffi.monogram_mtproto.sendUploadedAlbum as nativeSendUploadedAlbum
 import uniffi.monogram_mtproto.sendUploadedMedia as nativeSendUploadedMedia
 import uniffi.monogram_mtproto.setClientTestDc as nativeSetClientTestDc
 import uniffi.monogram_mtproto.setContactJoinedSilent as nativeSetContactJoinedSilent
+import uniffi.monogram_mtproto.setInitConnectionInfo as nativeSetInitConnectionInfo
+import uniffi.monogram_mtproto.setProxy as nativeSetProxy
+import uniffi.monogram_mtproto.setTransportMode as nativeSetTransportMode
 import uniffi.monogram_mtproto.setTyping as nativeSetTyping
 import uniffi.monogram_mtproto.signIn as nativeSignIn
 import uniffi.monogram_mtproto.startUpdates as nativeStartUpdates
 import uniffi.monogram_mtproto.toggleTodoCompleted as nativeToggleTodoCompleted
-import uniffi.monogram_mtproto.sendLocation as nativeSendLocation
-import uniffi.monogram_mtproto.sendPollVote as nativeSendPollVote
-import uniffi.monogram_mtproto.appendTodoItems as nativeAppendTodoItems
 import uniffi.monogram_mtproto.unregisterDevice as nativeUnregisterDevice
+import uniffi.monogram_mtproto.updateFolder as nativeUpdateFolder
+import uniffi.monogram_mtproto.updateFolderOrder as nativeUpdateFolderOrder
+import uniffi.monogram_mtproto.updateLazySyncConfig as nativeUpdateLazySyncConfig
 import uniffi.monogram_mtproto.updateNotifySettings as nativeUpdateNotifySettings
 import uniffi.monogram_mtproto.updateStatus as nativeUpdateStatus
 
@@ -229,6 +231,9 @@ object MtprotoNativeUniFfi : MtprotoNative {
     override fun setTestDc(handle: Long, enabled: Boolean) {
         nativeSetClientTestDc(handle.toULong(), enabled)
     }
+
+    override fun usesTestDc(handle: Long): Boolean =
+        nativeClientUsesTestDc(handle.toULong())
 
     override fun isAuthorized(handle: Long): Boolean =
         nativeIsAuthorized(handle.toULong())
@@ -667,6 +672,10 @@ object MtprotoNativeUniFfi : MtprotoNative {
 
     override fun startUpdates(handle: Long) {
         nativeStartUpdates(handle.toULong())
+    }
+
+    override fun updateLazySyncConfig(handle: Long, lazy: Boolean, exceptions: List<Long>) {
+        nativeUpdateLazySyncConfig(handle.toULong(), lazy, exceptions)
     }
 
     override fun clearActiveDialog(handle: Long) {

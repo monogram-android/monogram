@@ -3,7 +3,7 @@
 
 use tellers_mtproto_session::{OsRandom, Snapshot};
 
-use crate::auth_rpc;
+use crate::auth::auth_rpc;
 use crate::session_file::FileSessionStore;
 use crate::{AuthCodeSent, AuthSignedIn, MtprotoError};
 
@@ -171,7 +171,7 @@ pub fn send_auth_code(handle: u64, phone: String) -> Result<AuthCodeSent, Mtprot
                 ensure_ready(state)?;
                 attempt(state)?
             }
-            Err(err) if is_auth_restart(&err) || crate::auth_rpc::is_srp_id_invalid(&err) => {
+            Err(err) if is_auth_restart(&err) || crate::auth::auth_rpc::is_srp_id_invalid(&err) => {
                 // Stale 2FA/auth-key leftover from a previous attempt.
                 recreate_mtproto_session(state)?;
                 ensure_ready(state)?;

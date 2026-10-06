@@ -7,11 +7,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.flow.distinctUntilChanged
 import org.monogram.core.models.Message
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
 import org.monogram.core.ui.media.MediaPlaybackHolder
@@ -40,13 +45,12 @@ internal fun ChatInlineVideo(
     val animationEnabled = LocalMediaAnimationEnabled.current
     val session = remember(context) { MediaPlaybackHolder.session(context) }
     val mediaId = "${message.id.chatId.value}:${message.id.id}"
-    val busyElsewhere = session.surface == MediaSurface.VIEWER ||
-        session.surface == MediaSurface.PIP
-    val shouldPlay = visible && autoplay && animationEnabled &&
-        !session.isMessagePlayback &&
-        (!busyElsewhere || session.current?.id == mediaId) &&
-        session.surface != MediaSurface.VIEWER &&
-        session.surface != MediaSurface.PIP
+    var playingHere by remember(mediaId) { mutableStateOf(false) }
+    var failedHere by remember(mediaId) { mutableStateOf(false) }
+    var onScreen by remember(mediaId) { mutableStateOf(false) }
+    LaunchedEffect(visible) {
+        if (visible) onScreen = true
+    }
     val item = remember(mediaId, message.fileSize, message.mediaDuration, repository) {
         MediaViewerItem(
             id = mediaId,
@@ -62,17 +66,36 @@ internal fun ChatInlineVideo(
         )
     }
 
-    LaunchedEffect(shouldPlay, mediaId, item) {
-        if (!shouldPlay) {
-            if (session.current?.id == mediaId && session.surface == MediaSurface.CHAT) {
-                session.pause()
-                session.attachSurface(MediaSurface.STOPPED)
+    LaunchedEffect(autoplay, animationEnabled, mediaId, item) {
+        snapshotFlow {
+            val surface = session.surface
+            val currentId = session.current?.id
+            val busyElsewhere = surface == MediaSurface.VIEWER || surface == MediaSurface.PIP
+            onScreen && autoplay && animationEnabled &&
+                    !session.isMessagePlayback &&
+                    (!busyElsewhere || currentId == mediaId) &&
+                    surface != MediaSurface.VIEWER &&
+                    surface != MediaSurface.PIP
+        }.distinctUntilChanged().collect { shouldPlay ->
+            if (!shouldPlay) {
+                if (session.current?.id == mediaId && session.surface == MediaSurface.CHAT) {
+                    session.pause()
+                }
+                return@collect
             }
-            return@LaunchedEffect
+            session.mute(true)
+            session.setQueue(listOf(item), 0, autoplay = true, startMuted = true)
+            session.attachSurface(MediaSurface.CHAT)
         }
-        session.mute(true)
-        session.setQueue(listOf(item), 0, autoplay = true, startMuted = true)
-        session.attachSurface(MediaSurface.CHAT)
+    }
+    LaunchedEffect(mediaId) {
+        snapshotFlow {
+            val owns = session.current?.id == mediaId && session.surface == MediaSurface.CHAT
+            owns to (session.failed && session.current?.id == mediaId)
+        }.distinctUntilChanged().collect { (owns, failed) ->
+            playingHere = owns
+            failedHere = failed
+        }
     }
     DisposableEffect(mediaId) {
         onDispose {
@@ -83,9 +106,6 @@ internal fun ChatInlineVideo(
         }
     }
 
-    val playingHere = shouldPlay &&
-        session.current?.id == mediaId &&
-        session.surface == MediaSurface.CHAT
     if (playingHere) {
         val player = session.player
         Box(
@@ -108,7 +128,7 @@ internal fun ChatInlineVideo(
             thumb = poster,
             image = poster,
             durationSeconds = durationSeconds,
-            failed = session.failed && session.current?.id == mediaId,
+            failed = failedHere,
             loading = false,
             previewLoading = poster == null,
             fileSize = message.fileSize,

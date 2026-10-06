@@ -643,5 +643,8 @@ fn emit_custom_emoji(
 }
 
 #[cfg(test)]
-#[path = "markdown_tests.rs"]
-mod tests;
+#[path = "../tests/unit/markdown_block_tests.rs"]
+mod block_tests;
+#[cfg(test)]
+#[path = "../tests/unit/markdown_inline_tests.rs"]
+mod inline_tests;

@@ -276,6 +276,10 @@ impl HttpTransport {
         self.inner
             .set_timeout(Duration::from_millis(timeout.max(50)))
     }
+
+    pub fn set_read_timeout(&mut self, timeout: Duration) -> Result<(), ProxyError> {
+        self.inner.set_read_timeout(timeout)
+    }
 }
 
 impl Connection for HttpTransport {
@@ -352,6 +356,13 @@ impl TransportConnection {
             Self::Http(connection) => connection.set_io_timeout_ms(timeout),
         }
     }
+
+    pub fn set_read_timeout(&mut self, timeout: Duration) -> Result<(), ProxyError> {
+        match self {
+            Self::Obfuscated(connection) => connection.set_read_timeout(timeout),
+            Self::Http(connection) => connection.set_read_timeout(timeout),
+        }
+    }
 }
 impl TcpConnection {
     pub fn connect(
@@ -411,10 +422,26 @@ impl TcpConnection {
             timeout,
         })
     }
+    fn io_socket(&self) -> &TcpStream {
+        match &self.stream {
+            ProxyStream::Plain(stream) => stream,
+            ProxyStream::Tls(stream) => stream.get_ref(),
+            ProxyStream::FakeTls(stream) => stream.tcp(),
+        }
+    }
+
     pub fn set_timeout(&mut self, timeout: Duration) -> Result<(), ProxyError> {
         self.socket.set_read_timeout(Some(timeout))?;
         self.socket.set_write_timeout(Some(timeout))?;
+        self.io_socket().set_read_timeout(Some(timeout))?;
+        self.io_socket().set_write_timeout(Some(timeout))?;
         self.timeout = timeout;
+        Ok(())
+    }
+
+    pub fn set_read_timeout(&mut self, timeout: Duration) -> Result<(), ProxyError> {
+        self.socket.set_read_timeout(Some(timeout))?;
+        self.io_socket().set_read_timeout(Some(timeout))?;
         Ok(())
     }
 
@@ -466,6 +493,9 @@ pub struct ObfuscatedTcp {
 impl ObfuscatedTcp {
     pub fn set_timeout(&mut self, timeout: Duration) -> Result<(), ProxyError> {
         self.inner.set_timeout(timeout)
+    }
+    pub fn set_read_timeout(&mut self, timeout: Duration) -> Result<(), ProxyError> {
+        self.inner.set_read_timeout(timeout)
     }
     pub fn set_io_timeout_ms(&mut self, timeout: u64) -> Result<(), ProxyError> {
         self.set_timeout(Duration::from_millis(timeout.max(50)))
@@ -602,35 +632,5 @@ fn http_connect(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn validates_proxy_variants_without_exposing_secrets() {
-        let config = ProxyConfig {
-            kind: ProxyKind::Mtproto,
-            host: "proxy.example".into(),
-            port: 443,
-            username: None,
-            password: None,
-            secret: Some([7; 16]),
-            fake_tls_domain: None,
-        };
-        assert!(config.validate().is_ok());
-        assert!(!format!("{config:?}").contains("070707"));
-    }
-
-    #[test]
-    fn rejects_partial_credentials() {
-        let config = ProxyConfig {
-            kind: ProxyKind::Http,
-            host: "proxy.example".into(),
-            port: 8080,
-            username: Some("user".into()),
-            password: None,
-            secret: None,
-            fake_tls_domain: None,
-        };
-        assert!(config.validate().is_err());
-    }
-}
+#[path = "../tests/unit/proxy_config_tests.rs"]
+mod proxy_config_tests;

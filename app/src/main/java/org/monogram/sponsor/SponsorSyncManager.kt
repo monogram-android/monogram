@@ -184,6 +184,10 @@ class SponsorSyncManager(
                 AppLog.api(LOG_TAG, "skipped reason=$reason unauthorized")
                 return SyncOutcome.SKIPPED
             }
+            if (onTestServer()) {
+                AppLog.api(LOG_TAG, "skipped reason=$reason test_server")
+                return SyncOutcome.SKIPPED
+            }
 
             val cachedEmpty = sponsorDao.getAllIds().isEmpty()
             val latestUpdatedAt = sponsorDao.getLatestUpdatedAt() ?: 0L
@@ -282,6 +286,12 @@ class SponsorSyncManager(
             is Outcome.Err -> false
         }
     }
+
+    private suspend fun onTestServer(): Boolean =
+        when (val result = client.usesTestDc()) {
+            is Outcome.Ok -> result.value
+            is Outcome.Err -> false
+        }
 
     private fun isWeakResult(parsedIds: Set<Long>, oldIds: Set<Long>): Boolean =
         parsedIds.isNotEmpty() &&

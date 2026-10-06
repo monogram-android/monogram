@@ -4,11 +4,10 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalDensity
@@ -17,14 +16,71 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
 import org.monogram.core.ui.components.argbFrameBitmap
+import org.monogram.core.ui.components.writeArgbFrame
+import org.monogram.feature.dialog.PanelFrameClip
+import org.monogram.feature.dialog.scaledSize
 import org.monogram.mtproto.LottieNative
 import kotlin.math.max
 import kotlin.math.roundToInt
+
+internal suspend fun decodePanelTgs(
+    bytes: ByteArray,
+    maxSide: Int,
+    maxFrames: Int = 1,
+): PanelFrameClip? {
+    var handle = 0L
+    return try {
+        handle = withContext(Dispatchers.Default) {
+            runCatching { LottieNative.create(bytes) }.getOrDefault(0L)
+        }
+        if (handle == 0L) return null
+        val frameCount = withContext(Dispatchers.Default) {
+            runCatching { LottieNative.frameCount(handle) }.getOrDefault(1).coerceIn(1, 600)
+        }
+        val fps = withContext(Dispatchers.Default) {
+            runCatching { LottieNative.frameRate(handle) }.getOrDefault(30f).coerceIn(1f, 60f)
+        }
+        val size = withContext(Dispatchers.Default) {
+            runCatching { LottieNative.size(handle) }.getOrNull()
+        }
+        val (width, height) = scaledSize(
+            size?.width?.toInt() ?: maxSide,
+            size?.height?.toInt() ?: maxSide,
+            maxSide,
+        )
+        val step = if (fps > 30f) 2 else 1
+        val delayMs = if (fps > 30f) 33 else (1000f / fps).toLong().coerceAtLeast(24L)
+        val frames = ArrayList<ByteArray>(frameCount)
+        var index = 0
+        val limit = maxFrames.coerceIn(1, 16)
+        while (index < frameCount && frames.size < limit) {
+            currentCoroutineContext().ensureActive()
+            val rgba = withContext(Dispatchers.Default) {
+                runCatching {
+                    LottieNative.renderFrame(
+                        handle,
+                        index.toFloat(),
+                        width,
+                        height
+                    )
+                }.getOrNull()
+            } ?: break
+            if (rgba.size != width * height * 4) break
+            frames += rgba
+            index += step
+        }
+        if (frames.isEmpty()) null else PanelFrameClip(width, height, delayMs.toInt(), frames)
+    } finally {
+        if (handle != 0L) withContext(Dispatchers.Default) { LottieNative.destroy(handle) }
+    }
+}
 
 @Composable
 fun StickerPlayer(
@@ -35,8 +91,14 @@ fun StickerPlayer(
 ) {
     val animationEnabled = LocalMediaAnimationEnabled.current
     val displaySizePx = with(LocalDensity.current) { displaySize.roundToPx() }
-    var bitmap by remember(lottieBytes, displaySizePx) { mutableStateOf<Bitmap?>(null) }
-    var frameVersion by remember(lottieBytes, displaySizePx) { mutableStateOf(0) }
+    val frame = remember(lottieBytes, displaySizePx) { mutableStateOf<Bitmap?>(null) }
+    val tick = remember(lottieBytes, displaySizePx) { mutableStateOf(0) }
+    DisposableEffect(lottieBytes, displaySizePx) {
+        onDispose {
+            frame.value?.takeIf { !it.isRecycled }?.recycle()
+            frame.value = null
+        }
+    }
 
     LaunchedEffect(lottieBytes, displaySizePx, active, animationEnabled) {
         if (!active || !animationEnabled) return@LaunchedEffect
@@ -65,16 +127,28 @@ fun StickerPlayer(
             val outH = max(1, (height * scale).roundToInt())
 
             suspend fun drawFrame(frameIndex: Int): Boolean {
-                val frame = withContext(Dispatchers.Default) {
+                val rgba = withContext(Dispatchers.Default) {
                     runCatching {
                         LottieNative.renderFrame(handle, frameIndex.toFloat(), outW, outH)
                     }.getOrNull()
                 } ?: return false
                 val rendered = withContext(Dispatchers.Default) {
-                    argbFrameBitmap(frame, outW, outH)
+                    val current = frame.value
+                    if (
+                        current != null &&
+                        !current.isRecycled &&
+                        current.width == outW &&
+                        current.height == outH &&
+                        writeArgbFrame(current, rgba)
+                    ) {
+                        current
+                    } else {
+                        current?.takeIf { !it.isRecycled }?.recycle()
+                        argbFrameBitmap(rgba, outW, outH)
+                    }
                 } ?: return false
-                bitmap = rendered
-                frameVersion++
+                frame.value = rendered
+                tick.value++
                 return true
             }
 
@@ -96,18 +170,14 @@ fun StickerPlayer(
         }
     }
 
-    // Animation invalidates drawing, not the composition containing the sticker.
-    val currentBitmap = bitmap
-
-    @Suppress("UNUSED_VARIABLE")
-    val _frameVersion = frameVersion
     Canvas(modifier = modifier.size(displaySize)) {
-        currentBitmap?.let { frame ->
-            val scale = minOf(size.width / frame.width, size.height / frame.height)
-            val width = (frame.width * scale).roundToInt().coerceAtLeast(1)
-            val height = (frame.height * scale).roundToInt().coerceAtLeast(1)
+        tick.value
+        frame.value?.takeIf { !it.isRecycled }?.let { bitmap ->
+            val scale = minOf(size.width / bitmap.width, size.height / bitmap.height)
+            val width = (bitmap.width * scale).roundToInt().coerceAtLeast(1)
+            val height = (bitmap.height * scale).roundToInt().coerceAtLeast(1)
             drawImage(
-                image = frame.asImageBitmap(),
+                image = bitmap.asImageBitmap(),
                 dstOffset = IntOffset(
                     ((size.width - width) / 2).roundToInt(),
                     ((size.height - height) / 2).roundToInt(),

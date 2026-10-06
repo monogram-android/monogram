@@ -112,6 +112,7 @@
     <string name="dialog_panel_emoji">絵文字</string>
     <string name="dialog_panel_stickers">スタンプ</string>
     <string name="dialog_emoji_open">絵文字、スタンプ、GIF</string>
+    <string name="dialog_emoji_recent">最近</string>
     <string name="dialog_emoji_category_smileys">顔文字と感情</string>
     <string name="dialog_emoji_category_people">人と体</string>
     <string name="dialog_emoji_category_nature">動物と自然</string>

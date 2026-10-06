@@ -218,5 +218,5 @@ impl FileSessionStore {
 }
 
 #[cfg(test)]
-#[path = "session_file_tests.rs"]
+#[path = "../tests/unit/session_file_tests.rs"]
 mod tests;

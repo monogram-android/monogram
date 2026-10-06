@@ -2,22 +2,20 @@ package org.monogram.feature.chats
 
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.time.Duration.Companion.milliseconds
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.push.NotificationLocalStore
@@ -34,14 +32,16 @@ import org.monogram.core.models.GlobalMessageSearch
 import org.monogram.core.models.LastSeen
 import org.monogram.core.models.Message
 import org.monogram.core.models.NotifyDefaults
-import org.monogram.core.models.SearchPeer
 import org.monogram.core.models.NotifySettings
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.SearchPeer
 import org.monogram.core.models.TypingPresence
 import org.monogram.core.models.displayedChatAction
 import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class ChatsExecutor(
     private val client: MtprotoClient,
@@ -306,6 +306,7 @@ internal class ChatsExecutor(
                         }
                     }
                     is MtprotoUpdate.NotifySettingsChanged -> scope.launch {
+                        if (update.topicId != null) return@launch
                         if (update.peerKind == PEER_NOTIFY_KIND && update.chatId.value != 0L) {
                             applyPeerMute(update.chatId, update.muteUntil)
                         } else {
@@ -676,7 +677,7 @@ internal class ChatsExecutor(
                 }
                 if (state().loading) dispatch(Msg.Loading(false))
                 if (state().syncing) dispatch(Msg.Syncing(false))
-            } catch (error: kotlinx.coroutines.CancellationException) {
+            } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
                 if (state().loading) dispatch(Msg.Loading(false))

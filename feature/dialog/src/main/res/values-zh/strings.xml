@@ -112,6 +112,7 @@
     <string name="dialog_panel_emoji">表情</string>
     <string name="dialog_panel_stickers">贴纸</string>
     <string name="dialog_emoji_open">表情、贴纸和 GIF</string>
+    <string name="dialog_emoji_recent">最近</string>
     <string name="dialog_emoji_category_smileys">表情与情感</string>
     <string name="dialog_emoji_category_people">人物与身体</string>
     <string name="dialog_emoji_category_nature">动物与自然</string>

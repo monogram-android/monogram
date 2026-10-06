@@ -7,9 +7,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
-import androidx.core.app.RemoteInput
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.google.android.gms.common.ConnectionResult
@@ -23,34 +23,37 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.push.IncomingPush
 import org.monogram.core.common.push.NO_PUSH_STATUS
-import org.monogram.core.common.push.acceptsFcmToken
-import org.monogram.core.common.push.acceptsUnifiedPushEndpoint
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.PUSH_STATUS_CHOOSE_DISTRIBUTOR
 import org.monogram.core.common.push.PUSH_STATUS_DISTRIBUTOR_GONE
 import org.monogram.core.common.push.PUSH_STATUS_NO_DISTRIBUTOR
 import org.monogram.core.common.push.PushAction
-import org.monogram.core.common.push.PushProviderMode
-import org.monogram.core.common.push.PushTransport
-import org.monogram.core.common.push.planPushProvider
-import org.monogram.core.common.push.simplePushEndpoint
 import org.monogram.core.common.push.PushPayload
+import org.monogram.core.common.push.PushProviderMode
 import org.monogram.core.common.push.PushRegistration
+import org.monogram.core.common.push.PushTransport
 import org.monogram.core.common.push.PushWakeGate
-import org.monogram.core.common.push.shouldRefreshDialogsOnWake
-import org.monogram.core.common.push.shouldSyncOnWake
+import org.monogram.core.common.push.acceptsFcmToken
+import org.monogram.core.common.push.acceptsUnifiedPushEndpoint
 import org.monogram.core.common.push.decideNotification
-import org.monogram.core.common.push.historyReadUpTo
 import org.monogram.core.common.push.folderMemberIds
-import org.monogram.core.common.push.IncomingPush
+import org.monogram.core.common.push.historyReadUpTo
 import org.monogram.core.common.push.normalizeDecrypted
 import org.monogram.core.common.push.normalizeIncomingBody
+import org.monogram.core.common.push.notificationPeerKind
 import org.monogram.core.common.push.parsePushPayload
+import org.monogram.core.common.push.planPushProvider
 import org.monogram.core.common.push.pushRegistrationChange
+import org.monogram.core.common.push.shouldRefreshDialogsOnWake
+import org.monogram.core.common.push.shouldSyncOnWake
+import org.monogram.core.common.push.simplePushEndpoint
 import org.monogram.core.common.push.webPushRegistration
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
@@ -58,12 +61,14 @@ import org.monogram.core.models.NotifyDefaults
 import org.monogram.core.models.NotifyException
 import org.monogram.core.models.NotifySettings
 import org.monogram.core.models.PeerId
-import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.models.PushDebugState
 import org.monogram.core.models.PushTokenType
+import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.network.bridge.MtprotoClient
+import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.http.MediaRepository
 import org.unifiedpush.android.connector.UnifiedPush
+import kotlin.coroutines.resume
 
 private val VISUAL_LOC_KEYS = listOf("PHOTO", "VIDEO", "GIF", "STICKER", "ROUND")
 private val VISUAL_MEDIA_KINDS = setOf("photo", "video", "gif", "sticker", "sticker_animated", "document")
@@ -74,9 +79,17 @@ class PushCoordinator(
     private val store: NotificationLocalStore,
     private val mediaRepository: MediaRepository,
     @Suppress("unused") private val storeFactory: StoreFactory,
+    private val sessionStore: org.monogram.core.database.SessionMetadataStore,
 ) : PushRegistration {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     @Volatile var openChatId: Long? = null
+    @Volatile
+    private var openTopicId: Int? = null
+    @Volatile
+    private var knownChats: List<Chat> = emptyList()
+    @Volatile
+    private var lastPayload: PushPayload? = null
+    private val notifySettingsMutex = Mutex()
     @Volatile var appForeground: Boolean = false
     @Volatile var folders: List<Folder> = emptyList()
     @Volatile var exceptions: List<NotifyException> = emptyList()
@@ -91,6 +104,7 @@ class PushCoordinator(
     private var notifySettingsJob: Job? = null
     private var repeatJob: Job? = null
     private var refreshJob: Job? = null
+    private var updatesJob: Job? = null
     @Volatile private var accountUserId: Long = 0L
 
     init {
@@ -110,6 +124,38 @@ class PushCoordinator(
         NotificationChannels.ensure(context)
         NotificationChannels.applyPrefs(context, store)
         scheduleRepeat()
+        updatesJob?.cancel()
+        updatesJob = scope.launch {
+            client.updates().collect { update ->
+                when (update) {
+                    is MtprotoUpdate.NotifySettingsChanged -> notifySettingsMutex.withLock {
+                        val current = if (update.peerKind == "peer") {
+                            store.notifyExceptions.orEmpty().firstOrNull {
+                                it.chatId == update.chatId && it.topicId == update.topicId
+                            }?.settings
+                        } else when (update.peerKind) {
+                            "users" -> store.notifyDefaults?.users
+                            "chats" -> store.notifyDefaults?.chats
+                            "broadcasts" -> store.notifyDefaults?.broadcasts
+                            else -> null
+                        }
+                        store.cacheNotifySettings(
+                            update.peerKind,
+                            update.chatId.value,
+                            (current ?: NotifySettings()).copy(muteUntil = update.muteUntil),
+                            update.topicId
+                        )
+                    }
+
+                    is MtprotoUpdate.FoldersChanged -> folders = update.folders
+                    is MtprotoUpdate.ChatsChanged -> rememberChatPhotos(
+                        (knownChats.associateBy { it.id } + update.chats.associateBy { it.id }).values.toList(),
+                    )
+
+                    else -> Unit
+                }
+            }
+        }
         refreshJob?.cancel()
         refreshJob = scope.launch {
             while (true) {
@@ -150,7 +196,7 @@ class PushCoordinator(
     fun setForeground(value: Boolean) {
         appForeground = value
         if (value) {
-            openChatId?.let { dismissChat(it) }
+            openChatId?.let { dismissVisibleChat(it) }
             // The app is open and the session is connected: load server mute/preview/folder state.
             ensureNotifySettings()
         }
@@ -161,6 +207,7 @@ class PushCoordinator(
      * to defaults, which would notify muted chats and leave every chat on its category channel with
      * no folder channels at all.
      */
+    @Synchronized
     fun ensureNotifySettings() {
         if (notifySettingsLoaded || notifySettingsJob?.isActive == true) return
         notifySettingsJob = scope.launch {
@@ -174,9 +221,10 @@ class PushCoordinator(
         }
     }
 
-    override fun onVisibleChat(chatId: Long?) {
+    override fun onVisibleChat(chatId: Long?, topicId: Int?) {
         openChatId = chatId
-        if (chatId != null) dismissChat(chatId)
+        openTopicId = topicId
+        if (chatId != null) dismissVisibleChat(chatId)
     }
 
     override fun onChatRead(chatId: Long) {
@@ -187,6 +235,15 @@ class PushCoordinator(
         notifySettingsLoaded = false
         notifySettingsJob?.cancel()
         notifySettingsJob = null
+        accountUserId = 0L
+        knownChats = emptyList()
+        lastPayload = null
+        exceptions = emptyList()
+        users = NotifySettings()
+        chats = NotifySettings()
+        broadcasts = NotifySettings()
+        store.notifyDefaults = null
+        store.notifyExceptions = null
         NotificationPresenter.clear(context)
         store.lastShownChatId = 0L
         store.shareChatIds = emptyList()
@@ -426,6 +483,8 @@ class PushCoordinator(
 
     private suspend fun handlePayload(json: String, wake: Boolean, joinWake: Boolean) {
         val payload = parsePushPayload(json)
+        if (accountUserId == 0L) accountUserId = sessionStore.readAuthorizedUserId()?.value ?: 0L
+        if (payload.userId != null && (accountUserId == 0L || payload.userId != accountUserId)) return
         AppLog.api("notify", "parsed loc=${payload.locKey} action=${payload.action}")
         store.recordPayload(payload)
         suspend fun maybeWake() {
@@ -462,20 +521,38 @@ class PushCoordinator(
             PushAction.Show -> {
                 AppLog.api("notify", "loc=${payload.locKey} fg=$appForeground")
                 ensureNotifySettings()
+                withTimeoutOrNull(15_000L) { notifySettingsJob?.join() }
+                if (!notifySettingsLoaded &&
+                    (!store.hasNotifySettingsCache || store.mutedFolders().isNotEmpty())
+                ) {
+                    maybeWake()
+                    return
+                }
+                val unknownPeer =
+                    payload.chatId != null && knownChats.none { it.id.value == payload.chatId }
+                if (unknownPeer || store.mutedFolders().isNotEmpty()) {
+                    val dialogs = withTimeoutOrNull(5_000L) { client.getChats() }
+                    if (dialogs is Outcome.Ok) rememberChatPhotos(dialogs.value)
+                    else if (store.mutedFolders().isNotEmpty()) {
+                        maybeWake()
+                        return
+                    }
+                }
                 val now = (System.currentTimeMillis() / 1000L).toInt()
                 val mutedFolderChats = folders
                     .filter { it.id in store.mutedFolders() }
-                    .flatMap { folderMemberIds(it.chatIds, it.excludeChatIds) }
+                    .flatMap { folderMemberIds(it, knownChats) }
                     .toSet()
                 val decision = decideNotification(
                     payload,
-                    store.policy(users, chats, broadcasts, exceptions.associate { it.chatId.value to it.settings }, mutedFolderChats),
+                    policy(mutedFolderChats),
                     now,
                     appForeground,
                     openChatId,
+                    openTopicId,
                 )
                 val folderId = folders.firstOrNull { folder ->
-                    payload.chatId != null && payload.chatId in folderMemberIds(folder.chatIds, folder.excludeChatIds)
+                    payload.chatId != null && payload.chatId in folderMemberIds(folder, knownChats)
                 }?.id
                 NotificationChannels.ensure(context, folders)
                 val folderPopup = folderId?.let { store.categoryPopup("folder_$it") } ?: true
@@ -485,6 +562,7 @@ class PushCoordinator(
                 }
                 present(payload, shown, folderId)
                 if (decision.show) {
+                    lastPayload = payload
                     payload.chatId?.let { store.lastShownChatId = it }
                     scheduleRepeat()
                 }
@@ -529,14 +607,25 @@ class PushCoordinator(
                         else NotificationPresenter.showNotSent(context, chatId)
                     }
                     NotificationPresenter.ACTION_MUTE -> {
-                        val until = (System.currentTimeMillis() / 1000L).toInt() + 3_600
-                        val muted = client.connect() is Outcome.Ok &&
-                            client.updateNotifySettings(
-                                "peer",
-                                NotifySettings(muteUntil = until),
-                                PeerId(chatId),
-                            ) is Outcome.Ok
-                        if (muted) dismissChat(chatId)
+                        notifySettingsMutex.withLock {
+                            val until =
+                                (System.currentTimeMillis() / 1000L + 3_600).coerceAtMost(Int.MAX_VALUE.toLong())
+                                    .toInt()
+                            val current = store.notifyExceptions.orEmpty().firstOrNull {
+                                it.chatId.value == chatId && it.topicId == null
+                            }?.settings ?: NotifySettings()
+                            val settings = current.copy(muteUntil = until)
+                            val muted = client.connect() is Outcome.Ok &&
+                                    client.updateNotifySettings(
+                                        "peer",
+                                        settings,
+                                        PeerId(chatId)
+                                    ) is Outcome.Ok
+                            if (muted) {
+                                store.cacheNotifySettings("peer", chatId, settings)
+                                dismissChat(chatId)
+                            }
+                        }
                     }
                 }
             } finally {
@@ -546,6 +635,8 @@ class PushCoordinator(
     }
 
     private fun rememberChatPhotos(chats: List<Chat>) {
+        knownChats =
+            (knownChats.associateBy { it.id } + chats.associateBy { it.id }).values.toList()
         chatPhotos = chats.mapNotNull { chat ->
             chat.photoCacheKey?.takeIf { it.isNotBlank() }?.let { chat.id.value to it }
         }.toMap()
@@ -671,6 +762,14 @@ class PushCoordinator(
                 if (appForeground) continue
                 val chatId = store.lastShownChatId
                 if (chatId == 0L) continue
+                val payload = lastPayload?.takeIf { it.chatId == chatId } ?: continue
+                val mutedFolders = folders.filter { it.id in store.mutedFolders() }
+                    .flatMap { folderMemberIds(it, knownChats) }.toSet()
+                val decision = decideNotification(
+                    payload.copy(mention = false), policy(mutedFolders),
+                    (System.currentTimeMillis() / 1000L).toInt(), false
+                )
+                if (!decision.show || !decision.sound) continue
                 // Re-alerts the collapsed chat batch; stops when it left the shade.
                 if (!NotificationPresenter.realert(context, chatId)) return@launch
             }
@@ -706,20 +805,59 @@ class PushCoordinator(
         }
     }
 
-    suspend fun refreshNotifySettings() {
-        users = (client.getNotifySettings("users") as? Outcome.Ok)?.value ?: users
-        chats = (client.getNotifySettings("chats") as? Outcome.Ok)?.value ?: chats
-        broadcasts = (client.getNotifySettings("broadcasts") as? Outcome.Ok)?.value ?: broadcasts
+    private fun policy(mutedFolderChats: Set<Long>): org.monogram.core.common.push.NotificationPolicyState {
+        val defaults = store.notifyDefaults ?: NotifyDefaults(users, chats, broadcasts)
+        val rows = store.notifyExceptions ?: exceptions
+        return store.policy(
+            defaults.users, defaults.chats, defaults.broadcasts,
+            rows.filter { it.topicId == null && it.chatId.value != 0L }
+                .associate { it.chatId.value to it.settings },
+            mutedFolderChats
+        ).copy(
+            topicExceptions = rows.mapNotNull { row -> row.topicId?.let { (row.chatId.value to it) to row.settings } }
+                .toMap(),
+            peerKinds = knownChats.associate { it.id.value to notificationPeerKind(it) },
+        )
+    }
+
+    private fun dismissVisibleChat(chatId: Long) {
+        val topicId = openTopicId
+        if (topicId == null && knownChats.none { it.id.value == chatId && it.isForum }) dismissChat(
+            chatId
+        )
+        else if (topicId != null) NotificationPresenter.dropMessages(
+            context, chatId, emptySet(),
+            Int.MAX_VALUE, store.badgeSettings(), topicId
+        )
+    }
+
+    suspend fun refreshNotifySettings() = notifySettingsMutex.withLock {
+        val userResult = client.getNotifySettings("users")
+        val chatResult = client.getNotifySettings("chats")
+        val broadcastResult = client.getNotifySettings("broadcasts")
+        users = (userResult as? Outcome.Ok)?.value ?: users
+        chats = (chatResult as? Outcome.Ok)?.value ?: chats
+        broadcasts = (broadcastResult as? Outcome.Ok)?.value ?: broadcasts
         // Shared with the chat list so both agree offline; see NotificationLocalStore.
-        store.notifyDefaults = NotifyDefaults(users = users, chats = chats, broadcasts = broadcasts)
-        exceptions = (client.getNotifyExceptions() as? Outcome.Ok)?.value ?: exceptions
-        store.notifyExceptions = exceptions
-        folders = (client.getFolders() as? Outcome.Ok)?.value ?: folders
-        when (val result = client.getChats()) {
+        if (userResult is Outcome.Ok && chatResult is Outcome.Ok && broadcastResult is Outcome.Ok) {
+            store.notifyDefaults =
+                NotifyDefaults(users = users, chats = chats, broadcasts = broadcasts)
+        }
+        val exceptionResult = client.getNotifyExceptions()
+        if (exceptionResult is Outcome.Ok) {
+            exceptions = exceptionResult.value
+            store.notifyExceptions = exceptions
+        }
+        val folderResult = client.getFolders()
+        folders = (folderResult as? Outcome.Ok)?.value ?: folders
+        val dialogResult = client.getChats()
+        when (val result = dialogResult) {
             is Outcome.Ok -> rememberChatPhotos(result.value)
             is Outcome.Err -> Unit
         }
-        notifySettingsLoaded = true
+        notifySettingsLoaded = userResult is Outcome.Ok && chatResult is Outcome.Ok &&
+                broadcastResult is Outcome.Ok && exceptionResult is Outcome.Ok &&
+                folderResult is Outcome.Ok && dialogResult is Outcome.Ok
         AppLog.api(
             "notify",
             "settings loaded folders=${folders.size} exceptions=${exceptions.size} mutedFolders=${store.mutedFolders().size}",

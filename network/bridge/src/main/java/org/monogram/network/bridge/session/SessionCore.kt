@@ -27,8 +27,8 @@ import org.monogram.core.models.AuthState
 import org.monogram.core.models.PeerId
 import org.monogram.mtproto.MtprotoNative
 import org.monogram.network.bridge.ClientInitInfo
-import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.MtprotoTransportMode
+import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.ProxyConfig
 import uniffi.monogram_mtproto.MtprotoException
 
@@ -299,6 +299,11 @@ internal class SessionCore(
                 try {
                     if (native.isAuthorized(activeHandle)) {
                         native.startUpdates(activeHandle)
+                        native.updateLazySyncConfig(
+                            activeHandle,
+                            lazy = true,
+                            exceptions = emptyList()
+                        )
                         if (isCurrentHandle(activeHandle)) updatesStartedHandle = activeHandle
                         PerfLog.trace("updates", "start", handle = activeHandle)
                         updatesWake.trySend(Unit)
@@ -316,6 +321,11 @@ internal class SessionCore(
     override suspend fun setTestDc(enabled: Boolean): Outcome<Unit> =
         rpc("setTestDc failed") { activeHandle ->
             native.setTestDc(activeHandle, enabled)
+        }
+
+    override suspend fun usesTestDc(): Outcome<Boolean> =
+        rpc("usesTestDc failed") { activeHandle ->
+            native.usesTestDc(activeHandle)
         }
 
     override suspend fun connect(): Outcome<Unit> {

@@ -1,18 +1,17 @@
 //! https://core.telegram.org/mtproto/service_messages
 //! https://core.telegram.org/mtproto/service_messages_about_messages
 
+use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use flate2::Compression;
 use std::cell::RefCell;
 use std::io::{Read, Write};
 use tellers_mtproto::codec::{Boxed, Decoder, Encoder, Limits, TlDecode};
 use tellers_mtproto::transport::{
-    BadMsgNotificationConstructor, BadServerSaltConstructor, GzipPackedConstructor,
-    MsgContainerConstructor, MsgCopyConstructor, MsgDetailedInfoConstructor,
+    BadMsgNotificationConstructor, BadServerSaltConstructor, FutureSaltsConstructor,
+    GzipPackedConstructor, MsgContainerConstructor, MsgCopyConstructor, MsgDetailedInfoConstructor,
     MsgNewDetailedInfoConstructor, MsgsAckConstructor, MsgsStateInfoConstructor,
     NewSessionCreatedConstructor, PongConstructor, RpcErrorConstructor, RpcResultConstructor,
-    FutureSaltsConstructor,
 };
 use tellers_mtproto_session::{Clock, ReceivedMessageResult, Snapshot};
 
@@ -129,55 +128,12 @@ fn parse_future_salts(body: &[u8]) -> Result<Vec<InboundEvent>, MtprotoError> {
 }
 
 #[cfg(test)]
-mod gzip_tests {
-    use super::{gzip_if_smaller, ungzip_if_needed, GZIP_PACKED};
-
-    #[test]
-    fn repetitive_api_body_is_gzip_packed() {
-        let body = vec![b'a'; 2048];
-        let packed = gzip_if_smaller(&body);
-        assert_eq!(u32::from_le_bytes(packed[0..4].try_into().unwrap()), GZIP_PACKED);
-        assert_eq!(ungzip_if_needed(&packed).unwrap(), body);
-    }
-
-    #[test]
-    fn tiny_body_stays_plain() {
-        let body = vec![1, 2, 3, 4];
-        assert_eq!(gzip_if_smaller(&body), body);
-    }
-}
+#[path = "../../tests/unit/rpc_inbound_gzip_tests.rs"]
+mod gzip_tests;
 
 #[cfg(test)]
-mod future_salt_tests {
-    use super::{parse_service_or_result, InboundEvent};
-
-    #[test]
-    fn bare_future_salts_do_not_fail_the_rpc() {
-        let mut body = Vec::new();
-        body.extend_from_slice(&0xae50_0895u32.to_le_bytes());
-        body.extend_from_slice(&7i64.to_le_bytes());
-        body.extend_from_slice(&1_000i32.to_le_bytes());
-        body.extend_from_slice(&1u32.to_le_bytes());
-        body.extend_from_slice(&900i32.to_le_bytes());
-        body.extend_from_slice(&1_900i32.to_le_bytes());
-        body.extend_from_slice(&99i64.to_le_bytes());
-        let events = parse_service_or_result(&body).expect("future salts");
-        let InboundEvent::FutureSalts(windows) = &events[0] else {
-            panic!("bare future_salts was not accepted");
-        };
-        assert_eq!(windows[0].salt, 99);
-        assert_eq!(windows[0].valid_since, 900);
-        assert_eq!(windows[0].valid_until, 1_900);
-
-        let mut boxed = Vec::new();
-        boxed.extend_from_slice(&0xae50_0895u32.to_le_bytes());
-        boxed.extend_from_slice(&0i64.to_le_bytes());
-        boxed.extend_from_slice(&0i32.to_le_bytes());
-        boxed.extend_from_slice(&0x1cb5_c415u32.to_le_bytes());
-        let events = parse_service_or_result(&boxed).expect("malformed salts stay non-fatal");
-        assert!(matches!(events[0], InboundEvent::Ignored));
-    }
-}
+#[path = "../../tests/unit/rpc_inbound_future_salt_tests.rs"]
+mod future_salt_tests;
 
 pub(crate) enum InboundEvent {
     Updates(Vec<u8>),
@@ -187,6 +143,7 @@ pub(crate) enum InboundEvent {
     BadMessage { bad_msg_id: i64, error_code: i32 },
     Pong { ping_id: i64 },
     AnswerAvailable { answer_msg_id: i64 },
+    MessageStatus { req_msg_id: i64, info: Vec<u8> },
     FutureSalts(Vec<super::salts::SaltWindow>),
     Ignored,
 }
@@ -415,9 +372,12 @@ pub(crate) fn parse_service_at_depth(
             let invalid = || MtprotoError::Message("invalid MTProto message status".into());
             let mut decoder = Decoder::new(body, Limits::default()).map_err(|_| invalid())?;
             decoder.read_u32().map_err(|_| invalid())?;
-            MsgsStateInfoConstructor::decode(&mut decoder).map_err(|_| invalid())?;
+            let status = MsgsStateInfoConstructor::decode(&mut decoder).map_err(|_| invalid())?;
             decoder.finish().map_err(|_| invalid())?;
-            Ok(vec![InboundEvent::Ignored])
+            Ok(vec![InboundEvent::MessageStatus {
+                req_msg_id: status.req_msg_id,
+                info: status.info,
+            }])
         }
         MSGS_ACK => Ok(vec![InboundEvent::Ignored]),
         // The constructor ID is protocol metadata, not message content. Keep it

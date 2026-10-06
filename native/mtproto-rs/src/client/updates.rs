@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use crate::peers::channel_id_from_chat_id;
 use crate::session_file::ChannelRecovery;
 use crate::tcp;
-use crate::updates_rpc;
+use crate::updates::updates_rpc;
 use crate::{MtprotoError, UpdateEventDto, UpdatesStateDto};
 
 use super::*;
@@ -32,6 +32,10 @@ struct AppliedDrain {
     channel_pts: crate::HashMap<i64, i32>,
     recovery: VecDeque<ChannelRecovery>,
     seen_messages: crate::HashSet<(i64, i32)>,
+    lazy_queue: crate::HashSet<i64>,
+    patched_dialogs: Vec<crate::ChatDto>,
+    lazy_retry_at: u64,
+    stopped_channel: Option<i64>,
     cursor: Option<UpdatesStateDto>,
 }
 
@@ -106,6 +110,7 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         open_chat,
         session_id,
         due_recovery,
+        lazy_pending,
     ) = {
         let d = client.data.lock();
         if d.session_dead {
@@ -126,7 +131,20 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             d.home_time_offset,
             d.last_history_chat_id,
             d.home_session_id,
-            d.channel_recovery.iter().any(|entry| entry.due_at <= now),
+            next_channel_recovery(
+                &d.channel_recovery,
+                d.last_history_chat_id,
+                &d.lazy_sync_exceptions,
+                d.lazy_channel_updates,
+                now,
+            )
+            .is_some()
+                || (channel_id_from_chat_id(d.last_history_chat_id).is_some()
+                    && !d
+                        .channel_recovery
+                        .iter()
+                        .any(|entry| entry.chat_id == d.last_history_chat_id)),
+            d.lazy_channel_updates && !d.lazy_channel_recovery.is_empty() && d.lazy_retry_at <= now,
         )
     };
     apply_home_auth(
@@ -156,7 +174,8 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             let pushes = crate::rpc::receive_updates(&mut io.snapshot)?;
             io.pending_push.append(pushes);
         }
-        let has_work = needs_difference || !io.pending_push.is_empty() || due_recovery;
+        let has_work =
+            needs_difference || !io.pending_push.is_empty() || due_recovery || lazy_pending;
         if !has_work {
             crate::perf::count("updates.empty_fast_path");
             return Ok((Vec::new(), None));
@@ -167,6 +186,10 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         let mut media;
         let mut channel_pts;
         let mut seen_messages;
+        let mut lazy_queue;
+        let mut lazy_retry_at;
+        let lazy_enabled;
+        let lazy_exceptions;
         {
             let d = client.data.lock();
             if d.session_dead {
@@ -186,12 +209,26 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             media = d.media.clone();
             channel_pts = d.channel_pts.clone();
             seen_messages = d.seen_messages.clone();
+            lazy_queue = d.lazy_channel_recovery.clone();
+            lazy_retry_at = d.lazy_retry_at;
+            lazy_enabled = d.lazy_channel_updates;
+            lazy_exceptions = d.lazy_sync_exceptions.clone();
         }
         let before_peers = peers.clone();
         let before_media = media.clone();
         let mut live = cursor.clone().unwrap();
         let mut pending_channels = Vec::new();
+        let mut stopped_channel = None;
         let mut events = Vec::new();
+        let sync_started = !client.data.lock().is_syncing
+            && catch_up_active(
+                !needs_difference,
+                visible_gap_recovery_pending(&recovery, open_chat, &lazy_exceptions, lazy_enabled),
+                false,
+            );
+        if sync_started {
+            events.push(UpdateEventDto::SyncState { is_syncing: true });
+        }
         if !needs_difference {
             let _span = crate::perf::span("updates.apply");
             let resolve = io.pending_push.resolve(std::time::Instant::now(), |push| {
@@ -228,7 +265,9 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
                 }
             }
         }
-        let defer_recovery = !events.is_empty();
+        let defer_recovery = events
+            .iter()
+            .any(|event| !matches!(event, UpdateEventDto::SyncState { .. }));
         if needs_difference {
             // Let a waiting interactive RPC take the home lane between
             // update recovery requests. Keep the cursor unchanged so the
@@ -240,6 +279,9 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             }
         }
         if needs_difference {
+            if !client.data.lock().is_syncing && !sync_started {
+                events.push(UpdateEventDto::SyncState { is_syncing: true });
+            }
             let _span = crate::perf::span("updates.difference");
             let (page, has_more) = crate::rpc::with_rpc_timeout_secs(8, || {
                 updates_rpc::drain_difference(
@@ -258,6 +300,20 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             io.last_difference = (!has_more).then(std::time::Instant::now);
         }
         let now = recovery_now();
+        let pending_channels = route_lazy_channels(
+            pending_channels,
+            open_chat,
+            &lazy_exceptions,
+            lazy_enabled,
+            &mut lazy_queue,
+        );
+        pull_priority_channels(
+            &mut lazy_queue,
+            &mut recovery,
+            open_chat,
+            &lazy_exceptions,
+            now,
+        );
         prepare_channel_recovery(&mut recovery, pending_channels, open_chat, now);
         // Round robin pages, bounded per poll; a failed channel cannot
         // prevent the common cursor or another channel from progressing.
@@ -269,10 +325,20 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             {
                 break;
             }
-            let Some(index) = recovery.iter().position(|entry| entry.due_at <= now) else {
+            let Some(index) =
+                next_channel_recovery(&recovery, open_chat, &lazy_exceptions, lazy_enabled, now)
+            else {
                 break;
             };
             let entry = recovery.remove(index).unwrap();
+            if !entry.watching
+                && !client.data.lock().is_syncing
+                && !events
+                    .iter()
+                    .any(|event| matches!(event, UpdateEventDto::SyncState { is_syncing: true }))
+            {
+                events.push(UpdateEventDto::SyncState { is_syncing: true });
+            }
             let chat_id = entry.chat_id;
             let pts = channel_pts.get(&chat_id).copied().unwrap_or(1);
             let _span = crate::perf::span("updates.channel_diff");
@@ -297,15 +363,87 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
                         open_chat,
                         now,
                     );
-                    prepare_channel_recovery(&mut recovery, page.pending_channels, open_chat, now);
+                    let page_pending = route_lazy_channels(
+                        page.pending_channels,
+                        open_chat,
+                        &lazy_exceptions,
+                        lazy_enabled,
+                        &mut lazy_queue,
+                    );
+                    prepare_channel_recovery(&mut recovery, page_pending, open_chat, now);
                 }
                 Err(err) => {
                     if is_unrecoverable_session(&err) {
                         return Err(err);
                     }
-                    defer_channel_recovery(&mut recovery, entry, &err, recovery_now());
+                    if !terminal_channel_error(&err) {
+                        defer_channel_recovery(&mut recovery, entry, &err, recovery_now());
+                    } else {
+                        lazy_queue.remove(&chat_id);
+                        if chat_id == open_chat {
+                            stopped_channel = Some(chat_id);
+                        }
+                    }
                     crate::rpc::drop_live_transport();
                     break;
+                }
+            }
+        }
+        let mut patched_dialogs = Vec::new();
+        pull_priority_channels(
+            &mut lazy_queue,
+            &mut recovery,
+            if stopped_channel.is_some() {
+                0
+            } else {
+                open_chat
+            },
+            &lazy_exceptions,
+            recovery_now(),
+        );
+        let lazy_batch = if lazy_retry_at <= recovery_now()
+            && !interactive_request_pending(&client)
+            && !defer_recovery
+            && !needs_difference
+        {
+            take_lazy_batch(
+                &mut lazy_queue,
+                |chat_id| crate::peers::usable_cached_peer(&peers, chat_id).is_some(),
+                LAZY_CHANNEL_BATCH,
+            )
+        } else {
+            Vec::new()
+        };
+        if !lazy_batch.is_empty() {
+            let _span = crate::perf::span("updates.lazy_channels");
+            match crate::rpc::with_rpc_timeout_secs(8, || {
+                updates_rpc::drain_lazy_channels(
+                    &mut io.snapshot,
+                    api_id,
+                    &mut peers,
+                    &mut media,
+                    &mut channel_pts,
+                    &lazy_batch,
+                )
+            }) {
+                Ok(page) => {
+                    lazy_retry_at = recovery_now().saturating_add(5);
+                    restore_lazy_batch(&mut lazy_queue, &page.unresolved);
+                    patched_dialogs.extend(page.chats.iter().cloned());
+                    events.extend(lazy_dialog_events(page.chats));
+                }
+                Err(err) => {
+                    let plan = plan_lazy_failure(is_unrecoverable_session(&err));
+                    if !plan.restore {
+                        return Err(err);
+                    }
+                    if !terminal_channel_error(&err) {
+                        restore_lazy_batch(&mut lazy_queue, &lazy_batch);
+                    }
+                    lazy_retry_at = recovery_now().saturating_add(recovery_wait_secs(&err));
+                    if plan.drop_transport {
+                        crate::rpc::drop_live_transport();
+                    }
                 }
             }
         }
@@ -352,11 +490,15 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
                 channel_pts,
                 recovery,
                 seen_messages,
+                lazy_queue,
+                patched_dialogs,
+                lazy_retry_at,
+                stopped_channel,
                 cursor: Some(live),
             }),
         ))
     });
-    let (events, applied) = match drained {
+    let (mut events, applied) = match drained {
         Ok(pair) => {
             io.transport = slot;
             pair
@@ -396,6 +538,8 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         return Ok(events);
     };
     let persist_needed;
+    let is_syncing_now;
+    let should_emit_sync_state;
     {
         let mut d = client.data.lock();
         // A completed old-account poll must not repopulate state after logout
@@ -407,11 +551,29 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             io.transport = None;
             return Err(expired_session_lease());
         }
+        is_syncing_now = catch_up_active(
+            io.last_difference.is_some(),
+            visible_gap_recovery_pending(
+                &applied.recovery,
+                d.last_history_chat_id,
+                &d.lazy_sync_exceptions,
+                d.lazy_channel_updates,
+            ),
+            false,
+        );
         let peers_changed =
             merge_changed_entries(&mut d.peers, &applied.before_peers, applied.peers);
         let media_changed =
             merge_changed_entries(&mut d.media, &applied.before_media, applied.media);
         let next_cursor = prefer_newer_cursor(d.updates.clone(), applied.cursor);
+        should_emit_sync_state = sync_edge(
+            d.is_syncing
+                || events
+                    .iter()
+                    .any(|event| matches!(event, UpdateEventDto::SyncState { is_syncing: true })),
+            is_syncing_now,
+        );
+        d.is_syncing = is_syncing_now;
         persist_needed = new_session.is_some()
             || peers_changed
             || media_changed
@@ -426,6 +588,14 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
         d.channel_pts = applied.channel_pts;
         d.channel_recovery = applied.recovery;
         d.seen_messages = applied.seen_messages;
+        d.lazy_channel_recovery = applied.lazy_queue;
+        d.lazy_retry_at = applied.lazy_retry_at;
+        if applied.stopped_channel == Some(d.last_history_chat_id) {
+            d.last_history_chat_id = 0;
+        }
+        for chat in applied.patched_dialogs {
+            d.dialogs.insert(chat.id, chat);
+        }
         if new_session.is_some() {
             d.new_session = new_session.clone();
         }
@@ -440,9 +610,15 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
     }
     drop(io);
     drop(gate);
+    schedule_file_cleanup(&client);
     if persist_needed {
         crate::perf::count("updates.persist");
         schedule_persist(&client, session_id);
+    }
+    if should_emit_sync_state {
+        events.push(UpdateEventDto::SyncState {
+            is_syncing: is_syncing_now,
+        });
     }
     Ok(events)
 }
@@ -471,6 +647,17 @@ pub(crate) fn defer_channel_recovery(
     error: &MtprotoError,
     now: u64,
 ) {
+    entry.due_at = now.saturating_add(recovery_wait_secs(error));
+    queue.push_back(entry);
+}
+
+pub(crate) fn terminal_channel_error(error: &MtprotoError) -> bool {
+    matches!(error, MtprotoError::Message(message) if
+        message.contains("CHANNEL_PRIVATE") || message.contains("CHANNEL_INVALID")
+        || message.contains("PEER_ID_INVALID"))
+}
+
+pub(crate) fn recovery_wait_secs(error: &MtprotoError) -> u64 {
     let wait = match error {
         MtprotoError::Message(message) => ["FLOOD_WAIT_", "FLOOD_PREMIUM_WAIT_"]
             .iter()
@@ -486,8 +673,7 @@ pub(crate) fn defer_channel_recovery(
             .unwrap_or(5),
         _ => 5,
     };
-    entry.due_at = now.saturating_add(wait.max(5));
-    queue.push_back(entry);
+    wait.max(5)
 }
 
 pub(crate) fn prepare_channel_recovery(
@@ -541,5 +727,163 @@ pub(crate) fn finish_channel_recovery(
             0
         });
         queue.push_back(entry);
+    }
+}
+
+pub(crate) const LAZY_CHANNEL_BATCH: usize = 100;
+
+pub(crate) fn sync_edge(previous: bool, now: bool) -> bool {
+    previous != now
+}
+
+/// Difference still running or a channel gap still queued.
+/// A `watching` entry is the open channel's short poll, not catch-up.
+pub(crate) fn catch_up_active(
+    difference_settled: bool,
+    recovery_pending: bool,
+    lazy_pending: bool,
+) -> bool {
+    !difference_settled || recovery_pending || lazy_pending
+}
+
+#[cfg(test)]
+pub(crate) fn gap_recovery_pending(recovery: &VecDeque<ChannelRecovery>) -> bool {
+    recovery.iter().any(|entry| !entry.watching)
+}
+
+pub(crate) fn visible_gap_recovery_pending(
+    recovery: &VecDeque<ChannelRecovery>,
+    open_chat: i64,
+    exceptions: &crate::HashSet<i64>,
+    lazy: bool,
+) -> bool {
+    recovery.iter().any(|entry| {
+        !entry.watching
+            && (!lazy || entry.chat_id == open_chat || exceptions.contains(&entry.chat_id))
+    })
+}
+
+pub(crate) fn next_channel_recovery(
+    recovery: &VecDeque<ChannelRecovery>,
+    open_chat: i64,
+    exceptions: &crate::HashSet<i64>,
+    lazy: bool,
+    now: u64,
+) -> Option<usize> {
+    recovery
+        .iter()
+        .position(|entry| entry.due_at <= now && entry.chat_id == open_chat)
+        .or_else(|| {
+            recovery.iter().position(|entry| {
+                entry.due_at <= now && (!lazy || exceptions.contains(&entry.chat_id))
+            })
+        })
+}
+
+/// Chats the user opened, or listed as exceptions, must not stay on the lazy
+/// batch. They go to `getChannelDifference` even if an earlier poll queued them.
+pub(crate) fn pull_priority_channels(
+    lazy_queue: &mut crate::HashSet<i64>,
+    recovery: &mut VecDeque<ChannelRecovery>,
+    open_chat: i64,
+    exceptions: &crate::HashSet<i64>,
+    now: u64,
+) {
+    let promoted: Vec<i64> = lazy_queue
+        .iter()
+        .copied()
+        .filter(|id| *id == open_chat || exceptions.contains(id))
+        .collect();
+    for chat_id in promoted {
+        lazy_queue.remove(&chat_id);
+        if let Some(entry) = recovery.iter_mut().find(|entry| entry.chat_id == chat_id) {
+            if entry.watching {
+                entry.watching = false;
+                entry.due_at = now;
+            }
+        } else {
+            recovery.push_back(ChannelRecovery {
+                chat_id,
+                due_at: now,
+                watching: false,
+            });
+        }
+    }
+}
+
+pub(crate) struct LazyFailurePlan {
+    pub restore: bool,
+    pub drop_transport: bool,
+}
+
+/// A lazy `getPeerDialogs` failure restores the batch. It does not drop the
+/// update transport. An unrecoverable session still fails the drain.
+pub(crate) fn plan_lazy_failure(unrecoverable: bool) -> LazyFailurePlan {
+    if unrecoverable {
+        LazyFailurePlan {
+            restore: false,
+            drop_transport: false,
+        }
+    } else {
+        LazyFailurePlan {
+            restore: true,
+            drop_transport: false,
+        }
+    }
+}
+
+/// Retain offscreen gaps durably until the channel is opened or lazy mode is disabled.
+pub(crate) fn route_lazy_channels(
+    pending: Vec<i64>,
+    open_chat: i64,
+    exceptions: &crate::HashSet<i64>,
+    lazy_enabled: bool,
+    lazy_queue: &mut crate::HashSet<i64>,
+) -> Vec<i64> {
+    if !lazy_enabled {
+        return pending;
+    }
+    let mut full = Vec::new();
+    for chat_id in pending {
+        if chat_id == open_chat || exceptions.contains(&chat_id) {
+            full.push(chat_id);
+        } else if channel_id_from_chat_id(chat_id).is_some() {
+            lazy_queue.insert(chat_id);
+            full.push(chat_id);
+        }
+    }
+    full
+}
+
+/// Takes at most `limit` peers that can be sent. Ids without a usable peer stay queued.
+pub(crate) fn take_lazy_batch(
+    queue: &mut crate::HashSet<i64>,
+    mut usable: impl FnMut(i64) -> bool,
+    limit: usize,
+) -> Vec<i64> {
+    let mut ids: Vec<i64> = queue.iter().copied().collect();
+    ids.sort_unstable();
+    let mut ready = Vec::new();
+    for id in ids {
+        if ready.len() == limit {
+            break;
+        }
+        if usable(id) {
+            queue.remove(&id);
+            ready.push(id);
+        }
+    }
+    ready
+}
+
+pub(crate) fn restore_lazy_batch(queue: &mut crate::HashSet<i64>, batch: &[i64]) {
+    queue.extend(batch.iter().copied());
+}
+
+pub(crate) fn lazy_dialog_events(chats: Vec<crate::ChatDto>) -> Vec<UpdateEventDto> {
+    if chats.is_empty() {
+        Vec::new()
+    } else {
+        vec![UpdateEventDto::DialogsPatched { chats }]
     }
 }

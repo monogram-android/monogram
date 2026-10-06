@@ -23,6 +23,7 @@ import kotlinx.coroutines.withContext
 import org.monogram.core.models.Message
 import org.monogram.core.ui.components.MediaPlaceholder
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.staysPendingUntilMessageId
 import java.io.File
 
 @Composable
@@ -35,7 +36,7 @@ internal fun OutgoingLocalMedia(
     onLongPress: (() -> Unit)? = null,
 ) {
     val kind = message.mediaKind ?: return
-    val pending = message.pending || message.id.id < 0
+    val pending = staysPendingUntilMessageId(message.pending, message.id.id)
     val failed = message.failed && !pending
     val photoSize = if (edgeToEdge) {
         bubbleEdgeMediaDisplaySize(kind, message.mediaWidth, message.mediaHeight)
@@ -53,7 +54,9 @@ internal fun OutgoingLocalMedia(
                 if (edgeToEdge) {
                     Modifier
                 } else {
-                    Modifier.padding(vertical = 2.dp).clip(RoundedCornerShape(12.dp))
+                    Modifier
+                        .padding(vertical = 2.dp)
+                        .clip(RoundedCornerShape(12.dp))
                 },
             )
     }
@@ -67,7 +70,9 @@ internal fun OutgoingLocalMedia(
             loading = pending,
             failed = failed,
             uploading = pending,
-            modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
         )
         "video", "gif" -> {
             val videoFrame by produceState<File?>(initialValue = null, file) {

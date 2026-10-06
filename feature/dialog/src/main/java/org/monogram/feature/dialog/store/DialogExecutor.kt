@@ -298,15 +298,6 @@ internal class DialogExecutor(
             }
             DialogStore.Intent.LoadOlder -> loadOlder()
             DialogStore.Intent.LoadNewer -> loadNewer()
-            is DialogStore.Intent.SetDraftFormatting -> {
-                dispatch(Msg.DraftFormatting(intent.enabled))
-                scheduleDraftPreview()
-            }
-            is DialogStore.Intent.SetDraftEntities -> {
-                dispatch(Msg.DraftEntities(intent.entities))
-                dispatch(Msg.DraftFormatting(true))
-                scheduleDraftPreview()
-            }
             is DialogStore.Intent.DraftChanged -> {
                 if (state().draft != intent.value) {
                     applyDraft(intent.value)
@@ -351,9 +342,6 @@ internal class DialogExecutor(
                 dispatch(Msg.PendingAttach(emptyList()))
                 dispatch(Msg.Editing(intent.message))
                 applyDraft(intent.message.text.orEmpty())
-                dispatch(Msg.DraftFormatting(false))
-                dispatch(Msg.DraftEntities(intent.message.entities))
-                scheduleDraftPreview()
             }
             DialogStore.Intent.CancelEdit -> {
                 dispatch(Msg.Editing(null))

@@ -76,13 +76,20 @@ pub fn release_request_control(id: u64) {
 }
 
 /// 0 interactive read, 1 background read, 2 interactive media, 3 background media,
-/// 4 interactive write.
+/// 4 interactive write, 5 ordinary media, 6 visible media, 7 user media.
 #[uniffi::export]
 pub fn set_dispatch_class(class: i32) {
+    crate::media::set_request_profile(match class {
+        3 => Some(crate::media::DownloadProfile::Background),
+        5 => Some(crate::media::DownloadProfile::Ordinary),
+        6 => Some(crate::media::DownloadProfile::Visible),
+        7 => Some(crate::media::DownloadProfile::User),
+        _ => None,
+    });
     let class = match class {
         0 => scheduler::RequestClass::InteractiveRead,
         1 => scheduler::RequestClass::BackgroundRead,
-        2 => scheduler::RequestClass::InteractiveMedia,
+        2 | 5 | 6 | 7 => scheduler::RequestClass::InteractiveMedia,
         3 => scheduler::RequestClass::BackgroundMedia,
         4 => scheduler::RequestClass::InteractiveWrite,
         _ => scheduler::RequestClass::InteractiveRead,
@@ -281,6 +288,11 @@ pub fn is_authorized(handle: u64) -> Result<bool, MtprotoError> {
 #[uniffi::export]
 pub fn destroy_client(handle: u64) {
     client::destroy_client(handle)
+}
+
+#[uniffi::export]
+pub fn update_lazy_sync_config(handle: u64, lazy: bool, exceptions: Vec<i64>) {
+    client::update_lazy_sync_config(handle, lazy, exceptions);
 }
 
 #[uniffi::export]

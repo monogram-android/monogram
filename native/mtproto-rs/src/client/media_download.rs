@@ -271,6 +271,22 @@ pub fn download_message_media_range(
     offset: Option<i64>,
 ) -> Result<String, MtprotoError> {
     let client = get_client(handle)?;
+    let _policy = crate::transfer_policy::bind(std::sync::Arc::clone(&client.policy));
+    schedule_transfer_config(handle);
+    let profile = match kind {
+        media::MediaDownloadKind::Thumb => media::DownloadProfile::Thumb,
+        media::MediaDownloadKind::Full if offset.is_some() => media::DownloadProfile::Playing,
+        _ if media::request_profile().is_some() => media::request_profile().unwrap(),
+        media::MediaDownloadKind::Display => media::DownloadProfile::Visible,
+        media::MediaDownloadKind::Full
+            if crate::scheduler::current_class()
+                == crate::scheduler::RequestClass::BackgroundMedia =>
+        {
+            media::DownloadProfile::Background
+        }
+        media::MediaDownloadKind::Full => media::DownloadProfile::User,
+    };
+    let _window = media::bind_download_profile(profile);
     let cached = {
         let _span = crate::perf::span("media_lookup_shared_index");
         let data = client.data.lock();
@@ -634,6 +650,14 @@ pub(crate) fn download_media_range_on_lane(
     dest: &Path,
     offset: Option<i64>,
 ) -> Result<String, MtprotoError> {
+    let _policy = crate::transfer_policy::bind(std::sync::Arc::clone(&client.policy));
+    let _ordinary = if media::bound_download_window().is_none() {
+        Some(media::bind_download_profile(
+            media::DownloadProfile::Ordinary,
+        ))
+    } else {
+        None
+    };
     if media::location_is_inline(&media.location) {
         return media::download_media_range_with_fetch(
             home.dc_id,
@@ -648,66 +672,83 @@ pub(crate) fn download_media_range_on_lane(
             },
         );
     }
-    let target_dc = media::download_dc(home.dc_id, &media.location);
-    let first = if target_dc == home.dc_id {
-        // File transfer sessions are exempt from the parallel-session rule only on
-        // *media* DCs. A file stored on the home DC rides the single main session,
-        // otherwise the extra home-DC session kills the authorization (406).
-        match download_media_range_on_home_session(
-            handle,
-            client,
-            home.session_id,
-            api_id,
-            media,
-            dest,
-            offset,
-        ) {
-            Err(err) => match api_invoke::migrate_dc(&err) {
-                Some(dc) => download_media_range_on_lane_dc(
-                    handle, client, home, api_id, media, dest, offset, dc,
-                ),
-                None => Err(err),
-            },
-            ok => ok,
-        }
-    } else {
-        download_media_range_on_lane_dc(
-            handle, client, home, api_id, media, dest, offset, target_dc,
-        )
-    };
-    match first {
-        Ok(path) => Ok(path),
-        Err(err) if media::is_cdn_redirect(&err) => {
-            let job = media::take_cdn_redirect().ok_or(err)?;
-            match follow_cdn_redirect(handle, api_id, dest, &job) {
-                Ok(path) => Ok(path),
-                Err(_) => media::with_cdn_supported(false, || {
-                    if target_dc == home.dc_id {
-                        download_media_range_on_home_session(
-                            handle,
-                            client,
-                            home.session_id,
-                            api_id,
-                            media,
-                            dest,
-                            offset,
-                        )
-                    } else {
-                        download_media_range_on_lane_dc(
-                            handle, client, home, api_id, media, dest, offset, target_dc,
-                        )
+    let mut target_dc = media::download_dc(home.dc_id, &media.location);
+    let large = media.file_size.is_some_and(|size| size >= 20_000_000);
+    let mut migrations = 0;
+    let mut routed_media = media.clone();
+    let media = &mut routed_media;
+    loop {
+        media::check_transfer_flood(target_dc, media::TransferClass::Download)?;
+        let admission = client.policy.admit_download(target_dc, large)?;
+        let first = if target_dc == home.dc_id {
+            download_media_range_on_home_session(
+                handle,
+                client,
+                home.session_id,
+                api_id,
+                media,
+                dest,
+                offset,
+            )
+        } else {
+            download_media_range_on_lane_dc(
+                handle, client, home, api_id, media, dest, offset, target_dc,
+            )
+        };
+        if let Err(ref error) = first {
+            if let Some(dc) = api_invoke::migrate_dc(error) {
+                if dc != target_dc && migrations < 3 {
+                    match &mut media.location {
+                        media::MediaLocation::Photo { dc_id, .. }
+                        | media::MediaLocation::Document { dc_id, .. }
+                        | media::MediaLocation::PeerPhoto { dc_id, .. } => *dc_id = dc,
+                        media::MediaLocation::Inline { .. } => {}
                     }
-                }),
+                    target_dc = dc;
+                    migrations += 1;
+                    continue;
+                }
             }
         }
-        other => other,
+        return match first {
+            Err(err) if media::is_cdn_redirect(&err) => {
+                let job = media::take_cdn_redirect().ok_or(err)?;
+                drop(admission);
+                let cdn_result = {
+                    let _cdn_admission = client.policy.admit_download(job.dc_id, large)?;
+                    follow_cdn_redirect(handle, api_id, dest, &job)
+                };
+                match cdn_result {
+                    Ok(path) => Ok(path),
+                    Err(_) => media::with_cdn_supported(false, || {
+                        let _admission = client.policy.admit_download(target_dc, large)?;
+                        if target_dc == home.dc_id {
+                            download_media_range_on_home_session(
+                                handle,
+                                client,
+                                home.session_id,
+                                api_id,
+                                media,
+                                dest,
+                                offset,
+                            )
+                        } else {
+                            download_media_range_on_lane_dc(
+                                handle, client, home, api_id, media, dest, offset, target_dc,
+                            )
+                        }
+                    }),
+                }
+            }
+            other => other,
+        };
     }
 }
 
-/// Home-DC file transfer over the single main session.
+/// Home-DC download over the single main session.
 ///
-/// Uploads already work this way; the pipelined window keeps throughput while the
-/// updates subscriber shares the same sequence-number space.
+/// A second session on this DC would be another main session.
+/// https://core.telegram.org/api/datacenter#parallel-sessions
 #[allow(dead_code)]
 pub(crate) fn download_media_range_on_home_session(
     handle: u64,
@@ -735,9 +776,10 @@ pub(crate) fn download_media_range_on_home_session(
         staged.path(),
         dest,
         offset,
-        pipeline_parts(),
-        Some(pipeline_parts()),
+        media::download_in_flight(),
+        Some(media::download_in_flight()),
         |_init_first, requests, on_chunk| {
+            media::check_transfer_flood(dc, media::TransferClass::Download)?;
             with_client_mut(handle, |state| {
                 if state.snapshot.session_id != session_id {
                     return Err(expired_session_lease());
@@ -874,9 +916,7 @@ pub(crate) fn download_media_range_on_lane_dc(
     let _span = crate::perf::span("media_file");
     let staged = media::StagedDownload::new(dest)?;
     let mut io = lock_media_lane(client)?;
-    // One media-DC TCP with a sliding 12-part window. A second lane plus a
-    // lockstep 12-part batch caused FLOOD_WAIT_2; Telegram uses 2 connections
-    // with 4-8 in-flight, not 2x12. Even/odd split helpers remain for tests.
+    // A file owns one session and pipelines at most eight parts on it.
     let mut io2: Option<LaneLease<'_>> = None;
     if !session_lease_valid(&client.data.lock(), home.session_id) {
         return Err(expired_session_lease());
@@ -912,14 +952,15 @@ pub(crate) fn download_media_range_on_lane_dc(
     // Timeout is per window, not the whole file. Streaming idle-extends while parts arrive.
     let path = {
         let lane_dc = media_snap.dc_id;
-        match media::download_media_range_batched_streaming(
+        media::download_media_range_batched_streaming(
             lane_dc,
             media,
             staged.path(),
             dest,
             offset,
-            pipeline_parts(),
+            media::download_in_flight(),
             |_init_first, requests, on_chunk| {
+                media::check_transfer_flood(lane_dc, media::TransferClass::Download)?;
                 crate::rpc::with_rpc_timeout_secs(45, || {
                     invoke_media_batch_even_odd(
                         client,
@@ -933,54 +974,7 @@ pub(crate) fn download_media_range_on_lane_dc(
                     )
                 })
             },
-        ) {
-            Ok(path) => Ok(path),
-            Err(err) => {
-                if let Some(dc) = crate::api_invoke::migrate_dc(&err) {
-                    crate::rpc::drop_live_transport();
-                    media_snap = if dc == home.dc_id {
-                        fork_session(home)
-                    } else {
-                        with_client_mut(handle, |state| {
-                            if state.snapshot.session_id != home.session_id {
-                                return Err(expired_session_lease());
-                            }
-                            let destination = call_with_migrate(state, |state| {
-                                copy_authorization_to_dc(&mut state.snapshot, api_id, dc)
-                            })?;
-                            persist(state)?;
-                            Ok(destination)
-                        })?
-                    };
-                    crate::rpc::drop_live_transport();
-                    let retry_dc = media_snap.dc_id;
-                    media::download_media_range_batched_streaming(
-                        retry_dc,
-                        media,
-                        staged.path(),
-                        dest,
-                        offset,
-                        pipeline_parts(),
-                        |_init_first, requests, on_chunk| {
-                            crate::rpc::with_rpc_timeout_secs(45, || {
-                                invoke_media_batch_even_odd(
-                                    client,
-                                    &mut media_snap,
-                                    &mut slot,
-                                    media_snap2.as_mut(),
-                                    slot2.as_mut(),
-                                    api_id,
-                                    requests,
-                                    on_chunk,
-                                )
-                            })
-                        },
-                    )
-                } else {
-                    Err(err)
-                }
-            }
-        }
+        )
     };
     io.snapshot = media_snap.clone();
     // FILE_REFERENCE / transport errors must not park this TCP for the next file.
@@ -993,6 +987,9 @@ pub(crate) fn download_media_range_on_lane_dc(
     }
     drop(io);
     drop(io2);
+    if let Ok(client) = get_client(handle) {
+        schedule_file_cleanup(&client);
+    }
     let new_session = crate::rpc::take_new_session_metadata();
     if media_snap.dc_id == home.dc_id && media_snap.auth_key == home.auth_key {
         let mut d = client.data.lock();

@@ -5,7 +5,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::{HashSet, HashSetExt};
+use crate::{HashMapExt, HashSet, HashSetExt};
 
 use tellers_mtproto::latest::api::{UploadFile, UploadGetFileRequest};
 use tellers_mtproto_session::Snapshot;
@@ -17,37 +17,198 @@ use crate::api_invoke;
 pub(crate) const DEFAULT_CHUNK: i32 = 128 * 1024;
 pub(crate) const CHUNK: i32 = DEFAULT_CHUNK;
 pub(crate) const STREAM_WINDOW_CHUNKS: usize = 4;
+pub(crate) const FAST_CHUNK: i32 = 512 * 1024;
+pub const DOWNLOAD_SESSION_IDLE: std::time::Duration = std::time::Duration::from_secs(2);
 
-pub type ProgressCallback = std::sync::Arc<dyn Fn(&str, i64, i64) + Send + Sync + 'static>;
-static PROGRESS_CALLBACK: parking_lot::RwLock<Option<ProgressCallback>> =
-    parking_lot::RwLock::new(None);
-
-pub fn set_progress_callback(cb: Option<ProgressCallback>) {
-    *PROGRESS_CALLBACK.write() = cb;
+/// https://core.telegram.org/api/files
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DownloadProfile {
+    Thumb,
+    Ordinary,
+    Background,
+    Visible,
+    Playing,
+    User,
 }
 
-pub fn notify_progress(path: &str, downloaded: i64, total: i64) {
-    if let Some(cb) = PROGRESS_CALLBACK.read().as_ref() {
-        cb(path, downloaded, total);
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DownloadWindow {
+    pub chunk: i32,
+    pub in_flight: usize,
+}
+
+/// Visible, playing, and user files use 512 KiB and 8 parts. Other files stay
+/// at 128 KiB, and a thumb is one request.
+/// https://core.telegram.org/api/files
+pub fn download_window(profile: DownloadProfile) -> DownloadWindow {
+    match profile {
+        DownloadProfile::Thumb => DownloadWindow {
+            chunk: DEFAULT_CHUNK,
+            in_flight: 1,
+        },
+        DownloadProfile::Ordinary | DownloadProfile::Background => DownloadWindow {
+            chunk: DEFAULT_CHUNK,
+            in_flight: 4,
+        },
+        DownloadProfile::Visible | DownloadProfile::Playing | DownloadProfile::User => {
+            DownloadWindow {
+                chunk: FAST_CHUNK,
+                in_flight: 8,
+            }
+        }
     }
 }
 
-static CHUNK_SIZE: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(DEFAULT_CHUNK);
+/// `LIMIT_INVALID` retries a smaller part and fewer of them in flight.
+/// https://core.telegram.org/api/files
+pub fn limit_invalid_window(window: DownloadWindow) -> Option<DownloadWindow> {
+    if window.chunk <= DEFAULT_CHUNK {
+        return None;
+    }
+    let in_flight = (window.in_flight / 2).clamp(1, 4);
+    let in_flight = if in_flight < window.in_flight {
+        in_flight
+    } else {
+        1
+    };
+    Some(DownloadWindow {
+        chunk: DEFAULT_CHUNK,
+        in_flight,
+    })
+}
+
+std::thread_local! {
+    static BOUND_WINDOW: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+    static FORCED_CHUNK: std::cell::Cell<i32> = const { std::cell::Cell::new(0) };
+    static REQUEST_PROFILE: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+}
+
+pub(crate) fn set_request_profile(profile: Option<DownloadProfile>) {
+    REQUEST_PROFILE.with(|cell| cell.set(profile.map(profile_tag).unwrap_or(0)));
+}
+
+pub(crate) fn request_profile() -> Option<DownloadProfile> {
+    REQUEST_PROFILE.with(|cell| profile_from_tag(cell.get()))
+}
+
+fn profile_tag(profile: DownloadProfile) -> u8 {
+    match profile {
+        DownloadProfile::Thumb => 1,
+        DownloadProfile::Ordinary => 2,
+        DownloadProfile::Background => 3,
+        DownloadProfile::Visible => 4,
+        DownloadProfile::Playing => 5,
+        DownloadProfile::User => 6,
+    }
+}
+
+fn profile_from_tag(tag: u8) -> Option<DownloadProfile> {
+    Some(match tag {
+        1 => DownloadProfile::Thumb,
+        2 => DownloadProfile::Ordinary,
+        3 => DownloadProfile::Background,
+        4 => DownloadProfile::Visible,
+        5 => DownloadProfile::Playing,
+        6 => DownloadProfile::User,
+        _ => return None,
+    })
+}
+
+pub struct DownloadWindowGuard {
+    previous_profile: u8,
+    previous_chunk: i32,
+}
+
+impl Drop for DownloadWindowGuard {
+    fn drop(&mut self) {
+        BOUND_WINDOW.with(|cell| cell.set(self.previous_profile));
+        FORCED_CHUNK.with(|cell| cell.set(self.previous_chunk));
+    }
+}
+
+pub fn bind_download_profile(profile: DownloadProfile) -> DownloadWindowGuard {
+    let window = configured_download_window(profile);
+    let previous_profile = BOUND_WINDOW.with(|cell| cell.replace(profile_tag(profile)));
+    let previous_chunk = FORCED_CHUNK.with(|cell| cell.replace(window.chunk));
+    DownloadWindowGuard {
+        previous_profile,
+        previous_chunk,
+    }
+}
+
+pub(crate) fn bound_download_window() -> Option<DownloadWindow> {
+    BOUND_WINDOW
+        .with(|cell| profile_from_tag(cell.get()))
+        .map(configured_download_window)
+}
+
+pub(crate) fn configured_download_window(profile: DownloadProfile) -> DownloadWindow {
+    let maximum = download_window(profile);
+    let policy = crate::transfer_policy::current();
+    DownloadWindow {
+        chunk: maximum.chunk.min(policy.chunk_size()),
+        in_flight: maximum.in_flight.min(policy.pipeline_parts()),
+    }
+}
+
+pub(crate) fn download_in_flight() -> usize {
+    bound_download_window()
+        .map(|window| window.in_flight)
+        .unwrap_or_else(crate::client::pipeline_parts)
+}
+
+/// Parts before the aligned seek, or past the in-flight window, are not requested.
+/// A non-zero seek stays on the origin DC.
+/// https://core.telegram.org/api/files
+/// https://core.telegram.org/cdn
+pub(crate) fn cancel_outside_seek_window(
+    seek: i64,
+    chunk: i32,
+    window_chunks: usize,
+    inflight: &[i64],
+) -> Vec<i64> {
+    let step = i64::from(chunk.max(1));
+    let start = seek - seek.rem_euclid(step);
+    let end = start.saturating_add(step.saturating_mul(window_chunks.max(1) as i64));
+    inflight
+        .iter()
+        .copied()
+        .filter(|off| *off < start || *off >= end)
+        .collect()
+}
+
+fn cdn_fields_for_seek(seek: i64) -> (u32, Option<Box<tellers_mtproto::latest::api::True>>) {
+    if seek == 0 {
+        super::cdn::getfile_cdn_fields()
+    } else {
+        (0, None)
+    }
+}
+
+pub use crate::transfer_policy::ProgressCallback;
+
+pub fn set_progress_callback(cb: Option<ProgressCallback>) {
+    crate::transfer_policy::default_policy().assign_progress(cb.clone());
+    crate::client::visit_policies(|policy| policy.follow_progress(&cb));
+}
+
+pub fn notify_progress(path: &str, downloaded: i64, total: i64) {
+    crate::transfer_policy::current().notify(path, downloaded, total);
+}
 
 pub fn set_chunk_size(size: i32) {
-    let valid = matches!(size, 131072 | 262144 | 524288);
-    CHUNK_SIZE.store(
-        if valid { size } else { DEFAULT_CHUNK },
-        std::sync::atomic::Ordering::Relaxed,
-    );
+    let size = crate::transfer_policy::normalize_chunk(size);
+    crate::transfer_policy::default_policy().assign_chunk_size(size);
+    crate::client::visit_policies(|policy| policy.follow_chunk_size(size));
 }
 
 pub(crate) fn chunk_size() -> i32 {
-    CHUNK_SIZE.load(std::sync::atomic::Ordering::Relaxed)
+    crate::transfer_policy::current().chunk_size()
 }
 
 fn resolve_chunk(offset: Option<i64>) -> i32 {
-    let desired = chunk_size();
+    let forced = FORCED_CHUNK.with(|cell| cell.get());
+    let desired = if forced > 0 { forced } else { chunk_size() };
     if let Some(off) = offset {
         if off > 0 && off % i64::from(desired) != 0 && off % i64::from(DEFAULT_CHUNK) == 0 {
             return DEFAULT_CHUNK;
@@ -65,15 +226,7 @@ fn is_limit_invalid(err: &MtprotoError) -> bool {
     }
 }
 
-fn fallback_chunk_after_limit_invalid(chunk: i32) -> Option<i32> {
-    if chunk > DEFAULT_CHUNK {
-        Some(DEFAULT_CHUNK)
-    } else {
-        None
-    }
-}
-
-fn flood_wait_secs(err: &MtprotoError) -> Option<u64> {
+pub(crate) fn flood_wait_secs(err: &MtprotoError) -> Option<u64> {
     let MtprotoError::Message(message) = err else {
         return None;
     };
@@ -90,25 +243,130 @@ fn flood_wait_secs(err: &MtprotoError) -> Option<u64> {
         .max()
 }
 
-fn slow_down_after_premium_flood(err: &MtprotoError) {
-    let MtprotoError::Message(message) = err else {
-        return;
-    };
-    if !message.contains("FLOOD_PREMIUM_WAIT_") {
-        return;
-    }
-    crate::scheduler::set_active_media_lanes(2);
-    crate::client::set_pipeline_parts(2);
-    set_chunk_size(DEFAULT_CHUNK);
+/// Server `FLOOD_WAIT` seconds, not a 15 second cap.
+/// https://core.telegram.org/api/errors
+pub(crate) fn flood_wait_duration(secs: u64) -> std::time::Duration {
+    std::time::Duration::from_secs(secs.max(1))
 }
 
-fn sleep_flood_wait(secs: u64) {
-    let dur = if cfg!(test) {
-        std::time::Duration::from_millis(1)
-    } else {
-        std::time::Duration::from_secs(secs.clamp(1, 15))
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TransferClass {
+    Download,
+    Upload,
+}
+
+#[derive(Clone, Debug)]
+pub struct FloodScope {
+    slow_until: crate::HashMap<(i32, TransferClass), (DownloadWindow, std::time::Instant, bool)>,
+}
+
+impl FloodScope {
+    pub fn new() -> Self {
+        Self {
+            slow_until: crate::HashMap::new(),
+        }
+    }
+
+    /// Record the server deadline. The caller unwinds its lease on the error.
+    pub fn park(
+        &mut self,
+        dc_id: i32,
+        class: TransferClass,
+        seconds: u64,
+        premium: bool,
+        now: std::time::Instant,
+        current: DownloadWindow,
+    ) {
+        let slowed = if premium {
+            DownloadWindow {
+                chunk: DEFAULT_CHUNK,
+                in_flight: 2,
+            }
+        } else {
+            current
+        };
+        let seconds = seconds.max(1);
+        let deadline = now + flood_wait_duration(seconds);
+        if let Some((_, existing_deadline, _)) = self.slow_until.get(&(dc_id, class)) {
+            if *existing_deadline > deadline {
+                return;
+            }
+        }
+        self.slow_until
+            .insert((dc_id, class), (slowed, deadline, premium));
+    }
+
+    pub fn window(
+        &mut self,
+        dc_id: i32,
+        class: TransferClass,
+        now: std::time::Instant,
+        fallback: DownloadWindow,
+    ) -> DownloadWindow {
+        let expired = self
+            .slow_until
+            .get(&(dc_id, class))
+            .is_some_and(|(_, until, _)| now >= *until);
+        if expired {
+            self.slow_until.remove(&(dc_id, class));
+            return fallback;
+        }
+        self.slow_until
+            .get(&(dc_id, class))
+            .map(|(window, _, _)| *window)
+            .unwrap_or(fallback)
+    }
+
+    pub(crate) fn pending_error(
+        &self,
+        dc_id: i32,
+        class: TransferClass,
+        now: std::time::Instant,
+    ) -> Option<MtprotoError> {
+        let (_, until, premium) = self.slow_until.get(&(dc_id, class))?;
+        let remaining = until.checked_duration_since(now)?;
+        if remaining.is_zero() {
+            return None;
+        }
+        let seconds = remaining
+            .as_secs()
+            .saturating_add(u64::from(remaining.subsec_nanos() > 0));
+        Some(MtprotoError::Message(format!(
+            "RPC 420: {}_{seconds}",
+            if *premium {
+                "FLOOD_PREMIUM_WAIT"
+            } else {
+                "FLOOD_WAIT"
+            }
+        )))
+    }
+}
+
+pub(crate) fn note_transfer_flood(dc_id: i32, class: TransferClass, err: &MtprotoError) {
+    let Some(seconds) = flood_wait_secs(err) else {
+        return;
     };
-    std::thread::sleep(dur);
+    let premium =
+        matches!(err, MtprotoError::Message(message) if message.contains("FLOOD_PREMIUM_WAIT_"));
+    crate::transfer_policy::current().floods.lock().park(
+        dc_id,
+        class,
+        seconds,
+        premium,
+        std::time::Instant::now(),
+        bound_download_window().unwrap_or_else(|| download_window(DownloadProfile::Ordinary)),
+    );
+}
+
+pub(crate) fn check_transfer_flood(dc_id: i32, class: TransferClass) -> Result<(), MtprotoError> {
+    if let Some(error) = crate::transfer_policy::current()
+        .floods
+        .lock()
+        .pending_error(dc_id, class, std::time::Instant::now())
+    {
+        return Err(error);
+    }
+    Ok(())
 }
 
 fn is_rpc_timeout(err: &MtprotoError) -> bool {
@@ -164,6 +422,10 @@ pub(crate) fn download_media_range_with_fetch(
     offset: Option<i64>,
     mut fetch: impl FnMut(UploadGetFileRequest) -> Result<UploadFile, MtprotoError>,
 ) -> Result<String, MtprotoError> {
+    let _chunk_guard = DownloadWindowGuard {
+        previous_profile: BOUND_WINDOW.with(|cell| cell.get()),
+        previous_chunk: FORCED_CHUNK.with(|cell| cell.get()),
+    };
     let chunk = resolve_chunk(offset);
     if offset.is_some_and(|value| value < 0 || value % i64::from(chunk) != 0) {
         return Err(MtprotoError::Message("invalid media range offset".into()));
@@ -203,7 +465,7 @@ pub(crate) fn download_media_range_with_fetch(
             if download_cancelled(cancellation_path) {
                 return Err(MtprotoError::Message("cancelled".into()));
             }
-            let (flags, cdn_supported) = super::cdn::getfile_cdn_fields();
+            let (flags, cdn_supported) = cdn_fields_for_seek(if range { offset } else { 0 });
             let request = UploadGetFileRequest {
                 flags,
                 precise: None,
@@ -382,6 +644,10 @@ pub(crate) fn download_media_range_batched_streaming_capped(
         &mut dyn FnMut(usize, Result<UploadFile, MtprotoError>) -> Option<UploadGetFileRequest>,
     ) -> Result<Vec<Result<UploadFile, MtprotoError>>, MtprotoError>,
 ) -> Result<String, MtprotoError> {
+    let _chunk_guard = DownloadWindowGuard {
+        previous_profile: BOUND_WINDOW.with(|cell| cell.get()),
+        previous_chunk: FORCED_CHUNK.with(|cell| cell.get()),
+    };
     let chunk = resolve_chunk(offset);
     if offset.is_some_and(|value| value < 0 || value % i64::from(chunk) != 0) {
         return Err(MtprotoError::Message("invalid media range offset".into()));
@@ -417,11 +683,20 @@ pub(crate) fn download_media_range_batched_streaming_capped(
     let result = (|| -> Result<(), MtprotoError> {
         let mut out =
             fs::File::create(dest_path).map_err(|e| MtprotoError::Message(e.to_string()))?;
-        let width = parts_in_flight.max(1);
+        let window = crate::transfer_policy::current().floods.lock().window(
+            dc_id,
+            TransferClass::Download,
+            std::time::Instant::now(),
+            DownloadWindow {
+                chunk: resolve_chunk(offset),
+                in_flight: parts_in_flight.max(1),
+            },
+        );
+        FORCED_CHUNK.with(|cell| cell.set(window.chunk));
+        let mut width = window.in_flight;
         let stream = offset.is_some();
         let mut next = offset.unwrap_or(0);
         let mut retried_limit = false;
-        let mut flood_retries = 0u8;
         let mut timeout_retries = 0u8;
         let mut written_end = 0i64;
         let mut downloaded_bytes = offset.unwrap_or(0);
@@ -430,7 +705,14 @@ pub(crate) fn download_media_range_batched_streaming_capped(
         let target_str = cancellation_path.display().to_string();
         'download: loop {
             let chunk = resolve_chunk(Some(next).filter(|_| next > 0).or(offset));
-            let batch = if stream { STREAM_WINDOW_CHUNKS } else { width };
+            let batch = if stream {
+                bound_download_window()
+                    .map(|window| window.in_flight)
+                    .unwrap_or(STREAM_WINDOW_CHUNKS)
+                    .min(width.max(1))
+            } else {
+                width
+            };
             loop {
                 if download_cancelled(cancellation_path) {
                     return Err(MtprotoError::Message("cancelled".into()));
@@ -439,7 +721,14 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                 for step in 0..batch {
                     offsets.push(next + (step as i64) * i64::from(chunk));
                 }
-                let (flags, cdn_supported) = super::cdn::getfile_cdn_fields();
+                if stream {
+                    let seek = offset.unwrap_or(next);
+                    let cancelled = cancel_outside_seek_window(seek, chunk, batch, &offsets);
+                    if !cancelled.is_empty() {
+                        offsets.retain(|off| !cancelled.contains(off));
+                    }
+                }
+                let (flags, cdn_supported) = cdn_fields_for_seek(offset.unwrap_or(0));
                 let requests: Vec<UploadGetFileRequest> = offsets
                     .iter()
                     .map(|offset| UploadGetFileRequest {
@@ -520,17 +809,25 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                         Err(err)
                             if !retried_limit
                                 && is_limit_invalid(&err)
-                                && fallback_chunk_after_limit_invalid(chunk).is_some() =>
+                                && limit_invalid_window(DownloadWindow {
+                                    chunk,
+                                    in_flight: width,
+                                })
+                                .is_some() =>
                         {
-                            set_chunk_size(DEFAULT_CHUNK);
+                            let next = limit_invalid_window(DownloadWindow {
+                                chunk,
+                                in_flight: width,
+                            })
+                            .expect("window");
+                            FORCED_CHUNK.with(|cell| cell.set(next.chunk));
+                            width = next.in_flight.max(1);
                             retried_limit = true;
                             continue 'download;
                         }
-                        Err(err) if flood_retries < 3 && flood_wait_secs(&err).is_some() => {
-                            flood_retries += 1;
-                            slow_down_after_premium_flood(&err);
-                            sleep_flood_wait(flood_wait_secs(&err).unwrap_or(1));
-                            continue 'download;
+                        Err(err) if flood_wait_secs(&err).is_some() => {
+                            note_transfer_flood(dc_id, TransferClass::Download, &err);
+                            return Err(err);
                         }
                         Err(err) if timeout_retries < 3 && is_rpc_timeout(&err) => {
                             timeout_retries += 1;
@@ -602,20 +899,20 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                             return Err(MtprotoError::Message("unexpected media response".into()));
                         }
                         Err(err) => {
-                            if !retried_limit
-                                && is_limit_invalid(&err)
-                                && fallback_chunk_after_limit_invalid(chunk).is_some()
-                            {
-                                set_chunk_size(DEFAULT_CHUNK);
-                                retried_limit = true;
-                                continue 'download;
-                            }
-                            if flood_retries < 3 {
-                                if let Some(secs) = flood_wait_secs(&err) {
-                                    flood_retries += 1;
-                                    sleep_flood_wait(secs);
+                            if !retried_limit && is_limit_invalid(&err) {
+                                if let Some(next) = limit_invalid_window(DownloadWindow {
+                                    chunk,
+                                    in_flight: width,
+                                }) {
+                                    FORCED_CHUNK.with(|cell| cell.set(next.chunk));
+                                    width = next.in_flight.max(1);
+                                    retried_limit = true;
                                     continue 'download;
                                 }
+                            }
+                            if flood_wait_secs(&err).is_some() {
+                                note_transfer_flood(dc_id, TransferClass::Download, &err);
+                                return Err(err);
                             }
                             if timeout_retries < 3 && is_rpc_timeout(&err) {
                                 timeout_retries += 1;
@@ -677,3 +974,7 @@ where
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/media_download_profile_tests.rs"]
+mod profile_tests;

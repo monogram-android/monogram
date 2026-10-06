@@ -83,6 +83,7 @@ fn updates_reader_resends_the_future_salt_query() {
             &mut framing,
             &SystemClock,
             message_id,
+            None,
         )
         .expect("resend")
     );
@@ -97,9 +98,126 @@ fn updates_reader_resends_the_future_salt_query() {
 }
 
 #[test]
-fn rpc_read_loops_resend_untracked_salt_queries() {
-    let loops = include_str!("../../src/rpc/invoke.rs")
-        .matches("replay_updates_rejection(")
-        .count();
-    assert_eq!(loops, 3);
+fn salt_retry_keeps_the_original_request_handle_correlated() {
+    use tellers_mtproto_engine::{Engine, ExponentialBackoff};
+    use tellers_mtproto_session::{OsRandom, Snapshot};
+    let mut engine = Engine::new(
+        Snapshot::new(2, &mut OsRandom).unwrap(),
+        ExponentialBackoff {
+            timeout_micros: 8_000_000,
+            initial_delay_micros: 0,
+            max_attempts: 3,
+        },
+    )
+    .unwrap();
+    let handle = engine
+        .invoke(&super::RawMethod { body: vec![1; 4] }, &super::SystemClock)
+        .unwrap();
+    let _ = engine.next_outbound();
+    let resent =
+        super::take_salt_resend(&mut engine, handle.message_id(), &super::SystemClock).unwrap();
+    assert_ne!(resent[0].message_id, handle.message_id());
+    engine
+        .receive_result(resent[0].message_id, vec![2; 4], 1)
+        .unwrap();
+    assert_eq!(
+        engine.take_response::<super::RawMethod>(&handle).unwrap(),
+        Some(vec![2; 4])
+    );
+}
+
+#[test]
+fn salt_resend_status_probe_uses_the_new_wire_id() {
+    use tellers_mtproto::codec::{Decoder, Limits, TlDecode};
+    use tellers_mtproto::transport::{MsgsStateReqConstructor, Vector};
+    use tellers_mtproto_engine::{Engine, ExponentialBackoff};
+    use tellers_mtproto_session::{OsRandom, Snapshot};
+    use tellers_mtproto_transport::{Connection, Error, Framing, PaddedIntermediate};
+    struct Memory(Vec<u8>);
+    impl Connection for Memory {
+        fn send(&mut self, bytes: &[u8]) -> Result<(), Error> {
+            self.0.extend_from_slice(bytes);
+            Ok(())
+        }
+        fn receive(&mut self, _: &mut [u8]) -> Result<usize, Error> {
+            Err(Error::Closed)
+        }
+        fn close(&mut self) -> Result<(), Error> {
+            Ok(())
+        }
+    }
+    let mut snapshot = Snapshot::new(2, &mut OsRandom).unwrap();
+    snapshot.auth_key = Some(vec![7; 256]);
+    let mut engine = Engine::new(
+        snapshot.clone(),
+        ExponentialBackoff {
+            timeout_micros: 8_000_000,
+            initial_delay_micros: 0,
+            max_attempts: 3,
+        },
+    )
+    .unwrap();
+    let handle = engine
+        .invoke(&super::RawMethod { body: vec![1; 4] }, &super::SystemClock)
+        .unwrap();
+    let _ = engine.next_outbound();
+    let now = std::time::Instant::now();
+    let mut silent = super::super::main_policy::SilentRequests::new(false);
+    silent.observe(&[handle.message_id()], now);
+    let mut conn = Memory(Vec::new());
+    let mut framing = PaddedIntermediate::default();
+    super::replay_updates_rejection(
+        &mut engine,
+        &mut conn,
+        &mut framing,
+        &super::SystemClock,
+        handle.message_id(),
+        Some(&mut silent),
+    )
+    .unwrap();
+    let resent_packet = framing.decode(&conn.0).unwrap().payload;
+    let resent = tellers_mtproto_crypto::decrypt_message(
+        snapshot.auth_key.as_deref().unwrap(),
+        super::super::timeout::trim_padded_mtproto_packet(&resent_packet),
+        tellers_mtproto_crypto::Direction::ClientToServer,
+        snapshot.session_id,
+        1024,
+    )
+    .unwrap();
+    assert_ne!(resent.message_id, handle.message_id());
+    silent.observe(&[handle.message_id()], now);
+    let due = silent.due(now + std::time::Duration::from_secs(9), false);
+    assert_eq!(due, vec![resent.message_id]);
+    conn.0.clear();
+    super::super::framing::send_state_probe(
+        &mut engine,
+        &mut conn,
+        &mut framing,
+        &due,
+        &super::SystemClock,
+    )
+    .unwrap();
+    let packet = framing.decode(&conn.0).unwrap().payload;
+    let message = tellers_mtproto_crypto::decrypt_message(
+        snapshot.auth_key.as_deref().unwrap(),
+        super::super::timeout::trim_padded_mtproto_packet(&packet),
+        tellers_mtproto_crypto::Direction::ClientToServer,
+        snapshot.session_id,
+        1024,
+    )
+    .unwrap();
+    let mut decoder = Decoder::new(&message.body, Limits::default()).unwrap();
+    assert_eq!(decoder.read_u32().unwrap(), MsgsStateReqConstructor::ID);
+    let request = MsgsStateReqConstructor::decode(&mut decoder).unwrap();
+    let Vector::Vector(ids) = *request.msg_ids;
+    assert_eq!(ids.field_1, vec![resent.message_id]);
+    engine
+        .receive_result(resent.message_id, vec![2; 4], 1)
+        .unwrap();
+    assert_eq!(
+        engine.take_response::<super::RawMethod>(&handle).unwrap(),
+        Some(vec![2; 4])
+    );
+    silent.observe(&[], now);
+    assert!(silent.due(now, true).is_empty());
 }

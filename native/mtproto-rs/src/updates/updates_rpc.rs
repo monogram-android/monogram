@@ -758,3 +758,64 @@ pub(crate) fn next_channel_pts_after_too_long(
 #[cfg(test)]
 #[path = "../../tests/unit/updates_rpc_tests.rs"]
 mod tests;
+
+pub(crate) struct LazyChannelPage {
+    pub chats: Vec<crate::ChatDto>,
+    pub unresolved: Vec<i64>,
+}
+
+/// Dialog state for offscreen channels. Does not replace `getChannelDifference`.
+/// https://core.telegram.org/method/messages.getPeerDialogs
+pub(crate) fn drain_lazy_channels(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers_cache: &mut HashMap<i64, CachedPeer>,
+    media_index: &mut MediaIndex,
+    channel_pts: &HashMap<i64, i32>,
+    lazy_batch: &[i64],
+) -> Result<LazyChannelPage, MtprotoError> {
+    use tellers_mtproto::latest::api::{
+        InputDialogPeer, InputDialogPeerConstructor, MessagesGetPeerDialogsRequest,
+        MessagesPeerDialogs, Vector, VectorConstructor,
+    };
+
+    let mut input_peers = Vec::new();
+    let mut unresolved = Vec::new();
+    for &chat_id in lazy_batch {
+        match crate::peers::require_usable_peer(peers_cache, chat_id) {
+            Ok(cached) => input_peers.push(Box::new(InputDialogPeer::InputDialogPeer(
+                InputDialogPeerConstructor {
+                    peer: Box::new(crate::peers::input_peer_from_cached(cached)),
+                },
+            ))),
+            Err(_) => unresolved.push(chat_id),
+        }
+    }
+    if input_peers.is_empty() {
+        return Ok(LazyChannelPage {
+            chats: Vec::new(),
+            unresolved,
+        });
+    }
+
+    let request = MessagesGetPeerDialogsRequest {
+        peers: Box::new(Vector::Vector(VectorConstructor {
+            field_0: input_peers.len() as u32,
+            field_1: input_peers,
+        })),
+    };
+    let response: MessagesPeerDialogs = api_invoke::invoke_api(snapshot, api_id, request)?;
+    let MessagesPeerDialogs::MessagesPeerDialogs(d) = response;
+    // Dialog metadata is a preview, not application of the intervening updates.
+    let mut dialog_pts = channel_pts.clone();
+    let chats = crate::dialogs::map_peer_dialogs(
+        peers_cache,
+        media_index,
+        &mut dialog_pts,
+        d.dialogs,
+        d.messages,
+        d.chats,
+        d.users,
+    );
+    Ok(LazyChannelPage { chats, unresolved })
+}

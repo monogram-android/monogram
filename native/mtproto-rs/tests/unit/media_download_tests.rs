@@ -155,10 +155,12 @@ fn successful_chunked_download_keeps_file() {
 #[test]
 fn shared_transport_fetches_bounded_parts_and_removes_failed_download() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
     let media = MediaRef {
+        file_size: None,
         kind: "photo".into(),
         cache_key: "test".into(),
         location: MediaLocation::Photo {
@@ -221,10 +223,12 @@ fn shared_transport_fetches_bounded_parts_and_removes_failed_download() {
 #[test]
 fn batched_range_requests_parts_together_and_writes_each_at_its_offset() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
     let media = MediaRef {
+        file_size: None,
         kind: "video".into(),
         cache_key: "batched-range".into(),
         location: MediaLocation::Document {
@@ -294,10 +298,12 @@ fn batched_range_requests_parts_together_and_writes_each_at_its_offset() {
 #[test]
 fn batched_range_reports_a_failed_part_and_removes_the_partial_file() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
     let media = MediaRef {
+        file_size: None,
         kind: "video".into(),
         cache_key: "batched-fail".into(),
         location: MediaLocation::Document {
@@ -356,10 +362,12 @@ fn batched_range_reports_a_failed_part_and_removes_the_partial_file() {
 #[test]
 fn media_range_fetches_one_aligned_part_and_rejects_invalid_bounds() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
     let media = MediaRef {
+        file_size: None,
         kind: "video".into(),
         cache_key: "range-test".into(),
         location: MediaLocation::Document {
@@ -391,7 +399,7 @@ fn media_range_fetches_one_aligned_part_and_rejects_invalid_bounds() {
                 calls += 1;
                 assert_eq!(request.offset, 2 * i64::from(CHUNK));
                 assert_eq!(request.limit, CHUNK);
-                assert!(request.cdn_supported.is_some());
+                assert!(request.cdn_supported.is_none());
                 Ok(UploadFile::UploadFile(UploadFileConstructor {
                     type_: Box::new(StorageFileType::StorageFileUnknown(
                         StorageFileUnknownConstructor {},
@@ -428,12 +436,13 @@ fn media_range_fetches_one_aligned_part_and_rejects_invalid_bounds() {
 }
 
 #[test]
-fn default_pipeline_parts_is_twelve() {
+fn default_pipeline_parts_is_four() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use crate::client::{DEFAULT_PIPELINE_PARTS, pipeline_parts, set_pipeline_parts};
     let previous = pipeline_parts();
     set_pipeline_parts(DEFAULT_PIPELINE_PARTS);
-    assert_eq!(pipeline_parts(), 12);
+    assert_eq!(pipeline_parts(), 4);
     set_pipeline_parts(previous);
 }
 
@@ -443,9 +452,15 @@ fn limit_invalid_falls_back_to_128kib() {
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
+    let policy = std::sync::Arc::new(crate::transfer_policy::TransferPolicy::stock());
+    policy.own_chunk_size(512 * 1024);
+    policy.own_pipeline_parts(8);
+    let _policy = crate::transfer_policy::bind(policy);
+    let _profile = bind_download_profile(DownloadProfile::User);
     let previous_chunk = chunk_size();
     set_chunk_size(512 * 1024);
     let media = MediaRef {
+        file_size: None,
         kind: "video".into(),
         cache_key: "limit-invalid".into(),
         location: MediaLocation::Document {
@@ -488,6 +503,11 @@ fn limit_invalid_falls_back_to_128kib() {
                 })
                 .collect())
         });
+    assert_eq!(
+        chunk_size(),
+        512 * 1024,
+        "fallback must not change the configured chunk"
+    );
     set_chunk_size(previous_chunk);
     assert!(result.is_ok(), "fallback download failed: {result:?}");
     assert_eq!(limits, vec![512 * 1024, DEFAULT_CHUNK]);
@@ -498,12 +518,14 @@ fn limit_invalid_falls_back_to_128kib() {
 #[test]
 fn batched_streaming_writes_a_part_before_the_batch_returns() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
     let previous = pipeline_parts();
     set_pipeline_parts(4);
     let media = MediaRef {
+        file_size: None,
         kind: "video".into(),
         cache_key: "stream-write".into(),
         location: MediaLocation::Document {
@@ -568,6 +590,7 @@ fn batched_streaming_writes_a_part_before_the_batch_returns() {
 #[test]
 fn progress_counts_each_offset_once_when_on_chunk_and_batch_both_deliver() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use std::sync::{Arc, Mutex};
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
@@ -578,6 +601,7 @@ fn progress_counts_each_offset_once_when_on_chunk_and_batch_both_deliver() {
         seen_cb.lock().unwrap().push(downloaded);
     })));
     let media = MediaRef {
+        file_size: None,
         kind: "document".into(),
         cache_key: "progress-once".into(),
         location: MediaLocation::Document {
@@ -645,12 +669,14 @@ fn progress_counts_each_offset_once_when_on_chunk_and_batch_both_deliver() {
 #[test]
 fn completed_part_refills_inflight_window_without_waiting_for_the_batch() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
     let previous = pipeline_parts();
     set_pipeline_parts(2);
     let media = MediaRef {
+        file_size: None,
         kind: "video".into(),
         cache_key: "slide-refill".into(),
         location: MediaLocation::Document {
@@ -726,6 +752,7 @@ fn completed_part_refills_inflight_window_without_waiting_for_the_batch() {
 #[test]
 fn one_mib_chunks_are_rejected() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     let previous = chunk_size();
     set_chunk_size(1024 * 1024);
     assert_eq!(chunk_size(), DEFAULT_CHUNK);
@@ -735,12 +762,17 @@ fn one_mib_chunks_are_rejected() {
 }
 
 #[test]
-fn flood_wait_retries_then_succeeds() {
+fn flood_wait_returns_without_sleeping_or_retrying_on_the_lane() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
+    let _policy = crate::transfer_policy::bind(std::sync::Arc::new(
+        crate::transfer_policy::TransferPolicy::stock(),
+    ));
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
     let media = MediaRef {
+        file_size: None,
         kind: "video".into(),
         cache_key: "flood-retry".into(),
         location: MediaLocation::Document {
@@ -781,18 +813,23 @@ fn flood_wait_retries_then_succeeds() {
                 })
                 .collect())
         });
-    assert!(result.is_ok(), "{result:?}");
-    assert!(calls >= 2);
+    assert!(
+        matches!(result, Err(MtprotoError::Message(ref message)) if message == "RPC 420: FLOOD_WAIT_2")
+    );
+    assert_eq!(calls, 1);
+    assert!(!path.exists());
     fs::remove_file(&path).ok();
 }
 
 #[test]
 fn rpc_timeout_retries_from_missing_offset_without_dropping_written_parts() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
     let media = MediaRef {
+        file_size: None,
         kind: "document".into(),
         cache_key: "timeout-retry".into(),
         location: MediaLocation::Document {
@@ -863,10 +900,12 @@ fn rpc_timeout_retries_from_missing_offset_without_dropping_written_parts() {
 #[test]
 fn capped_refill_releases_fetch_batch_before_eof() {
     let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
     use tellers_mtproto::latest::api::{
         StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor,
     };
     let media = MediaRef {
+        file_size: None,
         kind: "video".into(),
         cache_key: "window-release".into(),
         location: MediaLocation::Document {

@@ -127,8 +127,6 @@
     <string name="settings_data">Данные и память</string>
     <string name="settings_data_sub">Автозагрузка и кэш</string>
     <string name="settings_data_transfers">Передача</string>
-    <string name="settings_speed_up_uploads">Ускорить отправку</string>
-    <string name="settings_speed_up_uploads_sub">Фото и файлы уходят быстрее на хорошей сети</string>
     <string name="settings_speed_up_downloads">Ускорить скачивание</string>
     <string name="settings_speed_up_downloads_sub">Скачивать фото, видео и файлы быстрее при хорошем соединении</string>
     <string name="settings_autodownload">Автозагрузка медиа</string>

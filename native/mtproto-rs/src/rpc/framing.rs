@@ -1,6 +1,6 @@
 use tellers_mtproto::transport::{
-    GetFutureSaltsRequest, MsgResendReqConstructor, MsgsAckConstructor, PingRequest, Vector,
-    VectorConstructor,
+    GetFutureSaltsRequest, MsgResendReqConstructor, MsgsAckConstructor, MsgsStateReqConstructor,
+    PingRequest, Vector, VectorConstructor,
 };
 use tellers_mtproto_crypto::fill_random;
 use tellers_mtproto_engine::{Engine, OutboundMessage};
@@ -328,6 +328,42 @@ pub(crate) fn send_ping<P: tellers_mtproto_engine::RetryPolicy>(
     Ok(ping_id)
 }
 
+pub(crate) fn send_state_probe<P: tellers_mtproto_engine::RetryPolicy>(
+    engine: &mut Engine<P>,
+    conn: &mut dyn Connection,
+    framing: &mut PaddedIntermediate,
+    ids: &[i64],
+    clock: &SystemClock,
+) -> Result<i64, MtprotoError> {
+    let body = encode_boxed_bytes(&MsgsStateReqConstructor {
+        msg_ids: Box::new(Vector::Vector(VectorConstructor {
+            field_0: ids.len() as u32,
+            field_1: ids.to_vec(),
+        })),
+    })?;
+    let message_id = engine
+        .session
+        .next_message_id(clock)
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    let sequence = engine
+        .session
+        .next_sequence(false)
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    let padding = make_padding(body.len())?;
+    let sealed = engine
+        .seal_outbound(
+            &OutboundMessage {
+                message_id,
+                sequence,
+                body,
+            },
+            &padding,
+        )
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    send_framed(conn, framing, &sealed)?;
+    Ok(message_id)
+}
+
 struct StoredPlain {
     content_related: bool,
     body: Vec<u8>,
@@ -442,37 +478,45 @@ pub(crate) fn flush_acks<P: tellers_mtproto_engine::RetryPolicy>(
     clock: &SystemClock,
 ) -> Result<(), MtprotoError> {
     prefetch_future_salts(engine, conn, framing, clock)?;
-    let ids = engine.session.take_acknowledgements(64);
-    if ids.is_empty() {
-        return Ok(());
+    loop {
+        let ids = engine.session.take_acknowledgements(64);
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let count = ids.len() as u32;
+        let retry_ids = ids.clone();
+        let ack = MsgsAckConstructor {
+            msg_ids: Box::new(Vector::Vector(VectorConstructor {
+                field_0: count,
+                field_1: ids,
+            })),
+        };
+        let body = encode_boxed_bytes(&ack)?;
+        let message_id = engine
+            .session
+            .next_message_id(clock)
+            .map_err(|e| MtprotoError::Message(e.to_string()))?;
+        remember_plaintext(engine.session.session_id, message_id, false, body.clone());
+        let sequence = engine
+            .session
+            .next_sequence(false)
+            .map_err(|e| MtprotoError::Message(e.to_string()))?;
+        let outbound = OutboundMessage {
+            message_id,
+            sequence,
+            body,
+        };
+        let padding = make_padding(outbound.body.len())?;
+        let sealed = engine
+            .seal_outbound(&outbound, &padding)
+            .map_err(|e| MtprotoError::Message(e.to_string()))?;
+        if let Err(error) = send_framed(conn, framing, &sealed) {
+            for id in retry_ids {
+                let _ = engine.session.acknowledge(id);
+            }
+            return Err(error);
+        }
     }
-    let count = ids.len() as u32;
-    let ack = MsgsAckConstructor {
-        msg_ids: Box::new(Vector::Vector(VectorConstructor {
-            field_0: count,
-            field_1: ids,
-        })),
-    };
-    let body = encode_boxed_bytes(&ack)?;
-    let message_id = engine
-        .session
-        .next_message_id(clock)
-        .map_err(|e| MtprotoError::Message(e.to_string()))?;
-    remember_plaintext(engine.session.session_id, message_id, false, body.clone());
-    let sequence = engine
-        .session
-        .next_sequence(false)
-        .map_err(|e| MtprotoError::Message(e.to_string()))?;
-    let outbound = OutboundMessage {
-        message_id,
-        sequence,
-        body,
-    };
-    let padding = make_padding(outbound.body.len())?;
-    let sealed = engine
-        .seal_outbound(&outbound, &padding)
-        .map_err(|e| MtprotoError::Message(e.to_string()))?;
-    send_framed(conn, framing, &sealed)
 }
 
 fn prefetch_future_salts<P: tellers_mtproto_engine::RetryPolicy>(

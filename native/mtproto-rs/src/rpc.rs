@@ -8,6 +8,7 @@ mod framing;
 mod inbound;
 mod invoke;
 mod live;
+mod main_policy;
 mod salts;
 mod supervisor;
 mod timeout;
@@ -24,9 +25,10 @@ pub use live::{LiveTransport, drop_live_transport, with_live_transport};
 pub use timeout::with_rpc_timeout_secs;
 
 pub(crate) use invoke::{
-    invoke_batch_raw_with_retry, invoke_batch_raw_with_retry_streaming,
-    invoke_raw_with_retry_factory, receive_updates,
+    flush_pending_acks, invoke_batch_raw_with_retry, invoke_batch_raw_with_retry_streaming,
+    invoke_raw_with_retry_factory, ping_existing_rtt, receive_updates,
 };
+pub(crate) use main_policy::ACK_DELAY;
 
 #[cfg(test)]
 use crate::MtprotoError;

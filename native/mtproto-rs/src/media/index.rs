@@ -169,6 +169,7 @@ pub fn media_ref_from_photo(photo: &Photo, cache_key: String) -> Option<MediaRef
                 format!("{cache_key}:video")
             };
             return Some(MediaRef {
+                file_size: None,
                 kind: "video_avatar".into(),
                 cache_key,
                 location: MediaLocation::Photo {
@@ -205,6 +206,7 @@ pub fn media_ref_from_photo(photo: &Photo, cache_key: String) -> Option<MediaRef
         }
     };
     Some(MediaRef {
+        file_size: None,
         kind: "photo".into(),
         cache_key,
         location,
@@ -240,6 +242,7 @@ pub(crate) fn media_ref_from_photo_with_thumbs(
         None => (None, None),
     };
     Some(MediaRef {
+        file_size: None,
         kind: "photo".into(),
         cache_key,
         location,
@@ -327,6 +330,7 @@ pub fn media_ref_peer_photo(
     has_video: bool,
 ) -> MediaRef {
     MediaRef {
+        file_size: None,
         kind: if has_video {
             "video_avatar".into()
         } else {
@@ -444,6 +448,7 @@ pub(crate) fn webpage_media(
     }
     Some((
         MediaRef {
+            file_size: None,
             kind: "webpage".into(),
             cache_key: format!("web:{}", page.id),
             location: MediaLocation::Inline {
@@ -493,6 +498,7 @@ pub(crate) fn extract_from_media(media: &MessageMedia) -> Option<(MediaRef, Medi
             };
             Some((
                 MediaRef {
+                    file_size: None,
                     kind: "photo".into(),
                     cache_key,
                     location,
@@ -525,7 +531,7 @@ pub(crate) fn extract_from_media(media: &MessageMedia) -> Option<(MediaRef, Medi
                     DocumentAttribute::DocumentAttributeAudio(a) => {
                         audio_label = match (a.title.as_ref(), a.performer.as_ref()) {
                             (Some(title), Some(performer)) => {
-                                Some(format!("{title} — {performer}"))
+                                Some(format!("{title} вЂ” {performer}"))
                             }
                             (Some(title), None) => Some(title.clone()),
                             (None, Some(performer)) => Some(performer.clone()),
@@ -568,6 +574,7 @@ pub(crate) fn extract_from_media(media: &MessageMedia) -> Option<(MediaRef, Medi
             let (sticker_set_id, sticker_set_access_hash) = sticker_set_ids(doc);
             Some((
                 MediaRef {
+                    file_size: Some(doc.size),
                     kind,
                     cache_key,
                     location: document_file_location(doc, String::new(), None),
@@ -806,6 +813,7 @@ pub(crate) fn media_ref_from_document(
         format!("doc:{}", doc.id)
     };
     let mut media = MediaRef {
+        file_size: Some(doc.size),
         kind: kind.into(),
         cache_key,
         location: document_file_location(doc, String::new(), None),

@@ -143,6 +143,7 @@ pub(crate) enum InboundEvent {
     BadMessage { bad_msg_id: i64, error_code: i32 },
     Pong { ping_id: i64 },
     AnswerAvailable { answer_msg_id: i64 },
+    MessageStatus { req_msg_id: i64, info: Vec<u8> },
     FutureSalts(Vec<super::salts::SaltWindow>),
     Ignored,
 }
@@ -371,9 +372,12 @@ pub(crate) fn parse_service_at_depth(
             let invalid = || MtprotoError::Message("invalid MTProto message status".into());
             let mut decoder = Decoder::new(body, Limits::default()).map_err(|_| invalid())?;
             decoder.read_u32().map_err(|_| invalid())?;
-            MsgsStateInfoConstructor::decode(&mut decoder).map_err(|_| invalid())?;
+            let status = MsgsStateInfoConstructor::decode(&mut decoder).map_err(|_| invalid())?;
             decoder.finish().map_err(|_| invalid())?;
-            Ok(vec![InboundEvent::Ignored])
+            Ok(vec![InboundEvent::MessageStatus {
+                req_msg_id: status.req_msg_id,
+                info: status.info,
+            }])
         }
         MSGS_ACK => Ok(vec![InboundEvent::Ignored]),
         // The constructor ID is protocol metadata, not message content. Keep it

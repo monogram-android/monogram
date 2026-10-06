@@ -127,8 +127,6 @@
     <string name="settings_data">データとストレージ</string>
     <string name="settings_data_sub">自動ダウンロードとキャッシュ</string>
     <string name="settings_data_transfers">転送</string>
-    <string name="settings_speed_up_uploads">アップロードを高速化</string>
-    <string name="settings_speed_up_uploads_sub">良好な接続時に写真やファイルをより速く送信します</string>
     <string name="settings_speed_up_downloads">ダウンロードを高速化</string>
     <string name="settings_speed_up_downloads_sub">良好な接続時に写真、動画、ファイルをより速くダウンロードします</string>
     <string name="settings_autodownload">メディアの自動ダウンロード</string>

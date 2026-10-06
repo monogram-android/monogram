@@ -68,6 +68,7 @@ fn pick_thumb_skips_streaming_letters_without_inline() {
         MediaLocation::Photo { ref thumb_size, .. } if thumb_size == "s"
     ));
     let mut media = MediaRef {
+        file_size: None,
         kind: "photo".into(),
         cache_key: "photo:1".into(),
         location: loc.clone(),
@@ -90,6 +91,7 @@ fn pick_thumb_skips_streaming_letters_without_inline() {
 fn inline_thumb_jpeg_returns_stripped_bytes_without_getfile() {
     let jpeg = vec![0xFF, 0xD8, 0xFF, 0xD9];
     let media = MediaRef {
+        file_size: None,
         kind: "photo".into(),
         cache_key: "photo:stripped".into(),
         location: MediaLocation::Photo {
@@ -112,6 +114,7 @@ fn inline_thumb_jpeg_returns_stripped_bytes_without_getfile() {
     };
     assert_eq!(inline_thumb_jpeg(&media).as_deref(), Some(jpeg.as_slice()));
     let getfile_only = MediaRef {
+        file_size: None,
         kind: "photo".into(),
         cache_key: "photo:m".into(),
         location: MediaLocation::Photo {
@@ -170,6 +173,7 @@ fn pick_display_prefers_m_for_chat_cells() {
 #[test]
 fn media_for_download_display_uses_m_not_original() {
     let media = MediaRef {
+        file_size: Some(25_000_000),
         kind: "photo".into(),
         cache_key: "photo:1".into(),
         location: MediaLocation::Photo {
@@ -208,11 +212,34 @@ fn media_for_download_display_uses_m_not_original() {
     let mut no_display = media.clone();
     no_display.display_location = None;
     assert!(media_for_download(&no_display, MediaDownloadKind::Display).is_err());
+    assert_eq!(
+        media_for_download(&media, MediaDownloadKind::Full)
+            .unwrap()
+            .file_size,
+        Some(25_000_000)
+    );
+    assert_eq!(
+        media_for_download(&media, MediaDownloadKind::Thumb)
+            .unwrap()
+            .file_size,
+        None
+    );
+    assert_eq!(
+        media_for_download(&media, MediaDownloadKind::Display)
+            .unwrap()
+            .file_size,
+        None
+    );
+    let mut old = serde_json::to_value(&media).unwrap();
+    old.as_object_mut().unwrap().remove("file_size");
+    let restored: MediaRef = serde_json::from_value(old).unwrap();
+    assert_eq!(restored.file_size, None);
 }
 
 #[test]
 fn media_for_download_thumb_skips_non_getfile_size() {
     let mut media = MediaRef {
+        file_size: None,
         kind: "video".into(),
         cache_key: "doc:1".into(),
         location: MediaLocation::Document {
@@ -243,6 +270,7 @@ fn media_for_download_thumb_skips_non_getfile_size() {
     media.thumb_location = None;
     assert!(media_for_download(&media, MediaDownloadKind::Thumb).is_err());
     let photo_only = MediaRef {
+        file_size: None,
         kind: "photo".into(),
         cache_key: "photo:1".into(),
         location: MediaLocation::Photo {
@@ -385,6 +413,7 @@ fn profile_video_sizes_index_as_video_avatar() {
 fn resolved_video_avatar_survives_still_peer_photo() {
     let mut media = MediaIndex::new();
     let video = MediaRef {
+        file_size: None,
         kind: "video_avatar".into(),
         cache_key: "avatar:7:video".into(),
         location: MediaLocation::Photo {

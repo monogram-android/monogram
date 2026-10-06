@@ -153,23 +153,17 @@ pub fn read_lanes() -> usize {
 /// Lanes are allocated up front; only `active_media_lanes()` are used.
 pub const MAX_MEDIA_LANES: usize = 8;
 
-pub const DEFAULT_MEDIA_LANES: usize = 6;
-
-static ACTIVE_MEDIA_LANES: std::sync::atomic::AtomicUsize =
-    std::sync::atomic::AtomicUsize::new(DEFAULT_MEDIA_LANES);
+pub const DEFAULT_MEDIA_LANES: usize = 2;
 
 pub fn active_media_lanes() -> usize {
-    ACTIVE_MEDIA_LANES
-        .load(std::sync::atomic::Ordering::Relaxed)
-        .clamp(1, MAX_MEDIA_LANES)
+    crate::transfer_policy::current().media_lanes()
 }
 
 /// Runtime knob for the "Faster downloads" setting; applies to the next acquisition.
 pub fn set_active_media_lanes(lanes: usize) {
-    ACTIVE_MEDIA_LANES.store(
-        lanes.clamp(1, MAX_MEDIA_LANES),
-        std::sync::atomic::Ordering::Relaxed,
-    );
+    let lanes = lanes.clamp(1, MAX_MEDIA_LANES);
+    crate::transfer_policy::default_policy().assign_media_lanes(lanes);
+    crate::client::visit_policies(|policy| policy.follow_media_lanes(lanes));
 }
 
 pub fn family(class: RequestClass) -> LaneFamily {
@@ -218,6 +212,40 @@ pub struct LaneGuard<'a> {
     gate: &'a LaneGate,
 }
 
+pub(crate) struct LaneWaiter<'a> {
+    gate: &'a LaneGate,
+    ticket: u64,
+}
+
+impl LaneWaiter<'_> {
+    pub(crate) fn is_next(&self) -> bool {
+        self.gate
+            .state
+            .lock()
+            .waiters
+            .iter()
+            .min_by_key(|waiter| (waiter.priority, waiter.ticket))
+            .is_some_and(|waiter| waiter.ticket == self.ticket)
+    }
+
+    pub(crate) fn wait(&self) {
+        self.gate
+            .wake
+            .wait_for(&mut self.gate.state.lock(), Duration::from_millis(5));
+    }
+}
+
+impl Drop for LaneWaiter<'_> {
+    fn drop(&mut self) {
+        self.gate
+            .state
+            .lock()
+            .waiters
+            .retain(|waiter| waiter.ticket != self.ticket);
+        self.gate.wake.notify_all();
+    }
+}
+
 impl Default for LaneGate {
     fn default() -> Self {
         Self {
@@ -230,6 +258,23 @@ impl Default for LaneGate {
 impl LaneGate {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub(crate) fn enqueue(&self, class: RequestClass) -> LaneWaiter<'_> {
+        let mut state = self.state.lock();
+        let ticket = state.next_ticket;
+        state.next_ticket += 1;
+        state.waiters.push_back(Waiter {
+            ticket,
+            priority: class.priority(),
+        });
+        self.wake.notify_all();
+        LaneWaiter { gate: self, ticket }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn waiter_count(&self) -> usize {
+        self.state.lock().waiters.len()
     }
 
     /// Non-blocking admission. Fails when the lane is busy *or* when a higher-priority

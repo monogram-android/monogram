@@ -10,8 +10,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,17 +25,14 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.coroutines.coroutineContext
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
-import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.perfOp
+import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.INSTANT_VIEW_MEDIA_MSG_ID
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
@@ -338,12 +337,12 @@ class MediaRepository(
     ): Outcome<File> {
         val key = "emoji:$documentId"
         cache.get(key)?.let { return Outcome.Ok(it) }
-        return enqueueTelegram(key, priority, chatId = null) {
+        return enqueueTelegram(key, priority, chatId = null) { activePriority ->
             cache.get(key)?.let { return@enqueueTelegram Outcome.Ok(it) }
             val dest = cache.fileFor(key)
             val fetcher = customEmojiFetcher
                 ?: return@enqueueTelegram Outcome.Err("custom emoji fetcher not configured")
-            when (val fetched = fetcher(documentId, dest.absolutePath, priority)) {
+            when (val fetched = fetcher(documentId, dest.absolutePath, activePriority)) {
                 is Outcome.Ok -> {
                     val file = File(fetched.value)
                     if (!file.exists()) {
@@ -402,7 +401,8 @@ class MediaRepository(
             chatId = chatId.value,
             name = name,
             totalBytes = totalBytes,
-        ) {
+            large = kind != MediaFetchKind.Thumb && isLargeDownload(totalBytes),
+        ) { activePriority ->
             val waited = PerfLog.nowMs() - queuedAt
             PerfLog.mark("queue_wait:${kind.name.lowercase()}", waited)
             cache.get(key)?.let { return@enqueueTelegram Outcome.Ok(it) }
@@ -423,7 +423,7 @@ class MediaRepository(
                     messageId = messageId,
                     destPath = destPath,
                     kind = kind,
-                    priority = priority,
+                    priority = activePriority,
                 )
             } finally {
                 progressPaths.remove(destPath)
@@ -577,7 +577,8 @@ class MediaRepository(
         chatId: Long? = null,
         name: String? = null,
         totalBytes: Long? = null,
-        work: suspend () -> Outcome<File>,
+        large: Boolean = false,
+        work: suspend (Int) -> Outcome<File>,
     ): Outcome<File> {
         cache.get(key)?.let { return Outcome.Ok(it) }
         val job = telegramMutex.withLock {
@@ -585,6 +586,7 @@ class MediaRepository(
             val existing = telegramJobs[key]
             if (existing != null) {
                 if (existing.chatId == null && chatId != null) existing.chatId = chatId
+                if (large) existing.large = true
                 if (priority > existing.priority) {
                     existing.priority = priority
                     if (!existing.cancelled && !existing.running) {
@@ -604,6 +606,7 @@ class MediaRepository(
                     chatId = chatId,
                     priority = priority,
                     sequence = telegramSequence++,
+                    large = large,
                     work = work,
                 )
                 telegramJobs[key] = created
@@ -625,6 +628,7 @@ class MediaRepository(
                 chatId = chatId,
                 name = name,
                 totalBytes = totalBytes,
+                large = large,
                 work = work,
             )
         }
@@ -663,6 +667,7 @@ class MediaRepository(
                 if (queued.generation != job.generation) continue
                 if (job.cancelled || job.running || job.deferred.isCompleted) continue
                 val hold = when {
+                    job.large && runningLargeLocked() >= MAX_LARGE_PIPELINES -> true
                     holdDefault && job.priority < MediaPriority.DISPLAY -> true
                     holdIdle && job.priority <= MediaPriority.IDLE -> true
                     else -> false
@@ -691,7 +696,7 @@ class MediaRepository(
         val result = perfOp("telegram_job") {
             try {
                 coroutineScope {
-                    val runner = async(start = CoroutineStart.LAZY) { job.work() }
+                    val runner = async(start = CoroutineStart.LAZY) { job.work(job.priority) }
                     job.runner = runner
                     try {
                         runner.start()
@@ -727,7 +732,11 @@ class MediaRepository(
             if (telegramJobs[job.key] === job) telegramJobs.remove(job.key)
             untrackUserDownloadLocked(job.key)
         }
+        telegramWake.trySend(Unit)
     }
+
+    private fun runningLargeLocked(): Int =
+        telegramJobs.values.count { it.running && it.large }
 
     private fun trackUserDownloadLocked(key: String, name: String?, totalBytes: Long?) {
         val label = name?.trim().orEmpty().ifEmpty { key }
@@ -807,7 +816,8 @@ class MediaRepository(
         var chatId: Long?,
         var priority: Int,
         var sequence: Long,
-        val work: suspend () -> Outcome<File>,
+        val work: suspend (Int) -> Outcome<File>,
+        var large: Boolean = false,
         val deferred: CompletableDeferred<Outcome<File>> = CompletableDeferred(),
         var generation: Int = 0,
         var running: Boolean = false,
@@ -832,6 +842,7 @@ class MediaRepository(
 
     companion object {
         const val TELEGRAM_WORKERS = 5
+        const val MAX_LARGE_PIPELINES = 2
         @Volatile
         var progressSink: ((String, Long) -> Unit)? = null
 

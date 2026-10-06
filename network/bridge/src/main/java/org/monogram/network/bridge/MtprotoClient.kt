@@ -97,4 +97,7 @@ sealed class MtprotoUpdate {
 
     data class UnreadMentionsDelta(val chatId: PeerId, val delta: Int) : MtprotoUpdate()
     data class UnreadReactionsDelta(val chatId: PeerId, val delta: Int) : MtprotoUpdate()
+
+    /** Catch-up edge from the native client. Not a banner; collectors may ignore it. */
+    data class SyncState(val isSyncing: Boolean) : MtprotoUpdate()
 }

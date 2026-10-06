@@ -127,8 +127,6 @@
     <string name="settings_data">Veri ve depolama</string>
     <string name="settings_data_sub">Otomatik indirme ve önbellek</string>
     <string name="settings_data_transfers">Aktarımlar</string>
-    <string name="settings_speed_up_uploads">Yüklemeleri hızlandır</string>
-    <string name="settings_speed_up_uploads_sub">İyi bir bağlantıda fotoğrafları ve dosyaları daha hızlı gönderin</string>
     <string name="settings_speed_up_downloads">İndirmeleri hızlandır</string>
     <string name="settings_speed_up_downloads_sub">İyi bir bağlantıda fotoğrafları, videoları ve dosyaları daha hızlı indirin</string>
     <string name="settings_autodownload">Otomatik medya indirme</string>

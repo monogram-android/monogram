@@ -275,6 +275,14 @@ pub enum UpdateEventDto {
         top_message_id: i32,
         read_max_id: i32,
     },
+    /// Dialog rows from a lazy `messages.getPeerDialogs` batch. Not a full chat refresh.
+    DialogsPatched {
+        chats: Vec<ChatDto>,
+    },
+    /// Edge-triggered catch-up signal. True while difference or channel recovery is in flight.
+    SyncState {
+        is_syncing: bool,
+    },
     Ignored {
         kind: String,
     },

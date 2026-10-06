@@ -347,7 +347,6 @@ fun SettingsContent(
                                 cacheMessage = state.cacheMessage,
                                 loading = state.loading || state.loggingOut,
                                 download = download,
-                                onSpeedUpUploads = DownloadSettings::setSpeedUpUploads,
                                 onSpeedUpDownloads = DownloadSettings::setSpeedUpDownloads,
                                 onOpenAutoDownload = { network ->
                                     component.openPage(

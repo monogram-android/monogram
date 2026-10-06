@@ -189,6 +189,11 @@ pub(crate) fn fetch_user_full(
         ),
         _ => (None, false, false, false, false),
     };
+    if is_self {
+        crate::transfer_policy::current()
+            .premium
+            .store(is_premium, std::sync::atomic::Ordering::Relaxed);
+    }
     Ok(ProfileDto {
         id: peer_id,
         kind: if is_bot { "bot".into() } else { "user".into() },

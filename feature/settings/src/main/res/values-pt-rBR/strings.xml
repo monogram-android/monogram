@@ -127,8 +127,6 @@
     <string name="settings_data">Dados e armazenamento</string>
     <string name="settings_data_sub">Baixar automaticamente e cache</string>
     <string name="settings_data_transfers">Transferências</string>
-    <string name="settings_speed_up_uploads">Acelerar envios</string>
-    <string name="settings_speed_up_uploads_sub">Enviar fotos e arquivos mais rápido em conexões boas</string>
     <string name="settings_speed_up_downloads">Acelerar downloads</string>
     <string name="settings_speed_up_downloads_sub">Baixar fotos, vídeos e arquivos mais rápido em conexões boas</string>
     <string name="settings_autodownload">Download automático de mídia</string>

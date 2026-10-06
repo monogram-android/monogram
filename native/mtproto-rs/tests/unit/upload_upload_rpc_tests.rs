@@ -1,5 +1,10 @@
 use super::*;
 
+fn stock_policy() -> crate::transfer_policy::PolicyGuard {
+    let policy = std::sync::Arc::new(crate::transfer_policy::TransferPolicy::stock());
+    crate::transfer_policy::bind(policy)
+}
+
 fn temp_file(name: &str, size: usize) -> std::path::PathBuf {
     let path = std::env::temp_dir().join(format!(
         "monogram-upload-{}-{}-{name}",
@@ -26,7 +31,8 @@ fn item(path: &std::path::Path, kind: &str) -> UploadItemDto {
 
 #[test]
 fn staging_hands_out_every_part_once() {
-    let path = temp_file("parts", FILE_PART * 2 + 3);
+    let _policy = stock_policy();
+    let path = temp_file("parts", FILE_PART_FAST * 2 + 3);
     let fixture = item(&path, "document");
     let mut staging = open_staging(&fixture).expect("staging");
 
@@ -35,7 +41,8 @@ fn staging_hands_out_every_part_once() {
     assert_eq!(first.parts_total, 3);
     assert_ne!(first.file_id, 0);
     assert_eq!(first.bytes.len(), 2);
-    assert!(first.bytes.iter().all(|part| part.len() == FILE_PART));
+    assert!(first.bytes.iter().all(|part| part.len() == FILE_PART_FAST));
+    assert_eq!(staging.in_flight(), MAX_PARTS_IN_FLIGHT);
     assert!(!staging.is_complete());
 
     let second = staging.next_batch(2).expect("second").expect("read");
@@ -84,11 +91,58 @@ fn a_missing_stored_part_is_retryable() {
 
 #[test]
 fn part_size_matches_file_api() {
+    let _policy = stock_policy();
     assert_eq!(part_count(1), 1);
-    assert_eq!(part_count(FILE_PART as u64), 1);
-    assert_eq!(part_count(FILE_PART as u64 + 1), 2);
+    assert_eq!(part_count(FILE_PART_SMALL as u64), 1);
+    assert_eq!(part_count(FILE_PART_FAST as u64), 1);
+    assert_eq!(part_count(FILE_PART_FAST as u64 + 1), 2);
     assert!(!is_big_file(PHOTO_MAX));
     assert!(is_big_file(PHOTO_MAX + 1));
+    assert!(!is_big_file(BIG_FILE_THRESHOLD));
+    assert!(is_big_file(BIG_FILE_THRESHOLD + 1));
+}
+
+#[test]
+fn normal_upload_uses_512kib_and_eight_in_flight() {
+    let _policy = stock_policy();
+    let limits = upload_limits(FILE_PART_FAST as u64 + 1, None);
+    assert_eq!(limits.part_size, FILE_PART_FAST);
+    assert_eq!(limits.in_flight, 8);
+
+    let path = temp_file("normal", FILE_PART_FAST + 3);
+    let mut staging = open_staging(&item(&path, "document")).expect("staging");
+    assert_eq!(staging.in_flight(), 8);
+    assert!(
+        !staging
+            .next_batch(staging.in_flight())
+            .expect("batch")
+            .expect("read")
+            .big
+    );
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn one_part_or_slow_link_uses_32kib_and_one_in_flight() {
+    let _policy = stock_policy();
+    let small = upload_limits(FILE_PART_SMALL as u64, None);
+    assert_eq!(small.part_size, FILE_PART_SMALL);
+    assert_eq!(small.in_flight, 1);
+
+    let path = temp_file("small", FILE_PART_SMALL);
+    let staging = open_staging(&item(&path, "document")).expect("staging");
+    assert_eq!(staging.in_flight(), 1);
+    let _ = std::fs::remove_file(&path);
+
+    let slow = upload_limits(8 * 1024 * 1024, Some(SLOW_UPLOAD_RTT));
+    assert_eq!(slow.part_size, FILE_PART_SMALL);
+    assert_eq!(slow.in_flight, 1);
+    let below = upload_limits(
+        8 * 1024 * 1024,
+        Some(SLOW_UPLOAD_RTT - std::time::Duration::from_millis(1)),
+    );
+    assert_eq!(below.part_size, FILE_PART_FAST);
+    assert_eq!(below.in_flight, 8);
 }
 
 #[test]
@@ -106,4 +160,24 @@ fn album_rejects_mixed_and_too_long() {
         MtprotoError::Message(m) => assert_eq!(m, "MULTI_MEDIA_TOO_LONG"),
         other => panic!("{other:?}"),
     }
+}
+
+#[test]
+fn slow_network_preserves_large_file_support_and_premium_part_limit() {
+    let policy = std::sync::Arc::new(crate::transfer_policy::TransferPolicy::stock());
+    let _guard = crate::transfer_policy::bind(policy.clone());
+    let path = temp_file("premium-parts", 1);
+    let file = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+    file.set_len(4_001 * FILE_PART_FAST as u64).unwrap();
+    assert!(open_staging_with_rtt(&item(&path, "document"), Some(SLOW_UPLOAD_RTT)).is_err());
+    policy
+        .premium
+        .store(true, std::sync::atomic::Ordering::Relaxed);
+    let staging = open_staging_with_rtt(&item(&path, "document"), Some(SLOW_UPLOAD_RTT)).unwrap();
+    assert_eq!(staging.parts_total, 4_001);
+    assert_eq!(staging.part_size, FILE_PART_FAST);
+    assert_eq!(staging.in_flight(), 1);
+    drop(staging);
+    drop(file);
+    std::fs::remove_file(path).unwrap();
 }

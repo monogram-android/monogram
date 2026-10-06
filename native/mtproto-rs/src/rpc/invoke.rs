@@ -50,7 +50,7 @@ use super::dc::{extra_reconnect_same_host, reconnect_backoff, same_ip_endpoints}
 use super::framing::{
     SystemClock, bad_msg_should_reconnect, flush_acks, make_padding, open_live, open_live_addr,
     queue_update, recover_detailed_answer, recreate_session_after_bad_message, recv_framed,
-    repair_clock_from_server_msg_id, send_framed, send_ping, try_decode_complete,
+    repair_clock_from_server_msg_id, send_framed, send_ping, send_state_probe, try_decode_complete,
 };
 use super::inbound::{
     BAD_MSG_NOTIFICATION, InboundEvent, MAX_UNPACKED_BYTES, apply_new_session_salt, map_rpc_error,
@@ -59,10 +59,9 @@ use super::inbound::{
 use super::live::LiveTransport;
 use super::supervisor::{ConnectionSupervisor, FailureClass, failure_class, is_transport_error};
 use super::timeout::{
-    LAST_INBOUND_CTOR, extend_streaming_deadlines, keepalive_probe_failed, leftover_frame_grace,
-    live_transport_stale, note_inbound_liveness, rpc_attempt_budget, rpc_timeout_message,
-    rpc_timeout_secs, subscribed_read_deadline, timeout_idle_needs_probe,
-    trim_padded_mtproto_packet,
+    LAST_INBOUND_CTOR, extend_streaming_deadlines, leftover_frame_grace, live_transport_stale,
+    note_inbound_liveness, rpc_attempt_budget, rpc_timeout_message, rpc_timeout_secs,
+    subscribed_read_deadline, trim_padded_mtproto_packet,
 };
 
 pub(crate) struct RawMethod {
@@ -100,7 +99,7 @@ impl tellers_mtproto_engine::RetryPolicy for RpcRetryPolicy {
         now: i64,
         error: &tellers_mtproto_engine::Error,
     ) -> tellers_mtproto_engine::RetryDecision {
-        if !self.replay_safe && matches!(error, tellers_mtproto_engine::Error::Timeout { .. }) {
+        if matches!(error, tellers_mtproto_engine::Error::Timeout { .. }) {
             return tellers_mtproto_engine::RetryDecision::Fail;
         }
         self.backoff.after_failure(attempt, now, error)
@@ -109,6 +108,43 @@ impl tellers_mtproto_engine::RetryPolicy for RpcRetryPolicy {
 
 pub(crate) fn may_reconnect_request(replay_safe: bool, send_started: bool) -> bool {
     replay_safe || !send_started
+}
+
+fn check_silent_requests<P: tellers_mtproto_engine::RetryPolicy>(
+    engine: &mut Engine<P>,
+    transport: &mut LiveTransport,
+    clock: &SystemClock,
+    silent: &mut super::main_policy::SilentRequests,
+    ids: &[i64],
+    sent: bool,
+    attempt: &mut std::time::Instant,
+    overall: &mut std::time::Instant,
+    hard_cap: std::time::Instant,
+) -> Result<(), MtprotoError> {
+    let now = std::time::Instant::now();
+    silent.observe(ids, now);
+    if !sent {
+        return Ok(());
+    }
+    let due = silent.due(now, now >= *overall);
+    if due.is_empty() {
+        return Ok(());
+    }
+    let probe = send_state_probe(
+        engine,
+        &mut transport.conn,
+        &mut transport.framing,
+        &due,
+        clock,
+    )?;
+    transport.last_io = now;
+    silent.probed(probe, due);
+    // Give a status response a bounded grace period before any reconnect retry.
+    *overall = (*overall)
+        .max(now + std::time::Duration::from_secs(5))
+        .min(hard_cap);
+    *attempt = (*attempt).max(*overall);
+    Ok(())
 }
 
 pub(crate) fn invoke_raw_with_retry(
@@ -476,6 +512,10 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
             .map_err(|e| MtprotoError::Message(e.to_string()))?;
         pending.push(Some(handle));
     }
+    let mut silent = super::main_policy::SilentRequests::new(
+        crate::scheduler::family(crate::scheduler::current_class())
+            == crate::scheduler::LaneFamily::Media,
+    );
     let mut results: Vec<Option<Result<Vec<u8>, MtprotoError>>> =
         (0..bodies.len()).map(|_| None).collect();
     let mut received = 0usize;
@@ -493,7 +533,25 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
         transport.last_io = std::time::Instant::now();
     }
     loop {
-        let mut recv_attempt = attempt_deadline;
+        let ids: Vec<i64> = pending
+            .iter()
+            .flatten()
+            .map(|handle| handle.message_id())
+            .collect();
+        check_silent_requests(
+            engine,
+            transport,
+            clock,
+            &mut silent,
+            &ids,
+            *send_started && !wait_for_keepalive,
+            &mut attempt_deadline,
+            &mut overall_deadline,
+            hard_cap,
+        )?;
+        let mut recv_attempt = silent
+            .next_deadline()
+            .map_or(attempt_deadline, |due| attempt_deadline.min(due));
         let mut recv_overall = overall_deadline;
         if std::time::Instant::now() > overall_deadline {
             match transport.framing.decode(&transport.input) {
@@ -618,17 +676,12 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
                 packet
             }
             Err(err) if wait_for_keepalive => return Err(err),
-            Err(err) if timeout_idle_needs_probe(&err) => {
-                if keepalive_probe_failed(ping_inflight) {
-                    return Err(err);
-                }
-                ping_inflight = Some(send_ping(
-                    engine,
-                    &mut transport.conn,
-                    &mut transport.framing,
-                    clock,
-                )?);
-                transport.last_io = std::time::Instant::now();
+            Err(err)
+                if matches!(&err, MtprotoError::Message(message) if message.starts_with("RPC timeout"))
+                    && transport.input.is_empty()
+                    && (std::time::Instant::now() < overall_deadline
+                        || !silent.due(std::time::Instant::now(), true).is_empty()) =>
+            {
                 continue;
             }
             Err(err) => return Err(err),
@@ -678,6 +731,7 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
                         &mut transport.framing,
                         clock,
                         message_id,
+                        Some(&mut silent),
                     )?;
                 }
                 InboundEvent::BadMessage {
@@ -697,11 +751,20 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
                             "bad_msg_notification {error_code} recv={received} last_ctor={BAD_MSG_NOTIFICATION:#x}"
                         )));
                     }
-                    let now = clock.unix_micros();
-                    let err = tellers_mtproto_engine::Error::Authorization(format!(
-                        "bad_msg_notification {error_code}"
-                    ));
-                    let _ = engine.fail_request(bad_msg_id, now, &err);
+                    if matches!(error_code, 19 | 64) {
+                        return Err(MtprotoError::Message(format!(
+                            "bad_msg_notification {error_code}"
+                        )));
+                    }
+                    for outbound in take_salt_resend(engine, bad_msg_id, clock)? {
+                        silent.resent(bad_msg_id, outbound.message_id, std::time::Instant::now());
+                        let padding = make_padding(outbound.body.len())?;
+                        let sealed = engine
+                            .seal_outbound(&outbound, &padding)
+                            .map_err(|e| MtprotoError::Message(e.to_string()))?;
+                        send_framed(&mut transport.conn, &mut transport.framing, &sealed)?;
+                        transport.last_io = std::time::Instant::now();
+                    }
                 }
                 InboundEvent::FutureSalts(windows) => {
                     remember_future_salts(&mut engine.session, &windows, clock);
@@ -715,23 +778,11 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
                 InboundEvent::AnswerAvailable { answer_msg_id } => {
                     recover_detailed_answer(engine, transport, answer_msg_id, clock)?;
                 }
+                InboundEvent::MessageStatus { req_msg_id, info } => {
+                    silent.status(req_msg_id, &info)?
+                }
                 InboundEvent::Ignored => {}
             }
-        }
-        let poll_failures = engine
-            .poll(clock)
-            .map_err(|e| MtprotoError::Message(e.to_string()))?;
-        if poll_failures.iter().any(|e| {
-            matches!(
-                e,
-                tellers_mtproto_engine::Error::RetryExhausted { .. }
-                    | tellers_mtproto_engine::Error::Timeout { .. }
-            )
-        }) {
-            return Err(MtprotoError::Message(format!(
-                "RPC timeout recv={received} last_ctor={:#x}",
-                LAST_INBOUND_CTOR.with(|c| c.get())
-            )));
         }
         flush_acks(engine, &mut transport.conn, &mut transport.framing, clock)?;
     }
@@ -743,10 +794,22 @@ fn replay_updates_rejection<P: tellers_mtproto_engine::RetryPolicy>(
     framing: &mut tellers_mtproto_transport::PaddedIntermediate,
     clock: &SystemClock,
     message_id: i64,
+    mut silent: Option<&mut super::main_policy::SilentRequests>,
 ) -> Result<bool, MtprotoError> {
-    let now = clock.unix_micros();
-    let err = tellers_mtproto_engine::Error::Authorization("bad_server_salt".into());
-    let _ = engine.fail_request(message_id, now, &err);
+    let resent = take_salt_resend(engine, message_id, clock)?;
+    if !resent.is_empty() {
+        for outbound in resent {
+            if let Some(silent) = silent.as_mut() {
+                silent.resent(message_id, outbound.message_id, std::time::Instant::now());
+            }
+            let padding = make_padding(outbound.body.len())?;
+            let sealed = engine
+                .seal_outbound(&outbound, &padding)
+                .map_err(|e| MtprotoError::Message(e.to_string()))?;
+            send_framed(conn, framing, &sealed)?;
+        }
+        return Ok(true);
+    }
     super::framing::resend_plaintext(engine, conn, framing, clock, message_id)
 }
 
@@ -755,7 +818,7 @@ fn ingest_update_packet<P: tellers_mtproto_engine::RetryPolicy>(
     transport: &mut LiveTransport,
     packet: Vec<u8>,
     clock: &SystemClock,
-) -> Result<(), MtprotoError> {
+) -> Result<Option<i64>, MtprotoError> {
     let inbound = engine
         .open_inbound(
             trim_padded_mtproto_packet(&packet),
@@ -768,10 +831,11 @@ fn ingest_update_packet<P: tellers_mtproto_engine::RetryPolicy>(
         return Err(MtprotoError::Message("invalid inbound message time".into()));
     }
     if !should_process_inbound(inbound.disposition) {
-        return Ok(());
+        return Ok(None);
     }
     transport.ping_sent = None;
     transport.last_io = std::time::Instant::now();
+    let mut pong = None;
     for event in parse_authenticated(
         &inbound.message.body,
         inbound.message.message_id,
@@ -793,6 +857,7 @@ fn ingest_update_packet<P: tellers_mtproto_engine::RetryPolicy>(
                     &mut transport.framing,
                     clock,
                     message_id,
+                    None,
                 )?;
             }
             InboundEvent::FutureSalts(windows) => {
@@ -805,11 +870,14 @@ fn ingest_update_packet<P: tellers_mtproto_engine::RetryPolicy>(
                     ));
                 }
             }
-            InboundEvent::RpcResult { .. } | InboundEvent::Pong { .. } | InboundEvent::Ignored => {}
+            InboundEvent::Pong { ping_id } => pong = Some(ping_id),
+            InboundEvent::RpcResult { .. }
+            | InboundEvent::MessageStatus { .. }
+            | InboundEvent::Ignored => {}
         }
     }
     flush_acks(engine, &mut transport.conn, &mut transport.framing, clock)?;
-    Ok(())
+    Ok(pong)
 }
 
 pub(crate) fn receive_updates(snapshot: &mut Snapshot) -> Result<Vec<Vec<u8>>, MtprotoError> {
@@ -891,13 +959,90 @@ pub(crate) fn receive_updates(snapshot: &mut Snapshot) -> Result<Vec<Vec<u8>>, M
     Ok(updates)
 }
 
+pub(crate) fn ping_existing_rtt(
+    snapshot: &mut Snapshot,
+) -> Result<Option<std::time::Duration>, MtprotoError> {
+    let mut owner = ConnectionSupervisor::acquire(snapshot.dc_id)?;
+    let Some(transport) = owner.transport.as_mut() else {
+        return Ok(None);
+    };
+    let clock = SystemClock;
+    let mut engine = Engine::new(
+        snapshot.clone(),
+        ExponentialBackoff {
+            timeout_micros: 2_000_000,
+            initial_delay_micros: 0,
+            max_attempts: 1,
+        },
+    )
+    .map_err(|error| MtprotoError::Message(error.to_string()))?;
+    let started = std::time::Instant::now();
+    let deadline = started + std::time::Duration::from_secs(2);
+    let ping_id = send_ping(
+        &mut engine,
+        &mut transport.conn,
+        &mut transport.framing,
+        &clock,
+    )?;
+    let mut received = 0;
+    loop {
+        let packet = recv_framed(
+            &mut transport.conn,
+            &mut transport.framing,
+            &mut transport.input,
+            &mut received,
+            deadline,
+            deadline,
+            false,
+            2_000,
+        )?;
+        let pong = ingest_update_packet(&mut engine, transport, packet, &clock)?;
+        if pong == Some(ping_id) {
+            *snapshot = engine.session;
+            owner.park_ready();
+            return Ok(Some(started.elapsed()));
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(MtprotoError::Message(
+                "RPC timeout measuring upload RTT".into(),
+            ));
+        }
+    }
+}
+
+pub(crate) fn flush_pending_acks(
+    snapshot: &mut Snapshot,
+    transport: &mut LiveTransport,
+) -> Result<(), MtprotoError> {
+    let mut engine = Engine::new(
+        snapshot.clone(),
+        ExponentialBackoff {
+            timeout_micros: 8_000_000,
+            initial_delay_micros: 0,
+            max_attempts: 1,
+        },
+    )
+    .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    let result = flush_acks(
+        &mut engine,
+        &mut transport.conn,
+        &mut transport.framing,
+        &SystemClock,
+    );
+    *snapshot = engine.session;
+    if result.is_ok() {
+        transport.last_io = std::time::Instant::now();
+    }
+    result
+}
+
 pub(crate) fn invoke_until_result<P: tellers_mtproto_engine::RetryPolicy>(
     engine: &mut Engine<P>,
     transport: &mut LiveTransport,
     request_body: Vec<u8>,
     clock: &SystemClock,
-    attempt_deadline: std::time::Instant,
-    overall_deadline: std::time::Instant,
+    mut attempt_deadline: std::time::Instant,
+    mut overall_deadline: std::time::Instant,
     hard_cap: std::time::Instant,
     reused: bool,
     send_started: &mut bool,
@@ -907,6 +1052,10 @@ pub(crate) fn invoke_until_result<P: tellers_mtproto_engine::RetryPolicy>(
     let handle = engine
         .invoke(&method, clock)
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    let mut silent = super::main_policy::SilentRequests::new(
+        crate::scheduler::family(crate::scheduler::current_class())
+            == crate::scheduler::LaneFamily::Media,
+    );
     let mut received = 0usize;
     let mut leftover_grace = false;
     let mut ping_inflight: Option<i64> = None;
@@ -922,7 +1071,20 @@ pub(crate) fn invoke_until_result<P: tellers_mtproto_engine::RetryPolicy>(
         transport.last_io = std::time::Instant::now();
     }
     loop {
-        let mut recv_attempt = attempt_deadline;
+        check_silent_requests(
+            engine,
+            transport,
+            clock,
+            &mut silent,
+            &[handle.message_id()],
+            *send_started && !wait_for_keepalive,
+            &mut attempt_deadline,
+            &mut overall_deadline,
+            hard_cap,
+        )?;
+        let mut recv_attempt = silent
+            .next_deadline()
+            .map_or(attempt_deadline, |due| attempt_deadline.min(due));
         let mut recv_overall = overall_deadline;
         if std::time::Instant::now() > overall_deadline {
             match transport.framing.decode(&transport.input) {
@@ -1002,17 +1164,12 @@ pub(crate) fn invoke_until_result<P: tellers_mtproto_engine::RetryPolicy>(
                 packet
             }
             Err(err) if wait_for_keepalive => return Err(err),
-            Err(err) if timeout_idle_needs_probe(&err) => {
-                if keepalive_probe_failed(ping_inflight) {
-                    return Err(err);
-                }
-                ping_inflight = Some(send_ping(
-                    engine,
-                    &mut transport.conn,
-                    &mut transport.framing,
-                    clock,
-                )?);
-                transport.last_io = std::time::Instant::now();
+            Err(err)
+                if matches!(&err, MtprotoError::Message(message) if message.starts_with("RPC timeout"))
+                    && transport.input.is_empty()
+                    && (std::time::Instant::now() < overall_deadline
+                        || !silent.due(std::time::Instant::now(), true).is_empty()) =>
+            {
                 continue;
             }
             Err(err) => return Err(err),
@@ -1068,6 +1225,7 @@ pub(crate) fn invoke_until_result<P: tellers_mtproto_engine::RetryPolicy>(
                         &mut transport.framing,
                         clock,
                         message_id,
+                        Some(&mut silent),
                     )?;
                 }
                 InboundEvent::BadMessage {
@@ -1091,11 +1249,20 @@ pub(crate) fn invoke_until_result<P: tellers_mtproto_engine::RetryPolicy>(
                             "bad_msg_notification {error_code} recv={received} last_ctor={BAD_MSG_NOTIFICATION:#x}"
                         )));
                     }
-                    let now = clock.unix_micros();
-                    let err = tellers_mtproto_engine::Error::Authorization(format!(
-                        "bad_msg_notification {error_code}"
-                    ));
-                    let _ = engine.fail_request(bad_msg_id, now, &err);
+                    if matches!(error_code, 19 | 64) {
+                        return Err(MtprotoError::Message(format!(
+                            "bad_msg_notification {error_code}"
+                        )));
+                    }
+                    for outbound in take_salt_resend(engine, bad_msg_id, clock)? {
+                        silent.resent(bad_msg_id, outbound.message_id, std::time::Instant::now());
+                        let padding = make_padding(outbound.body.len())?;
+                        let sealed = engine
+                            .seal_outbound(&outbound, &padding)
+                            .map_err(|e| MtprotoError::Message(e.to_string()))?;
+                        send_framed(&mut transport.conn, &mut transport.framing, &sealed)?;
+                        transport.last_io = std::time::Instant::now();
+                    }
                     // A rejected ping/ack is not evidence that the RPC failed.
                 }
                 InboundEvent::FutureSalts(windows) => {
@@ -1110,23 +1277,11 @@ pub(crate) fn invoke_until_result<P: tellers_mtproto_engine::RetryPolicy>(
                 InboundEvent::AnswerAvailable { answer_msg_id } => {
                     recover_detailed_answer(engine, transport, answer_msg_id, clock)?;
                 }
+                InboundEvent::MessageStatus { req_msg_id, info } => {
+                    silent.status(req_msg_id, &info)?
+                }
                 InboundEvent::Ignored => {}
             }
-        }
-        let poll_failures = engine
-            .poll(clock)
-            .map_err(|e| MtprotoError::Message(e.to_string()))?;
-        if poll_failures.iter().any(|e| {
-            matches!(
-                e,
-                tellers_mtproto_engine::Error::RetryExhausted { .. }
-                    | tellers_mtproto_engine::Error::Timeout { .. }
-            )
-        }) {
-            return Err(MtprotoError::Message(format!(
-                "RPC timeout recv={received} last_ctor={:#x}",
-                LAST_INBOUND_CTOR.with(|c| c.get())
-            )));
         }
         flush_acks(engine, &mut transport.conn, &mut transport.framing, clock)?;
     }

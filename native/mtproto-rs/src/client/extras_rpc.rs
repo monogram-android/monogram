@@ -333,7 +333,42 @@ pub fn animated_emoji_max(snapshot: &mut Snapshot, api_id: i32) -> Result<i32, M
     let HelpAppConfig::HelpAppConfig(body) = cfg else {
         return Ok(0);
     };
+    apply_transfer_config(body.config.as_ref());
     Ok(json_object_int(body.config.as_ref(), "message_animated_emoji_max").unwrap_or(0))
+}
+
+pub(crate) fn apply_transfer_config(config: &JsonValue) {
+    let read = |keys: &[&str], fallback| {
+        keys.iter()
+            .find_map(|key| json_object_int(config, key))
+            .unwrap_or(fallback)
+            .clamp(1, 8) as usize
+    };
+    let small = read(
+        &[
+            "small_queue_active_operations_max",
+            "small_queue_max_active_operations_count",
+        ],
+        5,
+    );
+    let large = read(
+        &[
+            "large_queue_active_operations_max",
+            "large_queue_max_active_operations_count",
+        ],
+        2,
+    );
+    let policy = crate::transfer_policy::current();
+    let upload_limits = (
+        json_object_int(config, "upload_max_fileparts_default")
+            .filter(|limit| *limit > 0)
+            .unwrap_or(4_000),
+        json_object_int(config, "upload_max_fileparts_premium")
+            .filter(|limit| *limit > 0)
+            .unwrap_or(8_000),
+    );
+    *policy.upload_parts.lock() = upload_limits;
+    *crate::transfer_policy::current().queue_limits.lock() = (small, large);
 }
 
 fn json_object_int(value: &JsonValue, key: &str) -> Option<i32> {

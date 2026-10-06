@@ -8,11 +8,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -191,6 +191,59 @@ class BridgedMtprotoClientHistoryTest {
             runCurrent()
             assertTrue("chatsCalls=$chatsCalls drains=${native.drainCalls}", chatsCalls >= 2)
             assertTrue("drain loops should stay far below the old 80-sleep cooldown, drains=${native.drainCalls}", native.drainCalls < 20)
+        } finally {
+            client.close()
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun lazyDialogPatchSkipsFullChatRefresh() = runTest {
+        var lazyEnabled: Boolean? = null
+        val native = object : RecordingNative() {
+            override fun updateLazySyncConfig(handle: Long, lazy: Boolean, exceptions: List<Long>) {
+                lazyEnabled = lazy
+                assertTrue(exceptions.isEmpty())
+            }
+
+            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                drainCalls++
+                return when (drainCalls) {
+                    1 -> listOf(
+                        UpdateEventDto.DialogsPatched(listOf(sampleChat(title = "Patched"))),
+                        UpdateEventDto.SyncState(isSyncing = true),
+                    )
+
+                    2 -> listOf(UpdateEventDto.SyncState(isSyncing = false))
+                    else -> emptyList()
+                }
+            }
+        }
+        val client = BridgedMtprotoClient(
+            credentials = TelegramCredentials(1, "hash"),
+            sessionPath = "lazy-patch.session",
+            native = native,
+            nativeDispatcher = StandardTestDispatcher(testScheduler),
+            refreshDcSidecar = {},
+        )
+        try {
+            val seen = mutableListOf<MtprotoUpdate>()
+            val collector = backgroundScope.async { client.updates().toList(seen) }
+            runCurrent()
+            client.connect()
+            advanceTimeBy(100)
+            runCurrent()
+            assertEquals(true, lazyEnabled)
+            assertEquals(0, native.getChatsCalls)
+            assertEquals(
+                "Patched",
+                seen.filterIsInstance<MtprotoUpdate.ChatsChanged>().single().chats.single().title,
+            )
+            assertEquals(
+                listOf(true, false),
+                seen.filterIsInstance<MtprotoUpdate.SyncState>().map { it.isSyncing },
+            )
+            collector.cancel()
         } finally {
             client.close()
         }
@@ -767,6 +820,43 @@ class BridgedMtprotoClientHistoryTest {
         assertEquals(42L, native.lastForumChatId)
         client.close()
     }
+
+    private fun sampleChat(title: String) = ChatDto(
+        id = 42L,
+        title = title,
+        isChannel = true,
+        isGroup = false,
+        isForum = false,
+        left = false,
+        unreadCount = 1,
+        lastMessagePreview = "hi",
+        lastMessageDate = 1L,
+        archived = false,
+        muted = false,
+        isContact = false,
+        isBot = false,
+        isVerified = false,
+        photoCacheKey = null,
+        pinned = false,
+        readInboxMaxId = 0,
+        readOutboxMaxId = 0,
+        peerStatus = null,
+        peerStatusAt = null,
+        lastMediaThumbCacheKey = null,
+        lastMessageId = 3,
+        canView = true,
+        canSendPlain = true,
+        canSendPhotos = true,
+        canForward = true,
+        canDeleteOthers = false,
+        emojiStatusDocumentId = null,
+        lastMessageOutgoing = false,
+        muteOverride = false,
+        unreadMark = false,
+        unreadMentionsCount = 0,
+        unreadReactionsCount = 0,
+        canManageTopics = false,
+    )
 
     private open class RecordingNative(
         private val getChatsSleepMs: Long = 0,

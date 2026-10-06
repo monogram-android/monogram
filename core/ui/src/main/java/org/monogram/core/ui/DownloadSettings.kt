@@ -156,18 +156,12 @@ data class DownloadState(
     val autoplayVideos: Boolean = true,
     val activeNetwork: AutoDownloadNetwork = AutoDownloadNetwork.Wifi,
 ) {
-    /** Free accounts trip `FLOOD_PREMIUM_WAIT` above two lanes and two parts. */
-    val effectiveLanes: Int get() = if (premium) lanes.coerceIn(1, 8) else 2
-    val parts: Int
-        get() = when {
-            !premium -> 2
-            speedUpDownloads -> 8
-            else -> 6
-        }
+    val effectiveLanes: Int get() = lanes.coerceIn(1, if (premium && speedUpDownloads) 8 else 2)
+    val parts: Int get() = if (!premium) 2 else if (speedUpDownloads) 8 else 4
     val concurrency: DownloadConcurrency
         get() = DownloadConcurrency(lanes = effectiveLanes, parts = parts)
-    val filePartKib: Int get() = if (speedUpUploads) 512 else 32
-    val downloadChunkKib: Int get() = if (premium && speedUpDownloads) 256 else 128
+    val filePartKib: Int get() = 512
+    val downloadChunkKib: Int get() = if (premium && speedUpDownloads) 512 else 128
 
     fun presetFor(network: AutoDownloadNetwork): AutoDownloadPreset = when (network) {
         AutoDownloadNetwork.Wifi -> wifi

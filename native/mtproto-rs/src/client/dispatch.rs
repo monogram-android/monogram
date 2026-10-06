@@ -568,34 +568,100 @@ pub(crate) fn upload_batches(
 }
 
 pub(crate) fn save_items(
-    state: &mut ClientState,
+    client: &Arc<Client>,
+    api_id: i32,
     items: &[crate::UploadItemDto],
 ) -> Result<Vec<UploadStaging>, MtprotoError> {
-    let width = pipeline_parts().clamp(1, crate::upload::upload_rpc::MAX_PARTS_IN_FLIGHT);
-    scheduler::with_class(scheduler::RequestClass::InteractiveMedia, || {
-        let mut out = Vec::with_capacity(items.len());
-        for item in items {
-            let mut staging = crate::upload::upload_rpc::open_staging(item)?;
-            upload_batches(&mut staging, width, |batch| {
-                crate::upload::upload_rpc::save_batch(&mut state.snapshot, state.api_id, batch)
-            })?;
-            out.push(staging);
-        }
-        Ok(out)
+    save_items_with(client, api_id, items, |snapshot, batch| {
+        crate::upload::upload_rpc::save_batch(snapshot, api_id, batch)
     })
 }
 
-pub(crate) fn send_uploaded_on_state<T>(
-    state: &mut ClientState,
-    chat_id: i64,
+pub(crate) fn save_items_with(
+    client: &Arc<Client>,
+    api_id: i32,
     items: &[crate::UploadItemDto],
+    mut accept: impl FnMut(
+        &mut tellers_mtproto_session::Snapshot,
+        &crate::upload::upload_rpc::UploadBatch,
+    ) -> Result<(), MtprotoError>,
+) -> Result<Vec<UploadStaging>, MtprotoError> {
+    let _ = api_id;
+    let _policy = crate::transfer_policy::bind(Arc::clone(&client.policy));
+    let home = client.main.lock().snapshot.clone();
+    crate::media::check_transfer_flood(home.dc_id, crate::media::TransferClass::Upload)?;
+    let mut io = client.upload.lock();
+    if sync_upload_snapshot(&mut io.snapshot, &home) {
+        io.transport = None;
+    }
+    let mut transport = io.transport.take();
+    let saved = scheduler::with_class(scheduler::RequestClass::InteractiveMedia, || {
+        with_client_transport(client, &mut transport, || {
+            let mut out = Vec::with_capacity(items.len());
+            let mut measured = client
+                .policy
+                .upload_rtt
+                .lock()
+                .is_some_and(|(dc, at, _)| dc == home.dc_id && at.elapsed().as_secs() < 60);
+            for item in items {
+                let rtt = client
+                    .policy
+                    .upload_rtt
+                    .lock()
+                    .filter(|(dc, at, _)| *dc == home.dc_id && at.elapsed().as_secs() < 60)
+                    .map(|(_, _, rtt)| rtt);
+                let mut staging = crate::upload::upload_rpc::open_staging_with_rtt(item, rtt)?;
+                let width = staging.in_flight();
+                upload_batches(&mut staging, width, |batch| {
+                    crate::media::check_transfer_flood(
+                        io.snapshot.dc_id,
+                        crate::media::TransferClass::Upload,
+                    )?;
+                    let result = accept(&mut io.snapshot, batch);
+                    if result.is_ok()
+                        && !measured
+                        && batch.bytes.iter().any(|part| part.len() > 32 * 1024)
+                    {
+                        measured = true;
+                        if let Ok(Some(rtt)) = crate::rpc::ping_existing_rtt(&mut io.snapshot) {
+                            *client.policy.upload_rtt.lock() =
+                                Some((io.snapshot.dc_id, std::time::Instant::now(), rtt));
+                        }
+                    }
+                    if let Err(error) = &result {
+                        crate::media::note_transfer_flood(
+                            io.snapshot.dc_id,
+                            crate::media::TransferClass::Upload,
+                            error,
+                        );
+                    }
+                    result
+                })?;
+                out.push(staging);
+            }
+            Ok(out)
+        })
+    });
+    io.transport = if saved.is_ok() { transport } else { None };
+    drop(io);
+    schedule_file_cleanup(client);
+    saved
+}
+
+pub(crate) fn send_uploaded_metadata<T>(
+    handle: u64,
+    chat_id: i64,
+    staging: &[UploadStaging],
     send: impl Fn(&mut ClientState, &[UploadStaging]) -> Result<T, MtprotoError>,
 ) -> Result<T, MtprotoError> {
-    call_with_migrate(state, |state| {
-        with_peer_refresh(state, chat_id, |state| {
-            let staging = save_items(state, items)?;
-            scheduler::with_class(scheduler::RequestClass::InteractiveRead, || {
-                send(state, &staging)
+    with_interactive_client_mut(handle, |state| {
+        crate::rpc::with_rpc_timeout_secs(300, || {
+            call_with_migrate(state, |state| {
+                with_peer_refresh(state, chat_id, |state| {
+                    scheduler::with_class(scheduler::RequestClass::InteractiveRead, || {
+                        send(state, staging)
+                    })
+                })
             })
         })
     })
@@ -626,29 +692,22 @@ pub fn send_photo_message(
         height: 0,
         random_id: 0,
     };
-    with_interactive_client_mut(handle, |state| {
-        let sent = crate::rpc::with_rpc_timeout_secs(300, || {
-            send_uploaded_on_state(
-                state,
-                chat_id,
-                std::slice::from_ref(&item),
-                |state, staging| {
-                    crate::upload::upload_rpc::send_uploaded(
-                        &mut state.snapshot,
-                        state.api_id,
-                        &state.peers,
-                        &mut state.media,
-                        chat_id,
-                        &item,
-                        crate::upload::upload_rpc::staged_input_file(&item, &staging[0]),
-                        reply_to_msg_id,
-                        top_msg_id,
-                        entities_json.as_deref(),
-                    )
-                },
-            )
-        })?;
-        Ok(sent)
+    let client = get_client(handle)?;
+    let api_id = client.data.lock().api_id;
+    let staging = save_items(&client, api_id, std::slice::from_ref(&item))?;
+    send_uploaded_metadata(handle, chat_id, &staging, |state, staging| {
+        crate::upload::upload_rpc::send_uploaded(
+            &mut state.snapshot,
+            state.api_id,
+            &state.peers,
+            &mut state.media,
+            chat_id,
+            &item,
+            crate::upload::upload_rpc::staged_input_file(&item, &staging[0]),
+            reply_to_msg_id,
+            top_msg_id,
+            entities_json.as_deref(),
+        )
     })
 }
 
@@ -660,29 +719,22 @@ pub fn send_uploaded_media(
     top_msg_id: i32,
     entities_json: Option<String>,
 ) -> Result<MessageDto, MtprotoError> {
-    with_interactive_client_mut(handle, |state| {
-        let sent = crate::rpc::with_rpc_timeout_secs(300, || {
-            send_uploaded_on_state(
-                state,
-                chat_id,
-                std::slice::from_ref(&item),
-                |state, staging| {
-                    crate::upload::upload_rpc::send_uploaded(
-                        &mut state.snapshot,
-                        state.api_id,
-                        &state.peers,
-                        &mut state.media,
-                        chat_id,
-                        &item,
-                        crate::upload::upload_rpc::staged_input_file(&item, &staging[0]),
-                        reply_to_msg_id,
-                        top_msg_id,
-                        entities_json.as_deref(),
-                    )
-                },
-            )
-        })?;
-        Ok(sent)
+    let client = get_client(handle)?;
+    let api_id = client.data.lock().api_id;
+    let staging = save_items(&client, api_id, std::slice::from_ref(&item))?;
+    send_uploaded_metadata(handle, chat_id, &staging, |state, staging| {
+        crate::upload::upload_rpc::send_uploaded(
+            &mut state.snapshot,
+            state.api_id,
+            &state.peers,
+            &mut state.media,
+            chat_id,
+            &item,
+            crate::upload::upload_rpc::staged_input_file(&item, &staging[0]),
+            reply_to_msg_id,
+            top_msg_id,
+            entities_json.as_deref(),
+        )
     })
 }
 
@@ -693,30 +745,26 @@ pub fn send_uploaded_album(
     reply_to_msg_id: i32,
     top_msg_id: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    with_interactive_client_mut(handle, |state| {
-        let sent = crate::rpc::with_rpc_timeout_secs(300, || {
-            send_uploaded_on_state(state, chat_id, &items, |state, staging| {
-                let inputs: Vec<_> = items
-                    .iter()
-                    .zip(staging)
-                    .map(|(item, staged)| {
-                        crate::upload::upload_rpc::staged_input_file(item, staged)
-                    })
-                    .collect();
-                crate::upload::upload_rpc::send_album(
-                    &mut state.snapshot,
-                    state.api_id,
-                    &state.peers,
-                    &mut state.media,
-                    chat_id,
-                    &items,
-                    &inputs,
-                    reply_to_msg_id,
-                    top_msg_id,
-                )
-            })
-        })?;
-        Ok(sent)
+    let client = get_client(handle)?;
+    let api_id = client.data.lock().api_id;
+    let staging = save_items(&client, api_id, &items)?;
+    send_uploaded_metadata(handle, chat_id, &staging, |state, staging| {
+        let inputs: Vec<_> = items
+            .iter()
+            .zip(staging)
+            .map(|(item, staged)| crate::upload::upload_rpc::staged_input_file(item, staged))
+            .collect();
+        crate::upload::upload_rpc::send_album(
+            &mut state.snapshot,
+            state.api_id,
+            &state.peers,
+            &mut state.media,
+            chat_id,
+            &items,
+            &inputs,
+            reply_to_msg_id,
+            top_msg_id,
+        )
     })
 }
 

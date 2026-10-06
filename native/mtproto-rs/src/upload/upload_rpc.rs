@@ -9,6 +9,7 @@ use crate::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::time::Duration;
 
 use tellers_mtproto::latest::api::{
     Bool, Document, DocumentAttribute, DocumentAttributeFilenameConstructor,
@@ -32,37 +33,67 @@ pub const FILE_PART_SMALL: usize = 32 * 1024;
 pub const FILE_PART_FAST: usize = 512 * 1024;
 pub const FILE_PART: usize = FILE_PART_SMALL;
 
-static FILE_PART_BYTES: std::sync::atomic::AtomicUsize =
-    std::sync::atomic::AtomicUsize::new(FILE_PART_SMALL);
-
 pub fn file_part() -> usize {
-    FILE_PART_BYTES
-        .load(std::sync::atomic::Ordering::Relaxed)
-        .clamp(FILE_PART_SMALL, FILE_PART_FAST)
+    crate::transfer_policy::current().file_part()
 }
 
 pub fn set_file_part_kib(kib: i32) {
-    let bytes = if kib >= 512 {
-        FILE_PART_FAST
+    let bytes = crate::transfer_policy::normalize_file_part_kib(kib);
+    crate::transfer_policy::default_policy().assign_file_part_kib(if bytes == FILE_PART_FAST {
+        512
     } else {
-        FILE_PART_SMALL
-    };
-    FILE_PART_BYTES.store(bytes, std::sync::atomic::Ordering::Relaxed);
+        32
+    });
+    crate::client::visit_policies(|policy| {
+        policy.follow_file_part_kib(if bytes == FILE_PART_FAST { 512 } else { 32 });
+    });
 }
 pub const PHOTO_MAX: u64 = 10 * 1024 * 1024;
 pub const BIG_FILE_THRESHOLD: u64 = 10 * 1024 * 1024;
-pub const MAX_PARTS: i32 = 4_000;
 pub const ALBUM_MAX: usize = 10;
+pub const MAX_PARTS_IN_FLIGHT: usize = 8;
+
+/// Round trip at or above this sends one 32 KiB part.
+/// https://core.telegram.org/api/files
+pub const SLOW_UPLOAD_RTT: Duration = Duration::from_secs(1);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct UploadLimits {
+    pub part_size: usize,
+    pub in_flight: usize,
+}
+
+/// Honor the configured part size with at most eight parts in flight. A tiny
+/// file or slow link uses one 32 KiB part at a time.
+/// https://core.telegram.org/api/files
+pub fn upload_limits(size: u64, rtt: Option<Duration>) -> UploadLimits {
+    let slow = rtt.is_some_and(|rtt| rtt >= SLOW_UPLOAD_RTT);
+    if slow || size <= FILE_PART_SMALL as u64 {
+        UploadLimits {
+            part_size: FILE_PART_SMALL,
+            in_flight: 1,
+        }
+    } else {
+        UploadLimits {
+            part_size: file_part(),
+            in_flight: MAX_PARTS_IN_FLIGHT,
+        }
+    }
+}
 
 pub fn is_big_file(size: u64) -> bool {
     size > BIG_FILE_THRESHOLD
 }
 
 pub fn part_count(size: u64) -> i32 {
-    if size == 0 {
+    part_count_for(size, upload_limits(size, None).part_size)
+}
+
+fn part_count_for(size: u64, part_size: usize) -> i32 {
+    if size == 0 || part_size == 0 {
         0
     } else {
-        ((size + file_part() as u64 - 1) / file_part() as u64) as i32
+        ((size + part_size as u64 - 1) / part_size as u64) as i32
     }
 }
 
@@ -250,9 +281,18 @@ pub struct UploadStaging {
     big: bool,
     parts_total: i32,
     next: i32,
+    part_size: usize,
+    in_flight: usize,
 }
 
 pub fn open_staging(item: &UploadItemDto) -> Result<UploadStaging, MtprotoError> {
+    open_staging_with_rtt(item, None)
+}
+
+pub fn open_staging_with_rtt(
+    item: &UploadItemDto,
+    rtt: Option<Duration>,
+) -> Result<UploadStaging, MtprotoError> {
     let path = Path::new(&item.path);
     let size = std::fs::metadata(path)
         .map_err(|e| MtprotoError::Message(e.to_string()))?
@@ -263,8 +303,14 @@ pub fn open_staging(item: &UploadItemDto) -> Result<UploadStaging, MtprotoError>
     if item.kind == "photo" && size > PHOTO_MAX {
         return Err(MtprotoError::Message("photo too large".into()));
     }
-    let parts_total = part_count(size);
-    if parts_total <= 0 || parts_total > MAX_PARTS {
+    let mut limits = upload_limits(size, rtt);
+    let max_parts = crate::transfer_policy::current().upload_max_parts();
+    // Slow-network chunks must still fit the account's server part-count limit.
+    if part_count_for(size, limits.part_size) > max_parts {
+        limits.part_size = FILE_PART_FAST;
+    }
+    let parts_total = part_count_for(size, limits.part_size);
+    if parts_total <= 0 || parts_total > max_parts {
         return Err(MtprotoError::Message("file too large".into()));
     }
     Ok(UploadStaging {
@@ -273,14 +319,18 @@ pub fn open_staging(item: &UploadItemDto) -> Result<UploadStaging, MtprotoError>
         big: is_big_file(size),
         parts_total,
         next: 0,
+        part_size: limits.part_size,
+        in_flight: limits.in_flight,
     })
 }
-
-pub const MAX_PARTS_IN_FLIGHT: usize = 8;
 
 impl UploadStaging {
     pub fn is_complete(&self) -> bool {
         self.next >= self.parts_total
+    }
+
+    pub fn in_flight(&self) -> usize {
+        self.in_flight.max(1)
     }
 
     pub fn next_batch(&mut self, width: usize) -> Option<Result<UploadBatch, MtprotoError>> {
@@ -290,7 +340,7 @@ impl UploadStaging {
         let end = (self.next + width.max(1) as i32).min(self.parts_total);
         let mut bytes = Vec::with_capacity((end - self.next) as usize);
         for _ in self.next..end {
-            match read_part(&mut self.file) {
+            match read_part(&mut self.file, self.part_size) {
                 Ok(part) => bytes.push(part),
                 Err(err) => return Some(Err(err)),
             }
@@ -375,8 +425,8 @@ pub fn is_missing_file_part(err: &MtprotoError) -> bool {
     msg.contains("FILE_PART")
 }
 
-fn read_part(file: &mut File) -> Result<Vec<u8>, MtprotoError> {
-    let mut buf = vec![0_u8; file_part()];
+fn read_part(file: &mut File, part_size: usize) -> Result<Vec<u8>, MtprotoError> {
+    let mut buf = vec![0_u8; part_size];
     let mut filled = 0usize;
     while filled < buf.len() {
         let n = file

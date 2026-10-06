@@ -108,7 +108,10 @@ fun MessageMedia(
     val (mediaVisible, visibilityModifier) = rememberViewportVisible(fullKey)
     val mediaAnimationEnabled = animationEnabled && mediaVisible
     val mediaModifier = if (sticker) {
-        modifier.padding(vertical = 2.dp).then(stickerClick).then(visibilityModifier)
+        modifier
+            .padding(vertical = 2.dp)
+            .then(stickerClick)
+            .then(visibilityModifier)
     } else if (fillBounds) {
         modifier.then(visibilityModifier)
     } else {
@@ -118,7 +121,9 @@ fun MessageMedia(
                 if (edgeToEdge) {
                     Modifier
                 } else {
-                    Modifier.padding(vertical = 2.dp).clip(RoundedCornerShape(12.dp))
+                    Modifier
+                        .padding(vertical = 2.dp)
+                        .clip(RoundedCornerShape(12.dp))
                 },
             )
             .then(visibilityModifier)
@@ -323,13 +328,15 @@ fun MessageMedia(
             VpxStickerPlayer(
                 file = stickerFile,
                 active = mediaAnimationEnabled,
-                modifier = mediaModifier.then(stickerBox).then(
-                    if (onStickerClick != null) {
-                        Modifier.clickable(onClick = onStickerClick)
-                    } else {
-                        Modifier
-                    },
-                ),
+                modifier = mediaModifier
+                    .then(stickerBox)
+                    .then(
+                        if (onStickerClick != null) {
+                            Modifier.clickable(onClick = onStickerClick)
+                        } else {
+                            Modifier
+                        },
+                    ),
             )
         }
         sticker && stickerBytes != null && gzipFile(fullFile ?: preview) -> {
@@ -380,7 +387,10 @@ fun MessageMedia(
                     playing = false
                     mediaRepository?.cancel(fullKey)
                 },
-                modifier = modifier.fillMaxWidth().padding(vertical = 2.dp).then(visibilityModifier),
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp)
+                    .then(visibilityModifier),
             )
         }
         !sticker && kind == "document" -> {
@@ -413,7 +423,10 @@ fun MessageMedia(
                     wantFull = false
                     mediaRepository?.cancel(fullKey)
                 },
-                modifier = modifier.fillMaxWidth().padding(vertical = 2.dp).then(visibilityModifier),
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp)
+                    .then(visibilityModifier),
             )
         }
         kind == "video_note" -> {
@@ -425,7 +438,9 @@ fun MessageMedia(
                     poster = (displayFile ?: fullFile ?: thumbFile)?.takeIf { stillImageFile(it) }
                         ?: thumbFile,
                     onLongPress = onLongPress,
-                    modifier = Modifier.padding(vertical = 2.dp).then(visibilityModifier),
+                    modifier = Modifier
+                        .padding(vertical = 2.dp)
+                        .then(visibilityModifier),
                 )
             }
         }
@@ -434,14 +449,15 @@ fun MessageMedia(
             val stillThumb = thumbFile?.takeIf { stillImageFile(it) }
             val sharpStill = (displayFile ?: fullFile)?.takeIf { stillImageFile(it) }
             val placeholder = shouldBlurMediaPreview(thumbKey, fullKey, sharpStill != null)
-            val autoplayVideo = shouldAutoplayChatVideo(
+            val inlineVideo = shouldAutoplayChatVideo(
                 kind = kind,
                 supportsStreaming = message.supportsStreaming,
                 sizeBytes = message.fileSize,
-                visible = mediaVisible,
+                visible = true,
                 autoplayVideos = downloadState.autoplayVideos,
                 preset = preset,
             )
+            val autoplayVideo = inlineVideo && mediaVisible
             LaunchedEffect(message.id, message.supportsStreaming, autoplayVideo, mediaVisible) {
                 if (kind != "video") return@LaunchedEffect
                 val name = message.fileName?.replace(Regex("[^A-Za-z0-9._-]"), "_")?.take(40).orEmpty()
@@ -451,7 +467,7 @@ fun MessageMedia(
                     "result=ok bytes=${message.fileSize ?: 0L}",
                 )
             }
-            if (kind == "video" && autoplayVideo && mediaRepository != null) {
+            if (kind == "video" && inlineVideo && mediaRepository != null) {
                 ChatInlineVideo(
                     message = message,
                     repository = mediaRepository,
@@ -511,18 +527,20 @@ fun MessageMedia(
             val placeholder = !sticker && shouldBlurMediaPreview(thumbKey, fullKey, sharpStill != null)
             val stillImage = sharpStill ?: stillThumb.takeIf { !placeholder }
             Box(
-                modifier = mediaModifier.then(
-                    if (sticker) stickerBox else Modifier
-                ).then(
-                    if (kind == "photo") {
-                        MediaTapModifier(
-                            onTap = { openMedia(message, albumMessages) },
-                            onLongPress = onLongPress,
-                        )
-                    } else {
-                        Modifier
-                    },
-                ),
+                modifier = mediaModifier
+                    .then(
+                        if (sticker) stickerBox else Modifier
+                    )
+                    .then(
+                        if (kind == "photo") {
+                            MediaTapModifier(
+                                onTap = { openMedia(message, albumMessages) },
+                                onLongPress = onLongPress,
+                            )
+                        } else {
+                            Modifier
+                        },
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 ProgressiveStill(

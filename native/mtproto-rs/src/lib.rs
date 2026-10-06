@@ -35,6 +35,7 @@ mod session_crypto;
 mod session_file;
 mod stripped_jpeg;
 mod tcp;
+mod transfer_policy;
 mod update_buffer;
 mod updates;
 mod upload;

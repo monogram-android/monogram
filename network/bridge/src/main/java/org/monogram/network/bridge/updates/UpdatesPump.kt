@@ -7,8 +7,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
@@ -16,12 +14,14 @@ import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.PeerId
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.UpdatesCursor
+import org.monogram.network.bridge.chat.toChatModels
 import org.monogram.network.bridge.session.DispatchClass
 import org.monogram.network.bridge.session.SessionCore
 import org.monogram.network.bridge.session.dispatchClassName
 import org.monogram.network.bridge.session.nativeRequest
 import uniffi.monogram_mtproto.UpdateEventDto
-import org.monogram.network.bridge.chat.toChatModels
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import org.monogram.network.bridge.chat.toModel as toFolderModel
 import org.monogram.network.bridge.message.toModel as toMessageModel
 import org.monogram.network.bridge.profile.toModel as toProfileModel
@@ -274,6 +274,18 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                             topMessageId = event.topMessageId,
                             readMaxId = event.readMaxId,
                         ),
+                    )
+
+                    is UpdateEventDto.DialogsPatched -> {
+                        if (event.chats.isNotEmpty()) {
+                            core.updatesEvents.emit(
+                                MtprotoUpdate.ChatsChanged(event.chats.toChatModels()),
+                            )
+                        }
+                    }
+
+                    is UpdateEventDto.SyncState -> core.updatesEvents.emit(
+                        MtprotoUpdate.SyncState(event.isSyncing),
                     )
                 }
             }

@@ -16,10 +16,12 @@ import uniffi.monogram_mtproto.MtprotoException
 import uniffi.monogram_mtproto.NotifyExceptionDto
 import uniffi.monogram_mtproto.NotifySettingsDto
 import uniffi.monogram_mtproto.OutboxReadDto
+import uniffi.monogram_mtproto.PollVotersDto
 import uniffi.monogram_mtproto.ProfileDto
+import uniffi.monogram_mtproto.ReactionChoiceDto
+import uniffi.monogram_mtproto.ReactionPeersDto
 import uniffi.monogram_mtproto.ReadParticipantsDto
 import uniffi.monogram_mtproto.ReadReceiptConfigDto
-import uniffi.monogram_mtproto.ReactionChoiceDto
 import uniffi.monogram_mtproto.ResolvedPeerDto
 import uniffi.monogram_mtproto.SavedGifDto
 import uniffi.monogram_mtproto.StickerCatalogDto
@@ -28,8 +30,6 @@ import uniffi.monogram_mtproto.StickerPackDto
 import uniffi.monogram_mtproto.UpdateEventDto
 import uniffi.monogram_mtproto.UpdatesStateDto
 import uniffi.monogram_mtproto.UploadItemDto
-import uniffi.monogram_mtproto.ReactionPeersDto
-import uniffi.monogram_mtproto.PollVotersDto
 
 /**
  * Low-level UniFFI surface backed by the Tellers MTProto runtime.
@@ -479,6 +479,12 @@ interface MtprotoNative {
 
     @Throws(MtprotoException::class)
     fun startUpdates(handle: Long)
+
+    /**
+     * Offscreen channels use `messages.getPeerDialogs`. The open chat stays on
+     * channel difference through the native history cursor.
+     */
+    fun updateLazySyncConfig(handle: Long, lazy: Boolean, exceptions: List<Long>) = Unit
 
     @Throws(MtprotoException::class)
     fun clearActiveDialog(handle: Long) = Unit

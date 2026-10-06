@@ -19,6 +19,9 @@ internal object DispatchClass {
     const val INTERACTIVE_MEDIA = 2
     const val BACKGROUND_MEDIA = 3
     const val INTERACTIVE_WRITE = 4
+    const val ORDINARY_MEDIA = 5
+    const val VISIBLE_MEDIA = 6
+    const val USER_MEDIA = 7
 }
 
 private class NativeRequestContext(
@@ -45,6 +48,9 @@ internal fun dispatchClassName(dispatchClass: Int): String = when (dispatchClass
     DispatchClass.INTERACTIVE_MEDIA -> "interactive_media"
     DispatchClass.BACKGROUND_MEDIA -> "background_media"
     DispatchClass.INTERACTIVE_WRITE -> "interactive_write"
+    DispatchClass.ORDINARY_MEDIA -> "ordinary_media"
+    DispatchClass.VISIBLE_MEDIA -> "visible_media"
+    DispatchClass.USER_MEDIA -> "user_media"
     else -> "class$dispatchClass"
 }
 

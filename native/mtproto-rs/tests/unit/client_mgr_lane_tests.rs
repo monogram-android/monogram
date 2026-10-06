@@ -1,6 +1,113 @@
 use super::*;
 
 #[test]
+fn download_sessions_grow_from_one_to_eight_and_reset_after_idle() {
+    let path = std::env::temp_dir().join(format!("monogram-growth-{}.json", std::process::id()));
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let client = get_client(handle).unwrap();
+    client.policy.own_media_lanes(8);
+    assert_eq!(client.media_open.load(Ordering::Acquire), 1);
+    scheduler::with_class(scheduler::RequestClass::InteractiveMedia, || {
+        let mut leases = Vec::new();
+        for expected in 1..=8 {
+            leases.push(lock_media_lane(&client).unwrap());
+            assert_eq!(client.media_open.load(Ordering::Acquire), expected);
+        }
+        assert!(close_idle_file_transports(
+            &client,
+            std::time::Instant::now()
+        ));
+        assert_eq!(client.media_open.load(Ordering::Acquire), 8);
+        drop(leases);
+        assert!(!close_idle_file_transports(
+            &client,
+            std::time::Instant::now()
+        ));
+        assert_eq!(client.media_open.load(Ordering::Acquire), 1);
+    });
+    destroy_client(handle);
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn idle_main_ack_deadline_flushes_all_pending_ids_without_an_rpc() {
+    let path = std::env::temp_dir().join(format!("monogram-ack-idle-{}.json", std::process::id()));
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let client = get_client(handle).unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap().to_string();
+    let transport = crate::rpc::open_live_addr(2, &address, None, 1).unwrap();
+    let (_peer, _) = listener.accept().unwrap();
+    {
+        let mut io = client.main.lock();
+        io.snapshot.auth_key = Some(vec![7; 256]);
+        for id in 0..130 {
+            io.snapshot.acknowledge((id * 4) + 1).unwrap();
+        }
+        io.transport = Some(transport);
+    }
+    let now = std::time::Instant::now();
+    let due = now + crate::rpc::ACK_DELAY;
+    assert!(flush_idle_main_acks(&client, now, due));
+    assert_eq!(
+        client.main.lock().snapshot.pending_acknowledgements.len(),
+        130
+    );
+    assert!(!flush_idle_main_acks(&client, due, due));
+    assert!(
+        client
+            .main
+            .lock()
+            .snapshot
+            .pending_acknowledgements
+            .is_empty()
+    );
+    assert!(client.main.lock().transport.is_some());
+    destroy_client(handle);
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn measured_upload_rtt_selects_the_small_part_path_in_production_staging() {
+    let path =
+        std::env::temp_dir().join(format!("monogram-upload-rtt-{}.json", std::process::id()));
+    let file = path.with_extension("bin");
+    std::fs::write(&file, vec![1; 96 * 1024]).unwrap();
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let client = get_client(handle).unwrap();
+    client.policy.own_file_part_kib(512);
+    client.policy.own_pipeline_parts(8);
+    let dc = client.main.lock().snapshot.dc_id;
+    *client.policy.upload_rtt.lock() = Some((
+        dc,
+        std::time::Instant::now(),
+        std::time::Duration::from_secs(1),
+    ));
+    let item = crate::UploadItemDto {
+        path: file.to_string_lossy().into(),
+        kind: "document".into(),
+        mime_type: String::new(),
+        file_name: "test.bin".into(),
+        caption: String::new(),
+        duration: 0,
+        width: 0,
+        height: 0,
+        random_id: 0,
+    };
+    let mut sizes = Vec::new();
+    save_items_with(&client, 1, &[item], |_, batch| {
+        assert_eq!(batch.bytes.len(), 1);
+        sizes.push(batch.bytes[0].len());
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(sizes, vec![32 * 1024; 3]);
+    destroy_client(handle);
+    std::fs::remove_file(path).ok();
+    std::fs::remove_file(file).ok();
+}
+
+#[test]
 fn updates_yield_to_main_rpc_and_media_keep_distinct_sessions() {
     let path = std::env::temp_dir().join(format!("monogram-lane-{}.json", std::process::id()));
     let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
@@ -331,7 +438,11 @@ fn upload_batches_take_the_main_lane_once_per_batch() {
     let stem = format!("monogram-upload-{}", std::process::id());
     let file = std::env::temp_dir().join(format!("{stem}.bin"));
     let session = std::env::temp_dir().join(format!("{stem}.session"));
-    std::fs::write(&file, vec![5_u8; crate::upload::upload_rpc::FILE_PART * 2]).expect("fixture");
+    std::fs::write(
+        &file,
+        vec![5_u8; crate::upload::upload_rpc::FILE_PART_FAST + 1],
+    )
+    .expect("fixture");
     let item = crate::UploadItemDto {
         path: file.to_string_lossy().into_owned(),
         kind: "document".into(),
@@ -347,6 +458,8 @@ fn upload_batches_take_the_main_lane_once_per_batch() {
     authorize_test_client(handle);
     let client = get_client(handle).expect("client");
     let mut staging = crate::upload::upload_rpc::open_staging(&item).expect("staging");
+    let expected_parts =
+        crate::upload::upload_rpc::part_count(std::fs::metadata(&file).unwrap().len());
     let mut batches = 0;
     upload_batches(&mut staging, 1, |_batch| {
         assert!(
@@ -357,7 +470,10 @@ fn upload_batches_take_the_main_lane_once_per_batch() {
         Ok(())
     })
     .expect("batches");
-    assert_eq!(batches, 2, "one lane acquisition per part batch");
+    assert_eq!(
+        batches, expected_parts,
+        "one lane acquisition per part batch"
+    );
     destroy_client(handle);
     let _ = std::fs::remove_file(file);
     let _ = std::fs::remove_file(session);
@@ -376,4 +492,273 @@ fn even_odd_media_offsets_split_by_chunk() {
 #[test]
 fn extra_main_sessions_stay_zero_without_tmp_sessions() {
     assert_eq!(crate::scheduler::extra_main_sessions(), 0);
+}
+
+#[test]
+fn file_parts_use_one_upload_session_and_metadata_stays_on_main() {
+    let stem = format!(
+        "monogram-upload-session-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    );
+    let small = std::env::temp_dir().join(format!("{stem}-small.bin"));
+    let big = std::env::temp_dir().join(format!("{stem}-big.bin"));
+    let session = std::env::temp_dir().join(format!("{stem}.session"));
+    std::fs::write(&small, vec![9_u8; 64]).expect("small fixture");
+    let big_file = std::fs::File::create(&big).expect("big fixture");
+    big_file
+        .set_len(crate::upload::upload_rpc::BIG_FILE_THRESHOLD + 1)
+        .expect("big length");
+    drop(big_file);
+    let small_item = crate::UploadItemDto {
+        path: small.to_string_lossy().into_owned(),
+        kind: "document".into(),
+        mime_type: String::new(),
+        file_name: "small.bin".into(),
+        caption: String::new(),
+        duration: 0,
+        width: 0,
+        height: 0,
+        random_id: 0,
+    };
+    let big_item = crate::UploadItemDto {
+        path: big.to_string_lossy().into_owned(),
+        kind: "document".into(),
+        mime_type: String::new(),
+        file_name: "big.bin".into(),
+        caption: String::new(),
+        duration: 0,
+        width: 0,
+        height: 0,
+        random_id: 0,
+    };
+    let handle = create_client(1, "hash".into(), session.to_string_lossy().into());
+    let client = get_client(handle).expect("client");
+    let main_id = client.main.lock().snapshot.session_id;
+    let media_ids: Vec<i64> = client
+        .media
+        .iter()
+        .map(|lane| lane.io.lock().snapshot.session_id)
+        .collect();
+    let rpc_ids = [
+        client.rpc[0].io.lock().snapshot.session_id,
+        client.rpc[1].io.lock().snapshot.session_id,
+    ];
+    let mut seen = Vec::new();
+    save_items_with(&client, 1, &[small_item, big_item], |snapshot, batch| {
+        seen.push((snapshot.session_id, batch.big));
+        Ok(())
+    })
+    .expect("recorded parts");
+    let upload_id = client.upload.lock().snapshot.session_id;
+    assert_ne!(upload_id, main_id);
+    assert!(!media_ids.contains(&upload_id));
+    assert!(!rpc_ids.contains(&upload_id));
+    assert!(seen.iter().any(|(_, big)| !big), "saveFilePart");
+    assert!(seen.iter().any(|(_, big)| *big), "saveBigFilePart");
+    assert!(seen.iter().all(|(id, _)| *id == upload_id));
+    with_interactive_client_mut(handle, |state| {
+        assert_eq!(state.snapshot.session_id, main_id);
+        Ok(())
+    })
+    .expect("main metadata session");
+    destroy_client(handle);
+    let _ = std::fs::remove_file(small);
+    let _ = std::fs::remove_file(big);
+    let _ = std::fs::remove_file(session);
+}
+
+#[test]
+fn idle_file_cleanup_closes_sockets_and_preserves_busy_lanes_and_main() {
+    use std::io::Read;
+    let path = std::env::temp_dir().join(format!("monogram-file-idle-{}.json", std::process::id()));
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let client = get_client(handle).unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap().to_string();
+    let now = std::time::Instant::now();
+    let mut media = crate::rpc::open_live_addr(2, &address, None, 1).unwrap();
+    let (mut media_peer, _) = listener.accept().unwrap();
+    let mut upload = crate::rpc::open_live_addr(2, &address, None, 1).unwrap();
+    let (mut upload_peer, _) = listener.accept().unwrap();
+    let main = crate::rpc::open_live_addr(2, &address, None, 1).unwrap();
+    let (_main_peer, _) = listener.accept().unwrap();
+    media.last_io = now;
+    upload.last_io = now;
+    client.media[0].io.lock().transport = Some(media);
+    client.upload.lock().transport = Some(upload);
+    client.main.lock().transport = Some(main);
+    assert!(close_idle_file_transports(&client, now));
+    let busy = client.media[0].io.lock();
+    let later = now + crate::media::DOWNLOAD_SESSION_IDLE;
+    assert!(close_idle_file_transports(&client, later));
+    assert!(busy.transport.is_some());
+    assert!(client.upload.lock().transport.is_none());
+    drop(busy);
+    assert!(!close_idle_file_transports(&client, later));
+    assert!(client.media[0].io.lock().transport.is_none());
+    assert!(client.main.lock().transport.is_some());
+    for peer in [&mut media_peer, &mut upload_peer] {
+        peer.set_read_timeout(Some(std::time::Duration::from_secs(1)))
+            .unwrap();
+        let mut header = [0u8; 64];
+        peer.read_exact(&mut header).unwrap();
+        assert_eq!(peer.read(&mut [0u8; 1]).unwrap(), 0);
+    }
+    destroy_client(handle);
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn media_waiters_use_any_freed_lane_and_admit_interactive_before_background() {
+    let path =
+        std::env::temp_dir().join(format!("monogram-lane-wakeup-{}.json", std::process::id()));
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let client = get_client(handle).unwrap();
+    client.policy.own_media_lanes(2);
+    let (first, last) = scheduler::with_class(scheduler::RequestClass::InteractiveMedia, || {
+        (
+            lock_media_lane(&client).unwrap(),
+            lock_media_lane(&client).unwrap(),
+        )
+    });
+    let first_id = first.snapshot.session_id;
+    let (tx, rx) = std::sync::mpsc::channel();
+    let background = client.clone();
+    let background_tx = tx.clone();
+    let worker = std::thread::spawn(move || {
+        scheduler::with_class(scheduler::RequestClass::BackgroundMedia, || {
+            let lease = lock_media_lane(&background).unwrap();
+            background_tx
+                .send((false, lease.snapshot.session_id))
+                .unwrap();
+        })
+    });
+    let wait_for_queue = |count| {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while client.media_gate.waiter_count() < count && std::time::Instant::now() < deadline {
+            std::thread::yield_now();
+        }
+        assert_eq!(client.media_gate.waiter_count(), count);
+    };
+    wait_for_queue(1);
+    let interactive = client.clone();
+    let foreground = std::thread::spawn(move || {
+        scheduler::with_class(scheduler::RequestClass::InteractiveMedia, || {
+            let lease = lock_media_lane(&interactive).unwrap();
+            tx.send((true, lease.snapshot.session_id)).unwrap();
+        })
+    });
+    wait_for_queue(2);
+    drop(first);
+    assert_eq!(
+        rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(),
+        (true, first_id)
+    );
+    assert_eq!(
+        rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap(),
+        (false, first_id)
+    );
+    drop(last);
+    foreground.join().unwrap();
+    worker.join().unwrap();
+    destroy_client(handle);
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn expired_upload_rtt_does_not_require_a_probe_connection_or_inherit_download_caps() {
+    let path = std::env::temp_dir().join(format!(
+        "monogram-upload-fallback-{}.json",
+        std::process::id()
+    ));
+    let file = path.with_extension("bin");
+    std::fs::write(&file, vec![1; 96 * 1024]).unwrap();
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let client = get_client(handle).unwrap();
+    client.policy.own_pipeline_parts(2);
+    let dc = client.main.lock().snapshot.dc_id;
+    *client.policy.upload_rtt.lock() = Some((
+        dc,
+        std::time::Instant::now() - std::time::Duration::from_secs(61),
+        std::time::Duration::from_secs(1),
+    ));
+    let item = crate::UploadItemDto {
+        path: file.to_string_lossy().into(),
+        kind: "document".into(),
+        mime_type: String::new(),
+        file_name: "test.bin".into(),
+        caption: String::new(),
+        duration: 0,
+        width: 0,
+        height: 0,
+        random_id: 0,
+    };
+    let staging = save_items_with(&client, 1, &[item], |snapshot, batch| {
+        assert!(snapshot.auth_key.is_none());
+        assert_eq!(batch.bytes[0].len(), 96 * 1024);
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(staging[0].in_flight(), 8);
+    assert!(client.upload.lock().transport.is_none());
+    destroy_client(handle);
+    std::fs::remove_file(path).ok();
+    std::fs::remove_file(file).ok();
+}
+
+#[test]
+fn failed_rtt_probe_on_an_existing_upload_connection_does_not_fail_saved_parts() {
+    let path = std::env::temp_dir().join(format!(
+        "monogram-upload-probe-error-{}.json",
+        std::process::id()
+    ));
+    let file = path.with_extension("bin");
+    std::fs::write(&file, vec![1; 96 * 1024]).unwrap();
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    authorize_test_client(handle);
+    let client = get_client(handle).unwrap();
+    let home = client.main.lock().snapshot.clone();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let transport = crate::rpc::open_live_addr(
+        home.dc_id,
+        &listener.local_addr().unwrap().to_string(),
+        None,
+        1,
+    )
+    .unwrap();
+    let (peer, _) = listener.accept().unwrap();
+    drop(peer);
+    {
+        let mut io = client.upload.lock();
+        io.snapshot = fork_session(&home);
+        io.transport = Some(transport);
+    }
+    let item = crate::UploadItemDto {
+        path: file.to_string_lossy().into(),
+        kind: "document".into(),
+        mime_type: String::new(),
+        file_name: "test.bin".into(),
+        caption: String::new(),
+        duration: 0,
+        width: 0,
+        height: 0,
+        random_id: 0,
+    };
+    let mut saved = 0;
+    let staging = save_items_with(&client, 1, &[item], |_, batch| {
+        saved += batch.bytes.len();
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(saved, 1);
+    assert_eq!(staging.len(), 1);
+    assert!(client.policy.upload_rtt.lock().is_none());
+    assert!(client.upload.lock().transport.is_none());
+    destroy_client(handle);
+    std::fs::remove_file(path).ok();
+    std::fs::remove_file(file).ok();
 }

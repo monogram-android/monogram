@@ -13,16 +13,22 @@ class DownloadSettingsTest {
     }
 
     @Test
-    fun nonPremiumDownloadsStayUnderThePremiumFlood() {
-        val free = DownloadState(speedUpDownloads = true, premium = false)
-        val premium = DownloadState(speedUpDownloads = true, premium = true)
-        assertEquals(2, free.effectiveLanes)
-        assertEquals(2, free.parts)
-        assertEquals(128, free.downloadChunkKib)
-        assertEquals(DownloadConcurrency(2, 2), free.concurrency)
-        assertTrue(premium.effectiveLanes > free.effectiveLanes)
-        assertTrue(premium.parts > free.parts)
-        assertEquals(256, premium.downloadChunkKib)
+    fun downloadBoostRespectsPremiumAndConfiguredLaneCap() {
+        for (boost in listOf(false, true)) {
+            val free = DownloadState(speedUpDownloads = boost, premium = false)
+            assertEquals(DownloadConcurrency(2, 2), free.concurrency)
+            assertEquals(128, free.downloadChunkKib)
+            assertEquals(512, free.filePartKib)
+        }
+        val premium = DownloadState(premium = true)
+        assertEquals(DownloadConcurrency(2, 4), premium.concurrency)
+        assertEquals(128, premium.downloadChunkKib)
+        val boosted = premium.copy(speedUpDownloads = true, lanes = 7)
+        assertEquals(DownloadConcurrency(7, 8), boosted.concurrency)
+        assertEquals(512, boosted.downloadChunkKib)
+        assertEquals(512, premium.filePartKib)
+        assertEquals(1, DownloadState(lanes = 1).effectiveLanes)
+        assertEquals(8, boosted.copy(lanes = 99).effectiveLanes)
     }
 
     @Test

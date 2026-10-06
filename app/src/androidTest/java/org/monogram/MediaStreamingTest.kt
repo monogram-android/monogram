@@ -60,4 +60,46 @@ class MediaStreamingTest {
         assertTrue(directory.listFiles().orEmpty().isEmpty())
         directory.delete()
     }
+
+    @Test
+    fun incompletePartIsReadableAtTheRequestedOffset() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val directory = File(context.cacheDir, "streaming-incomplete")
+        val part = TelegramVideoDataSource.PART_SIZE
+        val offset = part
+        val partial = ByteArray(48) { (it + 7).toByte() }
+        val message = Message(
+            id = MessageId(PeerId(7), 3),
+            senderId = null,
+            text = null,
+            date = 0,
+            outgoing = false,
+            mediaKind = "video",
+            fileSize = part * 4,
+        )
+        val source = TelegramVideoDataSource.Factory(
+            message,
+            directory,
+            TelegramChunkFetcher { _, _, destination, requested ->
+                assertEquals(offset, requested)
+                RandomAccessFile(destination, "rw").use { file ->
+                    file.seek(requested)
+                    file.write(partial)
+                }
+                Outcome.Ok(destination)
+            },
+        ).createDataSource()
+        val uri = Uri.parse("telegram://media/incomplete")
+        try {
+            source.open(
+                DataSpec.Builder().setUri(uri).setPosition(offset + 8).setLength(16).build(),
+            )
+            val actual = ByteArray(16)
+            assertEquals(16, source.read(actual, 0, 16))
+            assertArrayEquals(partial.copyOfRange(8, 24), actual)
+        } finally {
+            source.close()
+            directory.deleteRecursively()
+        }
+    }
 }

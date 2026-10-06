@@ -127,8 +127,6 @@
     <string name="settings_data">数据和存储</string>
     <string name="settings_data_sub">自动下载与缓存</string>
     <string name="settings_data_transfers">传输</string>
-    <string name="settings_speed_up_uploads">加速上传</string>
-    <string name="settings_speed_up_uploads_sub">在良好网络连接下更快发送照片和文件</string>
     <string name="settings_speed_up_downloads">加速下载</string>
     <string name="settings_speed_up_downloads_sub">在良好网络连接下更快下载照片、视频和文件</string>
     <string name="settings_autodownload">自动下载媒体</string>

@@ -153,6 +153,7 @@ pub(crate) fn index_one_map(
     media.insert(
         (geo.access_hash, INSTANT_VIEW_MEDIA_MSG),
         MediaRef {
+            file_size: None,
             kind: "photo".into(),
             cache_key,
             location: MediaLocation::Inline {

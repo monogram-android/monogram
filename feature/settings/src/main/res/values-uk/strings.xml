@@ -307,6 +307,7 @@
     <string name="settings_storage_videos">Відео</string>
     <string name="settings_storage_files">Файли</string>
     <string name="settings_storage_stickers">Стікери та емодзі</string>
+    <string name="settings_storage_gifs">GIF</string>
     <string name="settings_storage_other">Інше</string>
     <string name="settings_storage_chats">Чати</string>
     <string name="settings_storage_clear_chat">Очистити кеш цього чату?</string>

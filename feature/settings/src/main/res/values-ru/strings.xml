@@ -307,6 +307,7 @@
     <string name="settings_storage_videos">Видео</string>
     <string name="settings_storage_files">Файлы</string>
     <string name="settings_storage_stickers">Стикеры и эмодзи</string>
+    <string name="settings_storage_gifs">GIF</string>
     <string name="settings_storage_other">Прочее</string>
     <string name="settings_storage_chats">Чаты</string>
     <string name="settings_storage_clear_chat">Очистить кэш этого чата?</string>

@@ -307,6 +307,7 @@
     <string name="settings_storage_videos">视频</string>
     <string name="settings_storage_files">文件</string>
     <string name="settings_storage_stickers">贴纸和表情</string>
+    <string name="settings_storage_gifs">GIF</string>
     <string name="settings_storage_other">其他</string>
     <string name="settings_storage_chats">聊天</string>
     <string name="settings_storage_clear_chat">清除此聊天的缓存？</string>

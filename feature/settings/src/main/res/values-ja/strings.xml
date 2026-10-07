@@ -307,6 +307,7 @@
     <string name="settings_storage_videos">動画</string>
     <string name="settings_storage_files">ファイル</string>
     <string name="settings_storage_stickers">スタンプと絵文字</string>
+    <string name="settings_storage_gifs">GIF</string>
     <string name="settings_storage_other">その他</string>
     <string name="settings_storage_chats">チャット</string>
     <string name="settings_storage_clear_chat">このチャットのキャッシュを消去しますか？</string>

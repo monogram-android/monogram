@@ -73,6 +73,7 @@ private fun storageCategoryIcon(kind: String): ImageVector = when (kind) {
     FileCache.KIND_VIDEOS -> Icons.Outlined.Videocam
     FileCache.KIND_FILES -> Icons.AutoMirrored.Outlined.InsertDriveFile
     FileCache.KIND_STICKERS -> Icons.Outlined.EmojiEmotions
+    FileCache.KIND_GIFS -> Icons.Outlined.Gif
     else -> Icons.Outlined.Storage
 }
 
@@ -82,6 +83,7 @@ private fun storageCategoryColor(kind: String): Color = when (kind) {
     FileCache.KIND_VIDEOS -> MaterialTheme.colorScheme.tertiary
     FileCache.KIND_FILES -> MaterialTheme.colorScheme.secondary
     FileCache.KIND_STICKERS -> MaterialTheme.colorScheme.error
+    FileCache.KIND_GIFS -> MaterialTheme.colorScheme.onPrimaryContainer
     else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
@@ -325,12 +327,14 @@ internal fun LazyListScope.dataItems(
         val videos = cacheByKind[FileCache.KIND_VIDEOS] ?: 0L
         val files = cacheByKind[FileCache.KIND_FILES] ?: 0L
         val stickers = cacheByKind[FileCache.KIND_STICKERS] ?: 0L
+        val gifs = cacheByKind[FileCache.KIND_GIFS] ?: 0L
         val other = cacheByKind[FileCache.KIND_OTHER] ?: 0L
         val slices = listOf(
             storageCategoryColor(FileCache.KIND_PHOTOS) to photos,
             storageCategoryColor(FileCache.KIND_VIDEOS) to videos,
             storageCategoryColor(FileCache.KIND_FILES) to files,
             storageCategoryColor(FileCache.KIND_STICKERS) to stickers,
+            storageCategoryColor(FileCache.KIND_GIFS) to gifs,
             storageCategoryColor(FileCache.KIND_OTHER) to other,
         ).filter { it.second > 0L }
         Column(
@@ -363,6 +367,7 @@ internal fun LazyListScope.dataItems(
         FileCache.KIND_VIDEOS to R.string.settings_storage_videos,
         FileCache.KIND_FILES to R.string.settings_storage_files,
         FileCache.KIND_STICKERS to R.string.settings_storage_stickers,
+        FileCache.KIND_GIFS to R.string.settings_storage_gifs,
         FileCache.KIND_OTHER to R.string.settings_storage_other,
     )
     kinds.forEachIndexed { index, (kind, label) ->

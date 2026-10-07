@@ -345,11 +345,13 @@ class MediaRepository(
         cacheKey: String,
         thumb: Boolean = false,
         priority: Int = MediaPriority.DEFAULT,
+        mediaKind: String? = null,
     ): Outcome<File> = ensureLocalTelegramMedia(
         key = cacheKey,
         chatId = peerId,
         messageId = messageId,
         kind = if (thumb) MediaFetchKind.Thumb else MediaFetchKind.Full,
+        mediaKind = mediaKind,
         priority = priority,
     )
 
@@ -401,6 +403,8 @@ class MediaRepository(
         name: String? = null,
         totalBytes: Long? = null,
     ): Outcome<File> {
+        val storedChatId = if (mediaKind == "gif") null else chatId.value
+        if (mediaKind == "gif") cache.attribute(key, chatId = null, kind = FileCache.KIND_GIFS)
         cache.get(key)?.let {
             PerfLog.event("cache_hit", kind.name.lowercase())
             AppLog.api(
@@ -470,7 +474,7 @@ class MediaRepository(
                             key = key,
                             dest = dest,
                             source = file,
-                            chatId = chatId.value,
+                            chatId = storedChatId,
                             mediaKind = mediaKind,
                         )
                     }

@@ -52,6 +52,7 @@ class PickerMediaPreloader(
                 cacheKey = task.cacheKey,
                 thumb = task.fetch == PickerMediaPreload.Fetch.Thumb,
                 priority = task.priority,
+                mediaKind = if (task.item.gif) "gif" else null,
             )
 
             else -> repo.ensureCustomEmoji(task.item.documentId, priority = task.priority)

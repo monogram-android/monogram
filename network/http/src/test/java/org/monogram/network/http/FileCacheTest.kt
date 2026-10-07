@@ -1,12 +1,12 @@
 package org.monogram.network.http
 
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
 
 class FileCacheTest {
     @Test
@@ -121,9 +121,16 @@ class FileCacheTest {
         assertEquals(FileCache.KIND_PHOTOS, FileCache.inferKind("photo:1"))
         assertEquals(FileCache.KIND_PHOTOS, FileCache.inferKind("web:9", "webpage"))
         assertEquals(FileCache.KIND_VIDEOS, FileCache.inferKind("doc:2", "video"))
+        assertEquals(FileCache.KIND_VIDEOS, FileCache.inferKind("doc:6", "video_note"))
         assertEquals(FileCache.KIND_VIDEOS, FileCache.inferKind("doc:4:thumb"))
+        assertEquals(FileCache.KIND_GIFS, FileCache.inferKind("doc:5", "gif"))
+        assertEquals(FileCache.KIND_GIFS, FileCache.inferKind("gif:12"))
+        assertEquals(FileCache.KIND_GIFS, FileCache.inferKind("gif:12:thumb"))
         assertEquals(FileCache.KIND_STICKERS, FileCache.inferKind("emoji:9"))
+        assertEquals(FileCache.KIND_STICKERS, FileCache.inferKind("doc:9", "sticker"))
         assertEquals(FileCache.KIND_FILES, FileCache.inferKind("doc:3", "document"))
+        assertEquals(FileCache.KIND_FILES, FileCache.inferKind("doc:7", "audio"))
+        assertEquals(FileCache.KIND_FILES, FileCache.inferKind("doc:8", "voice"))
         assertEquals(FileCache.KIND_OTHER, FileCache.inferKind("avatar:1"))
     }
 }

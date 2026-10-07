@@ -307,6 +307,7 @@
     <string name="settings_storage_videos">Videolar</string>
     <string name="settings_storage_files">Dosyalar</string>
     <string name="settings_storage_stickers">Stickerlar ve emoji</string>
+    <string name="settings_storage_gifs">GIF\'ler</string>
     <string name="settings_storage_other">Diğer</string>
     <string name="settings_storage_chats">Sohbetler</string>
     <string name="settings_storage_clear_chat">Bu sohbetin önbelleği temizlensin mi?</string>

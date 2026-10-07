@@ -307,6 +307,7 @@
     <string name="settings_storage_videos">Videá</string>
     <string name="settings_storage_files">Súbory</string>
     <string name="settings_storage_stickers">Nálepky a emoji</string>
+    <string name="settings_storage_gifs">GIFy</string>
     <string name="settings_storage_other">Iné</string>
     <string name="settings_storage_chats">Chaty</string>
     <string name="settings_storage_clear_chat">Vymazať vyrovnávaciu pamäť tohto chatu?</string>

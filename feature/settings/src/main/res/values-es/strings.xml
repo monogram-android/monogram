@@ -307,6 +307,7 @@
     <string name="settings_storage_videos">Videos</string>
     <string name="settings_storage_files">Archivos</string>
     <string name="settings_storage_stickers">Stickers y emoji</string>
+    <string name="settings_storage_gifs">GIFs</string>
     <string name="settings_storage_other">Otros</string>
     <string name="settings_storage_chats">Chats</string>
     <string name="settings_storage_clear_chat">¿Borrar la caché de este chat?</string>

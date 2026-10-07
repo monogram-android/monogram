@@ -82,7 +82,17 @@ class FileCache(
     fun remember(key: String, chatId: Long?, kind: String, bytes: Long) {
         synchronized(recordsLock) {
             ensureIndexLoaded()
-            records[key] = CacheRecord(key = key, chatId = chatId, kind = kind, bytes = bytes)
+            records[key] = normalized(key, chatId, kind, bytes)
+            persistIndex()
+        }
+    }
+
+    fun attribute(key: String, chatId: Long?, kind: String) {
+        synchronized(recordsLock) {
+            ensureIndexLoaded()
+            val existing = records[key] ?: return
+            if (existing.chatId == chatId && existing.kind == kind) return
+            records[key] = existing.copy(chatId = chatId, kind = kind)
             persistIndex()
         }
     }
@@ -215,6 +225,7 @@ class FileCache(
 
     private fun loadIndex() {
         if (!indexFile.exists()) return
+        var changed = false
         indexFile.readLines().forEach { line ->
             val parts = line.split('\t')
             if (parts.size < 4) return@forEach
@@ -222,8 +233,23 @@ class FileCache(
             val chatId = parts[1].toLongOrNull()
             val kind = parts[2].ifBlank { inferKind(key) }
             val bytes = parts[3].toLongOrNull() ?: 0L
-            records[key] = CacheRecord(key, chatId, kind, bytes)
+            val row = normalized(key, chatId, kind, bytes)
+            if (row.chatId != chatId || row.kind != kind) changed = true
+            records[key] = row
         }
+        if (changed) persistIndex()
+    }
+
+    private fun normalized(key: String, chatId: Long?, kind: String, bytes: Long): CacheRecord {
+        val documentId = attributedDocumentId(key)
+        val detach = documentId != null && chatId == documentId
+        val storedChat = if (detach) null else chatId
+        val storedKind = when {
+            key.startsWith("gif:") -> KIND_GIFS
+            detach && kind != KIND_STICKERS && kind != KIND_PHOTOS -> KIND_GIFS
+            else -> kind
+        }
+        return CacheRecord(key, storedChat, storedKind, bytes)
     }
 
     private fun persistIndex() {
@@ -252,19 +278,32 @@ class FileCache(
         const val KIND_VIDEOS = "videos"
         const val KIND_FILES = "files"
         const val KIND_STICKERS = "stickers"
+        const val KIND_GIFS = "gifs"
         const val KIND_OTHER = "other"
 
         fun inferKind(key: String, mediaKind: String? = null): String {
             val hint = mediaKind.orEmpty()
             return when {
                 hint == "photo" || hint == "webpage" || key.startsWith("photo:") -> KIND_PHOTOS
-                hint == "video" || hint == "video_note" || hint == "gif" || key.startsWith("doc:") && key.endsWith(":thumb") -> KIND_VIDEOS
+                hint == "gif" || key.startsWith("gif:") -> KIND_GIFS
+                hint == "video" || hint == "video_note" || key.startsWith("doc:") && key.endsWith(":thumb") -> KIND_VIDEOS
                 hint.startsWith("sticker") || key.startsWith("emoji:") -> KIND_STICKERS
                 key.startsWith("avatar:") -> KIND_OTHER
                 hint == "document" || hint == "audio" || hint == "voice" -> KIND_FILES
                 key.startsWith("doc:") -> KIND_FILES
                 else -> KIND_OTHER
             }
+        }
+
+        private fun attributedDocumentId(key: String): Long? {
+            val body = when {
+                key.startsWith("gif:") -> key.removePrefix("gif:")
+                key.startsWith("doc:") -> key.removePrefix("doc:")
+                else -> return null
+            }
+            val id = body.substringBefore(':')
+            if (id.isEmpty() || id.any { !it.isDigit() }) return null
+            return id.toLongOrNull()
         }
     }
 }

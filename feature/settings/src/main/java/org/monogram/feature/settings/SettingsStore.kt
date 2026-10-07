@@ -246,13 +246,13 @@ internal fun cacheChatRows(
     chats: List<Chat>,
 ): List<SettingsStore.CacheChatRow> {
     val byId = chats.associateBy { it.id.value }
-    return usageByChat.map { (id, bytes) ->
-        val chat = byId[id]
+    return usageByChat.mapNotNull { (id, bytes) ->
+        val chat = byId[id] ?: return@mapNotNull null
         SettingsStore.CacheChatRow(
             chatId = id,
-            title = chat?.title ?: id.toString(),
+            title = chat.title,
             bytes = bytes,
-            photoCacheKey = chat?.photoCacheKey,
+            photoCacheKey = chat.photoCacheKey,
         )
     }.sortedByDescending { it.bytes }
 }

@@ -81,7 +81,7 @@ internal fun SavedGifCell(
         if (file != null || !visible) return@LaunchedEffect
         when (val thumb = repo.ensureIndexedMedia(
             PeerId(gif.documentId), 0, thumbKey,
-            thumb = true, priority = MediaPriority.DEFAULT,
+            thumb = true, priority = MediaPriority.DEFAULT, mediaKind = "gif",
         )) {
             is Outcome.Ok -> if (!fullLoaded) file = thumb.value
             is Outcome.Err -> if (thumbOnly) failed = true
@@ -103,7 +103,7 @@ internal fun SavedGifCell(
         repeat(3) { attempt ->
             when (val result = repo.ensureIndexedMedia(
                 PeerId(gif.documentId), 0, gif.cacheKey,
-                thumb = false, priority = MediaPriority.VISIBLE,
+                thumb = false, priority = MediaPriority.VISIBLE, mediaKind = "gif",
             )) {
                 is Outcome.Ok -> {
                     file = result.value

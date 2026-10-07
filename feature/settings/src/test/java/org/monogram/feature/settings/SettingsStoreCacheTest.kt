@@ -48,13 +48,11 @@ class SettingsStoreCacheTest {
                 Chat(id = PeerId(7), title = "Docs", photoCacheKey = "photo:7"),
             ),
         )
-        assertEquals(listOf(3L, 7L, 9L), rows.map { it.chatId })
+        assertEquals(listOf(3L, 7L), rows.map { it.chatId })
         assertEquals("Photos", rows[0].title)
         assertEquals("avatar:3:video", rows[0].photoCacheKey)
         assertEquals("Docs", rows[1].title)
         assertEquals("photo:7", rows[1].photoCacheKey)
-        assertEquals("9", rows[2].title)
-        assertNull(rows[2].photoCacheKey)
     }
 
     @Test

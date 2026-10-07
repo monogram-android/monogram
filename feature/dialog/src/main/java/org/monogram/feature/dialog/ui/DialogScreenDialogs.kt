@@ -93,7 +93,7 @@ internal fun DialogScreenDialogs(
         editing = state.editing != null,
         editingBody = state.editing?.text.orEmpty(),
         replyBody = state.replyTo?.let {
-            it.text ?: stringResource(R.string.dialog_media_photo)
+            it.text ?: replyMediaFallbackLabel(it.mediaKind)
         },
         pendingAttach = state.pendingAttach,
         hasFailed = state.messages.any { it.failed },

@@ -9,6 +9,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -73,6 +74,34 @@ class MonogramApp : Application() {
 
     private val settingsScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val ready = CompletableDeferred<Unit>()
+    private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val startedActivities = mutableSetOf<MainActivity>()
+    private var activityIdleJob: Job? = null
+
+    internal fun activityStarted(activity: MainActivity) {
+        startedActivities.add(activity)
+        updateActivityForeground()
+    }
+
+    internal fun activityStopped(activity: MainActivity) {
+        startedActivities.remove(activity)
+        updateActivityForeground()
+    }
+
+    private fun updateActivityForeground() {
+        activityIdleJob?.cancel()
+        activityIdleJob = activityScope.launch {
+            awaitReady()
+            val foreground = startedActivities.isNotEmpty()
+            push.setForeground(foreground)
+            if (!foreground) {
+                delay(120_000)
+                if (startedActivities.isEmpty() && notifications.token().isNotBlank()) {
+                    client.hibernate()
+                }
+            }
+        }
+    }
 
     suspend fun awaitReady() = ready.await()
 

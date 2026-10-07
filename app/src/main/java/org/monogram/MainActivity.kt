@@ -29,7 +29,6 @@ import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
@@ -55,7 +54,6 @@ import android.graphics.Color as AndroidColor
 open class MainActivity : ComponentActivity() {
     private lateinit var root: RootComponent
     private val startupReady = CompletableDeferred<Unit>()
-    private var idleJob: Job? = null
     private var startJob: Job? = null
     private var inPictureInPicture by mutableStateOf(false)
     private var pendingIncomingShare: IncomingShare? = null
@@ -231,12 +229,11 @@ open class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        idleJob?.cancel()
         startJob?.cancel()
         val app = application as MonogramApp
+        app.activityStarted(this)
         startJob = lifecycleScope.launch {
             app.awaitReady()
-            app.push.setForeground(true)
             app.push.requestPermission(this@MainActivity)
             startupReady.await()
             val started = PerfLog.nowMs()
@@ -261,15 +258,7 @@ open class MainActivity : ComponentActivity() {
     override fun onStop() {
         val app = application as MonogramApp
         startJob?.cancel()
-        idleJob?.cancel()
-        idleJob = lifecycleScope.launch {
-            app.awaitReady()
-            app.push.setForeground(false)
-            delay(120_000)
-            if (!app.push.appForeground && app.notifications.token().isNotBlank()) {
-                app.client.hibernate()
-            }
-        }
+        app.activityStopped(this)
         super.onStop()
     }
 

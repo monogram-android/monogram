@@ -909,6 +909,11 @@ pub fn peek_message_inline_thumb(handle: u64, chat_id: i64, message_id: i32) -> 
 }
 
 #[uniffi::export]
+pub fn peek_peer_inline_thumb(handle: u64, peer_id: i64) -> Option<Vec<u8>> {
+    client::peek_peer_inline_thumb(handle, peer_id)
+}
+
+#[uniffi::export]
 pub fn download_message_display(
     handle: u64,
     chat_id: i64,

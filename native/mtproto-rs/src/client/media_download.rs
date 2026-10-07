@@ -241,6 +241,11 @@ pub fn peek_message_inline_thumb(handle: u64, chat_id: i64, message_id: i32) -> 
     media::inline_thumb_jpeg(indexed)
 }
 
+/// Shared-index read of an inline stripped/cached avatar JPEG for a peer (user or chat).
+pub fn peek_peer_inline_thumb(handle: u64, peer_id: i64) -> Option<Vec<u8>> {
+    peek_message_inline_thumb(handle, peer_id, 0)
+}
+
 pub(crate) fn indexed_media_for_download(
     data: &ClientData,
     chat_id: i64,

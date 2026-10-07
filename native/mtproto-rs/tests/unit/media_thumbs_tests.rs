@@ -440,6 +440,7 @@ fn resolved_video_avatar_survives_still_peer_photo() {
         2,
         "avatar:7".into(),
         false,
+        None,
     );
     assert_eq!(index_avatar(&mut media, 7, still), "avatar:7:video");
     assert!(is_resolved_video_avatar(media.get(&(7, 0)).unwrap()));
@@ -451,8 +452,26 @@ fn resolved_video_avatar_survives_still_peer_photo() {
         2,
         "avatar:7:video".into(),
         true,
+        None,
     );
     assert!(needs_video_avatar_upgrade(&placeholder));
     assert_eq!(index_avatar(&mut media, 7, placeholder), "avatar:7:video");
     assert!(is_resolved_video_avatar(media.get(&(7, 0)).unwrap()));
+}
+
+#[test]
+fn peer_photo_with_stripped_thumb() {
+    let raw_stripped = [0x01, 0x08, 0x08, 0x28, 0x00];
+    let photo = media_ref_peer_photo(
+        crate::peers::PeerKind::User,
+        7,
+        1,
+        99,
+        2,
+        "avatar:7".into(),
+        false,
+        Some(&raw_stripped),
+    );
+    assert_eq!(photo.thumb_cache_key, Some("avatar:7:thumb".into()));
+    assert!(matches!(photo.thumb_location, Some(MediaLocation::Inline { extension, .. }) if extension == "jpg"));
 }

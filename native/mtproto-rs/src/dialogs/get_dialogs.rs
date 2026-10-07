@@ -184,6 +184,7 @@ pub(crate) fn map_peer_dialogs(
                     p.photo_id,
                     p.dc_id,
                     p.has_video.is_some(),
+                    p.stripped_thumb.as_deref(),
                 ))
             });
             let (peer_status, peer_status_at) =
@@ -215,6 +216,7 @@ pub(crate) fn map_peer_dialogs(
                         p.photo_id,
                         p.dc_id,
                         p.has_video.is_some(),
+                        p.stripped_thumb.as_deref(),
                     )),
                     _ => None,
                 };
@@ -236,6 +238,7 @@ pub(crate) fn map_peer_dialogs(
                             p.photo_id,
                             p.dc_id,
                             p.has_video.is_some(),
+                            p.stripped_thumb.as_deref(),
                         )
                     }),
                     _ => None,

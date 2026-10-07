@@ -62,6 +62,7 @@ pub(crate) fn cache_from_users_chats(
                                 p.photo_id,
                                 p.dc_id,
                                 p.has_video.is_some(),
+                                p.stripped_thumb.as_deref(),
                             );
                         }
                     }
@@ -84,6 +85,7 @@ pub(crate) fn cache_from_users_chats(
                         p.photo_id,
                         p.dc_id,
                         p.has_video.is_some(),
+                        p.stripped_thumb.as_deref(),
                     );
                 }
             }
@@ -109,6 +111,7 @@ pub(crate) fn cache_from_users_chats(
                                 p.photo_id,
                                 p.dc_id,
                                 p.has_video.is_some(),
+                                p.stripped_thumb.as_deref(),
                             );
                         }
                     }
@@ -129,6 +132,7 @@ pub(crate) fn index_dialog_avatar(
     photo_id: i64,
     dc_id: i32,
     has_video: bool,
+    stripped_thumb: Option<&[u8]>,
 ) -> String {
     let cache_key = media::avatar_cache_key(chat_id, has_video);
     let media = media::media_ref_peer_photo(
@@ -139,6 +143,7 @@ pub(crate) fn index_dialog_avatar(
         dc_id,
         cache_key,
         has_video,
+        stripped_thumb,
     );
     media::index_avatar(media_index, chat_id, media)
 }

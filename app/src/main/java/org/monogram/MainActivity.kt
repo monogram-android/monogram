@@ -119,7 +119,7 @@ open class MainActivity : ComponentActivity() {
             finish()
             return
         }
-        enableEdgeToEdge(
+        if (this !is BubbleActivity) enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(
                 lightScrim = AndroidColor.TRANSPARENT,
                 darkScrim = AndroidColor.TRANSPARENT,

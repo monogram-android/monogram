@@ -77,6 +77,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data object JumpUnreadReaction : Intent
         data object JumpLatest : Intent
         data object MarkRead : Intent
+        data class ReadReceipts(val enabled: Boolean) : Intent
 
         /** The user can see messages up to this id in the open history. */
         data class VisibleRead(val messageId: Int, val atLiveEdge: Boolean = false) : Intent

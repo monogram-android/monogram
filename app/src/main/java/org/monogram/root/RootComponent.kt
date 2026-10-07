@@ -66,6 +66,8 @@ class RootComponent(
     private val notificationLocal: NotificationLocalStore? = null,
     private val onIncomingShareConsumed: () -> Unit = {},
     val appUpdate: AppUpdateController? = null,
+    private val bubbleChatId: Long? = null,
+    private val onRootBack: () -> Unit = {},
 ) : ComponentContext by componentContext {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -91,6 +93,10 @@ class RootComponent(
         if (stack.value.active.configuration.isAuthArea()) return
         AppLog.api("notify", "open chat=$chatId")
         pushRegistration?.onVisibleChat(chatId)
+        if (bubbleChatId != null) {
+            navigation.replaceAll(Config.Dialog(chatId, jumpToMessageId = messageId))
+            return
+        }
         navigation.navigate { configurations ->
             chatSelectionStack(
                 configurations,
@@ -205,13 +211,14 @@ class RootComponent(
     val stack: Value<ChildStack<Config, Child>> = childStack(
         source = navigation,
         serializer = Config.serializer(),
-        initialConfiguration = if (startOnHome) Config.Home else Config.Auth,
+        initialConfiguration = if (!startOnHome) Config.Auth
+        else bubbleChatId?.let { Config.Dialog(it) } ?: Config.Home,
         handleBackButton = true,
         childFactory = ::child,
     )
 
     fun onBack() {
-        navigation.pop()
+        if (stack.value.backStack.isEmpty()) onRootBack() else navigation.pop()
     }
 
     fun openTelegramUri(uri: String): Boolean {
@@ -480,7 +487,8 @@ class RootComponent(
                 isForum = config.isForum,
                 markup = NativeMarkupParser(),
                 isPremium = { accountState.isPremium },
-                onBack = { navigation.pop() },
+                onBack = ::onBack,
+                showBackButton = config.chatId != bubbleChatId || config.threadTopMsgId != 0,
                 onOpenProfile = ::openProfile,
                 onOpenChat = { peer, jump, threadTop ->
                     navigation.navigate { configurations ->

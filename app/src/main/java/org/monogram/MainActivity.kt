@@ -52,7 +52,7 @@ import org.monogram.root.RootComponent
 import org.monogram.root.RootContent
 import android.graphics.Color as AndroidColor
 
-class MainActivity : ComponentActivity() {
+open class MainActivity : ComponentActivity() {
     private lateinit var root: RootComponent
     private val startupReady = CompletableDeferred<Unit>()
     private var idleJob: Job? = null
@@ -153,6 +153,10 @@ class MainActivity : ComponentActivity() {
                 notificationLocal = app.notifications,
                 onIncomingShareConsumed = { pendingIncomingShare = null },
                 appUpdate = app.appUpdate,
+                bubbleChatId = if (this@MainActivity is BubbleActivity) {
+                    intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L).takeIf { it != 0L }
+                } else null,
+                onRootBack = { finish() },
             )
             if (pendingIncomingShare != null) {
                 root.openIncomingShare(pendingIncomingShare!!)

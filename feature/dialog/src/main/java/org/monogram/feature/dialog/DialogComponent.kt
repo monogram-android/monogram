@@ -8,8 +8,10 @@ import com.arkivanov.decompose.router.slot.childSlot
 import com.arkivanov.decompose.router.slot.dismiss
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.instancekeeper.getOrCreate
+import com.arkivanov.essenty.lifecycle.Lifecycle
 import com.arkivanov.essenty.lifecycle.doOnDestroy
 import com.arkivanov.essenty.lifecycle.doOnStart
+import com.arkivanov.essenty.lifecycle.doOnStop
 import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
@@ -62,6 +64,7 @@ class DialogComponent(
     private val onOpenProfile: (PeerId) -> Unit = {},
     private val onOpenChat: (PeerId, Int, Int) -> Unit = { _, _, _ -> },
     private val onRequestForward: ((List<Message>) -> Unit)? = null,
+    val showBackButton: Boolean = true,
 ) : ComponentContext by componentContext {
 
     /** Dialog identity for saveable state. */
@@ -82,6 +85,7 @@ class DialogComponent(
 
     init {
         lifecycle.doOnStart { client.setDialogForeground(true) }
+        lifecycle.doOnStop { client.setDialogForeground(false) }
         lifecycle.doOnDestroy {
             client.setDialogForeground(false)
             mediaPreloader.close()
@@ -142,9 +146,12 @@ class DialogComponent(
     init {
         var started = false
         lifecycle.doOnStart {
+            store.accept(DialogStore.Intent.ReadReceipts(true))
             if (started) onRefreshPresence()
             started = true
         }
+        lifecycle.doOnStop { store.accept(DialogStore.Intent.ReadReceipts(false)) }
+        lifecycle.doOnDestroy { store.accept(DialogStore.Intent.ReadReceipts(false)) }
         preloadScope.launch {
             DownloadSettings.state.drop(1).collect {
                 mediaPreloader.onVisible(store.state.messages, lastVisibleIds)
@@ -280,8 +287,10 @@ class DialogComponent(
     fun onLoadPollVoters(messageId: Int) =
         store.accept(DialogStore.Intent.LoadPollVoters(messageId))
 
-    fun onVisibleNewest(messageId: Int, atLiveEdge: Boolean = false) =
+    fun onVisibleNewest(messageId: Int, atLiveEdge: Boolean = false) {
+        if (lifecycle.state != Lifecycle.State.STARTED && lifecycle.state != Lifecycle.State.RESUMED) return
         store.accept(DialogStore.Intent.VisibleRead(messageId, atLiveEdge))
+    }
 
     fun onVisibleWindow(visibleIds: Set<Int>) {
         lastVisibleIds = visibleIds

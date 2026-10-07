@@ -384,7 +384,7 @@ internal fun DialogTopBar(
             }
         },
         navigationIcon = {
-            IconButton(onClick = component::onBack) {
+            if (component.showBackButton) IconButton(onClick = component::onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = stringResource(R.string.dialog_back),

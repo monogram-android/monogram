@@ -91,6 +91,7 @@ internal class DialogExecutor(
     // Only network pages may advance this cursor. Cached rows can be sparse.
     internal var serverHistoryBoundaryId: Int? = null
     internal var anchorToUnread = false
+    internal var readReceiptsEnabled = true
     internal var pendingUnreadAnchorId: Int? = null
     internal var confirmedNonForum: Boolean = false
     internal var forumUnknown: Boolean = seedIsForum == null
@@ -415,6 +416,7 @@ internal class DialogExecutor(
                 markRead()
             }
             DialogStore.Intent.MarkRead -> markRead()
+            is DialogStore.Intent.ReadReceipts -> readReceiptsEnabled = intent.enabled
             is DialogStore.Intent.VisibleRead -> visibleRead(intent.messageId, intent.atLiveEdge)
             is DialogStore.Intent.VisibleWindow -> consumeVisibleUnread(intent.messageIds)
             DialogStore.Intent.ToggleGifPicker -> openEmojiTab(ComposerPanels.TAB_GIFS)

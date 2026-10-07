@@ -86,6 +86,14 @@ fun evictedShareChatIds(previous: List<Long>, next: List<Long>): List<Long> =
 fun shouldAttachBubble(enabled: Boolean, conversation: Boolean, demoted: Boolean): Boolean =
     enabled && conversation && !demoted
 
+fun shouldRetryPostWithoutBubble(bubbleAttached: Boolean, postFailed: Boolean): Boolean =
+    bubbleAttached && postFailed
+
+fun bubbleFromShortcut(sdkInt: Int, shortcutId: String?): Boolean =
+    sdkInt >= 30 && !shortcutId.isNullOrEmpty()
+
+fun shouldAutoExpandBubble(bubblesEnabled: Boolean): Boolean = bubblesEnabled
+
 private fun isConversationChat(payload: PushPayload): Boolean {
     val chatId = payload.chatId ?: return false
     if (chatId == 0L || payload.action != PushAction.Show) return false

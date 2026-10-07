@@ -100,6 +100,45 @@ fun parsePushPayload(json: String): PushPayload {
     )
 }
 
+fun liveMessagePayload(
+    chatId: Long,
+    messageId: Int,
+    outgoing: Boolean,
+    text: String?,
+    fileName: String?,
+    senderName: String?,
+    senderId: Long?,
+    title: String,
+    kind: PushChannelKind,
+): PushPayload? {
+    if (outgoing || chatId == 0L || messageId <= 0) return null
+    val locKey = when (kind) {
+        PushChannelKind.Group -> "CHAT_MESSAGE_TEXT"
+        PushChannelKind.Channel -> "CHANNEL_MESSAGE_TEXT"
+        else -> "MESSAGE_TEXT"
+    }
+    val shownTitle = title.ifBlank { senderName.orEmpty() }
+    val body = text?.takeIf { it.isNotBlank() } ?: fileName?.takeIf { it.isNotBlank() } ?: ""
+    return PushPayload(
+        locKey = locKey,
+        locArgs = listOf(shownTitle, body),
+        title = shownTitle,
+        body = body,
+        chatId = chatId,
+        messageId = messageId,
+        maxId = null,
+        deletedIds = emptyList(),
+        mention = false,
+        silent = false,
+        sound = null,
+        attachB64 = null,
+        userId = null,
+        action = PushAction.Show,
+        channelKind = kind,
+        senderId = senderId,
+    )
+}
+
 fun actionFor(locKey: String): PushAction = when (locKey) {
     "WAKE", "MESSAGE_MUTED", "GEO_LIVE_PENDING", "DC_UPDATE",
     "ENCRYPTED_MESSAGE", "ENCRYPTION_REQUEST", "ENCRYPTION_ACCEPT" -> PushAction.Wake

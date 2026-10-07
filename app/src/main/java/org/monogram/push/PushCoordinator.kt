@@ -35,6 +35,7 @@ import org.monogram.core.common.push.PUSH_STATUS_CHOOSE_DISTRIBUTOR
 import org.monogram.core.common.push.PUSH_STATUS_DISTRIBUTOR_GONE
 import org.monogram.core.common.push.PUSH_STATUS_NO_DISTRIBUTOR
 import org.monogram.core.common.push.PushAction
+import org.monogram.core.common.push.PushChannelKind
 import org.monogram.core.common.push.PushPayload
 import org.monogram.core.common.push.PushProviderMode
 import org.monogram.core.common.push.PushRegistration
@@ -45,6 +46,7 @@ import org.monogram.core.common.push.acceptsUnifiedPushEndpoint
 import org.monogram.core.common.push.decideNotification
 import org.monogram.core.common.push.folderMemberIds
 import org.monogram.core.common.push.historyReadUpTo
+import org.monogram.core.common.push.liveMessagePayload
 import org.monogram.core.common.push.normalizeDecrypted
 import org.monogram.core.common.push.normalizeIncomingBody
 import org.monogram.core.common.push.notificationPeerKind
@@ -57,6 +59,7 @@ import org.monogram.core.common.push.simplePushEndpoint
 import org.monogram.core.common.push.webPushRegistration
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
+import org.monogram.core.models.Message
 import org.monogram.core.models.NotifyDefaults
 import org.monogram.core.models.NotifyException
 import org.monogram.core.models.NotifySettings
@@ -68,10 +71,12 @@ import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.http.MediaRepository
 import org.unifiedpush.android.connector.UnifiedPush
+import java.util.Collections
 import kotlin.coroutines.resume
 
 private val VISUAL_LOC_KEYS = listOf("PHOTO", "VIDEO", "GIF", "STICKER", "ROUND")
-private val VISUAL_MEDIA_KINDS = setOf("photo", "video", "gif", "sticker", "sticker_animated", "document")
+private val VISUAL_MEDIA_KINDS =
+    setOf("photo", "video", "gif", "sticker", "sticker_animated", "document")
 
 class PushCoordinator(
     private val context: Context,
@@ -82,30 +87,43 @@ class PushCoordinator(
     private val sessionStore: org.monogram.core.database.SessionMetadataStore,
 ) : PushRegistration {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    @Volatile var openChatId: Long? = null
+    @Volatile
+    var openChatId: Long? = null
+
     @Volatile
     private var openTopicId: Int? = null
+
     @Volatile
     private var knownChats: List<Chat> = emptyList()
+
     @Volatile
     private var lastPayload: PushPayload? = null
     private val notifySettingsMutex = Mutex()
-    @Volatile var appForeground: Boolean = false
-    @Volatile var folders: List<Folder> = emptyList()
-    @Volatile var exceptions: List<NotifyException> = emptyList()
-    @Volatile var users: NotifySettings = NotifySettings()
-    @Volatile var chats: NotifySettings = NotifySettings()
-    @Volatile var broadcasts: NotifySettings = NotifySettings()
-    @Volatile var chatPhotos: Map<Long, String> = emptyMap()
-    private val mediaLookups: MutableSet<Long> = java.util.Collections.synchronizedSet(HashSet())
+    @Volatile
+    var appForeground: Boolean = false
+    @Volatile
+    var folders: List<Folder> = emptyList()
+    @Volatile
+    var exceptions: List<NotifyException> = emptyList()
+    @Volatile
+    var users: NotifySettings = NotifySettings()
+    @Volatile
+    var chats: NotifySettings = NotifySettings()
+    @Volatile
+    var broadcasts: NotifySettings = NotifySettings()
+    @Volatile
+    var chatPhotos: Map<Long, String> = emptyMap()
+    private val mediaLookups: MutableSet<Long> = Collections.synchronizedSet(HashSet())
     private val wakeGate = PushWakeGate()
     private var wakeJob: Job? = null
-    @Volatile private var notifySettingsLoaded = false
+    @Volatile
+    private var notifySettingsLoaded = false
     private var notifySettingsJob: Job? = null
     private var repeatJob: Job? = null
     private var refreshJob: Job? = null
     private var updatesJob: Job? = null
-    @Volatile private var accountUserId: Long = 0L
+    @Volatile
+    private var accountUserId: Long = 0L
 
     init {
         // A push can arrive before the settings RPC (or with no network at all): start from the copy
@@ -152,6 +170,8 @@ class PushCoordinator(
                         (knownChats.associateBy { it.id } + update.chats.associateBy { it.id }).values.toList(),
                     )
 
+                    is MtprotoUpdate.NewMessage -> presentLiveMessage(update.message)
+
                     else -> Unit
                 }
             }
@@ -176,7 +196,11 @@ class PushCoordinator(
         if (ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2301)
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                2301
+            )
         }
     }
 
@@ -184,7 +208,8 @@ class PushCoordinator(
         store.debugState(gmsAvailable(), distributor(), permissionGranted())
 
     override fun gmsAvailable(): Boolean =
-        GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+        GoogleApiAvailability.getInstance()
+            .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
 
     override fun distributor(): String = runCatching {
         UnifiedPush.getAckDistributor(context).orEmpty()
@@ -228,7 +253,9 @@ class PushCoordinator(
     }
 
     override fun onChatRead(chatId: Long) {
-        dismissChat(chatId)
+        if (!NotificationPresenter.suppressVisibleBubble(context, chatId, store.bubblesEnabled)) {
+            dismissChat(chatId)
+        }
     }
 
     override fun onLogout() {
@@ -291,6 +318,7 @@ class PushCoordinator(
                 plan.status?.let { store.setLastRegister(it) }
                 registerUnifiedPush()
             }
+
             null -> {
                 unregisterPush()
                 store.setLastRegister(plan.status ?: NO_PUSH_STATUS)
@@ -345,7 +373,11 @@ class PushCoordinator(
         store.pushInstance = instance
         runCatching {
             val register = {
-                UnifiedPush.register(context, instance = instance, messageForDistributor = "Monogram")
+                UnifiedPush.register(
+                    context,
+                    instance = instance,
+                    messageForDistributor = "Monogram"
+                )
             }
             if (chosen.isNotBlank()) {
                 register()
@@ -378,7 +410,10 @@ class PushCoordinator(
     private fun unregisterUnifiedPushConnector() {
         val instance = store.pushInstance
         runCatching {
-            if (instance.isBlank()) UnifiedPush.unregister(context) else UnifiedPush.unregister(context, instance)
+            if (instance.isBlank()) UnifiedPush.unregister(context) else UnifiedPush.unregister(
+                context,
+                instance
+            )
         }
     }
 
@@ -438,11 +473,21 @@ class PushCoordinator(
                 is Outcome.Err -> result.telegram?.type ?: "error"
             },
         )
-        AppLog.api("registerDevice", "type=${type.code} result=${store.debugState(gmsAvailable(), distributor(), permissionGranted()).lastRegister}")
+        AppLog.api(
+            "registerDevice",
+            "type=${type.code} result=${
+                store.debugState(
+                    gmsAvailable(),
+                    distributor(),
+                    permissionGranted()
+                ).lastRegister
+            }"
+        )
     }
 
     override fun simulate(locKey: String) {
-        val json = """{"loc_key":"$locKey","loc_args":["Debug","Test notification"],"custom":{"from_id":1,"msg_id":1}}"""
+        val json =
+            """{"loc_key":"$locKey","loc_args":["Debug","Test notification"],"custom":{"from_id":1,"msg_id":1}}"""
         scope.launch { handlePayload(json, wake = false, joinWake = false) }
     }
 
@@ -458,17 +503,30 @@ class PushCoordinator(
                         if (!fcm) ensureNotifySettings()
                         wakeFetchAndJoin()
                     }
-                    is IncomingPush.Decrypt -> when (val decrypted = client.decryptPushPayload(store.secret(), incoming.cipher)) {
+
+                    is IncomingPush.Decrypt -> when (val decrypted =
+                        client.decryptPushPayload(store.secret(), incoming.cipher)) {
                         is Outcome.Ok -> when (val plain = normalizeDecrypted(decrypted.value)) {
-                            is IncomingPush.Present -> handlePayload(plain.json, wake = true, joinWake = true)
+                            is IncomingPush.Present -> handlePayload(
+                                plain.json,
+                                wake = true,
+                                joinWake = true
+                            )
+
                             else -> wakeFetchAndJoin()
                         }
+
                         is Outcome.Err -> {
                             AppLog.warn("push", "decrypt failed")
                             wakeFetchAndJoin()
                         }
                     }
-                    is IncomingPush.Present -> handlePayload(incoming.json, wake = true, joinWake = true)
+
+                    is IncomingPush.Present -> handlePayload(
+                        incoming.json,
+                        wake = true,
+                        joinWake = true
+                    )
                 }
             } finally {
                 onComplete?.invoke()
@@ -481,8 +539,32 @@ class PushCoordinator(
         wakeFetch()
     }
 
+    private fun presentLiveMessage(message: Message) {
+        if (appForeground || message.outgoing || message.pending) return
+        val chat = knownChats.firstOrNull { it.id == message.id.chatId }
+        val payload = liveMessagePayload(
+            chatId = message.id.chatId.value,
+            messageId = message.id.id,
+            outgoing = false,
+            text = message.text,
+            fileName = message.fileName,
+            senderName = message.senderName,
+            senderId = message.senderId?.value,
+            title = chat?.title.orEmpty(),
+            kind = chat?.let { notificationPeerKind(it) } ?: PushChannelKind.Private,
+        ) ?: return
+        scope.launch { handlePayload(payload, wake = false, joinWake = false) }
+    }
+
     private suspend fun handlePayload(json: String, wake: Boolean, joinWake: Boolean) {
-        val payload = parsePushPayload(json)
+        handlePayload(parsePushPayload(json), wake, joinWake)
+    }
+
+    private suspend fun handlePayload(
+        payload: PushPayload,
+        wake: Boolean,
+        joinWake: Boolean,
+    ) {
         if (accountUserId == 0L) accountUserId = sessionStore.readAuthorizedUserId()?.value ?: 0L
         if (payload.userId != null && (accountUserId == 0L || payload.userId != accountUserId)) return
         AppLog.api("notify", "parsed loc=${payload.locKey} action=${payload.action}")
@@ -497,14 +579,23 @@ class PushCoordinator(
                 onLogout()
                 client.logout()
             }
+
             PushAction.Delete -> {
                 payload.chatId?.let { chatId ->
-                    val ids = payload.deletedIds.ifEmpty { listOfNotNull(payload.messageId?.takeIf { it > 0 }) }
+                    val ids =
+                        payload.deletedIds.ifEmpty { listOfNotNull(payload.messageId?.takeIf { it > 0 }) }
                     if (ids.isEmpty()) dismissChat(chatId)
-                    else NotificationPresenter.dropMessages(context, chatId, ids.toSet(), upTo = null, badge = store.badgeSettings())
+                    else NotificationPresenter.dropMessages(
+                        context,
+                        chatId,
+                        ids.toSet(),
+                        upTo = null,
+                        badge = store.badgeSettings()
+                    )
                 }
                 maybeWake()
             }
+
             PushAction.ReadHistory, PushAction.ReadReaction -> {
                 payload.chatId?.let { chatId ->
                     NotificationPresenter.dropMessages(
@@ -517,6 +608,7 @@ class PushCoordinator(
                 }
                 maybeWake()
             }
+
             PushAction.Wake, PushAction.Ignore -> maybeWake()
             PushAction.Show -> {
                 AppLog.api("notify", "loc=${payload.locKey} fg=$appForeground")
@@ -592,20 +684,26 @@ class PushCoordinator(
                         if (text.isEmpty()) return@launch
                         val replyTo = messageId.takeIf { it > 0 } ?: 0
                         val sent = client.connect() is Outcome.Ok &&
-                            client.sendText(PeerId(chatId), text, replyToMsgId = replyTo) is Outcome.Ok
+                                client.sendText(
+                                    PeerId(chatId),
+                                    text,
+                                    replyToMsgId = replyTo
+                                ) is Outcome.Ok
                         if (sent) dismissChat(chatId)
                         else NotificationPresenter.showNotSent(context, chatId)
                     }
+
                     NotificationPresenter.ACTION_MARK_READ -> {
                         val upTo = historyReadUpTo(
                             messageId,
                             intent.getIntExtra(NotificationPresenter.EXTRA_MAX_ID, 0),
                         )
                         val read = client.connect() is Outcome.Ok &&
-                            client.readHistory(PeerId(chatId), upTo) is Outcome.Ok
+                                client.readHistory(PeerId(chatId), upTo) is Outcome.Ok
                         if (read) dismissChat(chatId)
                         else NotificationPresenter.showNotSent(context, chatId)
                     }
+
                     NotificationPresenter.ACTION_MUTE -> {
                         notifySettingsMutex.withLock {
                             val until =
@@ -665,7 +763,11 @@ class PushCoordinator(
                 // A text push can still be a captioned photo, and this push path carries no
                 // attachb64, so the media kind has to come from the message itself. The lookup is
                 // done once per message and only while its notification is on screen.
-                if (!payload.isVisualMedia() && !rememberMediaLookup(chatId, messageId)) return@launch
+                if (!payload.isVisualMedia() && !rememberMediaLookup(
+                        chatId,
+                        messageId
+                    )
+                ) return@launch
                 val mediaKind = when {
                     payload.isVisualMedia() -> "photo"
                     else -> messageMediaKind(chatId, messageId) ?: return@launch
@@ -696,7 +798,16 @@ class PushCoordinator(
                 }
             }
             avatarFile(chatId)?.let { file ->
-                NotificationPresenter.show(context, payload, decision, folderId, file, mode, badge, quiet = true)
+                NotificationPresenter.show(
+                    context,
+                    payload,
+                    decision,
+                    folderId,
+                    file,
+                    mode,
+                    badge,
+                    quiet = true
+                )
                 return@launch
             }
             val key = chatPhotos[chatId] ?: peerAvatarCacheKey(PeerId(chatId))
@@ -704,7 +815,16 @@ class PushCoordinator(
                 is Outcome.Ok -> result.value
                 is Outcome.Err -> null
             } ?: return@launch
-            NotificationPresenter.show(context, payload, decision, folderId, file, mode, badge, quiet = true)
+            NotificationPresenter.show(
+                context,
+                payload,
+                decision,
+                folderId,
+                file,
+                mode,
+                badge,
+                quiet = true
+            )
         }
     }
 
@@ -718,7 +838,8 @@ class PushCoordinator(
 
     /** Media kind of a message (`Message.mediaKind`), used when a text push turns out to be media. */
     private suspend fun messageMediaKind(chatId: Long, messageId: Int): String? =
-        when (val result = client.getHistoryPage(PeerId(chatId), limit = 1, offsetId = messageId + 1)) {
+        when (val result =
+            client.getHistoryPage(PeerId(chatId), limit = 1, offsetId = messageId + 1)) {
             is Outcome.Ok -> result.value.firstOrNull { it.id.id == messageId }?.mediaKind
             is Outcome.Err -> null
         }
@@ -738,12 +859,18 @@ class PushCoordinator(
         val dir = java.io.File(context.cacheDir, "notif-thumbs").apply { mkdirs() }
         val file = java.io.File(dir, "thumb_${chatId}_$messageId.jpg")
         if (!file.isFile) {
-            val downloaded = client.downloadMessageThumb(PeerId(chatId), messageId, file.absolutePath)
+            val downloaded =
+                client.downloadMessageThumb(PeerId(chatId), messageId, file.absolutePath)
             if (downloaded is Outcome.Err) {
                 // The avatar repaint downloads at the same time and the session can reject one of the
                 // two ("download media failed ... unclassified"); one short retry recovers it.
                 delay(750)
-                if (client.downloadMessageThumb(PeerId(chatId), messageId, file.absolutePath) is Outcome.Err) {
+                if (client.downloadMessageThumb(
+                        PeerId(chatId),
+                        messageId,
+                        file.absolutePath
+                    ) is Outcome.Err
+                ) {
                     return null
                 }
             }
@@ -822,13 +949,17 @@ class PushCoordinator(
 
     private fun dismissVisibleChat(chatId: Long) {
         val topicId = openTopicId
-        if (topicId == null && knownChats.none { it.id.value == chatId && it.isForum }) dismissChat(
-            chatId
-        )
-        else if (topicId != null) NotificationPresenter.dropMessages(
-            context, chatId, emptySet(),
-            Int.MAX_VALUE, store.badgeSettings(), topicId
-        )
+        if (topicId != null) {
+            NotificationPresenter.dropMessages(
+                context, chatId, emptySet(),
+                Int.MAX_VALUE, store.badgeSettings(), topicId,
+            )
+            return
+        }
+        if (knownChats.any { it.id.value == chatId && it.isForum }) return
+        if (!NotificationPresenter.suppressVisibleBubble(context, chatId, store.bubblesEnabled)) {
+            dismissChat(chatId)
+        }
     }
 
     suspend fun refreshNotifySettings() = notifySettingsMutex.withLock {

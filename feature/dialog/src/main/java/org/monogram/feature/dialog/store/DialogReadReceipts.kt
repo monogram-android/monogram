@@ -244,6 +244,7 @@ internal fun DialogExecutor.newestLoadedIncomingId(): Int? =
     snapshot().messages.filter { !it.outgoing }.maxOfOrNull { it.id.id }
 
 internal fun DialogExecutor.acknowledgeRead(tillId: Int, immediate: Boolean) {
+    if (!readReceiptsEnabled) return
     val current = snapshot()
     if (current.hasNewer || current.searchQuery.isNotBlank()) return
     if (tillId <= current.readInboxMaxId) return

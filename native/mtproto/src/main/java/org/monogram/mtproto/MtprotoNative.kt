@@ -503,6 +503,8 @@ interface MtprotoNative {
 
     fun peekMessageInlineThumb(handle: Long, chatId: Long, messageId: Int): ByteArray? = null
 
+    fun peekPeerInlineThumb(handle: Long, peerId: Long): ByteArray? = null
+
     @Throws(MtprotoException::class)
     fun downloadMessageDisplay(handle: Long, chatId: Long, messageId: Int, destPath: String): String =
         downloadMessageMedia(handle, chatId, messageId, destPath)

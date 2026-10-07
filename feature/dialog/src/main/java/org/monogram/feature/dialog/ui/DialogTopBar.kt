@@ -136,6 +136,7 @@ import org.monogram.core.ui.loading.MonogramLoadingListSize
 import org.monogram.core.ui.menu.AppMenuPlacementState
 import org.monogram.core.ui.menu.AppMenuScrimPopup
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.dialog.ComposerAt
 import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.DialogComponent
@@ -285,7 +286,14 @@ internal fun DialogTopBar(
                         ),
                     )
                 } else {
-                    PeerAvatar(title = title, size = 38.dp, imageFile = chatAvatar)
+                    PeerAvatar(
+                        title = title,
+                        size = 38.dp,
+                        imageFile = chatAvatar,
+                        previewBytes = rememberStrippedPreview(state.chatId) {
+                            component.mediaRepository?.peerInlineThumbJpeg(state.chatId)
+                        },
+                    )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Row(

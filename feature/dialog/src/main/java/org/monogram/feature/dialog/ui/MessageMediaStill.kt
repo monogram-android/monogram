@@ -21,6 +21,7 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import org.monogram.core.ui.components.MonogramPlaceholder
+import org.monogram.core.ui.components.PreviewBlurTransformation
 import org.monogram.core.ui.loading.MonogramMediaLoadingOverlay
 import org.monogram.feature.dialog.R
 import java.io.File

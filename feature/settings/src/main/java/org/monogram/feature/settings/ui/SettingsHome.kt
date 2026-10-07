@@ -55,6 +55,7 @@ internal fun LazyListScope.homeItems(
     stateTitle: String,
     stateSubtitle: String,
     avatarFile: File?,
+    avatarPreview: ByteArray? = null,
     appVersion: String,
     buildStamp: String,
     onOpen: (SettingsPage) -> Unit,
@@ -70,6 +71,7 @@ internal fun LazyListScope.homeItems(
             title = stateTitle,
             subtitle = stateSubtitle,
             avatarFile = avatarFile,
+            previewBytes = avatarPreview,
             onClick = component::onOpenProfile,
         )
     }
@@ -376,6 +378,7 @@ private fun AccountHeader(
     title: String,
     subtitle: String,
     avatarFile: File?,
+    previewBytes: ByteArray?,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -390,7 +393,12 @@ private fun AccountHeader(
                 }
             },
             leadingContent = {
-                PeerAvatar(title = title, size = 64.dp, imageFile = avatarFile)
+                PeerAvatar(
+                    title = title,
+                    size = 64.dp,
+                    imageFile = avatarFile,
+                    previewBytes = previewBytes,
+                )
             },
             trailingContent = { Chevron() },
             modifier = Modifier

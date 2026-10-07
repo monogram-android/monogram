@@ -79,6 +79,7 @@ import org.monogram.core.ui.components.AppStatusBanner
 import org.monogram.core.ui.components.AppSyncStatus
 import org.monogram.core.ui.media.mediaViewerMotionEnabled
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.settings.R
 import org.monogram.feature.settings.SettingsComponent
 import org.monogram.feature.settings.SettingsFolderHost
@@ -141,6 +142,9 @@ fun SettingsContent(
     val pageStates = rememberSaveableStateHolder()
     val profile = state.profile
     val cacheGeneration = component.mediaRepository?.cacheGeneration?.collectAsState()?.value ?: 0L
+    val selfAvatarPreview = rememberStrippedPreview(profile?.id) {
+        profile?.id?.let { component.mediaRepository?.peerInlineThumbJpeg(it) }
+    }
     val avatarFile = rememberEnsuredFile(
         generation = cacheGeneration,
         identity = profile?.id?.value to profile?.avatarCacheKey,
@@ -322,6 +326,7 @@ fun SettingsContent(
                                 stateTitle = accountTitle,
                                 stateSubtitle = accountSubtitle,
                                 avatarFile = avatarFile,
+                                avatarPreview = selfAvatarPreview,
                                 appVersion = state.appVersion,
                                 buildStamp = state.buildStamp,
                                 onOpen = component::openPage,

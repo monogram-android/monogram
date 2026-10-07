@@ -68,6 +68,10 @@ fun interface TelegramInlineThumbPeek {
     fun peek(chatId: PeerId, messageId: Int): ByteArray?
 }
 
+fun interface TelegramPeerInlineThumbPeek {
+    fun peek(peerId: PeerId): ByteArray?
+}
+
 class MediaRepository(
     cacheRoot: File,
     private val httpClientFactory: () -> io.ktor.client.HttpClient = { HttpModule.createClient() },
@@ -76,6 +80,7 @@ class MediaRepository(
     private val maxConcurrentTelegram: Int = TELEGRAM_WORKERS,
     private val telegramChunkFetcher: TelegramChunkFetcher? = null,
     private val inlineThumbPeek: TelegramInlineThumbPeek? = null,
+    private val peerInlineThumbPeek: TelegramPeerInlineThumbPeek? = null,
 ) {
     private val streamRoot = File(cacheRoot, "stream-parts")
 
@@ -128,6 +133,18 @@ class MediaRepository(
         if (bytes.isNotEmpty()) {
             inlineThumbs[key] = bytes
             PerfLog.event("stripped_inline")
+        }
+        return bytes.takeIf { it.isNotEmpty() }
+    }
+
+    /** Stripped or cached avatar JPEG indexed at `(peerId, messageId = 0)`. No download. */
+    fun peerInlineThumbJpeg(peerId: PeerId): ByteArray? {
+        val key = "${avatarPeerKey(peerId)}:thumb"
+        inlineThumbs[key]?.let { return it }
+        val bytes = peerInlineThumbPeek?.peek(peerId) ?: return null
+        if (bytes.isNotEmpty()) {
+            inlineThumbs[key] = bytes
+            PerfLog.event("stripped_peer")
         }
         return bytes.takeIf { it.isNotEmpty() }
     }

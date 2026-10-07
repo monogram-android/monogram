@@ -53,6 +53,7 @@ import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.loading.MonogramLoadingListSize
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.dialog.MentionCandidate
 import org.monogram.feature.dialog.R
 import org.monogram.network.http.MediaPriority
@@ -251,6 +252,9 @@ private fun MentionRow(
                 title = candidate.title,
                 size = 44.dp,
                 imageFile = avatarFile,
+                previewBytes = rememberStrippedPreview(candidate.peerId) {
+                    mediaRepository?.peerInlineThumbJpeg(candidate.peerId)
+                },
             )
             if (candidate.isBot) {
                 Box(

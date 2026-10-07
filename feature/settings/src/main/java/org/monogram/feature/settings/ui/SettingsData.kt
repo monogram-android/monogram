@@ -59,6 +59,7 @@ import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.loading.MonogramLoadingInlineSize
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.settings.R
 import org.monogram.feature.settings.SettingsStore
 import org.monogram.network.http.FileCache
@@ -138,7 +139,14 @@ private fun ChatStorageRow(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PeerAvatar(title = row.title, size = 40.dp, imageFile = avatarFile)
+            PeerAvatar(
+                title = row.title,
+                size = 40.dp,
+                imageFile = avatarFile,
+                previewBytes = rememberStrippedPreview(peerId) {
+                    mediaRepository?.peerInlineThumbJpeg(peerId)
+                },
+            )
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = row.title, style = MaterialTheme.typography.bodyLarge)

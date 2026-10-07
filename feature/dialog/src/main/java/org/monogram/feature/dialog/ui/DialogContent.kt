@@ -198,6 +198,7 @@ fun DialogContent(component: DialogComponent, modifier: Modifier = Modifier) {
                 MessageSeenByRow(
                     viewers = receiptHolder.viewers?.invoke(sheetMessage),
                     viewerAvatar = { viewer -> receiptHolder.avatar?.invoke(viewer) },
+                    mediaRepository = component.mediaRepository,
                     onOpenProfile = { id ->
                         mediaViewerSeenBy = null
                         component.onOpenPeer(PeerId(id))

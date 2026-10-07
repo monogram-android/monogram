@@ -71,6 +71,7 @@ internal fun ChatsTopBar(
     archive: Boolean,
     selfTitle: String,
     selfAvatar: File?,
+    selfPreview: ByteArray? = null,
     selfOnline: Boolean,
     mediaRepository: MediaRepository?,
     searchOpen: Boolean,
@@ -152,6 +153,7 @@ internal fun ChatsTopBar(
             AccountAvatar(
                 title = selfTitle,
                 imageFile = selfAvatar,
+                previewBytes = selfPreview,
                 online = selfOnline,
                 settingsLabel = settingsLabel,
                 profileLabel = profileLabel,
@@ -272,6 +274,7 @@ private fun AppBarSubtitle(text: String?) {
 private fun AccountAvatar(
     title: String,
     imageFile: File?,
+    previewBytes: ByteArray?,
     online: Boolean,
     settingsLabel: String,
     profileLabel: String,
@@ -296,7 +299,12 @@ private fun AccountAvatar(
             contentAlignment = Alignment.Center,
         ) {
             Box(modifier = Modifier.size(32.dp)) {
-                PeerAvatar(title = title, size = 32.dp, imageFile = imageFile)
+                PeerAvatar(
+                    title = title,
+                    size = 32.dp,
+                    imageFile = imageFile,
+                    previewBytes = previewBytes,
+                )
                 if (online) {
                     OnlineDot(modifier = Modifier.align(Alignment.BottomEnd))
                 }

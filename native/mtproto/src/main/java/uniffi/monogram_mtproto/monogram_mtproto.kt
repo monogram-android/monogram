@@ -868,6 +868,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_peek_message_inline_thumb(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_peek_peer_inline_thumb(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_perf_set_enabled(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_perf_snapshot(
@@ -1153,6 +1155,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_mark_dialog_unread(`handle`: Long,`chatId`: Long,`unread`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_peek_message_inline_thumb(`handle`: Long,`chatId`: Long,`messageId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_peek_peer_inline_thumb(`handle`: Long,`peerId`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_perf_set_enabled(`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
@@ -1626,6 +1630,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_peek_message_inline_thumb() and 0xFFFF) != 34494) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_peek_peer_inline_thumb() and 0xFFFF) != 63664) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_perf_set_enabled() and 0xFFFF) != 49824) {
@@ -7278,6 +7285,18 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterULong.lower(`handle`),
         FfiConverterLong.lower(`chatId`),
         FfiConverterInt.lower(`messageId`),_status)
+}
+    )
+    }
+
+ fun `peekPeerInlineThumb`(`handle`: kotlin.ULong, `peerId`: kotlin.Long): kotlin.ByteArray? {
+            return FfiConverterOptionalByteArray.lift(
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_peek_peer_inline_thumb(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`peerId`),_status)
 }
     )
     }

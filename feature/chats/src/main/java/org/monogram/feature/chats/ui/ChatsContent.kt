@@ -107,6 +107,7 @@ import org.monogram.core.ui.perf.RecompositionProbe
 import org.monogram.core.ui.perf.perfSpan
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.chats.ChatsComponent
 import org.monogram.feature.chats.DIALOGS_PAINT_LIMIT
 import org.monogram.feature.chats.FolderListScroll
@@ -485,6 +486,9 @@ fun ChatsContent(
                             self = state.self,
                             mediaRepository = component.mediaRepository,
                         ),
+                        selfPreview = rememberStrippedPreview(state.self?.id) {
+                            state.self?.id?.let { component.mediaRepository?.peerInlineThumbJpeg(it) }
+                        },
                         selfOnline = selfOnline,
                         mediaRepository = component.mediaRepository,
                         searchOpen = searchOpen,

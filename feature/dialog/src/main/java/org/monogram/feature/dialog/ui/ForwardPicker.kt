@@ -22,6 +22,7 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.models.Chat
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.core.models.PeerId
 import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.components.PeerAvatar
@@ -144,7 +145,14 @@ private fun ForwardChatRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        PeerAvatar(title = chat.title, size = 44.dp, imageFile = avatarFile)
+        PeerAvatar(
+            title = chat.title,
+            size = 44.dp,
+            imageFile = avatarFile,
+            previewBytes = rememberStrippedPreview(chat.id) {
+                mediaRepository?.peerInlineThumbJpeg(chat.id)
+            },
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = chat.title,

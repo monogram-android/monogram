@@ -45,6 +45,7 @@ import org.monogram.network.http.MediaRepository
 import org.monogram.network.http.TelegramChunkFetcher
 import org.monogram.network.http.TelegramInlineThumbPeek
 import org.monogram.network.http.TelegramMediaFetcher
+import org.monogram.network.http.TelegramPeerInlineThumbPeek
 import org.monogram.push.PushCoordinator
 import org.monogram.sponsor.SponsorSyncManager
 import org.monogram.update.AndroidAppUpdateInstaller
@@ -265,6 +266,9 @@ class MonogramApp : Application() {
                         },
                         inlineThumbPeek = TelegramInlineThumbPeek { chatId, messageId ->
                             client.peekMessageInlineThumb(chatId, messageId)
+                        },
+                        peerInlineThumbPeek = TelegramPeerInlineThumbPeek { peerId ->
+                            client.peekPeerInlineThumb(peerId)
                         },
                     )
                 }

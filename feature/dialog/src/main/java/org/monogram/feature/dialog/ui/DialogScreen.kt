@@ -552,6 +552,7 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                             null
                         },
                         initialFilter = peerListFilter.value,
+                        mediaRepository = component.mediaRepository,
                         viewerAvatar = { viewer ->
                             viewer.avatarCacheKey?.let { component.mediaRepository?.cachedFile(it) }
                                 ?: component.mediaRepository?.cachedAvatar(

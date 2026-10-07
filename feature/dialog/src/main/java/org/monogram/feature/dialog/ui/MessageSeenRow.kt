@@ -53,7 +53,9 @@ import org.monogram.core.models.pollAnswersLabel
 import org.monogram.core.models.reactionChoiceKey
 import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.components.PeerAvatar
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.core.ui.menu.AppMenuAvatar
+import org.monogram.network.http.MediaRepository
 import org.monogram.core.ui.menu.AppMenuAvatarStack
 import org.monogram.core.ui.menu.AppMenuDivider
 import org.monogram.core.ui.menu.AppMenuGroup
@@ -74,6 +76,7 @@ fun MessageSeenByRow(
     onOpenProfile: (Long) -> Unit,
     modifier: Modifier = Modifier,
     startExpanded: Boolean = false,
+    mediaRepository: MediaRepository? = null,
 ) {
     var expanded by rememberSaveable { mutableStateOf(startExpanded) }
     if (viewers !is MessageViewers.Ready && viewers != MessageViewers.Loading) return
@@ -109,6 +112,7 @@ fun MessageSeenByRow(
                         ExpandedViewerList(
                             viewers = list,
                             viewerAvatar = viewerAvatar,
+                            mediaRepository = mediaRepository,
                             onBack = { expanded = false },
                             onOpenProfile = onOpenProfile,
                         )
@@ -116,6 +120,7 @@ fun MessageSeenByRow(
                         CollapsedViewerRow(
                             viewers = viewers,
                             viewerAvatar = viewerAvatar,
+                            mediaRepository = mediaRepository,
                             onOpenProfile = onOpenProfile,
                             onExpand = { expanded = true },
                         )
@@ -146,6 +151,7 @@ internal fun PeerListSheet(
     onDismiss: () -> Unit,
     poll: Poll? = null,
     initialFilter: String? = null,
+    mediaRepository: MediaRepository? = null,
 ) {
     val title = stringResource(
         if (kind == "poll") R.string.dialog_poll_voters_title else R.string.dialog_reaction_users_title,
@@ -229,6 +235,7 @@ internal fun PeerListSheet(
                             poll = poll,
                             yesterday = yesterday,
                             viewerAvatar = viewerAvatar,
+                            mediaRepository = mediaRepository,
                             onOpenProfile = onOpenProfile,
                         )
                     }
@@ -271,6 +278,7 @@ private fun PeerChoiceRow(
     poll: Poll?,
     yesterday: String,
     viewerAvatar: (MessageViewer) -> File?,
+    mediaRepository: MediaRepository?,
     onOpenProfile: (Long) -> Unit,
 ) {
     val pollLabel = if (kind == "poll") pollAnswersLabel(viewer, poll) else null
@@ -287,6 +295,9 @@ private fun PeerChoiceRow(
             title = viewer.title.orEmpty(),
             size = 40.dp,
             imageFile = viewerAvatar(viewer),
+            previewBytes = rememberStrippedPreview(viewer.peerId) {
+                mediaRepository?.peerInlineThumbJpeg(viewer.peerId)
+            },
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -352,6 +363,7 @@ fun seenByLabelFor(
 private fun CollapsedViewerRow(
     viewers: MessageViewers.Ready,
     viewerAvatar: (MessageViewer) -> File?,
+    mediaRepository: MediaRepository?,
     onOpenProfile: (Long) -> Unit,
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
@@ -377,7 +389,13 @@ private fun CollapsedViewerRow(
         } else {
             {
                 AppMenuAvatarStack(
-                    avatars = list.map { AppMenuAvatar(it.title.orEmpty(), viewerAvatar(it)) },
+                    avatars = list.map { viewer ->
+                        AppMenuAvatar(
+                            label = viewer.title.orEmpty(),
+                            imageFile = viewerAvatar(viewer),
+                            previewBytes = mediaRepository?.peerInlineThumbJpeg(viewer.peerId),
+                        )
+                    },
                 )
             }
         },
@@ -396,6 +414,7 @@ private fun CollapsedViewerRow(
 private fun ExpandedViewerList(
     viewers: List<MessageViewer>,
     viewerAvatar: (MessageViewer) -> File?,
+    mediaRepository: MediaRepository?,
     onBack: () -> Unit,
     onOpenProfile: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -421,6 +440,9 @@ private fun ExpandedViewerList(
                             title = viewer.title.orEmpty(),
                             size = 40.dp,
                             imageFile = viewerAvatar(viewer),
+                            previewBytes = rememberStrippedPreview(viewer.peerId) {
+                                mediaRepository?.peerInlineThumbJpeg(viewer.peerId)
+                            },
                         )
                     },
                     trailingText = viewer.date.takeIf { it > 0 }?.let { formatSeenDate(it, yesterdayLabel = yesterday) },

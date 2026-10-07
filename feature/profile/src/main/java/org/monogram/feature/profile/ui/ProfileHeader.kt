@@ -54,6 +54,7 @@ import org.monogram.core.ui.components.rememberPeerStatusNow
 import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.profile.R
 import org.monogram.network.http.MediaRepository
 
@@ -100,6 +101,9 @@ internal fun ProfileHeader(
                 title = profile.title,
                 size = ProfileAvatarSize,
                 imageFile = avatarFile,
+                previewBytes = rememberStrippedPreview(profile.id) {
+                    mediaRepository?.peerInlineThumbJpeg(profile.id)
+                },
             )
             MonogramLoading(
                 visible = avatarState is ProfileAvatar.Loading,

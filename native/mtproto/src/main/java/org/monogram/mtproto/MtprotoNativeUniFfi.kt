@@ -97,6 +97,7 @@ import uniffi.monogram_mtproto.loadMoreChats as nativeLoadMoreChats
 import uniffi.monogram_mtproto.logout as nativeLogout
 import uniffi.monogram_mtproto.markDialogUnread as nativeMarkDialogUnread
 import uniffi.monogram_mtproto.peekMessageInlineThumb as nativePeekMessageInlineThumb
+import uniffi.monogram_mtproto.peekPeerInlineThumb as nativePeekPeerInlineThumb
 import uniffi.monogram_mtproto.pingProxy as nativePingProxy
 import uniffi.monogram_mtproto.readDiscussion as nativeReadDiscussion
 import uniffi.monogram_mtproto.readHistory as nativeReadHistory
@@ -704,6 +705,9 @@ object MtprotoNativeUniFfi : MtprotoNative {
         chatId: Long,
         messageId: Int,
     ): ByteArray? = nativePeekMessageInlineThumb(handle.toULong(), chatId, messageId)
+
+    override fun peekPeerInlineThumb(handle: Long, peerId: Long): ByteArray? =
+        nativePeekPeerInlineThumb(handle.toULong(), peerId)
 
     override fun downloadMessageDisplay(
         handle: Long,

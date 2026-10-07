@@ -70,4 +70,6 @@ interface MediaOps {
     ): Outcome<String> = downloadCustomEmoji(documentId, destPath)
 
     fun peekMessageInlineThumb(chatId: PeerId, messageId: Int): ByteArray? = null
+
+    fun peekPeerInlineThumb(peerId: PeerId): ByteArray? = null
 }

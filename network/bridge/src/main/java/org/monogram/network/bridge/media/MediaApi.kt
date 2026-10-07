@@ -271,4 +271,12 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
             core.native.peekMessageInlineThumb(handle, chatId.value, messageId)
         }.getOrNull()?.takeIf { it.isNotEmpty() }
     }
+
+    override fun peekPeerInlineThumb(peerId: PeerId): ByteArray? {
+        val handle = core.activeHandleOrZero()
+        if (handle == 0L) return null
+        return runCatching {
+            core.native.peekPeerInlineThumb(handle, peerId.value)
+        }.getOrNull()?.takeIf { it.isNotEmpty() }
+    }
 }

@@ -71,6 +71,7 @@ import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.localizedServiceMessage
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.dialog.R
 import org.monogram.feature.dialog.isNonVisualAlbum
 import org.monogram.feature.dialog.isVisualAlbum
@@ -268,6 +269,9 @@ fun MessageBubble(
                 title = senderTitle.orEmpty(),
                 size = 28.dp,
                 imageFile = senderAvatar,
+                previewBytes = rememberStrippedPreview(sender?.id) {
+                    sender?.id?.let { mediaRepository?.peerInlineThumbJpeg(it) }
+                },
                 modifier = Modifier
                     .padding(end = 6.dp, bottom = 2.dp)
                     .then(

@@ -562,6 +562,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                                     {
                                                         MessageSeenByRow(
                                                             viewers = state.messageViewers[message.id.id],
+                                                            mediaRepository = component.mediaRepository,
                                                             viewerAvatar = { viewer ->
                                                                 viewer.avatarCacheKey
                                                                     ?.let {

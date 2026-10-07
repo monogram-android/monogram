@@ -1,4 +1,4 @@
-package org.monogram.feature.dialog.ui
+package org.monogram.core.ui.components
 
 import android.graphics.Bitmap
 import coil.size.Size
@@ -6,9 +6,9 @@ import coil.transform.Transformation
 
 /**
  * Cheap stand-in blur for stripped Telegram thumbs (`photoStrippedSize`).
- * Downsample then upsample so a 40px JPEG is a color wash, not pixels.
+ * Downsample then upsample so a tiny JPEG is a color wash, not pixels.
  */
-internal class PreviewBlurTransformation(
+class PreviewBlurTransformation(
     private val downsample: Int = 4,
 ) : Transformation {
     override val cacheKey: String = "monogram-preview-blur-$downsample"

@@ -16,6 +16,24 @@ import kotlinx.coroutines.flow.Flow
 fun rememberCacheGeneration(generation: Flow<Long>?): Long =
     generation?.collectAsState(initial = 0L)?.value ?: 0L
 
+@Composable
+fun rememberStrippedPreview(identity: Any?, load: () -> ByteArray?): ByteArray? {
+    var cached by remember(identity) { mutableStateOf(load()?.takeIf { it.isNotEmpty() }) }
+    if (cached == null) {
+        LaunchedEffect(identity) {
+            repeat(8) { attempt ->
+                val peeked = load()?.takeIf { it.isNotEmpty() }
+                if (peeked != null) {
+                    cached = peeked
+                    return@LaunchedEffect
+                }
+                if (attempt < 7) delay(250L * (attempt + 1))
+            }
+        }
+    }
+    return cached
+}
+
 /**
  * Resolves a local media file, then keeps it in sync when [generation] changes
  * (a download finished elsewhere, e.g. another row or prefetch).

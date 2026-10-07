@@ -86,6 +86,7 @@ import org.monogram.core.ui.components.typingStatusText
 import org.monogram.core.ui.perf.RecompositionProbe
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.core.ui.serviceMessageCatalog
 import org.monogram.feature.chats.ChatPreviewMedia
 import org.monogram.feature.chats.R
@@ -343,6 +344,9 @@ internal fun ChatRow(
                             chat = chat,
                             mediaRepository = mediaRepository,
                         ),
+                        previewBytes = rememberStrippedPreview(chat.id) {
+                            mediaRepository?.peerInlineThumbJpeg(chat.id)
+                        },
                     )
                 }
                 if (!savedMessages && isOnline(chat)) {

@@ -13,13 +13,14 @@ class DownloadSettingsTest {
     }
 
     @Test
-    fun premiumDownloadUsesTheFastDefaults() {
+    fun premiumDownloadKeepsLargeChunksWithConservativeConcurrency() {
         val free = DownloadState(premium = false, lanes = 99)
         assertEquals(DownloadConcurrency(2, 4), free.concurrency)
-        assertEquals(128, free.downloadChunkKib)
+        assertEquals(256, free.downloadChunkKib)
         assertEquals(512, free.filePartKib)
         val premium = DownloadState(premium = true, lanes = 7)
-        assertEquals(DownloadConcurrency(7, 8), premium.concurrency)
+        assertEquals(DownloadConcurrency(7, 4), premium.concurrency)
+        assertEquals(DownloadConcurrency(2, 4), DownloadState(premium = true).concurrency)
         assertEquals(512, premium.downloadChunkKib)
         assertEquals(512, premium.filePartKib)
         assertEquals(1, DownloadState(lanes = 1, premium = true).effectiveLanes)

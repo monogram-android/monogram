@@ -107,7 +107,12 @@ impl TransferPolicy {
                 .filter(|waiter| waiter.dc == dc && waiter.large == large)
                 .min_by_key(|waiter| (waiter.priority, waiter.ticket))
                 .map(|waiter| waiter.ticket);
-            if count < limit.max(1) && best == Some(ticket) {
+            let recovering = self.floods.lock().recovering_download(dc);
+            let dc_count: usize = active.counts.iter()
+                .filter(|((active_dc, _), _)| *active_dc == dc)
+                .map(|(_, count)| *count)
+                .sum();
+            if count < limit.max(1) && (!recovering || dc_count == 0) && best == Some(ticket) {
                 *active.counts.entry((dc, large)).or_insert(0) += 1;
                 active.waiters.retain(|waiter| waiter.ticket != ticket);
                 return Ok(DownloadAdmission {
@@ -209,6 +214,10 @@ impl TransferPolicy {
     pub(crate) fn own_chunk_size(&self, size: i32) {
         self.chunk_owned.store(true, Ordering::Relaxed);
         self.assign_chunk_size(size);
+    }
+
+    pub(crate) fn is_chunk_owned(&self) -> bool {
+        self.chunk_owned.load(Ordering::Relaxed)
     }
 
     pub(crate) fn own_file_part_kib(&self, kib: i32) {

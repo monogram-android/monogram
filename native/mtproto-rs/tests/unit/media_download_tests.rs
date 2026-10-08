@@ -750,6 +750,96 @@ fn completed_part_refills_inflight_window_without_waiting_for_the_batch() {
 }
 
 #[test]
+fn parallel_media_download_preserves_bytes_with_out_of_order_refills() {
+    let _globals = hold_media_globals();
+    let _profile = bind_download_profile(DownloadProfile::Ordinary);
+    use tellers_mtproto::latest::api::{
+        StorageFileType, StorageFileUnknownConstructor, UploadFileConstructor, UploadGetFileRequest,
+    };
+    let media = MediaRef {
+        file_size: None,
+        kind: "video".into(),
+        cache_key: "parallel-refill".into(),
+        location: MediaLocation::Document {
+            id: 31,
+            access_hash: 32,
+            file_reference: vec![7],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "video/mp4".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    };
+    let path =
+        std::env::temp_dir().join(format!("monogram-parallel-refill-{}", std::process::id()));
+    let mut batches = 0;
+    let mut file_size = 0;
+    let result = download_media_range_batched_streaming(
+        2,
+        &media,
+        &path,
+        &path,
+        None,
+        4,
+        |_, requests, on_chunk| {
+            batches += 1;
+            file_size = requests[0].limit as usize * 7 + 123;
+            let mut lanes = [Vec::new(), Vec::new()];
+            for (index, request) in requests.into_iter().enumerate() {
+                lanes[index % 2].push((index, request));
+            }
+            let invoke = |mut requests: Vec<UploadGetFileRequest>,
+                          on_chunk: &mut dyn FnMut(
+                usize,
+                Result<UploadFile, MtprotoError>,
+            ) -> Option<UploadGetFileRequest>| {
+                let mut results = Vec::new();
+                let mut index = 0;
+                while index < requests.len() {
+                    let request = &requests[index];
+                    if request.offset == 0 {
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                    }
+                    let start = request.offset as usize;
+                    let len = file_size.saturating_sub(start).min(request.limit as usize);
+                    let file = UploadFile::UploadFile(UploadFileConstructor {
+                        type_: Box::new(StorageFileType::StorageFileUnknown(
+                            StorageFileUnknownConstructor {},
+                        )),
+                        mtime: 0,
+                        bytes: (start..start + len)
+                            .map(|offset| (offset % 251) as u8)
+                            .collect(),
+                    });
+                    if let Some(next) = on_chunk(index, Ok(file.clone())) {
+                        requests.push(next);
+                    }
+                    results.push(Ok(file));
+                    index += 1;
+                }
+                Ok(results)
+            };
+            crate::client::invoke_parallel_media_batches(lanes, invoke, invoke, on_chunk)
+        },
+    );
+    assert!(result.is_ok(), "parallel download failed: {result:?}");
+    assert_eq!(batches, 1);
+    assert_eq!(
+        fs::read(&path).unwrap(),
+        (0..file_size)
+            .map(|offset| (offset % 251) as u8)
+            .collect::<Vec<_>>()
+    );
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
 fn one_mib_chunks_are_rejected() {
     let _globals = hold_media_globals();
     let _profile = bind_download_profile(DownloadProfile::Ordinary);
@@ -818,7 +908,83 @@ fn flood_wait_returns_without_sleeping_or_retrying_on_the_lane() {
     );
     assert_eq!(calls, 1);
     assert!(!path.exists());
+    let policy = crate::transfer_policy::current();
+    *policy.floods.lock() = FloodScope::new();
+    policy.floods.lock().park(2, TransferClass::Download, 2, false,
+        std::time::Instant::now() - std::time::Duration::from_secs(5),
+        DownloadWindow { chunk: FAST_CHUNK, in_flight: 8 });
+    assert!(check_transfer_flood(2, TransferClass::Download).is_ok());
+    download_media_range_batched(2, &media, &path, &path, None, 8, |_, requests| {
+        assert_eq!(requests.len(), 2, "retry must keep the reduced window");
+        Ok(requests.into_iter().map(|request| {
+            Ok(UploadFile::UploadFile(UploadFileConstructor {
+                type_: Box::new(StorageFileType::StorageFileUnknown(StorageFileUnknownConstructor {})),
+                mtime: 0,
+                bytes: vec![9u8; (20i64 - request.offset).max(0) as usize],
+            }))
+        }).collect())
+    }).unwrap();
+    assert_eq!(fs::read(&path).unwrap(), vec![9u8; 20]);
     fs::remove_file(&path).ok();
+}
+
+#[test]
+fn ordinary_flood_wait_reduces_aggressive_download_window() {
+    let now = std::time::Instant::now();
+    let current = DownloadWindow {
+        chunk: FAST_CHUNK,
+        in_flight: 8,
+    };
+    let mut scope = FloodScope::new();
+
+    scope.park(2, TransferClass::Download, 2, false, now, current);
+    assert_eq!(
+        scope.window(2, TransferClass::Download, now, current),
+        DownloadWindow {
+            chunk: FAST_CHUNK,
+            in_flight: 2,
+        }
+    );
+
+    let mut premium_scope = FloodScope::new();
+    premium_scope.park(2, TransferClass::Download, 2, true, now, current);
+    assert_eq!(
+        premium_scope.window(2, TransferClass::Download, now, current),
+        DownloadWindow {
+            chunk: FAST_CHUNK,
+            in_flight: 1,
+        }
+    );
+}
+
+#[test]
+fn flood_retry_keeps_window_after_deadline_and_recovers_only_with_success() {
+    let now = std::time::Instant::now();
+    let fast = DownloadWindow { chunk: FAST_CHUNK, in_flight: 8 };
+    let mut scope = FloodScope::new();
+    scope.park(2, TransferClass::Download, 2, false, now, fast);
+    let retry = now + std::time::Duration::from_secs(3);
+    assert!(scope.pending_error(2, TransferClass::Download, retry).is_none());
+    assert_eq!(scope.window(2, TransferClass::Download, retry, fast).in_flight, 2);
+    assert!(scope.recovering_download(2));
+    assert!(!scope.recovering_download(4));
+    scope.park(2, TransferClass::Download, 2, false, retry, fast);
+    let ready = retry + std::time::Duration::from_secs(2);
+    assert_eq!(scope.window(2, TransferClass::Download, ready, fast).in_flight, 1);
+    let later = ready + std::time::Duration::from_secs(31);
+    assert_eq!(scope.window(2, TransferClass::Download, later, fast).in_flight, 1);
+    for _ in 0..31 { scope.download_succeeded(2, later); }
+    assert_eq!(scope.window(2, TransferClass::Download, later, fast).in_flight, 1);
+    scope.download_succeeded(2, later);
+    assert_eq!(scope.window(2, TransferClass::Download, later, fast).in_flight, 2);
+    for _ in 0..32 { scope.download_succeeded(2, later); }
+    assert_eq!(scope.window(2, TransferClass::Download, later, fast).in_flight, 2);
+    let stable = later + std::time::Duration::from_secs(30);
+    scope.download_succeeded(2, stable);
+    assert_eq!(scope.window(2, TransferClass::Download, stable, fast).in_flight, 3);
+    assert_eq!(scope.window(4, TransferClass::Download, stable, fast), fast);
+    let small = DownloadWindow { chunk: DEFAULT_CHUNK, in_flight: 1 };
+    assert_eq!(scope.window(2, TransferClass::Download, stable, small), small);
 }
 
 #[test]

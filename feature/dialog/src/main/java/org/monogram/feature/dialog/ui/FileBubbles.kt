@@ -191,7 +191,7 @@ internal fun DocumentBubble(
                 openFailed -> stringResource(R.string.dialog_media_open_failed)
                 failed && file == null -> stringResource(R.string.dialog_media_failed)
                 uploading && loading -> stringResource(R.string.dialog_media_uploading)
-                loading && file == null -> formatDownloadProgress(downloadedBytes, size)
+                loading && file == null -> downloadProgressText(downloadedBytes, size)
                 else -> size?.takeIf { it > 0 }?.let(::formatFileSize)
             }
             sizeText?.let {
@@ -329,7 +329,7 @@ internal fun AudioBubble(
             )
             Text(
                 when {
-                    downloading -> formatDownloadProgress(downloadedBytes, fileSize)
+                    downloading -> downloadProgressText(downloadedBytes, fileSize)
                         ?: stringResource(R.string.dialog_media_loading)
 
                     failedHere -> stringResource(R.string.dialog_media_failed)

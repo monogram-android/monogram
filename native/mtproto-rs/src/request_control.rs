@@ -15,6 +15,7 @@ static REQUESTS: LazyLock<Mutex<HashMap<u64, Arc<ConnectionControl>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 thread_local! {
     static CURRENT: RefCell<(u64, Option<Arc<ConnectionControl>>)> = const { RefCell::new((0, None)) };
+    static SHARED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 pub fn create() -> u64 {
@@ -39,6 +40,22 @@ pub fn bind(id: u64) -> u64 {
     CURRENT.with(|cell| cell.replace((id, control)).0)
 }
 
+pub(crate) fn current_id() -> u64 {
+    CURRENT.with(|cell| cell.borrow().0)
+}
+
+pub(crate) fn with_shared_binding<T>(id: u64, body: impl FnOnce() -> T) -> T {
+    struct Restore(u64, bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            bind(self.0);
+            SHARED.with(|cell| cell.set(self.1));
+        }
+    }
+    let _restore = Restore(bind(id), SHARED.with(|cell| cell.replace(true)));
+    body()
+}
+
 pub fn cancel(id: u64) {
     let control = REQUESTS.lock().get(&id).cloned();
     if let Some(control) = control {
@@ -51,6 +68,10 @@ pub fn release(id: u64) {
 }
 
 pub(crate) fn detach_sockets() {
+    // A finished parallel lane must not unregister the other lane's socket.
+    if SHARED.with(|cell| cell.get()) {
+        return;
+    }
     CURRENT.with(|cell| {
         if let Some(control) = &cell.borrow().1 {
             control.detach_sockets();

@@ -147,7 +147,13 @@ pub(crate) fn configured_download_window(profile: DownloadProfile) -> DownloadWi
     let maximum = download_window(profile);
     let policy = crate::transfer_policy::current();
     DownloadWindow {
-        chunk: maximum.chunk.min(policy.chunk_size()),
+        chunk: if policy.is_chunk_owned() {
+            maximum.chunk.min(policy.chunk_size())
+        } else if maximum.chunk >= FAST_CHUNK {
+            maximum.chunk
+        } else {
+            maximum.chunk.min(policy.chunk_size())
+        },
         in_flight: maximum.in_flight.min(policy.pipeline_parts()),
     }
 }
@@ -258,7 +264,16 @@ pub enum TransferClass {
 
 #[derive(Clone, Debug)]
 pub struct FloodScope {
-    slow_until: crate::HashMap<(i32, TransferClass), (DownloadWindow, std::time::Instant, bool)>,
+    slow_until: crate::HashMap<(i32, TransferClass), FloodBackoff>,
+}
+
+#[derive(Clone, Debug)]
+struct FloodBackoff {
+    window: DownloadWindow,
+    until: std::time::Instant,
+    premium: bool,
+    recover_after: std::time::Instant,
+    successes: usize,
 }
 
 impl FloodScope {
@@ -278,23 +293,42 @@ impl FloodScope {
         now: std::time::Instant,
         current: DownloadWindow,
     ) {
-        let slowed = if premium {
+        let key = (dc_id, class);
+        let previous = self.slow_until.get(&key);
+        let slowed = if class == TransferClass::Download {
+            DownloadWindow {
+                chunk: current.chunk,
+                in_flight: if premium {
+                    1
+                } else {
+                    (previous.map_or(current.in_flight, |state| state.window.in_flight) / 2)
+                        .clamp(1, 2)
+                },
+            }
+        } else if premium {
             DownloadWindow {
                 chunk: DEFAULT_CHUNK,
-                in_flight: 2,
+                in_flight: 1,
             }
         } else {
-            current
+            DownloadWindow {
+                chunk: current.chunk.min(DEFAULT_CHUNK),
+                in_flight: current.in_flight.min(4),
+            }
         };
         let seconds = seconds.max(1);
-        let deadline = now + flood_wait_duration(seconds);
-        if let Some((_, existing_deadline, _)) = self.slow_until.get(&(dc_id, class)) {
-            if *existing_deadline > deadline {
-                return;
-            }
-        }
-        self.slow_until
-            .insert((dc_id, class), (slowed, deadline, premium));
+        let deadline = (now + flood_wait_duration(seconds))
+            .max(previous.map_or(now, |state| state.until));
+        let premium = previous
+            .filter(|state| state.until > now)
+            .map_or(premium, |state| state.premium || premium);
+        self.slow_until.insert(key, FloodBackoff {
+            window: slowed,
+            until: deadline,
+            premium,
+            recover_after: deadline + std::time::Duration::from_secs(30),
+            successes: 0,
+        });
     }
 
     pub fn window(
@@ -307,15 +341,37 @@ impl FloodScope {
         let expired = self
             .slow_until
             .get(&(dc_id, class))
-            .is_some_and(|(_, until, _)| now >= *until);
-        if expired {
+            .is_some_and(|state| now >= state.until);
+        if expired && class != TransferClass::Download {
             self.slow_until.remove(&(dc_id, class));
             return fallback;
         }
         self.slow_until
             .get(&(dc_id, class))
-            .map(|(window, _, _)| *window)
+            .map(|state| DownloadWindow {
+                chunk: state.window.chunk.min(fallback.chunk),
+                in_flight: state.window.in_flight.min(fallback.in_flight),
+            })
             .unwrap_or(fallback)
+    }
+
+    pub(crate) fn recovering_download(&self, dc_id: i32) -> bool {
+        self.slow_until.contains_key(&(dc_id, TransferClass::Download))
+    }
+
+    pub(crate) fn download_succeeded(&mut self, dc_id: i32, now: std::time::Instant) {
+        let Some(state) = self.slow_until.get_mut(&(dc_id, TransferClass::Download)) else {
+            return;
+        };
+        if now < state.until {
+            return;
+        }
+        state.successes = state.successes.saturating_add(1);
+        if state.successes >= 32 && now >= state.recover_after && state.window.in_flight < 4 {
+            state.window.in_flight += 1;
+            state.successes = 0;
+            state.recover_after = now + std::time::Duration::from_secs(30);
+        }
     }
 
     pub(crate) fn pending_error(
@@ -324,8 +380,8 @@ impl FloodScope {
         class: TransferClass,
         now: std::time::Instant,
     ) -> Option<MtprotoError> {
-        let (_, until, premium) = self.slow_until.get(&(dc_id, class))?;
-        let remaining = until.checked_duration_since(now)?;
+        let state = self.slow_until.get(&(dc_id, class))?;
+        let remaining = state.until.checked_duration_since(now)?;
         if remaining.is_zero() {
             return None;
         }
@@ -334,13 +390,20 @@ impl FloodScope {
             .saturating_add(u64::from(remaining.subsec_nanos() > 0));
         Some(MtprotoError::Message(format!(
             "RPC 420: {}_{seconds}",
-            if *premium {
+            if state.premium {
                 "FLOOD_PREMIUM_WAIT"
             } else {
                 "FLOOD_WAIT"
             }
         )))
     }
+}
+
+pub(crate) fn download_flood_active(dc_id: i32) -> bool {
+    crate::transfer_policy::current()
+        .floods
+        .lock()
+        .recovering_download(dc_id)
 }
 
 pub(crate) fn note_transfer_flood(dc_id: i32, class: TransferClass, err: &MtprotoError) {
@@ -705,6 +768,12 @@ pub(crate) fn download_media_range_batched_streaming_capped(
         let mut first_batch = true;
         let target_str = cancellation_path.display().to_string();
         'download: loop {
+            width = crate::transfer_policy::current().floods.lock().window(
+                dc_id,
+                TransferClass::Download,
+                std::time::Instant::now(),
+                DownloadWindow { chunk: resolve_chunk(offset), in_flight: parts_in_flight.max(1) },
+            ).in_flight.min(if retried_limit { width } else { parts_in_flight.max(1) });
             let chunk = resolve_chunk(Some(next).filter(|_| next > 0).or(offset));
             let batch = if stream {
                 bound_download_window()
@@ -744,6 +813,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                 let mut written_parts = vec![false; offsets.len()];
                 let mut short_or_empty = vec![false; offsets.len()];
                 let mut last_part = false;
+                let mut stop_refill = false;
 
                 let mut offset_by_index = offsets.clone();
                 let mut next_to_request = next + (batch as i64) * i64::from(chunk);
@@ -756,6 +826,9 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                             return None;
                         }
                         let part_offset = *offset_by_index.get(index)?;
+                        if !matches!(&res, Ok(UploadFile::UploadFile(_))) {
+                            stop_refill = true;
+                        }
                         let mut hit_short = false;
                         if let Ok(UploadFile::UploadFile(file)) = &res {
                             let bytes = &file.bytes;
@@ -767,6 +840,14 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                                     written_end = written_end.max(part_offset + bytes.len() as i64);
                                     if counted_offsets.insert(part_offset) {
                                         downloaded_bytes += bytes.len() as i64;
+                                        crate::transfer_policy::current().floods.lock()
+                                            .download_succeeded(dc_id, std::time::Instant::now());
+                                        if crate::transfer_policy::current().floods.lock().window(
+                                            dc_id, TransferClass::Download, std::time::Instant::now(),
+                                            DownloadWindow { chunk, in_flight: parts_in_flight.max(1) },
+                                        ).in_flight != width {
+                                            stop_refill = true;
+                                        }
                                         notify_progress(&target_str, downloaded_bytes, 0);
                                     }
                                     if index < written_parts.len() {
@@ -782,7 +863,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                                 }
                             }
                         }
-                        if stream || hit_short {
+                        if stream || hit_short || last_part || stop_refill {
                             return None;
                         }
                         if refill_limit.is_some_and(|limit| refills_used >= limit) {

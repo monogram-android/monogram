@@ -53,6 +53,51 @@ fn download_profiles_and_uploads_respect_client_settings() {
 }
 
 #[test]
+fn flood_recovery_serializes_downloads_across_file_queues_on_one_dc() {
+    let policy = Arc::new(TransferPolicy::stock());
+    policy.floods.lock().park(2, crate::media::TransferClass::Download, 1, false,
+        std::time::Instant::now() - std::time::Duration::from_secs(5),
+        crate::media::DownloadWindow { chunk: crate::media::FAST_CHUNK, in_flight: 8 });
+    let held = policy.admit_download(2, true).unwrap();
+    let other_dc = policy.admit_download(4, false).unwrap();
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let waiting = policy.clone();
+    let thread = std::thread::spawn(move || {
+        let _lease = waiting.admit_download(2, false).unwrap();
+        ready_tx.send(()).unwrap();
+    });
+    assert!(ready_rx.recv_timeout(std::time::Duration::from_millis(100)).is_err());
+    drop(held);
+    ready_rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+    thread.join().unwrap();
+    drop(other_dc);
+}
+
+#[test]
+fn unowned_policy_keeps_large_chunks_but_respects_pipeline_limit() {
+    let policy = Arc::new(TransferPolicy::stock());
+    let _guard = transfer_policy::bind(policy.clone());
+
+    for profile in [
+        crate::media::DownloadProfile::Visible,
+        crate::media::DownloadProfile::Playing,
+        crate::media::DownloadProfile::User,
+    ] {
+        let window = crate::media::configured_download_window(profile);
+        assert_eq!(window.chunk, crate::media::FAST_CHUNK);
+        assert_eq!(window.in_flight, 4);
+        policy.assign_pipeline_parts(2);
+        assert_eq!(crate::media::configured_download_window(profile).in_flight, 2);
+        policy.assign_pipeline_parts(4);
+    }
+
+    let ordinary =
+        crate::media::configured_download_window(crate::media::DownloadProfile::Ordinary);
+    assert_eq!(ordinary.chunk, crate::media::DEFAULT_CHUNK);
+    assert_eq!(ordinary.in_flight, 4);
+}
+
+#[test]
 fn ffi_media_dispatch_profiles_match_kotlin_values_and_reset_after_request() {
     for (class, profile) in [
         (3, crate::media::DownloadProfile::Background),

@@ -164,6 +164,14 @@ class MediaDurationTest {
     }
 
     @Test
+    fun downloadSpeedUsesElapsedTimeAndResetsAfterRestart() {
+        assertEquals(2048L, downloadBytesPerSecond(1024, 4096, 1500))
+        assertEquals(0L, downloadBytesPerSecond(4096, 4096, 1000))
+        assertEquals(0L, downloadBytesPerSecond(4096, 1024, 1000))
+        assertEquals(0L, downloadBytesPerSecond(1024, 4096, 0))
+    }
+
+    @Test
     fun downloadProgressUsesKnownTotal() {
         assertEquals(0f, downloadProgressFraction(0, 2000)!!, 0.001f)
         assertEquals(0.5f, downloadProgressFraction(1000, 2000)!!, 0.001f)

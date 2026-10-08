@@ -145,7 +145,7 @@ data class AutoDownloadPreset(
 }
 
 data class DownloadState(
-    val lanes: Int = 8,
+    val lanes: Int = 2,
     val premium: Boolean = false,
     val wifi: AutoDownloadPreset = AutoDownloadPreset.WIFI,
     val mobile: AutoDownloadPreset = AutoDownloadPreset.MOBILE,
@@ -155,11 +155,11 @@ data class DownloadState(
     val activeNetwork: AutoDownloadNetwork = AutoDownloadNetwork.Wifi,
 ) {
     val effectiveLanes: Int get() = lanes.coerceIn(1, if (premium) 8 else 2)
-    val parts: Int get() = if (premium) 8 else 4
+    val parts: Int get() = 4
     val concurrency: DownloadConcurrency
         get() = DownloadConcurrency(lanes = effectiveLanes, parts = parts)
     val filePartKib: Int get() = 512
-    val downloadChunkKib: Int get() = if (premium) 512 else 128
+    val downloadChunkKib: Int get() = if (premium) 512 else 256
 
     fun presetFor(network: AutoDownloadNetwork): AutoDownloadPreset = when (network) {
         AutoDownloadNetwork.Wifi -> wifi

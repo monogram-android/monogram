@@ -1,5 +1,19 @@
 package org.monogram.feature.dialog.ui
 
+import android.os.SystemClock
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import org.monogram.feature.dialog.R
 import org.monogram.network.http.MediaPriority
 import org.monogram.core.models.isStickerFileName
 import org.monogram.core.ui.AutoDownloadPreset
@@ -25,6 +39,39 @@ internal fun formatDownloadProgress(bytes: Long, total: Long?): String? {
             "${formatFileSize(bytes.coerceAtLeast(0L))} / ${formatFileSize(knownTotal)}"
         bytes > 0L -> formatFileSize(bytes)
         else -> null
+    }
+}
+
+internal fun downloadBytesPerSecond(previous: Long, current: Long, elapsedMs: Long): Long =
+    if (elapsedMs <= 0L || current < previous) 0L
+    else ((current - previous).toDouble() * 1000.0 / elapsedMs).toLong()
+
+@Composable
+internal fun downloadProgressText(bytes: Long, total: Long?, active: Boolean = true): String? {
+    val latestBytes by rememberUpdatedState(bytes)
+    var speed by remember(active) { mutableLongStateOf(0L) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(active, lifecycle) {
+        if (!active) return@LaunchedEffect
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            speed = 0L
+            var previousBytes = latestBytes
+            var previousTime = SystemClock.elapsedRealtime()
+            while (true) {
+                delay(1000L)
+                val now = SystemClock.elapsedRealtime()
+                val received = latestBytes
+                speed = downloadBytesPerSecond(previousBytes, received, now - previousTime)
+                previousBytes = received
+                previousTime = now
+            }
+        }
+    }
+    val progress = formatDownloadProgress(bytes, total) ?: return null
+    return if (active) {
+        stringResource(R.string.dialog_media_progress_speed, progress, formatFileSize(speed))
+    } else {
+        progress
     }
 }
 

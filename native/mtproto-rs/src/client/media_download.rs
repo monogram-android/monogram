@@ -812,12 +812,106 @@ fn invoke_lane_batch(
     slot: &mut Option<crate::rpc::LiveTransport>,
     api_id: i32,
     requests: Vec<tellers_mtproto::latest::api::UploadGetFileRequest>,
+    on_chunk: &mut dyn FnMut(
+        usize,
+        Result<tellers_mtproto::latest::api::UploadFile, MtprotoError>,
+    ) -> Option<tellers_mtproto::latest::api::UploadGetFileRequest>,
 ) -> Result<Vec<Result<tellers_mtproto::latest::api::UploadFile, MtprotoError>>, MtprotoError> {
     with_client_transport(client, slot, || {
         crate::api_invoke::invoke_api_batch_without_updates_streaming::<
             _,
             tellers_mtproto::latest::api::UploadFile,
-        >(snapshot, api_id, requests, &mut |_, _| None)
+        >(snapshot, api_id, requests, on_chunk)
+    })
+}
+
+pub(crate) fn invoke_parallel_media_batches<Req: Send, Res: Send + Clone>(
+    batches: [Vec<(usize, Req)>; 2],
+    invoke_a: impl FnOnce(
+        Vec<Req>,
+        &mut dyn FnMut(usize, Result<Res, MtprotoError>) -> Option<Req>,
+    ) -> Result<Vec<Result<Res, MtprotoError>>, MtprotoError>
+    + Send,
+    invoke_b: impl FnOnce(
+        Vec<Req>,
+        &mut dyn FnMut(usize, Result<Res, MtprotoError>) -> Option<Req>,
+    ) -> Result<Vec<Result<Res, MtprotoError>>, MtprotoError>
+    + Send,
+    on_chunk: &mut dyn FnMut(usize, Result<Res, MtprotoError>) -> Option<Req>,
+) -> Result<Vec<Result<Res, MtprotoError>>, MtprotoError> {
+    use std::sync::mpsc::{Sender, sync_channel};
+
+    fn run_lane<Req, Res>(
+        batch: Vec<(usize, Req)>,
+        completed: Sender<(
+            usize,
+            Result<Res, MtprotoError>,
+            std::sync::mpsc::SyncSender<Option<(usize, Req)>>,
+        )>,
+        invoke: impl FnOnce(
+            Vec<Req>,
+            &mut dyn FnMut(usize, Result<Res, MtprotoError>) -> Option<Req>,
+        ) -> Result<Vec<Result<Res, MtprotoError>>, MtprotoError>,
+    ) -> Result<(), MtprotoError> {
+        let (mut indices, requests): (Vec<_>, Vec<_>) = batch.into_iter().unzip();
+        invoke(requests, &mut |index, result| {
+            let global_index = *indices.get(index)?;
+            let (reply, refill) = sync_channel(0);
+            completed.send((global_index, result, reply)).ok()?;
+            let (next_index, request) = refill.recv().ok()??;
+            indices.push(next_index);
+            Some(request)
+        })
+        .map(|_| ())
+    }
+
+    let initial_len = batches.iter().map(Vec::len).sum();
+    let mut results: Vec<Option<Result<Res, MtprotoError>>> =
+        (0..initial_len).map(|_| None).collect();
+    let failed = std::sync::atomic::AtomicBool::new(false);
+    std::thread::scope(|scope| {
+        let [a, b] = batches;
+        let failed_ref = &failed;
+        let (completed, chunks) = std::sync::mpsc::channel();
+        let completed_b = completed.clone();
+        let even = scope.spawn(move || {
+            let result = run_lane(a, completed, invoke_a);
+            if result.is_err() {
+                failed_ref.store(true, Ordering::Release);
+            }
+            result
+        });
+        let odd = scope.spawn(move || {
+            let result = run_lane(b, completed_b, invoke_b);
+            if result.is_err() {
+                failed_ref.store(true, Ordering::Release);
+            }
+            result
+        });
+        for (index, result, reply) in chunks {
+            if result.is_err() {
+                failed.store(true, Ordering::Release);
+            }
+            let refill = on_chunk(index, result.clone())
+                .filter(|_| !failed.load(Ordering::Acquire))
+                .map(|request| {
+                    let next_index = results.len();
+                    results.push(None);
+                    (next_index, request)
+                });
+            results[index] = Some(result);
+            let _ = reply.send(refill);
+        }
+        even.join()
+            .map_err(|_| MtprotoError::Message("even media lane".into()))??;
+        odd.join()
+            .map_err(|_| MtprotoError::Message("odd media lane".into()))??;
+        Ok(results
+            .into_iter()
+            .map(|result| {
+                result.unwrap_or_else(|| Err(MtprotoError::Message("missing media part".into())))
+            })
+            .collect())
     })
 }
 
@@ -850,49 +944,33 @@ fn invoke_media_batch_even_odd(
     }
     let snap_b = snap_b.unwrap();
     let slot_b = slot_b.unwrap();
-    let mut snap_a_t = snap_a.clone();
-    let mut snap_b_t = snap_b.clone();
-    let mut slot_a_t = slot_a.take();
-    let mut slot_b_t = slot_b.take();
-    let joined = std::thread::scope(|scope| {
-        let even_h = scope
-            .spawn(|| invoke_lane_batch(client, &mut snap_a_t, &mut slot_a_t, api_id, even_reqs));
-        let odd_h = scope
-            .spawn(|| invoke_lane_batch(client, &mut snap_b_t, &mut slot_b_t, api_id, odd_reqs));
-        (even_h.join(), odd_h.join())
-    });
-    *snap_a = snap_a_t;
-    *snap_b = snap_b_t;
-    *slot_a = slot_a_t;
-    *slot_b = slot_b_t;
-    let even_res = joined
-        .0
-        .map_err(|_| MtprotoError::Message("even media lane".into()))??;
-    let odd_res = joined
-        .1
-        .map_err(|_| MtprotoError::Message("odd media lane".into()))??;
-    let mut merged: Vec<Option<Result<tellers_mtproto::latest::api::UploadFile, MtprotoError>>> =
-        (0..requests.len()).map(|_| None).collect();
-    for (slot, result) in even_idx.into_iter().zip(even_res) {
-        merged[slot] = Some(result);
-    }
-    for (slot, result) in odd_idx.into_iter().zip(odd_res) {
-        merged[slot] = Some(result);
-    }
-    let mut out = Vec::with_capacity(merged.len());
-    for (index, item) in merged.into_iter().enumerate() {
-        let item = item.unwrap_or_else(|| Err(MtprotoError::Message("missing media part".into())));
-        match &item {
-            Ok(file) => {
-                let _ = on_chunk(index, Ok(file.clone()));
-            }
-            Err(err) => {
-                let _ = on_chunk(index, Err(err.clone()));
-            }
-        }
-        out.push(item);
-    }
-    Ok(out)
+    let timeout = crate::rpc::rpc_timeout_secs();
+    let class = crate::scheduler::current_class();
+    let request_id = crate::request_control::current_id();
+    let run = |snapshot: &mut tellers_mtproto_session::Snapshot,
+               slot: &mut Option<crate::rpc::LiveTransport>,
+               requests,
+               on_chunk: &mut dyn FnMut(_, _) -> _| {
+        let _policy = crate::transfer_policy::bind(client.policy.clone());
+        crate::request_control::with_shared_binding(request_id, || {
+            crate::scheduler::with_class(class, || {
+                crate::rpc::with_rpc_timeout_secs(timeout, || {
+                    invoke_lane_batch(client, snapshot, slot, api_id, requests, on_chunk)
+                })
+            })
+        })
+    };
+    let result = invoke_parallel_media_batches(
+        [
+            even_idx.into_iter().zip(even_reqs).collect(),
+            odd_idx.into_iter().zip(odd_reqs).collect(),
+        ],
+        |requests, on_chunk| run(snap_a, slot_a, requests, on_chunk),
+        |requests, on_chunk| run(snap_b, slot_b, requests, on_chunk),
+        on_chunk,
+    );
+    crate::request_control::detach_sockets();
+    result
 }
 
 pub(crate) fn download_media_range_on_lane_dc(
@@ -959,7 +1037,7 @@ pub(crate) fn download_media_range_on_lane_dc(
             .then(|| home.auth_key.clone())
             .flatten()
     });
-    let mut io2 = if media::download_in_flight() > 1 {
+    let mut io2 = if should_open_second_media_lane(target_dc, media::download_in_flight()) {
         try_lock_second_media_lane(client)
     } else {
         None
@@ -1066,6 +1144,12 @@ pub(crate) fn download_media_range_on_lane_dc(
     }
     path?;
     publish_media(client, home.session_id, staged, dest)
+}
+
+pub(crate) fn should_open_second_media_lane(dc_id: i32, in_flight: usize) -> bool {
+    in_flight > 1
+        && crate::scheduler::active_media_lanes() > 1
+        && !crate::media::download_flood_active(dc_id)
 }
 
 fn follow_cdn_redirect(

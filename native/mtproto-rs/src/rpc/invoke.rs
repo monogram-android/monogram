@@ -637,6 +637,7 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
                     complete = false;
                 }
             }
+            let refilled = !refills.is_empty();
             for body in refills {
                 let method = RawMethod { body };
                 let handle = engine
@@ -645,6 +646,9 @@ pub(crate) fn invoke_batch_until_results_streaming<P: tellers_mtproto_engine::Re
                 pending.push(Some(handle));
                 results.push(None);
                 complete = false;
+            }
+            if refilled {
+                continue;
             }
             if complete {
                 flush_acks(engine, &mut transport.conn, &mut transport.framing, clock)?;

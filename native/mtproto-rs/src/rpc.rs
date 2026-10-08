@@ -22,6 +22,7 @@ pub use inbound::{
 pub(crate) use inbound::{gzip_if_smaller, ungzip_if_needed};
 pub use invoke::invoke_raw;
 pub use live::{LiveTransport, drop_live_transport, with_live_transport};
+pub(crate) use timeout::rpc_timeout_secs;
 pub use timeout::with_rpc_timeout_secs;
 
 pub(crate) use invoke::{
@@ -81,8 +82,7 @@ pub(crate) use timeout::{
     KEEPALIVE_PING_SECS, fail_fast_idle, idle_after_complete_frames, idle_empty_first_byte,
     idle_needs_liveness_probe, idle_reused_socket, is_mid_frame, keepalive_probe_failed,
     leftover_frame_grace, live_transport_stale, note_inbound_liveness, recv_wait_deadline,
-    rpc_attempt_budget, rpc_timeout_message, rpc_timeout_secs, subscribed_read_deadline,
-    timeout_idle_needs_probe,
+    rpc_attempt_budget, rpc_timeout_message, subscribed_read_deadline, timeout_idle_needs_probe,
 };
 
 #[cfg(test)]

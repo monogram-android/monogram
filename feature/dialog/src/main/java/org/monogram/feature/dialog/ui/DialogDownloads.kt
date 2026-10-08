@@ -95,15 +95,8 @@ internal fun DialogDownloadsSheet(
                         )
                         val total = item.totalBytes
                         Text(
-                            text = if (total != null && total > 0L) {
-                                stringResource(
-                                    R.string.dialog_media_download_progress,
-                                    formatFileSize(bytes),
-                                    formatFileSize(total),
-                                )
-                            } else {
-                                stringResource(R.string.dialog_media_loading)
-                            },
+                            text = downloadProgressText(bytes, total)
+                                ?: stringResource(R.string.dialog_media_loading),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

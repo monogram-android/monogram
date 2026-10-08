@@ -374,4 +374,5 @@
     <string name="dialog_editor_language">Язык (необязательно)</string>
     <string name="dialog_editor_open">Развернуть редактор</string>
     <string name="dialog_rich_date_at_time">%1$s в %2$s</string>
+    <string name="dialog_media_progress_speed">%1$s · %2$s/с</string>
 </resources>

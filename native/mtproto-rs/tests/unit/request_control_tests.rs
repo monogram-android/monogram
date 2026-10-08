@@ -1,4 +1,28 @@
 use super::*;
+
+#[test]
+fn finished_parallel_lane_keeps_other_socket_cancellable() {
+    use std::io::Read;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let socket = Arc::new(TcpStream::connect(listener.local_addr().unwrap()).unwrap());
+    let (mut server, _) = listener.accept().unwrap();
+    server
+        .set_read_timeout(Some(std::time::Duration::from_secs(1)))
+        .unwrap();
+    let id = create();
+    let previous = bind(id);
+    register(&socket).unwrap();
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| with_shared_binding(id, detach_sockets))
+            .join()
+            .unwrap();
+    });
+    cancel(id);
+    assert_eq!(server.read(&mut [0; 1]).unwrap(), 0);
+    bind(previous);
+    release(id);
+}
 #[test]
 fn cancellation_is_scoped_and_binding_restores() {
     let first = create();

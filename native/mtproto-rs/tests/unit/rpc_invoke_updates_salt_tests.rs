@@ -1,6 +1,85 @@
 use super::updates_session_should_abort;
 
 #[test]
+fn streaming_refill_is_sent_before_waiting_for_another_packet() {
+    use tellers_mtproto_crypto::{Direction, MessageToEncrypt, encrypt_message};
+    use tellers_mtproto_engine::{Engine, ExponentialBackoff};
+    use tellers_mtproto_session::{Clock, OsRandom, Snapshot};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut transport = super::super::framing::open_live_addr(
+        2,
+        &listener.local_addr().unwrap().to_string(),
+        None,
+        1,
+    )
+    .unwrap();
+    let (_peer, _) = listener.accept().unwrap();
+    let clock = super::SystemClock;
+    let mut snapshot = Snapshot::new(2, &mut OsRandom).unwrap();
+    snapshot.auth_key = Some(vec![7; 256]);
+    let server_id = ((clock.unix_micros() / 1_000_000) << 32) | 1;
+    snapshot.last_message_id = server_id + (1_i64 << 32) - 1;
+    let request_id = snapshot.last_message_id + 4;
+    let mut body = super::super::inbound::RPC_RESULT.to_le_bytes().to_vec();
+    body.extend_from_slice(&request_id.to_le_bytes());
+    body.extend_from_slice(&[1; 4]);
+    let packet = encrypt_message(
+        snapshot.auth_key.as_ref().unwrap(),
+        MessageToEncrypt {
+            server_salt: 0,
+            session_id: snapshot.session_id,
+            message_id: server_id,
+            sequence: 1,
+            body: &body,
+            padding: &[3; 16],
+        },
+        Direction::ServerToClient,
+    )
+    .unwrap();
+    transport
+        .input
+        .extend_from_slice(&(packet.len() as u32).to_le_bytes());
+    transport.input.extend_from_slice(&packet);
+    let mut engine = Engine::new(
+        snapshot,
+        ExponentialBackoff {
+            timeout_micros: 5_000_000,
+            initial_delay_micros: 0,
+            max_attempts: 1,
+        },
+    )
+    .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(150);
+    let mut callbacks = 0;
+    let result = super::invoke_batch_until_results_streaming(
+        &mut engine,
+        &mut transport,
+        &[vec![1; 4]],
+        &clock,
+        deadline,
+        deadline,
+        deadline,
+        false,
+        &mut false,
+        |index, response| {
+            assert_eq!(index, 0);
+            assert_eq!(response.unwrap(), &[1; 4]);
+            callbacks += 1;
+            Some(vec![2; 4])
+        },
+    );
+    assert!(
+        result.is_err(),
+        "peer deliberately withholds the refill response"
+    );
+    assert_eq!(callbacks, 1);
+    assert!(
+        engine.next_outbound().is_none(),
+        "refill must be sent before receive blocks"
+    );
+}
+
+#[test]
 fn salt_retry_does_not_abort_updates_session() {
     assert!(!updates_session_should_abort(true));
     assert!(updates_session_should_abort(false));

@@ -1,4 +1,21 @@
 use super::*;
+use crate::media;
+
+#[test]
+fn configured_single_media_lane_disables_second_download_socket() {
+    let policy = std::sync::Arc::new(crate::transfer_policy::TransferPolicy::stock());
+    let _guard = crate::transfer_policy::bind(policy.clone());
+    policy.own_media_lanes(1);
+    assert!(!should_open_second_media_lane(2, 8));
+    policy.own_media_lanes(2);
+    assert!(should_open_second_media_lane(2, 8));
+    policy.floods.lock().park(2, media::TransferClass::Download, 1, false,
+        std::time::Instant::now() - std::time::Duration::from_secs(5),
+        media::DownloadWindow { chunk: media::FAST_CHUNK, in_flight: 8 });
+    assert!(media::check_transfer_flood(2, media::TransferClass::Download).is_ok());
+    assert!(!should_open_second_media_lane(2, 8));
+    assert!(should_open_second_media_lane(4, 8));
+}
 
 #[test]
 fn download_sessions_grow_from_one_to_eight_and_reset_after_idle() {
@@ -538,6 +555,99 @@ fn even_odd_media_offsets_split_by_chunk() {
     let (even, odd) = split_even_odd_request_indices(&offsets, chunk as i32);
     assert_eq!(even, vec![0, 2, 4]);
     assert_eq!(odd, vec![1, 3]);
+}
+
+#[test]
+fn parallel_media_refills_fast_lane_before_slow_lane_completes() {
+    use std::sync::mpsc::channel;
+    use std::time::Duration;
+    let (refilled, wait_for_refill) = channel();
+    let caller = std::thread::current().id();
+    let mut delivered = Vec::new();
+    let results = media_download::invoke_parallel_media_batches(
+        [vec![(0, 0usize)], vec![(1, 1usize)]],
+        |mut requests, on_chunk| {
+            let mut results = Vec::new();
+            let mut index = 0;
+            while index < requests.len() {
+                if index == 1 {
+                    refilled.send(()).unwrap();
+                }
+                let value = requests[index];
+                if let Some(next) = on_chunk(index, Ok(value)) {
+                    requests.push(next);
+                }
+                results.push(Ok(value));
+                index += 1;
+            }
+            Ok(results)
+        },
+        move |requests, on_chunk| {
+            wait_for_refill
+                .recv_timeout(Duration::from_secs(2))
+                .expect("fast lane must refill while slow lane is outstanding");
+            assert_eq!(requests, vec![1]);
+            assert!(on_chunk(0, Ok(1)).is_none());
+            Ok(vec![Ok(1)])
+        },
+        &mut |index, result| {
+            assert_eq!(std::thread::current().id(), caller);
+            delivered.push((index, result.unwrap()));
+            (index == 0).then_some(2)
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        results.into_iter().collect::<Result<Vec<_>, _>>().unwrap(),
+        vec![0, 1, 2]
+    );
+    delivered.sort_unstable();
+    assert_eq!(delivered, vec![(0, 0), (1, 1), (2, 2)]);
+}
+
+#[test]
+fn parallel_media_preserves_lane_error_and_delivers_other_lane() {
+    let mut delivered = Vec::new();
+    let result = media_download::invoke_parallel_media_batches(
+        [vec![(0, 0usize)], vec![(1, 1usize)]],
+        |_, _| Err(MtprotoError::Message("lane failed".into())),
+        |_, on_chunk| {
+            assert!(on_chunk(0, Ok(1usize)).is_none());
+            Ok(vec![Ok(1)])
+        },
+        &mut |index, result| {
+            delivered.push((index, result.unwrap()));
+            None
+        },
+    );
+    assert!(matches!(result, Err(MtprotoError::Message(message)) if message == "lane failed"));
+    assert_eq!(delivered, vec![(1, 1)]);
+}
+
+#[test]
+fn parallel_media_does_not_refill_when_callback_stops() {
+    let invoke =
+        |requests: Vec<usize>,
+         on_chunk: &mut dyn FnMut(usize, Result<usize, MtprotoError>) -> Option<usize>| {
+            for (index, value) in requests.iter().copied().enumerate() {
+                assert!(on_chunk(index, Ok(value)).is_none());
+            }
+            Ok(requests.into_iter().map(Ok).collect())
+        };
+    let mut delivered = Vec::new();
+    let results = media_download::invoke_parallel_media_batches(
+        [vec![(0, 0)], vec![(1, 1)]],
+        invoke,
+        invoke,
+        &mut |index, result| {
+            delivered.push((index, result.unwrap()));
+            None
+        },
+    )
+    .unwrap();
+    assert_eq!(results.len(), 2);
+    delivered.sort_unstable();
+    assert_eq!(delivered, vec![(0, 0), (1, 1)]);
 }
 
 #[test]

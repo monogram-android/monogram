@@ -352,4 +352,5 @@
     <string name="dialog_editor_language">Dil (isteğe bağlı)</string>
     <string name="dialog_editor_open">Düzenleyiciyi genişlet</string>
     <string name="dialog_rich_date_at_time">%1$s saat %2$s</string>
+    <string name="dialog_media_progress_speed">%1$s · %2$s/sn</string>
 </resources>

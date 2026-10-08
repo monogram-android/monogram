@@ -287,6 +287,8 @@
     <string name="settings_update_downloading_sub">%2$s 中 %1$d%% — タップしてキャンセル</string>
     <string name="settings_update_ready">アップデートをインストール</string>
     <string name="settings_update_ready_sub">%1$s はインストールの準備ができました</string>
+    <string name="settings_update_installing">アップデートをインストール中…</string>
+    <string name="settings_update_installing_sub">%1$s をインストールしています</string>
     <string name="settings_update_error">アップデートを確認できませんでした</string>
     <string name="settings_update_error_sub">タップして再試行</string>
     <string name="settings_update_none">アップデートは見つかりませんでした</string>

@@ -256,6 +256,7 @@ internal fun LazyListScope.homeItems(
                             is AppUpdateState.Available -> component.onDownloadUpdate()
                             is AppUpdateState.Downloading -> component.onCancelUpdateDownload()
                             is AppUpdateState.ReadyToInstall -> component.onInstallUpdate()
+                            is AppUpdateState.Installing -> Unit
                             else -> component.onCheckForUpdates()
                         }
                     },
@@ -335,6 +336,9 @@ private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
         is AppUpdateState.ReadyToInstall -> stringResource(R.string.settings_update_ready) to
                 stringResource(R.string.settings_update_ready_sub, state.info.version)
 
+        is AppUpdateState.Installing -> stringResource(R.string.settings_update_installing) to
+                stringResource(R.string.settings_update_installing_sub, state.info.version)
+
         is AppUpdateState.Error -> stringResource(R.string.settings_update_error) to
                 if (state.message == AppUpdate.NO_UPDATE) {
                     stringResource(R.string.settings_update_none)
@@ -349,6 +353,7 @@ private fun updateChangelog(state: AppUpdateState): List<String> {
         is AppUpdateState.Available -> state.info
         is AppUpdateState.Downloading -> state.info
         is AppUpdateState.ReadyToInstall -> state.info
+        is AppUpdateState.Installing -> state.info
         else -> return emptyList()
     }
     return info.changelog.filterNot { line ->

@@ -87,6 +87,7 @@ class AppUpdateManager(
 
     override fun downloadUpdate() {
         if (!AppUpdate.inAppUpdatesEnabled(buildType)) return
+        if (_state.value is AppUpdateState.Installing) return
         val info = when (val current = _state.value) {
             is AppUpdateState.Available -> current.info
             is AppUpdateState.Error -> current.info ?: currentInfo
@@ -172,10 +173,38 @@ class AppUpdateManager(
     override fun installUpdate() {
         if (!AppUpdate.inAppUpdatesEnabled(buildType)) return
         val ready = _state.value as? AppUpdateState.ReadyToInstall ?: return
-        installer.install(File(ready.filePath))
+        val installing = AppUpdate.beginInstall(ready) as AppUpdateState.Installing
+        _state.value = installing
+        UpdateInstallBridge.onStatus = { status -> onInstallStatus(status) }
+        UpdateInstallBridge.onHandoffEnded = { onExternalHandoffEnded(installing) }
+        val launch = when (installer.install(File(ready.filePath))) {
+            AppUpdateInstallLaunch.SessionStarted -> AppUpdate.InstallLaunch.Session
+            AppUpdateInstallLaunch.NeedsUserPermission,
+            AppUpdateInstallLaunch.ExternalConfirm -> AppUpdate.InstallLaunch.ExternalHandoff
+            AppUpdateInstallLaunch.Failed -> AppUpdate.InstallLaunch.Failed
+        }
+        if (launch != AppUpdate.InstallLaunch.ExternalHandoff) {
+            UpdateInstallBridge.onHandoffEnded = null
+        }
+        if (_state.value == installing) {
+            _state.value = AppUpdate.stateAfterInstallLaunch(installing, launch)
+        }
+    }
+
+    private fun onExternalHandoffEnded(installing: AppUpdateState.Installing) {
+        val current = _state.value as? AppUpdateState.Installing ?: return
+        if (current.filePath != installing.filePath) return
+        _state.value = AppUpdate.afterExternalHandoffEnded(current)
+    }
+
+    private fun onInstallStatus(status: Int) {
+        val installing = _state.value as? AppUpdateState.Installing ?: return
+        val kind = AppUpdate.installStatusKind(status)
+        _state.value = AppUpdate.afterInstallStatus(installing, kind)
     }
 
     private suspend fun checkForUpdatesInternal() {
+        if (_state.value is AppUpdateState.Installing) return
         if (!AppUpdate.inAppUpdatesEnabled(buildType)) {
             AppLog.api(TAG, "check skipped debug")
             _state.value = AppUpdateState.Idle
@@ -299,7 +328,8 @@ class AppUpdateManager(
         is AppUpdateState.Available,
         AppUpdateState.UpToDate,
         is AppUpdateState.Downloading,
-        is AppUpdateState.ReadyToInstall -> true
+        is AppUpdateState.ReadyToInstall,
+        is AppUpdateState.Installing -> true
         is AppUpdateState.Error -> state.message == AppUpdate.NO_UPDATE
         else -> false
     }

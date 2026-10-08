@@ -287,6 +287,8 @@
     <string name="settings_update_downloading_sub">%%%1$d / %2$s — iptal etmek için dokunun</string>
     <string name="settings_update_ready">Güncellemeyi yükle</string>
     <string name="settings_update_ready_sub">%1$s yüklenmeye hazır</string>
+    <string name="settings_update_installing">Güncelleme yükleniyor…</string>
+    <string name="settings_update_installing_sub">%1$s yükleniyor</string>
     <string name="settings_update_error">Güncellemeler kontrol edilemedi</string>
     <string name="settings_update_error_sub">Tekrar denemek için dokunun</string>
     <string name="settings_update_none">Güncelleme bulunamadı</string>

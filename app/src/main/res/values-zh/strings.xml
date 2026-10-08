@@ -58,4 +58,6 @@
     <string name="update_prompt_error">无法下载更新</string>
     <string name="update_prompt_retry">重试</string>
     <string name="update_prompt_ready">已准备好安装</string>
+    <string name="update_prompt_installing">正在安装更新</string>
+    <string name="update_prompt_installing_body">正在安装 %1$s</string>
 </resources>

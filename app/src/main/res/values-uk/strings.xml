@@ -61,4 +61,6 @@
     <string name="update_prompt_error">Не вдалося завантажити оновлення</string>
     <string name="update_prompt_retry">Повторити</string>
     <string name="update_prompt_ready">Готово до встановлення</string>
+    <string name="update_prompt_installing">Встановлення оновлення</string>
+    <string name="update_prompt_installing_body">Встановлюється %1$s</string>
 </resources>

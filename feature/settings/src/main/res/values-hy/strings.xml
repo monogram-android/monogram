@@ -287,6 +287,8 @@
     <string name="settings_update_downloading_sub">%1$d%% / %2$s — հպեք՝ չեղարկելու համար</string>
     <string name="settings_update_ready">Տեղադրել թարմացումը</string>
     <string name="settings_update_ready_sub">%1$s-ը պատրաստ է տեղադրման</string>
+    <string name="settings_update_installing">Թարմացումը տեղադրվում է…</string>
+    <string name="settings_update_installing_sub">%1$s-ը տեղադրվում է</string>
     <string name="settings_update_error">Չհաջողվեց ստուգել թարմացումները</string>
     <string name="settings_update_error_sub">Հպեք՝ կրկին փորձելու համար</string>
     <string name="settings_update_none">Թարմացումներ չեն գտնվել</string>

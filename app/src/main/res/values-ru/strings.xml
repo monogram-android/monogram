@@ -59,6 +59,8 @@
     <string name="update_prompt_progress">Загрузка %1$s из %2$s</string>
     <string name="update_prompt_install">Установить</string>
     <string name="update_prompt_ready">Готово к установке</string>
+    <string name="update_prompt_installing">Установка обновления</string>
+    <string name="update_prompt_installing_body">Устанавливается %1$s</string>
     <string name="update_prompt_error">Не удалось скачать обновление</string>
     <string name="update_prompt_retry">Повторить</string>
 </resources>

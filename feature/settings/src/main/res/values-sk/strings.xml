@@ -287,6 +287,8 @@
     <string name="settings_update_downloading_sub">%1$d%% z %2$s — ťuknutím zrušíte</string>
     <string name="settings_update_ready">Inštalovať aktualizáciu</string>
     <string name="settings_update_ready_sub">%1$s je pripravený na inštaláciu</string>
+    <string name="settings_update_installing">Inštaluje sa aktualizácia…</string>
+    <string name="settings_update_installing_sub">Inštaluje sa %1$s</string>
     <string name="settings_update_error">Nepodarilo sa skontrolovať aktualizácie</string>
     <string name="settings_update_error_sub">Ťuknutím to skúste znova</string>
     <string name="settings_update_none">Nenašla sa žiadna aktualizácia</string>

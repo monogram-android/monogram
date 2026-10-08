@@ -59,4 +59,6 @@
     <string name="update_prompt_error">Não foi possível baixar a atualização</string>
     <string name="update_prompt_retry">Tentar de novo</string>
     <string name="update_prompt_ready">Pronto para instalar</string>
+    <string name="update_prompt_installing">Instalando atualização</string>
+    <string name="update_prompt_installing_body">%1$s está sendo instalado</string>
 </resources>

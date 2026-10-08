@@ -287,6 +287,8 @@
     <string name="settings_update_downloading_sub">%1$d%% из %2$s — нажмите для отмены</string>
     <string name="settings_update_ready">Установить обновление</string>
     <string name="settings_update_ready_sub">%1$s готово к установке</string>
+    <string name="settings_update_installing">Установка обновления…</string>
+    <string name="settings_update_installing_sub">Устанавливается %1$s</string>
     <string name="settings_update_error">Не удалось проверить обновления</string>
     <string name="settings_update_error_sub">Нажмите, чтобы повторить</string>
     <string name="settings_update_none">Обновлений не найдено</string>

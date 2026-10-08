@@ -287,6 +287,8 @@
     <string name="settings_update_downloading_sub">%1$d%% з %2$s — натисніть для скасування</string>
     <string name="settings_update_ready">Встановити оновлення</string>
     <string name="settings_update_ready_sub">%1$s готовий до встановлення</string>
+    <string name="settings_update_installing">Встановлення оновлення…</string>
+    <string name="settings_update_installing_sub">Встановлюється %1$s</string>
     <string name="settings_update_error">Не вдалося перевірити оновлення</string>
     <string name="settings_update_error_sub">Натисніть, щоб повторити</string>
     <string name="settings_update_none">Оновлень не знайдено</string>

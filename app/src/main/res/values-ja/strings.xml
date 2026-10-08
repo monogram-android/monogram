@@ -58,4 +58,6 @@
     <string name="update_prompt_error">アップデートをダウンロードできませんでした</string>
     <string name="update_prompt_retry">再試行</string>
     <string name="update_prompt_ready">インストールの準備完了</string>
+    <string name="update_prompt_installing">アップデートをインストール中</string>
+    <string name="update_prompt_installing_body">%1$s をインストールしています</string>
 </resources>

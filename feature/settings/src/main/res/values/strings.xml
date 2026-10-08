@@ -287,6 +287,8 @@
     <string name="settings_update_downloading_sub">%1$d%% of %2$s — tap to cancel</string>
     <string name="settings_update_ready">Install update</string>
     <string name="settings_update_ready_sub">%1$s is ready to install</string>
+    <string name="settings_update_installing">Installing update…</string>
+    <string name="settings_update_installing_sub">%1$s is being installed</string>
     <string name="settings_update_error">Could not check for updates</string>
     <string name="settings_update_error_sub">Tap to try again</string>
     <string name="settings_update_none">No update found</string>

@@ -59,4 +59,6 @@
     <string name="update_prompt_error">Չհաջողվեց ներբեռնել թարմացումը</string>
     <string name="update_prompt_retry">Կրկնել</string>
     <string name="update_prompt_ready">Պատրաստ է տեղադրման</string>
+    <string name="update_prompt_installing">Թարմացումը տեղադրվում է</string>
+    <string name="update_prompt_installing_body">%1$s-ը տեղադրվում է</string>
 </resources>

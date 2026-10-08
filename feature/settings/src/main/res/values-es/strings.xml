@@ -287,6 +287,8 @@
     <string name="settings_update_downloading_sub">%1$d%% de %2$s — toca para cancelar</string>
     <string name="settings_update_ready">Instalar actualización</string>
     <string name="settings_update_ready_sub">%1$s está listo para instalar</string>
+    <string name="settings_update_installing">Instalando actualización…</string>
+    <string name="settings_update_installing_sub">Se está instalando %1$s</string>
     <string name="settings_update_error">No se pudieron buscar actualizaciones</string>
     <string name="settings_update_error_sub">Toca para reintentar</string>
     <string name="settings_update_none">No se encontraron actualizaciones</string>

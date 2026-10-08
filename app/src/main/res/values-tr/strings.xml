@@ -59,4 +59,6 @@
     <string name="update_prompt_error">Güncelleme indirilemedi</string>
     <string name="update_prompt_retry">Yeniden dene</string>
     <string name="update_prompt_ready">Yüklemeye hazır</string>
+    <string name="update_prompt_installing">Güncelleme yükleniyor</string>
+    <string name="update_prompt_installing_body">%1$s yükleniyor</string>
 </resources>

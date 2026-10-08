@@ -61,4 +61,6 @@
     <string name="update_prompt_error">Aktualizáciu sa nepodarilo stiahnuť</string>
     <string name="update_prompt_retry">Skúsiť znova</string>
     <string name="update_prompt_ready">Pripravené na inštaláciu</string>
+    <string name="update_prompt_installing">Inštaluje sa aktualizácia</string>
+    <string name="update_prompt_installing_body">Inštaluje sa %1$s</string>
 </resources>

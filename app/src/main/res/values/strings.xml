@@ -57,6 +57,8 @@
     <string name="update_prompt_progress">Downloading %1$s / %2$s</string>
     <string name="update_prompt_install">Install</string>
     <string name="update_prompt_ready">Ready to install</string>
+    <string name="update_prompt_installing">Installing update</string>
+    <string name="update_prompt_installing_body">%1$s is being installed</string>
     <string name="update_prompt_error">Couldn\'t download the update</string>
     <string name="update_prompt_retry">Retry</string>
 </resources>

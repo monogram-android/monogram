@@ -202,6 +202,7 @@ fun MessageMedia(
             return@LaunchedEffect
         }
         val displayPriority = MediaPriority.VISIBLE
+        var fullCancelled = false
         suspend fun fetch(kind: MediaFetchKind): File? = withContext(Dispatchers.IO) {
             var networkTries = 0
             repeat(16) {
@@ -216,7 +217,10 @@ fun MessageMedia(
                 when (result) {
                     is Outcome.Ok -> return@withContext result.value
                     is Outcome.Err -> {
-                        if (result.message == "cancelled") return@withContext null
+                        if (result.message == "cancelled") {
+                            if (kind == MediaFetchKind.Full) fullCancelled = true
+                            return@withContext null
+                        }
                         if (kind == MediaFetchKind.Display && result.message == "no display size") {
                             return@withContext null
                         }
@@ -275,8 +279,11 @@ fun MessageMedia(
             if (needFull && fullFile == null) {
                 fullFailed = false
                 fullFile = fetch(MediaFetchKind.Full)
-                fullFailed = fullFile == null && (playing || requestFull)
-                failed = fullFile == null && thumbFile == null && (playing || requestFull)
+                fullFailed = fullFile == null && !fullCancelled && (playing || requestFull)
+                failed = fullFile == null &&
+                    thumbFile == null &&
+                    !fullCancelled &&
+                    (playing || requestFull)
             }
         }
         previewFetchDone = true
@@ -378,6 +385,8 @@ fun MessageMedia(
                 onCancel = {
                     wantFull = false
                     playing = false
+                    fullFailed = false
+                    failed = false
                     mediaRepository?.cancel(fullKey)
                 },
                 modifier = modifier
@@ -414,6 +423,8 @@ fun MessageMedia(
                 },
                 onCancel = {
                     wantFull = false
+                    fullFailed = false
+                    failed = false
                     mediaRepository?.cancel(fullKey)
                 },
                 modifier = modifier

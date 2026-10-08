@@ -881,7 +881,6 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                                 .map_err(|e| MtprotoError::Message(e.to_string()))?;
                             out.write_all(&bytes)
                                 .map_err(|e| MtprotoError::Message(e.to_string()))?;
-                            let _ = out.flush();
                             written_end = written_end.max(part_offset + bytes.len() as i64);
                             if counted_offsets.insert(part_offset) {
                                 downloaded_bytes += bytes.len() as i64;
@@ -931,9 +930,25 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                 if last_part || stream {
                     break 'download;
                 }
-                next = next_to_request;
+                // A caller may ignore the refill request returned by `on_chunk`.
+                // Continue at the first hole instead of the cursor those refills advanced.
+                next = first_missing_offset(
+                    &counted_offsets,
+                    offset.unwrap_or(0),
+                    next_to_request,
+                    chunk,
+                );
             }
         } // 'download
+        if !stream {
+            if let Some(expected) = media.file_size {
+                if expected > 0 && written_end < expected {
+                    return Err(MtprotoError::Message(format!(
+                        "download incomplete: received {written_end} of {expected} bytes"
+                    )));
+                }
+            }
+        }
         out.set_len(written_end as u64)
             .map_err(|e| MtprotoError::Message(e.to_string()))?;
         out.flush()

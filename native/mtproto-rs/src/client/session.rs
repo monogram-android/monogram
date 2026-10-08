@@ -274,7 +274,9 @@ pub(crate) fn drop_all_transports(handle: u64) {
         for lane in client.media.iter() {
             lane.io.lock().transport = None;
         }
-        client.upload.lock().transport = None;
+        for lane in &client.upload {
+            lane.io.lock().transport = None;
+        }
     }
 }
 

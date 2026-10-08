@@ -424,6 +424,55 @@ fn idle_work_uses_home_session_without_pfs() {
 }
 
 #[test]
+fn bound_temp_read_lane_does_not_reuse_the_permanent_key() {
+    let _allowance = allow_read_lanes();
+    struct Reset;
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            crate::scheduler::set_bound_extra_sessions(0);
+        }
+    }
+    let _reset = Reset;
+    let path =
+        std::env::temp_dir().join(format!("monogram-temp-read-{}.session", std::process::id()));
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let (home_id, home_auth) = authorize_test_client(handle);
+    let client = get_client(handle).expect("client");
+    let temp_key = vec![9_u8; 256];
+    let temp_id = {
+        let mut io = client.rpc[0].io.lock();
+        let mut snap = Snapshot::new(io.snapshot.dc_id, &mut OsRandom).expect("temp");
+        snap.auth_key = Some(temp_key.clone());
+        snap.server_salt = 99;
+        let id = snap.session_id;
+        io.snapshot = snap;
+        io.temp_expires_at = crate::auth::bind_temp::unix_now().saturating_add(3600);
+        io.transport = None;
+        id
+    };
+    crate::scheduler::set_bound_extra_sessions(1);
+    let mut seen = 0_i64;
+    with_read_lane(handle, |state| {
+        seen = state.snapshot.session_id;
+        assert_eq!(
+            state.snapshot.auth_key.as_deref(),
+            Some(temp_key.as_slice())
+        );
+        assert_ne!(state.snapshot.session_id, home_id);
+        assert!(crate::api_invoke::invoking_without_updates());
+        Ok(())
+    })
+    .expect("temp read");
+    assert_eq!(seen, temp_id);
+    let data = client.data.lock();
+    assert_eq!(data.home_auth_key.as_deref(), Some(home_auth.as_slice()));
+    assert_eq!(data.home_session_id, home_id);
+    drop(data);
+    destroy_client(handle);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn upload_batches_take_the_main_lane_once_per_batch() {
     let _allowance = crate::scheduler::ALLOWANCE_TEST_LOCK
         .lock()
@@ -557,7 +606,7 @@ fn file_parts_use_one_upload_session_and_metadata_stays_on_main() {
         Ok(())
     })
     .expect("recorded parts");
-    let upload_id = client.upload.lock().snapshot.session_id;
+    let upload_id = client.upload[0].io.lock().snapshot.session_id;
     assert_ne!(upload_id, main_id);
     assert!(!media_ids.contains(&upload_id));
     assert!(!rpc_ids.contains(&upload_id));
@@ -593,14 +642,14 @@ fn idle_file_cleanup_closes_sockets_and_preserves_busy_lanes_and_main() {
     media.last_io = now;
     upload.last_io = now;
     client.media[0].io.lock().transport = Some(media);
-    client.upload.lock().transport = Some(upload);
+    client.upload[0].io.lock().transport = Some(upload);
     client.main.lock().transport = Some(main);
     assert!(close_idle_file_transports(&client, now));
     let busy = client.media[0].io.lock();
     let later = now + crate::media::DOWNLOAD_SESSION_IDLE;
     assert!(close_idle_file_transports(&client, later));
     assert!(busy.transport.is_some());
-    assert!(client.upload.lock().transport.is_none());
+    assert!(client.upload[0].io.lock().transport.is_none());
     drop(busy);
     assert!(!close_idle_file_transports(&client, later));
     assert!(client.media[0].io.lock().transport.is_none());
@@ -709,7 +758,7 @@ fn expired_upload_rtt_does_not_require_a_probe_connection_or_inherit_download_ca
     })
     .unwrap();
     assert_eq!(staging[0].in_flight(), 8);
-    assert!(client.upload.lock().transport.is_none());
+    assert!(client.upload[0].io.lock().transport.is_none());
     destroy_client(handle);
     std::fs::remove_file(path).ok();
     std::fs::remove_file(file).ok();
@@ -738,7 +787,7 @@ fn failed_rtt_probe_on_an_existing_upload_connection_does_not_fail_saved_parts()
     let (peer, _) = listener.accept().unwrap();
     drop(peer);
     {
-        let mut io = client.upload.lock();
+        let mut io = client.upload[0].io.lock();
         io.snapshot = fork_session(&home);
         io.transport = Some(transport);
     }
@@ -763,7 +812,7 @@ fn failed_rtt_probe_on_an_existing_upload_connection_does_not_fail_saved_parts()
     assert_eq!(saved, 1);
     assert_eq!(staging.len(), 1);
     assert!(client.policy.upload_rtt.lock().is_none());
-    assert!(client.upload.lock().transport.is_none());
+    assert!(client.upload[0].io.lock().transport.is_none());
     destroy_client(handle);
     std::fs::remove_file(path).ok();
     std::fs::remove_file(file).ok();

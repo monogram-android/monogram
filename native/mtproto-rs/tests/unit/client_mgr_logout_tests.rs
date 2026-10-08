@@ -28,6 +28,9 @@ fn logout_clears_unauthorized_local_session_without_network() {
         session_dead_reason: None,
         test_dc: false,
         last_inline: None,
+        perm_auth_key: None,
+        perm_salt: 0,
+        perm_session_id: 0,
     };
     persist(&state).expect("seed session");
     assert!(path.exists());
@@ -136,6 +139,7 @@ fn cancelled_request_exits_while_lane_is_still_owned_by_another_call() {
         last_difference: None,
         snapshot: Snapshot::new(2, &mut OsRandom).unwrap(),
         transport: None,
+        temp_expires_at: 0,
     }));
     let held = lane.lock();
     let worker_lane = lane.clone();

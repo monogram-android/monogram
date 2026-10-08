@@ -64,6 +64,7 @@ fn unknown_allowance_keeps_a_single_main_session() {
     let _serial = ALLOWANCE_TEST_LOCK
         .lock()
         .unwrap_or_else(|e| e.into_inner());
+    set_bound_extra_sessions(0);
     let original = MAIN_SESSION_ALLOWANCE.load(std::sync::atomic::Ordering::Relaxed);
     MAIN_SESSION_ALLOWANCE.store(-1, std::sync::atomic::Ordering::Relaxed);
     assert!(!main_session_allowance_known());
@@ -78,6 +79,7 @@ fn tmp_sessions_bounds_extra_main_sessions() {
     let _serial = ALLOWANCE_TEST_LOCK
         .lock()
         .unwrap_or_else(|e| e.into_inner());
+    set_bound_extra_sessions(0);
     let original = MAIN_SESSION_ALLOWANCE.load(std::sync::atomic::Ordering::Relaxed);
     // Absent `tmp_sessions` means one main session: no parallel home-DC lanes.
     assert_eq!(set_main_session_allowance(None), 1);
@@ -91,6 +93,14 @@ fn tmp_sessions_bounds_extra_main_sessions() {
     assert_eq!(read_lanes(), 0);
     assert_eq!(set_main_session_allowance(Some(2)), 2);
     assert_eq!(read_lanes(), 0);
+    set_bound_extra_sessions(2);
+    assert_eq!(extra_main_sessions(), 1);
+    assert_eq!(read_lanes(), 1);
+    set_main_session_allowance(Some(8));
+    set_bound_extra_sessions(2);
+    assert_eq!(extra_main_sessions(), 2);
+    set_bound_extra_sessions(0);
+    assert_eq!(extra_main_sessions(), 0);
     MAIN_SESSION_ALLOWANCE.store(original, std::sync::atomic::Ordering::Relaxed);
 }
 

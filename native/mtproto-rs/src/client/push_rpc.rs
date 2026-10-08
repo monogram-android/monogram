@@ -101,7 +101,9 @@ fn settings_dto(settings: &PeerNotifySettings) -> NotifySettingsDto {
         return NotifySettingsDto::default();
     };
     NotifySettingsDto {
-        show_previews: body.show_previews.as_ref()
+        show_previews: body
+            .show_previews
+            .as_ref()
             .map(|flag| matches!(flag.as_ref(), Bool::BoolTrue(_))),
         silent: as_bool(&body.silent),
         mute_until: body.mute_until.unwrap_or(0),
@@ -125,7 +127,11 @@ pub(crate) fn exception_from_update(update: &Update) -> Option<NotifyExceptionDt
         NotifyPeer::NotifyChats(_) => ("chats", 0_i64, None),
         NotifyPeer::NotifyBroadcasts(_) => ("broadcasts", 0_i64, None),
         NotifyPeer::NotifyPeer(peer) => ("peer", peer_chat_id(peer.peer.as_ref()), None),
-        NotifyPeer::NotifyForumTopic(topic) => ("peer", peer_chat_id(topic.peer.as_ref()), Some(topic.top_msg_id)),
+        NotifyPeer::NotifyForumTopic(topic) => (
+            "peer",
+            peer_chat_id(topic.peer.as_ref()),
+            Some(topic.top_msg_id),
+        ),
         _ => return None,
     };
     Some(NotifyExceptionDto {

@@ -29,6 +29,7 @@ pub(crate) use invoke::{
     invoke_raw_with_retry_factory, ping_existing_rtt, receive_updates,
 };
 pub(crate) use main_policy::ACK_DELAY;
+pub(crate) use timeout::trim_padded_mtproto_packet;
 
 #[cfg(test)]
 use crate::MtprotoError;
@@ -81,7 +82,7 @@ pub(crate) use timeout::{
     idle_needs_liveness_probe, idle_reused_socket, is_mid_frame, keepalive_probe_failed,
     leftover_frame_grace, live_transport_stale, note_inbound_liveness, recv_wait_deadline,
     rpc_attempt_budget, rpc_timeout_message, rpc_timeout_secs, subscribed_read_deadline,
-    timeout_idle_needs_probe, trim_padded_mtproto_packet,
+    timeout_idle_needs_probe,
 };
 
 #[cfg(test)]

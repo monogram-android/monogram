@@ -330,13 +330,17 @@ pub fn media_ref_peer_photo(
     has_video: bool,
     stripped_thumb: Option<&[u8]>,
 ) -> MediaRef {
-    let (thumb_cache_key, thumb_location) = match stripped_thumb.and_then(crate::stripped_jpeg::expand_stripped_jpeg) {
-        Some(bytes) => (
-            Some(format!("{}:thumb", cache_key)),
-            Some(MediaLocation::Inline { bytes, extension: "jpg".into() }),
-        ),
-        None => (None, None),
-    };
+    let (thumb_cache_key, thumb_location) =
+        match stripped_thumb.and_then(crate::stripped_jpeg::expand_stripped_jpeg) {
+            Some(bytes) => (
+                Some(format!("{}:thumb", cache_key)),
+                Some(MediaLocation::Inline {
+                    bytes,
+                    extension: "jpg".into(),
+                }),
+            ),
+            None => (None, None),
+        };
     MediaRef {
         file_size: None,
         kind: if has_video {

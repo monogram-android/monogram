@@ -14,6 +14,10 @@ use crate::tcp;
 
 use super::*;
 
+fn home_lease_ok(state: &ClientState, home_session_id: i64) -> bool {
+    state.snapshot.session_id == home_session_id || state.perm_session_id == home_session_id
+}
+
 pub fn download_wallpaper(
     handle: u64,
     id: i64,
@@ -43,7 +47,7 @@ pub fn download_wallpaper(
     ) {
         Err(error) if media::is_file_reference_error(&error) => {
             let refreshed = with_client_mut(handle, |state| {
-                if state.snapshot.session_id != home.session_id {
+                if !home_lease_ok(state, home.session_id) {
                     return Err(expired_session_lease());
                 }
                 let media = call_with_migrate(state, |state| {
@@ -394,7 +398,7 @@ pub fn download_message_media_range(
                 || thumb_file_id_can_refresh(kind, &media, message_id, &err) =>
         {
             let refreshed = with_client_mut(handle, |state| {
-                if state.snapshot.session_id != home.session_id {
+                if !home_lease_ok(state, home.session_id) {
                     return Err(expired_session_lease());
                 }
                 crate::rpc::with_rpc_timeout_secs(20, || {
@@ -786,7 +790,7 @@ pub(crate) fn download_media_range_on_home_session(
         |_init_first, requests, on_chunk| {
             media::check_transfer_flood(dc, media::TransferClass::Download)?;
             with_client_mut(handle, |state| {
-                if state.snapshot.session_id != session_id {
+                if !home_lease_ok(state, session_id) {
                     return Err(expired_session_lease());
                 }
                 ensure_ready(state)?;
@@ -921,33 +925,63 @@ pub(crate) fn download_media_range_on_lane_dc(
     let _span = crate::perf::span("media_file");
     let staged = media::StagedDownload::new(dest)?;
     let mut io = lock_media_lane(client)?;
-    // A file owns one session and pipelines at most eight parts on it.
-    let mut io2: Option<LaneLease<'_>> = None;
     if !session_lease_valid(&client.data.lock(), home.session_id) {
         return Err(expired_session_lease());
     }
-    match prepare_media_lane_snapshot(&mut io.snapshot, home, target_dc) {
-        MediaLanePrep::NeedExport => {
-            io.snapshot = with_client_mut(handle, |state| {
-                if state.snapshot.session_id != home.session_id {
-                    return Err(expired_session_lease());
-                }
-                copy_authorization_to_dc(&mut state.snapshot, api_id, target_dc)
-            })?;
-            io.transport = None;
-        }
-        MediaLanePrep::Replaced => io.transport = None,
-        MediaLanePrep::Reuse => {}
-    }
-    if let Some(second) = io2.as_mut() {
-        match prepare_media_lane_snapshot(&mut second.snapshot, home, target_dc) {
+    let mut lane_perm = None;
+    let already_temp = io.temp_expires_at > crate::auth::bind_temp::unix_now()
+        && io.snapshot.auth_key.as_ref() != home.auth_key.as_ref();
+    if !already_temp {
+        match prepare_media_lane_snapshot(&mut io.snapshot, home, target_dc) {
             MediaLanePrep::NeedExport => {
-                second.snapshot = io.snapshot.clone();
-                second.transport = None;
+                io.snapshot = with_client_mut(handle, |state| {
+                    if !home_lease_ok(state, home.session_id) {
+                        return Err(expired_session_lease());
+                    }
+                    copy_authorization_to_dc(&mut state.snapshot, api_id, target_dc)
+                })?;
+                io.transport = None;
             }
-            MediaLanePrep::Replaced => second.transport = None,
+            MediaLanePrep::Replaced => io.transport = None,
             MediaLanePrep::Reuse => {}
         }
+        if let Some(key) = io.snapshot.auth_key.clone() {
+            lane_perm = Some(key.clone());
+            let offset = io.snapshot.time_offset_micros;
+            let dc = io.snapshot.dc_id;
+            if let Ok(bound) = crate::auth::bind_temp::negotiate_bound_temp(&key, dc, offset) {
+                io.snapshot = bound.snapshot;
+                io.temp_expires_at = bound.expires_at;
+                io.transport = None;
+            }
+        }
+    }
+    if target_dc == home.dc_id && io.snapshot.auth_key.as_ref() == home.auth_key.as_ref() {
+        drop(io);
+        return download_media_range_on_home_session(
+            handle,
+            client,
+            home.session_id,
+            api_id,
+            media,
+            dest,
+            offset,
+        );
+    }
+    let mut io2 = try_lock_second_media_lane(client);
+    let second_bound = if let (Some(second), Some(key)) = (io2.as_mut(), lane_perm.as_deref()) {
+        crate::auth::bind_temp::negotiate_bound_temp(key, target_dc, home.time_offset_micros)
+            .ok()
+            .map(|bound| {
+                second.snapshot = bound.snapshot;
+                second.temp_expires_at = bound.expires_at;
+                second.transport = None;
+            })
+    } else {
+        None
+    };
+    if second_bound.is_none() {
+        io2 = None;
     }
     let mut media_snap = io.snapshot.clone();
     let mut slot = io.transport.take();
@@ -1016,7 +1050,7 @@ pub(crate) fn download_media_range_on_lane_dc(
             && is_unrecoverable_session(err)
         {
             let _ = with_client_mut(handle, |state| {
-                if state.snapshot.session_id != home.session_id {
+                if !home_lease_ok(state, home.session_id) {
                     return Err(expired_session_lease());
                 }
                 mark_session_dead(state, err);

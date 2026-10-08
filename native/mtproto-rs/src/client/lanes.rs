@@ -29,6 +29,8 @@ pub(crate) struct SessionIo {
     pub(crate) last_difference: Option<std::time::Instant>,
     pub(crate) snapshot: Snapshot,
     pub(crate) transport: Option<crate::rpc::LiveTransport>,
+    /// Unix time when this lane's temporary auth key expires. Zero means none.
+    pub(crate) temp_expires_at: i32,
 }
 
 /// A session plus the gate that decides which request class gets it next.
@@ -175,11 +177,26 @@ pub(crate) fn close_idle_file_transports(client: &Client, now: std::time::Instan
     for lane in &client.media {
         close(&lane.io);
     }
-    close(&client.upload);
+    for lane in &client.upload {
+        close(&lane.io);
+    }
     if !pending {
         client.media_open.store(1, Ordering::Release);
     }
     pending
+}
+
+/// Prefer a free temporary-key upload socket. Lane 0 is the permanent-key fallback.
+pub(crate) fn lock_upload_lane(client: &Client) -> parking_lot::MutexGuard<'_, SessionIo> {
+    let now = crate::auth::bind_temp::unix_now();
+    for lane in client.upload.iter().skip(1) {
+        if let Some(io) = lane.io.try_lock() {
+            if io.temp_expires_at > now {
+                return io;
+            }
+        }
+    }
+    client.upload[0].io.lock()
 }
 
 pub(crate) fn schedule_file_cleanup(client: &Arc<Client>) {
@@ -248,9 +265,8 @@ pub(crate) fn flush_idle_main_acks(
     false
 }
 
-/// Second media-DC TCP if a lane is free. The held first lease makes that gate
-/// busy, so this never returns the same lane. Home-DC downloads must not call this.
-#[allow(dead_code)]
+/// Second file TCP if a lane is free. The held first lease makes that gate
+/// busy, so this never returns the same lane. Caller must bind a separate temp key.
 pub(crate) fn try_lock_second_media_lane(client: &Client) -> Option<LaneLease<'_>> {
     let class = scheduler::current_class();
     if scheduler::family(class) != scheduler::LaneFamily::Media {

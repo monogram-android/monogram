@@ -18,7 +18,8 @@ pub(crate) const DEFAULT_CHUNK: i32 = 128 * 1024;
 pub(crate) const CHUNK: i32 = DEFAULT_CHUNK;
 pub(crate) const STREAM_WINDOW_CHUNKS: usize = 4;
 pub(crate) const FAST_CHUNK: i32 = 512 * 1024;
-pub const DOWNLOAD_SESSION_IDLE: std::time::Duration = std::time::Duration::from_secs(2);
+/// Telegram keeps foreground file sockets up and pings about every 3 minutes.
+pub const DOWNLOAD_SESSION_IDLE: std::time::Duration = std::time::Duration::from_secs(180);
 
 /// https://core.telegram.org/api/files
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -763,7 +764,6 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                                 if out.seek(SeekFrom::Start(part_offset as u64)).is_ok()
                                     && out.write_all(bytes).is_ok()
                                 {
-                                    let _ = out.flush();
                                     written_end = written_end.max(part_offset + bytes.len() as i64);
                                     if counted_offsets.insert(part_offset) {
                                         downloaded_bytes += bytes.len() as i64;

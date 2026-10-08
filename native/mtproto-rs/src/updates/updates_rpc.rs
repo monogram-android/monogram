@@ -427,7 +427,10 @@ pub(crate) fn collect_other_updates<'a>(
                     events.push(UpdateEventDto::Ignored {
                         kind: format!(
                             "notify_settings:{}:{}:{}:{}",
-                            ex.peer_kind, ex.chat_id, ex.mute_until, ex.topic_id.unwrap_or(0)
+                            ex.peer_kind,
+                            ex.chat_id,
+                            ex.mute_until,
+                            ex.topic_id.unwrap_or(0)
                         ),
                     });
                 }

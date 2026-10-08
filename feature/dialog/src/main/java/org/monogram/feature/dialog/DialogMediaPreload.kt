@@ -4,6 +4,7 @@ import org.monogram.core.models.Message
 import org.monogram.core.models.WebpagePreviews
 import org.monogram.core.ui.AutoDownloadPreset
 import org.monogram.core.ui.DownloadSettings
+import org.monogram.feature.dialog.ui.shouldAutoFetchFullMedia
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.photoDisplayCacheKey
 
@@ -76,6 +77,8 @@ object DialogMediaPreload {
         visibleIds: Set<Int>,
         radius: Int = WINDOW_RADIUS,
         preset: AutoDownloadPreset = DownloadSettings.activePreset(),
+        autoplayVideos: Boolean = true,
+        autoplayGifs: Boolean = true,
     ): Plan {
         if (messages.isEmpty()) {
             return Plan(IntRange.EMPTY, IntRange.EMPTY, emptyList(), emptyList())
@@ -117,7 +120,14 @@ object DialogMediaPreload {
                 val size = message.fileSize
                 val wantFull = when {
                     sticker -> visible
-                    else -> preset.allowsFull(kind, size)
+                    else -> shouldAutoFetchFullMedia(
+                        kind,
+                        userRequested = false,
+                        sizeBytes = size,
+                        preset = preset,
+                        autoplayVideos = autoplayVideos,
+                        autoplayGifs = autoplayGifs,
+                    )
                 }
                 if (!fullKey.isNullOrBlank() && wantFull) {
                     media += MediaTask(message, Fetch.Full, priority, fullKey)

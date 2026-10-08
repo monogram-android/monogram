@@ -82,7 +82,16 @@ fun MessageMedia(
     val preset = downloadState.presetFor(DownloadSettings.activeNetwork())
     val fullKey = message.mediaCacheKey ?: return
     val thumbKey = message.thumbCacheKey ?: fullKey
-    val displayKey = if (shouldFetchDisplayPreview(kind, false, message.fileSize, preset)) {
+    val displayKey = if (
+        shouldFetchDisplayPreview(
+            kind,
+            false,
+            message.fileSize,
+            preset,
+            autoplayVideos = downloadState.autoplayVideos,
+            autoplayGifs = downloadState.autoplayGifs,
+        )
+    ) {
         photoDisplayCacheKey(fullKey)
     } else {
         null
@@ -189,6 +198,7 @@ fun MessageMedia(
         previewOnly,
         mediaVisible,
         preset,
+        downloadState.autoplayVideos,
         downloadState.autoplayGifs,
     ) {
         val repo = mediaRepository ?: run {
@@ -251,12 +261,16 @@ fun MessageMedia(
             userRequested,
             message.fileSize,
             preset,
+            autoplayVideos = downloadState.autoplayVideos,
+            autoplayGifs = downloadState.autoplayGifs,
         )
         val needDisplay = shouldFetchDisplayPreview(
             kind,
             userRequested,
             message.fileSize,
             preset,
+            autoplayVideos = downloadState.autoplayVideos,
+            autoplayGifs = downloadState.autoplayGifs,
         )
         val waitingForSharp = displayFile == null && fullFile == null && (needDisplay || needFull)
         if (!waitingForSharp) previewFetchDone = true
@@ -457,7 +471,7 @@ fun MessageMedia(
                 kind = kind,
                 supportsStreaming = message.supportsStreaming,
                 sizeBytes = message.fileSize,
-                visible = true,
+                visible = mediaVisible,
                 autoplayVideos = downloadState.autoplayVideos,
                 preset = preset,
             )
@@ -505,9 +519,11 @@ fun MessageMedia(
                             openMedia(message, albumMessages)
                         } else if (loadingFull) {
                             playing = false
+                            wantFull = false
                             mediaRepository?.cancel(fullKey)
                         } else {
                             fullFailed = false
+                            wantFull = true
                             playing = true
                         }
                     },

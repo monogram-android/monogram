@@ -9,6 +9,7 @@ import kotlinx.coroutines.yield
 import org.monogram.core.common.PerfLog
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
+import org.monogram.core.ui.DownloadSettings
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 
@@ -33,7 +34,13 @@ class DialogMediaPreloader(
             mediaRepository?.cancelChat(chatId, belowPriority = MediaPriority.VISIBLE)
             return
         }
-        val plan = DialogMediaPreload.plan(messages, visibleIds)
+        val settings = DownloadSettings.state.value
+        val plan = DialogMediaPreload.plan(
+            messages,
+            visibleIds,
+            autoplayVideos = settings.autoplayVideos,
+            autoplayGifs = settings.autoplayGifs,
+        )
         mediaRepository?.protectCacheKeys("dialog:${chatId.value}", plan.mediaKeys)
         val signature = plan.signature()
         if (signature == lastSignature) return

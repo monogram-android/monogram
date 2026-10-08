@@ -192,7 +192,15 @@ internal fun shouldAutoFetchFullMedia(
     userRequested: Boolean,
     sizeBytes: Long? = null,
     preset: AutoDownloadPreset = DownloadSettings.activePreset(),
-): Boolean = preset.allowsFull(kind, sizeBytes, userRequested)
+    autoplayVideos: Boolean = true,
+    autoplayGifs: Boolean = true,
+): Boolean {
+    if (!userRequested) {
+        if (kind == "video" && !autoplayVideos) return false
+        if (kind == "gif" && !autoplayGifs) return false
+    }
+    return preset.allowsFull(kind, sizeBytes, userRequested)
+}
 
 internal fun shouldAutoFetchDisplayMedia(
     kind: String?,
@@ -206,8 +214,20 @@ internal fun shouldFetchDisplayPreview(
     userRequested: Boolean,
     sizeBytes: Long? = null,
     preset: AutoDownloadPreset = DownloadSettings.activePreset(),
+    autoplayVideos: Boolean = true,
+    autoplayGifs: Boolean = true,
 ): Boolean {
-    if (shouldAutoFetchFullMedia(kind, userRequested, sizeBytes, preset)) return false
+    if (shouldAutoFetchFullMedia(
+            kind,
+            userRequested,
+            sizeBytes,
+            preset,
+            autoplayVideos,
+            autoplayGifs,
+        )
+    ) {
+        return false
+    }
     return shouldAutoFetchDisplayMedia(kind, sizeBytes, preset)
 }
 

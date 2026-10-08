@@ -126,9 +126,6 @@
     <string name="settings_privacy_server_sub">Last seen, calls, and forwarding follow Telegram\'s privacy settings — open your profile for details</string>
     <string name="settings_data">Data and Storage</string>
     <string name="settings_data_sub">Auto-download and cache</string>
-    <string name="settings_data_transfers">Transfers</string>
-    <string name="settings_speed_up_downloads">Speed up downloads</string>
-    <string name="settings_speed_up_downloads_sub">Download photos, videos, and files faster on a good connection</string>
     <string name="settings_autodownload">Automatic media download</string>
     <string name="settings_autodownload_wifi">Using Wi-Fi</string>
     <string name="settings_autodownload_mobile">Using mobile data</string>

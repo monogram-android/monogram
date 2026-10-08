@@ -352,7 +352,6 @@ fun SettingsContent(
                                 cacheMessage = state.cacheMessage,
                                 loading = state.loading || state.loggingOut,
                                 download = download,
-                                onSpeedUpDownloads = DownloadSettings::setSpeedUpDownloads,
                                 onOpenAutoDownload = { network ->
                                     component.openPage(
                                         SettingsPage.AutoDownload(autoDownloadNetworkKey(network)),

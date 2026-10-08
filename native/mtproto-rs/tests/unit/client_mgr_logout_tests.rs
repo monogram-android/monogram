@@ -140,6 +140,7 @@ fn cancelled_request_exits_while_lane_is_still_owned_by_another_call() {
         snapshot: Snapshot::new(2, &mut OsRandom).unwrap(),
         transport: None,
         temp_expires_at: 0,
+        perm_key: None,
     }));
     let held = lane.lock();
     let worker_lane = lane.clone();

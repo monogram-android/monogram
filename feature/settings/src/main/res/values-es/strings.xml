@@ -126,9 +126,6 @@
     <string name="settings_privacy_server_sub">Última conexión, llamadas y reenvío siguen los ajustes de privacidad de Telegram — abre tu perfil para más detalles</string>
     <string name="settings_data">Datos y almacenamiento</string>
     <string name="settings_data_sub">Descarga automática y caché</string>
-    <string name="settings_data_transfers">Transferencias</string>
-    <string name="settings_speed_up_downloads">Acelerar descargas</string>
-    <string name="settings_speed_up_downloads_sub">Descargar fotos, videos y archivos más rápido con buena conexión</string>
     <string name="settings_autodownload">Descarga automática de medios</string>
     <string name="settings_autodownload_wifi">Con Wi-Fi</string>
     <string name="settings_autodownload_mobile">Con datos móviles</string>

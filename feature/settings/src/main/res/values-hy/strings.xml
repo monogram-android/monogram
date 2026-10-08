@@ -126,9 +126,6 @@
     <string name="settings_privacy_server_sub">Վերջին այցը, զանգերը և վերահասցեավորումը հետևում են Telegram-ի գաղտնիության կարգավորումներին — մանրամասները պրոֆիլում</string>
     <string name="settings_data">Տվյալներ և պահոց</string>
     <string name="settings_data_sub">Ինքնաբեռնում և քեշ</string>
-    <string name="settings_data_transfers">Փոխանցումներ</string>
-    <string name="settings_speed_up_downloads">Արագացնել ներբեռնումը</string>
-    <string name="settings_speed_up_downloads_sub">Լուսանկարները, տեսանյութերը և ֆայլերը լավ կապի դեպքում ավելի արագ են ներբեռնվում</string>
     <string name="settings_autodownload">Մեդիայի ինքնաբեռնում</string>
     <string name="settings_autodownload_wifi">Wi-Fi-ով</string>
     <string name="settings_autodownload_mobile">Բջջային ցանցով</string>

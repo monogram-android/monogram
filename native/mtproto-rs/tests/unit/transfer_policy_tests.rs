@@ -68,6 +68,52 @@ fn ffi_media_dispatch_profiles_match_kotlin_values_and_reset_after_request() {
 }
 
 #[test]
+fn interactive_download_preempts_a_queued_background_download() {
+    let policy = Arc::new(TransferPolicy::stock());
+    *policy.queue_limits.lock() = (1, 1);
+    let held = policy.admit_download(2, false).unwrap();
+    let (order_tx, order_rx) = std::sync::mpsc::channel();
+    let (release_bg_tx, release_bg_rx) = std::sync::mpsc::channel::<()>();
+    let background = policy.clone();
+    let bg_order = order_tx.clone();
+    let bg = std::thread::spawn(move || {
+        crate::scheduler::with_class(crate::scheduler::RequestClass::BackgroundMedia, || {
+            let _lease = background.admit_download(2, false).unwrap();
+            bg_order.send("background").unwrap();
+            let _ = release_bg_rx.recv_timeout(std::time::Duration::from_secs(2));
+        });
+    });
+    std::thread::sleep(std::time::Duration::from_millis(40));
+    let (release_fg_tx, release_fg_rx) = std::sync::mpsc::channel::<()>();
+    let interactive = policy.clone();
+    let fg = std::thread::spawn(move || {
+        crate::scheduler::with_class(crate::scheduler::RequestClass::InteractiveMedia, || {
+            let _lease = interactive.admit_download(2, false).unwrap();
+            order_tx.send("interactive").unwrap();
+            let _ = release_fg_rx.recv_timeout(std::time::Duration::from_secs(2));
+        });
+    });
+    std::thread::sleep(std::time::Duration::from_millis(40));
+    drop(held);
+    assert_eq!(
+        order_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .ok(),
+        Some("interactive")
+    );
+    release_fg_tx.send(()).unwrap();
+    assert_eq!(
+        order_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .ok(),
+        Some("background")
+    );
+    release_bg_tx.send(()).unwrap();
+    fg.join().unwrap();
+    bg.join().unwrap();
+}
+
+#[test]
 fn server_queue_limits_block_only_the_matching_dc_and_file_queue() {
     let policy = Arc::new(TransferPolicy::stock());
     *policy.queue_limits.lock() = (1, 1);

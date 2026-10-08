@@ -13,22 +13,17 @@ class DownloadSettingsTest {
     }
 
     @Test
-    fun downloadBoostRespectsPremiumAndConfiguredLaneCap() {
-        for (boost in listOf(false, true)) {
-            val free = DownloadState(speedUpDownloads = boost, premium = false)
-            assertEquals(DownloadConcurrency(2, 2), free.concurrency)
-            assertEquals(128, free.downloadChunkKib)
-            assertEquals(512, free.filePartKib)
-        }
-        val premium = DownloadState(premium = true)
-        assertEquals(DownloadConcurrency(2, 4), premium.concurrency)
-        assertEquals(128, premium.downloadChunkKib)
-        val boosted = premium.copy(speedUpDownloads = true, lanes = 7)
-        assertEquals(DownloadConcurrency(7, 8), boosted.concurrency)
-        assertEquals(512, boosted.downloadChunkKib)
+    fun premiumDownloadUsesTheFastDefaults() {
+        val free = DownloadState(premium = false, lanes = 99)
+        assertEquals(DownloadConcurrency(2, 4), free.concurrency)
+        assertEquals(128, free.downloadChunkKib)
+        assertEquals(512, free.filePartKib)
+        val premium = DownloadState(premium = true, lanes = 7)
+        assertEquals(DownloadConcurrency(7, 8), premium.concurrency)
+        assertEquals(512, premium.downloadChunkKib)
         assertEquals(512, premium.filePartKib)
-        assertEquals(1, DownloadState(lanes = 1).effectiveLanes)
-        assertEquals(8, boosted.copy(lanes = 99).effectiveLanes)
+        assertEquals(1, DownloadState(lanes = 1, premium = true).effectiveLanes)
+        assertEquals(8, DownloadState(lanes = 99, premium = true).effectiveLanes)
     }
 
     @Test

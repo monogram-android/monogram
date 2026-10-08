@@ -93,14 +93,18 @@ internal fun replyQuoteAuthor(
     else -> null
 }
 
+internal fun replyMediaLabelRes(kind: String?): Int = when (kind) {
+    "photo" -> R.string.dialog_reply_photo
+    "video" -> R.string.dialog_reply_video
+    "sticker", "sticker_animated" -> R.string.dialog_reply_sticker
+    "gif" -> R.string.dialog_reply_gif
+    "document" -> R.string.dialog_reply_document
+    "audio" -> R.string.dialog_media_audio
+    "voice" -> R.string.dialog_media_voice
+    "video_note" -> R.string.dialog_media_video_note
+    else -> R.string.dialog_replying
+}
+
 @Composable
-private fun replyMediaFallbackLabel(kind: String?): String = stringResource(
-    when (kind) {
-        "photo" -> R.string.dialog_reply_photo
-        "video" -> R.string.dialog_reply_video
-        "sticker", "sticker_animated" -> R.string.dialog_reply_sticker
-        "gif" -> R.string.dialog_reply_gif
-        "document" -> R.string.dialog_reply_document
-        else -> R.string.dialog_replying
-    },
-)
+internal fun replyMediaFallbackLabel(kind: String?): String =
+    stringResource(replyMediaLabelRes(kind))

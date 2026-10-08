@@ -79,6 +79,9 @@ fn begin_updates_preserves_the_unapplied_cursor_in_persistence() {
         session_dead_reason: None,
         test_dc: false,
         last_inline: None,
+        perm_auth_key: None,
+        perm_salt: 0,
+        perm_session_id: 0,
     };
 
     begin_updates(&mut state);

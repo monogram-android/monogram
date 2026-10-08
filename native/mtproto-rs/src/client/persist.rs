@@ -51,13 +51,23 @@ thread_local! {
     pub(crate) static EXTRA_READ_LANE: Cell<bool> = const { Cell::new(false) };
 }
 
+pub(crate) fn durable_snapshot(state: &ClientState) -> tellers_mtproto_session::Snapshot {
+    let mut snapshot = state.snapshot.clone();
+    if let Some(key) = &state.perm_auth_key {
+        snapshot.auth_key = Some(key.clone());
+        snapshot.server_salt = state.perm_salt;
+        snapshot.session_id = state.perm_session_id;
+    }
+    snapshot
+}
+
 pub(crate) fn persist(state: &ClientState) -> Result<(), MtprotoError> {
     // Extra-lane snapshot_id must never replace the main session on disk.
     if EXTRA_READ_LANE.with(Cell::get) {
         return Ok(());
     }
     let session = ClientSession {
-        snapshot: state.snapshot.clone(),
+        snapshot: durable_snapshot(state),
         user_id: state.user_id,
         peers: state.peers.clone(),
         updates: state.updates.clone(),
@@ -97,8 +107,16 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(
         if !session_lease_valid(&d, session_id) {
             return Err(expired_session_lease());
         }
+        let mut snapshot = main.snapshot.clone();
+        if main.temp_expires_at > crate::auth::bind_temp::unix_now() {
+            if let Some(key) = d.home_auth_key.clone() {
+                snapshot.auth_key = Some(key);
+                snapshot.server_salt = d.home_salt;
+                snapshot.session_id = d.home_session_id;
+            }
+        }
         let session = ClientSession {
-            snapshot: main.snapshot.clone(),
+            snapshot,
             user_id: d.user_id,
             peers: d.peers.clone(),
             updates: d.updates.clone(),

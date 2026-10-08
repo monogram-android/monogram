@@ -473,5 +473,7 @@ fn peer_photo_with_stripped_thumb() {
         Some(&raw_stripped),
     );
     assert_eq!(photo.thumb_cache_key, Some("avatar:7:thumb".into()));
-    assert!(matches!(photo.thumb_location, Some(MediaLocation::Inline { extension, .. }) if extension == "jpg"));
+    assert!(
+        matches!(photo.thumb_location, Some(MediaLocation::Inline { extension, .. }) if extension == "jpg")
+    );
 }

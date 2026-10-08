@@ -138,12 +138,24 @@ fn paragraph_of(text: RichText) -> PageBlock {
 #[test]
 fn rich_message_fields_survive_flattening() {
     let marked = paragraph_of(RichText::TextMarked(
-        tellers_mtproto::latest::api::TextMarkedConstructor { text: plain("secret") },
+        tellers_mtproto::latest::api::TextMarkedConstructor {
+            text: plain("secret"),
+        },
     ));
     let marked_text = page_blocks_formatted(std::iter::once(&marked));
     assert_eq!(marked_text.text, "secret");
-    assert!(marked_text.entities.iter().any(|entity| entity.kind == "marked"));
-    assert!(marked_text.entities.iter().all(|entity| entity.kind != "spoiler"));
+    assert!(
+        marked_text
+            .entities
+            .iter()
+            .any(|entity| entity.kind == "marked")
+    );
+    assert!(
+        marked_text
+            .entities
+            .iter()
+            .all(|entity| entity.kind != "spoiler")
+    );
 
     let email = paragraph_of(RichText::TextEmail(
         tellers_mtproto::latest::api::TextEmailConstructor {
@@ -227,17 +239,13 @@ fn rich_message_fields_survive_flattening() {
     let date_text = page_blocks_formatted(std::iter::once(&date));
     assert_eq!(date_text.text, "fallback");
     assert_eq!(date_text.entities[0].kind, "date");
-    assert_eq!(
-        date_text.entities[0].url.as_deref(),
-        Some("1710000000|8")
-    );
+    assert_eq!(date_text.entities[0].url.as_deref(), Some("1710000000|8"));
 }
 
 #[test]
 fn divider_table_and_block_math_keep_structure() {
-    let divider = PageBlock::PageBlockDivider(
-        tellers_mtproto::latest::api::PageBlockDividerConstructor {},
-    );
+    let divider =
+        PageBlock::PageBlockDivider(tellers_mtproto::latest::api::PageBlockDividerConstructor {});
     let divided = page_blocks_formatted(std::iter::once(&divider));
     assert_eq!(divided.text, "---");
     assert_eq!(divided.entities[0].kind, "rule");
@@ -268,8 +276,8 @@ fn divider_table_and_block_math_keep_structure() {
             },
         )
     };
-    let table = PageBlock::PageBlockTable(
-        tellers_mtproto::latest::api::PageBlockTableConstructor {
+    let table =
+        PageBlock::PageBlockTable(tellers_mtproto::latest::api::PageBlockTableConstructor {
             flags: 0,
             bordered: None,
             striped: None,
@@ -279,8 +287,7 @@ fn divider_table_and_block_math_keep_structure() {
                 row(vec![cell("A", true), cell("B", true)]),
                 row(vec![cell("1", false), cell("2", false)]),
             ])),
-        },
-    );
+        });
     let formatted = page_blocks_formatted(std::iter::once(&table));
     assert!(formatted.text.contains("| A | B |"));
     assert!(formatted.text.contains("| 1 | 2 |"));
@@ -289,17 +296,13 @@ fn divider_table_and_block_math_keep_structure() {
         .iter()
         .find(|entity| entity.kind == "table")
         .expect("table entity");
-    assert_eq!(
-        table_entity.url.as_deref(),
-        Some("A\u{1f}B\u{1e}1\u{1f}2")
-    );
+    assert_eq!(table_entity.url.as_deref(), Some("A\u{1f}B\u{1e}1\u{1f}2"));
     assert!(formatted.entities.iter().all(|entity| entity.kind != "pre"));
 
-    let block_math = PageBlock::PageBlockMath(
-        tellers_mtproto::latest::api::PageBlockMathConstructor {
+    let block_math =
+        PageBlock::PageBlockMath(tellers_mtproto::latest::api::PageBlockMathConstructor {
             source: "\\frac{1}{2}".into(),
-        },
-    );
+        });
     let math = page_blocks_formatted(std::iter::once(&block_math));
     assert_eq!(math.entities[0].kind, "math");
     assert_eq!(math.entities[0].url.as_deref(), Some("block"));
@@ -308,53 +311,46 @@ fn divider_table_and_block_math_keep_structure() {
 
 #[test]
 fn unsupported_rich_media_is_not_invented() {
-    let video = PageBlock::PageBlockVideo(
-        tellers_mtproto::latest::api::PageBlockVideoConstructor {
+    let video =
+        PageBlock::PageBlockVideo(tellers_mtproto::latest::api::PageBlockVideoConstructor {
             flags: 0,
             autoplay: None,
             loop_: None,
             spoiler: None,
             video_id: 7,
             caption: empty_caption(),
-        },
-    );
-    let audio = PageBlock::PageBlockAudio(
-        tellers_mtproto::latest::api::PageBlockAudioConstructor {
+        });
+    let audio =
+        PageBlock::PageBlockAudio(tellers_mtproto::latest::api::PageBlockAudioConstructor {
             audio_id: 8,
             caption: empty_caption(),
-        },
-    );
-    let collage = PageBlock::PageBlockCollage(
-        tellers_mtproto::latest::api::PageBlockCollageConstructor {
+        });
+    let collage =
+        PageBlock::PageBlockCollage(tellers_mtproto::latest::api::PageBlockCollageConstructor {
             items: Box::new(boxed_vector(Vec::<PageBlock>::new())),
             caption: empty_caption(),
-        },
-    );
+        });
     let slideshow = PageBlock::PageBlockSlideshow(
         tellers_mtproto::latest::api::PageBlockSlideshowConstructor {
             items: Box::new(boxed_vector(Vec::<PageBlock>::new())),
             caption: empty_caption(),
         },
     );
-    let map = PageBlock::PageBlockMap(
-        tellers_mtproto::latest::api::PageBlockMapConstructor {
-            geo: Box::new(tellers_mtproto::latest::api::GeoPoint::GeoPointEmpty(
-                tellers_mtproto::latest::api::GeoPointEmptyConstructor {},
-            )),
-            zoom: 1,
-            w: 10,
-            h: 10,
-            caption: empty_caption(),
-        },
-    );
+    let map = PageBlock::PageBlockMap(tellers_mtproto::latest::api::PageBlockMapConstructor {
+        geo: Box::new(tellers_mtproto::latest::api::GeoPoint::GeoPointEmpty(
+            tellers_mtproto::latest::api::GeoPointEmptyConstructor {},
+        )),
+        zoom: 1,
+        w: 10,
+        h: 10,
+        caption: empty_caption(),
+    });
     for block in [&video, &audio, &collage, &slideshow, &map] {
         let formatted = page_blocks_formatted(std::iter::once(block));
         assert!(formatted.text.is_empty(), "{}", formatted.text);
-        assert!(
-            formatted.entities.iter().all(|entity| {
-                entity.kind != "photo" && entity.kind != "video" && entity.kind != "audio"
-            })
-        );
+        assert!(formatted.entities.iter().all(|entity| {
+            entity.kind != "photo" && entity.kind != "video" && entity.kind != "audio"
+        }));
     }
 }
 
@@ -362,5 +358,10 @@ fn unsupported_rich_media_is_not_invented() {
 fn plain_dashes_are_not_a_divider() {
     let formatted = page_blocks_formatted(std::iter::once(&paragraph("---")));
     assert_eq!(formatted.text, "---");
-    assert!(formatted.entities.iter().all(|entity| entity.kind != "rule"));
+    assert!(
+        formatted
+            .entities
+            .iter()
+            .all(|entity| entity.kind != "rule")
+    );
 }

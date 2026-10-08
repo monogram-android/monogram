@@ -590,8 +590,10 @@ pub(crate) fn save_items_with(
     let _policy = crate::transfer_policy::bind(Arc::clone(&client.policy));
     let home = client.main.lock().snapshot.clone();
     crate::media::check_transfer_flood(home.dc_id, crate::media::TransferClass::Upload)?;
-    let mut io = client.upload.lock();
-    if sync_upload_snapshot(&mut io.snapshot, &home) {
+    let mut io = super::lanes::lock_upload_lane(client);
+    if io.temp_expires_at <= crate::auth::bind_temp::unix_now()
+        && sync_upload_snapshot(&mut io.snapshot, &home)
+    {
         io.transport = None;
     }
     let mut transport = io.transport.take();

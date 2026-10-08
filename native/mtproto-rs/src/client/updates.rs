@@ -147,13 +147,15 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             d.lazy_channel_updates && !d.lazy_channel_recovery.is_empty() && d.lazy_retry_at <= now,
         )
     };
-    apply_home_auth(
-        &mut io.snapshot,
-        home_dc,
-        home_auth.clone(),
-        home_salt,
-        home_off,
-    );
+    if io.temp_expires_at <= crate::auth::bind_temp::unix_now() {
+        apply_home_auth(
+            &mut io.snapshot,
+            home_dc,
+            home_auth.clone(),
+            home_salt,
+            home_off,
+        );
+    }
     let mut needs_difference = io.transport.is_none()
         || io
             .last_difference

@@ -7,7 +7,7 @@ mod auth;
 mod dispatch;
 mod extras;
 pub(crate) mod extras_rpc;
-mod lanes;
+pub(crate) mod lanes;
 mod media_download;
 mod persist;
 pub(crate) mod push_rpc;
@@ -127,8 +127,7 @@ pub(crate) struct Client {
     pub(crate) rpc: [Lane; scheduler::READ_LANES],
     /// File RPCs on separate sessions.
     pub(crate) media: crate::SmallVec<[Lane; scheduler::MAX_MEDIA_LANES]>,
-    /// One upload session. Not the main sender and not a download lane.
-    pub(crate) upload: Mutex<SessionIo>,
+    pub(crate) upload: [Lane; scheduler::UPLOAD_LANES],
     pub(crate) file_cleanup_running: AtomicBool,
     pub(crate) media_open: std::sync::atomic::AtomicUsize,
     pub(crate) media_gate: scheduler::LaneGate,
@@ -159,6 +158,10 @@ pub(crate) struct ClientState {
     pub(crate) session_dead_reason: Option<String>,
     pub(crate) test_dc: bool,
     pub(crate) last_inline: Option<LastInlineQuery>,
+    /// Set while the live snapshot uses a PFS temp key. Disk writes keep this key.
+    pub(crate) perm_auth_key: Option<Vec<u8>>,
+    pub(crate) perm_salt: i64,
+    pub(crate) perm_session_id: i64,
 }
 
 pub(crate) fn prefer_newer_cursor(
@@ -268,7 +271,6 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
     };
     crate::rpc::set_use_test_dc(test_dc);
     let media_snapshot = fork_session(&snapshot);
-    let upload_snapshot = fork_session(&snapshot);
     let rpc_snapshot = fork_session(&snapshot);
     let rpc_snapshot_b = fork_session(&snapshot);
     let media_snapshots: Vec<Snapshot> = (0..scheduler::MAX_MEDIA_LANES)
@@ -280,6 +282,15 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
             }
         })
         .collect();
+    let upload_lanes = core::array::from_fn(|_| {
+        Lane::new(SessionIo {
+            pending_push: Default::default(),
+            last_difference: None,
+            snapshot: fork_session(&snapshot),
+            transport: None,
+            temp_expires_at: 0,
+        })
+    });
     let handle = NEXT_HANDLE.fetch_add(1, Ordering::Relaxed);
     CLIENTS.lock().insert(
         handle,
@@ -326,6 +337,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                 last_difference: None,
                 snapshot,
                 transport: None,
+                temp_expires_at: 0,
             }),
             rpc: [
                 Lane::new(SessionIo {
@@ -333,12 +345,14 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                     last_difference: None,
                     snapshot: rpc_snapshot,
                     transport: None,
+                    temp_expires_at: 0,
                 }),
                 Lane::new(SessionIo {
                     pending_push: Default::default(),
                     last_difference: None,
                     snapshot: rpc_snapshot_b,
                     transport: None,
+                    temp_expires_at: 0,
                 }),
             ],
             media: media_snapshots
@@ -349,15 +363,11 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                         pending_push: Default::default(),
                         last_difference: None,
                         transport: None,
+                        temp_expires_at: 0,
                     })
                 })
                 .collect(),
-            upload: Mutex::new(SessionIo {
-                pending_push: Default::default(),
-                last_difference: None,
-                snapshot: upload_snapshot,
-                transport: None,
-            }),
+            upload: upload_lanes,
             file_cleanup_running: AtomicBool::new(false),
             media_open: std::sync::atomic::AtomicUsize::new(1),
             media_gate: scheduler::LaneGate::new(),
@@ -515,6 +525,11 @@ pub(crate) fn with_client_mut<T>(
             session_dead_reason: d.session_dead_reason.clone(),
             test_dc: d.test_dc,
             last_inline: d.last_inline.clone(),
+            perm_auth_key: (io.temp_expires_at > crate::auth::bind_temp::unix_now())
+                .then(|| d.home_auth_key.clone())
+                .flatten(),
+            perm_salt: d.home_salt,
+            perm_session_id: d.home_session_id,
         }
     };
     crate::rpc::set_use_test_dc(state.test_dc);
@@ -591,10 +606,15 @@ pub(crate) fn with_client_mut<T>(
             None
         };
         d.home_dc = state.snapshot.dc_id;
-        d.home_session_id = state.snapshot.session_id;
-        d.home_auth_key = state.snapshot.auth_key.clone();
-        d.home_salt = state.snapshot.server_salt;
         d.home_time_offset = state.snapshot.time_offset_micros;
+        if state.session_dead || state.snapshot.auth_key != before_snapshot.auth_key {
+            io.temp_expires_at = 0;
+        }
+        if io.temp_expires_at <= crate::auth::bind_temp::unix_now() {
+            d.home_session_id = state.snapshot.session_id;
+            d.home_auth_key = state.snapshot.auth_key.clone();
+            d.home_salt = state.snapshot.server_salt;
+        }
         d.test_dc = state.test_dc;
         d.last_inline = state.last_inline;
         persist_needed = result.is_ok()
@@ -610,10 +630,13 @@ pub(crate) fn with_client_mut<T>(
     if identity_changed {
         for lane in client.rpc.iter() {
             if let Some(mut rpc) = lane.io.try_lock() {
-                rpc.snapshot = fork_session(&io.snapshot);
+                rpc.temp_expires_at = 0;
                 rpc.transport = None;
                 rpc.pending_push = Default::default();
                 rpc.last_difference = None;
+                if io.temp_expires_at <= crate::auth::bind_temp::unix_now() {
+                    rpc.snapshot = fork_session(&io.snapshot);
+                }
             }
         }
     }
@@ -658,13 +681,20 @@ pub(crate) fn with_read_lane<T>(
     // Reads wait for a read lane; the `with_client_mut` paths below are authorization
     // repairs, not contention fallbacks.
     let mut io = acquire_read_lane(&client)?;
-    match prepare_media_lane_snapshot(&mut io.snapshot, &home, home.dc_id) {
-        MediaLanePrep::NeedExport => {
-            drop(io);
-            return with_client_mut(handle, f);
-        }
-        MediaLanePrep::Replaced => io.transport = None,
-        MediaLanePrep::Reuse => {}
+    let now = crate::auth::bind_temp::unix_now();
+    if io.temp_expires_at > 0 && io.temp_expires_at <= now {
+        io.temp_expires_at = 0;
+        io.transport = None;
+        drop(io);
+        scheduler::set_bound_extra_sessions(0);
+        return with_client_mut(handle, f);
+    }
+    let bound_temp = io.temp_expires_at > now
+        && io.snapshot.auth_key.as_ref() != home.auth_key.as_ref()
+        && io.snapshot.auth_key.as_ref().map(Vec::len) == Some(256);
+    if !bound_temp {
+        drop(io);
+        return with_client_mut(handle, f);
     }
     let home_session_id = home.session_id;
     let home_dc = home.dc_id;
@@ -693,6 +723,11 @@ pub(crate) fn with_read_lane<T>(
                 session_dead_reason: d.session_dead_reason.clone(),
                 test_dc: d.test_dc,
                 last_inline: d.last_inline.clone(),
+                perm_auth_key: (io.temp_expires_at > crate::auth::bind_temp::unix_now())
+                    .then(|| d.home_auth_key.clone())
+                    .flatten(),
+                perm_salt: d.home_salt,
+                perm_session_id: d.home_session_id,
             })
         }
     };
@@ -726,8 +761,12 @@ pub(crate) fn with_read_lane<T>(
     if let Some(metadata) = crate::rpc::take_new_session_metadata() {
         state.new_session = Some(metadata);
     }
-    let diverged = state.snapshot.dc_id != home_dc || state.snapshot.auth_key != home_auth;
+    let still_temp = io.temp_expires_at > crate::auth::bind_temp::unix_now()
+        && state.snapshot.auth_key.as_ref() != home_auth.as_ref();
+    let diverged =
+        state.snapshot.dc_id != home_dc || (state.snapshot.auth_key != home_auth && !still_temp);
     if diverged {
+        io.temp_expires_at = 0;
         io.snapshot = fork_session(&home);
         io.transport = None;
         drop(io);

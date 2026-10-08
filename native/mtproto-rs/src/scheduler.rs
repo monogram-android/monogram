@@ -103,6 +103,8 @@ pub enum LaneFamily {
 /// [`extra_main_sessions`].
 pub const READ_LANES: usize = 2;
 
+pub const UPLOAD_LANES: usize = 4;
+
 /// Most parallel main sessions we will ever open on one non-media DC.
 pub const MAX_MAIN_SESSIONS: i32 = 8;
 
@@ -138,11 +140,27 @@ pub fn main_session_allowance_known() -> bool {
     MAIN_SESSION_ALLOWANCE.load(std::sync::atomic::Ordering::Relaxed) >= 1
 }
 
-/// Extra main sessions remain disabled until each has a bound temporary PFS key.
-/// A server allowance alone does not authorize reusing the permanent key across
-/// parallel main sessions: https://core.telegram.org/api/datacenter#parallel-sessions
+/// Extra main sessions that currently hold a bound temporary key.
+/// Zero until [`set_bound_extra_sessions`] records a successful bind.
+static BOUND_EXTRA_SESSIONS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+/// Records how many extra home sessions have a bound temporary key.
+///
+/// A server allowance alone does not authorize reusing the permanent key.
+/// https://core.telegram.org/api/datacenter#parallel-sessions
+pub fn set_bound_extra_sessions(count: usize) {
+    BOUND_EXTRA_SESSIONS.store(count.min(READ_LANES), std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Extra main sessions that may be used. Stays zero until a temp key is bound.
 pub fn extra_main_sessions() -> usize {
-    0
+    let bound = BOUND_EXTRA_SESSIONS.load(std::sync::atomic::Ordering::Relaxed);
+    if bound == 0 {
+        return 0;
+    }
+    let extras = usize::try_from(main_session_allowance().saturating_sub(1)).unwrap_or(0);
+    bound.min(extras).min(READ_LANES)
 }
 
 /// Home-DC read lanes the current allowance pays for.

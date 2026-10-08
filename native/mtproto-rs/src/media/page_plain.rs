@@ -390,12 +390,7 @@ fn push_table(
             let tellers_mtproto::latest::api::PageTableCell::PageTableCell(cell) = cell else {
                 continue;
             };
-            cells.push(
-                cell.text
-                    .as_deref()
-                    .map(rich_plain)
-                    .unwrap_or_default(),
-            );
+            cells.push(cell.text.as_deref().map(rich_plain).unwrap_or_default());
         }
         if !cells.is_empty() {
             grid.push(cells);
@@ -586,14 +581,13 @@ fn push_rich(text: &RichText, out: &mut FormattedText) {
             mark(out, start, "url", None);
         }
         RichText::TextCustomEmoji(t) => {
-            let alt = if t.alt.is_empty() { "\u{FFFC}" } else { t.alt.as_str() };
+            let alt = if t.alt.is_empty() {
+                "\u{FFFC}"
+            } else {
+                t.alt.as_str()
+            };
             out.text.push_str(alt);
-            mark(
-                out,
-                start,
-                "custom_emoji",
-                Some(t.document_id.to_string()),
-            );
+            mark(out, start, "custom_emoji", Some(t.document_id.to_string()));
         }
         RichText::TextSubscript(t) => {
             push_rich(&t.text, out);

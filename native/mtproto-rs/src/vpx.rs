@@ -251,12 +251,13 @@ pub fn decode_vpx_alpha_packet(
         }
         let dst_w = out_w as usize;
         let dst_h = out_h as usize;
-        let mut alpha = vec![
-            0u8;
-            dst_w.checked_mul(dst_h).ok_or_else(|| MtprotoError::Message(
-                "vpx alpha frame is too large".into()
-            ))?
-        ];
+        let mut alpha =
+            vec![
+                0u8;
+                dst_w
+                    .checked_mul(dst_h)
+                    .ok_or_else(|| MtprotoError::Message("vpx alpha frame is too large".into()))?
+            ];
         for row in 0..dst_h {
             let src_row = row * h / dst_h;
             for col in 0..dst_w {
@@ -381,7 +382,7 @@ fn clip(value: i32) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use super::{fitted_output, lookup_arc, VPX_DECODER_THREADS, VPX_MAX_OUTPUT};
+    use super::{VPX_DECODER_THREADS, VPX_MAX_OUTPUT, fitted_output, lookup_arc};
     use crate::{HashMap, HashMapExt};
     use parking_lot::Mutex;
     use std::sync::Arc;
@@ -392,7 +393,10 @@ mod tests {
         values.insert(1u64, Arc::new(5u32));
         let map = Mutex::new(values);
         let value = lookup_arc(&map, 1).expect("present");
-        assert!(map.try_lock().is_some(), "map lock must be free after lookup");
+        assert!(
+            map.try_lock().is_some(),
+            "map lock must be free after lookup"
+        );
         assert_eq!(*value, 5);
     }
 
@@ -404,7 +408,10 @@ mod tests {
     #[test]
     fn output_stays_inside_one_megabyte() {
         assert_eq!(fitted_output(512, 512), (512, 512));
-        assert_eq!(fitted_output(2048, 1024), (VPX_MAX_OUTPUT, VPX_MAX_OUTPUT / 2));
+        assert_eq!(
+            fitted_output(2048, 1024),
+            (VPX_MAX_OUTPUT, VPX_MAX_OUTPUT / 2)
+        );
         let (w, h) = fitted_output(2048, 2048);
         assert!(w <= VPX_MAX_OUTPUT && h <= VPX_MAX_OUTPUT);
         assert!(w as usize * h as usize * 4 <= 1024 * 1024);

@@ -53,7 +53,9 @@ pub fn connect(handle: u64) -> Result<(), MtprotoError> {
         }
         recover_imported_user(state)?;
         Ok(())
-    })
+    })?;
+    crate::auth::bind_temp::prepare_extra_main_sessions(handle);
+    Ok(())
 }
 
 fn recover_imported_user(state: &mut ClientState) -> Result<(), MtprotoError> {

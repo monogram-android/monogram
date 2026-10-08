@@ -3,8 +3,8 @@
 use bnum::types::{I128, I256};
 use tellers_mtproto::codec::{Boxed, BoxedDecode, Decoder, Encoder, Limits};
 use tellers_mtproto::transport::{
-    PQInnerDataDcConstructor, ReqDhParamsRequest, ReqPqMultiRequest, ResPq, ServerDhInnerData,
-    ServerDhParams, SetClientDhParamsAnswer, SetClientDhParamsRequest,
+    PQInnerDataDcConstructor, PQInnerDataTempDcConstructor, ReqDhParamsRequest, ReqPqMultiRequest,
+    ResPq, ServerDhInnerData, ServerDhParams, SetClientDhParamsAnswer, SetClientDhParamsRequest,
 };
 use tellers_mtproto_crypto::{
     aes_ige_decrypt, aes_ige_encrypt, derive_auth_key, factor_pq, fill_random, initial_server_salt,
@@ -128,6 +128,7 @@ struct AuthAdapter {
     q: Option<Vec<u8>>,
     g_b: Option<Vec<u8>>,
     auth_key: Option<Vec<u8>>,
+    expires_in: Option<i32>,
 }
 
 impl AuthAdapter {
@@ -148,6 +149,7 @@ impl AuthAdapter {
             q: None,
             g_b: None,
             auth_key: None,
+            expires_in: None,
         })
     }
 }
@@ -210,17 +212,29 @@ impl AuthorizationAdapter for AuthAdapter {
         let new_nonce = i256_from_bytes(new_nonce_bytes);
         self.new_nonce = Some(new_nonce.clone());
 
-        let inner = PQInnerDataDcConstructor {
-            pq: res.pq.clone(),
-            p: p_bytes,
-            q: q_bytes,
-            nonce: self.nonce.clone(),
-            server_nonce: res.server_nonce.clone(),
-            new_nonce,
-            dc: inner_data_dc(self.dc_id),
-        };
-        let inner_bytes = encode_boxed(&inner)
-            .map_err(|e| tellers_mtproto_engine::Error::Authorization(e.to_string()))?;
+        let inner_bytes = if let Some(expires_in) = self.expires_in {
+            encode_boxed(&PQInnerDataTempDcConstructor {
+                pq: res.pq.clone(),
+                p: p_bytes,
+                q: q_bytes,
+                nonce: self.nonce.clone(),
+                server_nonce: res.server_nonce.clone(),
+                new_nonce,
+                dc: inner_data_dc(self.dc_id),
+                expires_in,
+            })
+        } else {
+            encode_boxed(&PQInnerDataDcConstructor {
+                pq: res.pq.clone(),
+                p: p_bytes,
+                q: q_bytes,
+                nonce: self.nonce.clone(),
+                server_nonce: res.server_nonce.clone(),
+                new_nonce,
+                dc: inner_data_dc(self.dc_id),
+            })
+        }
+        .map_err(|e| tellers_mtproto_engine::Error::Authorization(e.to_string()))?;
 
         let key = parse_rsa_public_key(&self.rsa_pem)
             .map_err(|e| tellers_mtproto_engine::Error::Authorization(e.to_string()))?;
@@ -427,14 +441,34 @@ pub fn create_auth_key(
     create_auth_key_with_pem(conn, framing, snapshot, rsa_pem())
 }
 
+pub fn create_temp_auth_key(
+    conn: &mut dyn Connection,
+    framing: &mut PaddedIntermediate,
+    snapshot: &mut Snapshot,
+    expires_in: i32,
+) -> Result<(), MtprotoError> {
+    let mut adapter = AuthAdapter::with_pem(snapshot.dc_id, rsa_pem().to_string())?;
+    adapter.expires_in = Some(expires_in);
+    run_exchange(adapter, conn, framing, snapshot)
+}
+
 pub fn create_auth_key_with_pem(
     conn: &mut dyn Connection,
     framing: &mut PaddedIntermediate,
     snapshot: &mut Snapshot,
     pem: &str,
 ) -> Result<(), MtprotoError> {
-    let clock = SystemClock;
     let adapter = AuthAdapter::with_pem(snapshot.dc_id, pem.to_string())?;
+    run_exchange(adapter, conn, framing, snapshot)
+}
+
+fn run_exchange(
+    adapter: AuthAdapter,
+    conn: &mut dyn Connection,
+    framing: &mut PaddedIntermediate,
+    snapshot: &mut Snapshot,
+) -> Result<(), MtprotoError> {
+    let clock = SystemClock;
     let mut auth = Authorization::new(adapter);
 
     let body = auth

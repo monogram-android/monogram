@@ -126,9 +126,6 @@
     <string name="settings_privacy_server_sub">最后上线时间、通话和转发遵循 Telegram 的隐私设置 — 打开资料查看详情</string>
     <string name="settings_data">数据和存储</string>
     <string name="settings_data_sub">自动下载与缓存</string>
-    <string name="settings_data_transfers">传输</string>
-    <string name="settings_speed_up_downloads">加速下载</string>
-    <string name="settings_speed_up_downloads_sub">在良好网络连接下更快下载照片、视频和文件</string>
     <string name="settings_autodownload">自动下载媒体</string>
     <string name="settings_autodownload_wifi">使用 Wi-Fi</string>
     <string name="settings_autodownload_mobile">使用移动网络</string>

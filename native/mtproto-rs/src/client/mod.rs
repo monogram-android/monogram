@@ -289,6 +289,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
             snapshot: fork_session(&snapshot),
             transport: None,
             temp_expires_at: 0,
+            perm_key: None,
         })
     });
     let handle = NEXT_HANDLE.fetch_add(1, Ordering::Relaxed);
@@ -338,6 +339,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                 snapshot,
                 transport: None,
                 temp_expires_at: 0,
+                perm_key: None,
             }),
             rpc: [
                 Lane::new(SessionIo {
@@ -346,6 +348,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                     snapshot: rpc_snapshot,
                     transport: None,
                     temp_expires_at: 0,
+                    perm_key: None,
                 }),
                 Lane::new(SessionIo {
                     pending_push: Default::default(),
@@ -353,6 +356,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                     snapshot: rpc_snapshot_b,
                     transport: None,
                     temp_expires_at: 0,
+                    perm_key: None,
                 }),
             ],
             media: media_snapshots
@@ -364,6 +368,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                         last_difference: None,
                         transport: None,
                         temp_expires_at: 0,
+                        perm_key: None,
                     })
                 })
                 .collect(),

@@ -126,9 +126,6 @@
     <string name="settings_privacy_server_sub">Naposledy videný, hovory a preposielanie sa riadia nastaveniami súkromia Telegramu — podrobnosti nájdete v profile</string>
     <string name="settings_data">Údaje a úložisko</string>
     <string name="settings_data_sub">Automatické sťahovanie a vyrovnávacia pamäť</string>
-    <string name="settings_data_transfers">Prenosy</string>
-    <string name="settings_speed_up_downloads">Zrýchliť sťahovanie</string>
-    <string name="settings_speed_up_downloads_sub">Sťahujte fotky, videá a súbory rýchlejšie pri dobrom pripojení</string>
     <string name="settings_autodownload">Automatické sťahovanie médií</string>
     <string name="settings_autodownload_wifi">Cez Wi-Fi</string>
     <string name="settings_autodownload_mobile">Cez mobilné dáta</string>

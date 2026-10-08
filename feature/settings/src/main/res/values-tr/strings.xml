@@ -126,9 +126,6 @@
     <string name="settings_privacy_server_sub">Son görülme, aramalar ve iletme Telegram gizlilik ayarlarına bağlıdır — ayrıntılar için profilinizi açın</string>
     <string name="settings_data">Veri ve depolama</string>
     <string name="settings_data_sub">Otomatik indirme ve önbellek</string>
-    <string name="settings_data_transfers">Aktarımlar</string>
-    <string name="settings_speed_up_downloads">İndirmeleri hızlandır</string>
-    <string name="settings_speed_up_downloads_sub">İyi bir bağlantıda fotoğrafları, videoları ve dosyaları daha hızlı indirin</string>
     <string name="settings_autodownload">Otomatik medya indirme</string>
     <string name="settings_autodownload_wifi">Wi-Fi ile</string>
     <string name="settings_autodownload_mobile">Hücresel veri ile</string>

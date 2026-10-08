@@ -18,7 +18,6 @@ import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.CellTower
-import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Gif
@@ -169,7 +168,6 @@ internal fun LazyListScope.dataItems(
     cacheMessage: String?,
     loading: Boolean,
     download: DownloadState,
-    onSpeedUpDownloads: (Boolean) -> Unit,
     onOpenAutoDownload: (AutoDownloadNetwork) -> Unit,
     onClear: () -> Unit,
     onClearChat: (Long) -> Unit,
@@ -299,24 +297,6 @@ internal fun LazyListScope.dataItems(
                 Switch(
                     checked = download.autoplayVideos,
                     onCheckedChange = DownloadSettings::setAutoplayVideos,
-                )
-            },
-        )
-    }
-    item { Spacer(Modifier.height(8.dp)) }
-    item { SectionHeader(stringResource(R.string.settings_data_transfers)) }
-    item {
-        SettingsTile(
-            icon = Icons.Outlined.CloudDownload,
-            title = stringResource(R.string.settings_speed_up_downloads),
-            subtitle = stringResource(R.string.settings_speed_up_downloads_sub),
-            iconColor = MaterialTheme.colorScheme.primary,
-            position = ItemPosition.STANDALONE,
-            onClick = { onSpeedUpDownloads(!download.speedUpDownloads) },
-            trailingContent = {
-                Switch(
-                    checked = download.speedUpDownloads,
-                    onCheckedChange = onSpeedUpDownloads,
                 )
             },
         )

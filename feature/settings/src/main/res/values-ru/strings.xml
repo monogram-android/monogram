@@ -126,9 +126,6 @@
     <string name="settings_privacy_server_sub">Статус в сети, звонки и пересылка зависят от настроек конфиденциальности Telegram — подробности в профиле</string>
     <string name="settings_data">Данные и память</string>
     <string name="settings_data_sub">Автозагрузка и кэш</string>
-    <string name="settings_data_transfers">Передача</string>
-    <string name="settings_speed_up_downloads">Ускорить скачивание</string>
-    <string name="settings_speed_up_downloads_sub">Скачивать фото, видео и файлы быстрее при хорошем соединении</string>
     <string name="settings_autodownload">Автозагрузка медиа</string>
     <string name="settings_autodownload_wifi">Через Wi-Fi</string>
     <string name="settings_autodownload_mobile">Через мобильную сеть</string>

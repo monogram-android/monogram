@@ -18,6 +18,16 @@ fn home_lease_ok(state: &ClientState, home_session_id: i64) -> bool {
     state.snapshot.session_id == home_session_id || state.perm_session_id == home_session_id
 }
 
+fn download_temp_ready(io: &super::lanes::SessionIo, dc: i32, home_key: Option<&[u8]>) -> bool {
+    io.temp_expires_at > crate::auth::bind_temp::unix_now()
+        && io.snapshot.dc_id == dc
+        && io
+            .snapshot
+            .auth_key
+            .as_deref()
+            .is_some_and(|key| Some(key) != home_key)
+}
+
 pub fn download_wallpaper(
     handle: u64,
     id: i64,
@@ -689,21 +699,9 @@ pub(crate) fn download_media_range_on_lane(
     loop {
         media::check_transfer_flood(target_dc, media::TransferClass::Download)?;
         let admission = client.policy.admit_download(target_dc, large)?;
-        let first = if target_dc == home.dc_id {
-            download_media_range_on_home_session(
-                handle,
-                client,
-                home.session_id,
-                api_id,
-                media,
-                dest,
-                offset,
-            )
-        } else {
-            download_media_range_on_lane_dc(
-                handle, client, home, api_id, media, dest, offset, target_dc,
-            )
-        };
+        let first = download_media_range_on_lane_dc(
+            handle, client, home, api_id, media, dest, offset, target_dc,
+        );
         if let Err(ref error) = first {
             if let Some(dc) = api_invoke::migrate_dc(error) {
                 if dc != target_dc && migrations < 3 {
@@ -731,21 +729,9 @@ pub(crate) fn download_media_range_on_lane(
                     Ok(path) => Ok(path),
                     Err(_) => media::with_cdn_supported(false, || {
                         let _admission = client.policy.admit_download(target_dc, large)?;
-                        if target_dc == home.dc_id {
-                            download_media_range_on_home_session(
-                                handle,
-                                client,
-                                home.session_id,
-                                api_id,
-                                media,
-                                dest,
-                                offset,
-                            )
-                        } else {
-                            download_media_range_on_lane_dc(
-                                handle, client, home, api_id, media, dest, offset, target_dc,
-                            )
-                        }
+                        download_media_range_on_lane_dc(
+                            handle, client, home, api_id, media, dest, offset, target_dc,
+                        )
                     }),
                 }
             }
@@ -754,11 +740,8 @@ pub(crate) fn download_media_range_on_lane(
     }
 }
 
-/// Home-DC download over the single main session.
-///
-/// A second session on this DC would be another main session.
-/// https://core.telegram.org/api/datacenter#parallel-sessions
-#[allow(dead_code)]
+/// Home-DC download on the main socket. Used only when a temp key cannot be bound,
+/// so the permanent key is not opened on a second TCP.
 pub(crate) fn download_media_range_on_home_session(
     handle: u64,
     client: &Client,
@@ -929,7 +912,9 @@ pub(crate) fn download_media_range_on_lane_dc(
         return Err(expired_session_lease());
     }
     let mut lane_perm = None;
-    let already_temp = io.temp_expires_at > crate::auth::bind_temp::unix_now()
+    let now = crate::auth::bind_temp::unix_now();
+    let already_temp = io.temp_expires_at > now
+        && io.snapshot.dc_id == target_dc
         && io.snapshot.auth_key.as_ref() != home.auth_key.as_ref();
     if !already_temp {
         match prepare_media_lane_snapshot(&mut io.snapshot, home, target_dc) {
@@ -946,6 +931,7 @@ pub(crate) fn download_media_range_on_lane_dc(
             MediaLanePrep::Reuse => {}
         }
         if let Some(key) = io.snapshot.auth_key.clone() {
+            io.perm_key = Some(key.clone());
             lane_perm = Some(key.clone());
             let offset = io.snapshot.time_offset_micros;
             let dc = io.snapshot.dc_id;
@@ -968,19 +954,39 @@ pub(crate) fn download_media_range_on_lane_dc(
             offset,
         );
     }
-    let mut io2 = try_lock_second_media_lane(client);
-    let second_bound = if let (Some(second), Some(key)) = (io2.as_mut(), lane_perm.as_deref()) {
-        crate::auth::bind_temp::negotiate_bound_temp(key, target_dc, home.time_offset_micros)
-            .ok()
-            .map(|bound| {
-                second.snapshot = bound.snapshot;
-                second.temp_expires_at = bound.expires_at;
-                second.transport = None;
-            })
+    let bind_key = lane_perm.or(io.perm_key.clone()).or_else(|| {
+        (target_dc == home.dc_id)
+            .then(|| home.auth_key.clone())
+            .flatten()
+    });
+    let mut io2 = if media::download_in_flight() > 1 {
+        try_lock_second_media_lane(client)
     } else {
         None
     };
-    if second_bound.is_none() {
+    let second_ready = match (io2.as_mut(), bind_key.as_deref()) {
+        (Some(second), _) if download_temp_ready(second, target_dc, home.auth_key.as_deref()) => {
+            true
+        }
+        (Some(second), Some(key)) => {
+            match crate::auth::bind_temp::negotiate_bound_temp(
+                key,
+                target_dc,
+                home.time_offset_micros,
+            ) {
+                Ok(bound) => {
+                    second.perm_key = Some(key.to_vec());
+                    second.snapshot = bound.snapshot;
+                    second.temp_expires_at = bound.expires_at;
+                    second.transport = None;
+                    true
+                }
+                Err(_) => false,
+            }
+        }
+        _ => false,
+    };
+    if !second_ready {
         io2 = None;
     }
     let mut media_snap = io.snapshot.clone();

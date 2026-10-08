@@ -114,9 +114,7 @@ impl TcpConnection {
     pub fn set_io_timeout_ms(&mut self, ms: u64) {
         let timeout = Duration::from_millis(ms.max(50));
         self.read_timeout = timeout;
-        let _ = self
-            .stream
-            .set_read_timeout(Some(timeout.min(Duration::from_millis(250))));
+        let _ = self.stream.set_read_timeout(Some(timeout));
         let _ = self.stream.set_write_timeout(Some(timeout));
     }
 
@@ -179,7 +177,7 @@ impl ObfuscatedTcp {
 
     pub fn set_io_timeout_ms(&mut self, ms: u64) {
         self.read_timeout = Duration::from_millis(ms.max(50));
-        let read = self.read_timeout.min(Duration::from_millis(250));
+        let read = self.read_timeout;
         let _ = match &mut self.inner {
             NativeTransportConnection::Obfuscated(connection) => connection.set_io_timeout_ms(ms),
             NativeTransportConnection::Http(connection) => connection.set_io_timeout_ms(ms),

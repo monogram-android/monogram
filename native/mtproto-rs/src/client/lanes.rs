@@ -31,6 +31,8 @@ pub(crate) struct SessionIo {
     pub(crate) transport: Option<crate::rpc::LiveTransport>,
     /// Unix time when this lane's temporary auth key expires. Zero means none.
     pub(crate) temp_expires_at: i32,
+    /// Key this lane's temp key was bound from. Not the key on the wire.
+    pub(crate) perm_key: Option<Vec<u8>>,
 }
 
 /// A session plus the gate that decides which request class gets it next.

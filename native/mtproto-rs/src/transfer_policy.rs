@@ -26,7 +26,7 @@ pub(crate) struct TransferPolicy {
     progress: RwLock<Option<ProgressCallback>>,
     pub(crate) floods: parking_lot::Mutex<crate::media::FloodScope>,
     pub(crate) queue_limits: parking_lot::Mutex<(usize, usize)>,
-    downloads: parking_lot::Mutex<crate::HashMap<(i32, bool), usize>>,
+    downloads: parking_lot::Mutex<ActiveDownloads>,
     download_wake: parking_lot::Condvar,
     pub(crate) upload_rtt:
         parking_lot::Mutex<Option<(i32, std::time::Instant, std::time::Duration)>>,
@@ -50,7 +50,7 @@ impl TransferPolicy {
             progress: RwLock::new(None),
             floods: parking_lot::Mutex::new(crate::media::FloodScope::new()),
             queue_limits: parking_lot::Mutex::new((5, 2)),
-            downloads: parking_lot::Mutex::new(crate::HashMap::new()),
+            downloads: parking_lot::Mutex::new(ActiveDownloads::default()),
             download_wake: parking_lot::Condvar::new(),
             upload_rtt: parking_lot::Mutex::new(None),
             config_due: std::sync::atomic::AtomicU64::new(0),
@@ -82,15 +82,34 @@ impl TransferPolicy {
         dc: i32,
         large: bool,
     ) -> Result<DownloadAdmission, crate::MtprotoError> {
+        let priority = crate::scheduler::current_class().priority();
         let mut active = self.downloads.lock();
+        let ticket = active.next_ticket;
+        active.next_ticket = active.next_ticket.wrapping_add(1);
+        active.waiters.push(DownloadWaiter {
+            ticket,
+            priority,
+            dc,
+            large,
+        });
         loop {
-            crate::request_control::check()
-                .map_err(|e| crate::MtprotoError::Message(e.to_string()))?;
+            if let Err(error) = crate::request_control::check() {
+                active.waiters.retain(|waiter| waiter.ticket != ticket);
+                self.download_wake.notify_all();
+                return Err(crate::MtprotoError::Message(error.to_string()));
+            }
             let limits = *self.queue_limits.lock();
             let limit = if large { limits.1.min(2) } else { limits.0 };
-            let count = active.entry((dc, large)).or_insert(0);
-            if *count < limit.max(1) {
-                *count += 1;
+            let count = active.counts.get(&(dc, large)).copied().unwrap_or(0);
+            let best = active
+                .waiters
+                .iter()
+                .filter(|waiter| waiter.dc == dc && waiter.large == large)
+                .min_by_key(|waiter| (waiter.priority, waiter.ticket))
+                .map(|waiter| waiter.ticket);
+            if count < limit.max(1) && best == Some(ticket) {
+                *active.counts.entry((dc, large)).or_insert(0) += 1;
+                active.waiters.retain(|waiter| waiter.ticket != ticket);
                 return Ok(DownloadAdmission {
                     policy: self.clone(),
                     dc,
@@ -218,11 +237,25 @@ pub(crate) struct DownloadAdmission {
 impl Drop for DownloadAdmission {
     fn drop(&mut self) {
         let mut active = self.policy.downloads.lock();
-        if let Some(count) = active.get_mut(&(self.dc, self.large)) {
+        if let Some(count) = active.counts.get_mut(&(self.dc, self.large)) {
             *count = count.saturating_sub(1);
         }
         self.policy.download_wake.notify_all();
     }
+}
+
+#[derive(Default)]
+struct ActiveDownloads {
+    counts: crate::HashMap<(i32, bool), usize>,
+    waiters: Vec<DownloadWaiter>,
+    next_ticket: u64,
+}
+
+struct DownloadWaiter {
+    ticket: u64,
+    priority: u8,
+    dc: i32,
+    large: bool,
 }
 
 fn valid_chunk(size: i32) -> bool {

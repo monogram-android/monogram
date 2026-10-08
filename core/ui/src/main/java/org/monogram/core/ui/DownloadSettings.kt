@@ -146,7 +146,6 @@ data class AutoDownloadPreset(
 
 data class DownloadState(
     val lanes: Int = 8,
-    val speedUpUploads: Boolean = false,
     val premium: Boolean = false,
     val wifi: AutoDownloadPreset = AutoDownloadPreset.WIFI,
     val mobile: AutoDownloadPreset = AutoDownloadPreset.MOBILE,
@@ -171,7 +170,6 @@ data class DownloadState(
 
 object DownloadSettings {
     private const val PREFS = "monogram_download"
-    private const val KEY_SPEED_UP_UPLOADS = "speed_up_uploads"
     private const val KEY_WIFI = "autodownload_wifi"
     private const val KEY_MOBILE = "autodownload_mobile"
     private const val KEY_ROAMING = "autodownload_roaming"
@@ -200,7 +198,6 @@ object DownloadSettings {
         this.apply = apply
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         mutable.value = DownloadState(
-            speedUpUploads = prefs.getBoolean(KEY_SPEED_UP_UPLOADS, false),
             wifi = AutoDownloadPreset.decode(prefs.getString(KEY_WIFI, null), AutoDownloadPreset.WIFI),
             mobile = AutoDownloadPreset.decode(prefs.getString(KEY_MOBILE, null), AutoDownloadPreset.MOBILE),
             roaming = AutoDownloadPreset.decode(prefs.getString(KEY_ROAMING, null), AutoDownloadPreset.ROAMING),
@@ -215,12 +212,6 @@ object DownloadSettings {
     fun activeNetwork(): AutoDownloadNetwork = network.value
 
     fun activePreset(): AutoDownloadPreset = mutable.value.presetFor(network.value)
-
-    fun setSpeedUpUploads(enabled: Boolean) {
-        mutable.update { it.copy(speedUpUploads = enabled) }
-        persist()
-        apply?.invoke(mutable.value)
-    }
 
     fun setPremium(premium: Boolean) {
         if (mutable.value.premium == premium) return
@@ -299,7 +290,6 @@ object DownloadSettings {
         val prefs = appContext?.getSharedPreferences(PREFS, Context.MODE_PRIVATE) ?: return
         val value = mutable.value
         prefs.edit {
-            putBoolean(KEY_SPEED_UP_UPLOADS, value.speedUpUploads)
             putString(KEY_WIFI, value.wifi.encode())
             putString(KEY_MOBILE, value.mobile.encode())
             putString(KEY_ROAMING, value.roaming.encode())

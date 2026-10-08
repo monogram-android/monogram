@@ -144,18 +144,18 @@ internal fun MessageText(
             mutableStateOf(
                 TextFieldValue(
                     annotatedString = renderedText,
-                    selection = TextRange(0, renderedText.length),
+                    selection = TextRange(0, initialTextSelectionEnd(renderedText.text)),
                 ),
             )
         }
         LaunchedEffect(Unit) {
             runCatching { focus.requestFocus() }
-            onSelectedText(field.text)
+            onSelectedText(copiedSelection(field.text, field.selection.min, field.selection.max))
         }
         LaunchedEffect(selectAllNonce) {
             if (selectAllNonce == 0) return@LaunchedEffect
             field = field.copy(selection = TextRange(0, field.text.length))
-            onSelectedText(field.text)
+            onSelectedText(copiedSelection(field.text, field.selection.min, field.selection.max))
         }
         androidx.compose.runtime.CompositionLocalProvider(
             LocalTextSelectionColors provides selectionColors,
@@ -166,7 +166,7 @@ internal fun MessageText(
                     field = it
                     val lo = it.selection.min.coerceIn(0, it.text.length)
                     val hi = it.selection.max.coerceIn(lo, it.text.length)
-                    onSelectedText(it.text.substring(lo, hi))
+                    onSelectedText(copiedSelection(it.text, lo, hi))
                 },
                 readOnly = true,
                 textStyle = textStyle.copy(color = contentColor),

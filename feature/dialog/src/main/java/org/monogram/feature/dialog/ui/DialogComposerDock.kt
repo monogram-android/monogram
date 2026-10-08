@@ -1,6 +1,7 @@
 package org.monogram.feature.dialog.ui
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
@@ -182,7 +183,7 @@ internal fun DialogComposerDock(
         RestrictionBar(text = stringResource(R.string.dialog_cant_view))
         return
     }
-    androidx.activity.compose.BackHandler(enabled = hasComposerSelection) {
+    BackHandler(enabled = hasComposerSelection) {
         value = collapseComposerSelection(value)
     }
     val composerChrome = LocalComposerChrome.current

@@ -2,38 +2,37 @@ package org.monogram
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.longClick
-import androidx.compose.ui.test.click
-import androidx.compose.ui.test.swipe
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.isDialog
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
@@ -44,8 +43,8 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
-import org.junit.Before
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.monogram.core.common.Outcome
@@ -66,8 +65,8 @@ import org.monogram.network.http.MediaRepository
 import org.monogram.network.http.TelegramMediaFetcher
 import org.monogram.root.RootComponent
 import org.monogram.root.RootContent
-import java.lang.reflect.Proxy
 import java.io.File
+import java.lang.reflect.Proxy
 import kotlin.math.abs
 
 class TabletStateTest {
@@ -90,13 +89,10 @@ class TabletStateTest {
         launch(false, listOf(message), fullWindow = true)
         row("Chat 001").performClick()
         compose.onNodeWithText("Bottom target").assertIsDisplayed()
-        compose.onNodeWithText("val bottom = 42").performTouchInput { click() }
-        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_select_text)).assertIsDisplayed()
-        androidx.test.espresso.Espresso.pressBack()
-        compose.mainClock.advanceTimeBy(300)
+        compose.onNodeWithText("val bottom = 42").performTouchInput { longClick() }
+        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_copy))
+            .assertDoesNotExist()
         compose.onNodeWithText("Bottom target").performTouchInput { longClick() }
-        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_select_text)).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_select_text)).performClick()
         compose.mainClock.advanceTimeBy(300)
         compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_copy_selected)).assertDoesNotExist()
         compose.onNodeWithText("Bottom target").performTouchInput { longClick() }

@@ -1,6 +1,7 @@
 package org.monogram.feature.dialog.ui
 
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -116,14 +117,16 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
             canForward = { message -> messageMenuActions(state, message).canForward },
         )
     }
-    androidx.activity.compose.BackHandler(
+    BackHandler(
         enabled = selectedMessageIds.value.isNotEmpty() || selectingMessageId.value != null,
     ) {
-        if (selectedMessageIds.value.isNotEmpty()) {
-            selectedMessageIds.value = emptyList()
-        } else {
-            selectingMessageId.value = null
-        }
+        val effect = backOutMessageSelection(
+            selectedMessageIds.value,
+            selectingMessageId.value,
+            menuOpen = false,
+        )
+        selectedMessageIds.value = effect.selectedIds
+        selectingMessageId.value = effect.textSelectionId
     }
     val composer = rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(state.draft))

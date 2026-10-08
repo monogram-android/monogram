@@ -53,14 +53,10 @@ class MessageForwardSelectionTest {
     }
 
     @Test
-    fun protectedChatAndNoforwardsRowsCannotEnterSelection() {
+    fun protectedChatAndNoforwardsRowsCanEnterSelection() {
         assertEquals(
-            emptyList<Int>(),
-            toggleForwardSelection(emptyList(), listOf(message(7)), chatCanForward = false),
-        )
-        assertEquals(
-            emptyList<Int>(),
-            toggleForwardSelection(emptyList(), listOf(message(7, noforwards = true))),
+            listOf(7),
+            toggleForwardSelection(emptyList(), listOf(message(7, noforwards = true)))
         )
     }
 

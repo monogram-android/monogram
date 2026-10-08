@@ -2,6 +2,8 @@ package org.monogram.feature.dialog.ui
 
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -9,7 +11,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -54,9 +55,14 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -73,6 +79,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.components.ChatWallpaper
@@ -149,6 +156,31 @@ internal fun ColumnScope.DialogHistoryPane(
     val menuMessage = state.messages.firstOrNull { it.id.id == menuMessageId }
     val selectingMessage = state.messages.firstOrNull { it.id.id == selectingMessageId }
     val multiSelecting = selectedIds.isNotEmpty()
+    androidx.activity.compose.BackHandler(enabled = menuExpanded && selectingMessageId == null) {
+        val effect = backOutMessageSelection(selectedIds, selectingMessageId, menuOpen = true)
+        selectedIds = effect.selectedIds
+        selectingMessageId = effect.textSelectionId
+        menuExpanded = effect.showMenu
+    }
+    fun applyHistoryGesture(
+        row: List<Message>,
+        gesture: HistoryMessageGesture,
+        touch: Offset?,
+        forText: Boolean = false,
+    ) {
+        val effect = historyMessageGesture(selectedIds, selectingMessageId, row, gesture, forText)
+        selectedIds = effect.selectedIds
+        selectingMessageId = effect.textSelectionId
+        val headId = row.firstOrNull()?.id?.id
+        if (effect.showMenu && headId != null) {
+            menuTouch = touch
+            menuMessageId = headId
+            menuExpanded = true
+            component.onLoadReadReceipts(headId)
+        } else if (gesture == HistoryMessageGesture.LongPress) {
+            menuExpanded = false
+        }
+    }
     val appearance by AppearanceSettings.state.collectAsState()
     val pinned = state.pinnedMessages.getOrNull(state.pinnedIndex)
         ?: state.pinnedMessages.firstOrNull()
@@ -364,8 +396,6 @@ internal fun ColumnScope.DialogHistoryPane(
                             .clipToBounds(),
                         state = listState,
                         contentPadding = PaddingValues(
-                            start = 10.dp,
-                            end = 10.dp,
                             top = topPadding,
                             bottom = 8.dp,
                         ),
@@ -389,7 +419,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                     text = stringResource(R.string.dialog_unread),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 8.dp),
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
                                     style = MaterialTheme.typography.labelLarge,
                                     textAlign = TextAlign.Center,
                                     color = MaterialTheme.colorScheme.primary,
@@ -397,34 +427,70 @@ internal fun ColumnScope.DialogHistoryPane(
                             }
                             Column {
                                 if (newDay) {
-                                    DialogDateSeparator(epochSeconds = message.date, zone = zone)
+                                    Box(Modifier.padding(horizontal = 10.dp)) {
+                                        DialogDateSeparator(
+                                            epochSeconds = message.date,
+                                            zone = zone
+                                        )
+                                    }
                                 }
                                 val selectableForForwarding =
-                                    album.all { isForwardSelectionCandidate(it, state.canForward) }
+                                    album.all(::isForwardSelectionCandidate)
                                 val selectedForForwarding = album.any { it.id.id in selectedIds }
-                                val rowModifier = if (multiSelecting && selectableForForwarding) {
-                                    (if (selectedForForwarding) {
-                                        Modifier.background(MaterialTheme.colorScheme.secondaryContainer)
-                                    } else {
-                                        Modifier
-                                    })
-                                        .forwardSelectionTap(
-                                            selected = selectedForForwarding,
-                                            onToggle = {
-                                                selectedIds = toggleForwardSelection(
-                                                    selectedIds,
+                                val newer = newerMessage
+                                val selectionColor = MaterialTheme.colorScheme.secondaryContainer
+                                val hold = remember(message.id.id) { RowHold() }
+                                hold.selected = selectedForForwarding
+                                val rowModifier = Modifier
+                                    .onGloballyPositioned {
+                                        hold.coordinates = it
+                                    }
+                                    .joinedSelectionHighlight(
+                                        selected = selectedForForwarding,
+                                        extendAbove = olderMessage != null &&
+                                                olderMessage.id.id in selectedIds &&
+                                                !newDay,
+                                        extendBelow = newer != null &&
+                                                newer.id.id in selectedIds &&
+                                                DialogTime.sameLocalDay(
+                                                    message.date,
+                                                    newer.date,
+                                                    zone
+                                                ),
+                                        color = selectionColor,
+                                    )
+                                    .then(
+                                        if (
+                                            selectableForForwarding &&
+                                            selectingMessage?.id != message.id
+                                        ) {
+                                            hold.onToggle = { local ->
+                                                val window = hold.coordinates?.localToWindow(local)
+                                                applyHistoryGesture(
                                                     album,
-                                                    state.canForward,
+                                                    HistoryMessageGesture.Tap,
+                                                    window
                                                 )
-                                            },
-                                        )
-                                } else {
-                                    Modifier
-                                }
+                                            }
+                                            hold.onLongPress = {
+                                                val textSelection = hold.selected
+                                                applyHistoryGesture(
+                                                    album,
+                                                    HistoryMessageGesture.LongPress,
+                                                    null,
+                                                    forText = textSelection,
+                                                )
+                                            }
+                                            Modifier.messageSelectionTouch(hold)
+                                        } else {
+                                            Modifier
+                                        },
+                                    )
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .then(rowModifier)
+                                        .padding(horizontal = 10.dp),
                                 ) {
                                     val quoted = message.replyToMsgId?.let(messageById::get)
                                     val caption = album.firstOrNull { !it.text.isNullOrBlank() }
@@ -454,7 +520,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                             onAddChecklistItem = { messageId, nextId ->
                                                 taskDraftFor = messageId to nextId
                                             },
-                                            selectable = selectingMessage?.id == message.id,
+                                            selectable = selectedForForwarding,
                                             message = if (album.size > 1 && caption != null) {
                                                 message.copy(
                                                     text = caption.text,
@@ -479,12 +545,28 @@ internal fun ColumnScope.DialogHistoryPane(
                                             onOpenForwardSource = message.fwdFromId?.let { id ->
                                                 { component.onOpenPeer(PeerId(id)) }
                                             },
-                                            onOpenMenu = if (multiSelecting) null else { position ->
-                                                selectingMessageId = null
+                                            passClicks = multiSelecting,
+                                            onOpenMenu = if (multiSelecting || selectingMessageId != null) {
+                                                null
+                                            } else { position ->
                                                 menuTouch = position
                                                 menuMessageId = message.id.id
                                                 menuExpanded = true
                                                 component.onLoadReadReceipts(message.id.id)
+                                            },
+                                            onLongPress = if (selectingMessageId != null || !selectableForForwarding) {
+                                                null
+                                            } else {
+                                                {
+                                                    val textSelection =
+                                                        album.all { it.id.id in selectedIds }
+                                                    applyHistoryGesture(
+                                                        album,
+                                                        HistoryMessageGesture.LongPress,
+                                                        null,
+                                                        forText = textSelection,
+                                                    )
+                                                }
                                             },
                                             onOpenStickerPack = { packDocumentId = it },
                                             onInstantView = { preview ->
@@ -602,14 +684,6 @@ internal fun ColumnScope.DialogHistoryPane(
                                                             )
                                                         }
                                                     }
-                                                },
-                                                onSelectText = { selectingMessageId = it.id.id },
-                                                onSelectForForwarding = {
-                                                    selectedIds = toggleForwardSelection(
-                                                        selectedIds,
-                                                        album,
-                                                        state.canForward,
-                                                    )
                                                 },
                                                 onEdit = component::onEdit,
                                                 onDelete = { pendingDeleteIds = listOf(it.id.id) },
@@ -854,30 +928,84 @@ internal fun ColumnScope.DialogHistoryPane(
     }
 }
 
-private fun Modifier.forwardSelectionTap(
-    selected: Boolean,
-    onToggle: () -> Unit,
-): Modifier = semantics(mergeDescendants = true) {
+private class RowHold {
+    var selected: Boolean = false
+    var coordinates: LayoutCoordinates? = null
+    var onToggle: (Offset) -> Unit = {}
+    var onLongPress: () -> Unit = {}
+}
+
+private fun Modifier.messageSelectionTouch(hold: RowHold): Modifier =
+    semantics(mergeDescendants = true) {
     role = Role.Checkbox
-    toggleableState = if (selected) ToggleableState.On else ToggleableState.Off
+        toggleableState = if (hold.selected) ToggleableState.On else ToggleableState.Off
     onClick {
-        onToggle()
+        hold.onToggle(Offset.Zero)
         true
     }
-}.pointerInput(onToggle) {
+    }.pointerInput(hold) {
     awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        var moved = false
-        do {
-            val event = awaitPointerEvent(PointerEventPass.Initial)
-            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-            if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop || change.isConsumed) {
-                moved = true
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val slop = viewConfiguration.touchSlop
+        var claimed = false
+        val completed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis + 48) {
+            var current = down
+            while (current.pressed) {
+                val event = awaitPointerEvent()
+                val change =
+                    event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull false
+                if (change.isConsumed) {
+                    claimed = true
+                    return@withTimeoutOrNull false
+                }
+                val delta = change.position - down.position
+                if (delta.x * delta.x + delta.y * delta.y > slop * slop) {
+                    return@withTimeoutOrNull false
+                }
+                current = change
             }
-            if (!change.pressed && !moved) {
+            if (!current.isConsumed) {
+                current.consume()
+                hold.onToggle(current.position)
+            }
+            true
+        }
+        if (completed == null && !claimed && !down.isConsumed) {
+            hold.onLongPress()
+            while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull { it.id == down.id }
+                if (change == null || !change.pressed) break
                 change.consume()
-                onToggle()
             }
-        } while (event.changes.any { it.pressed })
+        }
+    }
+    }
+
+private val SelectionGap = 2.dp
+
+@Composable
+private fun Modifier.joinedSelectionHighlight(
+    selected: Boolean,
+    extendAbove: Boolean,
+    extendBelow: Boolean,
+    color: Color,
+): Modifier {
+    val progress by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = tween(durationMillis = 180),
+        label = "selection-highlight",
+    )
+    if (progress == 0f) return this
+    return graphicsLayer { clip = false }.drawBehind {
+        val gap = SelectionGap.toPx()
+        val grow = (1f - progress) * 6.dp.toPx()
+        val top = (if (extendAbove) -gap else 0f) + grow
+        val bottom = (if (extendBelow) gap else 0f) - grow
+        drawRect(
+            color = color.copy(alpha = color.alpha * progress),
+            topLeft = Offset(0f, top),
+            size = Size(size.width, (size.height - top + bottom).coerceAtLeast(0f)),
+        )
     }
 }

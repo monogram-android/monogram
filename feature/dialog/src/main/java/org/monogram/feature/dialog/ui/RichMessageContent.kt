@@ -1,6 +1,7 @@
 package org.monogram.feature.dialog.ui
 
 import android.content.ClipData
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,7 +23,9 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.selection.rememberSelectionState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -94,25 +97,53 @@ internal fun RichMessageContent(
     val blocks = preparedBlocks?.takeIf { it.isNotEmpty() }
         ?: rememberMessageBlocks(text, entities, parseMarkdown)
 
-    if (selectable) {
-        SelectionContainer(modifier = modifier) {
-            RichMessageContent(
+    val selection = rememberSelectionState()
+    val hasTextSelection = selection.selectedTexts.any { it.isNotEmpty() }
+    LaunchedEffect(selectable) {
+        if (!selectable) selection.clear()
+    }
+    BackHandler(enabled = hasTextSelection) {
+        selection.clear()
+    }
+    SelectionContainer(state = selection, modifier = modifier) {
+        val body: @Composable () -> Unit = {
+            MessageRichBody(
                 text = text,
                 entities = entities,
+                blocks = blocks,
                 contentColor = contentColor,
                 linkColor = linkColor,
                 revealSpoilers = revealSpoilers,
                 onSpoilerClick = onSpoilerClick,
-                preparedBlocks = blocks,
-                onOpenStickerPack = onOpenStickerPack,
+                selectAllNonce = selectAllNonce,
+                onSelectedText = onSelectedText,
                 onTextLayout = onTextLayout,
+                onOpenStickerPack = onOpenStickerPack,
                 hostMessage = hostMessage,
                 mediaRepository = mediaRepository,
             )
         }
-        return
+        if (selectable) body() else DisableSelection(content = body)
     }
+}
 
+@Composable
+private fun MessageRichBody(
+    text: String,
+    entities: List<TextEntity>,
+    blocks: List<RichBlock>,
+    contentColor: Color,
+    linkColor: Color,
+    revealSpoilers: Boolean,
+    onSpoilerClick: (() -> Unit)?,
+    selectAllNonce: Int,
+    onSelectedText: (String) -> Unit,
+    onTextLayout: (TextLayoutResult) -> Unit,
+    onOpenStickerPack: ((Long) -> Unit)?,
+    hostMessage: Message?,
+    mediaRepository: MediaRepository?,
+    modifier: Modifier = Modifier,
+) {
     if (blocks.size <= 1 && blocks.firstOrNull() is RichBlock.Paragraph) {
         val single = blocks.firstOrNull() as? RichBlock.Paragraph
         MathAwareText(
@@ -122,7 +153,7 @@ internal fun RichMessageContent(
             linkColor = linkColor,
             revealSpoilers = revealSpoilers,
             onSpoilerClick = onSpoilerClick,
-            selectable = selectable,
+            selectable = false,
             selectAllNonce = selectAllNonce,
             onSelectedText = onSelectedText,
             onTextLayout = onTextLayout,
@@ -142,7 +173,7 @@ internal fun RichMessageContent(
             linkColor = linkColor,
             revealSpoilers = revealSpoilers,
             onSpoilerClick = onSpoilerClick,
-            selectable = selectable,
+            selectable = false,
             selectAllNonce = selectAllNonce,
             onSelectedText = onSelectedText,
             onOpenStickerPack = onOpenStickerPack,

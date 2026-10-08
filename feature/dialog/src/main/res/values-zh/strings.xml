@@ -156,8 +156,6 @@
     <string name="dialog_cut">剪切</string>
     <string name="dialog_paste">粘贴</string>
     <string name="dialog_copy_selected">复制所选</string>
-    <string name="dialog_select_text">选择</string>
-    <string name="dialog_select_message">选择消息</string>
     <plurals name="dialog_messages_selected">
         <item quantity="other">已选择 %1$d 条消息</item>
     </plurals>

@@ -5,29 +5,29 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.After
-import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.monogram.core.common.Outcome
@@ -63,7 +63,6 @@ class ComposerEditingTest {
         compose.runOnIdle { root.openChatForPlayback(1) }
         compose.onNodeWithText("Message 1").performTouchInput { longClick() }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_select_message)).performClick()
         compose.onNodeWithText("Message 2").performClick()
         compose.onNodeWithContentDescription(context.getString(org.monogram.feature.dialog.R.string.dialog_forward)).performClick()
         compose.onNodeWithText(context.getString(org.monogram.feature.chats.R.string.chats_share_recipient)).assertIsDisplayed()

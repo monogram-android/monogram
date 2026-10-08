@@ -14,7 +14,6 @@ class MessageMenuActionsTest {
         val actions = messageMenuActions(state(canForward = false), message())
         assertFalse(actions.canForward)
         assertFalse(actions.forwardRestricted)
-        assertFalse(actions.canSelectForForwarding)
     }
 
     @Test
@@ -22,7 +21,6 @@ class MessageMenuActionsTest {
         val actions = messageMenuActions(state(canForward = true), message(noforwards = true))
         assertFalse(actions.canForward)
         assertTrue(actions.forwardRestricted)
-        assertFalse(actions.canSelectForForwarding)
     }
 
     @Test
@@ -40,7 +38,6 @@ class MessageMenuActionsTest {
         val actions = messageMenuActions(state(), message())
         assertTrue(actions.canForward)
         assertFalse(actions.forwardRestricted)
-        assertTrue(actions.canSelectForForwarding)
     }
 
     private fun state(canForward: Boolean = true) = DialogStore.State(

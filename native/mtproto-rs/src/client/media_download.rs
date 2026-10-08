@@ -28,6 +28,32 @@ fn download_temp_ready(io: &super::lanes::SessionIo, dc: i32, home_key: Option<&
             .is_some_and(|key| Some(key) != home_key)
 }
 
+pub(crate) struct MediaLanePreparation {
+    request_id: u64,
+    worker: std::thread::JoinHandle<bool>,
+}
+
+impl MediaLanePreparation {
+    pub(crate) fn start(prepare: impl FnOnce() -> bool + Send + 'static) -> Self {
+        let request_id = crate::request_control::create();
+        let worker = std::thread::spawn(move || {
+            struct Release(u64);
+            impl Drop for Release {
+                fn drop(&mut self) { crate::request_control::release(self.0); }
+            }
+            let _release = Release(request_id);
+            crate::request_control::with_shared_binding(request_id, prepare)
+        });
+        Self { request_id, worker }
+    }
+
+    pub(crate) fn finished(&self) -> bool { self.worker.is_finished() }
+}
+
+impl Drop for MediaLanePreparation {
+    fn drop(&mut self) { crate::request_control::cancel(self.request_id); }
+}
+
 pub fn download_wallpaper(
     handle: u64,
     id: i64,
@@ -989,7 +1015,7 @@ pub(crate) fn download_media_range_on_lane_dc(
     if !session_lease_valid(&client.data.lock(), home.session_id) {
         return Err(expired_session_lease());
     }
-    let mut lane_perm = None;
+    let mut first_chunk_span = Some(crate::perf::span("media_first_chunk"));
     let now = crate::auth::bind_temp::unix_now();
     let already_temp = io.temp_expires_at > now
         && io.snapshot.dc_id == target_dc
@@ -1010,7 +1036,6 @@ pub(crate) fn download_media_range_on_lane_dc(
         }
         if let Some(key) = io.snapshot.auth_key.clone() {
             io.perm_key = Some(key.clone());
-            lane_perm = Some(key.clone());
             let offset = io.snapshot.time_offset_micros;
             let dc = io.snapshot.dc_id;
             if let Ok(bound) = crate::auth::bind_temp::negotiate_bound_temp(&key, dc, offset) {
@@ -1032,7 +1057,7 @@ pub(crate) fn download_media_range_on_lane_dc(
             offset,
         );
     }
-    let bind_key = lane_perm.or(io.perm_key.clone()).or_else(|| {
+    let bind_key = io.perm_key.clone().or_else(|| {
         (target_dc == home.dc_id)
             .then(|| home.auth_key.clone())
             .flatten()
@@ -1042,31 +1067,43 @@ pub(crate) fn download_media_range_on_lane_dc(
     } else {
         None
     };
-    let second_ready = match (io2.as_mut(), bind_key.as_deref()) {
-        (Some(second), _) if download_temp_ready(second, target_dc, home.auth_key.as_deref()) => {
+    let second_ready = match io2.as_mut() {
+        Some(second) if download_temp_ready(second, target_dc, home.auth_key.as_deref()) => {
             true
-        }
-        (Some(second), Some(key)) => {
-            match crate::auth::bind_temp::negotiate_bound_temp(
-                key,
-                target_dc,
-                home.time_offset_micros,
-            ) {
-                Ok(bound) => {
-                    second.perm_key = Some(key.to_vec());
-                    second.snapshot = bound.snapshot;
-                    second.temp_expires_at = bound.expires_at;
-                    second.transport = None;
-                    true
-                }
-                Err(_) => false,
-            }
         }
         _ => false,
     };
     if !second_ready {
         io2 = None;
     }
+    let mut preparation = if io2.is_none() && offset.is_none()
+        && should_open_second_media_lane(target_dc, media::download_in_flight()) {
+        bind_key.and_then(|key| get_client(handle).ok().map(|worker_client| {
+            let class = scheduler::current_class();
+            let home_key = home.auth_key.clone();
+            let time_offset = home.time_offset_micros;
+            let expected_session = home.session_id;
+            MediaLanePreparation::start(move || {
+                let _policy = crate::transfer_policy::bind(worker_client.policy.clone());
+                scheduler::with_class(class, || {
+                    tcp::with_connection_control(&worker_client.connections, || {
+                        let _span = crate::perf::span("media_second_lane_prepare");
+                        let Some(mut second) = try_lock_second_media_lane(&worker_client) else { return false; };
+                        if !session_lease_valid(&worker_client.data.lock(), expected_session) { return false; }
+                        if download_temp_ready(&second, target_dc, home_key.as_deref()) { return true; }
+                        let Ok(bound) = crate::auth::bind_temp::negotiate_bound_temp(&key, target_dc, time_offset) else { return false; };
+                        if crate::request_control::check().is_err()
+                            || !session_lease_valid(&worker_client.data.lock(), expected_session) { return false; }
+                        second.perm_key = Some(key);
+                        second.snapshot = bound.snapshot;
+                        second.temp_expires_at = bound.expires_at;
+                        second.transport = None;
+                        true
+                    })
+                })
+            })
+        }))
+    } else { None };
     let mut media_snap = io.snapshot.clone();
     let mut slot = io.transport.take();
     let mut media_snap2 = io2.as_ref().map(|lane| lane.snapshot.clone());
@@ -1075,15 +1112,32 @@ pub(crate) fn download_media_range_on_lane_dc(
     // Timeout is per window, not the whole file. Streaming idle-extends while parts arrive.
     let path = {
         let lane_dc = media_snap.dc_id;
-        media::download_media_range_batched_streaming(
+        media::download_media_range_batched_streaming_capped(
             lane_dc,
             media,
             staged.path(),
             dest,
             offset,
             media::download_in_flight(),
+            None,
             |_init_first, requests, on_chunk| {
                 media::check_transfer_flood(lane_dc, media::TransferClass::Download)?;
+                if preparation.as_ref().is_some_and(MediaLanePreparation::finished) {
+                    preparation = None;
+                    if should_open_second_media_lane(lane_dc, media::download_in_flight()) {
+                        io2 = try_lock_second_media_lane(client).filter(|lane|
+                            download_temp_ready(lane, lane_dc, home.auth_key.as_deref()));
+                        media_snap2 = io2.as_ref().map(|lane| lane.snapshot.clone());
+                        slot2 = io2.as_mut().map(|lane| lane.transport.take());
+                    }
+                }
+                let mut stream_chunk = |index, result: Result<tellers_mtproto::latest::api::UploadFile, MtprotoError>| {
+                    if matches!(&result, Ok(tellers_mtproto::latest::api::UploadFile::UploadFile(file)) if !file.bytes.is_empty()) {
+                        first_chunk_span.take();
+                    }
+                    let refill = on_chunk(index, result);
+                    if preparation.as_ref().is_some_and(MediaLanePreparation::finished) { None } else { refill }
+                };
                 crate::rpc::with_rpc_timeout_secs(45, || {
                     invoke_media_batch_even_odd(
                         client,
@@ -1093,12 +1147,13 @@ pub(crate) fn download_media_range_on_lane_dc(
                         slot2.as_mut(),
                         api_id,
                         requests,
-                        on_chunk,
+                        &mut stream_chunk,
                     )
                 })
             },
         )
     };
+    drop(preparation);
     io.snapshot = media_snap.clone();
     // FILE_REFERENCE / transport errors must not park this TCP for the next file.
     io.transport = if path.is_ok() { slot } else { None };

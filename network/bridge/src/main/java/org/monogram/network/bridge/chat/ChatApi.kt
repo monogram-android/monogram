@@ -231,4 +231,30 @@ internal class ChatApi(private val core: SessionCore) : ChatOps {
             core.native.editForumTopicHidden(activeHandle, chatId.value, topicId, hidden)
         }
     }
+
+    override suspend fun joinChat(chatId: PeerId): Outcome<JoinMembership> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("channels.joinChannel failed") { activeHandle ->
+            core.native.joinChat(activeHandle, chatId.value).let { joined ->
+                JoinMembership(
+                    joined = joined.joined,
+                    canSendPlain = joined.canSendPlain,
+                    canSendPhotos = joined.canSendPhotos,
+                )
+            }
+        }
+    }
+
+    override suspend fun unblockUser(chatId: PeerId): Outcome<Unit> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("contacts.unblock failed") { activeHandle ->
+            core.native.unblockUser(activeHandle, chatId.value)
+        }
+    }
 }

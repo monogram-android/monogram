@@ -228,6 +228,10 @@
     <string name="dialog_cant_send">Ви не можете надсилати повідомлення в цей чат</string>
     <string name="dialog_cant_send_photos">Надсилання фото заборонено в цьому чаті</string>
     <string name="dialog_channel_readonly">Лише адміністратори можуть писати в цей канал</string>
+    <string name="dialog_join">Приєднатися</string>
+    <string name="dialog_mute">Вимкнути звук</string>
+    <string name="dialog_unmute">Увімкнути звук</string>
+    <string name="dialog_unblock">Розблокувати</string>
     <string name="dialog_protected">Копіювання і пересилання заборонені</string>
     <string name="dialog_editing">Редагування</string>
     <string name="dialog_replying">Відповідь</string>

@@ -34,6 +34,12 @@ import uniffi.monogram_mtproto.UploadItemDto
 /**
  * Low-level UniFFI surface backed by the Tellers MTProto runtime.
  */
+data class NativeJoinResult(
+    val joined: Boolean,
+    val canSendPlain: Boolean,
+    val canSendPhotos: Boolean,
+)
+
 interface MtprotoNative {
     fun setTransportMode(mode: String) = Unit
     fun setProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray) = Unit
@@ -442,6 +448,14 @@ interface MtprotoNative {
 
     @Throws(MtprotoException::class)
     fun resetNotifySettings(handle: Long)
+
+    /** `channels.joinChannel` or `messages.addChatUser`. `joined` is false when membership was not granted. */
+    @Throws(MtprotoException::class)
+    fun joinChat(handle: Long, chatId: Long): NativeJoinResult
+
+    /** `contacts.unblock` for a user peer. */
+    @Throws(MtprotoException::class)
+    fun unblockUser(handle: Long, chatId: Long)
 
     @Throws(MtprotoException::class)
     fun setContactJoinedSilent(handle: Long, silent: Boolean)

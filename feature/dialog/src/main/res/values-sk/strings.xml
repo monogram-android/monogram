@@ -228,6 +228,10 @@
     <string name="dialog_cant_send">Sem nemôžete posielať správy</string>
     <string name="dialog_cant_send_photos">Fotky v tomto chate nie sú povolené</string>
     <string name="dialog_channel_readonly">Do tohto kanála môžu písať len správcovia</string>
+    <string name="dialog_join">Pripojiť sa</string>
+    <string name="dialog_mute">Stlmiť</string>
+    <string name="dialog_unmute">Zapnúť zvuk</string>
+    <string name="dialog_unblock">Odblokovať</string>
     <string name="dialog_protected">Preposielanie je v tomto chate vypnuté</string>
     <string name="dialog_editing">Úprava správy</string>
     <string name="dialog_replying">Odpoveď</string>

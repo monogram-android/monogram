@@ -90,6 +90,11 @@ internal fun DialogScreenDialogs(
         canSendPlain = state.canSendPlain,
         canSendPhotos = state.canSendPhotos,
         isChannel = state.isChannel,
+        isGroup = state.isGroup,
+        left = state.left,
+        muted = state.muted,
+        blockedByMe = state.blockedByMe,
+        onReadOnlyBar = component::onReadOnlyBar,
         editing = state.editing != null,
         editingBody = state.editing?.text.orEmpty(),
         replyBody = state.replyTo?.let {

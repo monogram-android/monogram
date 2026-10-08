@@ -145,6 +145,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data class LoadReactionUsers(val messageId: Int) : Intent
         data class LoadPollVoters(val messageId: Int) : Intent
         data object ClearCopyText : Intent
+        data object ReadOnlyBar : Intent
     }
 
     data class State(
@@ -183,6 +184,9 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val canView: Boolean = true,
         val canSendPlain: Boolean = true,
         val canSendPhotos: Boolean = true,
+        val left: Boolean = false,
+        val muted: Boolean = false,
+        val blockedByMe: Boolean = false,
         val canForward: Boolean = true,
         val canDeleteOthers: Boolean = false,
         val canManageTopics: Boolean = false,

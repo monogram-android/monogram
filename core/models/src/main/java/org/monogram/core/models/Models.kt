@@ -330,6 +330,8 @@ data class Profile(
     val emojiStatusDocumentId: Long? = null,
     /** Channels only: whether the server allows listing participants. `null` = unknown. */
     val canViewParticipants: Boolean? = null,
+    /** `userFull.blocked`: this account blocked the user. */
+    val blockedByMe: Boolean = false,
 )
 
 data class StickerPack(

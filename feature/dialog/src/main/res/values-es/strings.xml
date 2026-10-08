@@ -220,6 +220,10 @@
     <string name="dialog_cant_send">No puedes enviar mensajes aquí</string>
     <string name="dialog_cant_send_photos">No se permiten fotos en este chat</string>
     <string name="dialog_channel_readonly">Solo los administradores pueden publicar en este canal</string>
+    <string name="dialog_join">Unirse</string>
+    <string name="dialog_mute">Silenciar</string>
+    <string name="dialog_unmute">Activar sonido</string>
+    <string name="dialog_unblock">Desbloquear</string>
     <string name="dialog_protected">El reenvío está desactivado en este chat</string>
     <string name="dialog_editing">Editar mensaje</string>
     <string name="dialog_replying">Respuesta</string>

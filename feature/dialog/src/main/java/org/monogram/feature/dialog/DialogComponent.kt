@@ -263,6 +263,7 @@ class DialogComponent(
     fun onForwardTo(peerId: PeerId) = store.accept(DialogStore.Intent.ForwardTo(peerId))
     fun onClearForwardHint() = store.accept(DialogStore.Intent.ClearForwardHint)
     fun onSend(text: String? = null) = store.accept(DialogStore.Intent.Send(text))
+    fun onReadOnlyBar() = store.accept(DialogStore.Intent.ReadOnlyBar)
     fun onRetryFailed() = store.accept(DialogStore.Intent.RetryFailed)
     fun onSearch(query: String) = store.accept(DialogStore.Intent.Search(query))
     fun onClearSearch() = store.accept(DialogStore.Intent.ClearSearch)

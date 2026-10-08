@@ -216,6 +216,10 @@
     <string name="dialog_cant_send">你无法在此发送消息</string>
     <string name="dialog_cant_send_photos">此聊天不允许发送图片</string>
     <string name="dialog_channel_readonly">只有管理员可以在此频道发帖</string>
+    <string name="dialog_join">加入</string>
+    <string name="dialog_mute">静音</string>
+    <string name="dialog_unmute">取消静音</string>
+    <string name="dialog_unblock">解除屏蔽</string>
     <string name="dialog_protected">此聊天已禁止转发</string>
     <string name="dialog_editing">编辑消息</string>
     <string name="dialog_replying">回复</string>

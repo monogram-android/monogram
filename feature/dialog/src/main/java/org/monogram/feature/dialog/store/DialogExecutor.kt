@@ -17,6 +17,7 @@ import org.monogram.core.models.Chat
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.LastSeen
 import org.monogram.core.models.Message
+import org.monogram.core.models.NotifySettings
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
 import org.monogram.core.models.UploadItem
@@ -28,6 +29,7 @@ import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.HISTORY_CACHE_LIMIT
 import org.monogram.feature.dialog.HISTORY_FIRST_LIMIT
 import org.monogram.feature.dialog.PinnedBarMemory
+import org.monogram.feature.dialog.ReadOnlyBarAction
 import org.monogram.feature.dialog.SavedGifMemory
 import org.monogram.feature.dialog.SenderTagMemory
 import org.monogram.feature.dialog.applyMessageEdit
@@ -37,6 +39,7 @@ import org.monogram.feature.dialog.historyHasMore
 import org.monogram.feature.dialog.mergeSenderTags
 import org.monogram.feature.dialog.parseUpdateMessageId
 import org.monogram.feature.dialog.pinnedMetaKey
+import org.monogram.feature.dialog.readOnlyBarAction
 import org.monogram.feature.dialog.tagsMetaKey
 import org.monogram.feature.dialog.unreadDividerIndex
 import org.monogram.network.bridge.MtprotoClient
@@ -236,6 +239,9 @@ internal class DialogExecutor(
                             dispatch(Msg.PhotoCacheKey(chat.photoCacheKey))
                         }
                         val rights = rightsMsg(chat)
+                        if (current.left != chat.left || current.muted != chat.muted) {
+                            dispatch(Msg.Membership(left = chat.left, muted = chat.muted))
+                        }
                         if (current.canView != rights.canView ||
                             current.canSendPlain != rights.canSendPlain ||
                             current.canSendPhotos != rights.canSendPhotos ||
@@ -520,6 +526,7 @@ internal class DialogExecutor(
             DialogStore.Intent.DismissBotAlert -> dispatch(Msg.BotNotice(null))
             DialogStore.Intent.ClearBotUrl -> dispatch(Msg.BotUrl(null))
             DialogStore.Intent.ClearCopyText -> dispatch(Msg.CopyText(null))
+            DialogStore.Intent.ReadOnlyBar -> readOnlyBar()
         }
     }
 
@@ -563,6 +570,7 @@ internal class DialogExecutor(
             cachedChat?.let { dispatch(Msg.IsBot(it.isBot)) }
             dispatch(Msg.IsForum(forum))
             cachedChat?.let { dispatch(rightsMsg(it)) }
+            cachedChat?.let { dispatch(Msg.Membership(left = it.left, muted = it.muted)) }
             cachedChat?.unreadCount?.let { dispatch(Msg.UnreadCount(it)) }
             cachedChat?.let { applyUnreadCountersFromChat(it.unreadMentionsCount, it.unreadReactionsCount) }
             cachedChat?.readInboxMaxId?.let { dispatch(Msg.ReadInbox(it)) }
@@ -571,6 +579,9 @@ internal class DialogExecutor(
             dispatch(Msg.EmojiStatus(cachedChat?.emojiStatusDocumentId))
             dispatch(Msg.PhotoCacheKey(cachedChat?.photoCacheKey))
             sessionStore?.readProfile(chatId.value)?.let { cachedProfile ->
+                if (cachedProfile.blockedByMe) {
+                    dispatch(Msg.Membership(blockedByMe = true))
+                }
                 if (cachedProfile.membersCount != null || cachedProfile.onlineCount != null) {
                     dispatch(
                         Msg.ChatProfile(
@@ -784,6 +795,7 @@ internal class DialogExecutor(
                     }
                     if (!state().isGroup && !state().isChannel) {
                         dispatch(Msg.PeerStatus(profile.status, profile.statusAt))
+                        dispatch(Msg.Membership(blockedByMe = profile.blockedByMe))
                     }
                     sessionStore?.upsertProfile(profile)
                     warmup?.applyProfileToChat(profile)
@@ -816,6 +828,99 @@ internal class DialogExecutor(
                 is Outcome.Err -> Unit
             }
         }
+    }
+
+    internal fun readOnlyBar() {
+        val current = state()
+        when (
+            readOnlyBarAction(
+                isChannel = current.isChannel,
+                isGroup = current.isGroup,
+                left = current.left,
+                muted = current.muted,
+                blockedByMe = current.blockedByMe,
+            )
+        ) {
+            ReadOnlyBarAction.Join -> joinChat()
+            ReadOnlyBarAction.Unblock -> unblockUser()
+            ReadOnlyBarAction.Mute -> setDialogMuted(true)
+            ReadOnlyBarAction.Unmute -> setDialogMuted(false)
+        }
+    }
+
+    private fun setDialogMuted(muted: Boolean) {
+        scope.launch {
+            val until = if (muted) Int.MAX_VALUE else 0
+            when (
+                val result = client.updateNotifySettings(
+                    peerKind = "peer",
+                    settings = NotifySettings(muteUntil = until),
+                    chatId = chatId,
+                )
+            ) {
+                is Outcome.Ok -> {
+                    dispatch(Msg.Membership(muted = muted))
+                    rememberChat { it.copy(muted = muted, muteOverride = true) }
+                }
+
+                is Outcome.Err -> dispatch(Msg.Error(result.telegramError))
+            }
+        }
+    }
+
+    private fun joinChat() {
+        scope.launch {
+            when (val result = client.joinChat(chatId)) {
+                is Outcome.Ok -> {
+                    if (!result.value.joined) return@launch
+                    dispatch(
+                        Msg.Membership(
+                            left = false,
+                            canSendPlain = result.value.canSendPlain,
+                            canSendPhotos = result.value.canSendPhotos,
+                        ),
+                    )
+                    rememberChat {
+                        it.copy(
+                            left = false,
+                            canSendPlain = result.value.canSendPlain,
+                            canSendPhotos = result.value.canSendPhotos,
+                        )
+                    }
+                }
+
+                is Outcome.Err -> dispatch(Msg.Error(result.telegramError))
+            }
+        }
+    }
+
+    private fun unblockUser() {
+        scope.launch {
+            when (val result = client.unblockUser(chatId)) {
+                is Outcome.Ok -> {
+                    dispatch(Msg.Membership(blockedByMe = false))
+                    sessionStore?.readProfile(chatId.value)?.let { profile ->
+                        sessionStore.upsertProfile(profile.copy(blockedByMe = false))
+                    }
+                }
+
+                is Outcome.Err -> dispatch(Msg.Error(result.telegramError))
+            }
+        }
+    }
+
+    private suspend fun rememberChat(transform: (Chat) -> Chat) {
+        val current = warmup?.chat(chatId) ?: Chat(
+            id = chatId,
+            title = state().title,
+            isChannel = state().isChannel,
+            isGroup = state().isGroup,
+            left = state().left,
+            muted = state().muted,
+            canSendPlain = state().canSendPlain,
+            canSendPhotos = state().canSendPhotos,
+        )
+        warmup?.upsertChats(listOf(transform(current)))
     }
 
     internal fun rightsMsg(chat: Chat) = Msg.Rights(

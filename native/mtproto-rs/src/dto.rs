@@ -420,6 +420,13 @@ pub struct UploadItemDto {
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
+pub struct JoinChatDto {
+    pub joined: bool,
+    pub can_send_plain: bool,
+    pub can_send_photos: bool,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
 pub struct LottieSize {
     pub width: u32,
     pub height: u32,

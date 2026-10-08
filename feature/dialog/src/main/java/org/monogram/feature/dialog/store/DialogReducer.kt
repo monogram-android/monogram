@@ -65,6 +65,13 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         is Msg.ForwardQuery -> copy(forwardQuery = msg.value)
         is Msg.Forwarding -> copy(forwarding = msg.value)
         is Msg.ForwardHint -> copy(forwardHint = msg.value)
+        is Msg.Membership -> copy(
+            left = msg.left ?: left,
+            muted = msg.muted ?: muted,
+            blockedByMe = msg.blockedByMe ?: blockedByMe,
+            canSendPlain = msg.canSendPlain ?: canSendPlain,
+            canSendPhotos = msg.canSendPhotos ?: canSendPhotos,
+        )
         is Msg.Rights -> copy(
             canView = msg.canView,
             canSendPlain = msg.canSendPlain,

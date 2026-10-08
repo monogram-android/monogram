@@ -16,6 +16,9 @@ import uniffi.monogram_mtproto.UpdatesStateDto
 import uniffi.monogram_mtproto.UploadItemDto
 
 object MtprotoNativeStub : MtprotoNative {
+    private fun nativeUnavailable(): Nothing =
+        throw MtprotoException.Message("native library failed to load")
+
     override fun libraryVersion(): String = "stub-0.0.1"
 
     override fun setTransportMode(mode: String) = Unit
@@ -27,13 +30,13 @@ object MtprotoNativeStub : MtprotoNative {
     override fun isAuthorized(handle: Long): Boolean = false
 
     override fun connect(handle: Long) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun destroyClient(handle: Long) = Unit
 
     override fun sendAuthCode(handle: Long, phone: String): AuthCodeSent {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun signIn(
@@ -42,27 +45,27 @@ object MtprotoNativeStub : MtprotoNative {
         phoneCodeHash: String,
         phoneCode: String,
     ): AuthSignedIn {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun checkPassword(handle: Long, password: String): AuthSignedIn {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun logout(handle: Long) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getChats(handle: Long): List<ChatDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getFolders(handle: Long): List<FolderDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getHistoryPage(
@@ -73,7 +76,7 @@ object MtprotoNativeStub : MtprotoNative {
         offsetDate: Int,
         addOffset: Int,
     ): List<MessageDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun loadMoreChats(
@@ -83,7 +86,7 @@ object MtprotoNativeStub : MtprotoNative {
         offsetPeerId: Long,
         folderId: Int,
     ): List<ChatDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun searchMessages(
@@ -92,7 +95,7 @@ object MtprotoNativeStub : MtprotoNative {
         query: String,
         limit: Int,
     ): List<MessageDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun searchMessagesFiltered(
@@ -104,7 +107,7 @@ object MtprotoNativeStub : MtprotoNative {
         addOffset: Int,
         limit: Int,
     ): List<MessageDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun contactsSearch(
@@ -112,7 +115,7 @@ object MtprotoNativeStub : MtprotoNative {
         query: String,
         limit: Int,
     ): ContactsSearchDto {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun searchGlobal(
@@ -124,7 +127,7 @@ object MtprotoNativeStub : MtprotoNative {
         limit: Int,
         folderId: Int,
     ): GlobalMessageSearchDto {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getPinnedMessages(
@@ -132,7 +135,7 @@ object MtprotoNativeStub : MtprotoNative {
         chatId: Long,
         limit: Int,
     ): List<MessageDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun sendTextMessage(
@@ -145,7 +148,7 @@ object MtprotoNativeStub : MtprotoNative {
         webpageUrl: String?,
         randomId: Long,
     ): MessageDto {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun sendPhotoMessage(
@@ -157,7 +160,7 @@ object MtprotoNativeStub : MtprotoNative {
         topMsgId: Int,
         entitiesJson: String?,
     ): MessageDto {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun sendUploadedMedia(
@@ -168,7 +171,7 @@ object MtprotoNativeStub : MtprotoNative {
         topMsgId: Int,
         entitiesJson: String?,
     ): MessageDto {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun sendUploadedAlbum(
@@ -178,7 +181,7 @@ object MtprotoNativeStub : MtprotoNative {
         replyToMsgId: Int,
         topMsgId: Int,
     ): List<MessageDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun editTextMessage(
@@ -188,7 +191,7 @@ object MtprotoNativeStub : MtprotoNative {
         text: String,
         entitiesJson: String?,
     ): MessageDto {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun deleteMessage(
@@ -197,7 +200,7 @@ object MtprotoNativeStub : MtprotoNative {
         messageId: Int,
         revoke: Boolean,
     ) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun forwardMessages(
@@ -207,23 +210,23 @@ object MtprotoNativeStub : MtprotoNative {
         toChatId: Long,
         dropAuthor: Boolean,
     ): List<MessageDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun readHistory(handle: Long, chatId: Long, maxId: Int) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun markDialogUnread(handle: Long, chatId: Long, unread: Boolean) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun setTyping(handle: Long, chatId: Long, typing: Boolean) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun updateStatus(handle: Long, offline: Boolean) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun registerDevice(
@@ -235,7 +238,7 @@ object MtprotoNativeStub : MtprotoNative {
         appSandbox: Boolean,
         otherUids: List<Long>,
     ) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun unregisterDevice(
@@ -244,11 +247,11 @@ object MtprotoNativeStub : MtprotoNative {
         token: String,
         otherUids: List<Long>,
     ) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getNotifySettings(handle: Long, peerKind: String, chatId: Long): NotifySettingsDto {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun updateNotifySettings(
@@ -261,35 +264,43 @@ object MtprotoNativeStub : MtprotoNative {
         storiesMuted: Boolean,
         sound: String,
     ) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun resetNotifySettings(handle: Long) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
+    }
+
+    override fun joinChat(handle: Long, chatId: Long): NativeJoinResult {
+        nativeUnavailable()
+    }
+
+    override fun unblockUser(handle: Long, chatId: Long) {
+        nativeUnavailable()
     }
 
     override fun setContactJoinedSilent(handle: Long, silent: Boolean) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getNotifyExceptions(handle: Long, compareSound: Boolean): List<NotifyExceptionDto> {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun decryptPushPayload(secret: ByteArray, payload: String): String {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getProfile(handle: Long, peerId: Long): ProfileDto {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getGroupAdminTags(handle: Long, chatId: Long): String {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getSearchCounters(handle: Long, chatId: Long, filters: List<String>): String {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getParticipants(
@@ -300,15 +311,15 @@ object MtprotoNativeStub : MtprotoNative {
         offset: Int,
         limit: Int,
     ): String {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getCommonChats(handle: Long, userId: Long, maxId: Long, limit: Int): String {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun startUpdates(handle: Long) {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun drainUpdates(handle: Long): List<UpdateEventDto> = emptyList()
@@ -319,10 +330,10 @@ object MtprotoNativeStub : MtprotoNative {
         messageId: Int,
         destPath: String,
     ): String {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 
     override fun getUpdatesState(handle: Long): UpdatesStateDto {
-        throw MtprotoException.Message("native library failed to load")
+        nativeUnavailable()
     }
 }

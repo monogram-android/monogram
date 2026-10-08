@@ -13,7 +13,7 @@ fn admin_tags_default_to_role_and_preserve_custom_rank() {
 fn extra_json_omits_empty_and_keeps_counts() {
     assert_eq!(
         profile_extra_json(
-            None, None, None, None, false, false, false, None, false, None
+            None, None, None, None, false, false, false, None, false, None, false,
         ),
         None
     );
@@ -28,6 +28,7 @@ fn extra_json_omits_empty_and_keeps_counts() {
         Some(9),
         true,
         Some(false),
+        true,
     )
     .expect("json");
     assert!(raw.contains("\"members\":12"));
@@ -38,4 +39,5 @@ fn extra_json_omits_empty_and_keeps_counts() {
     assert!(raw.contains("\"phone\":\"+1\""));
     assert!(raw.contains("\"premium\":true"));
     assert!(raw.contains("\"participants\":false"));
+    assert!(raw.contains("\"blocked\":true"));
 }

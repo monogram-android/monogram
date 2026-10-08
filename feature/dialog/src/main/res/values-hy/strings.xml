@@ -220,6 +220,10 @@
     <string name="dialog_cant_send">Այստեղ հաղորդագրություններ չեք կարող ուղարկել</string>
     <string name="dialog_cant_send_photos">Այս զրույցում լուսանկարներ չեն թույլատրվում</string>
     <string name="dialog_channel_readonly">Այս ալիքում կարող են գրել միայն ադմինները</string>
+    <string name="dialog_join">Միանալ</string>
+    <string name="dialog_mute">Անջատել ձայնը</string>
+    <string name="dialog_unmute">Միացնել ձայնը</string>
+    <string name="dialog_unblock">Արգելափակումը հանել</string>
     <string name="dialog_protected">Այս զրույցում վերահասցեավորումն անջատված է</string>
     <string name="dialog_editing">Խմբագրում</string>
     <string name="dialog_replying">Պատասխան</string>

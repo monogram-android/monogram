@@ -164,6 +164,14 @@ internal sealed interface Msg {
     ) : Msg
 
     data class DraftMentions(val value: List<DraftMention>) : Msg
+    data class Membership(
+        val left: Boolean? = null,
+        val muted: Boolean? = null,
+        val blockedByMe: Boolean? = null,
+        val canSendPlain: Boolean? = null,
+        val canSendPhotos: Boolean? = null,
+    ) : Msg
+
     data class LinkPreview(
         val preview: WebpagePreview?,
         val url: String? = null,

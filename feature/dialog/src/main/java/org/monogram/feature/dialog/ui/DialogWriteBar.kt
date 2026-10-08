@@ -4,12 +4,17 @@ package org.monogram.feature.dialog.ui
 
 import android.content.res.Configuration
 import android.net.Uri
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.content.MediaType
 import androidx.compose.foundation.content.ReceiveContentListener
@@ -42,6 +47,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.OpenInFull
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -98,7 +104,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import kotlinx.coroutines.delay
 import org.monogram.core.models.StyledText
 import org.monogram.core.models.TextEntity
 import org.monogram.core.models.UploadItem
@@ -110,6 +115,8 @@ import org.monogram.core.ui.canSend
 import org.monogram.core.ui.components.ChatComposerLayout
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.ReadOnlyBarAction
+import org.monogram.feature.dialog.readOnlyBarAction
 import java.io.File
 import java.net.URI
 import kotlin.math.abs
@@ -135,6 +142,11 @@ internal fun DialogWriteBar(
     canSendPlain: Boolean,
     canSendPhotos: Boolean,
     isChannel: Boolean,
+    isGroup: Boolean = false,
+    left: Boolean = false,
+    muted: Boolean = false,
+    blockedByMe: Boolean = false,
+    onReadOnlyBar: () -> Unit = {},
     editing: Boolean,
     editingBody: String,
     replyBody: String?,
@@ -181,17 +193,30 @@ internal fun DialogWriteBar(
         keyboard?.show()
     }
     val appearance by AppearanceSettings.state.collectAsStateWithLifecycle()
-    val canCompose = canSendPlain || canSendPhotos
-    if (!canCompose) {
-        RestrictionBar(
-            text = when {
-                isChannel -> stringResource(R.string.dialog_channel_readonly)
-                else -> stringResource(R.string.dialog_cant_send)
-            },
-            modifier = modifier,
+    val canCompose = (canSendPlain || canSendPhotos) && !blockedByMe
+    val readOnly = remember { MutableTransitionState(!canCompose) }
+    readOnly.targetState = !canCompose
+    val motion = MaterialTheme.motionScheme
+    AnimatedVisibility(
+        visibleState = readOnly,
+        modifier = modifier,
+        enter = fadeIn(motion.fastEffectsSpec()) +
+                slideInVertically(motion.fastSpatialSpec()) { it / 2 },
+        exit = fadeOut(motion.fastEffectsSpec()) +
+                slideOutVertically(motion.fastSpatialSpec()) { it / 2 },
+    ) {
+        ReadOnlyActionBar(
+            action = readOnlyBarAction(
+                isChannel = isChannel,
+                isGroup = isGroup,
+                left = left,
+                muted = muted,
+                blockedByMe = blockedByMe,
+            ),
+            onClick = onReadOnlyBar,
         )
-        return
     }
+    if (readOnly.currentState || readOnly.targetState) return
 
     val sendEnabled = when {
         sending -> false
@@ -588,6 +613,52 @@ internal fun composerLinkPreviewTabLabel(url: String): String {
         ?.removePrefix("www.")
         ?.takeIf { it.isNotBlank() }
     return host ?: url
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ReadOnlyActionBar(
+    action: ReadOnlyBarAction,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val label = stringResource(
+        when (action) {
+            ReadOnlyBarAction.Join -> R.string.dialog_join
+            ReadOnlyBarAction.Mute -> R.string.dialog_mute
+            ReadOnlyBarAction.Unmute -> R.string.dialog_unmute
+            ReadOnlyBarAction.Unblock -> R.string.dialog_unblock
+        },
+    )
+    val motion = MaterialTheme.motionScheme
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Button(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            shapes = ExpressiveDefaults.buttonShapesFor(ButtonDefaults.MinHeight),
+        ) {
+            AnimatedContent(
+                targetState = label,
+                transitionSpec = {
+                    (fadeIn(motion.fastEffectsSpec()) +
+                            slideInVertically(motion.fastSpatialSpec()) { it / 3 })
+                        .togetherWith(
+                            fadeOut(motion.fastEffectsSpec()) +
+                                    slideOutVertically(motion.fastSpatialSpec()) { -it / 3 },
+                        )
+                },
+                label = "readOnlyAction",
+            ) { text ->
+                Text(text)
+            }
+        }
+    }
 }
 
 @Composable

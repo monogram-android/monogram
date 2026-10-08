@@ -9,6 +9,7 @@ mod extras;
 pub(crate) mod extras_rpc;
 pub(crate) mod lanes;
 mod media_download;
+mod membership;
 mod persist;
 pub(crate) mod push_rpc;
 mod session;

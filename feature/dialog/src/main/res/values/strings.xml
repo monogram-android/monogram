@@ -237,6 +237,10 @@
     <string name="dialog_cant_send">You can\'t send messages here</string>
     <string name="dialog_cant_send_photos">Photos aren\'t allowed in this chat</string>
     <string name="dialog_channel_readonly">Only admins can post in this channel</string>
+    <string name="dialog_join">Join</string>
+    <string name="dialog_mute">Mute</string>
+    <string name="dialog_unmute">Unmute</string>
+    <string name="dialog_unblock">Unblock</string>
     <string name="dialog_protected">Forwarding is disabled in this chat</string>
     <string name="dialog_editing">Edit message</string>
     <string name="dialog_replying">Reply</string>

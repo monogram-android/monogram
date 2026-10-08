@@ -222,6 +222,7 @@ pub(crate) fn fetch_user_full(
             },
             is_premium,
             None,
+            info.blocked.is_some(),
         ),
     })
 }
@@ -283,6 +284,7 @@ pub(crate) fn fetch_basic_chat(
             None,
             false,
             None,
+            false,
         ),
     })
 }
@@ -392,6 +394,7 @@ pub(crate) fn fetch_channel(
             emoji_status,
             false,
             participants_visible,
+            false,
         ),
     })
 }
@@ -446,6 +449,7 @@ pub(crate) fn profile_extra_json(
     emoji: Option<i64>,
     premium: bool,
     participants: Option<bool>,
+    blocked: bool,
 ) -> Option<String> {
     if members.is_none()
         && online.is_none()
@@ -457,6 +461,7 @@ pub(crate) fn profile_extra_json(
         && emoji.is_none()
         && !premium
         && participants.is_none()
+        && !blocked
     {
         return None;
     }
@@ -472,6 +477,7 @@ pub(crate) fn profile_extra_json(
             "emoji": emoji,
             "premium": premium,
             "participants": participants,
+            "blocked": blocked,
         })
         .to_string(),
     )

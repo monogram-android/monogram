@@ -220,6 +220,10 @@
     <string name="dialog_cant_send">Você não pode enviar mensagens aqui</string>
     <string name="dialog_cant_send_photos">Fotos não são permitidas nesta conversa</string>
     <string name="dialog_channel_readonly">Somente administradores podem postar neste canal</string>
+    <string name="dialog_join">Entrar</string>
+    <string name="dialog_mute">Silenciar</string>
+    <string name="dialog_unmute">Ativar som</string>
+    <string name="dialog_unblock">Desbloquear</string>
     <string name="dialog_protected">O encaminhamento está desativado nesta conversa</string>
     <string name="dialog_editing">Editar mensagem</string>
     <string name="dialog_replying">Resposta</string>

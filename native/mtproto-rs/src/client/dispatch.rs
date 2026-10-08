@@ -3,8 +3,8 @@ use crate::peers;
 use crate::scheduler;
 use crate::upload::upload_rpc::UploadStaging;
 use crate::{
-    ChatDto, FolderDto, ForumTopicsPageDto, MessageDto, MtprotoError, NotifyExceptionDto,
-    NotifySettingsDto, ProfileDto,
+    ChatDto, FolderDto, ForumTopicsPageDto, JoinChatDto, MessageDto, MtprotoError,
+    NotifyExceptionDto, NotifySettingsDto, ProfileDto,
 };
 
 use super::*;
@@ -1117,6 +1117,18 @@ pub fn update_notify_settings(
                 sound.clone(),
             )
         })
+    })
+}
+
+pub fn join_chat(handle: u64, chat_id: i64) -> Result<JoinChatDto, MtprotoError> {
+    with_client_mut(handle, |state| {
+        call_with_migrate(state, |state| super::membership::join_chat(state, chat_id))
+    })
+}
+
+pub fn unblock_user(handle: u64, chat_id: i64) -> Result<(), MtprotoError> {
+    with_client_mut(handle, |state| {
+        call_with_migrate(state, |state| super::membership::unblock_user(state, chat_id))
     })
 }
 

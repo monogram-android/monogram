@@ -220,6 +220,10 @@
     <string name="dialog_cant_send">Buraya mesaj gönderemezsiniz</string>
     <string name="dialog_cant_send_photos">Bu sohbette fotoğraf gönderilemez</string>
     <string name="dialog_channel_readonly">Bu kanala yalnızca yöneticiler yazabilir</string>
+    <string name="dialog_join">Katıl</string>
+    <string name="dialog_mute">Sesi kapat</string>
+    <string name="dialog_unmute">Sesi aç</string>
+    <string name="dialog_unblock">Engeli kaldır</string>
     <string name="dialog_protected">Bu sohbette iletme kapalı</string>
     <string name="dialog_editing">Mesajı düzenle</string>
     <string name="dialog_replying">Yanıt</string>

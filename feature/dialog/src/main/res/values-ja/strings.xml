@@ -216,6 +216,10 @@
     <string name="dialog_cant_send">ここにメッセージを送信できません</string>
     <string name="dialog_cant_send_photos">このチャットでは写真は送れません</string>
     <string name="dialog_channel_readonly">このチャンネルに投稿できるのは管理者だけです</string>
+    <string name="dialog_join">参加</string>
+    <string name="dialog_mute">ミュート</string>
+    <string name="dialog_unmute">ミュート解除</string>
+    <string name="dialog_unblock">ブロック解除</string>
     <string name="dialog_protected">このチャットでは転送が無効です</string>
     <string name="dialog_editing">メッセージを編集</string>
     <string name="dialog_replying">返信</string>

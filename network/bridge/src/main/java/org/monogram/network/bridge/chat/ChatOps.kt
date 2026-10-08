@@ -6,6 +6,12 @@ import org.monogram.core.models.Folder
 import org.monogram.core.models.ForumTopicsPage
 import org.monogram.core.models.PeerId
 
+data class JoinMembership(
+    val joined: Boolean,
+    val canSendPlain: Boolean,
+    val canSendPhotos: Boolean,
+)
+
 interface ChatOps {
     suspend fun getChats(): Outcome<List<Chat>>
     suspend fun loadMoreChats(
@@ -64,4 +70,8 @@ interface ChatOps {
 
     suspend fun getGroupAdminTags(chatId: PeerId): Outcome<Map<PeerId, String>> =
         Outcome.Ok(emptyMap())
+
+    suspend fun joinChat(chatId: PeerId): Outcome<JoinMembership> = Outcome.Err("unsupported")
+
+    suspend fun unblockUser(chatId: PeerId): Outcome<Unit> = Outcome.Err("unsupported")
 }

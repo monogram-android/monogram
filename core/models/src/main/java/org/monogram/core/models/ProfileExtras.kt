@@ -12,6 +12,8 @@ data class ProfileExtra(
     val emojiStatusDocumentId: Long? = null,
     /** `null` = unknown (not a channel or not fetched). */
     val canViewParticipants: Boolean? = null,
+    /** `userFull.blocked`: this account blocked the user. */
+    val blockedByMe: Boolean = false,
 )
 
 object ProfileExtras {
@@ -26,6 +28,7 @@ object ProfileExtras {
         isPremium = profile.isPremium,
         emojiStatusDocumentId = profile.emojiStatusDocumentId,
         canViewParticipants = profile.canViewParticipants,
+        blockedByMe = profile.blockedByMe,
     )
 
     fun applyTo(profile: Profile, extra: ProfileExtra): Profile = profile.copy(
@@ -39,6 +42,7 @@ object ProfileExtras {
         isPremium = extra.isPremium,
         emojiStatusDocumentId = extra.emojiStatusDocumentId ?: profile.emojiStatusDocumentId,
         canViewParticipants = extra.canViewParticipants ?: profile.canViewParticipants,
+        blockedByMe = extra.blockedByMe,
     )
 
     /** Full getProfile row: booleans from incoming, nullable fields keep prior when omitted. */
@@ -53,6 +57,7 @@ object ProfileExtras {
         isPremium = incoming.isPremium,
         emojiStatusDocumentId = incoming.emojiStatusDocumentId ?: prior.emojiStatusDocumentId,
         canViewParticipants = incoming.canViewParticipants ?: prior.canViewParticipants,
+        blockedByMe = incoming.blockedByMe,
     )
 
     fun serialize(extra: ProfileExtra): String? {
@@ -70,6 +75,7 @@ object ProfileExtras {
         if (extra.isPremium) parts += "\"premium\":true"
         extra.emojiStatusDocumentId?.let { parts += "\"emoji\":$it" }
         extra.canViewParticipants?.let { parts += "\"participants\":$it" }
+        if (extra.blockedByMe) parts += "\"blocked\":true"
         if (parts.isEmpty()) return null
         return "{${parts.joinToString(",")}}"
     }
@@ -88,6 +94,7 @@ object ProfileExtras {
             isPremium = root.jsonBool("premium") == true,
             emojiStatusDocumentId = root.jsonLong("emoji"),
             canViewParticipants = root.jsonBool("participants"),
+            blockedByMe = root.jsonBool("blocked") == true,
         )
     }
 }

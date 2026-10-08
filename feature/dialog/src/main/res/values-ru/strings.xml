@@ -251,6 +251,10 @@
     <string name="dialog_cant_send">Вы не можете отправлять сообщения в этот чат</string>
     <string name="dialog_cant_send_photos">Отправка фото запрещена в этом чате</string>
     <string name="dialog_channel_readonly">Только администраторы могут писать в этот канал</string>
+    <string name="dialog_join">Вступить</string>
+    <string name="dialog_mute">Отключить звук</string>
+    <string name="dialog_unmute">Включить звук</string>
+    <string name="dialog_unblock">Разблокировать</string>
     <string name="dialog_protected">Копирование и пересылка запрещены</string>
     <string name="dialog_editing">Редактирование</string>
     <string name="dialog_replying">Ответ</string>

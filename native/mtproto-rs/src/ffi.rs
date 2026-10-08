@@ -27,7 +27,8 @@ use crate::waveform;
 use crate::{
     AuthCodeSent, AuthSignedIn, BotCallbackAnswerDto, ChatDto, ContactsSearchDto, DiscussionDto,
     FolderDto, ForumTopicsPageDto, GlobalMessageSearchDto, InlineBotResultsDto, InstantViewDto,
-    LottieSize, MessageDto, MtprotoError, NotifyExceptionDto, NotifySettingsDto, ProfileDto,
+    JoinChatDto, LottieSize, MessageDto, MtprotoError, NotifyExceptionDto, NotifySettingsDto,
+    ProfileDto,
     ReactionChoiceDto, ResolvedPeerDto, SavedGifDto, StickerCatalogDto, StickerListDto,
     StickerPackDto, UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame,
     WallpaperCatalogDto,
@@ -759,6 +760,16 @@ pub fn update_notify_settings(
 #[uniffi::export]
 pub fn reset_notify_settings(handle: u64) -> Result<(), MtprotoError> {
     client::reset_notify_settings(handle)
+}
+
+#[uniffi::export]
+pub fn join_chat(handle: u64, chat_id: i64) -> Result<JoinChatDto, MtprotoError> {
+    client::join_chat(handle, chat_id)
+}
+
+#[uniffi::export]
+pub fn unblock_user(handle: u64, chat_id: i64) -> Result<(), MtprotoError> {
+    client::unblock_user(handle, chat_id)
 }
 
 #[uniffi::export]

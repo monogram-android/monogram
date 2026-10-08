@@ -92,6 +92,7 @@ import uniffi.monogram_mtproto.getUpdatesState as nativeGetUpdatesState
 import uniffi.monogram_mtproto.getWebPage as nativeGetWebPage
 import uniffi.monogram_mtproto.getWebPagePreview as nativeGetWebPagePreview
 import uniffi.monogram_mtproto.isAuthorized as nativeIsAuthorized
+import uniffi.monogram_mtproto.joinChat as nativeJoinChat
 import uniffi.monogram_mtproto.libraryVersion as nativeLibraryVersion
 import uniffi.monogram_mtproto.loadMoreChats as nativeLoadMoreChats
 import uniffi.monogram_mtproto.logout as nativeLogout
@@ -130,6 +131,7 @@ import uniffi.monogram_mtproto.setTyping as nativeSetTyping
 import uniffi.monogram_mtproto.signIn as nativeSignIn
 import uniffi.monogram_mtproto.startUpdates as nativeStartUpdates
 import uniffi.monogram_mtproto.toggleTodoCompleted as nativeToggleTodoCompleted
+import uniffi.monogram_mtproto.unblockUser as nativeUnblockUser
 import uniffi.monogram_mtproto.unregisterDevice as nativeUnregisterDevice
 import uniffi.monogram_mtproto.updateFolder as nativeUpdateFolder
 import uniffi.monogram_mtproto.updateFolderOrder as nativeUpdateFolderOrder
@@ -637,6 +639,19 @@ object MtprotoNativeUniFfi : MtprotoNative {
 
     override fun resetNotifySettings(handle: Long) {
         nativeResetNotifySettings(handle.toULong())
+    }
+
+    override fun joinChat(handle: Long, chatId: Long): NativeJoinResult {
+        val joined = nativeJoinChat(handle.toULong(), chatId)
+        return NativeJoinResult(
+            joined = joined.joined,
+            canSendPlain = joined.canSendPlain,
+            canSendPhotos = joined.canSendPhotos,
+        )
+    }
+
+    override fun unblockUser(handle: Long, chatId: Long) {
+        nativeUnblockUser(handle.toULong(), chatId)
     }
 
     override fun setContactJoinedSilent(handle: Long, silent: Boolean) {

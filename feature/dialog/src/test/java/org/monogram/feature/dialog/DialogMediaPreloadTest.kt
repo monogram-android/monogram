@@ -12,6 +12,31 @@ import org.monogram.network.http.MediaPriority
 
 class DialogMediaPreloadTest {
     @Test
+    fun directionBiasRetainsReverseCoverageWithoutGrowingTheWindow() {
+        val messages = (100 downTo 1).map { photo(it) }
+        val fixed = DialogMediaPreload.plan(messages, visibleIds = setOf(50), radius = 20)
+        val older = DialogMediaPreload.plan(
+            messages,
+            visibleIds = setOf(50),
+            radius = 20,
+            scrollDirection = 1
+        )
+        val newer = DialogMediaPreload.plan(
+            messages,
+            visibleIds = setOf(50),
+            radius = 20,
+            scrollDirection = -1
+        )
+        assertEquals(30..70, fixed.window)
+        assertEquals(40..80, older.window)
+        assertEquals(20..60, newer.window)
+        assertEquals(fixed.window.count(), older.window.count())
+        assertEquals(fixed.window.count(), newer.window.count())
+        assertTrue(older.window.first < older.visibleRange.first)
+        assertTrue(newer.window.last > newer.visibleRange.last)
+    }
+
+    @Test
     fun emptyVisibleFallsBackToNewestPlusRadius() {
         val messages = (50 downTo 1).map { photo(it) }
         val plan = DialogMediaPreload.plan(messages, visibleIds = emptySet(), radius = 20)

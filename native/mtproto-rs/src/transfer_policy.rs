@@ -91,6 +91,7 @@ impl TransferPolicy {
             priority,
             dc,
             large,
+            queued_at: std::time::Instant::now(),
         });
         loop {
             if let Err(error) = crate::request_control::check() {
@@ -105,7 +106,7 @@ impl TransferPolicy {
                 .waiters
                 .iter()
                 .filter(|waiter| waiter.dc == dc && waiter.large == large)
-                .min_by_key(|waiter| (waiter.priority, waiter.ticket))
+                .min_by_key(|waiter| waiter.order_at(std::time::Instant::now()))
                 .map(|waiter| waiter.ticket);
             let recovering = self.floods.lock().recovering_download(dc);
             let dc_count: usize = active.counts.iter()
@@ -265,6 +266,31 @@ struct DownloadWaiter {
     priority: u8,
     dc: i32,
     large: bool,
+    queued_at: std::time::Instant,
+}
+
+impl DownloadWaiter {
+    fn order_at(&self, now: std::time::Instant) -> (u8, u64) {
+        let priority = if self.priority > 2 {
+            let age = (now.saturating_duration_since(self.queued_at).as_secs() / 5).min(255) as u8;
+            self.priority.saturating_sub(age).max(1)
+        } else { self.priority };
+        (priority, self.ticket)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn aging_preserves_fifo_and_never_overtakes_writes() {
+        let start = std::time::Instant::now();
+        let waiter = DownloadWaiter { ticket: 7, priority: 4, dc: 2, large: false, queued_at: start };
+        assert_eq!(waiter.order_at(start + std::time::Duration::from_secs(4)), (4, 7));
+        assert_eq!(waiter.order_at(start + std::time::Duration::from_secs(5)), (3, 7));
+        assert_eq!(waiter.order_at(start + std::time::Duration::from_secs(100)), (1, 7));
+    }
 }
 
 fn valid_chunk(size: i32) -> bool {

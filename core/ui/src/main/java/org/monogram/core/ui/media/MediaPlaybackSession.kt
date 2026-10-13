@@ -456,7 +456,11 @@ class MediaPlaybackSession(private val context: Context) {
     /** One media item, wrapped in the item's own data source factory when it streams. */
     private fun mediaSourceFor(item: MediaViewerItem): PlaybackMediaSource? {
         val mediaItem = mediaItemFor(item) ?: return null
-        val factory = (item.source as? MediaSource.Stream)?.factory
+        val factory = when (val source = item.source) {
+            is MediaSource.Stream -> source.factory
+            is MediaSource.Local -> source.factory
+            null -> null
+        }
         return if (factory != null) {
             DefaultMediaSourceFactory(context).setDataSourceFactory(factory).createMediaSource(mediaItem)
         } else {

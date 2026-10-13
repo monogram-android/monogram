@@ -1203,16 +1203,6 @@ pub(crate) fn download_media_range_batched_streaming_capped(
             file.seek(SeekFrom::Start(origin as u64))
                 .map_err(|e| MtprotoError::Message(e.to_string()))?;
             file
-        } else if origin > 0 {
-            use std::io::{Seek, SeekFrom};
-            let mut file = fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(dest_path)
-                .map_err(|e| MtprotoError::Message(e.to_string()))?;
-            file.seek(SeekFrom::Start(origin as u64))
-                .map_err(|e| MtprotoError::Message(e.to_string()))?;
-            file
         } else {
             fs::File::create(dest_path).map_err(|e| MtprotoError::Message(e.to_string()))?
         };
@@ -1266,7 +1256,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                 bound_download_window()
                     .map(|window| window.in_flight)
                     .unwrap_or(STREAM_WINDOW_CHUNKS)
-                    .min(width.max(1))
+                    .min(width.max(1)).min((FAST_CHUNK / chunk).max(1) as usize)
             } else {
                 width
             };
@@ -1331,7 +1321,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                             let bytes = &file.bytes;
                             if !bytes.is_empty() && bytes.len() <= chunk as usize {
                                 use std::io::{Seek, SeekFrom, Write};
-                                if out.seek(SeekFrom::Start(part_offset as u64)).is_ok()
+                                if out.seek(SeekFrom::Start((if stream { part_offset - origin } else { part_offset }) as u64)).is_ok()
                                     && out.write_all(bytes).is_ok()
                                 {
                                     written_end = written_end.max(part_offset + bytes.len() as i64);
@@ -1356,7 +1346,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                                     }
                                 }
                             }
-                            if bytes.len() < chunk as usize || stream {
+                            if bytes.len() < chunk as usize {
                                 hit_short = true;
                                 last_part = true;
                                 if index < short_or_empty.len() {
@@ -1459,7 +1449,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                                 break;
                             }
                             use std::io::{Seek, SeekFrom, Write};
-                            out.seek(SeekFrom::Start(part_offset as u64))
+                            out.seek(SeekFrom::Start((if stream { part_offset - origin } else { part_offset }) as u64))
                                 .map_err(|e| MtprotoError::Message(e.to_string()))?;
                             out.write_all(&bytes)
                                 .map_err(|e| MtprotoError::Message(e.to_string()))?;
@@ -1468,7 +1458,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                                 downloaded_bytes += bytes.len() as i64;
                                 notify_progress(&target_str, downloaded_bytes, 0);
                             }
-                            if bytes.len() < chunk as usize || stream {
+                            if bytes.len() < chunk as usize {
                                 last_part = true;
                             }
                         }
@@ -1548,7 +1538,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                 }
             }
         } else {
-            out.set_len(written_end as u64)
+            out.set_len((written_end - origin).max(0) as u64)
                 .map_err(|e| MtprotoError::Message(e.to_string()))?;
         }
         out.flush()

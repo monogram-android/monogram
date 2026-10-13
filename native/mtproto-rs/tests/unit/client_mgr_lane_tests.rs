@@ -652,6 +652,9 @@ fn parallel_media_does_not_refill_when_callback_stops() {
 
 #[test]
 fn extra_main_sessions_stay_zero_without_tmp_sessions() {
+    let _allowance = crate::scheduler::ALLOWANCE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     assert_eq!(crate::scheduler::extra_main_sessions(), 0);
 }
 

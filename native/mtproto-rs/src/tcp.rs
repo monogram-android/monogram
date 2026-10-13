@@ -178,6 +178,9 @@ impl ObfuscatedTcp {
     pub fn set_io_timeout_ms(&mut self, ms: u64) {
         self.read_timeout = Duration::from_millis(ms.max(50));
         let read = self.read_timeout;
+        // Shutdown of a cloned socket can leave a Windows reader blocked.
+        #[cfg(windows)]
+        let read = read.min(Duration::from_millis(250));
         let _ = match &mut self.inner {
             NativeTransportConnection::Obfuscated(connection) => connection.set_io_timeout_ms(ms),
             NativeTransportConnection::Http(connection) => connection.set_io_timeout_ms(ms),

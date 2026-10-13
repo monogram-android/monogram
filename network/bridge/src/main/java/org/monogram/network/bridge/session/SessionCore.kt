@@ -4,6 +4,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
@@ -55,7 +57,10 @@ internal class SessionCore(
     private val updatesStartMutex = Mutex()
     internal val connectMutex = Mutex()
     private val inflightMutex = Mutex()
-    private val inflight = HashMap<String, Deferred<*>>()
+
+    private class SharedRead(val deferred: Deferred<*>, var consumers: Int = 0)
+
+    private val inflight = HashMap<String, SharedRead>()
     @Volatile
     internal var sessionDead: Boolean = false
     @Volatile
@@ -202,17 +207,28 @@ internal class SessionCore(
 
     /** One native call per key while identical reads overlap. */
     internal suspend fun <T> coalesce(key: String, block: suspend () -> T): T {
-        val deferred = inflightMutex.withLock {
-            @Suppress("UNCHECKED_CAST")
-            (inflight[key] as Deferred<T>?) ?: scope.async {
-                try {
-                    block()
-                } finally {
-                    inflightMutex.withLock { inflight.remove(key) }
-                }
-            }.also { inflight[key] = it }
+        val shared = inflightMutex.withLock {
+            val current = inflight[key]
+            val entry = current?.takeUnless { it.deferred.isCompleted }
+                ?: SharedRead(scope.async(start = CoroutineStart.LAZY) { block() })
+                    .also { inflight[key] = it }
+            entry.consumers++
+            entry
         }
-        return deferred.await()
+        try {
+            @Suppress("UNCHECKED_CAST")
+            return (shared.deferred as Deferred<T>).await()
+        } finally {
+            withContext(NonCancellable) {
+                inflightMutex.withLock {
+                    shared.consumers--
+                    if (shared.consumers == 0) {
+                        if (inflight[key] === shared) inflight.remove(key)
+                        if (!shared.deferred.isCompleted) shared.deferred.cancel()
+                    }
+                }
+            }
+        }
     }
 
     internal suspend fun <T> rpc(

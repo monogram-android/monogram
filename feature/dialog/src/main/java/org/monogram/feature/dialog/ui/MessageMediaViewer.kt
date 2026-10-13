@@ -359,7 +359,9 @@ private fun MessageMediaViewer(
             id = key,
             kind = kind,
             source = when {
-                localFile != null -> MediaSource.Local(localFile)
+                localFile != null -> MediaSource.Local(
+                    localFile,
+                    message.mediaCacheKey?.let { repository?.createCachedDataSourceFactory(it) })
                 kind in listOf(MediaViewerKind.VIDEO, MediaViewerKind.VIDEO_NOTE, MediaViewerKind.AUDIO, MediaViewerKind.VOICE) && repository != null -> MediaSource.Stream(
                     uri = repository.streamUri(message),
                     factory = repository.createMessageDataSourceFactory(message),

@@ -47,7 +47,7 @@ class TelegramVideoDataSource private constructor(
     private var partFile: File? = null
     private var partIsPrefix = false
     private var partHandle: RandomAccessFile? = null
-    private val cacheOwner = "stream:${java.util.UUID.randomUUID()}"
+    private var partLease: FileCache.Lease? = null
     @Volatile private var request: Job? = null
 
     override fun open(dataSpec: DataSpec): Long {
@@ -83,7 +83,7 @@ class TelegramVideoDataSource private constructor(
         val take = if (remaining < 0) Long.MAX_VALUE else remaining
         val count = minOf(length.toLong(), partLength - position, take).toInt().coerceAtLeast(1)
         val handle = partHandle ?: throw IOException("Media part unavailable")
-        handle.seek(position)
+        handle.seek(position - partOffset)
         val read = handle.read(buffer, offset, count)
         if (read <= 0) {
             if (remaining > 0) throw IOException("Unexpected end of media")
@@ -99,13 +99,10 @@ class TelegramVideoDataSource private constructor(
         if (!directory.isDirectory && !directory.mkdirs()) throw IOException("Cannot create media buffer")
         releasePart()
         val mediaKey = streamMediaKey(message)
-        val prefix = mediaKey?.takeIf { offset < MediaRepository.STREAM_PREFIX_BYTES }
-            ?.let { streamPrefixPart(directory, it, offset) }
-        if (prefix != null) cache?.setProtectedKeys(
-            cacheOwner,
-            listOf(streamPartKey(checkNotNull(mediaKey), offset))
-        )
-        val reused = reusableStreamPrefix(prefix, offset, message.fileSize)
+        val key = mediaKey?.let { streamPartKey(it, offset) }
+        val acquired = key?.let { cache?.acquire(it) }
+        val reused = reusableStreamPrefix(acquired?.file, offset, message.fileSize)
+        if (reused == null) acquired?.close() else partLease = acquired
         val file = reused ?: File.createTempFile("video-", ".part", directory)
         partIsPrefix = reused != null
         if (reused != null) {
@@ -126,9 +123,12 @@ class TelegramVideoDataSource private constructor(
                     }
                 }
             }
+            if (reused == null && file.length() > PART_SIZE) {
+                RandomAccessFile(file, "rw").use { it.setLength(PART_SIZE) }
+            }
             val length = file.length()
-            if (length <= offset || length - offset > PART_SIZE) throw IOException("Invalid media part")
-            if (message.fileSize?.takeIf { it > 0 } != null && reusableStreamPrefix(
+            if (length <= 0) throw IOException("Invalid media part: length=$length offset=$offset")
+            if (key != null && message.fileSize?.takeIf { it > 0 } != null && reusableStreamPrefix(
                     file,
                     offset,
                     message.fileSize
@@ -136,31 +136,35 @@ class TelegramVideoDataSource private constructor(
                 throw IOException("Incomplete media part")
             }
             if (reused == null) RandomAccessFile(file, "rw").use { it.fd.sync() }
-            if (prefix != null && file.canonicalFile != prefix.canonicalFile && !file.renameTo(
-                    prefix
-                )
-            ) throw IOException("Media prefix publish")
-            val published = prefix ?: file
-            partIsPrefix = prefix != null
-            if (partIsPrefix) cache?.setProtectedKeys(
-                cacheOwner,
-                listOf(streamPartKey(checkNotNull(mediaKey), offset))
-            )
-            partFile = published
-            if (prefix != null) {
-                cache?.remember(
-                    streamPartKey(checkNotNull(mediaKey), offset),
-                    message.id.chatId.value,
-                    FileCache.KIND_VIDEOS,
-                    length
-                )
+            if (reused == null && key != null && cache != null) {
+                try {
+                    partLease = cache.publishLeased(
+                        key,
+                        file,
+                        message.id.chatId.value,
+                        FileCache.KIND_VIDEOS
+                    )
+                } catch (error: FileCache.AdmissionException) {
+                    if (error.reason != FileCache.AdmissionFailure.InUse) throw error
+                    val concurrent = cache.acquire(key)
+                    if (reusableStreamPrefix(concurrent?.file, offset, message.fileSize) != null) {
+                        partLease = concurrent
+                    } else {
+                        concurrent?.close()
+                    }
+                }
             }
-            partLength = length
+            val published = partLease?.file ?: file
+            partIsPrefix = partLease != null
+            partFile = published
+            if (partIsPrefix && reused == null) file.delete()
+            partLength = offset + length
             partHandle = RandomAccessFile(published, "r")
             partOffset = offset
         } catch (e: Exception) {
+            partLease?.close()
+            partLease = null
             if (reused == null) file.delete()
-            cache?.setProtectedKeys(cacheOwner, emptySet())
             partOffset = -1
             throw IOException("Media part unavailable: ${e.message}", e)
         } finally {
@@ -173,9 +177,10 @@ class TelegramVideoDataSource private constructor(
     private fun releasePart() {
         runCatching { partHandle?.close() }
         partHandle = null
+        partLease?.close()
+        partLease = null
         if (!partIsPrefix) runCatching { partFile?.delete() }
         partFile = null
-        cache?.setProtectedKeys(cacheOwner, emptySet())
         cache?.trimIfNeeded()
         partIsPrefix = false
         partLength = 0L

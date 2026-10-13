@@ -22,9 +22,11 @@ class DialogMediaPreloader(
     private var mediaJob: Job? = null
     private var ivJob: Job? = null
     private var lastSignature: String? = null
+    private var previousVisibleId: Int? = null
 
     fun onVisible(messages: List<Message>, visibleIds: Set<Int>) {
         if (visibleIds.isEmpty()) {
+            previousVisibleId = null
             lastSignature = null
             mediaJob?.cancel()
             ivJob?.cancel()
@@ -35,11 +37,20 @@ class DialogMediaPreloader(
             return
         }
         val settings = DownloadSettings.state.value
+        val visibleIndex = messages.indexOfFirst { it.id.id in visibleIds }.takeIf { it >= 0 }
+        val previousIndex = previousVisibleId?.let { id ->
+            messages.indexOfFirst { it.id.id == id }.takeIf { it >= 0 }
+        }
+        val direction = if (visibleIndex != null && previousIndex != null) {
+            visibleIndex.compareTo(previousIndex)
+        } else 0
+        previousVisibleId = visibleIndex?.let { messages[it].id.id }
         val plan = DialogMediaPreload.plan(
             messages,
             visibleIds,
             autoplayVideos = settings.autoplayVideos,
             autoplayGifs = settings.autoplayGifs,
+            scrollDirection = direction,
         )
         mediaRepository?.protectCacheKeys("dialog:${chatId.value}", plan.mediaKeys)
         val signature = plan.signature()
@@ -72,6 +83,7 @@ class DialogMediaPreloader(
     }
 
     fun close() {
+        previousVisibleId = null
         lastSignature = null
         mediaJob?.cancel()
         ivJob?.cancel()

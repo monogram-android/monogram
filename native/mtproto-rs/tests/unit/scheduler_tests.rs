@@ -2,6 +2,27 @@ use super::*;
 use std::sync::mpsc;
 
 #[test]
+fn background_aging_never_overtakes_writes() {
+    let queued_at = std::time::Instant::now();
+    let waiter = Waiter { ticket: 0, priority: 4, queued_at };
+    assert_eq!(waiter.order_at(queued_at).0, 4);
+    assert_eq!(waiter.order_at(queued_at + Duration::from_secs(5)).0, 3);
+    assert_eq!(waiter.order_at(queued_at + Duration::from_secs(60)).0, 1);
+}
+
+#[test]
+fn fast_admission_cannot_pass_an_equal_priority_waiter() {
+    let gate = LaneGate::new();
+    let waiter = gate.enqueue(RequestClass::InteractiveRead);
+    assert!(gate.try_acquire(RequestClass::InteractiveRead).is_none());
+    let lease = waiter.try_acquire().expect("queued owner acquires the lane");
+    assert!(gate.try_acquire(RequestClass::InteractiveRead).is_none());
+    drop(lease);
+    drop(waiter);
+    assert!(gate.try_acquire(RequestClass::InteractiveRead).is_some());
+}
+
+#[test]
 fn cancelled_waiter_does_not_block_following_requests() {
     let gate = LaneGate::new();
     let held = gate.acquire(RequestClass::InteractiveRead).unwrap();
@@ -50,6 +71,7 @@ fn dispatch_class_round_trips_through_the_thread_local() {
 
 #[test]
 fn lane_orders_cover_every_lane_exactly_once() {
+    let _serial = ALLOWANCE_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let reads: Vec<usize> = read_lane_order().collect();
     assert_eq!(reads.len(), read_lanes());
     let mut sorted = reads.clone();

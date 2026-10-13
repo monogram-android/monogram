@@ -307,6 +307,20 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
             return@launch
         }
         if (!ownsRequest()) return@launch
+        if (historyTop <= 0) {
+            val cached = warmup?.olderMessages(chatId, boundaryId, HISTORY_PAGE_LIMIT).orEmpty()
+            if (!ownsRequest()) return@launch
+            if (cached.size == HISTORY_PAGE_LIMIT) {
+                emit(Msg.AppendOlder(cached))
+                serverHistoryBoundaryId = cached.minOf { it.id.id }
+                emit(Msg.HasOlder(true))
+                emit(Msg.LoadingOlder(false))
+                activeOlderRequestId = null
+                continueUnreadPaging()
+                resolveSendersLater(cached)
+                return@launch
+            }
+        }
         when (
             val result = if (historyTop > 0) {
                 client.getReplies(
@@ -343,11 +357,17 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
                 activeOlderRequestId = null
                 if (warmup?.usesIoDispatcher == true || sessionStore != null) {
                     withContext(Dispatchers.IO) {
-                        warmup?.upsertMessages(result.value)
+                        if (historyTop <= 0) warmup?.cacheHistoryPage(
+                            chatId, result.value, olderBoundary = boundaryId,
+                            reachesOldest = !historyHasMore(result.value.size),
+                        ) else warmup?.upsertMessages(result.value)
                         sessionStore?.upsertPeerMins(result.value)
                     }
                 } else {
-                    warmup?.upsertMessages(result.value)
+                    if (historyTop <= 0) warmup?.cacheHistoryPage(
+                        chatId, result.value, olderBoundary = boundaryId,
+                        reachesOldest = !historyHasMore(result.value.size),
+                    ) else warmup?.upsertMessages(result.value)
                     sessionStore?.upsertPeerMins(result.value)
                 }
                 continueUnreadPaging()

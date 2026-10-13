@@ -84,7 +84,11 @@ internal class AudioMessagePlayback(
         val descriptor = MediaViewerItem(
             id = id,
             kind = if (message.mediaKind == "voice") MediaViewerKind.VOICE else MediaViewerKind.AUDIO,
-            source = file?.let(MediaSource::Local),
+            source = file?.let {
+                MediaSource.Local(
+                    it,
+                    message.mediaCacheKey?.let { key -> repo?.createCachedDataSourceFactory(key) })
+            },
             fileName = title,
             senderName = message.senderName,
             durationSeconds = message.mediaDuration,
@@ -121,7 +125,16 @@ internal class AudioMessagePlayback(
                     repository = null
                     cacheKey = null
                     clearRetry()
-                    session.setQueue(listOf(descriptor.copy(source = MediaSource.Local(result.value), loading = false)), 0,
+                    session.setQueue(
+                        listOf(
+                            descriptor.copy(
+                                source = MediaSource.Local(
+                                    result.value,
+                                    message.mediaCacheKey?.let {
+                                        checkNotNull(repo).createCachedDataSourceFactory(it)
+                                    }), loading = false
+                            )
+                        ), 0,
                         autoplay = true, startMuted = false)
                     session.play()
                 }

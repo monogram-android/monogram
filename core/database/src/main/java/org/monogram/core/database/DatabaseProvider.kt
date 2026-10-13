@@ -16,7 +16,7 @@ object DatabaseProvider {
     @Volatile
     private var instance: MonogramDatabase? = null
 
-    const val SCHEMA_VERSION = 5
+    const val SCHEMA_VERSION = 7
 
     val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -46,6 +46,18 @@ object DatabaseProvider {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("CREATE INDEX IF NOT EXISTS index_chats_archived_left_pinned_pinnedOrder_lastMessageDate_id ON chats (archived ASC, `left` ASC, pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC)")
             db.execSQL("CREATE TABLE IF NOT EXISTS message_holes (chatId INTEGER NOT NULL, startId INTEGER NOT NULL, endId INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(chatId, startId, endId, source))")
+        }
+    }
+
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS message_tombstones (chatId INTEGER NOT NULL, id INTEGER NOT NULL, PRIMARY KEY(chatId, id))")
+        }
+    }
+
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE messages ADD COLUMN failed INTEGER NOT NULL DEFAULT 0")
         }
     }
 
@@ -117,7 +129,14 @@ object DatabaseProvider {
 
     private fun build(app: Context): MonogramDatabase =
         Room.databaseBuilder(app, MonogramDatabase::class.java, DB_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7
+            )
             .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .setQueryExecutor(roomExecutor)
             .setTransactionExecutor(roomExecutor)

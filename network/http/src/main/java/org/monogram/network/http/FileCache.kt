@@ -1,6 +1,8 @@
 package org.monogram.network.http
 
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.security.MessageDigest
 
 data class CacheRecord(
@@ -15,11 +17,56 @@ class FileCache(
     private val maxBytes: Long = 256L * 1024L * 1024L,
     private val maintainOnInit: Boolean = true,
 ) {
+    enum class AdmissionFailure { Capacity, Storage, InUse }
+    class AdmissionException(val reason: AdmissionFailure) : IOException(
+        when (reason) {
+            AdmissionFailure.Capacity -> "media exceeds cache capacity"
+            AdmissionFailure.Storage -> "insufficient media cache storage"
+            AdmissionFailure.InUse -> "cache entry is in use"
+        }
+    )
     private val indexFile = File(root, INDEX_NAME)
     private val records = LinkedHashMap<String, CacheRecord>()
     private val recordsLock = Any()
     private var indexLoaded = false
     private val protectedKeys = HashMap<String, Set<String>>()
+    private val leases = HashMap<String, Int>()
+    private val pendingDeletes = HashSet<String>()
+
+    class Lease internal constructor(val file: File, private val release: () -> Unit) :
+        AutoCloseable {
+        private val closed = java.util.concurrent.atomic.AtomicBoolean(false)
+        override fun close() {
+            if (closed.compareAndSet(false, true)) release()
+        }
+    }
+
+    fun acquire(key: String): Lease? = synchronized(recordsLock) {
+        val file = get(key) ?: return@synchronized null
+        val name = diskName(key)
+        leases[name] = (leases[name] ?: 0) + 1
+        Lease(file) {
+            synchronized(recordsLock) {
+                val remaining = (leases[name] ?: 1) - 1
+                if (remaining == 0) leases.remove(name) else leases[name] = remaining
+                flushPendingDeletes()
+            }
+        }
+    }
+
+    private fun protected(key: String): Boolean =
+        (leases[diskName(key)] ?: 0) > 0 || protectedKeys.values.any { keys ->
+            keys.any { diskName(it) == diskName(key) }
+        }
+
+    private fun pendingDeletion(key: String): Boolean =
+        pendingDeletes.any { diskName(it) == diskName(key) }
+
+    private fun flushPendingDeletes() {
+        val ready = pendingDeletes.filterNot(::protected)
+        if (ready.isEmpty()) return
+        deleteKeys(ready)
+    }
 
     init {
         root.mkdirs()
@@ -40,30 +87,73 @@ class FileCache(
 
     fun fileFor(key: String): File = File(root, diskName(key))
 
-    fun get(key: String): File? {
+    fun get(key: String): File? = synchronized(recordsLock) {
+        if (pendingDeletion(key)) return@synchronized null
         val file = fileFor(key)
-        if (!file.exists()) return null
+        if (!file.isFile) return@synchronized null
         file.setLastModified(System.currentTimeMillis())
-        return file
+        file
     }
 
     fun setProtectedKeys(owner: String, keys: Collection<String>) = synchronized(recordsLock) {
         if (keys.isEmpty()) protectedKeys.remove(owner)
         else protectedKeys[owner] = keys.filter(String::isNotBlank).toSet()
+        flushPendingDeletes()
     }
+
+    fun publishLeased(
+        key: String,
+        source: File,
+        chatId: Long? = null,
+        kind: String? = null
+    ): Lease =
+        synchronized(recordsLock) {
+            val owner = "publication:${java.util.UUID.randomUUID()}"
+            protectedKeys[owner] = setOf(key)
+            try {
+                putFileInternal(key, source, chatId, kind, temporary = true)
+                checkNotNull(acquire(key)).also {
+                    if (source.length() + protectedBytesExcept(key) > maxBytes) pendingDeletes.add(
+                        key
+                    )
+                }
+            } finally {
+                protectedKeys.remove(owner)
+            }
+        }
 
     fun put(key: String, bytes: ByteArray, chatId: Long? = null, kind: String? = null): File =
         synchronized(recordsLock) {
             ensureIndexLoaded()
             val file = fileFor(key)
             file.parentFile?.mkdirs()
-            file.writeBytes(bytes)
+            checkAdmission(key, bytes.size.toLong())
+            val staging = File.createTempFile("publish-", ".part", root)
+            try {
+                FileOutputStream(staging).use { output ->
+                    output.write(bytes)
+                    output.fd.sync()
+                }
+                replace(staging, file)
+            } finally {
+                staging.delete()
+            }
             remember(key, chatId, kind ?: inferKind(key), file.length())
             trimIfNeeded()
+            if (!file.isFile) throw IOException("cache admission failed")
             file
         }
 
     fun putFile(key: String, source: File, chatId: Long? = null, kind: String? = null): File =
+        putFileInternal(key, source, chatId, kind, temporary = false)
+
+    private fun putFileInternal(
+        key: String,
+        source: File,
+        chatId: Long?,
+        kind: String?,
+        temporary: Boolean
+    ): File =
         synchronized(recordsLock) {
             ensureIndexLoaded()
             val target = fileFor(key)
@@ -71,17 +161,69 @@ class FileCache(
             if (!source.exists()) {
                 error("media cache source missing")
             }
-            if (source.canonicalFile != target.canonicalFile) {
-                source.copyTo(target, overwrite = true)
+            val sameFile = source.canonicalFile == target.canonicalFile
+            checkAdmission(key, source.length(), temporary, if (sameFile) 0 else source.length())
+            if (!sameFile) {
+                val staging = File.createTempFile("publish-", ".part", root)
+                try {
+                    source.inputStream().use { input ->
+                        FileOutputStream(staging).use { output ->
+                            input.copyTo(output)
+                            output.fd.sync()
+                        }
+                    }
+                    replace(staging, target)
+                } finally {
+                    staging.delete()
+                }
             }
             remember(key, chatId, kind ?: inferKind(key), target.length())
             trimIfNeeded()
+            if (!target.isFile) throw IOException("cache admission failed")
             target
         }
+
+    private fun protectedBytesExcept(key: String): Long {
+        val names = leases.keys + protectedKeys.values.flatten().map(::diskName)
+        return names.asSequence().distinct().filter { it != diskName(key) }
+            .sumOf { File(root, it).length() }
+    }
+
+    private fun checkAdmission(
+        key: String,
+        bytes: Long,
+        temporary: Boolean = false,
+        additionalBytes: Long = bytes
+    ) {
+        if ((leases[diskName(key)] ?: 0) > 0 || pendingDeletion(key)) {
+            throw AdmissionException(AdmissionFailure.InUse)
+        }
+        if (!temporary && (bytes > maxBytes || protectedBytesExcept(key) > maxBytes - bytes)) {
+            throw AdmissionException(AdmissionFailure.Capacity)
+        }
+        if (bytes < 0 || root.usableSpace - additionalBytes < FREE_SPACE_RESERVE) {
+            throw AdmissionException(AdmissionFailure.Storage)
+        }
+    }
+
+    private fun replace(source: File, target: File) {
+        if (android.os.Build.VERSION.SDK_INT == 0 || android.os.Build.VERSION.SDK_INT >= 26) {
+            java.nio.file.Files.move(
+                source.toPath(),
+                target.toPath(),
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            )
+            return
+        }
+        if (!source.renameTo(target)) throw IOException("cache atomic replacement failed")
+    }
 
     fun remember(key: String, chatId: Long?, kind: String, bytes: Long) {
         synchronized(recordsLock) {
             ensureIndexLoaded()
+            records.keys.filter { it != key && diskName(it) == diskName(key) }
+                .forEach(records::remove)
             records[key] = normalized(key, chatId, kind, bytes)
             persistIndex()
         }
@@ -147,14 +289,8 @@ class FileCache(
     /** Deletes all cached files. Used by settings "clear media cache". */
     fun clear(): Long = synchronized(recordsLock) {
         ensureIndexLoaded()
-        var freed = 0L
-        root.walkTopDown().filter { it.isFile && it.name != INDEX_NAME }.forEach { file ->
-            val len = file.length()
-            if (file.delete()) freed += len
-        }
-        records.clear()
-        persistIndex()
-        freed
+        backfillUnindexed()
+        deleteKeys(records.keys.toList())
     }
 
     fun totalBytes(): Long =
@@ -168,9 +304,7 @@ class FileCache(
         val ordered = files.sortedBy { it.lastModified() }
         for (file in ordered) {
             if (total <= maxBytes) break
-            val recordKey =
-                records.keys.firstOrNull { fileFor(it).canonicalFile == file.canonicalFile }
-            if (protectedKeys.values.any { recordKey in it }) continue
+            if (protected(ORPHAN_PREFIX + file.name)) continue
             val len = file.length()
             if (file.delete()) {
                 total -= len
@@ -185,11 +319,16 @@ class FileCache(
         ensureIndexLoaded()
         var freed = 0L
         keys.forEach { key ->
+            if (protected(key)) {
+                pendingDeletes.add(key)
+                return@forEach
+            }
             val file = fileFor(key)
-            val len = if (file.exists()) file.length() else records[key]?.bytes ?: 0L
+            val len = if (file.exists()) file.length() else 0L
             if (!file.exists() || file.delete()) {
                 freed += len
                 records.remove(key)
+                pendingDeletes.remove(key)
             }
         }
         persistIndex()
@@ -257,7 +396,16 @@ class FileCache(
             val chat = row.chatId?.toString().orEmpty()
             "${row.key}\t$chat\t${row.kind}\t${row.bytes}"
         }
-        indexFile.writeText(text)
+        val staging = File.createTempFile("index-", ".part", root)
+        try {
+            FileOutputStream(staging).use { output ->
+                output.write(text.toByteArray(Charsets.UTF_8))
+                output.fd.sync()
+            }
+            replace(staging, indexFile)
+        } finally {
+            staging.delete()
+        }
     }
 
     private fun isStaging(name: String): Boolean =
@@ -272,6 +420,7 @@ class FileCache(
     }
 
     companion object {
+        const val FREE_SPACE_RESERVE = 128L * 1024 * 1024
         const val INDEX_NAME = "index.tsv"
         const val ORPHAN_PREFIX = "orphan:"
         const val KIND_PHOTOS = "photos"

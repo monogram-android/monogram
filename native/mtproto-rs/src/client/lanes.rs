@@ -294,11 +294,19 @@ pub(crate) fn acquire_lane_family<'a>(
     lane_at: impl Fn(usize) -> &'a Lane,
 ) -> Result<LaneLease<'a>, MtprotoError> {
     let wait = crate::perf::span(span);
+    let waiters: Vec<_> = order.clone().map(|index| {
+        let lane = lane_at(index);
+        (lane, lane.gate.enqueue(class))
+    }).collect();
+    if waiters.is_empty() {
+        return Err(MtprotoError::Message("no authorized request lane".into()));
+    }
     let mut counted = false;
     loop {
         crate::request_control::check().map_err(|e| MtprotoError::Message(e.to_string()))?;
-        for index in order.clone() {
-            if let Some(lease) = lane_at(index).try_lease(class) {
+        for (lane, waiter) in &waiters {
+            if let Some(gate) = waiter.try_acquire() {
+                let lease = LaneLease { _gate: gate, io: lane.io.lock() };
                 drop(wait);
                 return Ok(lease);
             }
@@ -307,9 +315,6 @@ pub(crate) fn acquire_lane_family<'a>(
             counted = true;
             crate::perf::count(wait_counter);
         }
-        let index = order.clone().last().unwrap_or(0);
-        let lease = lane_at(index).lease(class)?;
-        drop(wait);
-        return Ok(lease);
+        waiters[0].1.wait();
     }
 }

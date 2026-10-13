@@ -520,6 +520,7 @@ class TabletStateTest {
                 "hashCode" -> System.identityHashCode(proxy)
                 "toString" -> "TabletStateFakeClient"
                 "libraryVersion" -> "test"
+                "proxyConnectionStatus" -> org.monogram.network.bridge.session.ProxyConnectionStatus.Disabled
                 "updates", "sessionLost" -> emptyFlow<Nothing>()
                 "getChats" -> Outcome.Ok(chats)
                 "getFolders" -> Outcome.Ok(folders)

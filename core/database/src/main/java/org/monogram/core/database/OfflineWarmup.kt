@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.sync.Mutex
@@ -191,8 +192,9 @@ open class OfflineWarmup(
         recentHistory.invalidate(message.id.chatId.value)
         val database = db ?: return@roomIo
         database.withTransaction {
-            database.messageDao().upsertAll(listOf(message.toEntity()))
-            refreshPreview(message.id.chatId, message.id.id)
+            if (mergeMessages(listOf(message)).isNotEmpty()) {
+                refreshPreview(message.id.chatId, message.id.id)
+            }
         }
     }
 
@@ -279,16 +281,41 @@ open class OfflineWarmup(
         }
     }
 
-    /** Drops stuck local rows with no random_id. Pending sends with a random_id wait for updateMessageID. */
+    /** Drops failed/error rows and stuck local rows without a random id. Valid pending sends survive restart. */
     open suspend fun dropUnsentAfterRestart() {
         val database = db ?: return
         roomIo {
             database.withTransaction {
-                val chatIds = database.messageDao().unsentChatIds()
+                val chatIds = database.messageDao().startupTransientChatIds()
                 if (chatIds.isEmpty()) return@withTransaction
-                database.messageDao().deleteUnsent()
+                database.messageDao().deleteStartupTransient()
                 chatIds.forEach { refreshLatestPreview(PeerId(it)) }
             }
+        }
+    }
+
+    open suspend fun markMessageFailed(chatId: PeerId, messageId: Int) = roomIo {
+        recentHistory.invalidate(chatId.value)
+        db?.messageDao()?.markFailed(chatId.value, messageId)
+    }
+
+    open suspend fun reconcileOutgoing(pendingId: Int, message: Message, randomId: Long?) = roomIo {
+        require(message.id.id > 0)
+        recentHistory.invalidate(message.id.chatId.value)
+        val database = db
+        if (database == null) {
+            deleteMessage(message.id.chatId, pendingId)
+            upsertMessages(listOf(message))
+            return@roomIo
+        }
+        database.withTransaction {
+            val pending = database.messageDao().byIds(message.id.chatId.value, listOf(pendingId))
+                .singleOrNull()
+            if (pendingId != message.id.id && randomId != null && randomId != 0L && pending?.randomId == randomId) {
+                database.messageDao().delete(message.id.chatId.value, pendingId)
+            }
+            mergeMessages(listOf(message.copy(pending = false, failed = false)))
+            refreshPreview(message.id.chatId, pendingId)
         }
     }
 
@@ -330,6 +357,9 @@ open class OfflineWarmup(
         return withContext(DatabaseProvider.roomDispatcher) {
             ensureStartupCleanup()
             val rows = database.messageDao().olderThan(chatId.value, beforeId, limit)
+            if (database.metaDao()
+                    .get("history_coverage:${chatId.value}") == null
+            ) return@withContext emptyList()
             if (rows.isEmpty()) return@withContext emptyList()
             if (database.messageHoleDao().overlaps(
                     chatId.value, rows.minOf { it.id }, beforeId - 1,
@@ -348,6 +378,9 @@ open class OfflineWarmup(
         return withContext(DatabaseProvider.roomDispatcher) {
             ensureStartupCleanup()
             val rows = database.messageDao().newerThan(chatId.value, afterId, limit)
+            if (database.metaDao()
+                    .get("history_coverage:${chatId.value}") == null
+            ) return@withContext emptyList()
             if (rows.isEmpty()) return@withContext emptyList()
             if (database.messageHoleDao().overlaps(
                     chatId.value, afterId + 1, rows.maxOf { it.id },
@@ -370,6 +403,7 @@ open class OfflineWarmup(
         reachesOldest: Boolean = false,
         olderBoundary: Int? = null,
     ) = roomIo {
+        recentHistory.invalidate(chatId.value)
         val database = db
         if (database == null) {
             upsertMessages(messages)
@@ -377,17 +411,28 @@ open class OfflineWarmup(
         }
         database.withTransaction {
             val metaKey = "history_coverage:${chatId.value}"
+            val holeDao = database.messageHoleDao()
             if (database.metaDao().get(metaKey) == null) {
-                markHistoryHole(chatId, 1, Int.MAX_VALUE)
+                val holes = mergeHistoryHoles(
+                    holeDao.forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY) +
+                            MessageHoleEntity(chatId.value, 1, Int.MAX_VALUE)
+                )
+                holeDao.clearChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
+                holes.forEach { holeDao.insert(it) }
                 database.metaDao()
                     .upsert(org.monogram.core.database.entity.MetaEntity(metaKey, "1"))
             }
-            upsertMessages(messages)
+            mergeMessages(messages)
             val ids = messages.filter { !it.pending && it.id.id > 0 }.map { it.id.id }
             val min = if (reachesOldest) 1 else ids.minOrNull()
             val max =
                 if (reachesNewest) Int.MAX_VALUE else olderBoundary?.minus(1) ?: ids.maxOrNull()
-            if (min != null && max != null && min <= max) closeHistoryHole(chatId, min, max)
+            if (min != null && max != null && min <= max) {
+                val holes = holeDao.forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
+                    .flatMap { subtractHistoryRange(it, min, max) }
+                holeDao.clearChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
+                holes.forEach { holeDao.insert(it) }
+            }
         }
     }
 
@@ -480,21 +525,48 @@ open class OfflineWarmup(
     open suspend fun replaceMessages(chatId: PeerId, messages: List<Message>) = roomIo {
         recentHistory.invalidate(chatId.value)
         val database = db ?: return@roomIo
-        database.messageDao().clearChat(chatId.value)
-        if (messages.isNotEmpty()) {
-            database.messageDao().upsertAll(messages.map { it.toEntity() })
+        database.withTransaction {
+            mergeMessages(messages)
+            database.messageDao().deleteExcept(chatId.value, messages.map { it.id.id })
         }
     }
 
     open suspend fun upsertMessages(messages: List<Message>) = roomIo {
         messages.map { it.id.chatId.value }.distinct().forEach(recentHistory::invalidate)
         if (messages.isEmpty()) return@roomIo
-        db?.messageDao()?.upsertAll(messages.map { it.toEntity() })
+        val database = db ?: return@roomIo
+        for (batch in messages.chunked(100)) {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            database.withTransaction { mergeMessages(batch) }
+            kotlinx.coroutines.yield()
+        }
+    }
+
+    private suspend fun mergeMessages(messages: List<Message>): List<Message> {
+        val database = db ?: return emptyList()
+        val accepted = mutableListOf<Message>()
+        for ((chatId, rows) in messages.groupBy { it.id.chatId.value }) {
+            val ids = rows.map { it.id.id }
+            val deleted = database.messageTombstoneDao().deletedIds(chatId, ids).toSet()
+            val stored =
+                database.messageDao().byIds(chatId, ids).associateBy { it.id }.toMutableMap()
+            for (message in rows) {
+                if (message.id.id in deleted) continue
+                val incoming = message.toEntity()
+                val previous = stored[incoming.id]
+                if (previous != null && (previous.editDate ?: 0L) > (incoming.editDate
+                        ?: 0L)
+                ) continue
+                stored[incoming.id] = incoming
+                accepted += message
+            }
+        }
+        if (accepted.isNotEmpty()) database.messageDao().upsertAll(accepted.map { it.toEntity() })
+        return accepted
     }
 
     open suspend fun deleteMessage(chatId: PeerId, messageId: Int) = roomIo {
-        recentHistory.invalidate(chatId.value)
-        db?.messageDao()?.delete(chatId.value, messageId)
+        deleteMessages(chatId, listOf(messageId))
     }
 
     open suspend fun deleteMessages(chatId: PeerId?, messageIds: Collection<Int>) = roomIo {
@@ -507,6 +579,9 @@ open class OfflineWarmup(
             // while this transaction is open and then open a nested one.
             val affected =
                 database.chatDao().withLastMessageIds(chatId?.value, ids).map { it.toModel() }
+            database.messageTombstoneDao().insert(ids.filter { it > 0 }.map {
+                org.monogram.core.database.entity.MessageTombstoneEntity(chatId?.value ?: 0L, it)
+            })
             if (chatId != null) {
                 database.messageDao().deleteInChat(chatId.value, ids)
             } else {
@@ -557,16 +632,21 @@ open class OfflineWarmup(
         recentHistory.invalidate(message.id.chatId.value)
         val database = db ?: return@roomIo
         database.withTransaction {
-            database.messageDao().upsertAll(listOf(message.toEntity()))
+            val existed =
+                database.messageDao().byIds(message.id.chatId.value, listOf(message.id.id))
+                    .isNotEmpty()
+            if (mergeMessages(listOf(message)).isEmpty()) return@withTransaction
             val stored = database.chatDao().get(message.id.chatId.value)?.toModel()
             val unread =
-                if (message.outgoing || message.id.id <= (stored?.readInboxMaxId ?: 0) ||
-                    message.id.id <= (stored?.lastMessageId ?: 0)
-                ) {
+                if (existed || message.outgoing || message.id.id <= (stored?.readInboxMaxId ?: 0)) {
                     stored?.unreadCount ?: 0
                 } else {
                     (stored?.unreadCount ?: 0) + 1
                 }
+            if (stored != null && message.id.id < stored.lastMessageId) {
+                database.chatDao().upsertAll(listOf(stored.copy(unreadCount = unread).toEntity()))
+                return@withTransaction
+            }
             val chat = (stored ?: placeholderChat(message.id.chatId)).copy(
                 lastMessagePreview = message.chatListPreviewSource(),
                 lastMessageOutgoing = message.outgoing,
@@ -589,6 +669,7 @@ open class OfflineWarmup(
         recentWarmupChats = emptyList()
         val database = db ?: return@roomIo
         database.messageDao().clearAll()
+        database.messageTombstoneDao().clear()
         database.chatDao().clear()
         database.folderDao().clear()
         database.peerDao().clear()

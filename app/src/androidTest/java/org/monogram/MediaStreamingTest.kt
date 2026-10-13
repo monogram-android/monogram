@@ -14,10 +14,98 @@ import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
 import org.monogram.network.http.TelegramChunkFetcher
 import org.monogram.network.http.TelegramVideoDataSource
+import org.monogram.network.http.FileCache
 import java.io.File
 import java.io.RandomAccessFile
 
 class MediaStreamingTest {
+    @Test
+    fun streamedRangesSurviveClearUntilAllReadersClose() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val directory = File(context.cacheDir, "streamed-range-lease")
+        directory.deleteRecursively()
+        val cache = FileCache(directory)
+        val expected = ByteArray(TelegramVideoDataSource.PART_SIZE.toInt()) { (it % 251).toByte() }
+        val message = Message(
+            MessageId(PeerId(42), 12),
+            senderId = null,
+            text = null,
+            date = 0,
+            outgoing = false,
+            mediaKind = "video",
+            mediaCacheKey = "video:range-lease",
+            fileSize = expected.size.toLong()
+        )
+        var fetches = 0
+        val factory = TelegramVideoDataSource.Factory(
+            message,
+            directory,
+            TelegramChunkFetcher { _, _, path, _ ->
+                fetches++
+                File(path).writeBytes(expected)
+                Outcome.Ok(path)
+            },
+            cache
+        )
+        val first = factory.createDataSource()
+        val second = factory.createDataSource()
+        val spec = DataSpec.Builder().setUri("telegram://media/lease").build()
+        try {
+            first.open(spec)
+            second.open(spec)
+            assertEquals(1, first.read(ByteArray(1), 0, 1))
+            assertEquals(1, second.read(ByteArray(1), 0, 1))
+            assertEquals(1, fetches)
+            assertEquals(0L, cache.clear())
+            first.close()
+            val actual = ByteArray(32)
+            assertEquals(32, second.read(actual, 0, 32))
+            assertArrayEquals(expected.copyOfRange(1, 33), actual)
+            assertEquals(expected.size.toLong(), cache.totalBytes())
+            second.close()
+            assertEquals(0L, cache.totalBytes())
+        } finally {
+            first.close()
+            second.close()
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun cachedPlaybackKeepsLeaseUntilReaderCloses() = kotlinx.coroutines.runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val directory = File(context.cacheDir, "leased-playback-regression")
+        directory.deleteRecursively()
+        val repository = org.monogram.network.http.MediaRepository(
+            directory,
+            telegramFetcher = org.monogram.network.http.TelegramMediaFetcher { _, _, path, _, _ ->
+                File(path).writeBytes(byteArrayOf(1, 2, 3, 4))
+                Outcome.Ok(path)
+            })
+        val source = repository.createCachedDataSourceFactory("photo:lease").createDataSource()
+        try {
+            val result = repository.ensureIndexedMedia(
+                PeerId(42),
+                1,
+                "photo:lease",
+                priority = org.monogram.network.http.MediaPriority.USER
+            )
+            assertTrue(result is Outcome.Ok)
+            val file = (result as Outcome.Ok).value
+            source.open(DataSpec.Builder().setUri(Uri.fromFile(file)).build())
+            assertEquals(0L, repository.clearCache())
+            val bytes = ByteArray(4)
+            assertEquals(4, source.read(bytes, 0, 4))
+            assertArrayEquals(byteArrayOf(1, 2, 3, 4), bytes)
+            source.close()
+            assertTrue(!file.exists())
+        } finally {
+            source.close()
+            repository.shutdown()
+            directory.deleteRecursively()
+        }
+    }
+
     @Test
     fun arbitrarySeekReadsAlignedPartsAndCleansTemporaryFiles() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -34,7 +122,7 @@ class MediaStreamingTest {
             val start = offset.toInt()
             val chunk = bytes.copyOfRange(start, minOf(start + partSize, bytes.size))
             RandomAccessFile(destination, "rw").use { file ->
-                file.seek(offset)
+                file.setLength(0)
                 file.write(chunk)
             }
             Outcome.Ok(destination)
@@ -83,7 +171,7 @@ class MediaStreamingTest {
             TelegramChunkFetcher { _, _, destination, requested ->
                 assertEquals(offset, requested)
                 RandomAccessFile(destination, "rw").use { file ->
-                    file.seek(requested)
+                    file.setLength(0)
                     file.write(partial)
                 }
                 Outcome.Ok(destination)

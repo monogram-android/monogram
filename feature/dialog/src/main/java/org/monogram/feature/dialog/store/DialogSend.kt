@@ -252,15 +252,15 @@ internal suspend fun DialogExecutor.replaceOutgoing(pendingId: Int, sent: Messag
         sent.copy(entities = pending?.entities.orEmpty())
     } else sent
     emit(Msg.ReplacePending(pendingId, resolved))
-    warmup?.deleteMessage(chatId, pendingId)
-    warmup?.upsertMessages(listOf(resolved))
+    warmup?.reconcileOutgoing(pendingId, resolved, pending?.randomId)
 }
 
-internal fun DialogExecutor.failOrKeepOutgoing(pendingId: Int, error: TelegramError) {
+internal suspend fun DialogExecutor.failOrKeepOutgoing(pendingId: Int, error: TelegramError) {
     if (isTransientSendFailure(error)) {
         AppLog.warn("dialog", error.logLine())
         return
     }
+    warmup?.markMessageFailed(chatId, pendingId)
     emit(Msg.MarkFailed(pendingId))
     handleError(error, false)
 }
@@ -314,13 +314,12 @@ internal fun DialogExecutor.bindPendingId(randomId: Long, messageId: Int) {
     PerfLog.event("send", "phase=update_message_id")
     emit(Msg.BindPending(mappedRandomId, messageId))
     work.launch {
-        warmup?.deleteMessage(chatId, pending.id.id)
         val bound = pending.copy(
             id = MessageId(pending.id.chatId, messageId),
             pending = false,
             failed = false,
         )
-        warmup?.upsertMessages(listOf(bound))
+        warmup?.reconcileOutgoing(pending.id.id, bound, pending.randomId)
     }
 }
 

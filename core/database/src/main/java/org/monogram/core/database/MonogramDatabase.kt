@@ -6,6 +6,7 @@ import org.monogram.core.database.dao.ChatDao
 import org.monogram.core.database.dao.FolderDao
 import org.monogram.core.database.dao.MessageDao
 import org.monogram.core.database.dao.MessageHoleDao
+import org.monogram.core.database.dao.MessageTombstoneDao
 import org.monogram.core.database.dao.MetaDao
 import org.monogram.core.database.dao.PeerDao
 import org.monogram.core.database.dao.ProfileCommonDao
@@ -33,6 +34,7 @@ import org.monogram.core.database.entity.UpdateCursorEntity
         ChatEntity::class,
         FolderEntity::class,
         MessageEntity::class,
+        org.monogram.core.database.entity.MessageTombstoneEntity::class,
         MessageHoleEntity::class,
         UpdateCursorEntity::class,
         PeerEntity::class,
@@ -42,7 +44,7 @@ import org.monogram.core.database.entity.UpdateCursorEntity
         ProfileCommonEntity::class,
         SponsorEntity::class,
     ],
-    version = 5,
+    version = 7,
     exportSchema = true,
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -50,6 +52,7 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun folderDao(): FolderDao
     abstract fun messageDao(): MessageDao
+    abstract fun messageTombstoneDao(): MessageTombstoneDao
     abstract fun messageHoleDao(): MessageHoleDao
     abstract fun updateCursorDao(): UpdateCursorDao
     abstract fun peerDao(): PeerDao

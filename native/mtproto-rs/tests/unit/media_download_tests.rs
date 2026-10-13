@@ -537,6 +537,33 @@ fn media_range_fetches_one_aligned_part_and_rejects_invalid_bounds() {
             fs::remove_file(&path).unwrap();
         }
     }
+    for callback in [false, true] {
+        let origin = 2 * i64::from(CHUNK);
+        download_media_range_batched_streaming(
+            2, &media, &path, &path, Some(origin), 8,
+            |_, requests, on_chunk| {
+                assert_eq!(requests.len(), 4);
+                let mut results = Vec::new();
+                for (index, request) in requests.into_iter().enumerate() {
+                    let result = Ok(UploadFile::UploadFile(UploadFileConstructor {
+                        type_: Box::new(StorageFileType::StorageFileUnknown(StorageFileUnknownConstructor {})),
+                        mtime: 0,
+                        bytes: vec![(request.offset / i64::from(CHUNK)) as u8; CHUNK as usize],
+                    }));
+                    if callback { assert!(on_chunk(index, result.clone()).is_none()); }
+                    results.push(result);
+                }
+                Ok(results)
+            },
+        ).unwrap();
+        let bytes = fs::read(&path).unwrap();
+        assert_eq!(bytes.len(), 512 * 1024);
+        for index in 0..4 {
+            assert!(bytes[index * CHUNK as usize..(index + 1) * CHUNK as usize]
+                .iter().all(|byte| *byte == (index + 2) as u8));
+        }
+        fs::remove_file(&path).unwrap();
+    }
     for offset in [-1, 1, i64::from(CHUNK) + 1] {
         assert!(
             download_media_range_with_fetch(2, &media, &path, &path, Some(offset), |_| {

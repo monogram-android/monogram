@@ -79,6 +79,7 @@ object DialogMediaPreload {
         preset: AutoDownloadPreset = DownloadSettings.activePreset(),
         autoplayVideos: Boolean = true,
         autoplayGifs: Boolean = true,
+        scrollDirection: Int = 0,
     ): Plan {
         if (messages.isEmpty()) {
             return Plan(IntRange.EMPTY, IntRange.EMPTY, emptyList(), emptyList())
@@ -92,8 +93,17 @@ object DialogMediaPreload {
             return Plan(IntRange.EMPTY, IntRange.EMPTY, emptyList(), emptyList())
         }
         val visibleRange = visibleIndices.min()..visibleIndices.max()
-        val window = (visibleRange.first - radius).coerceAtLeast(0)..
-                (visibleRange.last + radius).coerceAtMost(messages.lastIndex)
+        val boundedRadius = radius.coerceAtLeast(0)
+        val ahead = boundedRadius + boundedRadius / 2
+        val behind = boundedRadius * 2 - ahead
+        val before = when {
+            scrollDirection < 0 -> ahead; scrollDirection > 0 -> behind; else -> boundedRadius
+        }
+        val after = when {
+            scrollDirection > 0 -> ahead; scrollDirection < 0 -> behind; else -> boundedRadius
+        }
+        val window = (visibleRange.first - before).coerceAtLeast(0)..
+                (visibleRange.last + after).coerceAtMost(messages.lastIndex)
         val media = ArrayList<MediaTask>()
         val instantViews = ArrayList<InstantViewTask>()
         val seenIv = HashSet<String>()

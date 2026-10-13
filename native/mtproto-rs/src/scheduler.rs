@@ -223,6 +223,15 @@ struct GateState {
 struct Waiter {
     ticket: u64,
     priority: u8,
+    queued_at: std::time::Instant,
+}
+
+impl Waiter {
+    fn order_at(&self, now: std::time::Instant) -> (u8, u64) {
+        let promotion = (now.saturating_duration_since(self.queued_at).as_secs() / 5).min(4) as u8;
+        let priority = if self.priority > 2 { self.priority.saturating_sub(promotion).max(1) } else { self.priority };
+        (priority, self.ticket)
+    }
 }
 
 /// Holds a lane; releases it (and wakes the best waiter) on drop.
@@ -235,14 +244,26 @@ pub(crate) struct LaneWaiter<'a> {
     ticket: u64,
 }
 
-impl LaneWaiter<'_> {
+impl<'a> LaneWaiter<'a> {
+    pub(crate) fn try_acquire(&self) -> Option<LaneGuard<'a>> {
+        let mut state = self.gate.state.lock();
+        let now = std::time::Instant::now();
+        let best = state.waiters.iter().min_by_key(|waiter| waiter.order_at(now));
+        if state.busy || !best.is_some_and(|waiter| waiter.ticket == self.ticket) {
+            return None;
+        }
+        state.busy = true;
+        state.waiters.retain(|waiter| waiter.ticket != self.ticket);
+        Some(LaneGuard { gate: self.gate })
+    }
+
     pub(crate) fn is_next(&self) -> bool {
         self.gate
             .state
             .lock()
             .waiters
             .iter()
-            .min_by_key(|waiter| (waiter.priority, waiter.ticket))
+            .min_by_key(|waiter| waiter.order_at(std::time::Instant::now()))
             .is_some_and(|waiter| waiter.ticket == self.ticket)
     }
 
@@ -285,6 +306,7 @@ impl LaneGate {
         state.waiters.push_back(Waiter {
             ticket,
             priority: class.priority(),
+            queued_at: std::time::Instant::now(),
         });
         self.wake.notify_all();
         LaneWaiter { gate: self, ticket }
@@ -304,7 +326,7 @@ impl LaneGate {
             || state
                 .waiters
                 .iter()
-                .any(|waiter| waiter.priority < priority)
+                .any(|waiter| waiter.order_at(std::time::Instant::now()).0 <= priority)
         {
             return None;
         }
@@ -319,7 +341,7 @@ impl LaneGate {
             let mut state = self.state.lock();
             let ticket = state.next_ticket;
             state.next_ticket += 1;
-            state.waiters.push_back(Waiter { ticket, priority });
+            state.waiters.push_back(Waiter { ticket, priority, queued_at: std::time::Instant::now() });
             ticket
         };
         loop {
@@ -335,7 +357,7 @@ impl LaneGate {
             let best = state
                 .waiters
                 .iter()
-                .min_by_key(|waiter| (waiter.priority, waiter.ticket))
+                .min_by_key(|waiter| waiter.order_at(std::time::Instant::now()))
                 .map(|waiter| waiter.ticket);
             if !state.busy && best == Some(ticket) {
                 state.busy = true;

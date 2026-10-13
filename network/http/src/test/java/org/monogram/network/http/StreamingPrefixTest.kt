@@ -63,10 +63,10 @@ class StreamingPrefixTest {
     }
 
     @Test
-    fun sparsePartMustContainTheWholeRequestedRange() {
+    fun compactPartMustContainTheWholeRequestedRange() {
         val offset = MediaRepository.STREAM_PART
         val file = tmp.newFile()
-        java.io.RandomAccessFile(file, "rw").use { it.setLength(offset + 7) }
+        java.io.RandomAccessFile(file, "rw").use { it.setLength(7) }
         assertEquals(null, reusableStreamPrefix(file, offset, offset + MediaRepository.STREAM_PART))
         assertEquals(file, reusableStreamPrefix(file, offset, offset + 7))
     }
@@ -92,7 +92,7 @@ class StreamingPrefixTest {
                 offsets += offset
                 val file = File(dest)
                 java.io.RandomAccessFile(file, "rw").use { part ->
-                    part.seek(offset)
+                    part.setLength(0)
                     part.write(ByteArray(MediaRepository.STREAM_PART.toInt()))
                 }
                 Outcome.Ok(dest)

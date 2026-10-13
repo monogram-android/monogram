@@ -71,7 +71,10 @@ internal fun VideoNoteBubble(
         MediaViewerItem(
             id = mediaId,
             kind = MediaViewerKind.VIDEO_NOTE,
-            source = message.mediaCacheKey?.let(repository::cachedFile)?.let(MediaSource::Local)
+            source = message.mediaCacheKey?.let { key ->
+                repository.cachedFile(key)
+                    ?.let { MediaSource.Local(it, repository.createCachedDataSourceFactory(key)) }
+            }
                 ?: MediaSource.Stream(
                     ("telegram://media/" + message.id.chatId.value + "/" + message.id.id).toUri(),
                     repository.createMessageDataSourceFactory(message)
@@ -136,7 +139,9 @@ internal fun VideoNoteBubble(
                     )
                 },
                 onRelease = { texture -> session.player.clearVideoTextureView(texture) },
-                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
             )
             val progress =
                 if (selected && session.durationMs > 0) (session.positionMs.toFloat() / session.durationMs).coerceIn(

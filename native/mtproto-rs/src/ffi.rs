@@ -112,7 +112,7 @@ pub fn set_file_part_kib(kib: i32) {
 
 #[uniffi::export]
 pub fn set_download_chunk_kib(kib: i32) {
-    crate::media::set_chunk_size(kib * 1024);
+    crate::media::set_chunk_size(kib.checked_mul(1024).unwrap_or(0));
 }
 
 #[uniffi::export(callback_interface)]

@@ -450,21 +450,37 @@ impl TcpConnection {
         secret: Option<[u8; 16]>,
         dc_id: Option<i16>,
     ) -> Result<ObfuscatedTcp, ProxyError> {
-        let mut nonce = [0_u8; 64];
-        tellers_mtproto_crypto::fill_random(&mut nonce)
-            .map_err(|error| ProxyError::Transport(error.to_string()))?;
-        let obf = ObfuscatedStream::new_client(
-            nonce,
-            ObfuscatedProtocol::PaddedIntermediate,
-            dc_id,
-            secret.as_ref().map(|secret| secret.as_slice()),
-        )
-        .map_err(|error| ProxyError::Transport(error.to_string()))?;
+        let obf = make_obfuscated_stream(secret, dc_id, |nonce| {
+            tellers_mtproto_crypto::fill_random(nonce)
+                .map_err(|error| ProxyError::Transport(error.to_string()))
+        })?;
         let mut result = ObfuscatedTcp { inner: self, obf };
         let header = *result.obf.header();
         result.inner.stream.write_all(&header)?;
         Ok(result)
     }
+}
+
+fn make_obfuscated_stream(
+    secret: Option<[u8; 16]>,
+    dc_id: Option<i16>,
+    mut fill: impl FnMut(&mut [u8; 64]) -> Result<(), ProxyError>,
+) -> Result<ObfuscatedStream, ProxyError> {
+    for _ in 0..16 {
+        let mut nonce = [0_u8; 64];
+        fill(&mut nonce)?;
+        match ObfuscatedStream::new_client(
+            nonce,
+            ObfuscatedProtocol::PaddedIntermediate,
+            dc_id,
+            secret.as_ref().map(|secret| secret.as_slice()),
+        ) {
+            Ok(stream) => return Ok(stream),
+            Err(TransportError::InvalidObfuscationNonce) => continue,
+            Err(error) => return Err(ProxyError::Transport(error.to_string())),
+        }
+    }
+    Err(ProxyError::Transport("could not generate transport obfuscation nonce".into()))
 }
 
 impl Connection for TcpConnection {

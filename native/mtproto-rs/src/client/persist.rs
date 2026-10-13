@@ -175,10 +175,12 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
     if client.persist_running.swap(true, Ordering::AcqRel) {
         return;
     }
-    let client = Arc::clone(client);
-    let _ = std::thread::Builder::new()
+    let worker_client = Arc::clone(client);
+    let spawned = std::thread::Builder::new()
         .name("mtproto-persist".into())
         .spawn(move || {
+            let client = worker_client;
+            let mut failures = 0_u32;
             loop {
                 client.persist_queued.store(false, Ordering::Release);
                 let skip = {
@@ -187,8 +189,20 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
                 };
                 if !skip {
                     let span = crate::perf::span("persist_session");
-                    let _ = persist_updates_data(&client, session_id);
+                    let result = persist_updates_data(&client, session_id);
                     drop(span);
+                    if result.is_err() {
+                        crate::perf::count("persist_session.failed");
+                        client.persist_queued.store(true, Ordering::Release);
+                        failures += 1;
+                        if failures >= 4 || !session_lease_valid(&client.data.lock(), session_id) {
+                            client.persist_running.store(false, Ordering::Release);
+                            break;
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(100 * (1 << failures)));
+                        continue;
+                    }
+                    failures = 0;
                 }
                 if client.persist_queued.load(Ordering::Acquire) {
                     continue;
@@ -202,6 +216,10 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
                 break;
             }
         });
+    if spawned.is_err() {
+        crate::perf::count("persist_session.spawn_failed");
+        client.persist_running.store(false, Ordering::Release);
+    }
 }
 
 #[cfg(test)]

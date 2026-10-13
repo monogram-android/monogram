@@ -33,7 +33,7 @@ data class AlbumSelectionState(val active: Boolean = false, val ids: Set<String>
 /** Where the bytes come from. [Stream] is used while a video is still downloading. */
 sealed interface MediaSource {
     @Immutable
-    data class Local(val file: File) : MediaSource
+    data class Local(val file: File, val factory: DataSource.Factory? = null) : MediaSource
 
     data class Stream(val uri: Uri, val factory: DataSource.Factory? = null) : MediaSource
 }

@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -479,7 +480,9 @@ internal fun ChatRow(
                 checked = selected,
                 onCheckedChange = null,
                 enabled = recipientSelectable,
-                modifier = Modifier.size(48.dp).clearAndSetSemantics { },
+                modifier = Modifier
+                    .size(48.dp)
+                    .clearAndSetSemantics { },
                 colors = CheckboxDefaults.colors(
                     checkedColor = MaterialTheme.colorScheme.primary,
                     uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -598,6 +601,7 @@ private fun ChatRowContainer(
                 },
             )
             .then(clickModifier)
+            .semantics { if (!selectingRecipient) this.selected = selected }
             .padding(
                 horizontal = ChatRowMetrics.ContentPaddingH,
                 vertical = ChatRowMetrics.ContentPaddingV,

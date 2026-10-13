@@ -2,6 +2,8 @@ package org.monogram.network.http
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -20,6 +22,77 @@ import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicInteger
 
 class MediaRepositoryInflightTest {
+    @Test
+    fun finalConsumerReleaseCancelsTransferAndRejoinDownloadsAgain() = runBlocking {
+        val started = CompletableDeferred<Unit>()
+        val cancelled = CompletableDeferred<Unit>()
+        val fetches = AtomicInteger(0)
+        val repo = MediaRepository(
+            tmp.newFolder("last-consumer"),
+            telegramFetcher = TelegramMediaFetcher { _, _, path, _, _ ->
+                if (fetches.incrementAndGet() == 1) {
+                    File(path).writeBytes(byteArrayOf(1))
+                    started.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        cancelled.complete(Unit)
+                    }
+                }
+                File(path).writeBytes(byteArrayOf(2, 3))
+                Outcome.Ok(path)
+            })
+        try {
+            val first = async { repo.ensureIndexedMedia(PeerId(42), 1, "photo:released") }
+            withTimeout(2_000) { started.await() }
+            first.cancelAndJoin()
+            withTimeout(2_000) { cancelled.await() }
+            assertNull(repo.cachedFile("photo:released"))
+            val rejoined =
+                withTimeout(2_000) { repo.ensureIndexedMedia(PeerId(42), 1, "photo:released") }
+            assertTrue(rejoined is Outcome.Ok)
+            assertEquals(listOf<Byte>(2, 3), (rejoined as Outcome.Ok).value.readBytes().toList())
+            assertEquals(2, fetches.get())
+        } finally {
+            repo.shutdown()
+        }
+    }
+
+    @Test
+    fun cancellingOneConsumerPreservesTheSharedProducer() = runBlocking {
+        val started = CompletableDeferred<Unit>()
+        val finish = CompletableDeferred<Unit>()
+        val fetches = AtomicInteger(0)
+        val repo = MediaRepository(
+            tmp.newFolder("shared-consumers"),
+            telegramFetcher = TelegramMediaFetcher { _, _, path, _, _ ->
+                fetches.incrementAndGet()
+                started.complete(Unit)
+                finish.await()
+                File(path).writeBytes(byteArrayOf(1, 2, 3))
+                Outcome.Ok(path)
+            })
+        try {
+            val first = async { repo.ensureIndexedMedia(PeerId(42), 1, "photo:shared") }
+            started.await()
+            val second = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                repo.ensureIndexedMedia(
+                    PeerId(42),
+                    1,
+                    "photo:shared",
+                    priority = MediaPriority.VISIBLE
+                )
+            }
+            first.cancel()
+            first.join()
+            finish.complete(Unit)
+            assertTrue(withTimeout(2_000) { second.await() } is Outcome.Ok)
+            assertEquals(1, fetches.get())
+        } finally {
+            repo.shutdown()
+        }
+    }
+
     @get:Rule
     val tmp = TemporaryFolder()
 

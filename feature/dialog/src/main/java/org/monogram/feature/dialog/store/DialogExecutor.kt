@@ -723,9 +723,15 @@ internal class DialogExecutor(
                     generation = gen
                 )
             }
+            val sliceNewestId = slice?.rows?.maxOfOrNull { it.id.id } ?: newestCachedId
             val coveredLatest =
-                slice != null && slice.covered && slice.confirmedEnd && slice.rows.isNotEmpty()
+                slice != null &&
+                        slice.covered &&
+                        slice.confirmedEnd &&
+                        slice.rows.isNotEmpty() &&
+                        (lastId <= 0 || sliceNewestId >= lastId)
             if (coveredLatest) {
+                serverHistoryBoundaryId = slice.rows.minOf { it.id.id }
                 dispatch(Msg.HasOlder(!slice.confirmedStart))
                 dispatch(Msg.Loading(false))
                 loadPinned()

@@ -3,19 +3,26 @@ package org.monogram
 import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Test
 import org.junit.Rule
+import org.junit.Test
 import org.monogram.core.database.DatabaseProvider
-import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.database.MonogramDatabase
 import org.monogram.core.database.OfflineWarmup
+import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.database.toModel
+import org.monogram.core.models.Chat
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class MessageMergeTest {
     @get:Rule
@@ -340,5 +347,37 @@ class MessageMergeTest {
         } finally {
             database.close()
         }
+    }
+
+    @Test
+    fun durableBatchAndChatUpsertDoNotDeadlockTheRoomWriter() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val warmup = OfflineWarmup(DatabaseProvider.get(context))
+        val chatId = PeerId(910_001)
+        val done = CountDownLatch(1)
+        val error = AtomicReference<Throwable>()
+        Thread {
+            try {
+                runBlocking {
+                    withContext(Dispatchers.Default) {
+                        assertTrue(
+                            warmup.applyDurableBatch(8L, 91L, cursor(91), emptyMap()) {
+                                warmup.applyIncomingMessage(
+                                    durableMessage(91).copy(id = MessageId(chatId, 91)),
+                                )
+                            },
+                        )
+                        warmup.upsertChats(listOf(Chat(id = chatId, title = "room-writer")))
+                    }
+                }
+                done.countDown()
+            } catch (thrown: Throwable) {
+                error.set(thrown)
+                done.countDown()
+            }
+        }.apply { isDaemon = true }.start()
+        assertTrue(done.await(8, TimeUnit.SECONDS))
+        assertNull(error.get())
+        runBlocking { warmup.deleteMessages(chatId, listOf(91)) }
     }
 }

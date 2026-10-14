@@ -69,6 +69,7 @@ import com.arkivanov.essenty.backhandler.BackDispatcher
 import com.arkivanov.essenty.backhandler.BackHandler
 import org.monogram.core.common.DebugLog
 import org.monogram.core.common.DebugStats
+import org.monogram.core.common.MediaCacheLimitStore
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.SponsorRegistry
 import org.monogram.core.models.peerAvatarCacheKey
@@ -84,6 +85,9 @@ import org.monogram.feature.settings.R
 import org.monogram.feature.settings.SettingsComponent
 import org.monogram.feature.settings.SettingsFolderHost
 import org.monogram.feature.settings.SettingsPage
+import org.monogram.feature.settings.confirmedChatClear
+import org.monogram.feature.settings.kindsToClear
+import org.monogram.feature.settings.selectableCacheKinds
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalDecomposeApi::class)
 @Composable
@@ -105,7 +109,11 @@ fun SettingsContent(
     var logKindName by rememberSaveable { mutableStateOf("all") }
     var logShareFailed by rememberSaveable { mutableStateOf(false) }
     val logContext = LocalContext.current
-    var confirmClear by rememberSaveable { mutableStateOf(false) }
+    var clearSelection by remember { mutableStateOf<Set<String>?>(null) }
+    var confirmChatId by remember { mutableStateOf<Long?>(null) }
+    var pickingLimit by remember { mutableStateOf(false) }
+    val cacheLimit by MediaCacheLimitStore.current.collectAsStateWithLifecycle()
+    val cacheLimitText = cacheLimitLabel(cacheLimit)
     var debugStatsExpanded by rememberSaveable { mutableStateOf("") }
     val pages by component.pages.subscribeAsState()
     val page = pages.active.instance
@@ -357,9 +365,12 @@ fun SettingsContent(
                                         SettingsPage.AutoDownload(autoDownloadNetworkKey(network)),
                                     )
                                 },
-                                onClear = { confirmClear = true },
-                                onClearChat = component::onClearChatCache,
-                                onClearKind = component::onClearKindCache,
+                                cacheLimitLabel = cacheLimitText,
+                                onPickLimit = { pickingLimit = true },
+                                onClear = {
+                                    clearSelection = selectableCacheKinds(state.cacheByKind).toSet()
+                                },
+                                onClearChat = { confirmChatId = it },
                                 onOpenDebugStats = if (DebugStats.enabled) {
                                     { component.openPage(SettingsPage.DebugStats) }
                                 } else {
@@ -525,35 +536,42 @@ fun SettingsContent(
         )
     }
 
-    if (confirmClear) {
-        AlertDialog(
-            onDismissRequest = { confirmClear = false },
-            title = { Text(stringResource(R.string.settings_clear_cache)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.settings_clear_cache_confirm,
-                        formatBytes(state.cacheBytes),
-                    ),
-                )
+    if (pickingLimit) {
+        CacheLimitPickerDialog(
+            current = cacheLimit,
+            onSelect = { limit ->
+                pickingLimit = false
+                component.onCacheLimit(logContext.filesDir, limit)
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmClear = false
-                        component.onClearCache()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) {
-                    Text(stringResource(R.string.settings_clear_cache_action))
+            onDismiss = { pickingLimit = false },
+        )
+    }
+    clearSelection?.let { selected ->
+        CacheClearDialog(
+            byKind = state.cacheByKind,
+            selected = selected,
+            onToggle = { kind ->
+                clearSelection = selected.let { current ->
+                    if (kind in current) current - kind else current + kind
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { confirmClear = false }) {
-                    Text(stringResource(R.string.settings_cancel))
-                }
+            onDismiss = { clearSelection = null },
+            onConfirm = {
+                val kinds = kindsToClear(selected, confirmed = true)
+                clearSelection = null
+                if (kinds.isNotEmpty()) component.onClearKinds(kinds)
+            },
+        )
+    }
+    confirmChatId?.let { chatId ->
+        val bytes = state.cacheChats.firstOrNull { it.chatId == chatId }?.bytes ?: 0L
+        CacheChatClearSheet(
+            bytesLabel = formatBytes(bytes),
+            onDismiss = { confirmChatId = null },
+            onConfirm = {
+                val confirmed = confirmedChatClear(chatId, confirmed = true)
+                confirmChatId = null
+                if (confirmed != null) component.onClearChatCache(confirmed)
             },
         )
     }

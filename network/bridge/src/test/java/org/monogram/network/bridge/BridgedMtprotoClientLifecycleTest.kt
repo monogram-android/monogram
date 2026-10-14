@@ -1050,6 +1050,30 @@ class BridgedMtprotoClientLifecycleTest {
     }
 
     @Test
+    fun duplicateReceiptIsAcknowledgedAndNotReplayed() = runTest {
+        val native = DurableNative()
+        native.unacked += durableBatch(1)
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        var commits = 0
+        client.installDurableUpdateSink {
+            commits++
+            true
+        }
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            settle()
+            assertEquals(1, commits)
+            assertEquals(listOf("ack:7:1"), native.calls.filter { it.startsWith("ack") })
+            assertTrue(native.unacked.isEmpty())
+            settle(400)
+            assertEquals(1, commits)
+            assertTrue(native.calls.count { it.startsWith("ack") } == 1)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
     fun savedBatchesAreReplayedBeforeNewUpdatesAreDrained() = runTest {
         val native = DurableNative()
         native.unacked += listOf(durableBatch(1), durableBatch(2))

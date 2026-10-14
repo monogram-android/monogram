@@ -20,17 +20,19 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.monogram.core.common.MediaCacheLimit
+import org.monogram.core.common.MediaCacheLimitStore
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.models.AppUpdateState
 import org.monogram.core.models.PeerId
+import org.monogram.feature.settings.ui.ProxySession
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.ProxyConfig
 import org.monogram.network.http.MediaRepository
-import org.monogram.feature.settings.ui.ProxySession
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsComponent(
@@ -142,7 +144,11 @@ class SettingsComponent(
     fun onCloseWallpapers() = wallpaperStore.accept(WallpaperStore.Intent.Close)
     fun onClearCache() = store.accept(SettingsStore.Intent.ClearCache)
     fun onClearChatCache(chatId: Long) = store.accept(SettingsStore.Intent.ClearChatCache(chatId))
-    fun onClearKindCache(kind: String) = store.accept(SettingsStore.Intent.ClearKindCache(kind))
+    fun onClearKinds(kinds: Set<String>) = store.accept(SettingsStore.Intent.ClearKinds(kinds))
+    fun onCacheLimit(directory: java.io.File, limit: MediaCacheLimit) {
+        MediaCacheLimitStore.write(directory, limit)
+        mediaRepository?.setCacheLimit(limit.bytes)
+    }
     fun onLogout() = store.accept(SettingsStore.Intent.Logout)
     fun onCheckForUpdates() = appUpdate?.checkForUpdates()
     fun onDownloadUpdate() = appUpdate?.downloadUpdate()

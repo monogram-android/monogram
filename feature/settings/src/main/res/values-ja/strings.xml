@@ -300,7 +300,15 @@
     <string name="settings_cache_sub">写真とファイル — チャットリストと履歴はログアウトまで残ります</string>
     <string name="settings_clear_cache">メディアキャッシュを消去</string>
     <string name="settings_clear_cache_action">消去</string>
-    <string name="settings_clear_cache_confirm">キャッシュされた %1$s のメディアを削除しますか？チャットとメッセージは残ります</string>
+    <string name="settings_clear_cache_confirm">この端末の %1$s を空けます。消えるのはダウンロード済みのファイルだけです</string>
+    <string name="settings_clear_cache_selected">選択した %1$s をこの端末から空けます。消えるのはダウンロード済みのファイルだけです</string>
+    <string name="settings_cache_limit">キャッシュの上限</string>
+    <string name="settings_cache_unlimited">無制限</string>
+    <string name="settings_cache_limit_500">500 MB</string>
+    <string name="settings_cache_limit_1">1 GB</string>
+    <string name="settings_cache_limit_2">2 GB</string>
+    <string name="settings_cache_limit_5">5 GB</string>
+    <string name="settings_cache_limit_10">10 GB</string>
     <string name="settings_cache_cleared">%1$s を消去しました</string>
     <string name="settings_storage_photos">写真</string>
     <string name="settings_storage_videos">動画</string>
@@ -309,7 +317,7 @@
     <string name="settings_storage_gifs">GIF</string>
     <string name="settings_storage_other">その他</string>
     <string name="settings_storage_chats">チャット</string>
-    <string name="settings_storage_clear_chat">このチャットのキャッシュを消去しますか？</string>
+    <string name="settings_storage_clear_chat">このチャットのダウンロード済みファイルを消去しますか？</string>
     <string name="settings_storage_empty">まだメディアが記録されていません — チャットを開いてグラフを作成してください</string>
     <string name="settings_logout">ログアウト</string>
     <string name="settings_logout_confirm">この端末は Telegram のセッション、キャッシュされたチャットとメディアを消去します</string>

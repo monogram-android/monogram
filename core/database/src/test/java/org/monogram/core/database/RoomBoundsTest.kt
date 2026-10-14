@@ -1,8 +1,10 @@
 package org.monogram.core.database
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.core.models.Message
@@ -11,6 +13,8 @@ import org.monogram.core.models.PeerId
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.resume
 
 class RoomBoundsTest {
     private fun message(id: Int, text: String = "m") = Message(
@@ -74,5 +78,34 @@ class RoomBoundsTest {
         release.countDown()
         check(done.await(5, TimeUnit.SECONDS))
         assertEquals(listOf("maintenance-running", "foreground", "maintenance-queued"), order)
+    }
+
+    @Test
+    fun nestedRoomHopInsideABlockingTransactionCompletes() {
+        val done = CountDownLatch(1)
+        val error = AtomicReference<Throwable>()
+        Thread {
+            try {
+                runBlocking {
+                    DatabaseProvider.onRoom {
+                        suspendCancellableCoroutine { outer ->
+                            DatabaseProvider.roomExecutor.execute {
+                                runBlocking {
+                                    DatabaseProvider.onRoom {
+                                        outer.resume(Unit)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                done.countDown()
+            } catch (thrown: Throwable) {
+                error.set(thrown)
+                done.countDown()
+            }
+        }.apply { isDaemon = true }.start()
+        assertTrue(done.await(3, TimeUnit.SECONDS))
+        assertNull(error.get())
     }
 }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.withTimeout
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.DebugLog
 import org.monogram.core.common.DebugStats
+import org.monogram.core.common.MediaCacheLimitStore
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.RuntimePressure
@@ -272,6 +273,7 @@ class MonogramApp : Application() {
                 perfSpan("app:downloadConcurrency") {
                     DownloadSettings.install(this, ::applyDownloadSettings)
                     DownloadSettings.setPremium(sessionStore.readPremium())
+                    MediaCacheLimitStore.install(filesDir)
                 }
             },
             createMedia = {
@@ -328,6 +330,7 @@ class MonogramApp : Application() {
                         peerInlineThumbPeek = TelegramPeerInlineThumbPeek { peerId ->
                             client.peekPeerInlineThumb(peerId)
                         },
+                        cacheLimitBytes = MediaCacheLimitStore.current.value.bytes,
                     )
                 }
                 FileLeases.leaser = mediaRepository::leaseFile

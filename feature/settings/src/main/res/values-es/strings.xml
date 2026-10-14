@@ -300,7 +300,15 @@
     <string name="settings_cache_sub">Fotos y archivos — la lista de chats y el historial permanecen hasta cerrar sesión</string>
     <string name="settings_clear_cache">Borrar caché multimedia</string>
     <string name="settings_clear_cache_action">Borrar</string>
-    <string name="settings_clear_cache_confirm">¿Eliminar %1$s de contenido en caché? Los chats y mensajes se mantienen</string>
+    <string name="settings_clear_cache_confirm">Libera %1$s en este dispositivo. Solo se quitan los archivos descargados</string>
+    <string name="settings_clear_cache_selected">Libera los %1$s seleccionados en este dispositivo. Solo se quitan los archivos descargados</string>
+    <string name="settings_cache_limit">Tamaño máximo de la caché</string>
+    <string name="settings_cache_unlimited">Ilimitado</string>
+    <string name="settings_cache_limit_500">500 MB</string>
+    <string name="settings_cache_limit_1">1 GB</string>
+    <string name="settings_cache_limit_2">2 GB</string>
+    <string name="settings_cache_limit_5">5 GB</string>
+    <string name="settings_cache_limit_10">10 GB</string>
     <string name="settings_cache_cleared">Borrados %1$s</string>
     <string name="settings_storage_photos">Fotos</string>
     <string name="settings_storage_videos">Videos</string>
@@ -309,7 +317,7 @@
     <string name="settings_storage_gifs">GIFs</string>
     <string name="settings_storage_other">Otros</string>
     <string name="settings_storage_chats">Chats</string>
-    <string name="settings_storage_clear_chat">¿Borrar la caché de este chat?</string>
+    <string name="settings_storage_clear_chat">¿Quitar los archivos descargados de este chat?</string>
     <string name="settings_storage_empty">Aún no hay contenido indexado — abre chats para crear el gráfico</string>
     <string name="settings_logout">Cerrar sesión</string>
     <string name="settings_logout_confirm">Este dispositivo olvidará la sesión de Telegram, los chats y el contenido en caché</string>

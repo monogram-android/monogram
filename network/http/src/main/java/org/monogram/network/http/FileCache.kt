@@ -30,10 +30,13 @@ data class StorageAccounting(
 
 class FileCache(
     private val root: File,
-    private val maxBytes: Long = 256L * 1024L * 1024L,
+    maxBytes: Long = 256L * 1024L * 1024L,
     private val maintainOnInit: Boolean = true,
     private val nowMs: () -> Long = System::currentTimeMillis,
+    enforceSize: Boolean = true,
 ) {
+    private var maxBytes: Long = maxBytes
+    private var enforceSize: Boolean = enforceSize
     enum class AdmissionFailure { Capacity, Storage, InUse }
     class AdmissionException(val reason: AdmissionFailure) : IOException(
         when (reason) {
@@ -154,9 +157,7 @@ class FileCache(
             if (bytes < 0 || root.usableSpace - bytes < FREE_SPACE_RESERVE) {
                 throw AdmissionException(AdmissionFailure.Storage)
             }
-            if (optional && (bytes > maxBytes ||
-                        protectedBytesExcept(key) + inFlightBytesExcept(key) > maxBytes - bytes)
-            ) {
+            if (optional && exceedsCapacity(key, bytes)) {
                 throw AdmissionException(AdmissionFailure.Capacity)
             }
             reservations[name] = (reservations[name] ?: 0L) + bytes
@@ -315,9 +316,7 @@ class FileCache(
             try {
                 putFileInternal(key, source, chatId, kind, temporary = true)
                 checkNotNull(acquire(key)).also {
-                    if (source.length() + protectedBytesExcept(key) > maxBytes) pendingDeletes.add(
-                        key
-                    )
+                    if (exceedsCapacity(key, source.length())) pendingDeletes.add(key)
                 }
             } finally {
                 protectedKeys.remove(owner)
@@ -385,6 +384,12 @@ class FileCache(
             target
         }
 
+    private fun exceedsCapacity(key: String, bytes: Long): Boolean {
+        if (!enforceSize) return false
+        if (bytes > maxBytes) return true
+        return protectedBytesExcept(key) + inFlightBytesExcept(key) > maxBytes - bytes
+    }
+
     private fun protectedBytesExcept(key: String): Long {
         val names = protectedNames()
         return names.asSequence().distinct().filter { it != diskName(key) }
@@ -400,9 +405,7 @@ class FileCache(
         if ((leases[diskName(key)] ?: 0) > 0 || pendingDeletion(key)) {
             throw AdmissionException(AdmissionFailure.InUse)
         }
-        if (!temporary && (bytes > maxBytes ||
-                    protectedBytesExcept(key) + inFlightBytesExcept(key) > maxBytes - bytes)
-        ) {
+        if (!temporary && exceedsCapacity(key, bytes)) {
             throw AdmissionException(AdmissionFailure.Capacity)
         }
         if (bytes < 0 || root.usableSpace - additionalBytes < FREE_SPACE_RESERVE) {
@@ -504,9 +507,21 @@ class FileCache(
     fun totalBytes(): Long =
         root.walkTopDown().filter { it.isFile && it.name != INDEX_NAME && !isStaging(it.name) }.sumOf { it.length() }
 
+    /** `null` turns size eviction off. A finite value trims oldest unpinned files down to it. */
+    fun setMaxBytes(maxBytes: Long?) = synchronized(recordsLock) {
+        if (maxBytes == null) {
+            enforceSize = false
+        } else {
+            enforceSize = true
+            this.maxBytes = maxBytes
+        }
+        trimIfNeeded()
+    }
+
     fun trimIfNeeded() = synchronized(recordsLock) {
         ensureIndexLoaded()
         if (!reconciled) reconcileLocked()
+        if (!enforceSize) return@synchronized
         var total = accounting().totalBytes
         if (total <= maxBytes) return@synchronized
         val protectedSet = protectedNames()

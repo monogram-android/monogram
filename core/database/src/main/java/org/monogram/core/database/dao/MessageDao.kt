@@ -106,6 +106,39 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun clearChat(chatId: Long)
 
+    @Query("SELECT DISTINCT chatId FROM messages LIMIT :limit OFFSET :offset")
+    suspend fun chatIdsPage(limit: Int, offset: Int): List<Long>
+
+    @Query(
+        """
+        SELECT id FROM messages
+        WHERE chatId = :chatId AND pending = 0 AND failed = 0
+        ORDER BY id DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun newestConfirmedIds(chatId: Long, limit: Int): List<Int>
+
+    @Query(
+        """
+        SELECT id FROM messages
+        WHERE chatId = :chatId AND pending = 0 AND failed = 0 AND date < :cutoffSeconds
+        ORDER BY id ASC
+        LIMIT :limit
+        """,
+    )
+    suspend fun oldConfirmedIds(chatId: Long, cutoffSeconds: Long, limit: Int): List<Int>
+
+    @Query(
+        """
+        SELECT id FROM messages
+        WHERE chatId = :chatId AND (pending = 1 OR failed = 1 OR date >= :cutoffSeconds)
+        ORDER BY id DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun stickyIds(chatId: Long, cutoffSeconds: Long, limit: Int): List<Int>
+
     @Query("DELETE FROM messages WHERE chatId = :chatId AND pending = 0 AND id NOT IN (:keep)")
     suspend fun deleteExcept(chatId: Long, keep: List<Int>)
 

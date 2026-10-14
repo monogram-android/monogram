@@ -300,7 +300,15 @@
     <string name="settings_cache_sub">照片和文件 — 聊天列表和历史记录保留到退出登录</string>
     <string name="settings_clear_cache">清除媒体缓存</string>
     <string name="settings_clear_cache_action">清除</string>
-    <string name="settings_clear_cache_confirm">删除 %1$s 的缓存媒体？聊天和消息会保留</string>
+    <string name="settings_clear_cache_confirm">释放此设备上的 %1$s。只移除已下载的文件</string>
+    <string name="settings_clear_cache_selected">释放此设备上所选的 %1$s。只移除已下载的文件</string>
+    <string name="settings_cache_limit">最大缓存大小</string>
+    <string name="settings_cache_unlimited">无限制</string>
+    <string name="settings_cache_limit_500">500 MB</string>
+    <string name="settings_cache_limit_1">1 GB</string>
+    <string name="settings_cache_limit_2">2 GB</string>
+    <string name="settings_cache_limit_5">5 GB</string>
+    <string name="settings_cache_limit_10">10 GB</string>
     <string name="settings_cache_cleared">已清除 %1$s</string>
     <string name="settings_storage_photos">图片</string>
     <string name="settings_storage_videos">视频</string>
@@ -309,7 +317,7 @@
     <string name="settings_storage_gifs">GIF</string>
     <string name="settings_storage_other">其他</string>
     <string name="settings_storage_chats">聊天</string>
-    <string name="settings_storage_clear_chat">清除此聊天的缓存？</string>
+    <string name="settings_storage_clear_chat">清除此聊天已下载的文件？</string>
     <string name="settings_storage_empty">尚未统计媒体 — 打开聊天以生成图表</string>
     <string name="settings_logout">退出登录</string>
     <string name="settings_logout_confirm">此设备将清除 Telegram 会话、缓存的聊天和媒体</string>

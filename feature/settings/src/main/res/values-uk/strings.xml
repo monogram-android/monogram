@@ -300,7 +300,15 @@
     <string name="settings_cache_sub">Фото і файли — список чатів та історія зберігаються до виходу</string>
     <string name="settings_clear_cache">Очистити кеш медіа</string>
     <string name="settings_clear_cache_action">Очистити</string>
-    <string name="settings_clear_cache_confirm">Видалити %1$s кешованих медіа? Чати й повідомлення залишаться</string>
+    <string name="settings_clear_cache_confirm">Звільнити %1$s на цьому пристрої. Зникнуть лише завантажені файли</string>
+    <string name="settings_clear_cache_selected">Звільнити вибрані %1$s на цьому пристрої. Зникнуть лише завантажені файли</string>
+    <string name="settings_cache_limit">Максимальний розмір кешу</string>
+    <string name="settings_cache_unlimited">Без обмежень</string>
+    <string name="settings_cache_limit_500">500 MB</string>
+    <string name="settings_cache_limit_1">1 GB</string>
+    <string name="settings_cache_limit_2">2 GB</string>
+    <string name="settings_cache_limit_5">5 GB</string>
+    <string name="settings_cache_limit_10">10 GB</string>
     <string name="settings_cache_cleared">Очищено %1$s</string>
     <string name="settings_storage_photos">Фото</string>
     <string name="settings_storage_videos">Відео</string>
@@ -309,7 +317,7 @@
     <string name="settings_storage_gifs">GIF</string>
     <string name="settings_storage_other">Інше</string>
     <string name="settings_storage_chats">Чати</string>
-    <string name="settings_storage_clear_chat">Очистити кеш цього чату?</string>
+    <string name="settings_storage_clear_chat">Очистити завантажені файли цього чату?</string>
     <string name="settings_storage_empty">Медіа ще не проіндексовано — відкрийте чати, щоб побудувати діаграму</string>
     <string name="settings_logout">Вийти</string>
     <string name="settings_logout_confirm">Цей пристрій забуде сесію Telegram, кешовані чати та медіа</string>

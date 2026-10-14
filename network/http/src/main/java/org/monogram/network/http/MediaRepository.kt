@@ -9,7 +9,6 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
@@ -30,7 +29,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
+import org.monogram.core.common.MediaCacheLimit
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.WorkOwnership
@@ -117,6 +118,7 @@ class MediaRepository(
     private val telegramChunkFetcher: TelegramChunkFetcher? = null,
     private val inlineThumbPeek: TelegramInlineThumbPeek? = null,
     private val peerInlineThumbPeek: TelegramPeerInlineThumbPeek? = null,
+    cacheLimitBytes: Long? = MediaCacheLimit.DEFAULT.bytes,
 ) {
     private val streamRoot = cacheRoot
 
@@ -130,16 +132,28 @@ class MediaRepository(
     @OptIn(UnstableApi::class)
     fun createCachedDataSourceFactory(key: String): androidx.media3.datasource.DataSource.Factory =
         androidx.media3.datasource.DataSource.Factory { LeasedFileDataSource(cache, key) }
-    private val cache = FileCache(cacheRoot, maintainOnInit = false)
+    private val cache = FileCache(
+        cacheRoot,
+        maxBytes = cacheLimitBytes ?: 1L,
+        maintainOnInit = false,
+        enforceSize = cacheLimitBytes != null,
+    )
     private val progress = MutableStateFlow<Map<String, Long>>(emptyMap())
     private val generation = MutableStateFlow(0L)
     private val cacheClearedGeneration = MutableStateFlow(0L)
     private val keyedGenerations = ConcurrentHashMap<String, KeyedGeneration>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    @Volatile
+    internal var cacheWorkThread: Thread? = null
+
     init {
         progressSink = { path, downloaded -> onNativeProgress(path, downloaded) }
-        scope.launch { cache.maintain() }
+        scope.launch {
+            cacheWorkThread = Thread.currentThread()
+            cache.maintain()
+            cache.trimIfNeeded()
+        }
     }
 
     private val telegramMutex = Mutex()
@@ -288,6 +302,13 @@ class MediaRepository(
         val freed = cache.clear()
         markAllCachedFilesChanged()
         return freed
+    }
+
+    fun setCacheLimit(bytes: Long?) {
+        scope.launch {
+            cacheWorkThread = Thread.currentThread()
+            cache.setMaxBytes(bytes)
+        }
     }
 
     fun cacheSizeBytes(): Long = cache.totalBytes()

@@ -68,6 +68,13 @@ open class OfflineWarmup(
         synchronized(this) { firstPaintSnapshot = snapshot }
         recentWarmupChats = chats
         PerfLog.mark("cache:startupSnapshot", PerfLog.nowMs() - started, "count=${chats.size}")
+        try {
+            pruneExpiredCache(force = true)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Throwable) {
+            AppLog.warn("warmup", "cache ttl prune failed")
+        }
     }
 
     private suspend fun warmRecentHistory(chats: List<Chat>) {
@@ -105,6 +112,81 @@ open class OfflineWarmup(
 
     @Volatile
     private var startupCleanupDone = false
+
+    @Volatile
+    private var openChatId: Long? = null
+
+    @Volatile
+    private var pruneOffset = 0
+
+    @Volatile
+    private var lastPruneAt = 0L
+
+    fun setOpenChat(chatId: Long) {
+        openChatId = chatId
+    }
+
+    fun clearOpenChat(chatId: Long) {
+        if (openChatId == chatId) openChatId = null
+    }
+
+    suspend fun pruneExpiredCache(
+        nowMillis: Long = System.currentTimeMillis(),
+        force: Boolean = false,
+    ) {
+        if (db == null) return
+        if (!force && nowMillis - lastPruneAt < 30_000L) return
+        lastPruneAt = nowMillis
+        try {
+            withContext(RoomLane.maintenance()) {
+                roomIo { pruneOnRoom(nowMillis) }
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Throwable) {
+            AppLog.warn("warmup", "cache ttl prune failed")
+        }
+    }
+
+    private suspend fun pruneOnRoom(nowMillis: Long) {
+        val database = db ?: return
+        val cutoffSeconds = nowMillis / 1000 - CACHE_MESSAGE_TTL_SECONDS
+        val chats = database.messageDao().chatIdsPage(CACHE_PRUNE_CHATS, pruneOffset)
+        pruneOffset = if (chats.size < CACHE_PRUNE_CHATS) 0 else pruneOffset + chats.size
+        for (chatId in chatsToPrune(chats, openChatId)) {
+            currentCoroutineContext().ensureActive()
+            val newest = database.messageDao()
+                .newestConfirmedIds(chatId, HISTORY_CACHE_WINDOW)
+                .toSet()
+            val old = database.messageDao()
+                .oldConfirmedIds(chatId, cutoffSeconds, CACHE_PRUNE_ROWS + newest.size)
+            val drop = old.filter { it !in newest }.take(CACHE_PRUNE_ROWS)
+            if (drop.isNotEmpty()) {
+                database.messageDao().deleteInChat(chatId, drop)
+                database.messageTombstoneDao().deleteIds(chatId, drop)
+                val kept = (newest + database.messageDao()
+                    .stickyIds(chatId, cutoffSeconds, 200)).distinct()
+                val holes = holesAfterCacheTtl(
+                    chatId,
+                    database.messageHoleDao().forChat(chatId, MessageHoleEntity.SOURCE_HISTORY),
+                    drop,
+                    kept,
+                )
+                val holeDao = database.messageHoleDao()
+                holeDao.clearChat(chatId, MessageHoleEntity.SOURCE_HISTORY)
+                holes.forEach { holeDao.insert(it) }
+            }
+            kotlinx.coroutines.yield()
+        }
+        val cutoffMillis = nowMillis - CACHE_PROFILE_TTL_MILLIS
+        for (peerId in database.profileTabsDao().stalePeerIds(cutoffMillis, CACHE_PRUNE_ROWS)) {
+            currentCoroutineContext().ensureActive()
+            database.profileTabsDao().delete(peerId)
+            database.profileMembersDao().delete(peerId)
+            database.profileMediaDao().deletePeer(peerId)
+            database.profileCommonDao().delete(peerId)
+        }
+    }
 
     /**
      * Drops rows left by process death before the first warmup read returns.
@@ -480,6 +562,7 @@ open class OfflineWarmup(
                 holes.forEach { holeDao.insert(it) }
             }
         }
+        pruneExpiredCache()
     }
 
     open suspend fun markHistoryHole(chatId: PeerId, startId: Int, endId: Int) = roomIo {
@@ -591,6 +674,7 @@ open class OfflineWarmup(
             database.withTransaction { mergeMessages(batch) }
             kotlinx.coroutines.yield()
         }
+        pruneExpiredCache()
     }
 
     private suspend fun mergeMessages(messages: List<Message>): List<Message> {

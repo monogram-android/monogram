@@ -27,11 +27,13 @@ import androidx.compose.material.icons.outlined.SignalCellularAlt
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -42,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.monogram.core.common.MediaCacheLimit
 import org.monogram.core.common.Outcome
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.peerAvatarCacheKey
@@ -49,9 +52,12 @@ import org.monogram.core.ui.AutoDownloadNetwork
 import org.monogram.core.ui.AutoDownloadPreset
 import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.DownloadState
+import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.components.ItemPosition
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.components.SectionHeader
+import org.monogram.core.ui.components.SettingsCard
+import org.monogram.core.ui.components.SettingsCardRow
 import org.monogram.core.ui.components.SettingsGroupCorner
 import org.monogram.core.ui.components.SettingsTile
 import org.monogram.core.ui.loading.MonogramLoading
@@ -61,6 +67,9 @@ import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.settings.R
 import org.monogram.feature.settings.SettingsStore
+import org.monogram.feature.settings.selectableCacheKinds
+import org.monogram.feature.settings.selectedCacheBytes
+import org.monogram.feature.settings.storageKinds
 import org.monogram.network.http.FileCache
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
@@ -169,9 +178,10 @@ internal fun LazyListScope.dataItems(
     loading: Boolean,
     download: DownloadState,
     onOpenAutoDownload: (AutoDownloadNetwork) -> Unit,
+    cacheLimitLabel: String,
+    onPickLimit: () -> Unit,
     onClear: () -> Unit,
     onClearChat: (Long) -> Unit,
-    onClearKind: (String) -> Unit,
     onOpenDebugStats: (() -> Unit)? = null,
     onOpenLogs: (() -> Unit)? = null,
     mediaRepository: MediaRepository? = null,
@@ -342,35 +352,40 @@ internal fun LazyListScope.dataItems(
         }
     }
     item { Spacer(Modifier.height(8.dp)) }
-    val kinds = listOf(
-        FileCache.KIND_PHOTOS to R.string.settings_storage_photos,
-        FileCache.KIND_VIDEOS to R.string.settings_storage_videos,
-        FileCache.KIND_FILES to R.string.settings_storage_files,
-        FileCache.KIND_STICKERS to R.string.settings_storage_stickers,
-        FileCache.KIND_GIFS to R.string.settings_storage_gifs,
-        FileCache.KIND_OTHER to R.string.settings_storage_other,
-    )
-    kinds.forEachIndexed { index, (kind, label) ->
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.Storage,
+            title = stringResource(R.string.settings_cache_limit),
+            subtitle = cacheLimitLabel,
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = ItemPosition.STANDALONE,
+            onClick = onPickLimit,
+            trailingContent = { DataChevron() },
+        )
+    }
+    item { Spacer(Modifier.height(8.dp)) }
+    storageKinds.forEachIndexed { index, kind ->
         item {
             val bytes = cacheByKind[kind] ?: 0L
-            SettingsTile(
-                icon = storageCategoryIcon(kind),
-                title = stringResource(label),
-                subtitle = formatBytes(bytes),
-                iconColor = storageCategoryColor(kind),
-                titleColor = if (bytes > 0L) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+            SettingsCard(
                 position = when (index) {
                     0 -> ItemPosition.TOP
-                    kinds.lastIndex -> ItemPosition.BOTTOM
+                    storageKinds.lastIndex -> ItemPosition.BOTTOM
                     else -> ItemPosition.MIDDLE
                 },
-                enabled = !loading && bytes > 0L,
-                onClick = { onClearKind(kind) },
-            )
+            ) {
+                SettingsCardRow(
+                    icon = storageCategoryIcon(kind),
+                    title = stringResource(storageKindLabel(kind)),
+                    subtitle = formatBytes(bytes),
+                    iconColor = storageCategoryColor(kind),
+                    titleColor = if (bytes > 0L) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
         }
     }
     item { Spacer(Modifier.height(8.dp)) }
@@ -382,7 +397,7 @@ internal fun LazyListScope.dataItems(
             iconColor = MaterialTheme.colorScheme.error,
             titleColor = MaterialTheme.colorScheme.error,
             position = ItemPosition.STANDALONE,
-            enabled = !loading,
+            enabled = !loading && selectableCacheKinds(cacheByKind).isNotEmpty(),
             onClick = onClear,
             trailingContent = {
                 MonogramLoading(
@@ -420,6 +435,149 @@ internal fun LazyListScope.dataItems(
                     onClick = { onClearChat(row.chatId) },
                 )
             }
+        }
+    }
+}
+
+internal fun storageKindLabel(kind: String): Int = when (kind) {
+    FileCache.KIND_PHOTOS -> R.string.settings_storage_photos
+    FileCache.KIND_VIDEOS -> R.string.settings_storage_videos
+    FileCache.KIND_FILES -> R.string.settings_storage_files
+    FileCache.KIND_STICKERS -> R.string.settings_storage_stickers
+    FileCache.KIND_GIFS -> R.string.settings_storage_gifs
+    else -> R.string.settings_storage_other
+}
+
+@Composable
+internal fun cacheLimitLabel(limit: MediaCacheLimit): String = when (limit) {
+    MediaCacheLimit.MB_500 -> stringResource(R.string.settings_cache_limit_500)
+    MediaCacheLimit.GB_1 -> stringResource(R.string.settings_cache_limit_1)
+    MediaCacheLimit.GB_2 -> stringResource(R.string.settings_cache_limit_2)
+    MediaCacheLimit.GB_5 -> stringResource(R.string.settings_cache_limit_5)
+    MediaCacheLimit.GB_10 -> stringResource(R.string.settings_cache_limit_10)
+    MediaCacheLimit.UNLIMITED -> stringResource(R.string.settings_cache_unlimited)
+}
+
+@Composable
+internal fun CacheLimitPickerDialog(
+    current: MediaCacheLimit,
+    onSelect: (MediaCacheLimit) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AppModalSheet(onDismissRequest = onDismiss) {
+        Text(
+            text = stringResource(R.string.settings_cache_limit),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        MediaCacheLimit.entries.forEach { limit ->
+            SettingsCardRow(
+                icon = Icons.Outlined.Storage,
+                title = cacheLimitLabel(limit),
+                iconColor = MaterialTheme.colorScheme.primary,
+                selected = limit == current,
+                onClick = { onSelect(limit) },
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+    }
+}
+
+@Composable
+internal fun CacheClearDialog(
+    byKind: Map<String, Long>,
+    selected: Set<String>,
+    onToggle: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AppModalSheet(onDismissRequest = onDismiss) {
+        Text(
+            text = stringResource(R.string.settings_clear_cache),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        selectableCacheKinds(byKind).forEach { kind ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle(kind) }
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = kind in selected,
+                    onCheckedChange = { onToggle(kind) },
+                )
+                Text(
+                    text = stringResource(storageKindLabel(kind)),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = formatBytes(byKind[kind] ?: 0L),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 12.dp),
+                )
+            }
+        }
+        Text(
+            text = stringResource(
+                R.string.settings_clear_cache_selected,
+                formatBytes(selectedCacheBytes(byKind, selected)),
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        TextButton(
+            onClick = onConfirm,
+            enabled = selected.isNotEmpty(),
+            modifier = Modifier
+                .padding(horizontal = 12.dp)
+                .padding(bottom = 8.dp),
+        ) {
+            Text(
+                stringResource(R.string.settings_clear_cache_action),
+                color = if (selected.isNotEmpty()) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+    }
+}
+
+@Composable
+internal fun CacheChatClearSheet(
+    bytesLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AppModalSheet(onDismissRequest = onDismiss) {
+        Text(
+            text = stringResource(R.string.settings_storage_clear_chat),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        Text(
+            text = stringResource(R.string.settings_clear_cache_confirm, bytesLabel),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        TextButton(
+            onClick = onConfirm,
+            modifier = Modifier
+                .padding(horizontal = 12.dp)
+                .padding(bottom = 8.dp),
+        ) {
+            Text(
+                stringResource(R.string.settings_clear_cache_action),
+                color = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }

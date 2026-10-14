@@ -51,8 +51,10 @@ class SelectedTargetWarmup(
         priority = MediaPriority.VISIBLE
         WorkOwnership.promote(ownerKey(peer), MediaPriority.VISIBLE)
         if (job?.isActive == true && raised) {
+            generation++
             launch()
         } else if (job?.isActive != true) {
+            generation++
             launch()
         }
     }
@@ -81,7 +83,6 @@ class SelectedTargetWarmup(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                Unit
             } finally {
                 WorkOwnership.release(key)
                 if (gen == generation) WorkOwnership.finish(key)

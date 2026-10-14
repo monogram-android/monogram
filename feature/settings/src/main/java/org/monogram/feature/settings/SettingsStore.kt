@@ -15,8 +15,8 @@ import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.models.Chat
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
-import org.monogram.network.bridge.MtprotoClient
 import org.monogram.core.ui.ImageCache
+import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
 
 interface SettingsStore : Store<SettingsStore.Intent, SettingsStore.State, SettingsStore.Label> {
@@ -24,7 +24,7 @@ interface SettingsStore : Store<SettingsStore.Intent, SettingsStore.State, Setti
         data object Refresh : Intent
         data object ClearCache : Intent
         data class ClearChatCache(val chatId: Long) : Intent
-        data class ClearKindCache(val kind: String) : Intent
+        data class ClearKinds(val kinds: Set<String>) : Intent
         data object Logout : Intent
         data object ExportDebugStats : Intent
         data object ClearDebugStats : Intent
@@ -66,6 +66,9 @@ internal class SettingsStoreFactory(
     private val appVersion: String,
     private val buildStamp: String,
     private val pushRegistration: PushRegistration?,
+    private val clearKindCache: (String) -> Long = { kind ->
+        mediaRepository?.clearKindCache(kind) ?: 0L
+    },
 ) {
     fun create(): SettingsStore =
         object :
@@ -110,8 +113,10 @@ internal class SettingsStoreFactory(
                     mediaRepository?.clearChatCache(intent.chatId)
                     refreshCache()
                 }
-                is SettingsStore.Intent.ClearKindCache -> {
-                    mediaRepository?.clearKindCache(intent.kind)
+                is SettingsStore.Intent.ClearKinds -> {
+                    kindsToClear(intent.kinds, confirmed = true).forEach { kind ->
+                        clearKindCache(kind)
+                    }
                     refreshCache()
                 }
                 SettingsStore.Intent.Logout -> logout()

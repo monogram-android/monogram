@@ -300,7 +300,15 @@
     <string name="settings_cache_sub">Լուսանկարներ և ֆայլեր — զրույցների ցանկն ու պատմությունը մնում են մինչև դուրս գալը</string>
     <string name="settings_clear_cache">Մաքրել մեդիայի քեշը</string>
     <string name="settings_clear_cache_action">Մաքրել</string>
-    <string name="settings_clear_cache_confirm">Ջնջե՞լ %1$s քեշավորված մեդիա։ Զրույցներն ու հաղորդագրությունները կմնան</string>
+    <string name="settings_clear_cache_confirm">Ազատել %1$s այս սարքում։ Կհանվեն միայն ներբեռնված ֆայլերը</string>
+    <string name="settings_clear_cache_selected">Ազատել ընտրված %1$s-ը այս սարքում։ Կհանվեն միայն ներբեռնված ֆայլերը</string>
+    <string name="settings_cache_limit">Քեշի առավելագույն չափը</string>
+    <string name="settings_cache_unlimited">Անսահմանափակ</string>
+    <string name="settings_cache_limit_500">500 MB</string>
+    <string name="settings_cache_limit_1">1 GB</string>
+    <string name="settings_cache_limit_2">2 GB</string>
+    <string name="settings_cache_limit_5">5 GB</string>
+    <string name="settings_cache_limit_10">10 GB</string>
     <string name="settings_cache_cleared">Մաքրվեց %1$s</string>
     <string name="settings_storage_photos">Լուսանկարներ</string>
     <string name="settings_storage_videos">Տեսանյութեր</string>
@@ -309,7 +317,7 @@
     <string name="settings_storage_gifs">GIF-եր</string>
     <string name="settings_storage_other">Այլ</string>
     <string name="settings_storage_chats">Զրույցներ</string>
-    <string name="settings_storage_clear_chat">Մաքրե՞լ այս զրույցի քեշը</string>
+    <string name="settings_storage_clear_chat">Մաքրե՞լ այս զրույցի ներբեռնված ֆայլերը</string>
     <string name="settings_storage_empty">Մեդիան դեռ ինդեքսավորված չէ — բացեք զրույցները գծապատկերը կառուցելու համար</string>
     <string name="settings_logout">Դուրս գալ</string>
     <string name="settings_logout_confirm">Այս սարքը կմոռանա Telegram-ի նիստը, քեշավորված զրույցներն ու մեդիան</string>

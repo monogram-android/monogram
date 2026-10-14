@@ -300,7 +300,15 @@
     <string name="settings_cache_sub">Fotoğraflar ve dosyalar — sohbet listesi ve geçmiş çıkış yapana kadar kalır</string>
     <string name="settings_clear_cache">Medya önbelleğini temizle</string>
     <string name="settings_clear_cache_action">Temizle</string>
-    <string name="settings_clear_cache_confirm">Önbellekteki %1$s medya silinsin mi? Sohbetler ve mesajlar kalır</string>
+    <string name="settings_clear_cache_confirm">Bu cihazda %1$s boşalır. Yalnızca indirilen dosyalar kalkar</string>
+    <string name="settings_clear_cache_selected">Seçilen %1$s bu cihazda boşalır. Yalnızca indirilen dosyalar kalkar</string>
+    <string name="settings_cache_limit">Önbellek boyutu sınırı</string>
+    <string name="settings_cache_unlimited">Sınırsız</string>
+    <string name="settings_cache_limit_500">500 MB</string>
+    <string name="settings_cache_limit_1">1 GB</string>
+    <string name="settings_cache_limit_2">2 GB</string>
+    <string name="settings_cache_limit_5">5 GB</string>
+    <string name="settings_cache_limit_10">10 GB</string>
     <string name="settings_cache_cleared">%1$s temizlendi</string>
     <string name="settings_storage_photos">Fotoğraflar</string>
     <string name="settings_storage_videos">Videolar</string>
@@ -309,7 +317,7 @@
     <string name="settings_storage_gifs">GIF\'ler</string>
     <string name="settings_storage_other">Diğer</string>
     <string name="settings_storage_chats">Sohbetler</string>
-    <string name="settings_storage_clear_chat">Bu sohbetin önbelleği temizlensin mi?</string>
+    <string name="settings_storage_clear_chat">Bu sohbetin indirilen dosyaları temizlensin mi?</string>
     <string name="settings_storage_empty">Henüz medya dizinlenmedi — grafiği oluşturmak için sohbetleri açın</string>
     <string name="settings_logout">Çıkış yap</string>
     <string name="settings_logout_confirm">Bu cihaz Telegram oturumunu, önbellekteki sohbetleri ve medyayı unutacak</string>

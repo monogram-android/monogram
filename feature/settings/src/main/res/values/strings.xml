@@ -300,7 +300,15 @@
     <string name="settings_cache_sub">Photos and files — chat list and history stay until you log out</string>
     <string name="settings_clear_cache">Clear media cache</string>
     <string name="settings_clear_cache_action">Clear</string>
-    <string name="settings_clear_cache_confirm">Delete %1$s of cached media? Chats and messages stay</string>
+    <string name="settings_clear_cache_confirm">Free %1$s on this device. Only downloaded files are removed</string>
+    <string name="settings_clear_cache_selected">Free the selected %1$s on this device. Only downloaded files are removed</string>
+    <string name="settings_cache_limit">Maximum cache size</string>
+    <string name="settings_cache_unlimited">Unlimited</string>
+    <string name="settings_cache_limit_500">500 MB</string>
+    <string name="settings_cache_limit_1">1 GB</string>
+    <string name="settings_cache_limit_2">2 GB</string>
+    <string name="settings_cache_limit_5">5 GB</string>
+    <string name="settings_cache_limit_10">10 GB</string>
     <string name="settings_cache_cleared">Cleared %1$s</string>
     <string name="settings_storage_photos">Photos</string>
     <string name="settings_storage_videos">Videos</string>
@@ -309,7 +317,7 @@
     <string name="settings_storage_gifs">GIFs</string>
     <string name="settings_storage_other">Other</string>
     <string name="settings_storage_chats">Chats</string>
-    <string name="settings_storage_clear_chat">Clear cache for this chat?</string>
+    <string name="settings_storage_clear_chat">Clear downloaded files for this chat?</string>
     <string name="settings_storage_empty">No media indexed yet — open chats to build the chart</string>
     <string name="settings_logout">Log Out</string>
     <string name="settings_logout_confirm">This device will forget the Telegram session, cached chats, and media</string>

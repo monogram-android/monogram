@@ -300,7 +300,15 @@
     <string name="settings_cache_sub">Fotky a súbory — zoznam chatov a história zostávajú do odhlásenia</string>
     <string name="settings_clear_cache">Vymazať vyrovnávaciu pamäť médií</string>
     <string name="settings_clear_cache_action">Vymazať</string>
-    <string name="settings_clear_cache_confirm">Odstrániť %1$s médií z vyrovnávacej pamäte? Chaty a správy zostanú</string>
+    <string name="settings_clear_cache_confirm">Uvoľniť %1$s na tomto zariadení. Odídu len stiahnuté súbory</string>
+    <string name="settings_clear_cache_selected">Uvoľniť vybrané %1$s na tomto zariadení. Odídu len stiahnuté súbory</string>
+    <string name="settings_cache_limit">Maximálna veľkosť vyrovnávacej pamäte</string>
+    <string name="settings_cache_unlimited">Neobmedzené</string>
+    <string name="settings_cache_limit_500">500 MB</string>
+    <string name="settings_cache_limit_1">1 GB</string>
+    <string name="settings_cache_limit_2">2 GB</string>
+    <string name="settings_cache_limit_5">5 GB</string>
+    <string name="settings_cache_limit_10">10 GB</string>
     <string name="settings_cache_cleared">Vymazané %1$s</string>
     <string name="settings_storage_photos">Fotky</string>
     <string name="settings_storage_videos">Videá</string>
@@ -309,7 +317,7 @@
     <string name="settings_storage_gifs">GIFy</string>
     <string name="settings_storage_other">Iné</string>
     <string name="settings_storage_chats">Chaty</string>
-    <string name="settings_storage_clear_chat">Vymazať vyrovnávaciu pamäť tohto chatu?</string>
+    <string name="settings_storage_clear_chat">Vymazať stiahnuté súbory tohto chatu?</string>
     <string name="settings_storage_empty">Médiá zatiaľ nie sú indexované — otvorte chaty a vytvorte graf</string>
     <string name="settings_logout">Odhlásiť sa</string>
     <string name="settings_logout_confirm">Toto zariadenie zabudne reláciu Telegramu, uložené chaty a médiá</string>

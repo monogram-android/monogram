@@ -26,6 +26,7 @@ import org.monogram.core.models.Profile
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.UpdatesCursor
+import org.monogram.network.http.FileCache
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsStoreCacheTest {
@@ -85,6 +86,34 @@ class SettingsStoreCacheTest {
             assertEquals("+1", store.state.profile?.phone)
             assertNull(store.state.error)
             assertTrue(!store.state.loading)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun clearKindsDeletesOnlyTheConfirmedSelection() {
+        val cleared = mutableListOf<String>()
+        val store = SettingsStoreFactory(
+            DefaultStoreFactory(),
+            StubClient(),
+            sessionStore = null,
+            warmup = null,
+            mediaRepository = null,
+            appVersion = "test",
+            buildStamp = "test",
+            pushRegistration = null,
+            clearKindCache = { kind ->
+                cleared += kind
+                1L
+            },
+        ).create()
+        try {
+            val opened = setOf(FileCache.KIND_PHOTOS, FileCache.KIND_FILES)
+            assertTrue(kindsToClear(opened, confirmed = false).isEmpty())
+            assertTrue(cleared.isEmpty())
+            store.accept(SettingsStore.Intent.ClearKinds(setOf(FileCache.KIND_FILES)))
+            assertEquals(listOf(FileCache.KIND_FILES), cleared)
         } finally {
             store.dispose()
         }

@@ -82,6 +82,7 @@ class SelectedTargetWarmupTest {
         testScheduler.runCurrent()
         started.await()
         warmup.promote(4L)
+        assertEquals(listOf(MediaPriority.IDLE), seen)
         testScheduler.runCurrent()
         assertEquals(listOf(MediaPriority.IDLE, MediaPriority.VISIBLE), seen)
     }

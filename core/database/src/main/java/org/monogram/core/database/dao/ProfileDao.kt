@@ -17,6 +17,9 @@ interface ProfileTabsDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: ProfileTabsEntity)
 
+    @Query("SELECT peerId FROM profile_tabs WHERE updatedAt < :cutoffMillis LIMIT :limit")
+    suspend fun stalePeerIds(cutoffMillis: Long, limit: Int): List<Long>
+
     @Query("DELETE FROM profile_tabs WHERE peerId = :peerId")
     suspend fun delete(peerId: Long)
 
@@ -49,6 +52,9 @@ interface ProfileMediaDao {
 
     @Query("DELETE FROM profile_media WHERE peerId = :peerId AND tab = :tab")
     suspend fun deleteTab(peerId: Long, tab: String)
+
+    @Query("DELETE FROM profile_media WHERE peerId = :peerId")
+    suspend fun deletePeer(peerId: Long)
 
     @Query("DELETE FROM profile_media")
     suspend fun clear()

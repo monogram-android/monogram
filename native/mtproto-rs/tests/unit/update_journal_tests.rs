@@ -197,6 +197,31 @@ fn an_older_snapshot_does_not_replace_a_newer_live_journal() {
 }
 
 #[test]
+fn acknowledgement_survives_an_older_same_generation_snapshot() {
+    let mut live = UpdateJournal::default();
+    let generation = live.account_generation;
+    let batch = live.push(vec![message_event(1)], cursor(1), vec![]);
+    let snapshot = live.clone();
+    assert!(live.acknowledge(generation, batch.batch_id));
+    let saved = crate::client::journal_to_save(snapshot, Some(live.clone()));
+    assert!(saved.batches.is_empty(), "an older snapshot must not restore an ack");
+    assert_eq!(saved.next_batch_id, live.next_batch_id);
+}
+
+#[test]
+fn drain_before_updates_start_creates_no_batch() {
+    let path = temp_session("empty-drain");
+    let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
+    let drained = crate::client::drain_updates(handle).unwrap();
+    assert!(drained.batches.is_empty());
+    assert!(drained.live_events.is_empty());
+    assert!(!drained.replay_required);
+    assert!(get_client(handle).unwrap().data.lock().journal.batches.is_empty());
+    destroy_client(handle);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn acknowledgement_is_idempotent_and_compaction_is_persisted() {
     let path = temp_session("ack");
     let handle = create_client(1, "hash".into(), path.to_string_lossy().into());

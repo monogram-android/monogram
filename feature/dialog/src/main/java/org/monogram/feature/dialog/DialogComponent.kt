@@ -84,9 +84,11 @@ class DialogComponent(
     )
 
     init {
+        warmup?.setOpenChat(chatId.value)
         lifecycle.doOnStart { client.setDialogForeground(true) }
         lifecycle.doOnStop { client.setDialogForeground(false) }
         lifecycle.doOnDestroy {
+            warmup?.clearOpenChat(chatId.value)
             client.setDialogForeground(false)
             mediaPreloader.close()
             pickerPreloader.close()

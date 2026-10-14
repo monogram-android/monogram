@@ -1,7 +1,12 @@
 package org.monogram.network.http
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -260,6 +265,69 @@ class FileCacheTest {
         val again = FileCache(root, maxBytes = 1024 * 1024)
         assertEquals(mapOf(FileCache.KIND_PHOTOS to 5L), again.usageByKind())
         assertEquals(mapOf(99L to 5L), again.usageByChat())
+    }
+
+    @Test
+    fun finiteLimitEvictsOldestUnpinnedAndKeepsPinnedAndLeased() {
+        var now = 1L
+        val cache = FileCache(
+            tmp.newFolder("limit"),
+            maxBytes = 200,
+            nowMs = { now },
+            maintainOnInit = false
+        )
+        cache.put("old", ByteArray(40))
+        now = 2
+        cache.put("pinned", ByteArray(40))
+        cache.pin("pinned")
+        now = 3
+        cache.put("leased", ByteArray(40))
+        val lease = checkNotNull(cache.acquire("leased"))
+        try {
+            cache.setMaxBytes(50)
+            assertNull(cache.get("old"))
+            assertNotNull(cache.get("pinned"))
+            assertNotNull(cache.get("leased"))
+        } finally {
+            lease.close()
+        }
+    }
+
+    @Test
+    fun unlimitedDoesNotSizeEvict() {
+        val cache = FileCache(tmp.newFolder("unlimited"), maxBytes = 10, maintainOnInit = false)
+        cache.setMaxBytes(null)
+        cache.put("a", ByteArray(40))
+        cache.put("b", ByteArray(40))
+        cache.trimIfNeeded()
+        assertNotNull(cache.get("a"))
+        assertNotNull(cache.get("b"))
+        cache.setMaxBytes(40)
+        assertNull(cache.get("a"))
+        assertNotNull(cache.get("b"))
+    }
+
+    @Test
+    fun repositoryAppliesTheLimitOffTheCallerThread() = runBlocking {
+        val root = tmp.newFolder("repo-limit")
+        val seeded = FileCache(root, maxBytes = 10_000, maintainOnInit = false)
+        seeded.put("old", ByteArray(80))
+        seeded.put("keep", ByteArray(80))
+        seeded.pin("keep")
+        seeded.flushIndex()
+        val caller = Thread.currentThread()
+        val repository = MediaRepository(root, cacheLimitBytes = 100)
+        try {
+            withTimeout(5_000) {
+                while (repository.cacheWorkThread == null || repository.cacheSizeBytes() > 100) delay(
+                    20
+                )
+            }
+            assertTrue(repository.cacheWorkThread != caller)
+            assertTrue(repository.cacheSizeBytes() <= 100)
+        } finally {
+            repository.shutdown()
+        }
     }
 
     @Test

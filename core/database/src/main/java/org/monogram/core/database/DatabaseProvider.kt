@@ -2,6 +2,7 @@ package org.monogram.core.database
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.os.Process
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -13,6 +14,7 @@ import org.monogram.core.common.PerfLog
 import java.io.File
 import java.util.ArrayDeque
 import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
@@ -124,10 +126,33 @@ object DatabaseProvider {
 
     @Suppress("unused")
     private val keepRoomThread = roomThread
-    internal val roomDispatcher = roomExecutor.asCoroutineDispatcher()
+    private val roomDispatcher = roomExecutor.asCoroutineDispatcher()
+
+    private val roomQueryExecutor = roomPool("monogram-room-query", threads = 2, background = false)
+    private val roomTransactionExecutor =
+        roomPool("monogram-room-tx", threads = 1, background = true)
 
     internal suspend fun <T> onRoom(block: suspend () -> T): T =
         if (onRoomThread.get() == true) block() else withContext(roomDispatcher) { block() }
+
+    private fun roomPool(name: String, threads: Int, background: Boolean): Executor {
+        val pool = Executors.newFixedThreadPool(threads) { worker ->
+            Thread(worker, name).apply { isDaemon = true }
+        }
+        return Executor { command ->
+            pool.execute {
+                if (background) {
+                    runCatching { Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND) }
+                }
+                onRoomThread.set(true)
+                try {
+                    command.run()
+                } finally {
+                    onRoomThread.remove()
+                }
+            }
+        }
+    }
 
     fun roomQueueDepth(): Int = synchronized(queueLock) {
         foregroundQueue.size + maintenanceQueue.size
@@ -189,8 +214,8 @@ object DatabaseProvider {
                 MIGRATION_7_8
             )
             .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .setQueryExecutor(roomExecutor)
-            .setTransactionExecutor(roomExecutor)
+            .setQueryExecutor(roomQueryExecutor)
+            .setTransactionExecutor(roomTransactionExecutor)
             .addCallback(object : androidx.room.RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     db.execSQL("PRAGMA synchronous=NORMAL")

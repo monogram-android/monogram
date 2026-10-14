@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -26,6 +27,7 @@ import org.monogram.core.models.SearchPeer
 import org.monogram.core.ui.components.FolderChipItem
 import org.monogram.core.ui.components.FolderChipRow
 import org.monogram.core.ui.components.FolderChips
+import org.monogram.core.ui.components.MediaScrollGate
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.showsMiniPlayer
 import org.monogram.core.ui.menu.AppMenuPopup
@@ -160,6 +162,18 @@ internal fun ChatsLazyList(
             ) {
                 onLoadMore()
             }
+        }
+    }
+    val scrollGate = remember { Any() }
+    DisposableEffect(scrollGate) {
+        onDispose { MediaScrollGate.set(scrollGate, false) }
+    }
+    LaunchedEffect(listState, scrollGate) {
+        snapshotFlow { listState.isScrollInProgress }.collect {
+            MediaScrollGate.set(
+                scrollGate,
+                it
+            )
         }
     }
     LazyColumn(

@@ -157,7 +157,8 @@ internal fun CustomEmojiGlyph(
     val (mediaVisible, visibilityModifier) = rememberViewportVisible(documentId)
     val mediaAnimationEnabled = playback == null && animationEnabled && mediaVisible
     val placedVisibility = if (playback == null) visibilityModifier else Modifier
-    val cacheGeneration = repo?.cacheGeneration?.collectAsState()?.value ?: 0L
+    val cacheGeneration = repo?.cacheGeneration("emoji:$documentId")
+        ?.collectAsState(initial = 0L)?.value ?: 0L
     val file = rememberEnsuredFile(
         generation = cacheGeneration,
         identity = documentId,

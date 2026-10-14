@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +62,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
 import org.monogram.core.ui.components.MediaPreviewViewer
+import org.monogram.core.ui.components.MediaScrollGate
 import org.monogram.core.ui.loading.MonogramCircularProgress
 import org.monogram.core.ui.media.MediaSeekBar
 import org.monogram.feature.dialog.R
@@ -309,9 +311,14 @@ fun VideoPlayer(
         }
     }
 
-    LaunchedEffect(fullscreen, active, animationEnabled) {
-        if (fullscreen || !active || !animationEnabled) player.pause()
-        else if (playing) player.play()
+    LaunchedEffect(fullscreen, active, animationEnabled, player) {
+        snapshotFlow { MediaScrollGate.isScrolling() }.collect { scrolling ->
+            when {
+                fullscreen || !active || !animationEnabled -> player.pause()
+                scrolling -> player.pause()
+                isGif || playing -> player.play()
+            }
+        }
     }
     if (fullscreen) {
         MediaPreviewViewer(

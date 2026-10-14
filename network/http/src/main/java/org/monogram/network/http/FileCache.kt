@@ -55,6 +55,7 @@ class FileCache(
     private val reservations = HashMap<String, Long>()
     private val partialBytes = HashMap<String, Long>()
     private val lastAccess = HashMap<String, Long>()
+    private val diskNames = java.util.concurrent.ConcurrentHashMap<String, String>()
     private var reconciled = false
     private var dirtyIndexMutations = 0
     private var firstDirtyAt = 0L
@@ -113,6 +114,15 @@ class FileCache(
         val reserved = reservations.entries.filter { it.key != name }
             .sumOf { (n, bytes) -> (bytes - (partialBytes[n] ?: 0L)).coerceAtLeast(0L) }
         return partial + reserved
+    }
+
+    /** Bytes reserved or already in a partial transfer. No cache walk and no hashing. */
+    fun inflightBytes(): Long = synchronized(recordsLock) {
+        val partial = partialBytes.values.sum()
+        val reserved = reservations.entries.sumOf { (name, bytes) ->
+            (bytes - (partialBytes[name] ?: 0L)).coerceAtLeast(0L)
+        }
+        partial + reserved
     }
 
     /** Derived from in-memory records and transfer state; no filesystem access. */
@@ -293,8 +303,10 @@ class FileCache(
         val file = fileFor(key)
         if (!file.isFile) return@synchronized null
         val now = nowMs()
-        file.setLastModified(now)
-        lastAccess[diskName(key)] = now
+        val name = diskName(key)
+        val previous = lastAccess[name]
+        lastAccess[name] = now
+        if (previous == null || now - previous >= ACCESS_TOUCH_MS) file.setLastModified(now)
         file
     }
 
@@ -643,12 +655,21 @@ class FileCache(
     private fun isStaging(name: String): Boolean =
         name.endsWith(".part") || name.endsWith(".cancel")
 
-    private fun diskName(key: String): String =
-        if (key.startsWith(ORPHAN_PREFIX)) key.removePrefix(ORPHAN_PREFIX) else hash(key)
+    private fun diskName(key: String): String = diskNames.computeIfAbsent(key) { raw ->
+        if (raw.startsWith(ORPHAN_PREFIX)) raw.removePrefix(ORPHAN_PREFIX) else hash(raw)
+    }
 
     private fun hash(key: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(key.toByteArray())
-        return digest.joinToString("") { "%02x".format(it) }
+        val digest = checkNotNull(sha256.get())
+        digest.reset()
+        val bytes = digest.digest(key.toByteArray(Charsets.UTF_8))
+        val chars = CharArray(bytes.size * 2)
+        for (index in bytes.indices) {
+            val value = bytes[index].toInt() and 0xff
+            chars[index * 2] = HEX[value ushr 4]
+            chars[index * 2 + 1] = HEX[value and 0x0f]
+        }
+        return String(chars)
     }
 
     companion object {
@@ -656,6 +677,11 @@ class FileCache(
         const val PARTIAL_IDLE_MS = 24L * 60 * 60 * 1000
         private const val INDEX_BATCH = 16
         private const val INDEX_BATCH_MS = 2_000L
+        private const val ACCESS_TOUCH_MS = 5_000L
+        private val HEX = "0123456789abcdef".toCharArray()
+        private val sha256 = object : ThreadLocal<MessageDigest>() {
+            override fun initialValue(): MessageDigest = MessageDigest.getInstance("SHA-256")
+        }
         private const val STAGING_PUBLISH = "publish-"
         private const val STAGING_INDEX = "index-"
 

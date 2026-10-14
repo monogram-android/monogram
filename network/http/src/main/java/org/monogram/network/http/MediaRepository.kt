@@ -315,6 +315,8 @@ class MediaRepository(
 
     fun storageAccounting(): StorageAccounting = cache.accounting()
 
+    fun inflightBytes(): Long = cache.inflightBytes()
+
     /** Releases an explicit download so ordinary cache trimming may reclaim it. */
     fun unpinDownload(key: String) = cache.unpin(key)
 

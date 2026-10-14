@@ -205,7 +205,7 @@ interface FfiConverter<KotlinType, FfiType> {
  *
  * @suppress
  */
-interface FfiConverterRustBuffer<KotlinType>: FfiConverter<KotlinType, RustBuffer.ByValue> {
+interface FfiConverterRustBuffer<KotlinType> : FfiConverter<KotlinType, RustBuffer.ByValue> {
     override fun lift(value: RustBuffer.ByValue) = liftFromRustBuffer(value)
     override fun lower(value: KotlinType) = lowerIntoRustBuffer(value)
 }
@@ -261,7 +261,10 @@ interface UniffiRustCallStatusErrorHandler<E> {
 // synchronize itself
 
 // Call a rust function that returns a Result<>.  Pass in the Error class companion that corresponds to the Err
-private inline fun <U, E: Exception> uniffiRustCallWithError(errorHandler: UniffiRustCallStatusErrorHandler<E>, callback: (UniffiRustCallStatus) -> U): U {
+private inline fun <U, E : Exception> uniffiRustCallWithError(
+    errorHandler: UniffiRustCallStatusErrorHandler<E>,
+    callback: (UniffiRustCallStatus) -> U
+): U {
     var status = UniffiRustCallStatus()
     val return_value = callback(status)
     uniffiCheckCallStatus(errorHandler, status)
@@ -269,7 +272,10 @@ private inline fun <U, E: Exception> uniffiRustCallWithError(errorHandler: Uniff
 }
 
 // Check UniffiRustCallStatus and throw an error if the call wasn't successful
-private fun<E: Exception> uniffiCheckCallStatus(errorHandler: UniffiRustCallStatusErrorHandler<E>, status: UniffiRustCallStatus) {
+private fun <E : Exception> uniffiCheckCallStatus(
+    errorHandler: UniffiRustCallStatusErrorHandler<E>,
+    status: UniffiRustCallStatus
+) {
     if (status.isSuccess()) {
         return
     } else if (status.isError()) {
@@ -312,7 +318,7 @@ internal inline fun<T> uniffiTraitInterfaceCall(
 ) {
     try {
         writeReturn(makeCall())
-    } catch(e: Exception) {
+    } catch (e: Exception) {
         val err = try { e.stackTraceToString() } catch(_: Throwable) { "" }
         callStatus.code = UNIFFI_CALL_UNEXPECTED_ERROR
         callStatus.error_buf = FfiConverterString.lower(err)
@@ -327,7 +333,7 @@ internal inline fun<T, reified E: Throwable> uniffiTraitInterfaceCallWithError(
 ) {
     try {
         writeReturn(makeCall())
-    } catch(e: Exception) {
+    } catch (e: Exception) {
         if (e is E) {
             callStatus.code = UNIFFI_CALL_ERROR
             callStatus.error_buf = lowerError(e)
@@ -411,7 +417,7 @@ internal open class UniffiForeignFutureDroppedCallbackStruct(
     class UniffiByValue(
         `handle`: Long = 0.toLong(),
         `free`: UniffiForeignFutureDroppedCallback? = null,
-    ): UniffiForeignFutureDroppedCallbackStruct(`handle`,`free`,), ByValue
+    ) : UniffiForeignFutureDroppedCallbackStruct(`handle`, `free`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureDroppedCallbackStruct) {
         `handle` = other.`handle`
@@ -427,7 +433,7 @@ internal open class UniffiForeignFutureResultU8(
     class UniffiByValue(
         `returnValue`: Byte = 0.toByte(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultU8(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultU8(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultU8) {
         `returnValue` = other.`returnValue`
@@ -446,7 +452,7 @@ internal open class UniffiForeignFutureResultI8(
     class UniffiByValue(
         `returnValue`: Byte = 0.toByte(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultI8(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultI8(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultI8) {
         `returnValue` = other.`returnValue`
@@ -465,7 +471,7 @@ internal open class UniffiForeignFutureResultU16(
     class UniffiByValue(
         `returnValue`: Short = 0.toShort(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultU16(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultU16(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultU16) {
         `returnValue` = other.`returnValue`
@@ -484,7 +490,7 @@ internal open class UniffiForeignFutureResultI16(
     class UniffiByValue(
         `returnValue`: Short = 0.toShort(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultI16(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultI16(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultI16) {
         `returnValue` = other.`returnValue`
@@ -503,7 +509,7 @@ internal open class UniffiForeignFutureResultU32(
     class UniffiByValue(
         `returnValue`: Int = 0,
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultU32(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultU32(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultU32) {
         `returnValue` = other.`returnValue`
@@ -522,7 +528,7 @@ internal open class UniffiForeignFutureResultI32(
     class UniffiByValue(
         `returnValue`: Int = 0,
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultI32(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultI32(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultI32) {
         `returnValue` = other.`returnValue`
@@ -541,7 +547,7 @@ internal open class UniffiForeignFutureResultU64(
     class UniffiByValue(
         `returnValue`: Long = 0.toLong(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultU64(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultU64(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultU64) {
         `returnValue` = other.`returnValue`
@@ -560,7 +566,7 @@ internal open class UniffiForeignFutureResultI64(
     class UniffiByValue(
         `returnValue`: Long = 0.toLong(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultI64(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultI64(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultI64) {
         `returnValue` = other.`returnValue`
@@ -579,7 +585,7 @@ internal open class UniffiForeignFutureResultF32(
     class UniffiByValue(
         `returnValue`: Float = 0.0f,
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultF32(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultF32(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultF32) {
         `returnValue` = other.`returnValue`
@@ -598,7 +604,7 @@ internal open class UniffiForeignFutureResultF64(
     class UniffiByValue(
         `returnValue`: Double = 0.0,
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultF64(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultF64(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultF64) {
         `returnValue` = other.`returnValue`
@@ -617,7 +623,7 @@ internal open class UniffiForeignFutureResultRustBuffer(
     class UniffiByValue(
         `returnValue`: RustBuffer.ByValue = RustBuffer.ByValue(),
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultRustBuffer(`returnValue`,`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultRustBuffer(`returnValue`, `callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultRustBuffer) {
         `returnValue` = other.`returnValue`
@@ -634,7 +640,7 @@ internal open class UniffiForeignFutureResultVoid(
 ) : Structure() {
     class UniffiByValue(
         `callStatus`: UniffiRustCallStatus.ByValue = UniffiRustCallStatus.ByValue(),
-    ): UniffiForeignFutureResultVoid(`callStatus`,), ByValue
+    ) : UniffiForeignFutureResultVoid(`callStatus`), ByValue
 
    internal fun uniffiSetValue(other: UniffiForeignFutureResultVoid) {
         `callStatus` = other.`callStatus`
@@ -657,7 +663,11 @@ internal open class UniffiVTableCallbackInterfaceDownloadProgressListener(
         `uniffiFree`: UniffiCallbackInterfaceFree? = null,
         `uniffiClone`: UniffiCallbackInterfaceClone? = null,
         `onProgress`: UniffiCallbackInterfaceDownloadProgressListenerMethod0? = null,
-    ): UniffiVTableCallbackInterfaceDownloadProgressListener(`uniffiFree`,`uniffiClone`,`onProgress`,), ByValue
+    ) : UniffiVTableCallbackInterfaceDownloadProgressListener(
+        `uniffiFree`,
+        `uniffiClone`,
+        `onProgress`,
+    ), ByValue
 
    internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceDownloadProgressListener) {
         `uniffiFree` = other.`uniffiFree`
@@ -987,7 +997,8 @@ internal object UniffiLib {
         uniffiCallbackInterfaceDownloadProgressListener.register(this)
 
     }
-    external fun uniffi_monogram_mtproto_fn_init_callback_vtable_downloadprogresslistener(`vtable`: UniffiVTableCallbackInterfaceDownloadProgressListener,
+    external fun uniffi_monogram_mtproto_fn_init_callback_vtable_downloadprogresslistener(
+        `vtable`: UniffiVTableCallbackInterfaceDownloadProgressListener,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_acknowledge_update_batch(
@@ -997,25 +1008,40 @@ internal object UniffiLib {
         uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_add_waveform_pcm(`handle`: Long,`samples`: RustBuffer.ByValue,`sampleRate`: Int,`channels`: Int,`presentationTimeUs`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_add_waveform_pcm(
+        `handle`: Long,
+        `samples`: RustBuffer.ByValue,
+        `sampleRate`: Int,
+        `channels`: Int,
+        `presentationTimeUs`: Long,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_animated_emoji_max(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
-    external fun uniffi_monogram_mtproto_fn_func_append_todo_items(`handle`: Long,`chatId`: Long,`messageId`: Int,`firstId`: Int,`titles`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_append_todo_items(
+        `handle`: Long,
+        `chatId`: Long,
+        `messageId`: Int,
+        `firstId`: Int,
+        `titles`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_bind_request_control(`id`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun uniffi_monogram_mtproto_fn_func_cancel_request_control(`id`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_cancel_request_control(
+        `id`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_check_password(`handle`: Long,`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_clear_active_dialog(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_clear_active_dialog(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_clear_proxy(uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_clear_proxy(
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_client_api_id(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
@@ -1024,7 +1050,8 @@ internal object UniffiLib {
     ): Byte
     external fun uniffi_monogram_mtproto_fn_func_client_uses_test_dc(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
-    external fun uniffi_monogram_mtproto_fn_func_connect(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_connect(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_contacts_search(`handle`: Long,`query`: RustBuffer.ByValue,`limit`: Int,uniffi_out_err: UniffiRustCallStatus,
@@ -1049,22 +1076,32 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_decrypt_push_payload(`secret`: RustBuffer.ByValue,`payload`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_delete_folder(`handle`: Long,`id`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_delete_folder(
+        `handle`: Long, `id`: Int, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_delete_message(`handle`: Long,`chatId`: Long,`messageId`: Int,`revoke`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_delete_message(
+        `handle`: Long,
+        `chatId`: Long,
+        `messageId`: Int,
+        `revoke`: Byte,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_destroy_client(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_destroy_client(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_destroy_lottie(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_destroy_lottie(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_destroy_vpx_decoder(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_destroy_vpx_decoder(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_destroy_waveform(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_destroy_waveform(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_download_chunk_kib(uniffi_out_err: UniffiRustCallStatus,
@@ -1085,7 +1122,12 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_drain_updates(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_edit_forum_topic_hidden(`handle`: Long,`chatId`: Long,`topicId`: Int,`hidden`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_edit_forum_topic_hidden(
+        `handle`: Long,
+        `chatId`: Long,
+        `topicId`: Int,
+        `hidden`: Byte,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_edit_text_message(`handle`: Long,`chatId`: Long,`messageId`: Int,`text`: RustBuffer.ByValue,`entitiesJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
@@ -1174,7 +1216,8 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_load_more_chats(`handle`: Long,`offsetDate`: Int,`offsetId`: Int,`offsetPeerId`: Long,`folderId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_logout(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_logout(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_lottie_frame_count(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
@@ -1183,7 +1226,8 @@ internal object UniffiLib {
     ): Float
     external fun uniffi_monogram_mtproto_fn_func_lottie_size(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_mark_dialog_unread(`handle`: Long,`chatId`: Long,`unread`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_mark_dialog_unread(
+        `handle`: Long, `chatId`: Long, `unread`: Byte, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_peek_message_inline_thumb(`handle`: Long,`chatId`: Long,`messageId`: Int,uniffi_out_err: UniffiRustCallStatus,
@@ -1193,7 +1237,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_pending_update_batches(
         `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_perf_set_enabled(`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_perf_set_enabled(
+        `enabled`: Byte, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_perf_snapshot(`reset`: Byte,uniffi_out_err: UniffiRustCallStatus,
@@ -1204,32 +1249,54 @@ internal object UniffiLib {
         `id`: Long, `class`: Int, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_read_discussion(`handle`: Long,`chatId`: Long,`msgId`: Int,`readMaxId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_read_discussion(
+        `handle`: Long,
+        `chatId`: Long,
+        `msgId`: Int,
+        `readMaxId`: Int,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_read_history(`handle`: Long,`chatId`: Long,`maxId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_read_history(
+        `handle`: Long, `chatId`: Long, `maxId`: Int, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_read_mentions(`handle`: Long,`chatId`: Long,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_read_mentions(
+        `handle`: Long, `chatId`: Long, `topMsgId`: Int, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_read_message_contents(`handle`: Long,`chatId`: Long,`messageIds`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_read_message_contents(
+        `handle`: Long,
+        `chatId`: Long,
+        `messageIds`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_read_reactions(`handle`: Long,`chatId`: Long,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_read_reactions(
+        `handle`: Long, `chatId`: Long, `topMsgId`: Int, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_register_device(`handle`: Long,`tokenType`: Int,`token`: RustBuffer.ByValue,`secret`: RustBuffer.ByValue,`noMuted`: Byte,`appSandbox`: Byte,`otherUids`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_register_device(
+        `handle`: Long,
+        `tokenType`: Int,
+        `token`: RustBuffer.ByValue,
+        `secret`: RustBuffer.ByValue,
+        `noMuted`: Byte,
+        `appSandbox`: Byte,
+        `otherUids`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_release_request_control(`id`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_release_request_control(
+        `id`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_render_lottie_frame(`handle`: Long,`frame`: Float,`width`: Int,`height`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_resend_auth_code(`handle`: Long,`phone`: RustBuffer.ByValue,`phoneCodeHash`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_reset_notify_settings(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_reset_notify_settings(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_resolve_username(`handle`: Long,`username`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
@@ -1246,15 +1313,34 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_inline_bot_result(`handle`: Long,`chatId`: Long,`queryId`: Long,`resultId`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_send_location(`handle`: Long,`chatId`: Long,`latitude`: Double,`longitude`: Double,`livePeriod`: Int,`heading`: Int,`replyToMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_send_location(
+        `handle`: Long,
+        `chatId`: Long,
+        `latitude`: Double,
+        `longitude`: Double,
+        `livePeriod`: Int,
+        `heading`: Int,
+        `replyToMsgId`: Int,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_send_photo_message(`handle`: Long,`chatId`: Long,`path`: RustBuffer.ByValue,`caption`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_send_poll_vote(`handle`: Long,`chatId`: Long,`messageId`: Int,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_send_poll_vote(
+        `handle`: Long,
+        `chatId`: Long,
+        `messageId`: Int,
+        `options`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_send_reaction(`handle`: Long,`chatId`: Long,`messageId`: Int,`emoticon`: RustBuffer.ByValue,`documentId`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_send_reaction(
+        `handle`: Long,
+        `chatId`: Long,
+        `messageId`: Int,
+        `emoticon`: RustBuffer.ByValue,
+        `documentId`: Long,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_send_saved_gif(`handle`: Long,`chatId`: Long,`documentId`: Long,`replyToMsgId`: Int,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
@@ -1265,208 +1351,292 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_uploaded_media(`handle`: Long,`chatId`: Long,`item`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_set_client_test_dc(`handle`: Long,`test`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_client_test_dc(
+        `handle`: Long, `test`: Byte, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_contact_joined_silent(`handle`: Long,`silent`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_contact_joined_silent(
+        `handle`: Long, `silent`: Byte, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_dispatch_class(`class`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_dispatch_class(
+        `class`: Int, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_download_chunk_kib(`kib`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_download_chunk_kib(
+        `kib`: Int, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_download_concurrency(`lanes`: Int,`parts`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_download_concurrency(
+        `lanes`: Int, `parts`: Int, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_download_progress_listener(`listener`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_download_progress_listener(
+        `listener`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_file_part_kib(`kib`: Int,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_file_part_kib(
+        `kib`: Int, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_init_connection_info(`info`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_init_connection_info(
+        `info`: RustBuffer.ByValue, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_proxy(`kind`: RustBuffer.ByValue,`host`: RustBuffer.ByValue,`port`: Short,`username`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`secret`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_proxy(
+        `kind`: RustBuffer.ByValue,
+        `host`: RustBuffer.ByValue,
+        `port`: Short,
+        `username`: RustBuffer.ByValue,
+        `password`: RustBuffer.ByValue,
+        `secret`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_transport_mode(`mode`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_transport_mode(
+        `mode`: RustBuffer.ByValue, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_set_typing(`handle`: Long,`chatId`: Long,`typing`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_set_typing(
+        `handle`: Long, `chatId`: Long, `typing`: Byte, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun uniffi_monogram_mtproto_fn_func_sign_in(`handle`: Long,`phone`: RustBuffer.ByValue,`phoneCodeHash`: RustBuffer.ByValue,`phoneCode`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun uniffi_monogram_mtproto_fn_func_start_updates(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_start_updates(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_toggle_todo_completed(`handle`: Long,`chatId`: Long,`messageId`: Int,`completed`: RustBuffer.ByValue,`incompleted`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_toggle_todo_completed(
+        `handle`: Long,
+        `chatId`: Long,
+        `messageId`: Int,
+        `completed`: RustBuffer.ByValue,
+        `incompleted`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_unblock_user(`handle`: Long,`chatId`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_unblock_user(
+        `handle`: Long, `chatId`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_unregister_device(`handle`: Long,`tokenType`: Int,`token`: RustBuffer.ByValue,`otherUids`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_unregister_device(
+        `handle`: Long,
+        `tokenType`: Int,
+        `token`: RustBuffer.ByValue,
+        `otherUids`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_update_folder(`handle`: Long,`folder`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_update_folder(
+        `handle`: Long, `folder`: RustBuffer.ByValue, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_update_folder_order(`handle`: Long,`order`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_update_folder_order(
+        `handle`: Long, `order`: RustBuffer.ByValue, uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_update_lazy_sync_config(`handle`: Long,`lazy`: Byte,`exceptions`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_update_lazy_sync_config(
+        `handle`: Long,
+        `lazy`: Byte,
+        `exceptions`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_update_notify_settings(`handle`: Long,`peerKind`: RustBuffer.ByValue,`chatId`: Long,`showPreviews`: RustBuffer.ByValue,`silent`: Byte,`muteUntil`: Int,`storiesMuted`: Byte,`sound`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_update_notify_settings(
+        `handle`: Long,
+        `peerKind`: RustBuffer.ByValue,
+        `chatId`: Long,
+        `showPreviews`: RustBuffer.ByValue,
+        `silent`: Byte,
+        `muteUntil`: Int,
+        `storiesMuted`: Byte,
+        `sound`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
     )
 
-    external fun uniffi_monogram_mtproto_fn_func_update_status(`handle`: Long,`offline`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_update_status(
+        `handle`: Long, `offline`: Byte, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun ffi_monogram_mtproto_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun ffi_monogram_mtproto_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_monogram_mtproto_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_monogram_mtproto_rustbuffer_free(
+        `buf`: RustBuffer.ByValue, uniffi_out_err: UniffiRustCallStatus,
     )
 
     external fun ffi_monogram_mtproto_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_monogram_mtproto_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_u8(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_u8(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_u8(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_u8(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_u8(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
-    external fun ffi_monogram_mtproto_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_i8(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_i8(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_i8(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_i8(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_i8(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
-    external fun ffi_monogram_mtproto_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_u16(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_u16(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_u16(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_u16(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_u16(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
-    external fun ffi_monogram_mtproto_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_i16(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_i16(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_i16(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_i16(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_i16(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Short
-    external fun ffi_monogram_mtproto_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_u32(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_u32(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_u32(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_u32(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_u32(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
-    external fun ffi_monogram_mtproto_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_i32(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_i32(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_i32(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_i32(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_i32(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
-    external fun ffi_monogram_mtproto_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_u64(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_u64(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_u64(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_u64(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_u64(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun ffi_monogram_mtproto_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_i64(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_i64(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_i64(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_i64(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_i64(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun ffi_monogram_mtproto_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_f32(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_f32(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_f32(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_f32(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_f32(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Float
-    external fun ffi_monogram_mtproto_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_f64(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_f64(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_f64(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_f64(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_f64(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Double
-    external fun ffi_monogram_mtproto_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_rust_buffer(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_rust_buffer(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_rust_buffer(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_rust_buffer(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_rust_buffer(
+        `handle`: Long,
     )
 
     external fun ffi_monogram_mtproto_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_monogram_mtproto_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_monogram_mtproto_rust_future_poll_void(
+        `handle`: Long, `callback`: UniffiRustFutureContinuationCallback, `callbackData`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_cancel_void(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_cancel_void(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_free_void(`handle`: Long,
+    external fun ffi_monogram_mtproto_rust_future_free_void(
+        `handle`: Long,
     )
 
-    external fun ffi_monogram_mtproto_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_monogram_mtproto_rust_future_complete_void(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     )
 
 
@@ -2011,7 +2181,8 @@ internal const val UNIFFI_CALLBACK_UNEXPECTED_ERROR = 2
 /**
  * @suppress
  */
-abstract class FfiConverterCallbackInterface<CallbackInterface: Any>: FfiConverter<CallbackInterface, Long> {
+abstract class FfiConverterCallbackInterface<CallbackInterface : Any> :
+    FfiConverter<CallbackInterface, Long> {
     internal val handleMap = UniffiHandleMap<CallbackInterface>()
 
     internal fun drop(handle: Long) {
@@ -2036,7 +2207,7 @@ abstract class FfiConverterCallbackInterface<CallbackInterface: Any>: FfiConvert
 /**
  * @suppress
  */
-object FfiConverterUShort: FfiConverter<UShort, Short> {
+object FfiConverterUShort : FfiConverter<UShort, Short> {
     override fun lift(value: Short): UShort {
         return value.toUShort()
     }
@@ -2063,7 +2234,7 @@ object FfiConverterUShort: FfiConverter<UShort, Short> {
 /**
  * @suppress
  */
-object FfiConverterShort: FfiConverter<Short, Short> {
+object FfiConverterShort : FfiConverter<Short, Short> {
     override fun lift(value: Short): Short {
         return value
     }
@@ -2086,7 +2257,7 @@ object FfiConverterShort: FfiConverter<Short, Short> {
 /**
  * @suppress
  */
-object FfiConverterUInt: FfiConverter<UInt, Int> {
+object FfiConverterUInt : FfiConverter<UInt, Int> {
     override fun lift(value: Int): UInt {
         return value.toUInt()
     }
@@ -2109,7 +2280,7 @@ object FfiConverterUInt: FfiConverter<UInt, Int> {
 /**
  * @suppress
  */
-object FfiConverterInt: FfiConverter<Int, Int> {
+object FfiConverterInt : FfiConverter<Int, Int> {
     override fun lift(value: Int): Int {
         return value
     }
@@ -2132,7 +2303,7 @@ object FfiConverterInt: FfiConverter<Int, Int> {
 /**
  * @suppress
  */
-object FfiConverterULong: FfiConverter<ULong, Long> {
+object FfiConverterULong : FfiConverter<ULong, Long> {
     override fun lift(value: Long): ULong {
         return value.toULong()
     }
@@ -2155,7 +2326,7 @@ object FfiConverterULong: FfiConverter<ULong, Long> {
 /**
  * @suppress
  */
-object FfiConverterLong: FfiConverter<Long, Long> {
+object FfiConverterLong : FfiConverter<Long, Long> {
     override fun lift(value: Long): Long {
         return value
     }
@@ -2178,7 +2349,7 @@ object FfiConverterLong: FfiConverter<Long, Long> {
 /**
  * @suppress
  */
-object FfiConverterFloat: FfiConverter<Float, Float> {
+object FfiConverterFloat : FfiConverter<Float, Float> {
     override fun lift(value: Float): Float {
         return value
     }
@@ -2201,7 +2372,7 @@ object FfiConverterFloat: FfiConverter<Float, Float> {
 /**
  * @suppress
  */
-object FfiConverterDouble: FfiConverter<Double, Double> {
+object FfiConverterDouble : FfiConverter<Double, Double> {
     override fun lift(value: Double): Double {
         return value
     }
@@ -2224,7 +2395,7 @@ object FfiConverterDouble: FfiConverter<Double, Double> {
 /**
  * @suppress
  */
-object FfiConverterBoolean: FfiConverter<Boolean, Byte> {
+object FfiConverterBoolean : FfiConverter<Boolean, Byte> {
     override fun lift(value: Byte): Boolean {
         return value.toInt() != 0
     }
@@ -2247,7 +2418,7 @@ object FfiConverterBoolean: FfiConverter<Boolean, Byte> {
 /**
  * @suppress
  */
-object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
+object FfiConverterString : FfiConverter<String, RustBuffer.ByValue> {
     // Note: we don't inherit from FfiConverterRustBuffer, because we use a
     // special encoding when lowering/lifting.  We can use `RustBuffer.len` to
     // store our length and avoid writing it out to the buffer.
@@ -2304,7 +2475,7 @@ object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
 /**
  * @suppress
  */
-object FfiConverterByteArray: FfiConverterRustBuffer<ByteArray> {
+object FfiConverterByteArray : FfiConverterRustBuffer<ByteArray> {
     override fun read(buf: ByteBuffer): ByteArray {
         val len = buf.getInt()
         val byteArr = ByteArray(len)
@@ -2343,7 +2514,7 @@ data class AuthCodeSent (
 /**
  * @suppress
  */
-object FfiConverterTypeAuthCodeSent: FfiConverterRustBuffer<AuthCodeSent> {
+object FfiConverterTypeAuthCodeSent : FfiConverterRustBuffer<AuthCodeSent> {
     override fun read(buf: ByteBuffer): AuthCodeSent {
         return AuthCodeSent(
             FfiConverterString.read(buf),
@@ -2387,7 +2558,7 @@ data class AuthSignedIn (
 /**
  * @suppress
  */
-object FfiConverterTypeAuthSignedIn: FfiConverterRustBuffer<AuthSignedIn> {
+object FfiConverterTypeAuthSignedIn : FfiConverterRustBuffer<AuthSignedIn> {
     override fun read(buf: ByteBuffer): AuthSignedIn {
         return AuthSignedIn(
             FfiConverterLong.read(buf),
@@ -2429,7 +2600,7 @@ data class BotCallbackAnswerDto (
 /**
  * @suppress
  */
-object FfiConverterTypeBotCallbackAnswerDto: FfiConverterRustBuffer<BotCallbackAnswerDto> {
+object FfiConverterTypeBotCallbackAnswerDto : FfiConverterRustBuffer<BotCallbackAnswerDto> {
     override fun read(buf: ByteBuffer): BotCallbackAnswerDto {
         return BotCallbackAnswerDto(
             FfiConverterBoolean.read(buf),
@@ -2460,6 +2631,9 @@ data class ChannelCursorDto(
     var `pts`: Int
 
 ) {
+
+
+
 
 
     companion object
@@ -2594,7 +2768,7 @@ data class ChatDto (
 /**
  * @suppress
  */
-object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
+object FfiConverterTypeChatDto : FfiConverterRustBuffer<ChatDto> {
     override fun read(buf: ByteBuffer): ChatDto {
         return ChatDto(
             FfiConverterLong.read(buf),
@@ -2728,7 +2902,7 @@ data class ContactsSearchDto (
 /**
  * @suppress
  */
-object FfiConverterTypeContactsSearchDto: FfiConverterRustBuffer<ContactsSearchDto> {
+object FfiConverterTypeContactsSearchDto : FfiConverterRustBuffer<ContactsSearchDto> {
     override fun read(buf: ByteBuffer): ContactsSearchDto {
         return ContactsSearchDto(
             FfiConverterSequenceTypeSearchPeerDto.read(buf),
@@ -2766,7 +2940,7 @@ data class DiscussionDto (
 /**
  * @suppress
  */
-object FfiConverterTypeDiscussionDto: FfiConverterRustBuffer<DiscussionDto> {
+object FfiConverterTypeDiscussionDto : FfiConverterRustBuffer<DiscussionDto> {
     override fun read(buf: ByteBuffer): DiscussionDto {
         return DiscussionDto(
             FfiConverterLong.read(buf),
@@ -2831,7 +3005,7 @@ data class FolderDto (
 /**
  * @suppress
  */
-object FfiConverterTypeFolderDto: FfiConverterRustBuffer<FolderDto> {
+object FfiConverterTypeFolderDto : FfiConverterRustBuffer<FolderDto> {
     override fun read(buf: ByteBuffer): FolderDto {
         return FolderDto(
             FfiConverterInt.read(buf),
@@ -2933,7 +3107,7 @@ data class ForumTopicDto (
 /**
  * @suppress
  */
-object FfiConverterTypeForumTopicDto: FfiConverterRustBuffer<ForumTopicDto> {
+object FfiConverterTypeForumTopicDto : FfiConverterRustBuffer<ForumTopicDto> {
     override fun read(buf: ByteBuffer): ForumTopicDto {
         return ForumTopicDto(
             FfiConverterInt.read(buf),
@@ -3013,7 +3187,7 @@ data class ForumTopicsPageDto (
 /**
  * @suppress
  */
-object FfiConverterTypeForumTopicsPageDto: FfiConverterRustBuffer<ForumTopicsPageDto> {
+object FfiConverterTypeForumTopicsPageDto : FfiConverterRustBuffer<ForumTopicsPageDto> {
     override fun read(buf: ByteBuffer): ForumTopicsPageDto {
         return ForumTopicsPageDto(
             FfiConverterInt.read(buf),
@@ -3055,7 +3229,8 @@ data class GlobalMessageSearchDto (
 /**
  * @suppress
  */
-object FfiConverterTypeGlobalMessageSearchDto: FfiConverterRustBuffer<GlobalMessageSearchDto> {
+object FfiConverterTypeGlobalMessageSearchDto :
+    FfiConverterRustBuffer<GlobalMessageSearchDto> {
     override fun read(buf: ByteBuffer): GlobalMessageSearchDto {
         return GlobalMessageSearchDto(
             FfiConverterSequenceTypeMessageDto.read(buf),
@@ -3111,7 +3286,7 @@ data class InitConnectionInfo (
 /**
  * @suppress
  */
-object FfiConverterTypeInitConnectionInfo: FfiConverterRustBuffer<InitConnectionInfo> {
+object FfiConverterTypeInitConnectionInfo : FfiConverterRustBuffer<InitConnectionInfo> {
     override fun read(buf: ByteBuffer): InitConnectionInfo {
         return InitConnectionInfo(
             FfiConverterString.read(buf),
@@ -3171,7 +3346,7 @@ data class InlineBotResultDto (
 /**
  * @suppress
  */
-object FfiConverterTypeInlineBotResultDto: FfiConverterRustBuffer<InlineBotResultDto> {
+object FfiConverterTypeInlineBotResultDto : FfiConverterRustBuffer<InlineBotResultDto> {
     override fun read(buf: ByteBuffer): InlineBotResultDto {
         return InlineBotResultDto(
             FfiConverterString.read(buf),
@@ -3230,7 +3405,7 @@ data class InlineBotResultsDto (
 /**
  * @suppress
  */
-object FfiConverterTypeInlineBotResultsDto: FfiConverterRustBuffer<InlineBotResultsDto> {
+object FfiConverterTypeInlineBotResultsDto : FfiConverterRustBuffer<InlineBotResultsDto> {
     override fun read(buf: ByteBuffer): InlineBotResultsDto {
         return InlineBotResultsDto(
             FfiConverterLong.read(buf),
@@ -3299,7 +3474,7 @@ data class InstantViewDto (
 /**
  * @suppress
  */
-object FfiConverterTypeInstantViewDto: FfiConverterRustBuffer<InstantViewDto> {
+object FfiConverterTypeInstantViewDto : FfiConverterRustBuffer<InstantViewDto> {
     override fun read(buf: ByteBuffer): InstantViewDto {
         return InstantViewDto(
             FfiConverterString.read(buf),
@@ -3372,7 +3547,7 @@ data class JoinChatDto (
 /**
  * @suppress
  */
-object FfiConverterTypeJoinChatDto: FfiConverterRustBuffer<JoinChatDto> {
+object FfiConverterTypeJoinChatDto : FfiConverterRustBuffer<JoinChatDto> {
     override fun read(buf: ByteBuffer): JoinChatDto {
         return JoinChatDto(
             FfiConverterBoolean.read(buf),
@@ -3413,7 +3588,7 @@ data class LottieSize (
 /**
  * @suppress
  */
-object FfiConverterTypeLottieSize: FfiConverterRustBuffer<LottieSize> {
+object FfiConverterTypeLottieSize : FfiConverterRustBuffer<LottieSize> {
     override fun read(buf: ByteBuffer): LottieSize {
         return LottieSize(
             FfiConverterUInt.read(buf),
@@ -3519,7 +3694,7 @@ data class MessageDto (
 /**
  * @suppress
  */
-object FfiConverterTypeMessageDto: FfiConverterRustBuffer<MessageDto> {
+object FfiConverterTypeMessageDto : FfiConverterRustBuffer<MessageDto> {
     override fun read(buf: ByteBuffer): MessageDto {
         return MessageDto(
             FfiConverterLong.read(buf),
@@ -3650,7 +3825,7 @@ data class MessagesPageDto (
 /**
  * @suppress
  */
-object FfiConverterTypeMessagesPageDto: FfiConverterRustBuffer<MessagesPageDto> {
+object FfiConverterTypeMessagesPageDto : FfiConverterRustBuffer<MessagesPageDto> {
     override fun read(buf: ByteBuffer): MessagesPageDto {
         return MessagesPageDto(
             FfiConverterSequenceTypeMessageDto.read(buf),
@@ -3702,7 +3877,7 @@ data class NotifyExceptionDto (
 /**
  * @suppress
  */
-object FfiConverterTypeNotifyExceptionDto: FfiConverterRustBuffer<NotifyExceptionDto> {
+object FfiConverterTypeNotifyExceptionDto : FfiConverterRustBuffer<NotifyExceptionDto> {
     override fun read(buf: ByteBuffer): NotifyExceptionDto {
         return NotifyExceptionDto(
             FfiConverterString.read(buf),
@@ -3769,7 +3944,7 @@ data class NotifySettingsDto (
 /**
  * @suppress
  */
-object FfiConverterTypeNotifySettingsDto: FfiConverterRustBuffer<NotifySettingsDto> {
+object FfiConverterTypeNotifySettingsDto : FfiConverterRustBuffer<NotifySettingsDto> {
     override fun read(buf: ByteBuffer): NotifySettingsDto {
         return NotifySettingsDto(
             FfiConverterOptionalBoolean.read(buf),
@@ -3819,7 +3994,7 @@ data class OutboxReadDto (
 /**
  * @suppress
  */
-object FfiConverterTypeOutboxReadDto: FfiConverterRustBuffer<OutboxReadDto> {
+object FfiConverterTypeOutboxReadDto : FfiConverterRustBuffer<OutboxReadDto> {
     override fun read(buf: ByteBuffer): OutboxReadDto {
         return OutboxReadDto(
             FfiConverterInt.read(buf),
@@ -3861,7 +4036,7 @@ data class PollVoterDto (
 /**
  * @suppress
  */
-object FfiConverterTypePollVoterDto: FfiConverterRustBuffer<PollVoterDto> {
+object FfiConverterTypePollVoterDto : FfiConverterRustBuffer<PollVoterDto> {
     override fun read(buf: ByteBuffer): PollVoterDto {
         return PollVoterDto(
             FfiConverterLong.read(buf),
@@ -3905,7 +4080,7 @@ data class PollVotersDto (
 /**
  * @suppress
  */
-object FfiConverterTypePollVotersDto: FfiConverterRustBuffer<PollVotersDto> {
+object FfiConverterTypePollVotersDto : FfiConverterRustBuffer<PollVotersDto> {
     override fun read(buf: ByteBuffer): PollVotersDto {
         return PollVotersDto(
             FfiConverterSequenceTypePollVoterDto.read(buf),
@@ -3962,7 +4137,7 @@ data class ProfileDto (
 /**
  * @suppress
  */
-object FfiConverterTypeProfileDto: FfiConverterRustBuffer<ProfileDto> {
+object FfiConverterTypeProfileDto : FfiConverterRustBuffer<ProfileDto> {
     override fun read(buf: ByteBuffer): ProfileDto {
         return ProfileDto(
             FfiConverterLong.read(buf),
@@ -4024,7 +4199,7 @@ data class ReactionChoiceDto (
 /**
  * @suppress
  */
-object FfiConverterTypeReactionChoiceDto: FfiConverterRustBuffer<ReactionChoiceDto> {
+object FfiConverterTypeReactionChoiceDto : FfiConverterRustBuffer<ReactionChoiceDto> {
     override fun read(buf: ByteBuffer): ReactionChoiceDto {
         return ReactionChoiceDto(
             FfiConverterString.read(buf),
@@ -4068,7 +4243,7 @@ data class ReactionPeerDto (
 /**
  * @suppress
  */
-object FfiConverterTypeReactionPeerDto: FfiConverterRustBuffer<ReactionPeerDto> {
+object FfiConverterTypeReactionPeerDto : FfiConverterRustBuffer<ReactionPeerDto> {
     override fun read(buf: ByteBuffer): ReactionPeerDto {
         return ReactionPeerDto(
             FfiConverterLong.read(buf),
@@ -4115,7 +4290,7 @@ data class ReactionPeersDto (
 /**
  * @suppress
  */
-object FfiConverterTypeReactionPeersDto: FfiConverterRustBuffer<ReactionPeersDto> {
+object FfiConverterTypeReactionPeersDto : FfiConverterRustBuffer<ReactionPeersDto> {
     override fun read(buf: ByteBuffer): ReactionPeersDto {
         return ReactionPeersDto(
             FfiConverterSequenceTypeReactionPeerDto.read(buf),
@@ -4153,7 +4328,7 @@ data class ReadParticipantDto (
 /**
  * @suppress
  */
-object FfiConverterTypeReadParticipantDto: FfiConverterRustBuffer<ReadParticipantDto> {
+object FfiConverterTypeReadParticipantDto : FfiConverterRustBuffer<ReadParticipantDto> {
     override fun read(buf: ByteBuffer): ReadParticipantDto {
         return ReadParticipantDto(
             FfiConverterLong.read(buf),
@@ -4191,7 +4366,7 @@ data class ReadParticipantsDto (
 /**
  * @suppress
  */
-object FfiConverterTypeReadParticipantsDto: FfiConverterRustBuffer<ReadParticipantsDto> {
+object FfiConverterTypeReadParticipantsDto : FfiConverterRustBuffer<ReadParticipantsDto> {
     override fun read(buf: ByteBuffer): ReadParticipantsDto {
         return ReadParticipantsDto(
             FfiConverterSequenceTypeReadParticipantDto.read(buf),
@@ -4233,7 +4408,7 @@ data class ReadReceiptConfigDto (
 /**
  * @suppress
  */
-object FfiConverterTypeReadReceiptConfigDto: FfiConverterRustBuffer<ReadReceiptConfigDto> {
+object FfiConverterTypeReadReceiptConfigDto : FfiConverterRustBuffer<ReadReceiptConfigDto> {
     override fun read(buf: ByteBuffer): ReadReceiptConfigDto {
         return ReadReceiptConfigDto(
             FfiConverterInt.read(buf),
@@ -4281,7 +4456,7 @@ data class ResolvedPeerDto (
 /**
  * @suppress
  */
-object FfiConverterTypeResolvedPeerDto: FfiConverterRustBuffer<ResolvedPeerDto> {
+object FfiConverterTypeResolvedPeerDto : FfiConverterRustBuffer<ResolvedPeerDto> {
     override fun read(buf: ByteBuffer): ResolvedPeerDto {
         return ResolvedPeerDto(
             FfiConverterLong.read(buf),
@@ -4331,7 +4506,7 @@ data class SavedGifDto (
 /**
  * @suppress
  */
-object FfiConverterTypeSavedGifDto: FfiConverterRustBuffer<SavedGifDto> {
+object FfiConverterTypeSavedGifDto : FfiConverterRustBuffer<SavedGifDto> {
     override fun read(buf: ByteBuffer): SavedGifDto {
         return SavedGifDto(
             FfiConverterLong.read(buf),
@@ -4388,7 +4563,7 @@ data class SearchPeerDto (
 /**
  * @suppress
  */
-object FfiConverterTypeSearchPeerDto: FfiConverterRustBuffer<SearchPeerDto> {
+object FfiConverterTypeSearchPeerDto : FfiConverterRustBuffer<SearchPeerDto> {
     override fun read(buf: ByteBuffer): SearchPeerDto {
         return SearchPeerDto(
             FfiConverterLong.read(buf),
@@ -4443,7 +4618,7 @@ data class StickerCatalogDto (
 /**
  * @suppress
  */
-object FfiConverterTypeStickerCatalogDto: FfiConverterRustBuffer<StickerCatalogDto> {
+object FfiConverterTypeStickerCatalogDto : FfiConverterRustBuffer<StickerCatalogDto> {
     override fun read(buf: ByteBuffer): StickerCatalogDto {
         return StickerCatalogDto(
             FfiConverterLong.read(buf),
@@ -4486,7 +4661,7 @@ data class StickerListDto (
 /**
  * @suppress
  */
-object FfiConverterTypeStickerListDto: FfiConverterRustBuffer<StickerListDto> {
+object FfiConverterTypeStickerListDto : FfiConverterRustBuffer<StickerListDto> {
     override fun read(buf: ByteBuffer): StickerListDto {
         return StickerListDto(
             FfiConverterLong.read(buf),
@@ -4537,7 +4712,7 @@ data class StickerPackDto (
 /**
  * @suppress
  */
-object FfiConverterTypeStickerPackDto: FfiConverterRustBuffer<StickerPackDto> {
+object FfiConverterTypeStickerPackDto : FfiConverterRustBuffer<StickerPackDto> {
     override fun read(buf: ByteBuffer): StickerPackDto {
         return StickerPackDto(
             FfiConverterLong.read(buf),
@@ -4625,6 +4800,9 @@ data class UpdateDrainDto(
 ) {
 
 
+
+
+
     companion object
 }
 
@@ -4676,7 +4854,7 @@ data class UpdatesStateDto (
 /**
  * @suppress
  */
-object FfiConverterTypeUpdatesStateDto: FfiConverterRustBuffer<UpdatesStateDto> {
+object FfiConverterTypeUpdatesStateDto : FfiConverterRustBuffer<UpdatesStateDto> {
     override fun read(buf: ByteBuffer): UpdatesStateDto {
         return UpdatesStateDto(
             FfiConverterInt.read(buf),
@@ -4736,7 +4914,7 @@ data class UploadItemDto (
 /**
  * @suppress
  */
-object FfiConverterTypeUploadItemDto: FfiConverterRustBuffer<UploadItemDto> {
+object FfiConverterTypeUploadItemDto : FfiConverterRustBuffer<UploadItemDto> {
     override fun read(buf: ByteBuffer): UploadItemDto {
         return UploadItemDto(
             FfiConverterString.read(buf),
@@ -4800,7 +4978,7 @@ data class VpxAlphaFrame (
 /**
  * @suppress
  */
-object FfiConverterTypeVpxAlphaFrame: FfiConverterRustBuffer<VpxAlphaFrame> {
+object FfiConverterTypeVpxAlphaFrame : FfiConverterRustBuffer<VpxAlphaFrame> {
     override fun read(buf: ByteBuffer): VpxAlphaFrame {
         return VpxAlphaFrame(
             FfiConverterUInt.read(buf),
@@ -4843,7 +5021,7 @@ data class VpxFrame (
 /**
  * @suppress
  */
-object FfiConverterTypeVpxFrame: FfiConverterRustBuffer<VpxFrame> {
+object FfiConverterTypeVpxFrame : FfiConverterRustBuffer<VpxFrame> {
     override fun read(buf: ByteBuffer): VpxFrame {
         return VpxFrame(
             FfiConverterUInt.read(buf),
@@ -4886,7 +5064,7 @@ data class WallpaperCatalogDto (
 /**
  * @suppress
  */
-object FfiConverterTypeWallpaperCatalogDto: FfiConverterRustBuffer<WallpaperCatalogDto> {
+object FfiConverterTypeWallpaperCatalogDto : FfiConverterRustBuffer<WallpaperCatalogDto> {
     override fun read(buf: ByteBuffer): WallpaperCatalogDto {
         return WallpaperCatalogDto(
             FfiConverterLong.read(buf),
@@ -4947,7 +5125,7 @@ data class WallpaperDto (
 /**
  * @suppress
  */
-object FfiConverterTypeWallpaperDto: FfiConverterRustBuffer<WallpaperDto> {
+object FfiConverterTypeWallpaperDto : FfiConverterRustBuffer<WallpaperDto> {
     override fun read(buf: ByteBuffer): WallpaperDto {
         return WallpaperDto(
             FfiConverterLong.read(buf),
@@ -4997,10 +5175,7 @@ object FfiConverterTypeWallpaperDto: FfiConverterRustBuffer<WallpaperDto> {
 }
 
 
-
-
-
-sealed class MtprotoException: Exception() {
+sealed class MtprotoException : Exception() {
 
     class UnknownClient : MtprotoException() {
         override val message
@@ -5110,7 +5285,8 @@ sealed class UpdateEventDto {
 
 
     data class NewMessage(
-        val `message`: MessageDto) : UpdateEventDto()
+        val `message`: MessageDto
+    ) : UpdateEventDto()
 
     {
 
@@ -5119,7 +5295,8 @@ sealed class UpdateEventDto {
     }
 
     data class MessageEdited(
-        val `message`: MessageDto) : UpdateEventDto()
+        val `message`: MessageDto
+    ) : UpdateEventDto()
 
     {
 
@@ -5129,7 +5306,8 @@ sealed class UpdateEventDto {
 
     data class MessagesDeleted(
         val `chatId`: Long?,
-        val `messageIds`: List<Int>) : UpdateEventDto()
+        val `messageIds`: List<Int>
+    ) : UpdateEventDto()
 
     {
 
@@ -5141,7 +5319,8 @@ sealed class UpdateEventDto {
         val `chatId`: Long,
         val `userId`: Long,
         val `typing`: Boolean,
-        val `action`: String) : UpdateEventDto()
+        val `action`: String
+    ) : UpdateEventDto()
 
     {
 
@@ -5152,7 +5331,8 @@ sealed class UpdateEventDto {
     data class PeerStatus(
         val `userId`: Long,
         val `status`: String?,
-        val `statusAt`: Long?) : UpdateEventDto()
+        val `statusAt`: Long?
+    ) : UpdateEventDto()
 
     {
 
@@ -5162,7 +5342,8 @@ sealed class UpdateEventDto {
 
     data class PeerEmojiStatus(
         val `userId`: Long,
-        val `documentId`: Long?) : UpdateEventDto()
+        val `documentId`: Long?
+    ) : UpdateEventDto()
 
     {
 
@@ -5173,7 +5354,8 @@ sealed class UpdateEventDto {
     data class ReadInbox(
         val `chatId`: Long,
         val `maxId`: Int,
-        val `stillUnread`: Int) : UpdateEventDto()
+        val `stillUnread`: Int
+    ) : UpdateEventDto()
 
     {
 
@@ -5183,7 +5365,8 @@ sealed class UpdateEventDto {
 
     data class ReadOutbox(
         val `chatId`: Long,
-        val `maxId`: Int) : UpdateEventDto()
+        val `maxId`: Int
+    ) : UpdateEventDto()
 
     {
 
@@ -5197,7 +5380,8 @@ sealed class UpdateEventDto {
     data class MessageReactions(
         val `chatId`: Long,
         val `messageId`: Int,
-        val `reactionsJson`: String) : UpdateEventDto()
+        val `reactionsJson`: String
+    ) : UpdateEventDto()
 
     {
 
@@ -5208,7 +5392,8 @@ sealed class UpdateEventDto {
     data class DiscussionInbox(
         val `channelId`: Long,
         val `topMessageId`: Int,
-        val `readMaxId`: Int) : UpdateEventDto()
+        val `readMaxId`: Int
+    ) : UpdateEventDto()
 
     {
 
@@ -5220,7 +5405,8 @@ sealed class UpdateEventDto {
      * Dialog rows from a lazy `messages.getPeerDialogs` batch. Not a full chat refresh.
      */
     data class DialogsPatched(
-        val `chats`: List<ChatDto>) : UpdateEventDto()
+        val `chats`: List<ChatDto>
+    ) : UpdateEventDto()
 
     {
 
@@ -5232,7 +5418,8 @@ sealed class UpdateEventDto {
      * Edge-triggered catch-up signal. True while difference or channel recovery is in flight.
      */
     data class SyncState(
-        val `isSyncing`: Boolean) : UpdateEventDto()
+        val `isSyncing`: Boolean
+    ) : UpdateEventDto()
 
     {
 
@@ -5241,7 +5428,8 @@ sealed class UpdateEventDto {
     }
 
     data class Ignored(
-        val `kind`: String) : UpdateEventDto()
+        val `kind`: String
+    ) : UpdateEventDto()
 
     {
 
@@ -5262,7 +5450,7 @@ sealed class UpdateEventDto {
 /**
  * @suppress
  */
-object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEventDto>{
+object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEventDto> {
     override fun read(buf: ByteBuffer): UpdateEventDto {
         return when(buf.getInt()) {
             1 -> UpdateEventDto.ChatsChanged
@@ -5536,11 +5724,6 @@ object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEventDto>{
 }
 
 
-
-
-
-
-
 interface DownloadProgressListener {
 
     fun `onProgress`(`path`: String, `downloaded`: Long, `total`: Long)
@@ -5597,7 +5780,8 @@ internal object uniffiCallbackInterfaceDownloadProgressListener {
  *
  * @suppress
  */
-object FfiConverterTypeDownloadProgressListener: FfiConverterCallbackInterface<DownloadProgressListener>()
+object FfiConverterTypeDownloadProgressListener :
+    FfiConverterCallbackInterface<DownloadProgressListener>()
 
 
 
@@ -5605,7 +5789,7 @@ object FfiConverterTypeDownloadProgressListener: FfiConverterCallbackInterface<D
 /**
  * @suppress
  */
-object FfiConverterOptionalInt: FfiConverterRustBuffer<Int?> {
+object FfiConverterOptionalInt : FfiConverterRustBuffer<Int?> {
     override fun read(buf: ByteBuffer): Int? {
         if (buf.get().toInt() == 0) {
             return null
@@ -5637,7 +5821,7 @@ object FfiConverterOptionalInt: FfiConverterRustBuffer<Int?> {
 /**
  * @suppress
  */
-object FfiConverterOptionalLong: FfiConverterRustBuffer<Long?> {
+object FfiConverterOptionalLong : FfiConverterRustBuffer<Long?> {
     override fun read(buf: ByteBuffer): Long? {
         if (buf.get().toInt() == 0) {
             return null
@@ -5669,7 +5853,7 @@ object FfiConverterOptionalLong: FfiConverterRustBuffer<Long?> {
 /**
  * @suppress
  */
-object FfiConverterOptionalBoolean: FfiConverterRustBuffer<Boolean?> {
+object FfiConverterOptionalBoolean : FfiConverterRustBuffer<Boolean?> {
     override fun read(buf: ByteBuffer): Boolean? {
         if (buf.get().toInt() == 0) {
             return null
@@ -5701,7 +5885,7 @@ object FfiConverterOptionalBoolean: FfiConverterRustBuffer<Boolean?> {
 /**
  * @suppress
  */
-object FfiConverterOptionalString: FfiConverterRustBuffer<String?> {
+object FfiConverterOptionalString : FfiConverterRustBuffer<String?> {
     override fun read(buf: ByteBuffer): String? {
         if (buf.get().toInt() == 0) {
             return null
@@ -5733,7 +5917,7 @@ object FfiConverterOptionalString: FfiConverterRustBuffer<String?> {
 /**
  * @suppress
  */
-object FfiConverterOptionalByteArray: FfiConverterRustBuffer<ByteArray?> {
+object FfiConverterOptionalByteArray : FfiConverterRustBuffer<ByteArray?> {
     override fun read(buf: ByteBuffer): ByteArray? {
         if (buf.get().toInt() == 0) {
             return null
@@ -5795,7 +5979,7 @@ object FfiConverterOptionalTypeUpdatesStateDto : FfiConverterRustBuffer<UpdatesS
 /**
  * @suppress
  */
-object FfiConverterOptionalTypeVpxAlphaFrame: FfiConverterRustBuffer<VpxAlphaFrame?> {
+object FfiConverterOptionalTypeVpxAlphaFrame : FfiConverterRustBuffer<VpxAlphaFrame?> {
     override fun read(buf: ByteBuffer): VpxAlphaFrame? {
         if (buf.get().toInt() == 0) {
             return null
@@ -5827,7 +6011,7 @@ object FfiConverterOptionalTypeVpxAlphaFrame: FfiConverterRustBuffer<VpxAlphaFra
 /**
  * @suppress
  */
-object FfiConverterOptionalTypeVpxFrame: FfiConverterRustBuffer<VpxFrame?> {
+object FfiConverterOptionalTypeVpxFrame : FfiConverterRustBuffer<VpxFrame?> {
     override fun read(buf: ByteBuffer): VpxFrame? {
         if (buf.get().toInt() == 0) {
             return null
@@ -5859,7 +6043,7 @@ object FfiConverterOptionalTypeVpxFrame: FfiConverterRustBuffer<VpxFrame?> {
 /**
  * @suppress
  */
-object FfiConverterSequenceShort: FfiConverterRustBuffer<List<Short>> {
+object FfiConverterSequenceShort : FfiConverterRustBuffer<List<Short>> {
     override fun read(buf: ByteBuffer): List<Short> {
         val len = buf.getInt()
         return List<Short>(len) {
@@ -5887,7 +6071,7 @@ object FfiConverterSequenceShort: FfiConverterRustBuffer<List<Short>> {
 /**
  * @suppress
  */
-object FfiConverterSequenceInt: FfiConverterRustBuffer<List<Int>> {
+object FfiConverterSequenceInt : FfiConverterRustBuffer<List<Int>> {
     override fun read(buf: ByteBuffer): List<Int> {
         val len = buf.getInt()
         return List<Int>(len) {
@@ -5915,7 +6099,7 @@ object FfiConverterSequenceInt: FfiConverterRustBuffer<List<Int>> {
 /**
  * @suppress
  */
-object FfiConverterSequenceLong: FfiConverterRustBuffer<List<Long>> {
+object FfiConverterSequenceLong : FfiConverterRustBuffer<List<Long>> {
     override fun read(buf: ByteBuffer): List<Long> {
         val len = buf.getInt()
         return List<Long>(len) {
@@ -5943,7 +6127,7 @@ object FfiConverterSequenceLong: FfiConverterRustBuffer<List<Long>> {
 /**
  * @suppress
  */
-object FfiConverterSequenceFloat: FfiConverterRustBuffer<List<Float>> {
+object FfiConverterSequenceFloat : FfiConverterRustBuffer<List<Float>> {
     override fun read(buf: ByteBuffer): List<Float> {
         val len = buf.getInt()
         return List<Float>(len) {
@@ -5971,7 +6155,7 @@ object FfiConverterSequenceFloat: FfiConverterRustBuffer<List<Float>> {
 /**
  * @suppress
  */
-object FfiConverterSequenceString: FfiConverterRustBuffer<List<String>> {
+object FfiConverterSequenceString : FfiConverterRustBuffer<List<String>> {
     override fun read(buf: ByteBuffer): List<String> {
         val len = buf.getInt()
         return List<String>(len) {
@@ -5999,7 +6183,7 @@ object FfiConverterSequenceString: FfiConverterRustBuffer<List<String>> {
 /**
  * @suppress
  */
-object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<ByteArray>> {
+object FfiConverterSequenceByteArray : FfiConverterRustBuffer<List<ByteArray>> {
     override fun read(buf: ByteBuffer): List<ByteArray> {
         val len = buf.getInt()
         return List<ByteArray>(len) {
@@ -6054,7 +6238,7 @@ object FfiConverterSequenceTypeChannelCursorDto :
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeChatDto: FfiConverterRustBuffer<List<ChatDto>> {
+object FfiConverterSequenceTypeChatDto : FfiConverterRustBuffer<List<ChatDto>> {
     override fun read(buf: ByteBuffer): List<ChatDto> {
         val len = buf.getInt()
         return List<ChatDto>(len) {
@@ -6082,7 +6266,7 @@ object FfiConverterSequenceTypeChatDto: FfiConverterRustBuffer<List<ChatDto>> {
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeFolderDto: FfiConverterRustBuffer<List<FolderDto>> {
+object FfiConverterSequenceTypeFolderDto : FfiConverterRustBuffer<List<FolderDto>> {
     override fun read(buf: ByteBuffer): List<FolderDto> {
         val len = buf.getInt()
         return List<FolderDto>(len) {
@@ -6110,7 +6294,7 @@ object FfiConverterSequenceTypeFolderDto: FfiConverterRustBuffer<List<FolderDto>
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeForumTopicDto: FfiConverterRustBuffer<List<ForumTopicDto>> {
+object FfiConverterSequenceTypeForumTopicDto : FfiConverterRustBuffer<List<ForumTopicDto>> {
     override fun read(buf: ByteBuffer): List<ForumTopicDto> {
         val len = buf.getInt()
         return List<ForumTopicDto>(len) {
@@ -6138,7 +6322,8 @@ object FfiConverterSequenceTypeForumTopicDto: FfiConverterRustBuffer<List<ForumT
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeInlineBotResultDto: FfiConverterRustBuffer<List<InlineBotResultDto>> {
+object FfiConverterSequenceTypeInlineBotResultDto :
+    FfiConverterRustBuffer<List<InlineBotResultDto>> {
     override fun read(buf: ByteBuffer): List<InlineBotResultDto> {
         val len = buf.getInt()
         return List<InlineBotResultDto>(len) {
@@ -6166,7 +6351,7 @@ object FfiConverterSequenceTypeInlineBotResultDto: FfiConverterRustBuffer<List<I
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeMessageDto: FfiConverterRustBuffer<List<MessageDto>> {
+object FfiConverterSequenceTypeMessageDto : FfiConverterRustBuffer<List<MessageDto>> {
     override fun read(buf: ByteBuffer): List<MessageDto> {
         val len = buf.getInt()
         return List<MessageDto>(len) {
@@ -6194,7 +6379,8 @@ object FfiConverterSequenceTypeMessageDto: FfiConverterRustBuffer<List<MessageDt
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeNotifyExceptionDto: FfiConverterRustBuffer<List<NotifyExceptionDto>> {
+object FfiConverterSequenceTypeNotifyExceptionDto :
+    FfiConverterRustBuffer<List<NotifyExceptionDto>> {
     override fun read(buf: ByteBuffer): List<NotifyExceptionDto> {
         val len = buf.getInt()
         return List<NotifyExceptionDto>(len) {
@@ -6222,7 +6408,7 @@ object FfiConverterSequenceTypeNotifyExceptionDto: FfiConverterRustBuffer<List<N
 /**
  * @suppress
  */
-object FfiConverterSequenceTypePollVoterDto: FfiConverterRustBuffer<List<PollVoterDto>> {
+object FfiConverterSequenceTypePollVoterDto : FfiConverterRustBuffer<List<PollVoterDto>> {
     override fun read(buf: ByteBuffer): List<PollVoterDto> {
         val len = buf.getInt()
         return List<PollVoterDto>(len) {
@@ -6250,7 +6436,8 @@ object FfiConverterSequenceTypePollVoterDto: FfiConverterRustBuffer<List<PollVot
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeReactionChoiceDto: FfiConverterRustBuffer<List<ReactionChoiceDto>> {
+object FfiConverterSequenceTypeReactionChoiceDto :
+    FfiConverterRustBuffer<List<ReactionChoiceDto>> {
     override fun read(buf: ByteBuffer): List<ReactionChoiceDto> {
         val len = buf.getInt()
         return List<ReactionChoiceDto>(len) {
@@ -6278,7 +6465,8 @@ object FfiConverterSequenceTypeReactionChoiceDto: FfiConverterRustBuffer<List<Re
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeReactionPeerDto: FfiConverterRustBuffer<List<ReactionPeerDto>> {
+object FfiConverterSequenceTypeReactionPeerDto :
+    FfiConverterRustBuffer<List<ReactionPeerDto>> {
     override fun read(buf: ByteBuffer): List<ReactionPeerDto> {
         val len = buf.getInt()
         return List<ReactionPeerDto>(len) {
@@ -6306,7 +6494,8 @@ object FfiConverterSequenceTypeReactionPeerDto: FfiConverterRustBuffer<List<Reac
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeReadParticipantDto: FfiConverterRustBuffer<List<ReadParticipantDto>> {
+object FfiConverterSequenceTypeReadParticipantDto :
+    FfiConverterRustBuffer<List<ReadParticipantDto>> {
     override fun read(buf: ByteBuffer): List<ReadParticipantDto> {
         val len = buf.getInt()
         return List<ReadParticipantDto>(len) {
@@ -6334,7 +6523,7 @@ object FfiConverterSequenceTypeReadParticipantDto: FfiConverterRustBuffer<List<R
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeSavedGifDto: FfiConverterRustBuffer<List<SavedGifDto>> {
+object FfiConverterSequenceTypeSavedGifDto : FfiConverterRustBuffer<List<SavedGifDto>> {
     override fun read(buf: ByteBuffer): List<SavedGifDto> {
         val len = buf.getInt()
         return List<SavedGifDto>(len) {
@@ -6362,7 +6551,7 @@ object FfiConverterSequenceTypeSavedGifDto: FfiConverterRustBuffer<List<SavedGif
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeSearchPeerDto: FfiConverterRustBuffer<List<SearchPeerDto>> {
+object FfiConverterSequenceTypeSearchPeerDto : FfiConverterRustBuffer<List<SearchPeerDto>> {
     override fun read(buf: ByteBuffer): List<SearchPeerDto> {
         val len = buf.getInt()
         return List<SearchPeerDto>(len) {
@@ -6390,7 +6579,8 @@ object FfiConverterSequenceTypeSearchPeerDto: FfiConverterRustBuffer<List<Search
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeStickerPackDto: FfiConverterRustBuffer<List<StickerPackDto>> {
+object FfiConverterSequenceTypeStickerPackDto :
+    FfiConverterRustBuffer<List<StickerPackDto>> {
     override fun read(buf: ByteBuffer): List<StickerPackDto> {
         val len = buf.getInt()
         return List<StickerPackDto>(len) {
@@ -6445,7 +6635,7 @@ object FfiConverterSequenceTypeUpdateBatchDto :
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeUploadItemDto: FfiConverterRustBuffer<List<UploadItemDto>> {
+object FfiConverterSequenceTypeUploadItemDto : FfiConverterRustBuffer<List<UploadItemDto>> {
     override fun read(buf: ByteBuffer): List<UploadItemDto> {
         val len = buf.getInt()
         return List<UploadItemDto>(len) {
@@ -6473,7 +6663,7 @@ object FfiConverterSequenceTypeUploadItemDto: FfiConverterRustBuffer<List<Upload
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeWallpaperDto: FfiConverterRustBuffer<List<WallpaperDto>> {
+object FfiConverterSequenceTypeWallpaperDto : FfiConverterRustBuffer<List<WallpaperDto>> {
     override fun read(buf: ByteBuffer): List<WallpaperDto> {
         val len = buf.getInt()
         return List<WallpaperDto>(len) {
@@ -6501,7 +6691,8 @@ object FfiConverterSequenceTypeWallpaperDto: FfiConverterRustBuffer<List<Wallpap
 /**
  * @suppress
  */
-object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<List<UpdateEventDto>> {
+object FfiConverterSequenceTypeUpdateEventDto :
+    FfiConverterRustBuffer<List<UpdateEventDto>> {
     override fun read(buf: ByteBuffer): List<UpdateEventDto> {
         val len = buf.getInt()
         return List<UpdateEventDto>(len) {
@@ -6540,8 +6731,14 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-
-    @Throws(MtprotoException::class) fun `addWaveformPcm`(`handle`: ULong, `samples`: List<Short>, `sampleRate`: UInt, `channels`: UInt, `presentationTimeUs`: ULong)
+@Throws(MtprotoException::class)
+fun `addWaveformPcm`(
+    `handle`: ULong,
+    `samples`: List<Short>,
+    `sampleRate`: UInt,
+    `channels`: UInt,
+    `presentationTimeUs`: ULong
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_add_waveform_pcm(
@@ -6555,8 +6752,8 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
-
-    @Throws(MtprotoException::class) fun `animatedEmojiMax`(`handle`: ULong): Int {
+@Throws(MtprotoException::class)
+fun `animatedEmojiMax`(`handle`: ULong): Int {
             return FfiConverterInt.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_animated_emoji_max(
@@ -6568,7 +6765,14 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `appendTodoItems`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `firstId`: Int, `titles`: List<String>)
+@Throws(MtprotoException::class)
+fun `appendTodoItems`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `firstId`: Int,
+    `titles`: List<String>
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_append_todo_items(
@@ -6582,9 +6786,9 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
- fun `bindRequestControl`(`id`: ULong): ULong {
+fun `bindRequestControl`(`id`: ULong): ULong {
             return FfiConverterULong.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_bind_request_control(
 
 
@@ -6593,7 +6797,7 @@ fun `acknowledgeUpdateBatch`(
     )
     }
 
- fun `cancelRequestControl`(`id`: ULong)
+fun `cancelRequestControl`(`id`: ULong)
         =
     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_cancel_request_control(
@@ -6603,8 +6807,8 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
-
-    @Throws(MtprotoException::class) fun `checkPassword`(`handle`: ULong, `password`: String): AuthSignedIn {
+@Throws(MtprotoException::class)
+fun `checkPassword`(`handle`: ULong, `password`: String): AuthSignedIn {
             return FfiConverterTypeAuthSignedIn.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_check_password(
@@ -6617,7 +6821,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `clearActiveDialog`(`handle`: ULong)
+@Throws(MtprotoException::class)
+fun `clearActiveDialog`(`handle`: ULong)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_clear_active_dialog(
@@ -6637,9 +6842,9 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
- fun `clientApiId`(`handle`: ULong): Int {
+fun `clientApiId`(`handle`: ULong): Int {
             return FfiConverterInt.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_client_api_id(
 
 
@@ -6648,9 +6853,9 @@ fun `acknowledgeUpdateBatch`(
     )
     }
 
- fun `clientExists`(`handle`: ULong): Boolean {
+fun `clientExists`(`handle`: ULong): Boolean {
             return FfiConverterBoolean.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_client_exists(
 
 
@@ -6659,9 +6864,9 @@ fun `acknowledgeUpdateBatch`(
     )
     }
 
- fun `clientUsesTestDc`(`handle`: ULong): Boolean {
+fun `clientUsesTestDc`(`handle`: ULong): Boolean {
             return FfiConverterBoolean.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_client_uses_test_dc(
 
 
@@ -6671,7 +6876,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `connect`(`handle`: ULong)
+@Throws(MtprotoException::class)
+fun `connect`(`handle`: ULong)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_connect(
@@ -6681,8 +6887,12 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
-
-    @Throws(MtprotoException::class) fun `contactsSearch`(`handle`: ULong, `query`: String, `limit`: Int): ContactsSearchDto {
+@Throws(MtprotoException::class)
+fun `contactsSearch`(
+    `handle`: ULong,
+    `query`: String,
+    `limit`: Int
+): ContactsSearchDto {
             return FfiConverterTypeContactsSearchDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_contacts_search(
@@ -6695,9 +6905,13 @@ fun `acknowledgeUpdateBatch`(
     )
     }
 
- fun `createClient`(`apiId`: Int, `apiHash`: String, `sessionPath`: String): ULong {
+fun `createClient`(
+    `apiId`: Int,
+    `apiHash`: String,
+    `sessionPath`: String
+): ULong {
             return FfiConverterULong.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_create_client(
 
 
@@ -6709,7 +6923,13 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `createEncryptedClient`(`apiId`: Int, `apiHash`: String, `sessionPath`: String, `key`: ByteArray): ULong {
+@Throws(MtprotoException::class)
+fun `createEncryptedClient`(
+    `apiId`: Int,
+    `apiHash`: String,
+    `sessionPath`: String,
+    `key`: ByteArray
+): ULong {
             return FfiConverterULong.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_create_encrypted_client(
@@ -6724,7 +6944,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `createLottie`(`data`: ByteArray): ULong {
+@Throws(MtprotoException::class)
+fun `createLottie`(`data`: ByteArray): ULong {
             return FfiConverterULong.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_create_lottie(
@@ -6735,9 +6956,9 @@ fun `acknowledgeUpdateBatch`(
     )
     }
 
- fun `createRequestControl`(): ULong {
+fun `createRequestControl`(): ULong {
             return FfiConverterULong.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_create_request_control(
 
         _status)
@@ -6746,7 +6967,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `createVpxDecoder`(): ULong {
+@Throws(MtprotoException::class)
+fun `createVpxDecoder`(): ULong {
             return FfiConverterULong.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_create_vpx_decoder(
@@ -6757,7 +6979,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `createWaveform`(`durationUs`: ULong): ULong {
+@Throws(MtprotoException::class)
+fun `createWaveform`(`durationUs`: ULong): ULong {
             return FfiConverterULong.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_create_waveform(
@@ -6769,7 +6992,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `customEmojiIsFree`(`handle`: ULong, `documentId`: Long): Boolean {
+@Throws(MtprotoException::class)
+fun `customEmojiIsFree`(`handle`: ULong, `documentId`: Long): Boolean {
             return FfiConverterBoolean.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_custom_emoji_is_free(
@@ -6782,7 +7006,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `decodeVpxAlphaPacket`(`handle`: ULong, `data`: ByteArray): VpxAlphaFrame? {
+@Throws(MtprotoException::class)
+fun `decodeVpxAlphaPacket`(`handle`: ULong, `data`: ByteArray): VpxAlphaFrame? {
             return FfiConverterOptionalTypeVpxAlphaFrame.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_decode_vpx_alpha_packet(
@@ -6795,7 +7020,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `decodeVpxPacket`(`handle`: ULong, `data`: ByteArray): VpxFrame? {
+@Throws(MtprotoException::class)
+fun `decodeVpxPacket`(`handle`: ULong, `data`: ByteArray): VpxFrame? {
             return FfiConverterOptionalTypeVpxFrame.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_decode_vpx_packet(
@@ -6808,7 +7034,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `decryptPushPayload`(`secret`: ByteArray, `payload`: String): String {
+@Throws(MtprotoException::class)
+fun `decryptPushPayload`(`secret`: ByteArray, `payload`: String): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_decrypt_push_payload(
@@ -6821,7 +7048,8 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `deleteFolder`(`handle`: ULong, `id`: Int)
+@Throws(MtprotoException::class)
+fun `deleteFolder`(`handle`: ULong, `id`: Int)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_delete_folder(
@@ -6832,8 +7060,13 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
-
-    @Throws(MtprotoException::class) fun `deleteMessage`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `revoke`: Boolean)
+@Throws(MtprotoException::class)
+fun `deleteMessage`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `revoke`: Boolean
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_delete_message(
@@ -6846,7 +7079,7 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
- fun `destroyClient`(`handle`: ULong)
+fun `destroyClient`(`handle`: ULong)
         =
     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_destroy_client(
@@ -6856,7 +7089,7 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
- fun `destroyLottie`(`handle`: ULong)
+fun `destroyLottie`(`handle`: ULong)
         =
     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_destroy_lottie(
@@ -6866,7 +7099,7 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
- fun `destroyVpxDecoder`(`handle`: ULong)
+fun `destroyVpxDecoder`(`handle`: ULong)
         =
     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_destroy_vpx_decoder(
@@ -6876,7 +7109,7 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
- fun `destroyWaveform`(`handle`: ULong)
+fun `destroyWaveform`(`handle`: ULong)
         =
     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_destroy_waveform(
@@ -6886,9 +7119,9 @@ fun `acknowledgeUpdateBatch`(
 }
 
 
- fun `downloadChunkKib`(): Int {
+fun `downloadChunkKib`(): Int {
             return FfiConverterInt.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_download_chunk_kib(
 
         _status)
@@ -6896,9 +7129,9 @@ fun `acknowledgeUpdateBatch`(
     )
     }
 
- fun `downloadConcurrency`(): List<Int> {
+fun `downloadConcurrency`(): List<Int> {
             return FfiConverterSequenceInt.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_download_concurrency(
 
         _status)
@@ -6907,7 +7140,12 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `downloadCustomEmoji`(`handle`: ULong, `documentId`: Long, `destPath`: String): String {
+@Throws(MtprotoException::class)
+fun `downloadCustomEmoji`(
+    `handle`: ULong,
+    `documentId`: Long,
+    `destPath`: String
+): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_download_custom_emoji(
@@ -6921,7 +7159,13 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `downloadMessageDisplay`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `destPath`: String): String {
+@Throws(MtprotoException::class)
+fun `downloadMessageDisplay`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `destPath`: String
+): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_download_message_display(
@@ -6936,7 +7180,13 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `downloadMessageMedia`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `destPath`: String): String {
+@Throws(MtprotoException::class)
+fun `downloadMessageMedia`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `destPath`: String
+): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_download_message_media(
@@ -6951,7 +7201,14 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `downloadMessageMediaChunk`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `destPath`: String, `offset`: Long): String {
+@Throws(MtprotoException::class)
+fun `downloadMessageMediaChunk`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `destPath`: String,
+    `offset`: Long
+): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_download_message_media_chunk(
@@ -6967,7 +7224,13 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `downloadMessageThumb`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `destPath`: String): String {
+@Throws(MtprotoException::class)
+fun `downloadMessageThumb`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `destPath`: String
+): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_download_message_thumb(
@@ -6982,7 +7245,13 @@ fun `acknowledgeUpdateBatch`(
     }
 
 
-    @Throws(MtprotoException::class) fun `downloadWallpaper`(`handle`: ULong, `id`: Long, `accessHash`: Long, `destPath`: String): String {
+@Throws(MtprotoException::class)
+fun `downloadWallpaper`(
+    `handle`: ULong,
+    `id`: Long,
+    `accessHash`: Long,
+    `destPath`: String
+): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_download_wallpaper(
@@ -7010,7 +7279,13 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `editForumTopicHidden`(`handle`: ULong, `chatId`: Long, `topicId`: Int, `hidden`: Boolean)
+@Throws(MtprotoException::class)
+fun `editForumTopicHidden`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `topicId`: Int,
+    `hidden`: Boolean
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_edit_forum_topic_hidden(
@@ -7023,8 +7298,14 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
 }
 
 
-
-    @Throws(MtprotoException::class) fun `editTextMessage`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `text`: String, `entitiesJson`: String?): MessageDto {
+@Throws(MtprotoException::class)
+fun `editTextMessage`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `text`: String,
+    `entitiesJson`: String?
+): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_edit_text_message(
@@ -7040,7 +7321,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `finishWaveform`(`handle`: ULong): List<Float> {
+@Throws(MtprotoException::class)
+fun `finishWaveform`(`handle`: ULong): List<Float> {
             return FfiConverterSequenceFloat.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_finish_waveform(
@@ -7052,7 +7334,14 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `forwardMessages`(`handle`: ULong, `fromChatId`: Long, `messageIds`: List<Int>, `toChatId`: Long, `dropAuthor`: Boolean): List<MessageDto> {
+@Throws(MtprotoException::class)
+fun `forwardMessages`(
+    `handle`: ULong,
+    `fromChatId`: Long,
+    `messageIds`: List<Int>,
+    `toChatId`: Long,
+    `dropAuthor`: Boolean
+): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_forward_messages(
@@ -7068,7 +7357,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getAllStickers`(`handle`: ULong, `hash`: Long): StickerCatalogDto {
+@Throws(MtprotoException::class)
+fun `getAllStickers`(`handle`: ULong, `hash`: Long): StickerCatalogDto {
             return FfiConverterTypeStickerCatalogDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_all_stickers(
@@ -7081,7 +7371,13 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getBotCallbackAnswer`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `dataHex`: String): BotCallbackAnswerDto {
+@Throws(MtprotoException::class)
+fun `getBotCallbackAnswer`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `dataHex`: String
+): BotCallbackAnswerDto {
             return FfiConverterTypeBotCallbackAnswerDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_bot_callback_answer(
@@ -7096,7 +7392,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getChats`(`handle`: ULong): List<ChatDto> {
+@Throws(MtprotoException::class)
+fun `getChats`(`handle`: ULong): List<ChatDto> {
             return FfiConverterSequenceTypeChatDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_chats(
@@ -7111,7 +7408,13 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
         /**
          * Groups and channels shared with a user, as compact JSON.
          */
-    @Throws(MtprotoException::class) fun `getCommonChats`(`handle`: ULong, `userId`: Long, `maxId`: Long, `limit`: Int): String {
+        @Throws(MtprotoException::class)
+        fun `getCommonChats`(
+            `handle`: ULong,
+            `userId`: Long,
+            `maxId`: Long,
+            `limit`: Int
+        ): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_common_chats(
@@ -7126,7 +7429,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getDiscussionMessage`(`handle`: ULong, `chatId`: Long, `messageId`: Int): DiscussionDto {
+@Throws(MtprotoException::class)
+fun `getDiscussionMessage`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int
+): DiscussionDto {
             return FfiConverterTypeDiscussionDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_discussion_message(
@@ -7140,7 +7448,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getEmojiStickers`(`handle`: ULong, `hash`: Long): StickerCatalogDto {
+@Throws(MtprotoException::class)
+fun `getEmojiStickers`(`handle`: ULong, `hash`: Long): StickerCatalogDto {
             return FfiConverterTypeStickerCatalogDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_emoji_stickers(
@@ -7153,7 +7462,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getFolders`(`handle`: ULong): List<FolderDto> {
+@Throws(MtprotoException::class)
+fun `getFolders`(`handle`: ULong): List<FolderDto> {
             return FfiConverterSequenceTypeFolderDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_folders(
@@ -7165,7 +7475,15 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getForumTopics`(`handle`: ULong, `chatId`: Long, `offsetDate`: Int, `offsetId`: Int, `offsetTopic`: Int, `limit`: Int): ForumTopicsPageDto {
+@Throws(MtprotoException::class)
+fun `getForumTopics`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `offsetDate`: Int,
+    `offsetId`: Int,
+    `offsetTopic`: Int,
+    `limit`: Int
+): ForumTopicsPageDto {
             return FfiConverterTypeForumTopicsPageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_forum_topics(
@@ -7182,7 +7500,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getForumTopicsById`(`handle`: ULong, `chatId`: Long, `topicIds`: List<Int>): ForumTopicsPageDto {
+@Throws(MtprotoException::class)
+fun `getForumTopicsById`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `topicIds`: List<Int>
+): ForumTopicsPageDto {
             return FfiConverterTypeForumTopicsPageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_forum_topics_by_id(
@@ -7196,7 +7519,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getGroupAdminTags`(`handle`: ULong, `chatId`: Long): String {
+@Throws(MtprotoException::class)
+fun `getGroupAdminTags`(`handle`: ULong, `chatId`: Long): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_group_admin_tags(
@@ -7209,7 +7533,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getHistory`(`handle`: ULong, `chatId`: Long, `limit`: Int): List<MessageDto> {
+@Throws(MtprotoException::class)
+fun `getHistory`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `limit`: Int
+): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_history(
@@ -7223,7 +7552,15 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getHistoryPage`(`handle`: ULong, `chatId`: Long, `limit`: Int, `offsetId`: Int, `offsetDate`: Int, `addOffset`: Int): List<MessageDto> {
+@Throws(MtprotoException::class)
+fun `getHistoryPage`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `limit`: Int,
+    `offsetId`: Int,
+    `offsetDate`: Int,
+    `addOffset`: Int
+): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_history_page(
@@ -7240,7 +7577,14 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getInlineBotResults`(`handle`: ULong, `chatId`: Long, `botId`: Long, `query`: String, `offset`: String): InlineBotResultsDto {
+@Throws(MtprotoException::class)
+fun `getInlineBotResults`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `botId`: Long,
+    `query`: String,
+    `offset`: String
+): InlineBotResultsDto {
             return FfiConverterTypeInlineBotResultsDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_inline_bot_results(
@@ -7256,7 +7600,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getMessageReactionsList`(`handle`: ULong, `chatId`: Long, `messageId`: Int): ReactionPeersDto {
+@Throws(MtprotoException::class)
+fun `getMessageReactionsList`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int
+): ReactionPeersDto {
             return FfiConverterTypeReactionPeersDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_message_reactions_list(
@@ -7270,7 +7619,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getMessageReadParticipants`(`handle`: ULong, `chatId`: Long, `msgId`: Int): ReadParticipantsDto {
+@Throws(MtprotoException::class)
+fun `getMessageReadParticipants`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `msgId`: Int
+): ReadParticipantsDto {
             return FfiConverterTypeReadParticipantsDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_message_read_participants(
@@ -7284,7 +7638,11 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getNotifyExceptions`(`handle`: ULong, `compareSound`: Boolean): List<NotifyExceptionDto> {
+@Throws(MtprotoException::class)
+fun `getNotifyExceptions`(
+    `handle`: ULong,
+    `compareSound`: Boolean
+): List<NotifyExceptionDto> {
             return FfiConverterSequenceTypeNotifyExceptionDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_notify_exceptions(
@@ -7297,7 +7655,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getNotifySettings`(`handle`: ULong, `peerKind`: String, `chatId`: Long): NotifySettingsDto {
+@Throws(MtprotoException::class)
+fun `getNotifySettings`(
+    `handle`: ULong,
+    `peerKind`: String,
+    `chatId`: Long
+): NotifySettingsDto {
             return FfiConverterTypeNotifySettingsDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_notify_settings(
@@ -7311,7 +7674,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getOutboxReadDate`(`handle`: ULong, `chatId`: Long, `msgId`: Int): OutboxReadDto {
+@Throws(MtprotoException::class)
+fun `getOutboxReadDate`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `msgId`: Int
+): OutboxReadDto {
             return FfiConverterTypeOutboxReadDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_outbox_read_date(
@@ -7328,7 +7696,15 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
         /**
          * Participant page with roles for groups and channels, as compact JSON.
          */
-    @Throws(MtprotoException::class) fun `getParticipants`(`handle`: ULong, `chatId`: Long, `filter`: String, `query`: String, `offset`: Int, `limit`: Int): String {
+        @Throws(MtprotoException::class)
+        fun `getParticipants`(
+            `handle`: ULong,
+            `chatId`: Long,
+            `filter`: String,
+            `query`: String,
+            `offset`: Int,
+            `limit`: Int
+        ): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_participants(
@@ -7345,7 +7721,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getPinnedMessages`(`handle`: ULong, `chatId`: Long, `limit`: Int): List<MessageDto> {
+@Throws(MtprotoException::class)
+fun `getPinnedMessages`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `limit`: Int
+): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_pinned_messages(
@@ -7359,7 +7740,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getPollVotes`(`handle`: ULong, `chatId`: Long, `messageId`: Int): PollVotersDto {
+@Throws(MtprotoException::class)
+fun `getPollVotes`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int
+): PollVotersDto {
             return FfiConverterTypePollVotersDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_poll_votes(
@@ -7373,7 +7759,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getProfile`(`handle`: ULong, `peerId`: Long): ProfileDto {
+@Throws(MtprotoException::class)
+fun `getProfile`(`handle`: ULong, `peerId`: Long): ProfileDto {
             return FfiConverterTypeProfileDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_profile(
@@ -7386,7 +7773,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getReadReceiptConfig`(`handle`: ULong): ReadReceiptConfigDto {
+@Throws(MtprotoException::class)
+fun `getReadReceiptConfig`(`handle`: ULong): ReadReceiptConfigDto {
             return FfiConverterTypeReadReceiptConfigDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_read_receipt_config(
@@ -7398,7 +7786,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getRecentReactions`(`handle`: ULong): List<ReactionChoiceDto> {
+@Throws(MtprotoException::class)
+fun `getRecentReactions`(`handle`: ULong): List<ReactionChoiceDto> {
             return FfiConverterSequenceTypeReactionChoiceDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_recent_reactions(
@@ -7410,7 +7799,15 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getReplies`(`handle`: ULong, `chatId`: Long, `msgId`: Int, `limit`: Int, `offsetId`: Int, `addOffset`: Int): List<MessageDto> {
+@Throws(MtprotoException::class)
+fun `getReplies`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `msgId`: Int,
+    `limit`: Int,
+    `offsetId`: Int,
+    `addOffset`: Int
+): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_replies(
@@ -7427,7 +7824,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getSavedGifs`(`handle`: ULong): List<SavedGifDto> {
+@Throws(MtprotoException::class)
+fun `getSavedGifs`(`handle`: ULong): List<SavedGifDto> {
             return FfiConverterSequenceTypeSavedGifDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_saved_gifs(
@@ -7442,7 +7840,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
         /**
          * `messages.getSearchCounters` counts per filter (photo_video/document/url/gif/voice/music/...).
          */
-    @Throws(MtprotoException::class) fun `getSearchCounters`(`handle`: ULong, `chatId`: Long, `filters`: List<String>): String {
+        @Throws(MtprotoException::class)
+        fun `getSearchCounters`(
+            `handle`: ULong,
+            `chatId`: Long,
+            `filters`: List<String>
+        ): String {
             return FfiConverterString.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_search_counters(
@@ -7456,7 +7859,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getStickerPack`(`handle`: ULong, `documentId`: Long): StickerPackDto {
+@Throws(MtprotoException::class)
+fun `getStickerPack`(`handle`: ULong, `documentId`: Long): StickerPackDto {
             return FfiConverterTypeStickerPackDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_sticker_pack(
@@ -7469,7 +7873,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getStickerSet`(`handle`: ULong, `setId`: Long, `accessHash`: Long): StickerPackDto {
+@Throws(MtprotoException::class)
+fun `getStickerSet`(
+    `handle`: ULong,
+    `setId`: Long,
+    `accessHash`: Long
+): StickerPackDto {
             return FfiConverterTypeStickerPackDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_sticker_set(
@@ -7483,7 +7892,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getStickers`(`handle`: ULong, `emoticon`: String, `hash`: Long): StickerListDto {
+@Throws(MtprotoException::class)
+fun `getStickers`(
+    `handle`: ULong,
+    `emoticon`: String,
+    `hash`: Long
+): StickerListDto {
             return FfiConverterTypeStickerListDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_stickers(
@@ -7500,7 +7914,15 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
         /**
          * https://core.telegram.org/method/messages.getUnreadMentions
          */
-    @Throws(MtprotoException::class) fun `getUnreadMentions`(`handle`: ULong, `chatId`: Long, `offsetId`: Int, `addOffset`: Int, `limit`: Int, `topMsgId`: Int): List<MessageDto> {
+        @Throws(MtprotoException::class)
+        fun `getUnreadMentions`(
+            `handle`: ULong,
+            `chatId`: Long,
+            `offsetId`: Int,
+            `addOffset`: Int,
+            `limit`: Int,
+            `topMsgId`: Int
+        ): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_unread_mentions(
@@ -7520,7 +7942,15 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
         /**
          * https://core.telegram.org/method/messages.getUnreadReactions
          */
-    @Throws(MtprotoException::class) fun `getUnreadReactions`(`handle`: ULong, `chatId`: Long, `offsetId`: Int, `addOffset`: Int, `limit`: Int, `topMsgId`: Int): List<MessageDto> {
+        @Throws(MtprotoException::class)
+        fun `getUnreadReactions`(
+            `handle`: ULong,
+            `chatId`: Long,
+            `offsetId`: Int,
+            `addOffset`: Int,
+            `limit`: Int,
+            `topMsgId`: Int
+        ): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_unread_reactions(
@@ -7537,7 +7967,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getUpdatesState`(`handle`: ULong): UpdatesStateDto {
+@Throws(MtprotoException::class)
+fun `getUpdatesState`(`handle`: ULong): UpdatesStateDto {
             return FfiConverterTypeUpdatesStateDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_updates_state(
@@ -7549,7 +7980,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getWallpapers`(`handle`: ULong, `hash`: Long): WallpaperCatalogDto {
+@Throws(MtprotoException::class)
+fun `getWallpapers`(`handle`: ULong, `hash`: Long): WallpaperCatalogDto {
             return FfiConverterTypeWallpaperCatalogDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_wallpapers(
@@ -7562,7 +7994,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getWebPage`(`handle`: ULong, `url`: String, `hash`: Int): InstantViewDto {
+@Throws(MtprotoException::class)
+fun `getWebPage`(`handle`: ULong, `url`: String, `hash`: Int): InstantViewDto {
             return FfiConverterTypeInstantViewDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_web_page(
@@ -7576,7 +8009,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `getWebPagePreview`(`handle`: ULong, `message`: String): InstantViewDto {
+@Throws(MtprotoException::class)
+fun `getWebPagePreview`(`handle`: ULong, `message`: String): InstantViewDto {
             return FfiConverterTypeInstantViewDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_web_page_preview(
@@ -7589,7 +8023,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `isAuthorized`(`handle`: ULong): Boolean {
+@Throws(MtprotoException::class)
+fun `isAuthorized`(`handle`: ULong): Boolean {
             return FfiConverterBoolean.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_is_authorized(
@@ -7601,7 +8036,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `joinChat`(`handle`: ULong, `chatId`: Long): JoinChatDto {
+@Throws(MtprotoException::class)
+fun `joinChat`(`handle`: ULong, `chatId`: Long): JoinChatDto {
             return FfiConverterTypeJoinChatDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_join_chat(
@@ -7613,9 +8049,9 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     )
     }
 
- fun `libraryVersion`(): String {
+fun `libraryVersion`(): String {
             return FfiConverterString.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_library_version(
 
         _status)
@@ -7624,7 +8060,14 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `loadMoreChats`(`handle`: ULong, `offsetDate`: Int, `offsetId`: Int, `offsetPeerId`: Long, `folderId`: Int): List<ChatDto> {
+@Throws(MtprotoException::class)
+fun `loadMoreChats`(
+    `handle`: ULong,
+    `offsetDate`: Int,
+    `offsetId`: Int,
+    `offsetPeerId`: Long,
+    `folderId`: Int
+): List<ChatDto> {
             return FfiConverterSequenceTypeChatDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_load_more_chats(
@@ -7640,7 +8083,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `logout`(`handle`: ULong)
+@Throws(MtprotoException::class)
+fun `logout`(`handle`: ULong)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_logout(
@@ -7650,8 +8094,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
 }
 
 
-
-    @Throws(MtprotoException::class) fun `lottieFrameCount`(`handle`: ULong): UInt {
+@Throws(MtprotoException::class)
+fun `lottieFrameCount`(`handle`: ULong): UInt {
             return FfiConverterUInt.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_lottie_frame_count(
@@ -7663,7 +8107,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `lottieFrameRate`(`handle`: ULong): Float {
+@Throws(MtprotoException::class)
+fun `lottieFrameRate`(`handle`: ULong): Float {
             return FfiConverterFloat.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_lottie_frame_rate(
@@ -7675,7 +8120,8 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     }
 
 
-    @Throws(MtprotoException::class) fun `lottieSize`(`handle`: ULong): LottieSize {
+@Throws(MtprotoException::class)
+fun `lottieSize`(`handle`: ULong): LottieSize {
             return FfiConverterTypeLottieSize.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_lottie_size(
@@ -7690,7 +8136,12 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
         /**
          * https://core.telegram.org/method/messages.markDialogUnread
          */
-    @Throws(MtprotoException::class) fun `markDialogUnread`(`handle`: ULong, `chatId`: Long, `unread`: Boolean)
+        @Throws(MtprotoException::class)
+        fun `markDialogUnread`(
+            `handle`: ULong,
+            `chatId`: Long,
+            `unread`: Boolean
+        )
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_mark_dialog_unread(
@@ -7702,9 +8153,13 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
 }
 
 
- fun `peekMessageInlineThumb`(`handle`: ULong, `chatId`: Long, `messageId`: Int): ByteArray? {
+fun `peekMessageInlineThumb`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int
+): ByteArray? {
             return FfiConverterOptionalByteArray.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_peek_message_inline_thumb(
 
 
@@ -7715,9 +8170,9 @@ fun `drainUpdates`(`handle`: ULong): UpdateDrainDto {
     )
     }
 
- fun `peekPeerInlineThumb`(`handle`: ULong, `peerId`: Long): ByteArray? {
+fun `peekPeerInlineThumb`(`handle`: ULong, `peerId`: Long): ByteArray? {
             return FfiConverterOptionalByteArray.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_peek_peer_inline_thumb(
 
 
@@ -7744,9 +8199,10 @@ fun `pendingUpdateBatches`(`handle`: ULong): List<UpdateBatchDto> {
 
         /**
          * Netcode timing spans on/off; off by default.
-         */ fun `perfSetEnabled`(`enabled`: Boolean)
+         */
+        fun `perfSetEnabled`(`enabled`: Boolean)
         =
-    uniffiRustCall { _status ->
+            uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_perf_set_enabled(
 
 
@@ -7757,9 +8213,10 @@ fun `pendingUpdateBatches`(`handle`: ULong): List<UpdateBatchDto> {
 
         /**
          * JSON timing snapshot; `reset` clears the window.
-         */ fun `perfSnapshot`(`reset`: Boolean): String {
+         */
+        fun `perfSnapshot`(`reset`: Boolean): String {
             return FfiConverterString.lift(
-    uniffiRustCall { _status ->
+                uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_perf_snapshot(
 
 
@@ -7769,7 +8226,15 @@ fun `pendingUpdateBatches`(`handle`: ULong): List<UpdateBatchDto> {
     }
 
 
-    @Throws(MtprotoException::class) fun `pingProxy`(`kind`: String, `host`: String, `port`: UShort, `username`: String?, `password`: String?, `secret`: ByteArray): Long {
+@Throws(MtprotoException::class)
+fun `pingProxy`(
+    `kind`: String,
+    `host`: String,
+    `port`: UShort,
+    `username`: String?,
+    `password`: String?,
+    `secret`: ByteArray
+): Long {
             return FfiConverterLong.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_ping_proxy(
@@ -7796,8 +8261,13 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-
-    @Throws(MtprotoException::class) fun `readDiscussion`(`handle`: ULong, `chatId`: Long, `msgId`: Int, `readMaxId`: Int)
+@Throws(MtprotoException::class)
+fun `readDiscussion`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `msgId`: Int,
+    `readMaxId`: Int
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_read_discussion(
@@ -7810,8 +8280,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `readHistory`(`handle`: ULong, `chatId`: Long, `maxId`: Int)
+@Throws(MtprotoException::class)
+fun `readHistory`(`handle`: ULong, `chatId`: Long, `maxId`: Int)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_read_history(
@@ -7827,7 +8297,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
         /**
          * https://core.telegram.org/method/messages.readMentions
          */
-    @Throws(MtprotoException::class) fun `readMentions`(`handle`: ULong, `chatId`: Long, `topMsgId`: Int)
+        @Throws(MtprotoException::class)
+        fun `readMentions`(`handle`: ULong, `chatId`: Long, `topMsgId`: Int)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_read_mentions(
@@ -7844,7 +8315,12 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
          * https://core.telegram.org/method/messages.readMessageContents
          * https://core.telegram.org/method/channels.readMessageContents
          */
-    @Throws(MtprotoException::class) fun `readMessageContents`(`handle`: ULong, `chatId`: Long, `messageIds`: List<Int>)
+        @Throws(MtprotoException::class)
+        fun `readMessageContents`(
+            `handle`: ULong,
+            `chatId`: Long,
+            `messageIds`: List<Int>
+        )
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_read_message_contents(
@@ -7860,7 +8336,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
         /**
          * https://core.telegram.org/method/messages.readReactions
          */
-    @Throws(MtprotoException::class) fun `readReactions`(`handle`: ULong, `chatId`: Long, `topMsgId`: Int)
+        @Throws(MtprotoException::class)
+        fun `readReactions`(`handle`: ULong, `chatId`: Long, `topMsgId`: Int)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_read_reactions(
@@ -7872,8 +8349,16 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `registerDevice`(`handle`: ULong, `tokenType`: Int, `token`: String, `secret`: ByteArray, `noMuted`: Boolean, `appSandbox`: Boolean, `otherUids`: List<Long>)
+@Throws(MtprotoException::class)
+fun `registerDevice`(
+    `handle`: ULong,
+    `tokenType`: Int,
+    `token`: String,
+    `secret`: ByteArray,
+    `noMuted`: Boolean,
+    `appSandbox`: Boolean,
+    `otherUids`: List<Long>
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_register_device(
@@ -7889,7 +8374,7 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
- fun `releaseRequestControl`(`id`: ULong)
+fun `releaseRequestControl`(`id`: ULong)
         =
     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_release_request_control(
@@ -7899,8 +8384,13 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `renderLottieFrame`(`handle`: ULong, `frame`: Float, `width`: UInt, `height`: UInt): ByteArray {
+@Throws(MtprotoException::class)
+fun `renderLottieFrame`(
+    `handle`: ULong,
+    `frame`: Float,
+    `width`: UInt,
+    `height`: UInt
+): ByteArray {
             return FfiConverterByteArray.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_render_lottie_frame(
@@ -7915,7 +8405,12 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `resendAuthCode`(`handle`: ULong, `phone`: String, `phoneCodeHash`: String): AuthCodeSent {
+@Throws(MtprotoException::class)
+fun `resendAuthCode`(
+    `handle`: ULong,
+    `phone`: String,
+    `phoneCodeHash`: String
+): AuthCodeSent {
             return FfiConverterTypeAuthCodeSent.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_resend_auth_code(
@@ -7929,7 +8424,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `resetNotifySettings`(`handle`: ULong)
+@Throws(MtprotoException::class)
+fun `resetNotifySettings`(`handle`: ULong)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_reset_notify_settings(
@@ -7939,8 +8435,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `resolveUsername`(`handle`: ULong, `username`: String): ResolvedPeerDto {
+@Throws(MtprotoException::class)
+fun `resolveUsername`(`handle`: ULong, `username`: String): ResolvedPeerDto {
             return FfiConverterTypeResolvedPeerDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_resolve_username(
@@ -7953,7 +8449,16 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `searchGlobal`(`handle`: ULong, `query`: String, `offsetRate`: Int, `offsetPeerId`: Long, `offsetId`: Int, `limit`: Int, `folderId`: Int): GlobalMessageSearchDto {
+@Throws(MtprotoException::class)
+fun `searchGlobal`(
+    `handle`: ULong,
+    `query`: String,
+    `offsetRate`: Int,
+    `offsetPeerId`: Long,
+    `offsetId`: Int,
+    `limit`: Int,
+    `folderId`: Int
+): GlobalMessageSearchDto {
             return FfiConverterTypeGlobalMessageSearchDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_search_global(
@@ -7971,7 +8476,13 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `searchMessages`(`handle`: ULong, `chatId`: Long, `query`: String, `limit`: Int): List<MessageDto> {
+@Throws(MtprotoException::class)
+fun `searchMessages`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `query`: String,
+    `limit`: Int
+): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_search_messages(
@@ -7986,7 +8497,16 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `searchMessagesFiltered`(`handle`: ULong, `chatId`: Long, `query`: String, `filter`: String, `offsetId`: Int, `addOffset`: Int, `limit`: Int): List<MessageDto> {
+@Throws(MtprotoException::class)
+fun `searchMessagesFiltered`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `query`: String,
+    `filter`: String,
+    `offsetId`: Int,
+    `addOffset`: Int,
+    `limit`: Int
+): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_search_messages_filtered(
@@ -8004,7 +8524,16 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `searchMessagesPage`(`handle`: ULong, `chatId`: Long, `query`: String, `filter`: String, `offsetId`: Int, `addOffset`: Int, `limit`: Int): MessagesPageDto {
+@Throws(MtprotoException::class)
+fun `searchMessagesPage`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `query`: String,
+    `filter`: String,
+    `offsetId`: Int,
+    `addOffset`: Int,
+    `limit`: Int
+): MessagesPageDto {
             return FfiConverterTypeMessagesPageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_search_messages_page(
@@ -8022,7 +8551,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `sendAuthCode`(`handle`: ULong, `phone`: String): AuthCodeSent {
+@Throws(MtprotoException::class)
+fun `sendAuthCode`(`handle`: ULong, `phone`: String): AuthCodeSent {
             return FfiConverterTypeAuthCodeSent.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_auth_code(
@@ -8035,7 +8565,15 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `sendInlineBotResult`(`handle`: ULong, `chatId`: Long, `queryId`: Long, `resultId`: String, `replyToMsgId`: Int, `topMsgId`: Int): MessageDto {
+@Throws(MtprotoException::class)
+fun `sendInlineBotResult`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `queryId`: Long,
+    `resultId`: String,
+    `replyToMsgId`: Int,
+    `topMsgId`: Int
+): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_inline_bot_result(
@@ -8052,7 +8590,16 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `sendLocation`(`handle`: ULong, `chatId`: Long, `latitude`: Double, `longitude`: Double, `livePeriod`: Int, `heading`: Int, `replyToMsgId`: Int)
+@Throws(MtprotoException::class)
+fun `sendLocation`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `latitude`: Double,
+    `longitude`: Double,
+    `livePeriod`: Int,
+    `heading`: Int,
+    `replyToMsgId`: Int
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_location(
@@ -8068,8 +8615,16 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `sendPhotoMessage`(`handle`: ULong, `chatId`: Long, `path`: String, `caption`: String, `replyToMsgId`: Int, `topMsgId`: Int, `entitiesJson`: String?): MessageDto {
+@Throws(MtprotoException::class)
+fun `sendPhotoMessage`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `path`: String,
+    `caption`: String,
+    `replyToMsgId`: Int,
+    `topMsgId`: Int,
+    `entitiesJson`: String?
+): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_photo_message(
@@ -8087,7 +8642,13 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `sendPollVote`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `options`: List<ByteArray>)
+@Throws(MtprotoException::class)
+fun `sendPollVote`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `options`: List<ByteArray>
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_poll_vote(
@@ -8100,8 +8661,14 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `sendReaction`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `emoticon`: String, `documentId`: Long)
+@Throws(MtprotoException::class)
+fun `sendReaction`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `emoticon`: String,
+    `documentId`: Long
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_reaction(
@@ -8115,8 +8682,14 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `sendSavedGif`(`handle`: ULong, `chatId`: Long, `documentId`: Long, `replyToMsgId`: Int, `topMsgId`: Int): MessageDto {
+@Throws(MtprotoException::class)
+fun `sendSavedGif`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `documentId`: Long,
+    `replyToMsgId`: Int,
+    `topMsgId`: Int
+): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_saved_gif(
@@ -8132,7 +8705,17 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `sendTextMessage`(`handle`: ULong, `chatId`: Long, `text`: String, `replyToMsgId`: Int, `entitiesJson`: String?, `topMsgId`: Int, `webpageUrl`: String?, `clientRandomId`: Long): MessageDto {
+@Throws(MtprotoException::class)
+fun `sendTextMessage`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `text`: String,
+    `replyToMsgId`: Int,
+    `entitiesJson`: String?,
+    `topMsgId`: Int,
+    `webpageUrl`: String?,
+    `clientRandomId`: Long
+): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_text_message(
@@ -8151,7 +8734,14 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `sendUploadedAlbum`(`handle`: ULong, `chatId`: Long, `items`: List<UploadItemDto>, `replyToMsgId`: Int, `topMsgId`: Int): List<MessageDto> {
+@Throws(MtprotoException::class)
+fun `sendUploadedAlbum`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `items`: List<UploadItemDto>,
+    `replyToMsgId`: Int,
+    `topMsgId`: Int
+): List<MessageDto> {
             return FfiConverterSequenceTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_uploaded_album(
@@ -8167,7 +8757,15 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `sendUploadedMedia`(`handle`: ULong, `chatId`: Long, `item`: UploadItemDto, `replyToMsgId`: Int, `topMsgId`: Int, `entitiesJson`: String?): MessageDto {
+@Throws(MtprotoException::class)
+fun `sendUploadedMedia`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `item`: UploadItemDto,
+    `replyToMsgId`: Int,
+    `topMsgId`: Int,
+    `entitiesJson`: String?
+): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_send_uploaded_media(
@@ -8184,7 +8782,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `setClientTestDc`(`handle`: ULong, `test`: Boolean)
+@Throws(MtprotoException::class)
+fun `setClientTestDc`(`handle`: ULong, `test`: Boolean)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_client_test_dc(
@@ -8195,8 +8794,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `setContactJoinedSilent`(`handle`: ULong, `silent`: Boolean)
+@Throws(MtprotoException::class)
+fun `setContactJoinedSilent`(`handle`: ULong, `silent`: Boolean)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_contact_joined_silent(
@@ -8211,9 +8810,10 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
         /**
          * 0 interactive read, 1 background read, 2 interactive media, 3 background media,
          * 4 interactive write, 5 ordinary media, 6 visible media, 7 user media.
-         */ fun `setDispatchClass`(`class`: Int)
+         */
+        fun `setDispatchClass`(`class`: Int)
         =
-    uniffiRustCall { _status ->
+            uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_dispatch_class(
 
 
@@ -8221,7 +8821,7 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
- fun `setDownloadChunkKib`(`kib`: Int)
+fun `setDownloadChunkKib`(`kib`: Int)
         =
     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_download_chunk_kib(
@@ -8234,9 +8834,10 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 
         /**
          * "Faster downloads" setting: media lanes (1..=8) and parts in flight (1..=16).
-         */ fun `setDownloadConcurrency`(`lanes`: Int, `parts`: Int)
+         */
+        fun `setDownloadConcurrency`(`lanes`: Int, `parts`: Int)
         =
-    uniffiRustCall { _status ->
+            uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_download_concurrency(
 
 
@@ -8247,7 +8848,7 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 
  fun `setDownloadProgressListener`(`listener`: DownloadProgressListener)
         =
-    uniffiRustCall { _status ->
+     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_download_progress_listener(
 
 
@@ -8255,7 +8856,7 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
- fun `setFilePartKib`(`kib`: Int)
+fun `setFilePartKib`(`kib`: Int)
         =
     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_file_part_kib(
@@ -8267,7 +8868,7 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 
  fun `setInitConnectionInfo`(`info`: InitConnectionInfo)
         =
-    uniffiRustCall { _status ->
+     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_init_connection_info(
 
 
@@ -8275,8 +8876,15 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `setProxy`(`kind`: String, `host`: String, `port`: UShort, `username`: String?, `password`: String?, `secret`: ByteArray)
+@Throws(MtprotoException::class)
+fun `setProxy`(
+    `kind`: String,
+    `host`: String,
+    `port`: UShort,
+    `username`: String?,
+    `password`: String?,
+    `secret`: ByteArray
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_proxy(
@@ -8291,8 +8899,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `setTransportMode`(`mode`: String)
+@Throws(MtprotoException::class)
+fun `setTransportMode`(`mode`: String)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_transport_mode(
@@ -8302,8 +8910,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `setTyping`(`handle`: ULong, `chatId`: Long, `typing`: Boolean)
+@Throws(MtprotoException::class)
+fun `setTyping`(`handle`: ULong, `chatId`: Long, `typing`: Boolean)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_set_typing(
@@ -8315,8 +8923,13 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `signIn`(`handle`: ULong, `phone`: String, `phoneCodeHash`: String, `phoneCode`: String): AuthSignedIn {
+@Throws(MtprotoException::class)
+fun `signIn`(
+    `handle`: ULong,
+    `phone`: String,
+    `phoneCodeHash`: String,
+    `phoneCode`: String
+): AuthSignedIn {
             return FfiConverterTypeAuthSignedIn.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_sign_in(
@@ -8331,7 +8944,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
     }
 
 
-    @Throws(MtprotoException::class) fun `startUpdates`(`handle`: ULong)
+@Throws(MtprotoException::class)
+fun `startUpdates`(`handle`: ULong)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_start_updates(
@@ -8341,8 +8955,14 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `toggleTodoCompleted`(`handle`: ULong, `chatId`: Long, `messageId`: Int, `completed`: List<Int>, `incompleted`: List<Int>)
+@Throws(MtprotoException::class)
+fun `toggleTodoCompleted`(
+    `handle`: ULong,
+    `chatId`: Long,
+    `messageId`: Int,
+    `completed`: List<Int>,
+    `incompleted`: List<Int>
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_toggle_todo_completed(
@@ -8356,8 +8976,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `unblockUser`(`handle`: ULong, `chatId`: Long)
+@Throws(MtprotoException::class)
+fun `unblockUser`(`handle`: ULong, `chatId`: Long)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_unblock_user(
@@ -8368,8 +8988,13 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `unregisterDevice`(`handle`: ULong, `tokenType`: Int, `token`: String, `otherUids`: List<Long>)
+@Throws(MtprotoException::class)
+fun `unregisterDevice`(
+    `handle`: ULong,
+    `tokenType`: Int,
+    `token`: String,
+    `otherUids`: List<Long>
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_unregister_device(
@@ -8382,8 +9007,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `updateFolder`(`handle`: ULong, `folder`: FolderDto)
+@Throws(MtprotoException::class)
+fun `updateFolder`(`handle`: ULong, `folder`: FolderDto)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_update_folder(
@@ -8394,8 +9019,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `updateFolderOrder`(`handle`: ULong, `order`: List<Int>)
+@Throws(MtprotoException::class)
+fun `updateFolderOrder`(`handle`: ULong, `order`: List<Int>)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_update_folder_order(
@@ -8406,7 +9031,11 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
- fun `updateLazySyncConfig`(`handle`: ULong, `lazy`: Boolean, `exceptions`: List<Long>)
+fun `updateLazySyncConfig`(
+    `handle`: ULong,
+    `lazy`: Boolean,
+    `exceptions`: List<Long>
+)
         =
     uniffiRustCall { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_update_lazy_sync_config(
@@ -8418,8 +9047,17 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `updateNotifySettings`(`handle`: ULong, `peerKind`: String, `chatId`: Long, `showPreviews`: Boolean?, `silent`: Boolean, `muteUntil`: Int, `storiesMuted`: Boolean, `sound`: String)
+@Throws(MtprotoException::class)
+fun `updateNotifySettings`(
+    `handle`: ULong,
+    `peerKind`: String,
+    `chatId`: Long,
+    `showPreviews`: Boolean?,
+    `silent`: Boolean,
+    `muteUntil`: Int,
+    `storiesMuted`: Boolean,
+    `sound`: String
+)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_update_notify_settings(
@@ -8436,8 +9074,8 @@ fun `promoteRequestControl`(`id`: ULong, `class`: Int) =
 }
 
 
-
-    @Throws(MtprotoException::class) fun `updateStatus`(`handle`: ULong, `offline`: Boolean)
+@Throws(MtprotoException::class)
+fun `updateStatus`(`handle`: ULong, `offline`: Boolean)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_update_status(

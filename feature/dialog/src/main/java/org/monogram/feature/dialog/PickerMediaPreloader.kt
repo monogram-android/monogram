@@ -20,14 +20,13 @@ class PickerMediaPreloader(
         val signature = plan.signature()
         if (signature == lastSignature) return
         lastSignature = signature
-        job?.cancel()
-        val dropped = lastKeys - plan.keys
+        val added = plan.tasks.filter { it.cacheKey !in lastKeys }
         lastKeys = plan.keys
         val repository = mediaRepository
+        if (added.isEmpty()) return
         job = scope.launch {
-            dropped.forEach { key -> repository?.cancel(key) }
-            val visible = plan.tasks.filter { it.priority >= MediaPriority.VISIBLE }
-            val nearby = plan.tasks.filter { it.priority < MediaPriority.VISIBLE }
+            val visible = added.filter { it.priority >= MediaPriority.VISIBLE }
+            val nearby = added.filter { it.priority < MediaPriority.VISIBLE }
             coroutineScope {
                 visible.forEach { task -> launch { fetch(repository, task) } }
             }

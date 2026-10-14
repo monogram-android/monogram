@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -51,12 +52,16 @@ fun LoopingVideo(
     LaunchedEffect(player, loop, muted, playWhenReady, animationEnabled) {
         player.repeatMode = if (loop) Player.REPEAT_MODE_ALL else Player.REPEAT_MODE_OFF
         player.volume = if (muted) 0f else 1f
-        if (playWhenReady && animationEnabled) {
-            player.playWhenReady = true
-        } else {
-            // A paused seek still draws that frame onto the current surface.
-            player.seekTo(0)
-            player.playWhenReady = false
+        snapshotFlow { MediaScrollGate.isScrolling() }.collect { scrolling ->
+            if (playWhenReady && animationEnabled && !scrolling) {
+                player.playWhenReady = true
+            } else if (!animationEnabled) {
+                // A paused seek still draws that frame onto the current surface.
+                player.seekTo(0)
+                player.playWhenReady = false
+            } else {
+                player.playWhenReady = false
+            }
         }
     }
     DisposableEffect(player) {

@@ -19,6 +19,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.monogram.core.models.Message
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
+import org.monogram.core.ui.components.MediaScrollGate
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.MediaSource
 import org.monogram.core.ui.media.MediaSurface
@@ -71,7 +72,7 @@ internal fun ChatInlineVideo(
             val surface = session.surface
             val currentId = session.current?.id
             val busyElsewhere = surface == MediaSurface.VIEWER || surface == MediaSurface.PIP
-            onScreen && autoplay && animationEnabled &&
+            onScreen && autoplay && animationEnabled && !MediaScrollGate.isScrolling() &&
                     !session.isMessagePlayback &&
                     (!busyElsewhere || currentId == mediaId) &&
                     surface != MediaSurface.VIEWER &&
@@ -86,6 +87,7 @@ internal fun ChatInlineVideo(
             session.mute(true)
             session.setQueue(listOf(item), 0, autoplay = true, startMuted = true)
             session.attachSurface(MediaSurface.CHAT)
+            session.play()
         }
     }
     LaunchedEffect(mediaId) {

@@ -83,9 +83,7 @@ class RootComponent(
             getSystem().configuration.smallestScreenWidthDp >= 600
         },
         underPressure = {
-            val accounting = mediaRepository?.storageAccounting()
-            val storagePressure = accounting != null &&
-                    accounting.partialBytes + accounting.reservedBytes > 32L * 1024 * 1024
+            val storagePressure = (mediaRepository?.inflightBytes() ?: 0L) > 32L * 1024 * 1024
             val runtime = Runtime.getRuntime()
             val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
             storagePressure || free < 32L * 1024 * 1024 ||

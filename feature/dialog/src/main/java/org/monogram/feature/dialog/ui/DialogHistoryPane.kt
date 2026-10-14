@@ -40,6 +40,7 @@ import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
@@ -85,6 +86,7 @@ import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.components.ChatWallpaper
+import org.monogram.core.ui.components.MediaScrollGate
 import org.monogram.core.ui.components.MessageListSkeleton
 import org.monogram.core.ui.components.UnreadBadge
 import org.monogram.core.ui.loading.MonogramLoading
@@ -393,6 +395,15 @@ internal fun ColumnScope.DialogHistoryPane(
                             )
                         }.collect { ids ->
                             component.onVisibleWindow(ids)
+                        }
+                    }
+                    val scrollGate = remember { Any() }
+                    DisposableEffect(scrollGate) {
+                        onDispose { MediaScrollGate.set(scrollGate, false) }
+                    }
+                    LaunchedEffect(listState, scrollGate) {
+                        snapshotFlow { listState.isScrollInProgress }.collect {
+                            MediaScrollGate.set(scrollGate, it)
                         }
                     }
                     LazyColumn(

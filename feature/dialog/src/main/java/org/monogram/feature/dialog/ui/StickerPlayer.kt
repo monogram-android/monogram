@@ -22,6 +22,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
+import org.monogram.core.ui.components.MediaScrollGate
 import org.monogram.core.ui.components.argbFrameBitmap
 import org.monogram.core.ui.components.writeArgbFrame
 import org.monogram.feature.dialog.PanelFrameClip
@@ -160,6 +161,10 @@ fun StickerPlayer(
                 .toLong().coerceAtLeast(24L)
             var frameIndex = framesPerUpdate % frames
             while (isActive) {
+                if (MediaScrollGate.isScrolling()) {
+                    delay(frameDelay)
+                    continue
+                }
                 if (!drawFrame(frameIndex)) return@LaunchedEffect
                 frameIndex = (frameIndex + framesPerUpdate) % frames
                 delay(frameDelay)

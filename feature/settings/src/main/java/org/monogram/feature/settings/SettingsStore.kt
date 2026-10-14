@@ -6,7 +6,9 @@ import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.telegram.TelegramError
@@ -154,17 +156,15 @@ internal class SettingsStoreFactory(
         }
 
         private fun refreshCache() {
-            dispatch(Msg.CacheBytes(mediaRepository?.cacheSizeBytes() ?: 0L))
-            dispatch(Msg.CacheByKind(mediaRepository?.cacheByKind().orEmpty()))
             scope.launch {
-                dispatch(
-                    Msg.CacheChats(
-                        cacheChatRows(
-                            usageByChat = mediaRepository?.cacheByChat().orEmpty(),
-                            chats = warmup?.chats().orEmpty(),
-                        ),
-                    ),
-                )
+                val bytes = withContext(Dispatchers.IO) { mediaRepository?.cacheSizeBytes() ?: 0L }
+                val byKind =
+                    withContext(Dispatchers.IO) { mediaRepository?.cacheByKind().orEmpty() }
+                val byChat =
+                    withContext(Dispatchers.IO) { mediaRepository?.cacheByChat().orEmpty() }
+                dispatch(Msg.CacheBytes(bytes))
+                dispatch(Msg.CacheByKind(byKind))
+                dispatch(Msg.CacheChats(cacheChatRows(byChat, warmup?.chats().orEmpty())))
             }
         }
 

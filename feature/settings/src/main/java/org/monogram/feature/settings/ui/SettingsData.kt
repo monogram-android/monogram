@@ -1,17 +1,27 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.feature.settings.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
@@ -27,9 +37,12 @@ import androidx.compose.material.icons.outlined.SignalCellularAlt
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -43,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import org.monogram.core.common.MediaCacheLimit
 import org.monogram.core.common.Outcome
@@ -187,6 +201,151 @@ internal fun LazyListScope.dataItems(
     mediaRepository: MediaRepository? = null,
 ) {
     item { Spacer(Modifier.height(8.dp)) }
+    item {
+        val photos = cacheByKind[FileCache.KIND_PHOTOS] ?: 0L
+        val videos = cacheByKind[FileCache.KIND_VIDEOS] ?: 0L
+        val files = cacheByKind[FileCache.KIND_FILES] ?: 0L
+        val stickers = cacheByKind[FileCache.KIND_STICKERS] ?: 0L
+        val gifs = cacheByKind[FileCache.KIND_GIFS] ?: 0L
+        val other = cacheByKind[FileCache.KIND_OTHER] ?: 0L
+        val slices = listOf(
+            storageCategoryColor(FileCache.KIND_PHOTOS) to photos,
+            storageCategoryColor(FileCache.KIND_VIDEOS) to videos,
+            storageCategoryColor(FileCache.KIND_FILES) to files,
+            storageCategoryColor(FileCache.KIND_STICKERS) to stickers,
+            storageCategoryColor(FileCache.KIND_GIFS) to gifs,
+            storageCategoryColor(FileCache.KIND_OTHER) to other,
+        ).filter { it.second > 0L }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.settings_cache),
+                style = MaterialTheme.typography.titleLargeEmphasized,
+            )
+            Spacer(Modifier.height(20.dp))
+            Box(contentAlignment = Alignment.Center) {
+                StorageRing(slices = slices)
+                Text(
+                    text = formatBytes(cacheBytes),
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
+                    modifier = Modifier.width(132.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.settings_cache_size, formatBytes(cacheBytes)),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val extra = cacheMessage?.removePrefix("cleared:")?.toLongOrNull()
+            if (extra != null) {
+                Text(
+                    text = stringResource(R.string.settings_cache_cleared, formatBytes(extra)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = onClear,
+                enabled = !loading && selectableCacheKinds(cacheByKind).isNotEmpty(),
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+            ) {
+                MonogramLoading(
+                    visible = loading,
+                    size = MonogramLoadingInlineSize,
+                )
+                if (!loading) {
+                    Icon(Icons.Outlined.DeleteSweep, contentDescription = null)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.settings_clear_cache))
+            }
+        }
+    }
+    item { Spacer(Modifier.height(8.dp)) }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.Storage,
+            title = stringResource(R.string.settings_cache_limit),
+            subtitle = cacheLimitLabel,
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = ItemPosition.STANDALONE,
+            onClick = onPickLimit,
+            trailingContent = { DataChevron() },
+        )
+    }
+    item { Spacer(Modifier.height(8.dp)) }
+    storageKinds.forEachIndexed { index, kind ->
+        item(key = "cache-kind:$kind") {
+            val bytes = cacheByKind[kind] ?: 0L
+            SettingsCard(
+                position = when (index) {
+                    0 -> ItemPosition.TOP
+                    storageKinds.lastIndex -> ItemPosition.BOTTOM
+                    else -> ItemPosition.MIDDLE
+                },
+            ) {
+                SettingsCardRow(
+                    icon = storageCategoryIcon(kind),
+                    title = stringResource(storageKindLabel(kind)),
+                    iconColor = storageCategoryColor(kind),
+                    titleColor = if (bytes > 0L) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    trailingContent = {
+                        Text(
+                            text = formatBytes(bytes),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                )
+            }
+        }
+    }
+    item { SectionHeader(stringResource(R.string.settings_storage_chats)) }
+    if (cacheChats.isEmpty()) {
+        item {
+            Text(
+                text = stringResource(R.string.settings_storage_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+    } else {
+        val sortedChats = cacheChats.sortedByDescending { it.bytes }
+        sortedChats.forEachIndexed { index, row ->
+            item(key = "cache-chat:${row.chatId}") {
+                ChatStorageRow(
+                    row = row,
+                    mediaRepository = mediaRepository,
+                    position = when {
+                        sortedChats.size == 1 -> ItemPosition.STANDALONE
+                        index == 0 -> ItemPosition.TOP
+                        index == sortedChats.lastIndex -> ItemPosition.BOTTOM
+                        else -> ItemPosition.MIDDLE
+                    },
+                    enabled = !loading,
+                    onClick = { onClearChat(row.chatId) },
+                )
+            }
+        }
+    }
+    item { Spacer(Modifier.height(8.dp)) }
     item { SectionHeader(stringResource(R.string.settings_autodownload)) }
     item {
         SettingsTile(
@@ -311,132 +470,7 @@ internal fun LazyListScope.dataItems(
             },
         )
     }
-    item { Spacer(Modifier.height(8.dp)) }
-    item {
-        val photos = cacheByKind[FileCache.KIND_PHOTOS] ?: 0L
-        val videos = cacheByKind[FileCache.KIND_VIDEOS] ?: 0L
-        val files = cacheByKind[FileCache.KIND_FILES] ?: 0L
-        val stickers = cacheByKind[FileCache.KIND_STICKERS] ?: 0L
-        val gifs = cacheByKind[FileCache.KIND_GIFS] ?: 0L
-        val other = cacheByKind[FileCache.KIND_OTHER] ?: 0L
-        val slices = listOf(
-            storageCategoryColor(FileCache.KIND_PHOTOS) to photos,
-            storageCategoryColor(FileCache.KIND_VIDEOS) to videos,
-            storageCategoryColor(FileCache.KIND_FILES) to files,
-            storageCategoryColor(FileCache.KIND_STICKERS) to stickers,
-            storageCategoryColor(FileCache.KIND_GIFS) to gifs,
-            storageCategoryColor(FileCache.KIND_OTHER) to other,
-        ).filter { it.second > 0L }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.extraLarge)
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .padding(vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            StorageRing(slices = slices)
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = formatBytes(cacheBytes),
-                style = MaterialTheme.typography.headlineMediumEmphasized,
-            )
-            val extra = cacheMessage?.removePrefix("cleared:")?.toLongOrNull()
-            if (extra != null) {
-                Text(
-                    text = stringResource(R.string.settings_cache_cleared, formatBytes(extra)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-    item { Spacer(Modifier.height(8.dp)) }
-    item {
-        SettingsTile(
-            icon = Icons.Outlined.Storage,
-            title = stringResource(R.string.settings_cache_limit),
-            subtitle = cacheLimitLabel,
-            iconColor = MaterialTheme.colorScheme.primary,
-            position = ItemPosition.STANDALONE,
-            onClick = onPickLimit,
-            trailingContent = { DataChevron() },
-        )
-    }
-    item { Spacer(Modifier.height(8.dp)) }
-    storageKinds.forEachIndexed { index, kind ->
-        item {
-            val bytes = cacheByKind[kind] ?: 0L
-            SettingsCard(
-                position = when (index) {
-                    0 -> ItemPosition.TOP
-                    storageKinds.lastIndex -> ItemPosition.BOTTOM
-                    else -> ItemPosition.MIDDLE
-                },
-            ) {
-                SettingsCardRow(
-                    icon = storageCategoryIcon(kind),
-                    title = stringResource(storageKindLabel(kind)),
-                    subtitle = formatBytes(bytes),
-                    iconColor = storageCategoryColor(kind),
-                    titleColor = if (bytes > 0L) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
-        }
-    }
-    item { Spacer(Modifier.height(8.dp)) }
-    item {
-        SettingsTile(
-            icon = Icons.Outlined.DeleteSweep,
-            title = stringResource(R.string.settings_clear_cache),
-            subtitle = stringResource(R.string.settings_cache_size, formatBytes(cacheBytes)),
-            iconColor = MaterialTheme.colorScheme.error,
-            titleColor = MaterialTheme.colorScheme.error,
-            position = ItemPosition.STANDALONE,
-            enabled = !loading && selectableCacheKinds(cacheByKind).isNotEmpty(),
-            onClick = onClear,
-            trailingContent = {
-                MonogramLoading(
-                    visible = loading,
-                    size = MonogramLoadingInlineSize,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            },
-        )
-    }
-    item { SectionHeader(stringResource(R.string.settings_storage_chats)) }
-    if (cacheChats.isEmpty()) {
-        item {
-            Text(
-                text = stringResource(R.string.settings_storage_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
-    } else {
-        val sortedChats = cacheChats.sortedByDescending { it.bytes }
-        sortedChats.forEachIndexed { index, row ->
-            item {
-                ChatStorageRow(
-                    row = row,
-                    mediaRepository = mediaRepository,
-                    position = when {
-                        sortedChats.size == 1 -> ItemPosition.STANDALONE
-                        index == 0 -> ItemPosition.TOP
-                        index == sortedChats.lastIndex -> ItemPosition.BOTTOM
-                        else -> ItemPosition.MIDDLE
-                    },
-                    enabled = !loading,
-                    onClick = { onClearChat(row.chatId) },
-                )
-            }
-        }
-    }
+
 }
 
 internal fun storageKindLabel(kind: String): Int = when (kind) {
@@ -464,22 +498,39 @@ internal fun CacheLimitPickerDialog(
     onSelect: (MediaCacheLimit) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AppModalSheet(onDismissRequest = onDismiss) {
+    AppModalSheet(onDismissRequest = onDismiss, maxWidth = 560.dp) {
         Text(
             text = stringResource(R.string.settings_cache_limit),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineSmallEmphasized,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
-        MediaCacheLimit.entries.forEach { limit ->
-            SettingsCardRow(
-                icon = Icons.Outlined.Storage,
-                title = cacheLimitLabel(limit),
-                iconColor = MaterialTheme.colorScheme.primary,
-                selected = limit == current,
-                onClick = { onSelect(limit) },
-            )
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+                .selectableGroup()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            MediaCacheLimit.entries.forEach { limit ->
+                val checked = limit == current
+                SettingsCard(selected = checked) {
+                    SettingsCardRow(
+                        icon = Icons.Outlined.Storage,
+                        title = cacheLimitLabel(limit),
+                        iconColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.selectable(
+                            selected = checked,
+                            role = Role.RadioButton,
+                            onClick = { onSelect(limit) },
+                        ),
+                        trailingContent = {
+                            RadioButton(selected = checked, onClick = null)
+                        },
+                    )
+                }
+            }
         }
-        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -491,61 +542,86 @@ internal fun CacheClearDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    AppModalSheet(onDismissRequest = onDismiss) {
-        Text(
-            text = stringResource(R.string.settings_clear_cache),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-        )
-        selectableCacheKinds(byKind).forEach { kind ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onToggle(kind) }
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked = kind in selected,
-                    onCheckedChange = { onToggle(kind) },
-                )
-                Text(
-                    text = stringResource(storageKindLabel(kind)),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    text = formatBytes(byKind[kind] ?: 0L),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = 12.dp),
-                )
-            }
-        }
-        Text(
-            text = stringResource(
-                R.string.settings_clear_cache_selected,
-                formatBytes(selectedCacheBytes(byKind, selected)),
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-        )
-        TextButton(
-            onClick = onConfirm,
-            enabled = selected.isNotEmpty(),
-            modifier = Modifier
-                .padding(horizontal = 12.dp)
-                .padding(bottom = 8.dp),
-        ) {
+    val selectedBytes = selectedCacheBytes(byKind, selected)
+    AppModalSheet(onDismissRequest = onDismiss, maxWidth = 560.dp) {
+        Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(
-                stringResource(R.string.settings_clear_cache_action),
-                color = if (selected.isNotEmpty()) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                text = stringResource(R.string.settings_clear_cache),
+                style = MaterialTheme.typography.headlineSmallEmphasized,
             )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = formatBytes(selectedBytes),
+                style = MaterialTheme.typography.headlineLargeEmphasized,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            val kinds = selectableCacheKinds(byKind)
+            kinds.forEachIndexed { index, kind ->
+                val checked = kind in selected
+                SettingsCard(
+                    selected = checked,
+                    position = when {
+                        kinds.size == 1 -> ItemPosition.STANDALONE
+                        index == 0 -> ItemPosition.TOP
+                        index == kinds.lastIndex -> ItemPosition.BOTTOM
+                        else -> ItemPosition.MIDDLE
+                    },
+                ) {
+                    SettingsCardRow(
+                        icon = storageCategoryIcon(kind),
+                        title = stringResource(storageKindLabel(kind)),
+                        subtitle = formatBytes(byKind[kind] ?: 0L),
+                        iconColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.toggleable(
+                            value = checked,
+                            role = Role.Checkbox,
+                            onValueChange = { onToggle(kind) },
+                        ),
+                        trailingContent = {
+                            Checkbox(checked = checked, onCheckedChange = null)
+                        },
+                    )
+                }
+            }
+            Text(
+                text = stringResource(
+                    R.string.settings_clear_cache_selected,
+                    formatBytes(selectedBytes),
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp),
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_cancel))
+            }
+            Button(
+                onClick = onConfirm,
+                enabled = selectedBytes > 0L,
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 56.dp),
+            ) {
+                Icon(Icons.Outlined.DeleteSweep, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.settings_clear_cache_action))
+            }
         }
     }
 }
@@ -556,10 +632,10 @@ internal fun CacheChatClearSheet(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    AppModalSheet(onDismissRequest = onDismiss) {
+    AppModalSheet(onDismissRequest = onDismiss, maxWidth = 560.dp) {
         Text(
             text = stringResource(R.string.settings_storage_clear_chat),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineSmallEmphasized,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         Text(
@@ -568,16 +644,25 @@ internal fun CacheChatClearSheet(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
-        TextButton(
-            onClick = onConfirm,
+        Row(
             modifier = Modifier
-                .padding(horizontal = 12.dp)
-                .padding(bottom = 8.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                stringResource(R.string.settings_clear_cache_action),
-                color = MaterialTheme.colorScheme.error,
-            )
+            TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_cancel))
+            }
+            Button(
+                onClick = onConfirm,
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 56.dp),
+            ) {
+                Text(stringResource(R.string.settings_clear_cache_action))
+            }
         }
     }
 }

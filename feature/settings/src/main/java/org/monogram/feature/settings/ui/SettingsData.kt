@@ -498,7 +498,7 @@ internal fun CacheLimitPickerDialog(
     onSelect: (MediaCacheLimit) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AppModalSheet(onDismissRequest = onDismiss, maxWidth = 560.dp) {
+    AppModalSheet(onDismissRequest = onDismiss) {
         Text(
             text = stringResource(R.string.settings_cache_limit),
             style = MaterialTheme.typography.headlineSmallEmphasized,
@@ -543,7 +543,7 @@ internal fun CacheClearDialog(
     onConfirm: () -> Unit,
 ) {
     val selectedBytes = selectedCacheBytes(byKind, selected)
-    AppModalSheet(onDismissRequest = onDismiss, maxWidth = 560.dp) {
+    AppModalSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
             Text(
                 text = stringResource(R.string.settings_clear_cache),
@@ -632,7 +632,7 @@ internal fun CacheChatClearSheet(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    AppModalSheet(onDismissRequest = onDismiss, maxWidth = 560.dp) {
+    AppModalSheet(onDismissRequest = onDismiss) {
         Text(
             text = stringResource(R.string.settings_storage_clear_chat),
             style = MaterialTheme.typography.headlineSmallEmphasized,

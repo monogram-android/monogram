@@ -694,6 +694,9 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
+
+    external fun uniffi_monogram_mtproto_checksum_func_acknowledge_update_batch(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_add_waveform_pcm(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_animated_emoji_max(
@@ -872,11 +875,17 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_peek_peer_inline_thumb(
     ): Int
+
+    external fun uniffi_monogram_mtproto_checksum_func_pending_update_batches(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_perf_set_enabled(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_perf_snapshot(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_ping_proxy(
+    ): Int
+
+    external fun uniffi_monogram_mtproto_checksum_func_promote_request_control(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_read_discussion(
     ): Int
@@ -987,6 +996,12 @@ internal object UniffiLib {
 
     }
     external fun uniffi_monogram_mtproto_fn_init_callback_vtable_downloadprogresslistener(`vtable`: UniffiVTableCallbackInterfaceDownloadProgressListener,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_acknowledge_update_batch(
+        `handle`: Long,
+        `accountGeneration`: Long,
+        `batchId`: Long,
+        uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_add_waveform_pcm(`handle`: Long,`samples`: RustBuffer.ByValue,`sampleRate`: Int,`channels`: Int,`presentationTimeUs`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
@@ -1166,12 +1181,18 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_peek_peer_inline_thumb(`handle`: Long,`peerId`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_pending_update_batches(
+        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_perf_set_enabled(`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_perf_snapshot(`reset`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_ping_proxy(`kind`: RustBuffer.ByValue,`host`: RustBuffer.ByValue,`port`: Short,`username`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`secret`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Long
+    external fun uniffi_monogram_mtproto_fn_func_promote_request_control(
+        `id`: Long, `class`: Int, uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
     external fun uniffi_monogram_mtproto_fn_func_read_discussion(`handle`: Long,`chatId`: Long,`msgId`: Int,`readMaxId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_read_history(`handle`: Long,`chatId`: Long,`maxId`: Int,uniffi_out_err: UniffiRustCallStatus,
@@ -1383,6 +1404,9 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_acknowledge_update_batch() and 0xFFFF) != 5843) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_add_waveform_pcm() and 0xFFFF) != 55780) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1494,7 +1518,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_download_wallpaper() and 0xFFFF) != 51704) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_monogram_mtproto_checksum_func_drain_updates() and 0xFFFF) != 44961) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_drain_updates() and 0xFFFF) != 3845) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_edit_forum_topic_hidden() and 0xFFFF) != 27878) {
@@ -1650,6 +1674,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_peek_peer_inline_thumb() and 0xFFFF) != 63664) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_pending_update_batches() and 0xFFFF) != 10802) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_perf_set_enabled() and 0xFFFF) != 49824) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1657,6 +1684,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_ping_proxy() and 0xFFFF) != 46980) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_promote_request_control() and 0xFFFF) != 59110) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_read_discussion() and 0xFFFF) != 59067) {
@@ -2342,6 +2372,39 @@ public object FfiConverterTypeBotCallbackAnswerDto: FfiConverterRustBuffer<BotCa
             FfiConverterOptionalString.write(value.`message`, buf)
             FfiConverterOptionalString.write(value.`url`, buf)
             FfiConverterInt.write(value.`cacheTime`, buf)
+    }
+}
+
+
+data class ChannelCursorDto(
+    var `chatId`: kotlin.Long,
+    var `pts`: kotlin.Int
+
+) {
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeChannelCursorDto : FfiConverterRustBuffer<ChannelCursorDto> {
+    override fun read(buf: ByteBuffer): ChannelCursorDto {
+        return ChannelCursorDto(
+            FfiConverterLong.read(buf),
+            FfiConverterInt.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ChannelCursorDto) = (
+            FfiConverterLong.allocationSize(value.`chatId`) +
+                    FfiConverterInt.allocationSize(value.`pts`)
+            )
+
+    override fun write(value: ChannelCursorDto, buf: ByteBuffer) {
+        FfiConverterLong.write(value.`chatId`, buf)
+        FfiConverterInt.write(value.`pts`, buf)
     }
 }
 
@@ -4430,6 +4493,88 @@ public object FfiConverterTypeStickerPackDto: FfiConverterRustBuffer<StickerPack
 }
 
 
+data class UpdateBatchDto(
+    var `accountGeneration`: kotlin.Long,
+    var `batchId`: kotlin.Long,
+    var `events`: List<UpdateEventDto>,
+    var `cursorAfter`: UpdatesStateDto?,
+    var `channelPtsAfter`: List<ChannelCursorDto>
+
+) {
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeUpdateBatchDto : FfiConverterRustBuffer<UpdateBatchDto> {
+    override fun read(buf: ByteBuffer): UpdateBatchDto {
+        return UpdateBatchDto(
+            FfiConverterLong.read(buf),
+            FfiConverterLong.read(buf),
+            FfiConverterSequenceTypeUpdateEventDto.read(buf),
+            FfiConverterOptionalTypeUpdatesStateDto.read(buf),
+            FfiConverterSequenceTypeChannelCursorDto.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: UpdateBatchDto) = (
+            FfiConverterLong.allocationSize(value.`accountGeneration`) +
+                    FfiConverterLong.allocationSize(value.`batchId`) +
+                    FfiConverterSequenceTypeUpdateEventDto.allocationSize(value.`events`) +
+                    FfiConverterOptionalTypeUpdatesStateDto.allocationSize(value.`cursorAfter`) +
+                    FfiConverterSequenceTypeChannelCursorDto.allocationSize(value.`channelPtsAfter`)
+            )
+
+    override fun write(value: UpdateBatchDto, buf: ByteBuffer) {
+        FfiConverterLong.write(value.`accountGeneration`, buf)
+        FfiConverterLong.write(value.`batchId`, buf)
+        FfiConverterSequenceTypeUpdateEventDto.write(value.`events`, buf)
+        FfiConverterOptionalTypeUpdatesStateDto.write(value.`cursorAfter`, buf)
+        FfiConverterSequenceTypeChannelCursorDto.write(value.`channelPtsAfter`, buf)
+    }
+}
+
+
+data class UpdateDrainDto(
+    var `batches`: List<UpdateBatchDto>,
+    var `liveEvents`: List<UpdateEventDto>,
+    var `replayRequired`: kotlin.Boolean
+
+) {
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeUpdateDrainDto : FfiConverterRustBuffer<UpdateDrainDto> {
+    override fun read(buf: ByteBuffer): UpdateDrainDto {
+        return UpdateDrainDto(
+            FfiConverterSequenceTypeUpdateBatchDto.read(buf),
+            FfiConverterSequenceTypeUpdateEventDto.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: UpdateDrainDto) = (
+            FfiConverterSequenceTypeUpdateBatchDto.allocationSize(value.`batches`) +
+                    FfiConverterSequenceTypeUpdateEventDto.allocationSize(value.`liveEvents`) +
+                    FfiConverterBoolean.allocationSize(value.`replayRequired`)
+            )
+
+    override fun write(value: UpdateDrainDto, buf: ByteBuffer) {
+        FfiConverterSequenceTypeUpdateBatchDto.write(value.`batches`, buf)
+        FfiConverterSequenceTypeUpdateEventDto.write(value.`liveEvents`, buf)
+        FfiConverterBoolean.write(value.`replayRequired`, buf)
+    }
+}
+
+
 
 data class UpdatesStateDto (
     var `pts`: kotlin.Int
@@ -5553,6 +5698,36 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
 }
 
 
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeUpdatesStateDto : FfiConverterRustBuffer<UpdatesStateDto?> {
+    override fun read(buf: ByteBuffer): UpdatesStateDto? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeUpdatesStateDto.read(buf)
+    }
+
+    override fun allocationSize(value: UpdatesStateDto?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeUpdatesStateDto.allocationSize(value)
+        }
+    }
+
+    override fun write(value: UpdatesStateDto?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeUpdatesStateDto.write(value, buf)
+        }
+    }
+}
+
+
 
 
 /**
@@ -5780,6 +5955,33 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterByteArray.write(it, buf)
+        }
+    }
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeChannelCursorDto :
+    FfiConverterRustBuffer<List<ChannelCursorDto>> {
+    override fun read(buf: ByteBuffer): List<ChannelCursorDto> {
+        val len = buf.getInt()
+        return List<ChannelCursorDto>(len) {
+            FfiConverterTypeChannelCursorDto.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<ChannelCursorDto>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeChannelCursorDto.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<ChannelCursorDto>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeChannelCursorDto.write(it, buf)
         }
     }
 }
@@ -6149,6 +6351,33 @@ public object FfiConverterSequenceTypeStickerPackDto: FfiConverterRustBuffer<Lis
 }
 
 
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeUpdateBatchDto :
+    FfiConverterRustBuffer<List<UpdateBatchDto>> {
+    override fun read(buf: ByteBuffer): List<UpdateBatchDto> {
+        val len = buf.getInt()
+        return List<UpdateBatchDto>(len) {
+            FfiConverterTypeUpdateBatchDto.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<UpdateBatchDto>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeUpdateBatchDto.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<UpdateBatchDto>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeUpdateBatchDto.write(it, buf)
+        }
+    }
+}
+
+
 
 
 /**
@@ -6231,6 +6460,25 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         }
     }
 }
+
+@Throws(MtprotoException::class)
+fun `acknowledgeUpdateBatch`(
+    `handle`: kotlin.ULong,
+    `accountGeneration`: kotlin.Long,
+    `batchId`: kotlin.Long
+) =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+        UniffiLib.uniffi_monogram_mtproto_fn_func_acknowledge_update_batch(
+
+
+            FfiConverterULong.lower(`handle`),
+            FfiConverterLong.lower(`accountGeneration`),
+            FfiConverterLong.lower(`batchId`), _status
+        )
+    }
+
+
+
     @Throws(MtprotoException::class) fun `addWaveformPcm`(`handle`: kotlin.ULong, `samples`: List<kotlin.Short>, `sampleRate`: kotlin.UInt, `channels`: kotlin.UInt, `presentationTimeUs`: kotlin.ULong)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -6687,8 +6935,9 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
-    @Throws(MtprotoException::class) fun `drainUpdates`(`handle`: kotlin.ULong): List<UpdateEventDto> {
-            return FfiConverterSequenceTypeUpdateEventDto.lift(
+@Throws(MtprotoException::class)
+fun `drainUpdates`(`handle`: kotlin.ULong): UpdateDrainDto {
+    return FfiConverterTypeUpdateDrainDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_drain_updates(
 
@@ -7417,6 +7666,20 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+@Throws(MtprotoException::class)
+fun `pendingUpdateBatches`(`handle`: kotlin.ULong): List<UpdateBatchDto> {
+    return FfiConverterSequenceTypeUpdateBatchDto.lift(
+        uniffiRustCallWithError(MtprotoException) { _status ->
+            UniffiLib.uniffi_monogram_mtproto_fn_func_pending_update_batches(
+
+
+                FfiConverterULong.lower(`handle`), _status
+            )
+        }
+    )
+}
+
+
         /**
          * Netcode timing spans on/off; off by default.
          */ fun `perfSetEnabled`(`enabled`: kotlin.Boolean)
@@ -7459,6 +7722,17 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 }
     )
     }
+
+fun `promoteRequestControl`(`id`: kotlin.ULong, `class`: kotlin.Int) =
+    uniffiRustCall() { _status ->
+        UniffiLib.uniffi_monogram_mtproto_fn_func_promote_request_control(
+
+
+            FfiConverterULong.lower(`id`),
+            FfiConverterInt.lower(`class`), _status
+        )
+    }
+
 
 
     @Throws(MtprotoException::class) fun `readDiscussion`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `msgId`: kotlin.Int, `readMaxId`: kotlin.Int)

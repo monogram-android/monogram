@@ -42,6 +42,19 @@ pub struct DownloadWindow {
 /// Visible, playing, and user files use 512 KiB and 8 parts. Other files stay
 /// at 128 KiB, and a thumb is one request.
 /// https://core.telegram.org/api/files
+pub(crate) fn window_candidate(
+    chunk: i32,
+    in_flight: usize,
+    alignment_proven: bool,
+) -> Option<DownloadWindow> {
+    let aligned = chunk > 0 && chunk % 4_096 == 0;
+    match (chunk, in_flight, alignment_proven && aligned) {
+        (131_072, 4, _) | (524_288, 8, _) => Some(DownloadWindow { chunk, in_flight }),
+        (1_048_576, 12, true) => Some(DownloadWindow { chunk, in_flight }),
+        _ => None,
+    }
+}
+
 pub fn download_window(profile: DownloadProfile) -> DownloadWindow {
     match profile {
         DownloadProfile::Thumb => DownloadWindow {
@@ -493,6 +506,7 @@ pub(crate) fn keep_partial(err: &MtprotoError) -> bool {
         || upper.contains("TIMEOUT")
         || upper.contains("FILE_REFERENCE")
         || upper.contains("DOWNLOAD INCOMPLETE")
+        || upper.contains("OPTIONAL_PAUSED")
         || upper.contains("AUTH_KEY_UNREGISTERED")
         || upper.contains("AUTH_KEY_INVALID")
         || upper.contains("AUTH_KEY_DUPLICATED")
@@ -779,6 +793,151 @@ fn store_ranges(staging: &Path, ranges: &MissingRanges) {
         return;
     };
     let _ = fs::write(ranges_path(staging), bytes);
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RangeIdentity {
+    pub file_id: i64,
+    pub access_hash: i64,
+    pub dc_id: i32,
+    pub size: i64,
+    pub version: i32,
+}
+
+impl RangeIdentity {
+    fn to_bytes(&self) -> [u8; 32] {
+        let mut bytes = [0u8; 32];
+        bytes[0..8].copy_from_slice(&self.file_id.to_le_bytes());
+        bytes[8..16].copy_from_slice(&self.access_hash.to_le_bytes());
+        bytes[16..20].copy_from_slice(&self.dc_id.to_le_bytes());
+        bytes[20..28].copy_from_slice(&self.size.to_le_bytes());
+        bytes[28..32].copy_from_slice(&self.version.to_le_bytes());
+        bytes
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() != 32 {
+            return None;
+        }
+        Some(Self {
+            file_id: i64::from_le_bytes(bytes[0..8].try_into().ok()?),
+            access_hash: i64::from_le_bytes(bytes[8..16].try_into().ok()?),
+            dc_id: i32::from_le_bytes(bytes[16..20].try_into().ok()?),
+            size: i64::from_le_bytes(bytes[20..28].try_into().ok()?),
+            version: i32::from_le_bytes(bytes[28..32].try_into().ok()?),
+        })
+    }
+}
+
+pub(crate) fn location_identity(
+    location: &crate::media::MediaLocation,
+    size: i64,
+    dc_fallback: i32,
+) -> Option<RangeIdentity> {
+    let (file_id, access_hash, dc_id) = match location {
+        crate::media::MediaLocation::Document {
+            id,
+            access_hash,
+            dc_id,
+            ..
+        }
+        | crate::media::MediaLocation::Photo {
+            id,
+            access_hash,
+            dc_id,
+            ..
+        } => (*id, *access_hash, *dc_id),
+        crate::media::MediaLocation::PeerPhoto {
+            photo_id,
+            access_hash,
+            dc_id,
+            ..
+        } => (*photo_id, *access_hash, *dc_id),
+        crate::media::MediaLocation::Inline { .. } => return None,
+    };
+    Some(RangeIdentity {
+        file_id,
+        access_hash,
+        dc_id: if dc_id == 0 { dc_fallback } else { dc_id },
+        size,
+        version: 0,
+    })
+}
+
+pub(crate) fn resume_allowed(stored: Option<&RangeIdentity>, current: &RangeIdentity) -> bool {
+    stored.is_some_and(|stored| stored == current)
+}
+
+fn identity_path(staging: &Path) -> PathBuf {
+    let text = staging.to_string_lossy();
+    if let Some(stripped) = text.strip_suffix(".part") {
+        PathBuf::from(format!("{stripped}.identity.part"))
+    } else {
+        PathBuf::from(format!("{text}.identity.part"))
+    }
+}
+
+fn load_identity(staging: &Path) -> Option<RangeIdentity> {
+    RangeIdentity::from_bytes(&fs::read(identity_path(staging)).ok()?)
+}
+
+fn store_identity(staging: &Path, identity: &RangeIdentity) {
+    let _ = fs::write(identity_path(staging), identity.to_bytes());
+}
+
+pub(crate) fn dedup_offsets(offsets: &[i64], chunk: i64) -> Vec<i64> {
+    if chunk <= 0 {
+        return Vec::new();
+    }
+    let mut ordered: Vec<i64> = offsets.iter().copied().filter(|off| *off >= 0).collect();
+    ordered.sort_unstable();
+    ordered.dedup();
+    let mut kept = Vec::new();
+    for offset in ordered {
+        if kept.iter().any(|previous: &i64| offset < previous + chunk && offset >= *previous) {
+            continue;
+        }
+        kept.push(offset);
+    }
+    kept
+}
+
+static INFLIGHT_RANGES: std::sync::LazyLock<Mutex<HashSet<(i64, i64)>>> =
+    std::sync::LazyLock::new(|| Mutex::new(HashSet::new()));
+
+pub(crate) fn claim_offsets(file_id: i64, offsets: &[i64]) -> Vec<i64> {
+    let mut held = INFLIGHT_RANGES.lock().unwrap_or_else(|error| error.into_inner());
+    offsets
+        .iter()
+        .copied()
+        .filter(|offset| held.insert((file_id, *offset)))
+        .collect()
+}
+
+pub(crate) fn release_offsets(file_id: i64, offsets: &[i64]) {
+    let mut held = INFLIGHT_RANGES.lock().unwrap_or_else(|error| error.into_inner());
+    for offset in offsets {
+        held.remove(&(file_id, *offset));
+    }
+}
+
+struct OffsetClaim(Option<(i64, Vec<i64>)>);
+
+impl Drop for OffsetClaim {
+    fn drop(&mut self) {
+        if let Some((file_id, offsets)) = self.0.take() {
+            release_offsets(file_id, &offsets);
+        }
+    }
+}
+
+pub(crate) fn should_pause_optional(profile: Option<DownloadProfile>) -> bool {
+    matches!(profile, Some(DownloadProfile::Background))
+        && crate::client::lanes::visible_transfer_waiters() > 0
+}
+
+pub(crate) fn optional_paused(err: &MtprotoError) -> bool {
+    matches!(err, MtprotoError::Message(message) if message.contains("OPTIONAL_PAUSED"))
 }
 
 /// Where a full-file retry should request next. A range file wins. A missing or
@@ -1168,8 +1327,19 @@ pub(crate) fn download_media_range_batched_streaming_capped(
     }
     let result = (|| -> Result<(), MtprotoError> {
         let stream = offset.is_some();
-        let file_len = fs::metadata(dest_path).map(|meta| meta.len() as i64).unwrap_or(0);
-        let loaded_ranges = if stream { None } else { load_ranges(dest_path) };
+        let mut file_len = fs::metadata(dest_path).map(|meta| meta.len() as i64).unwrap_or(0);
+        let identity = location_identity(&media.location, media.file_size.unwrap_or(0), dc_id);
+        let mut loaded_ranges = if stream { None } else { load_ranges(dest_path) };
+        if !stream {
+            if let Some(identity) = identity.clone() {
+                if file_len > 0 && !resume_allowed(load_identity(dest_path).as_ref(), &identity) {
+                    loaded_ranges = None;
+                    file_len = 0;
+                    let _ = fs::remove_file(ranges_path(dest_path));
+                }
+                store_identity(dest_path, &identity);
+            }
+        }
         let chunk_now = resolve_chunk(offset);
         let origin = if stream {
             offset.unwrap_or(0)
@@ -1264,6 +1434,9 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                 if download_cancelled(cancellation_path) {
                     return Err(MtprotoError::Message("cancelled".into()));
                 }
+                if should_pause_optional(request_profile()) {
+                    return Err(MtprotoError::Message("OPTIONAL_PAUSED".into()));
+                }
                 let mut offsets = if let Some(ranges) = missing.as_ref().filter(|_| !stream) {
                     let planned = request_offsets(ranges, i64::from(chunk.max(1)), batch);
                     if planned.is_empty() {
@@ -1285,6 +1458,17 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                         offsets.retain(|off| !cancelled.contains(off));
                     }
                 }
+                offsets = dedup_offsets(&offsets, i64::from(chunk.max(1)));
+                if let Some(identity) = identity.clone() {
+                    offsets = claim_offsets(identity.file_id, &offsets);
+                }
+                if offsets.is_empty() {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    continue;
+                }
+                let _release_claim = OffsetClaim(
+                    identity.clone().map(|identity| (identity.file_id, offsets.clone())),
+                );
                 let (flags, cdn_supported) = cdn_fields_for_seek(origin);
                 let requests: Vec<UploadGetFileRequest> = offsets
                     .iter()

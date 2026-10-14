@@ -60,7 +60,31 @@ internal class MessageApi(
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpc("getHistoryPage failed") { activeHandle ->
+        return historyPage(chatId, limit, offsetId, offsetDate, addOffset, background = false)
+    }
+
+    override suspend fun getHistoryPageBackground(
+        chatId: PeerId,
+        limit: Int,
+        offsetId: Int,
+        offsetDate: Int,
+        addOffset: Int,
+    ): Outcome<List<Message>> =
+        historyPage(chatId, limit, offsetId, offsetDate, addOffset, background = true)
+
+    private suspend fun historyPage(
+        chatId: PeerId,
+        limit: Int,
+        offsetId: Int,
+        offsetDate: Int,
+        addOffset: Int,
+        background: Boolean,
+    ): Outcome<List<Message>> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        val call: suspend (Long) -> List<Message> = { activeHandle ->
             core.native.getHistoryPage(
                 activeHandle,
                 chatId.value,
@@ -69,6 +93,11 @@ internal class MessageApi(
                 offsetDate,
                 addOffset,
             ).map { it.toModel() }
+        }
+        return if (background) {
+            core.rpcBackground("getHistoryPage failed", call)
+        } else {
+            core.rpc("getHistoryPage failed", call)
         }
     }
 

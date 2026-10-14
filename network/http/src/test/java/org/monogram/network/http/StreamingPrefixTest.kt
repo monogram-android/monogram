@@ -24,6 +24,72 @@ class StreamingPrefixTest {
     )
 
     @Test
+    fun metadataOutsidePrefixUsesRangesWithinTheAdditionalBudget() = runBlocking {
+        val part = MediaRepository.STREAM_PART
+        val metadataOffset = 16L + 4L * 1024 * 1024
+        val headers = mapOf(
+            0L to java.nio.ByteBuffer.allocate(16).putInt(16).putInt(0x66747970).array(),
+            16L to java.nio.ByteBuffer.allocate(8).putInt(4 * 1024 * 1024).putInt(0x6d646174)
+                .array(),
+            metadataOffset to java.nio.ByteBuffer.allocate(8).putInt(64).putInt(0x6d6f6f76).array(),
+        )
+        val offsets = mutableListOf<Long>()
+        val root = tmp.newFolder()
+        val repository = MediaRepository(
+            root,
+            telegramChunkFetcher = TelegramChunkFetcher { _, _, dest, offset ->
+                offsets += offset
+                val bytes = ByteArray(part.toInt())
+                headers.forEach { (position, header) ->
+                    if (position >= offset && position + header.size <= offset + part) {
+                        header.copyInto(bytes, (position - offset).toInt())
+                    }
+                }
+                File(dest).writeBytes(bytes)
+                Outcome.Ok(dest)
+            })
+        try {
+            val message = video()
+            assertTrue(repository.ensureStreamingPrefix(message) is Outcome.Ok)
+            assertEquals(listOf(0L, part, part * 2, part * 3, part * 8), offsets)
+            val additional = offsets.count { it >= MediaRepository.STREAM_PREFIX_BYTES } * part
+            assertTrue(additional <= 2L * 1024 * 1024)
+            val metadata = streamPrefixPart(root, checkNotNull(streamMediaKey(message)), part * 8)
+            assertTrue(metadata.isFile)
+            val calls = offsets.size
+            assertTrue(repository.ensureStreamingPrefix(message) is Outcome.Ok)
+            assertEquals(calls, offsets.size)
+        } finally {
+            repository.shutdown()
+        }
+    }
+
+    @Test
+    fun metadataSearchCannotFetchBeyondTwoMiBExtra() = runBlocking {
+        val part = MediaRepository.STREAM_PART
+        val offsets = mutableListOf<Long>()
+        val repository = MediaRepository(
+            tmp.newFolder(),
+            telegramChunkFetcher = TelegramChunkFetcher { _, _, dest, offset ->
+                offsets += offset
+                val bytes = ByteArray(part.toInt())
+                java.nio.ByteBuffer.wrap(bytes).putInt(part.toInt())
+                    .putInt(if (offset == 0L) 0x66747970 else 0x66726565)
+                File(dest).writeBytes(bytes)
+                Outcome.Ok(dest)
+            })
+        try {
+            assertTrue(repository.ensureStreamingPrefix(video()) is Outcome.Ok)
+            assertEquals((0L..7L).map { it * part }, offsets)
+            assertEquals(
+                2L * 1024 * 1024,
+                offsets.count { it >= MediaRepository.STREAM_PREFIX_BYTES } * part)
+        } finally {
+            repository.shutdown()
+        }
+    }
+
+    @Test
     fun incompletePartIsNotPublished() = runBlocking {
         val root = tmp.newFolder()
         val repository =

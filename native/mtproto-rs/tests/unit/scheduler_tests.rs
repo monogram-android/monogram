@@ -3,11 +3,98 @@ use std::sync::mpsc;
 
 #[test]
 fn background_aging_never_overtakes_writes() {
-    let queued_at = std::time::Instant::now();
-    let waiter = Waiter { ticket: 0, priority: 4, queued_at };
-    assert_eq!(waiter.order_at(queued_at).0, 4);
-    assert_eq!(waiter.order_at(queued_at + Duration::from_secs(5)).0, 3);
-    assert_eq!(waiter.order_at(queued_at + Duration::from_secs(60)).0, 1);
+    let waiter = Waiter { ticket: 0, priority: 4, queued_at: 0 };
+    assert_eq!(waiter.order_at(0).0, 4);
+    assert_eq!(waiter.order_at(5_000).0, 3);
+    assert_eq!(waiter.order_at(60_000).0, 1);
+    let write = Waiter { ticket: 1, priority: 0, queued_at: 0 };
+    assert_eq!(write.order_at(60_000).0, 0);
+}
+
+struct ManualClock(std::sync::atomic::AtomicU64);
+
+impl ManualClock {
+    fn advance(&self, ms: u64) {
+        self.0.fetch_add(ms, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl SchedulerClock for ManualClock {
+    fn now_ms(&self) -> u64 {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+#[test]
+fn injected_clock_ages_background_work_past_a_later_interactive_read_without_sleeping() {
+    let clock = Arc::new(ManualClock(std::sync::atomic::AtomicU64::new(0)));
+    let gate = LaneGate::with_clock(clock.clone());
+    let background = gate.enqueue(RequestClass::BackgroundMedia);
+    clock.advance(4_999);
+    let read = gate.enqueue(RequestClass::InteractiveRead);
+    assert!(background.try_acquire().is_none(), "a fresh interactive read still wins");
+    clock.advance(20_000);
+    let read_late = gate.enqueue(RequestClass::InteractiveRead);
+    assert!(read_late.try_acquire().is_none(), "ticket order decides equal effective priority");
+    drop(read);
+    let lease = background.try_acquire().expect("aged background request is next");
+    drop(lease);
+    assert!(read_late.try_acquire().is_some());
+}
+
+#[test]
+fn aging_stops_below_interactive_write_priority() {
+    let clock = Arc::new(ManualClock(std::sync::atomic::AtomicU64::new(0)));
+    let gate = LaneGate::with_clock(clock.clone());
+    let background = gate.enqueue(RequestClass::BackgroundMedia);
+    clock.advance(10 * 60_000);
+    let write = gate.enqueue(RequestClass::InteractiveWrite);
+    assert!(background.try_acquire().is_none());
+    assert!(write.try_acquire().is_some());
+}
+
+#[test]
+fn promotion_raises_a_queued_ticket_and_never_lowers_it() {
+    let gate = LaneGate::new();
+    let read = gate.enqueue(RequestClass::InteractiveRead);
+    let media = gate.enqueue(RequestClass::BackgroundMedia);
+    media.promote(RequestClass::InteractiveWrite);
+    assert!(read.try_acquire().is_none());
+    assert!(media.try_acquire().is_some());
+    let other = LaneGate::new();
+    let first = other.enqueue(RequestClass::InteractiveRead);
+    let second = other.enqueue(RequestClass::InteractiveRead);
+    second.promote(RequestClass::BackgroundMedia);
+    assert!(first.try_acquire().is_some(), "promotion to a lower class changes nothing");
+    drop(second);
+}
+
+#[test]
+fn a_freed_sibling_lane_is_taken_without_waiting_for_the_first_lane() {
+    let first = LaneGate::new();
+    let second = LaneGate::new();
+    let busy = first.acquire(RequestClass::InteractiveRead).unwrap();
+    let waiters = [
+        first.enqueue(RequestClass::InteractiveMedia),
+        second.enqueue(RequestClass::InteractiveMedia),
+    ];
+    let acquired = waiters.iter().find_map(|waiter| waiter.try_acquire());
+    assert!(acquired.is_some(), "the free lane serves the request while another is busy");
+    drop(busy);
+}
+
+#[test]
+fn cancelling_a_family_request_releases_every_reservation() {
+    let first = LaneGate::new();
+    let second = LaneGate::new();
+    let waiters = [
+        first.enqueue(RequestClass::BackgroundMedia),
+        second.enqueue(RequestClass::BackgroundMedia),
+    ];
+    assert_eq!(first.waiter_count() + second.waiter_count(), 2);
+    drop(waiters);
+    assert_eq!(first.waiter_count() + second.waiter_count(), 0);
+    assert!(first.try_acquire(RequestClass::BackgroundMedia).is_some());
 }
 
 #[test]

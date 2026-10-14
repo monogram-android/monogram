@@ -12,3 +12,13 @@ data class UpdateCursorEntity(
     val seq: Int,
     val channelPts: Int = 0,
 )
+
+@Entity(
+    tableName = "update_batch_receipts",
+    primaryKeys = ["accountGeneration", "batchId"],
+)
+data class UpdateBatchReceiptEntity(
+    val accountGeneration: Long,
+    val batchId: Long,
+    val appliedAtMs: Long,
+)

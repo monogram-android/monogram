@@ -33,6 +33,34 @@ fn password_required_normalizes_tl_and_text_errors() {
 }
 
 #[test]
+fn sticker_document_refreshes_from_its_set_not_saved_gifs() {
+    let mut sticker = media_rpc::MediaRef {
+        file_size: Some(12),
+        kind: "sticker".into(),
+        cache_key: "emoji:42".into(),
+        location: media_rpc::MediaLocation::Document {
+            id: 42,
+            access_hash: 7,
+            file_reference: vec![1],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "image/webp".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: Some(9),
+        sticker_set_access_hash: Some(11),
+        source_url: None,
+    };
+    assert_eq!(sticker_set_of(&sticker), Some((9, 11)));
+    sticker.sticker_set_id = None;
+    sticker.sticker_set_access_hash = None;
+    assert_eq!(sticker_set_of(&sticker), None);
+}
+
+#[test]
 fn file_reference_retry_requires_new_bytes() {
     let old = media_rpc::MediaLocation::Photo {
         id: 1,

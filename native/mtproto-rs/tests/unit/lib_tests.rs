@@ -34,6 +34,7 @@ fn session_file_persists_user_id() {
             session_dead: true,
             test_dc: false,
             dc_auth_keys: Default::default(),
+            journal: Default::default(),
         })
         .expect("save");
     let raw = std::fs::read(&path).expect("read compact");

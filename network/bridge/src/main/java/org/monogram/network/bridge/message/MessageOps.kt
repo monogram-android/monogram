@@ -27,6 +27,14 @@ interface MessageOps {
         addOffset: Int = 0,
     ): Outcome<List<Message>>
 
+    suspend fun getHistoryPageBackground(
+        chatId: PeerId,
+        limit: Int = 40,
+        offsetId: Int = 0,
+        offsetDate: Int = 0,
+        addOffset: Int = 0,
+    ): Outcome<List<Message>> = getHistoryPage(chatId, limit, offsetId, offsetDate, addOffset)
+
     suspend fun searchMessages(
         chatId: PeerId,
         query: String,

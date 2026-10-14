@@ -15,6 +15,8 @@ import org.monogram.core.common.AppLog
 import org.monogram.core.common.PerfLog
 import org.monogram.core.database.dao.ChatReadState
 import org.monogram.core.database.entity.MessageHoleEntity
+import org.monogram.core.database.entity.UpdateBatchReceiptEntity
+import org.monogram.core.database.entity.UpdateCursorEntity
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
 import org.monogram.core.models.Message
@@ -22,6 +24,7 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
 import org.monogram.core.models.chatListPreviewSource
 import org.monogram.core.models.isPlaceholderPeerTitle
+import org.monogram.core.models.mergeIncomingMessage
 import org.monogram.core.models.mergeLocalCache
 
 /**
@@ -35,10 +38,13 @@ open class OfflineWarmup(
     val recentHistory: RecentHistoryMemory = RecentHistoryMemory(),
 ) {
     private val cleanupMutex = Mutex()
+
     @Volatile
     private var firstPaintSnapshot: OfflineWarmupSnapshot? = null
+
     @Volatile
     private var recentWarmupChats: List<Chat> = emptyList()
+
     @Volatile
     private var recentWarmupJob: Job? = null
 
@@ -327,7 +333,8 @@ open class OfflineWarmup(
         return withContext(DatabaseProvider.roomDispatcher) {
             ensureStartupCleanup()
             val pending = database.messageDao().pendingForChat(chatId.value).map { it.toModel() }
-            val latest = database.messageDao().latestForChat(chatId.value, limit).map { it.toModel() }
+            val latest =
+                database.messageDao().latestForChat(chatId.value, limit).map { it.toModel() }
             pending + latest
         }
     }
@@ -349,7 +356,11 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun olderMessages(chatId: PeerId, beforeId: Int, limit: Int = HISTORY_CACHE_WINDOW): List<Message> {
+    open suspend fun olderMessages(
+        chatId: PeerId,
+        beforeId: Int,
+        limit: Int = HISTORY_CACHE_WINDOW
+    ): List<Message> {
         val database = db ?: run {
             ensureStartupCleanup()
             return emptyList()
@@ -370,7 +381,11 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun newerMessages(chatId: PeerId, afterId: Int, limit: Int = HISTORY_CACHE_WINDOW): List<Message> {
+    open suspend fun newerMessages(
+        chatId: PeerId,
+        afterId: Int,
+        limit: Int = HISTORY_CACHE_WINDOW
+    ): List<Message> {
         val database = db ?: run {
             ensureStartupCleanup()
             return emptyList()
@@ -388,6 +403,37 @@ open class OfflineWarmup(
                 )
             ) return@withContext emptyList()
             rows.map { it.toModel() }
+        }
+    }
+
+    open suspend fun historySlice(
+        chatId: PeerId,
+        beforeId: Int? = null,
+        afterId: Int? = null,
+        limit: Int = HISTORY_CACHE_WINDOW,
+    ): HistorySlice {
+        val database =
+            db ?: return HistorySlice(emptyList(), false, emptyList(), false, false, false)
+        return withContext(DatabaseProvider.roomDispatcher) {
+            val rows = when {
+                beforeId != null -> database.messageDao().olderThan(chatId.value, beforeId, limit)
+                afterId != null -> database.messageDao().newerThan(chatId.value, afterId, limit)
+                else -> database.messageDao().latestForChat(chatId.value, limit)
+            }.map { it.toModel() }
+            val holes =
+                database.messageHoleDao().forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
+            val initialized = database.metaDao().get("history_coverage:${chatId.value}") != null
+            val start = when {
+                beforeId != null -> (rows.minOfOrNull { it.id.id } ?: 1)
+                afterId != null -> afterId + 1
+                else -> rows.minOfOrNull { it.id.id } ?: 1
+            }
+            val end = when {
+                beforeId != null -> beforeId - 1
+                afterId != null -> rows.maxOfOrNull { it.id.id } ?: afterId
+                else -> rows.maxOfOrNull { it.id.id } ?: 0
+            }
+            historySliceOf(rows, initialized, holes, start, end)
         }
     }
 
@@ -502,7 +548,8 @@ open class OfflineWarmup(
         if (chats.isEmpty()) return
         withContext(DatabaseProvider.roomDispatcher) {
             database.withTransaction {
-                val stored = database.chatDao().getByIds(chats.map { it.id.value }).associateBy { it.id }
+                val stored =
+                    database.chatDao().getByIds(chats.map { it.id.value }).associateBy { it.id }
                 database.chatDao().upsertAll(
                     chats.map { chat ->
                         chat.mergeLocalCache(stored[chat.id.value]?.toModel()).toEntity()
@@ -531,12 +578,16 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun upsertMessages(messages: List<Message>) = roomIo {
+    open suspend fun upsertMessages(messages: List<Message>) = withContext(RoomLane.maintenance()) {
+        upsertMessagesNow(messages)
+    }
+
+    private suspend fun upsertMessagesNow(messages: List<Message>) = roomIo {
         messages.map { it.id.chatId.value }.distinct().forEach(recentHistory::invalidate)
         if (messages.isEmpty()) return@roomIo
         val database = db ?: return@roomIo
-        for (batch in messages.chunked(100)) {
-            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        for (batch in chunkMessages(messages)) {
+            currentCoroutineContext().ensureActive()
             database.withTransaction { mergeMessages(batch) }
             kotlinx.coroutines.yield()
         }
@@ -628,7 +679,11 @@ open class OfflineWarmup(
         }
     }
 
-    open suspend fun applyIncomingMessage(message: Message) = roomIo {
+    open suspend fun applyIncomingMessage(
+        message: Message,
+        accountGeneration: Long = 0,
+        acceptedOrder: Long = 0,
+    ) = roomIo {
         recentHistory.invalidate(message.id.chatId.value)
         val database = db ?: return@roomIo
         database.withTransaction {
@@ -637,27 +692,48 @@ open class OfflineWarmup(
                     .isNotEmpty()
             if (mergeMessages(listOf(message)).isEmpty()) return@withTransaction
             val stored = database.chatDao().get(message.id.chatId.value)?.toModel()
-            val unread =
-                if (existed || message.outgoing || message.id.id <= (stored?.readInboxMaxId ?: 0)) {
-                    stored?.unreadCount ?: 0
-                } else {
-                    (stored?.unreadCount ?: 0) + 1
-                }
-            if (stored != null && message.id.id < stored.lastMessageId) {
-                database.chatDao().upsertAll(listOf(stored.copy(unreadCount = unread).toEntity()))
-                return@withTransaction
-            }
-            val chat = (stored ?: placeholderChat(message.id.chatId)).copy(
-                lastMessagePreview = message.chatListPreviewSource(),
-                lastMessageOutgoing = message.outgoing,
-                lastMessageSenderName = message.senderName,
-                lastMessageMediaKind = message.mediaKind,
-                lastMessageDate = message.date,
-                unreadCount = unread,
-                lastMessageId = message.id.id,
-                lastMediaThumbCacheKey = message.thumbCacheKey ?: stored?.lastMediaThumbCacheKey,
-            )
+            val chat = (stored ?: placeholderChat(message.id.chatId))
+                .mergeIncomingMessage(
+                    message,
+                    alreadyStored = existed,
+                    accountGeneration = accountGeneration,
+                    acceptedOrder = acceptedOrder,
+                )
             database.chatDao().upsertAll(listOf(chat.toEntity()))
+        }
+    }
+
+    /**
+     * Commits one native update batch: its domain mutations, the application
+     * checkpoint and the receipt share a single transaction. A batch whose receipt
+     * exists is a duplicate delivery and changes nothing. Returns true when the
+     * batch is committed, whether now or earlier, so the caller may acknowledge it.
+     */
+    open suspend fun applyDurableBatch(
+        accountGeneration: Long,
+        batchId: Long,
+        cursor: UpdateCursorEntity?,
+        channelCursors: Map<Long, Int>,
+        apply: suspend () -> Unit,
+    ): Boolean = roomIo {
+        val database = db ?: return@roomIo true
+        database.withTransaction {
+            val dao = database.updateCursorDao()
+            if (dao.isBatchApplied(accountGeneration, batchId)) return@withTransaction true
+            apply()
+            cursor?.let { dao.upsert(it) }
+            for ((chatId, pts) in channelCursors) {
+                val key = "$KEY_CHANNEL_CURSOR_PREFIX$chatId"
+                val stored = dao.get(key)
+                if (stored == null || stored.channelPts < pts) {
+                    dao.upsert(UpdateCursorEntity(key, 0, 0, 0, 0, channelPts = pts))
+                }
+            }
+            dao.insertReceipt(
+                UpdateBatchReceiptEntity(accountGeneration, batchId, System.currentTimeMillis())
+            )
+            dao.pruneReceipts(accountGeneration, batchId - RECEIPT_WINDOW)
+            true
         }
     }
 
@@ -674,6 +750,7 @@ open class OfflineWarmup(
         database.folderDao().clear()
         database.peerDao().clear()
         database.updateCursorDao().clear()
+        database.updateCursorDao().clearReceipts()
         database.profileTabsDao().clear()
         database.profileMembersDao().clear()
         database.profileMediaDao().clear()
@@ -738,6 +815,55 @@ fun staleIdsInsideFetchedWindow(cachedIds: List<Int>, fetchedIds: Collection<Int
     val minId = keep.minOrNull() ?: return emptyList()
     val maxId = keep.maxOrNull() ?: return emptyList()
     return cachedIds.filter { it in minId..maxId && it !in keep }
+}
+
+const val KEY_CHANNEL_CURSOR_PREFIX = "updates.channel:"
+
+/** Receipts kept per account; native acknowledgement is long done for anything older. */
+const val RECEIPT_WINDOW = 1024L
+
+const val MESSAGE_BATCH_ROWS = 100
+const val MESSAGE_BATCH_BYTES = 256 * 1024
+
+fun Message.estimatedSerializedBytes(): Int {
+    var bytes = 128
+    fun add(value: String?) {
+        if (value != null) bytes += value.length * 2
+    }
+    add(text)
+    add(mediaCacheKey)
+    add(mediaKind)
+    add(thumbCacheKey)
+    add(fileName)
+    add(reactionsJson)
+    add(replyQuote)
+    add(fwdFrom)
+    add(viaBot)
+    add(senderName)
+    bytes += entities.size * 32
+    return bytes
+}
+
+fun chunkMessages(
+    messages: List<Message>,
+    maxRows: Int = MESSAGE_BATCH_ROWS,
+    maxBytes: Int = MESSAGE_BATCH_BYTES,
+): List<List<Message>> {
+    val batches = mutableListOf<List<Message>>()
+    var current = mutableListOf<Message>()
+    var currentBytes = 0
+    for (message in messages) {
+        val size = message.estimatedSerializedBytes()
+        if (current.isNotEmpty() && (current.size >= maxRows || currentBytes + size > maxBytes)) {
+            batches += current
+            current = mutableListOf()
+            currentBytes = 0
+        }
+        current += message
+        currentBytes += size
+    }
+    if (current.isNotEmpty()) batches += current
+    return batches
 }
 
 const val DRAFT_META_PREFIX = "draft:"

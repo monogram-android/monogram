@@ -292,6 +292,7 @@ pub fn logout(handle: u64) -> Result<(), MtprotoError> {
         state.channel_pts.clear();
         state.channel_recovery.clear();
         state.seen_messages.clear();
+        std::sync::Arc::make_mut(&mut state.journal).reset_account();
         state.updates_started = false;
         state.session_dead = false;
         state.new_session = None;

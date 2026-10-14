@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference
 class MessageMediaFieldsTest {
     @Test
     fun schemaVersionIsCurrent() {
-        assertEquals(7, DatabaseProvider.SCHEMA_VERSION)
+        assertEquals(8, DatabaseProvider.SCHEMA_VERSION)
     }
 
     @Test

@@ -13,6 +13,7 @@ use tellers_mtproto_transport::Error;
 static NEXT: AtomicU64 = AtomicU64::new(1);
 static REQUESTS: LazyLock<Mutex<HashMap<u64, Arc<ConnectionControl>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+static PROMOTIONS: LazyLock<Mutex<HashMap<u64, u8>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 thread_local! {
     static CURRENT: RefCell<(u64, Option<Arc<ConnectionControl>>)> = const { RefCell::new((0, None)) };
     static SHARED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
@@ -65,6 +66,30 @@ pub fn cancel(id: u64) {
 
 pub fn release(id: u64) {
     REQUESTS.lock().remove(&id);
+    PROMOTIONS.lock().remove(&id);
+}
+
+pub fn promote(id: u64, class: crate::scheduler::RequestClass) {
+    if !REQUESTS.lock().contains_key(&id) {
+        return;
+    }
+    let mut promotions = PROMOTIONS.lock();
+    let entry = promotions.entry(id).or_insert(class.bits());
+    let current = crate::scheduler::RequestClass::from_bits(*entry);
+    if current.is_none_or(|c| class.priority() < c.priority()) {
+        *entry = class.bits();
+    }
+}
+
+pub(crate) fn promoted_class() -> Option<crate::scheduler::RequestClass> {
+    let id = current_id();
+    if id == 0 {
+        return None;
+    }
+    PROMOTIONS
+        .lock()
+        .get(&id)
+        .and_then(|bits| crate::scheduler::RequestClass::from_bits(*bits))
 }
 
 pub(crate) fn detach_sockets() {

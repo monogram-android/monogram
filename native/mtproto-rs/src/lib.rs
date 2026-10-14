@@ -34,6 +34,7 @@ mod stripped_jpeg;
 mod tcp;
 mod transfer_policy;
 mod update_buffer;
+mod update_journal;
 mod updates;
 mod upload;
 #[allow(unsafe_code)]

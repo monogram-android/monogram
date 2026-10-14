@@ -23,9 +23,25 @@ data class UpdatesCursor(
     val seq: Int,
 )
 
+data class DurableUpdateBatch(
+    val accountGeneration: Long,
+    val batchId: Long,
+    val updates: List<MtprotoUpdate>,
+    val cursor: UpdatesCursor?,
+    val channelCursors: Map<Long, Int>,
+)
+
+fun interface DurableUpdateSink {
+    suspend fun commit(batch: DurableUpdateBatch): Boolean
+}
+
 sealed class MtprotoUpdate {
     data class ChatsChanged(val chats: List<Chat>) : MtprotoUpdate()
-    data class NewMessage(val message: Message) : MtprotoUpdate()
+    data class NewMessage(
+        val message: Message,
+        val accountGeneration: Long = 0,
+        val acceptedOrder: Long = 0,
+    ) : MtprotoUpdate()
     data class MessageEdited(val message: Message) : MtprotoUpdate()
     data class MessagesDeleted(val chatId: PeerId?, val messageIds: List<Int>) : MtprotoUpdate()
     data class FoldersChanged(val folders: List<Folder>) : MtprotoUpdate()

@@ -32,6 +32,7 @@ fn logout_clears_unauthorized_local_session_without_network() {
         perm_salt: 0,
         perm_session_id: 0,
         dc_auth_keys: HashMap::new(),
+        journal: Default::default(),
     };
     persist(&state).expect("seed session");
     assert!(path.exists());
@@ -114,6 +115,7 @@ fn cached_foreign_dc_key_skips_export_until_the_key_is_unusable() {
         perm_salt: 0,
         perm_session_id: 0,
         dc_auth_keys,
+        journal: Default::default(),
     };
     let foreign = copy_authorization_to_dc(&mut state, 4).unwrap();
     assert_eq!(foreign.dc_id, 4);
@@ -208,6 +210,7 @@ fn identity_changes_drop_dc_auth_and_a_later_save_cannot_restore_them() {
         perm_salt: 0,
         perm_session_id: 0,
         dc_auth_keys: client.data.lock().dc_auth_keys.clone(),
+        journal: Default::default(),
     };
     persist(&state).unwrap();
     let loaded = FileSessionStore::new(&path).load().unwrap().unwrap();
@@ -388,7 +391,7 @@ fn empty_update_poll_skips_cache_clone() {
     }
     let _ = take_update_cache_clones();
     let events = drain_updates(handle).unwrap();
-    assert!(events.is_empty());
+    assert!(events.batches.is_empty() && events.live_events.is_empty());
     assert_eq!(take_update_cache_clones(), 0);
     destroy_client(handle);
     let _ = std::fs::remove_file(path);

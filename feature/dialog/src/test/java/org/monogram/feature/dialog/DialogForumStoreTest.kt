@@ -1267,6 +1267,36 @@ class DialogForumStoreTest {
     }
 
     @Test
+    fun diskStickerPackStillFetchesNativeLocationsOnce() = runTest {
+        StickerCatalogMemory.clear()
+        StickerPackMemory.clear()
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient()
+        val meta = FakeMeta()
+        val catalog = PickerDisk.encodeCatalog(
+            StickerCatalogSnapshot(0L, listOf(client.loadedPack)),
+        )
+        meta.values["picker.pack.9"] = catalog.substringAfter("\"sets\":[").substringBeforeLast("]")
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = meta,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            store.accept(DialogStore.Intent.OpenStickerPack(9L, 11L))
+            advanceUntilIdle()
+            assertEquals(listOf(42L), store.state.loadedStickerPacks[9L]?.previewDocumentIds)
+            assertEquals(1, client.stickerSetCalls)
+            store.accept(DialogStore.Intent.OpenStickerPack(9L, 11L))
+            advanceUntilIdle()
+            assertEquals(1, client.stickerSetCalls)
+        } finally {
+            store.dispose()
+            StickerPackMemory.clear()
+        }
+    }
+
+    @Test
     fun openedStickerPackTracksLoadingAndLoadsEmojiOrStickers() = runTest {
         StickerCatalogMemory.clear()
         StickerPackMemory.clear()

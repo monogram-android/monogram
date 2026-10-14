@@ -1,5 +1,6 @@
 package org.monogram.root
 
+import android.content.res.Resources.getSystem
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
@@ -25,12 +26,15 @@ import kotlinx.serialization.Serializable
 import org.monogram.BuildConfig
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.PerfLog
+import org.monogram.core.common.RuntimePressure
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.telegram.TelegramLink
 import org.monogram.core.common.telegram.parseTelegramLink
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
+import org.monogram.core.database.entity.UpdateCursorEntity
 import org.monogram.core.markup.NativeMarkupParser
 import org.monogram.core.models.AccountState
 import org.monogram.core.models.AppUpdate
@@ -49,8 +53,10 @@ import org.monogram.feature.settings.AppUpdateController
 import org.monogram.feature.settings.SettingsComponent
 import org.monogram.feature.settings.ui.ProxySession
 import org.monogram.network.bridge.BridgedMtprotoClient
+import org.monogram.network.bridge.DurableUpdateBatch
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
+import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 
 class RootComponent(
@@ -71,6 +77,40 @@ class RootComponent(
 ) : ComponentContext by componentContext {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val targetWarmup = org.monogram.feature.dialog.SelectedTargetWarmup(
+        scope = scope,
+        tablet = {
+            getSystem().configuration.smallestScreenWidthDp >= 600
+        },
+        underPressure = {
+            val accounting = mediaRepository?.storageAccounting()
+            val storagePressure = accounting != null &&
+                    accounting.partialBytes + accounting.reservedBytes > 32L * 1024 * 1024
+            val runtime = Runtime.getRuntime()
+            val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
+            storagePressure || free < 32L * 1024 * 1024 ||
+                    RuntimePressure.blocked()
+        },
+        load = { peer, anchor, limit, priority ->
+            val usedBefore = mediaRepository?.usedByteCount() ?: 0L
+            val page = if (priority >= MediaPriority.VISIBLE) {
+                client.getHistoryPage(PeerId(peer), limit = limit, offsetId = anchor)
+            } else {
+                client.getHistoryPageBackground(PeerId(peer), limit = limit, offsetId = anchor)
+            }
+            if (page is Outcome.Ok) warmup?.cacheHistoryPage(PeerId(peer), page.value)
+            val used = (mediaRepository?.usedByteCount() ?: 0L) - usedBefore
+            PerfLog.event(
+                "target_warmup",
+                "priority=$priority used_bytes=$used"
+            )
+        },
+    )
+
+    fun noteFirstFrame() {
+        targetWarmup.onFirstFrame()
+    }
+
     private val navigation = StackNavigation<Config>()
     private var expiringSession = false
     private var accountFlagsVersion = 0L
@@ -91,6 +131,7 @@ class RootComponent(
 
     fun openFromNotification(chatId: Long, messageId: Int = 0) {
         if (stack.value.active.configuration.isAuthArea()) return
+        targetWarmup.select(chatId, messageId)
         AppLog.api("notify", "open chat=$chatId")
         pushRegistration?.onVisibleChat(chatId)
         if (bubbleChatId != null) {
@@ -145,6 +186,7 @@ class RootComponent(
     }
 
     private fun openChatFromList(peer: PeerId, forum: Boolean, messageId: Int = 0) {
+        targetWarmup.select(peer.value, messageId)
         val destination = Config.Dialog(
             chatId = peer.value,
             isForum = forum,
@@ -249,6 +291,79 @@ class RootComponent(
         }
     }
 
+    private suspend fun commitDurableBatch(batch: DurableUpdateBatch): Boolean {
+        val cache = warmup ?: return true
+        if (expiringSession) return true
+        val cursor = batch.cursor?.let {
+            UpdateCursorEntity(
+                SessionMetadataStore.KEY_PRIMARY_CURSOR,
+                it.pts,
+                it.qts,
+                it.date,
+                it.seq
+            )
+        }
+        return cache.applyDurableBatch(
+            batch.accountGeneration,
+            batch.batchId,
+            cursor,
+            batch.channelCursors
+        ) {
+            batch.updates.forEach {
+                applyDurableUpdate(
+                    cache,
+                    it,
+                    batch.accountGeneration,
+                    batch.batchId
+                )
+            }
+        }
+    }
+
+    private suspend fun applyDurableUpdate(
+        cache: OfflineWarmup,
+        update: MtprotoUpdate,
+        accountGeneration: Long,
+        acceptedOrder: Long,
+    ) {
+        when (update) {
+            is MtprotoUpdate.NewMessage ->
+                cache.applyIncomingMessage(update.message, accountGeneration, acceptedOrder)
+
+            is MtprotoUpdate.MessageEdited -> cache.applyMessageEdit(update.message)
+            is MtprotoUpdate.MessagesDeleted -> cache.deleteMessages(
+                update.chatId,
+                update.messageIds
+            )
+
+            is MtprotoUpdate.MessageReactions ->
+                cache.applyReactions(update.chatId, update.messageId, update.reactionsJson)
+
+            is MtprotoUpdate.ReadOutbox -> cache.applyOutboxRead(update.chatId, update.maxId)
+            is MtprotoUpdate.DiscussionInbox ->
+                cache.applyDiscussionRead(update.channelId, update.topMessageId, update.readMaxId)
+
+            is MtprotoUpdate.ReadInbox -> cache.applyInboxRead(
+                update.chatId,
+                update.maxId,
+                update.stillUnread
+            )
+
+            is MtprotoUpdate.ChatsChanged -> cache.upsertChats(update.chats)
+            is MtprotoUpdate.UnreadMentionsDelta -> cache.addUnreadMentions(
+                update.chatId,
+                update.delta
+            )
+
+            is MtprotoUpdate.UnreadReactionsDelta -> cache.addUnreadReactions(
+                update.chatId,
+                update.delta
+            )
+
+            else -> Unit
+        }
+    }
+
     init {
         if (startOnHome && stack.value.active.configuration is Config.Auth) {
             navigation.replaceAll(Config.Home)
@@ -262,7 +377,11 @@ class RootComponent(
         lifecycle.doOnStart {
             if (!stack.value.active.configuration.isAuthArea()) {
                 scope.launch {
-                    sessionStore?.readAuthorizedUserId()?.value?.let { pushRegistration?.setAccountUserId(it) }
+                    sessionStore?.readAuthorizedUserId()?.value?.let {
+                        pushRegistration?.setAccountUserId(
+                            it
+                        )
+                    }
                     runCatching { pushRegistration?.reregister() }
                 }
             }
@@ -271,35 +390,14 @@ class RootComponent(
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             client.sessionLost().collect { expireSession() }
         }
+        // Message, read-state and delta updates reach the cache only through the
+        // durable batch commit; the live collector below must not apply them twice.
+        (client as? BridgedMtprotoClient)?.installDurableUpdateSink(::commitDurableBatch)
         scope.launch {
             client.updates().collect { update ->
                 if (expiringSession) return@collect
                 try {
                     when (update) {
-                        is MtprotoUpdate.NewMessage -> warmup?.applyIncomingMessage(update.message)
-                        is MtprotoUpdate.MessageEdited -> warmup?.applyMessageEdit(update.message)
-                        is MtprotoUpdate.MessagesDeleted -> warmup?.deleteMessages(
-                            update.chatId,
-                            update.messageIds
-                        )
-
-                        is MtprotoUpdate.MessageReactions -> warmup?.applyReactions(
-                            update.chatId,
-                            update.messageId,
-                            update.reactionsJson
-                        )
-
-                        is MtprotoUpdate.ReadOutbox -> warmup?.applyOutboxRead(
-                            update.chatId,
-                            update.maxId
-                        )
-
-                        is MtprotoUpdate.DiscussionInbox -> warmup?.applyDiscussionRead(
-                            update.channelId,
-                            update.topMessageId,
-                            update.readMaxId
-                        )
-
                         is MtprotoUpdate.FoldersChanged -> warmup?.replaceFolders(update.folders)
                         is MtprotoUpdate.ChatsChanged -> {
                             warmup?.upsertChats(update.chats)
@@ -318,9 +416,6 @@ class RootComponent(
                         )
 
                         is MtprotoUpdate.ReadInbox -> {
-                            warmup?.applyInboxRead(
-                                update.chatId, update.maxId, update.stillUnread,
-                            )
                             if (update.stillUnread <= 0) {
                                 pushRegistration?.onChatRead(update.chatId.value)
                             }
@@ -341,16 +436,6 @@ class RootComponent(
                         is MtprotoUpdate.UnreadReactions -> warmup?.applyUnreadReactions(
                             update.chatId,
                             update.stillUnread,
-                        )
-
-                        is MtprotoUpdate.UnreadMentionsDelta -> warmup?.addUnreadMentions(
-                            update.chatId,
-                            update.delta,
-                        )
-
-                        is MtprotoUpdate.UnreadReactionsDelta -> warmup?.addUnreadReactions(
-                            update.chatId,
-                            update.delta,
                         )
 
                         else -> Unit
@@ -474,6 +559,7 @@ class RootComponent(
         )
 
         is Config.Dialog -> {
+            targetWarmup.promote(config.chatId)
             val component = DialogComponent(
                 componentContext = context,
                 storeFactory = storeFactory,

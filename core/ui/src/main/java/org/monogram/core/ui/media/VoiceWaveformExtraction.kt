@@ -19,6 +19,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.monogram.core.ui.FileLeases
 import kotlin.math.abs
 
 private const val WAVEFORM_BINS = 64
@@ -46,7 +47,9 @@ suspend fun voiceWaveform(file: File): List<Float> = withContext(Dispatchers.IO)
         waveformCache[identity]?.let { return@withContext it }
         waveformInFlight[identity] ?: waveformScope.async(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             try {
-                val amplitudes = decodeMutex.withLock { decodeVoiceWaveform(file) }
+                val amplitudes = decodeMutex.withLock {
+                    FileLeases.hold(file) { decodeVoiceWaveform(file) }
+                }
                 waveformMutex.withLock {
                     if (file.lastModified() == identity.modified && file.length() == identity.length) {
                         waveformCache.keys.removeAll { it.path == identity.path && it != identity }

@@ -111,6 +111,7 @@ internal fun VpxStickerPlayer(
 ) {
     val animationEnabled = LocalMediaAnimationEnabled.current
     val playable = active && animationEnabled
+    org.monogram.core.ui.rememberFileLease(file)
     val frame = remember(file.absolutePath) { mutableStateOf<ImageBitmap?>(null) }
     val hasFrame = remember(file.absolutePath) { mutableStateOf(false) }
     val retirement = remember(file.absolutePath) { VpxFrameRetirement<ImageBitmap>() }

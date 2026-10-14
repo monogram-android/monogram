@@ -296,7 +296,10 @@ internal class DialogStoreFactory(
     private val markupContext: CoroutineContext = Dispatchers.Default,
 ) {
     fun create(): DialogStore {
-        warmPickerMemory(sessionStore)
+        // Navigation calls this on the main thread. A blocking catalog read there
+        // freezes the window (ANR) and leaves "Updating" on screen. The executor
+        // hydrates the same catalogs off the main thread.
+        if (!onAndroidMainThread()) warmPickerMemory(sessionStore)
         return object :
             DialogStore,
             Store<DialogStore.Intent, DialogStore.State, Nothing> by storeFactory.create(
@@ -337,4 +340,11 @@ internal class DialogStoreFactory(
                 reducer = DialogReducer,
             ) {}
     }
+}
+
+private fun onAndroidMainThread(): Boolean = try {
+    val main = android.os.Looper.getMainLooper() ?: return false
+    android.os.Looper.myLooper() === main
+} catch (_: RuntimeException) {
+    false
 }

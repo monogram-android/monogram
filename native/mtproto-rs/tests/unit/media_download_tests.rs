@@ -994,6 +994,58 @@ fn one_mib_chunks_are_rejected() {
     set_chunk_size(512 * 1024);
     assert_eq!(chunk_size(), 512 * 1024);
     set_chunk_size(previous);
+    assert!(window_candidate(128 * 1024, 4, false).is_some());
+    assert!(window_candidate(512 * 1024, 8, false).is_some());
+    assert!(window_candidate(1024 * 1024, 12, false).is_none());
+    assert!(window_candidate(1024 * 1024, 12, true).is_some());
+    assert!(window_candidate(1024 * 1024, 4, true).is_none());
+}
+
+#[test]
+fn overlapping_ranges_collapse_and_a_second_claim_waits() {
+    let offsets = dedup_offsets(&[0, 100, 128 * 1024, 50, 128 * 1024], 128 * 1024);
+    assert_eq!(offsets, vec![0, 128 * 1024]);
+    let first = claim_offsets(9, &[0, 128 * 1024]);
+    assert_eq!(first, vec![0, 128 * 1024]);
+    assert!(claim_offsets(9, &[0]).is_empty());
+    assert_eq!(claim_offsets(9, &[256 * 1024]), vec![256 * 1024]);
+    release_offsets(9, &[0, 128 * 1024, 256 * 1024]);
+    assert_eq!(claim_offsets(9, &[0]), vec![0]);
+    release_offsets(9, &[0]);
+}
+
+#[test]
+fn resume_rejects_a_partial_whose_identity_does_not_match() {
+    let current = RangeIdentity {
+        file_id: 7,
+        access_hash: 8,
+        dc_id: 2,
+        size: 100,
+        version: 0,
+    };
+    assert!(!resume_allowed(None, &current));
+    let mut other = current.clone();
+    other.file_id = 9;
+    assert!(!resume_allowed(Some(&other), &current));
+    other.file_id = 7;
+    other.size = 90;
+    assert!(!resume_allowed(Some(&other), &current));
+    assert!(resume_allowed(Some(&current), &current));
+}
+
+#[test]
+fn optional_transfer_pauses_only_while_visible_work_is_waiting() {
+    crate::client::lanes::set_visible_transfer_waiters_for_test(0);
+    assert!(!should_pause_optional(Some(DownloadProfile::Background)));
+    crate::client::lanes::set_visible_transfer_waiters_for_test(1);
+    assert!(should_pause_optional(Some(DownloadProfile::Background)));
+    assert!(!should_pause_optional(Some(DownloadProfile::Visible)));
+    assert!(!should_pause_optional(Some(DownloadProfile::User)));
+    crate::client::lanes::set_visible_transfer_waiters_for_test(0);
+    assert!(!should_pause_optional(Some(DownloadProfile::Background)));
+    assert!(keep_partial(&crate::MtprotoError::Message(
+        "OPTIONAL_PAUSED".into()
+    )));
 }
 
 #[test]

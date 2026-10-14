@@ -11,6 +11,7 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.widget.ImageView
+import org.monogram.core.ui.FileLeases
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
@@ -105,12 +106,12 @@ private fun ViewerLoadingIndicator(progress: Float?, modifier: Modifier = Modifi
     }
 }
 
-internal fun decodeSpoilerPreview(file: java.io.File): Bitmap? {
+internal fun decodeSpoilerPreview(file: java.io.File): Bitmap? = FileLeases.hold(file) {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     try {
         BitmapFactory.decodeFile(file.absolutePath, bounds)
     } catch (_: IllegalArgumentException) {
-        return null
+        return@hold null
     }
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
     var sample = 1
@@ -121,7 +122,7 @@ internal fun decodeSpoilerPreview(file: java.io.File): Bitmap? {
             BitmapFactory.Options().apply { inSampleSize = sample })
     } catch (_: IllegalArgumentException) {
         null
-    } ?: return null
+    } ?: return@hold null
     val tiny = decoded.scale(12, 12)
     if (tiny !== decoded) decoded.recycle()
     val pixels = IntArray(144)
@@ -215,16 +216,18 @@ internal fun MediaPhotoPage(
         loading = true
         failed = false
         val decoded = withContext(Dispatchers.IO) {
-            try {
-                if (Build.VERSION.SDK_INT >= 28) {
-                    ImageDecoder.decodeBitmap(ImageDecoder.createSource(fullFile))
-                } else {
-                    BitmapFactory.decodeFile(fullFile.absolutePath)
+            FileLeases.hold(fullFile) {
+                try {
+                    if (Build.VERSION.SDK_INT >= 28) {
+                        ImageDecoder.decodeBitmap(ImageDecoder.createSource(fullFile))
+                    } else {
+                        BitmapFactory.decodeFile(fullFile.absolutePath)
+                    }
+                } catch (_: java.io.IOException) {
+                    null
+                } catch (_: IllegalArgumentException) {
+                    null
                 }
-            } catch (_: java.io.IOException) {
-                null
-            } catch (_: IllegalArgumentException) {
-                null
             }
         }
         bitmap = decoded

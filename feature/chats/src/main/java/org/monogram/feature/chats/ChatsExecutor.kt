@@ -211,7 +211,7 @@ internal class ChatsExecutor(
                     }
                     is MtprotoUpdate.NewMessage -> {
                         val named = withSenderName(update.message)
-                        absorbIncoming(named)
+                        absorbIncoming(named, update.accountGeneration, update.acceptedOrder)
                     }
                     is MtprotoUpdate.MessageEdited -> {
                         listPublicationMutex.withLock {
@@ -1194,7 +1194,11 @@ internal class ChatsExecutor(
         }
     }
 
-    private fun absorbIncoming(message: Message) {
+    private fun absorbIncoming(
+        message: Message,
+        accountGeneration: Long = 0,
+        acceptedOrder: Long = 0,
+    ) {
         scope.launch {
             var persistHidden: Chat? = null
             val published = listPublicationMutex.withLock {
@@ -1202,7 +1206,8 @@ internal class ChatsExecutor(
                 when {
                     current == null -> false
                     !current.isShownInChatList() -> {
-                        persistHidden = current.withIncomingMessage(message)
+                        persistHidden =
+                            current.withIncomingMessage(message, accountGeneration, acceptedOrder)
                         true
                     }
                     else -> {
@@ -1213,7 +1218,7 @@ internal class ChatsExecutor(
                             if (none { it.id == current.id }) add(current)
                         }
                         republishListedLocked(
-                            applyIncomingMessage(listed, message),
+                            applyIncomingMessage(listed, message, accountGeneration, acceptedOrder),
                             fromCache = false,
                             hasMore = null,
                             keep = paintKeep(),
@@ -1228,12 +1233,25 @@ internal class ChatsExecutor(
                 warmup?.chat(message.id.chatId)
             } ?: return@launch
             if (!stored.isMainListRow()) {
-                warmup?.upsertChats(listOf(stored.withIncomingMessage(message)))
+                warmup?.upsertChats(
+                    listOf(
+                        stored.withIncomingMessage(
+                            message,
+                            accountGeneration,
+                            acceptedOrder
+                        )
+                    )
+                )
                 return@launch
             }
             listPublicationMutex.withLock {
                 republishListedLocked(
-                    applyIncomingMessage(allListed() + stored, message),
+                    applyIncomingMessage(
+                        allListed() + stored,
+                        message,
+                        accountGeneration,
+                        acceptedOrder
+                    ),
                     fromCache = false,
                     hasMore = null,
                     keep = paintKeep(),

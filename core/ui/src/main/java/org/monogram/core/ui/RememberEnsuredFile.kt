@@ -61,5 +61,6 @@ fun rememberEnsuredFile(
             if (attempt < 2) delay(400L * (attempt + 1))
         }
     }
+    rememberFileLease(file)
     return file
 }

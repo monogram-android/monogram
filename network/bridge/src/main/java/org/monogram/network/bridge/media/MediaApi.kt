@@ -2,6 +2,7 @@ package org.monogram.network.bridge.media
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.DebugStats
 import org.monogram.core.common.Outcome
@@ -11,10 +12,12 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.Wallpaper
 import org.monogram.core.models.WallpaperCatalog
 import org.monogram.network.bridge.session.DispatchClass
+import org.monogram.network.bridge.session.NativeRequestTag
 import org.monogram.network.bridge.session.SessionCore
 import org.monogram.network.bridge.session.isFileMigrateError
 import org.monogram.network.bridge.session.isMissingThumbError
 import org.monogram.network.bridge.session.nativeExceptionMessage
+import org.monogram.network.bridge.session.promoteTaggedRequest
 import org.monogram.network.http.MediaPriority
 
 internal class MediaApi(private val core: SessionCore) : MediaOps {
@@ -177,91 +180,104 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
                 )
                 return connected
             }
+
             is Outcome.Ok -> Unit
         }
         val dispatchClass = mediaDispatchClass(priority)
-        return retryShortFlood {
-            perfOp("download:${kind.name.lowercase()}") {
-                try {
-                    AppLog.api(
-                        "download media",
-                        "start ${kind.name} chat=${chatId.value} id=$messageId pri=$priority",
-                    )
-                    suspend fun fetch(): String = core.onNativeClass(dispatchClass) { activeHandle ->
-                        when (kind) {
-                            TelegramFileKind.Thumb ->
-                                core.native.downloadMessageThumb(
-                                    activeHandle,
-                                    chatId.value,
-                                    messageId,
-                                    destPath
-                                )
+        return withContext(NativeRequestTag(destPath)) {
+            retryShortFlood {
+                perfOp("download:${kind.name.lowercase()}") {
+                    try {
+                        AppLog.api(
+                            "download media",
+                            "start ${kind.name} chat=${chatId.value} id=$messageId pri=$priority",
+                        )
+                        suspend fun fetch(): String =
+                            core.onNativeClass(dispatchClass) { activeHandle ->
+                                when (kind) {
+                                    TelegramFileKind.Thumb ->
+                                        core.native.downloadMessageThumb(
+                                            activeHandle,
+                                            chatId.value,
+                                            messageId,
+                                            destPath
+                                        )
 
-                            TelegramFileKind.Display ->
-                                core.native.downloadMessageDisplay(
-                                    activeHandle,
-                                    chatId.value,
-                                    messageId,
-                                    destPath
-                                )
+                                    TelegramFileKind.Display ->
+                                        core.native.downloadMessageDisplay(
+                                            activeHandle,
+                                            chatId.value,
+                                            messageId,
+                                            destPath
+                                        )
 
-                            TelegramFileKind.Full ->
-                                core.native.downloadMessageMedia(
-                                    activeHandle,
-                                    chatId.value,
-                                    messageId,
-                                    destPath
-                                )
+                                    TelegramFileKind.Full ->
+                                        core.native.downloadMessageMedia(
+                                            activeHandle,
+                                            chatId.value,
+                                            messageId,
+                                            destPath
+                                        )
+                                }
+                            }
+
+                        val downloaded = try {
+                            fetch()
+                        } catch (e: Exception) {
+                            val raw = nativeExceptionMessage(e)
+                            if (messageId > 0 && raw.contains("no media for chat")) {
+                                delay(400)
+                                fetch()
+                            } else {
+                                throw e
+                            }
                         }
-                    }
-                    val downloaded = try {
-                        fetch()
+                        AppLog.api("download media", "ok")
+                        val size = java.io.File(downloaded).length()
+                        DebugStats.attachBytes("download:${kind.name.lowercase()}", size)
+                        Outcome.Ok(downloaded)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         val raw = nativeExceptionMessage(e)
-                        if (messageId > 0 && raw.contains("no media for chat")) {
-                            delay(400)
-                            fetch()
-                        } else {
-                            throw e
+                        if (messageId == 0 && raw.contains("no media for chat")) {
+                            return@retryShortFlood Outcome.Err("no avatar")
                         }
+                        if (kind == TelegramFileKind.Thumb && isMissingThumbError(raw)) {
+                            return@retryShortFlood Outcome.Err("no downloadable thumb")
+                        }
+                        if (kind == TelegramFileKind.Display && raw.contains(
+                                "no display size",
+                                ignoreCase = true
+                            )
+                        ) {
+                            return@retryShortFlood Outcome.Err("no display size")
+                        }
+                        if (isFileMigrateError(raw)) {
+                            return@retryShortFlood Outcome.Err("media deferred")
+                        }
+                        val outcome = core.fail(e, "download media failed", degradeHome = false)
+                        val homeAlive = core.activeHandleOrZero().let { activeHandle ->
+                            activeHandle == 0L || runCatching {
+                                core.native.isAuthorized(
+                                    activeHandle
+                                )
+                            }.getOrDefault(
+                                true
+                            )
+                        }
+                        if (!homeAlive) {
+                            core.markSessionDegraded(outcome.telegramError)
+                        }
+                        outcome
                     }
-                    AppLog.api("download media", "ok")
-                    val size = java.io.File(downloaded).length()
-                    DebugStats.attachBytes("download:${kind.name.lowercase()}", size)
-                    Outcome.Ok(downloaded)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    val raw = nativeExceptionMessage(e)
-                    if (messageId == 0 && raw.contains("no media for chat")) {
-                        return@retryShortFlood Outcome.Err("no avatar")
-                    }
-                    if (kind == TelegramFileKind.Thumb && isMissingThumbError(raw)) {
-                        return@retryShortFlood Outcome.Err("no downloadable thumb")
-                    }
-                    if (kind == TelegramFileKind.Display && raw.contains(
-                            "no display size",
-                            ignoreCase = true
-                        )
-                    ) {
-                        return@retryShortFlood Outcome.Err("no display size")
-                    }
-                    if (isFileMigrateError(raw)) {
-                        return@retryShortFlood Outcome.Err("media deferred")
-                    }
-                    val outcome = core.fail(e, "download media failed", degradeHome = false)
-                    val homeAlive = core.activeHandleOrZero().let { activeHandle ->
-                        activeHandle == 0L || runCatching { core.native.isAuthorized(activeHandle) }.getOrDefault(
-                            true
-                        )
-                    }
-                    if (!homeAlive) {
-                        core.markSessionDegraded(outcome.telegramError)
-                    }
-                    outcome
                 }
             }
         }
+    }
+
+    override fun promoteDownload(destPath: String, priority: Int) {
+        promoteTaggedRequest(core.native, destPath, mediaDispatchClass(priority))
     }
 
     override fun peekMessageInlineThumb(chatId: PeerId, messageId: Int): ByteArray? {

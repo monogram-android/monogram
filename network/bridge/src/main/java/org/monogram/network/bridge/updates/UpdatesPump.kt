@@ -11,7 +11,8 @@ import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.telegram.TelegramError
-import org.monogram.core.models.PeerId
+import org.monogram.network.bridge.DurableUpdateBatch
+import org.monogram.network.bridge.DurableUpdateSink
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.UpdatesCursor
 import org.monogram.network.bridge.chat.toChatModels
@@ -19,14 +20,21 @@ import org.monogram.network.bridge.session.DispatchClass
 import org.monogram.network.bridge.session.SessionCore
 import org.monogram.network.bridge.session.dispatchClassName
 import org.monogram.network.bridge.session.nativeRequest
+import uniffi.monogram_mtproto.UpdateBatchDto
+import uniffi.monogram_mtproto.UpdateDrainDto
 import uniffi.monogram_mtproto.UpdateEventDto
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import org.monogram.network.bridge.chat.toModel as toFolderModel
-import org.monogram.network.bridge.message.toModel as toMessageModel
 import org.monogram.network.bridge.profile.toModel as toProfileModel
 
+private const val EMITTED_WINDOW = 512
+private const val REPLAY_WAIT_MS = 200L
+
 internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
+    private var premiumRefreshPending = false
+    private var chatsRefreshPending = false
+    private var foldersRefreshPending = false
 
     init {
         core.scope.launch { drainUpdatesLoop() }
@@ -50,9 +58,6 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
     private suspend fun drainUpdatesLoop() {
         var drainDelayMs = 25L
         var reconnectHandle = 0L
-        var premiumRefreshPending = false
-        var chatsRefreshPending = false
-        var foldersRefreshPending = false
         val lastMetadataRefreshMs = AtomicLong(-1L)
         val lastChatsRefreshMs = AtomicLong(-1L)
         val lastPremiumRefreshMs = AtomicLong(-1L)
@@ -92,19 +97,24 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 lastChatsRefreshMs.set(-1L)
                 lastPremiumRefreshMs.set(-1L)
             }
-            val events = try {
+            val drain = try {
+                if (!replayPendingBatches(activeHandle)) {
+                    delay(drainDelayMs)
+                    continue
+                }
                 val drainAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
                 val drained = nativeRequest(
                     core.native,
                     core.nativeDispatcher,
                     DispatchClass.BACKGROUND_READ
                 ) {
-                    core.native.drainUpdates(activeHandle)
+                    core.native.drainUpdateBatches(activeHandle)
                 }
-                if (drained.isNotEmpty()) {
-                    PerfLog.noteUpdateDrain(drained.size)
+                val count = drained.batches.sumOf { it.events.size } + drained.liveEvents.size
+                if (count > 0) {
+                    PerfLog.noteUpdateDrain(count)
                 }
-                if (drainAt != 0L && drained.isNotEmpty()) {
+                if (drainAt != 0L && count > 0) {
                     PerfLog.trace(
                         op = "updates",
                         phase = "drain",
@@ -112,12 +122,24 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                         handle = activeHandle,
                         dispatchClass = DispatchClass.BACKGROUND_READ,
                         result = "ok",
-                        detail = "count=${drained.size} lane=${dispatchClassName(DispatchClass.BACKGROUND_READ)}",
+                        detail = "count=$count batches=${drained.batches.size} lane=${
+                            dispatchClassName(
+                                DispatchClass.BACKGROUND_READ
+                            )
+                        }",
                     )
                 }
                 drainDelayMs = 25L
                 reconnectHandle = 0L
-                if (core.isCurrentHandle(activeHandle)) drained else emptyList()
+                if (drained.replayRequired) {
+                    core.replayPending.set(true)
+                    if (core.durableSink == null) drainDelayMs = REPLAY_WAIT_MS
+                }
+                if (core.isCurrentHandle(activeHandle)) drained else UpdateDrainDto(
+                    emptyList(),
+                    emptyList(),
+                    false
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -130,177 +152,17 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     }
                     drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
                 }
-                emptyList()
+                UpdateDrainDto(emptyList(), emptyList(), false)
             }
-            for (event in events) {
-                when (event) {
-                    is UpdateEventDto.ChatsChanged -> {
-                        chatsRefreshPending = true
-                        premiumRefreshPending = true
-                    }
-
-                    is UpdateEventDto.FoldersChanged -> {
-                        foldersRefreshPending = true
-                    }
-
-                    is UpdateEventDto.NewMessage -> {
-                        AppLog.api(
-                            "updates",
-                            "newMessage chat=${event.message.chatId} id=${event.message.id}",
-                        )
-                        core.updatesEvents.emit(MtprotoUpdate.NewMessage(event.message.toMessageModel()))
-                    }
-
-                    is UpdateEventDto.MessageEdited -> {
-                        AppLog.api(
-                            "updates",
-                            "messageEdited chat=${event.message.chatId} id=${event.message.id}",
-                        )
-                        core.updatesEvents.emit(MtprotoUpdate.MessageEdited(event.message.toMessageModel()))
-                    }
-
-                    is UpdateEventDto.MessagesDeleted -> core.updatesEvents.emit(
-                        MtprotoUpdate.MessagesDeleted(
-                            chatId = event.chatId?.let(::PeerId),
-                            messageIds = event.messageIds,
-                        ),
-                    )
-
-                    is UpdateEventDto.PeerTyping -> core.updatesEvents.emit(
-                        MtprotoUpdate.PeerTyping(
-                            chatId = PeerId(event.chatId),
-                            userId = PeerId(event.userId),
-                            typing = event.typing,
-                            action = event.action.ifBlank {
-                                if (event.typing) "typing" else ""
-                            },
-                        ),
-                    )
-
-                    is UpdateEventDto.PeerEmojiStatus -> core.updatesEvents.emit(
-                        MtprotoUpdate.PeerEmojiStatus(
-                            userId = PeerId(event.userId),
-                            documentId = event.documentId,
-                        ),
-                    )
-
-                    is UpdateEventDto.PeerStatus -> core.updatesEvents.emit(
-                        MtprotoUpdate.PeerStatus(
-                            userId = PeerId(event.userId),
-                            status = event.status,
-                            statusAt = event.statusAt,
-                        ),
-                    )
-
-                    is UpdateEventDto.ReadInbox -> {
-                        AppLog.api(
-                            "read-state",
-                            "server chat=${event.chatId} max=${event.maxId} unread=${event.stillUnread}"
-                        )
-                        core.updatesEvents.emit(
-                            MtprotoUpdate.ReadInbox(
-                                chatId = PeerId(event.chatId),
-                                maxId = event.maxId,
-                                stillUnread = event.stillUnread,
-                            )
-                        )
-                    }
-
-                    is UpdateEventDto.ReadOutbox -> core.updatesEvents.emit(
-                        MtprotoUpdate.ReadOutbox(
-                            chatId = PeerId(event.chatId),
-                            maxId = event.maxId,
-                        ),
-                    )
-
-                    is UpdateEventDto.Ignored -> {
-                        when {
-                            event.kind.startsWith("dialog_unread_mark:") -> {
-                                val parts = event.kind.split(':')
-                                val chatId = parts.getOrNull(1)?.toLongOrNull()
-                                val unread = parts.getOrNull(2) == "1"
-                                if (chatId != null) {
-                                    core.updatesEvents.emit(
-                                        MtprotoUpdate.DialogUnreadMark(PeerId(chatId), unread),
-                                    )
-                                }
-                            }
-                            event.kind.startsWith("notify_settings:") -> {
-                                val parts = event.kind.split(':')
-                                val peerKind = parts.getOrNull(1).orEmpty()
-                                val chatId = parts.getOrNull(2)?.toLongOrNull() ?: 0L
-                                val muteUntil = parts.getOrNull(3)?.toIntOrNull() ?: 0
-                                if (peerKind.isNotEmpty()) {
-                                    core.updatesEvents.emit(
-                                        MtprotoUpdate.NotifySettingsChanged(
-                                            peerKind = peerKind,
-                                            chatId = PeerId(chatId),
-                                            muteUntil = muteUntil,
-                                            topicId = parts.getOrNull(4)?.toIntOrNull()
-                                                ?.takeIf { it > 0 },
-                                        ),
-                                    )
-                                }
-                            }
-                            event.kind.startsWith("UpdateMessageId:") -> {
-                                AppLog.api("updates", "message id mapped")
-                                core.updatesEvents.emit(MtprotoUpdate.Ignored(event.kind))
-                            }
-                            event.kind.startsWith("unread_mentions_delta:") -> {
-                                val parts = event.kind.split(':')
-                                val chatId = parts.getOrNull(1)?.toLongOrNull()
-                                val delta = parts.getOrNull(2)?.toIntOrNull() ?: 1
-                                if (chatId != null) {
-                                    core.updatesEvents.emit(
-                                        MtprotoUpdate.UnreadMentionsDelta(PeerId(chatId), delta),
-                                    )
-                                }
-                            }
-                            event.kind.startsWith("unread_reactions_delta:") -> {
-                                val parts = event.kind.split(':')
-                                val chatId = parts.getOrNull(1)?.toLongOrNull()
-                                val delta = parts.getOrNull(2)?.toIntOrNull() ?: 1
-                                if (chatId != null) {
-                                    core.updatesEvents.emit(
-                                        MtprotoUpdate.UnreadReactionsDelta(PeerId(chatId), delta),
-                                    )
-                                }
-                            }
-                            else -> {
-                                AppLog.api("updates", "ignored ${event.kind}")
-                                core.updatesEvents.emit(MtprotoUpdate.Ignored(event.kind))
-                            }
-                        }
-                    }
-
-                    is UpdateEventDto.SavedGifsChanged -> core.updatesEvents.emit(MtprotoUpdate.SavedGifsChanged)
-                    is UpdateEventDto.MessageReactions -> core.updatesEvents.emit(
-                        MtprotoUpdate.MessageReactions(
-                            chatId = PeerId(event.chatId),
-                            messageId = event.messageId,
-                            reactionsJson = event.reactionsJson,
-                        ),
-                    )
-
-                    is UpdateEventDto.DiscussionInbox -> core.updatesEvents.emit(
-                        MtprotoUpdate.DiscussionInbox(
-                            channelId = PeerId(event.channelId),
-                            topMessageId = event.topMessageId,
-                            readMaxId = event.readMaxId,
-                        ),
-                    )
-
-                    is UpdateEventDto.DialogsPatched -> {
-                        if (event.chats.isNotEmpty()) {
-                            core.updatesEvents.emit(
-                                MtprotoUpdate.ChatsChanged(event.chats.toChatModels(assignPinOrder = false)),
-                            )
-                        }
-                    }
-
-                    is UpdateEventDto.SyncState -> core.updatesEvents.emit(
-                        MtprotoUpdate.SyncState(event.isSyncing),
-                    )
+            for (batch in drain.batches) {
+                deliverEvents(batch.events, batch.accountGeneration, batch.batchId)
+            }
+            deliverEvents(drain.liveEvents, 0L, 0L)
+            for (batch in drain.batches) {
+                rememberEmitted(batch)
+                if (!commitAndAcknowledge(activeHandle, batch)) {
+                    core.replayPending.set(true)
+                    break
                 }
             }
             // Chat metadata events carry no self-user flags. Coalesce the fallback
@@ -399,6 +261,105 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 delay(drainDelayMs)
             }
         }
+    }
+
+    private val emitted = LinkedHashSet<Pair<Long, Long>>()
+
+    private fun rememberEmitted(batch: UpdateBatchDto) {
+        emitted += batch.accountGeneration to batch.batchId
+        while (emitted.size > EMITTED_WINDOW) emitted.remove(emitted.first())
+    }
+
+    /**
+     * Commits one batch through the application sink, then acknowledges it. The
+     * acknowledgement is only a native list removal; nothing here waits for Room
+     * while a native lock is held. Returns false when the batch must stay queued.
+     */
+    private suspend fun commitAndAcknowledge(handle: Long, batch: UpdateBatchDto): Boolean {
+        val sink = core.durableSink ?: return false
+        val committed = try {
+            sink.commit(
+                DurableUpdateBatch(
+                    accountGeneration = batch.accountGeneration,
+                    batchId = batch.batchId,
+                    updates = batch.events.flatMap { it.toMtprotoUpdates() },
+                    cursor = batch.cursorAfter?.let {
+                        UpdatesCursor(
+                            it.pts,
+                            it.qts,
+                            it.date,
+                            it.seq
+                        )
+                    },
+                    channelCursors = batch.channelPtsAfter.associate { it.chatId to it.pts },
+                ),
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.warn("updates", "durable commit failed")
+            false
+        }
+        if (!committed) return false
+        nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
+            core.native.acknowledgeUpdateBatch(handle, batch.accountGeneration, batch.batchId)
+        }
+        return true
+    }
+
+    /**
+     * Applies batches saved by an earlier run (or a failed commit) before any new
+     * update is drained. Returns false when a batch could not be committed.
+     */
+    private suspend fun replayPendingBatches(handle: Long): Boolean {
+        if (core.durableSink == null || !core.replayPending.get()) return true
+        val pending =
+            nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
+                core.native.pendingUpdateBatches(handle)
+            }
+        for (batch in pending) {
+            if ((batch.accountGeneration to batch.batchId) !in emitted) {
+                deliverEvents(batch.events, batch.accountGeneration, batch.batchId)
+                rememberEmitted(batch)
+            }
+            if (!commitAndAcknowledge(handle, batch)) return false
+        }
+        core.replayPending.set(false)
+        return true
+    }
+
+    private suspend fun deliverEvents(
+        events: List<UpdateEventDto>,
+        accountGeneration: Long,
+        acceptedOrder: Long,
+    ) {
+        for (event in events) {
+            when (event) {
+                is UpdateEventDto.ChatsChanged -> {
+                    chatsRefreshPending = true
+                    premiumRefreshPending = true
+                }
+
+                is UpdateEventDto.FoldersChanged -> foldersRefreshPending = true
+                else -> event.toMtprotoUpdates().forEach { update ->
+                    val ordered = if (update is MtprotoUpdate.NewMessage) {
+                        update.copy(
+                            accountGeneration = accountGeneration,
+                            acceptedOrder = acceptedOrder,
+                        )
+                    } else {
+                        update
+                    }
+                    core.updatesEvents.emit(ordered)
+                }
+            }
+        }
+    }
+
+    override fun installDurableUpdateSink(sink: DurableUpdateSink) {
+        core.durableSink = sink
+        core.replayPending.set(true)
+        core.updatesWake.trySend(Unit)
     }
 
     override fun updates(): Flow<MtprotoUpdate> = merge(core.updatesEvents, core.localUpdates)

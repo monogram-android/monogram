@@ -54,6 +54,7 @@ open class SessionMetadataStore(
         val database = db ?: return
         database.metaDao().clear()
         database.updateCursorDao().clear()
+        database.updateCursorDao().clearReceipts()
         database.profileTabsDao().clear()
         database.profileMembersDao().clear()
         database.profileMediaDao().clear()

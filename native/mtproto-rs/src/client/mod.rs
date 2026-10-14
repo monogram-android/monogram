@@ -110,6 +110,7 @@ pub(crate) struct ClientData {
     /// Optional metadata previews; gaps remain durable in `channel_recovery`.
     pub(crate) lazy_channel_recovery: HashSet<i64>,
     pub(crate) lazy_retry_at: u64,
+    pub(crate) journal: Arc<crate::update_journal::UpdateJournal>,
 }
 
 #[derive(Clone)]
@@ -138,6 +139,7 @@ pub(crate) struct Client {
     pub(crate) media_gate: scheduler::LaneGate,
     pub(crate) persist_queued: AtomicBool,
     pub(crate) persist_running: AtomicBool,
+    pub(crate) persist_exhausted: AtomicBool,
     pub(crate) interactive_waiters: AtomicU64,
 }
 
@@ -168,6 +170,7 @@ pub(crate) struct ClientState {
     pub(crate) perm_salt: i64,
     pub(crate) perm_session_id: i64,
     pub(crate) dc_auth_keys: HashMap<i32, DcAuthKey>,
+    pub(crate) journal: Arc<crate::update_journal::UpdateJournal>,
 }
 
 /// In-memory bound temporary key. Deliberately not `Debug`: it holds key material.
@@ -256,6 +259,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
         session_dead,
         test_dc,
         dc_auth_keys,
+        journal,
     ) = match loaded {
         Some(session) => (
             session.snapshot,
@@ -270,6 +274,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
             session.session_dead,
             session.test_dc,
             session.dc_auth_keys,
+            session.journal,
         ),
         None => (
             Snapshot::new(DEFAULT_DC_ID, &mut OsRandom).expect("snapshot"),
@@ -284,6 +289,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
             load_failed,
             false,
             HashMap::new(),
+            Default::default(),
         ),
     };
     crate::rpc::set_use_test_dc(test_dc);
@@ -350,6 +356,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                 lazy_sync_exceptions: HashSet::new(),
                 lazy_channel_recovery: HashSet::new(),
                 lazy_retry_at: 0,
+                journal: Arc::new(journal),
             }),
             main_gate: scheduler::LaneGate::new(),
             main: Mutex::new(SessionIo {
@@ -397,6 +404,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
             media_gate: scheduler::LaneGate::new(),
             persist_queued: AtomicBool::new(false),
             persist_running: AtomicBool::new(false),
+            persist_exhausted: AtomicBool::new(false),
             interactive_waiters: AtomicU64::new(0),
         }),
     );
@@ -555,6 +563,7 @@ pub(crate) fn with_client_mut<T>(
             perm_salt: d.home_salt,
             perm_session_id: d.home_session_id,
             dc_auth_keys: d.dc_auth_keys.clone(),
+            journal: Arc::clone(&d.journal),
         }
     };
     crate::rpc::set_use_test_dc(state.test_dc);
@@ -620,6 +629,9 @@ pub(crate) fn with_client_mut<T>(
             d.channel_recovery = state.channel_recovery;
             d.seen_messages = state.seen_messages;
             d.updates_started = state.updates_started;
+            if before_user_id.is_some() {
+                Arc::make_mut(&mut d.journal).reset_account();
+            }
             true
         } else {
             let peers_changed = merge_changed_entries(&mut d.peers, &before_peers, state.peers);
@@ -767,6 +779,7 @@ pub(crate) fn with_read_lane<T>(
                 perm_salt: d.home_salt,
                 perm_session_id: d.home_session_id,
                 dc_auth_keys: d.dc_auth_keys.clone(),
+                journal: Arc::clone(&d.journal),
             })
         }
     };

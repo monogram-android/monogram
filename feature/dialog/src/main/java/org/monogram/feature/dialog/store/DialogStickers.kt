@@ -215,32 +215,49 @@ internal fun DialogExecutor.refreshStickerCatalog(emoji: Boolean, hash: Long) {
 
 internal fun DialogExecutor.loadStickerPack(setId: Long, accessHash: Long) {
     val cached = StickerPackMemory.get(setId) ?: snapshot().loadedStickerPacks[setId]
-    if (cached != null && cached.previewDocumentIds.isNotEmpty()) {
+    val hasPreviews = cached != null && cached.previewDocumentIds.isNotEmpty()
+    // A process restart keeps preview ids on disk but drops the native document
+    // locations. Show the cached pack, then still fetch it once so downloads work.
+    if (cached != null && hasPreviews && StickerPackMemory.isNativeReady(setId)) {
         emit(Msg.StickerPackLoaded(cached))
         return
     }
     if (!loadingStickerPacks.add(setId)) return
-    emit(Msg.StickerPackLoading(setId))
+    if (!hasPreviews) emit(Msg.StickerPackLoading(setId))
     work.launch {
         try {
-            if (cached == null) {
+            var known = cached
+            if (known == null) {
                 sessionStore?.let { PickerDisk.readPack(it, setId) }?.let { disk ->
                     StickerPackMemory.put(disk)
                     emit(Msg.StickerPackLoaded(disk))
-                    if (disk.previewDocumentIds.isNotEmpty()) return@launch
+                    known = disk
                 }
+            } else {
+                val already = known
+                if (already != null) emit(Msg.StickerPackLoaded(already))
+            }
+            val shown = known
+            if (shown != null &&
+                shown.previewDocumentIds.isNotEmpty() &&
+                StickerPackMemory.isNativeReady(setId)
+            ) {
+                return@launch
             }
             stickerPackRequests.acquire()
             try {
                 when (val result = client.getStickerSet(setId, accessHash)) {
                     is Outcome.Ok -> {
                         StickerPackMemory.put(result.value)
+                        StickerPackMemory.markNativeReady(setId)
                         sessionStore?.let { PickerDisk.writePack(it, result.value) }
                         emit(Msg.StickerPackLoaded(result.value))
                     }
                     is Outcome.Err -> {
                         handleError(result.telegramError, false)
-                        emit(Msg.StickerPackFailed(setId))
+                        if (shown == null || shown.previewDocumentIds.isEmpty()) {
+                            emit(Msg.StickerPackFailed(setId))
+                        }
                     }
                 }
             } finally {

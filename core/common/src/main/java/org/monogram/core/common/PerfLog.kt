@@ -1,7 +1,11 @@
 package org.monogram.core.common
 
 import android.util.Log
+import kotlinx.coroutines.ThreadContextElement
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Opt-in netcode timing spans; off by default, switchable from adb:
@@ -27,6 +31,47 @@ object PerfLog {
     private var nativeSnapshot: (() -> String)? = null
 
     private val pendingUpdateAtMs = ConcurrentLinkedQueue<Long>()
+
+    private val nextOpId = AtomicLong(1L)
+    private val threadOpId = ThreadLocal<Long>()
+
+    fun newOpId(): Long =
+        (nextOpId.getAndIncrement() and OP_ID_MASK).let { if (it == 0L) 1L else it }
+
+    fun currentOpId(): Long = threadOpId.get() ?: 0L
+
+    class OpTrace(val opId: Long = newOpId()) : AbstractCoroutineContextElement(Key),
+        ThreadContextElement<Long> {
+        companion object Key : CoroutineContext.Key<OpTrace>
+
+        override fun updateThreadContext(context: CoroutineContext): Long {
+            val previous = threadOpId.get() ?: 0L
+            threadOpId.set(opId)
+            return previous
+        }
+
+        override fun restoreThreadContext(context: CoroutineContext, oldState: Long) {
+            if (oldState == 0L) threadOpId.remove() else threadOpId.set(oldState)
+        }
+    }
+
+    inline fun <T> withOpId(opId: Long, block: () -> T): T {
+        val previous = swapOpId(opId)
+        try {
+            return block()
+        } finally {
+            swapOpId(previous)
+        }
+    }
+
+    @PublishedApi
+    internal fun swapOpId(opId: Long): Long {
+        val previous = threadOpId.get() ?: 0L
+        if (opId == 0L) threadOpId.remove() else threadOpId.set(opId)
+        return previous
+    }
+
+    private const val OP_ID_MASK = 0x7FFF_FFFFL
 
     fun isEnabled(): Boolean {
         val now = nowMs()
@@ -57,7 +102,9 @@ object PerfLog {
     fun event(op: String, detail: String = "") {
         DebugLog.ingestPerf(op, detail, null)
         if (!isEnabled()) return
-        runCatching { Log.i(TAG, if (detail.isEmpty()) op else "$op $detail") }
+        val opId = currentOpId()
+        val tagged = if (opId == 0L) detail else "opId=$opId $detail".trimEnd()
+        runCatching { Log.i(TAG, if (tagged.isEmpty()) op else "$op $tagged") }
     }
 
     /**
@@ -74,8 +121,10 @@ object PerfLog {
         detail: String = "",
     ) {
         if (!isEnabled()) return
+        val opId = currentOpId()
         val line = buildString {
             append("op=").append(op)
+            if (opId != 0L) append(" opId=").append(opId)
             append(" phase=").append(phase)
             if (handle != null && handle != 0L) append(" handle=").append(handle)
             if (dispatchClass != null) append(" class=").append(dispatchClass)

@@ -220,4 +220,125 @@ class MessageMergeTest {
             context.deleteDatabase(name)
         }
     }
+
+    @Test
+    fun versionSevenMigrationAddsReceiptsAndPreservesIdentity() {
+        val name = "receipt-migration-regression.db"
+        migration.createDatabase(name, 7).use { db ->
+            db.execSQL("INSERT INTO meta (`key`, value) VALUES ('${SessionMetadataStore.KEY_USER_ID}', '42')")
+        }
+        migration.runMigrationsAndValidate(name, 8, true, DatabaseProvider.MIGRATION_7_8)
+            .use { db ->
+                db.query("SELECT value FROM meta WHERE `key` = '${SessionMetadataStore.KEY_USER_ID}'")
+                    .use { cursor ->
+                        assertTrue(cursor.moveToFirst())
+                        assertEquals("42", cursor.getString(0))
+                    }
+                db.execSQL("INSERT INTO update_batch_receipts VALUES (1, 1, 1)")
+            }
+        InstrumentationRegistry.getInstrumentation().targetContext.deleteDatabase(name)
+    }
+
+    private fun durableMessage(id: Int) = Message(
+        MessageId(PeerId(42), id),
+        senderId = null,
+        text = "fixture",
+        date = id.toLong(),
+        outgoing = false,
+    )
+
+    private fun cursor(pts: Int) = org.monogram.core.database.entity.UpdateCursorEntity(
+        SessionMetadataStore.KEY_PRIMARY_CURSOR, pts, 0, 1, 1,
+    )
+
+    @Test
+    fun durableBatchCommitsMessagesCursorAndReceiptTogether() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MonogramDatabase::class.java).build()
+        try {
+            val warmup = OfflineWarmup(database)
+            val committed = warmup.applyDurableBatch(7L, 1L, cursor(5), mapOf(9L to 3)) {
+                warmup.applyIncomingMessage(durableMessage(5))
+            }
+            assertTrue(committed)
+            assertEquals(listOf(5), warmup.messages(PeerId(42)).map { it.id.id })
+            assertEquals(
+                5,
+                database.updateCursorDao().get(SessionMetadataStore.KEY_PRIMARY_CURSOR)?.pts
+            )
+            assertEquals(3, database.updateCursorDao().get("updates.channel:9")?.channelPts)
+            assertTrue(database.updateCursorDao().isBatchApplied(7L, 1L))
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun failureBeforeTheCommitLeavesNoReceiptCursorOrPartialRows() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MonogramDatabase::class.java).build()
+        try {
+            val warmup = OfflineWarmup(database)
+            val failure = runCatching {
+                warmup.applyDurableBatch(7L, 1L, cursor(5), emptyMap()) {
+                    warmup.applyIncomingMessage(durableMessage(5))
+                    error("process died before the commit")
+                }
+            }
+            assertTrue(failure.isFailure)
+            assertTrue(warmup.messages(PeerId(42)).isEmpty())
+            assertEquals(
+                null,
+                database.updateCursorDao().get(SessionMetadataStore.KEY_PRIMARY_CURSOR)
+            )
+            assertTrue(!database.updateCursorDao().isBatchApplied(7L, 1L))
+
+            var applied = 0
+            val retried = warmup.applyDurableBatch(7L, 1L, cursor(5), emptyMap()) {
+                applied++
+                warmup.applyIncomingMessage(durableMessage(5))
+            }
+            assertTrue(retried)
+            assertEquals(1, applied)
+            assertEquals(1, warmup.chats().single().unreadCount)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun duplicateDeliveryAfterCommitButBeforeAcknowledgementChangesNothing() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MonogramDatabase::class.java).build()
+        try {
+            val warmup = OfflineWarmup(database)
+            repeat(3) {
+                assertTrue(
+                    warmup.applyDurableBatch(7L, 1L, cursor(5), emptyMap()) {
+                        warmup.applyIncomingMessage(durableMessage(5))
+                    }
+                )
+            }
+            assertEquals(1, warmup.chats().single().unreadCount)
+            assertEquals(1, warmup.messages(PeerId(42)).size)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun receiptsOfEarlierAccountsAreDroppedAndChannelCursorsNeverMoveBack() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, MonogramDatabase::class.java).build()
+        try {
+            val warmup = OfflineWarmup(database)
+            warmup.applyDurableBatch(1L, 1L, null, mapOf(9L to 10)) {}
+            warmup.applyDurableBatch(2L, 1L, null, mapOf(9L to 4)) {}
+            assertTrue(!database.updateCursorDao().isBatchApplied(1L, 1L))
+            assertTrue(database.updateCursorDao().isBatchApplied(2L, 1L))
+            assertEquals(10, database.updateCursorDao().get("updates.channel:9")?.channelPts)
+        } finally {
+            database.close()
+        }
+    }
 }

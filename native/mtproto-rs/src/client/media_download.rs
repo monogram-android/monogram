@@ -273,12 +273,29 @@ pub(crate) fn refresh_file_source(
             .get(&(chat_id, message_id))
             .is_some_and(|media| matches!(media.location, media::MediaLocation::Document { .. }))
         {
-            let _ = crate::client::extras_rpc::get_saved_gifs(
-                &mut state.snapshot,
-                state.api_id,
-                &mut state.media,
-                0,
-            );
+            let sticker = state
+                .media
+                .get(&(chat_id, message_id))
+                .and_then(sticker_set_of);
+            if let Some((set_id, access_hash)) = sticker {
+                // Pack stickers have no message id. messages.getStickerSet is the
+                // constructor that reissues their file_reference.
+                // https://core.telegram.org/api/file-references
+                let _ = crate::messages::sticker_rpc::get_sticker_set(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &mut state.media,
+                    set_id,
+                    access_hash,
+                );
+            } else {
+                let _ = crate::client::extras_rpc::get_saved_gifs(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &mut state.media,
+                    0,
+                );
+            }
         } else if state
             .media
             .get(&(chat_id, message_id))
@@ -582,14 +599,71 @@ pub fn download_custom_emoji(
         persist(state)?;
         Ok((state.api_id, state.snapshot.clone(), indexed))
     })?;
-    download_media_on_lane(
+    match download_media_on_lane(
         handle,
         &client,
         &home,
         api_id,
         &media,
         Path::new(&dest_path),
-    )
+    ) {
+        Err(error) if media::is_file_reference_error(&error) => {
+            let refreshed = with_client_mut(handle, |state| {
+                if !home_lease_ok(state, home.session_id) {
+                    return Err(expired_session_lease());
+                }
+                refresh_document_file_reference(state, document_id)?;
+                persist(state)?;
+                state.media.get(&(document_id, 0)).cloned().ok_or_else(|| {
+                    MtprotoError::Message(format!(
+                        "no media after file-ref refresh for document {document_id}"
+                    ))
+                })
+            })?;
+            download_media_on_lane(
+                handle,
+                &client,
+                &home,
+                api_id,
+                &refreshed,
+                Path::new(&dest_path),
+            )
+        }
+        result => result,
+    }
+}
+
+/// Re-fetch the constructor that issued this document's `file_reference`.
+/// Stickers come from `messages.getStickerSet`; custom emoji and other
+/// documents come from `messages.getCustomEmojiDocuments`.
+/// Pack stickers carry the set that can reissue `file_reference`. Saved GIFs do not.
+pub(crate) fn sticker_set_of(media: &media::MediaRef) -> Option<(i64, i64)> {
+    media.sticker_set_id.zip(media.sticker_set_access_hash)
+}
+
+fn refresh_document_file_reference(
+    state: &mut ClientState,
+    document_id: i64,
+) -> Result<(), MtprotoError> {
+    let sticker = state
+        .media
+        .get(&(document_id, 0))
+        .and_then(sticker_set_of);
+    if let Some((set_id, access_hash)) = sticker {
+        crate::messages::sticker_rpc::get_sticker_set(
+            &mut state.snapshot,
+            state.api_id,
+            &mut state.media,
+            set_id,
+            access_hash,
+        )?;
+        return Ok(());
+    }
+    let indexed = call_with_migrate(state, |state| {
+        media::fetch_custom_emoji(&mut state.snapshot, state.api_id, document_id)
+    })?;
+    state.media.insert((document_id, 0), indexed);
+    Ok(())
 }
 
 pub(crate) fn download_media_on_lane(
@@ -884,6 +958,7 @@ pub(crate) fn download_media_range_on_home_session(
     dest: &Path,
     offset: Option<i64>,
 ) -> Result<String, MtprotoError> {
+    loop {
     let _span = crate::perf::span("media_file_home");
     let (session_id, dc) = {
         let data = client.data.lock();
@@ -919,7 +994,18 @@ pub(crate) fn download_media_range_on_home_session(
             })
         },
     );
-    finish_staged(staged, downloaded, client, session_id, dest)
+    if downloaded.as_ref().err().is_some_and(media::optional_paused) {
+        staged.keep();
+        while media::should_pause_optional(Some(media::DownloadProfile::Background)) {
+            if media::download_cancelled(dest) || crate::request_control::check().is_err() {
+                return Err(MtprotoError::Message("cancelled".into()));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        continue;
+    }
+    return finish_staged(staged, downloaded, client, session_id, dest);
+    }
 }
 
 pub(crate) fn split_even_odd_request_indices(
@@ -1116,6 +1202,7 @@ pub(crate) fn download_media_range_on_lane_dc(
     offset: Option<i64>,
     target_dc: i32,
 ) -> Result<String, MtprotoError> {
+    loop {
     let _span = crate::perf::span("media_file");
     let mut io = lock_media_lane(client)?;
     if !session_lease_valid(&client.data.lock(), home.session_id) {
@@ -1285,6 +1372,16 @@ pub(crate) fn download_media_range_on_lane_dc(
     }
     drop(io);
     drop(io2);
+    if path.as_ref().err().is_some_and(media::optional_paused) {
+        staged.keep();
+        while media::should_pause_optional(Some(media::DownloadProfile::Background)) {
+            if media::download_cancelled(dest) || crate::request_control::check().is_err() {
+                return Err(MtprotoError::Message("cancelled".into()));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        continue;
+    }
     if let Ok(client) = get_client(handle) {
         schedule_file_cleanup(&client);
     }
@@ -1343,7 +1440,8 @@ pub(crate) fn download_media_range_on_lane_dc(
             });
         }
     }
-    finish_staged(staged, path, client, home.session_id, dest)
+    return finish_staged(staged, path, client, home.session_id, dest);
+    }
 }
 
 thread_local! {

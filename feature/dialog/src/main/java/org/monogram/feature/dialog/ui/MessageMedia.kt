@@ -222,7 +222,11 @@ fun MessageMedia(
                     MediaFetchKind.Display ->
                         repo.ensureLocalMessageDisplay(message, priority = displayPriority)
                     MediaFetchKind.Full ->
-                        repo.ensureLocalMessageMedia(message, priority = mediaFullPriority(requestFull))
+                        repo.ensureLocalMessageMedia(
+                            message,
+                            priority = mediaFullPriority(requestFull),
+                            retain = wantFull || userOwned,
+                        )
                 }
                 when (result) {
                     is Outcome.Ok -> return@withContext result.value

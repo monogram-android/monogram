@@ -132,7 +132,8 @@ fn updates_yield_to_main_rpc_and_media_keep_distinct_sessions() {
     let client = get_client(handle).expect("client");
     let main = client.main.lock();
     let main_id = main.snapshot.session_id;
-    assert!(drain_updates(handle).unwrap().is_empty());
+    let drained = drain_updates(handle).unwrap();
+    assert!(drained.batches.is_empty() && drained.live_events.is_empty());
     let media_id = client.media[0].io.lock().snapshot.session_id;
     // Distinct session per lane, whatever the configured lane count.
     let media_ids: Vec<i64> = client

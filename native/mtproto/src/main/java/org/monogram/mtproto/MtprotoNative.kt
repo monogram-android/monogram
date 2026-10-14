@@ -28,6 +28,8 @@ import uniffi.monogram_mtproto.SavedGifDto
 import uniffi.monogram_mtproto.StickerCatalogDto
 import uniffi.monogram_mtproto.StickerListDto
 import uniffi.monogram_mtproto.StickerPackDto
+import uniffi.monogram_mtproto.UpdateBatchDto
+import uniffi.monogram_mtproto.UpdateDrainDto
 import uniffi.monogram_mtproto.UpdateEventDto
 import uniffi.monogram_mtproto.UpdatesStateDto
 import uniffi.monogram_mtproto.UploadItemDto
@@ -50,6 +52,8 @@ interface MtprotoNative {
     fun createRequestControl(): Long = 0L
     fun bindRequestControl(id: Long): Long = 0L
     fun cancelRequestControl(id: Long) = Unit
+
+    fun promoteRequestControl(id: Long, dispatchClass: Int) = Unit
     fun releaseRequestControl(id: Long) = Unit
 
     /** Dispatch class for the request on this thread. */
@@ -517,6 +521,20 @@ interface MtprotoNative {
 
     @Throws(MtprotoException::class)
     fun drainUpdates(handle: Long): List<UpdateEventDto>
+
+    @Throws(MtprotoException::class)
+    fun drainUpdateBatches(handle: Long): UpdateDrainDto =
+        UpdateDrainDto(
+            batches = emptyList(),
+            liveEvents = drainUpdates(handle),
+            replayRequired = false
+        )
+
+    @Throws(MtprotoException::class)
+    fun pendingUpdateBatches(handle: Long): List<UpdateBatchDto> = emptyList()
+
+    @Throws(MtprotoException::class)
+    fun acknowledgeUpdateBatch(handle: Long, accountGeneration: Long, batchId: Long) = Unit
 
     @Throws(MtprotoException::class)
     fun downloadMessageMedia(handle: Long, chatId: Long, messageId: Int, destPath: String): String

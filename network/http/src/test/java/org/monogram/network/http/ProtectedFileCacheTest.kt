@@ -24,6 +24,7 @@ class ProtectedFileCacheTest {
         }
         assertNotNull(cache.get("avatar:1"))
         assertNull(cache.get("doc:2"))
+        cache.flushIndex()
         val restored = FileCache(root, maxBytes = 6)
         assertNotNull(restored.get("avatar:1"))
         assertNull(restored.get("doc:2"))

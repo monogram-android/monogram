@@ -5,18 +5,21 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import kotlinx.coroutines.ThreadContextElement
 import kotlinx.coroutines.asCoroutineDispatcher
 import org.json.JSONObject
 import org.monogram.core.common.PerfLog
 import java.io.File
+import java.util.ArrayDeque
 import java.util.concurrent.Executor
-import java.util.concurrent.Executors
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 
 object DatabaseProvider {
     @Volatile
     private var instance: MonogramDatabase? = null
 
-    const val SCHEMA_VERSION = 7
+    const val SCHEMA_VERSION = 8
 
     val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -61,27 +64,67 @@ object DatabaseProvider {
         }
     }
 
-    /** SQL stays off Dispatchers.IO, which media downloads also use. */
-    private val roomWorker = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "monogram-room").apply { isDaemon = true }
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS update_batch_receipts (" +
+                        "accountGeneration INTEGER NOT NULL, batchId INTEGER NOT NULL, " +
+                        "appliedAtMs INTEGER NOT NULL, PRIMARY KEY(accountGeneration, batchId))"
+            )
+        }
     }
+
+    /** SQL stays off Dispatchers.IO, which media downloads also use. */
+    private val queueLock = Object()
+    private val foregroundQueue = ArrayDeque<Runnable>()
+    private val maintenanceQueue = ArrayDeque<Runnable>()
+    private val roomThread = Thread({
+        while (!Thread.currentThread().isInterrupted) {
+            val task = synchronized(queueLock) {
+                while (foregroundQueue.isEmpty() && maintenanceQueue.isEmpty()) {
+                    queueLock.wait()
+                }
+                if (foregroundQueue.isNotEmpty()) foregroundQueue.removeFirst() else maintenanceQueue.removeFirst()
+            }
+            task.run()
+        }
+    }, "monogram-room").apply {
+        isDaemon = true
+        start()
+    }
+
     internal val roomExecutor: Executor = Executor { runnable ->
         val queuedAt = PerfLog.nowMs()
-        roomWorker.execute {
+        val opId = PerfLog.currentOpId()
+        val maintenance = RoomLane.current() == RoomLane.Kind.MAINTENANCE
+        val task = Runnable {
             val startedAt = PerfLog.nowMs()
             try {
-                runnable.run()
+                PerfLog.withOpId(opId) { runnable.run() }
             } finally {
                 if (PerfLog.isEnabled()) {
-                    PerfLog.event(
-                        "room_queue",
-                        "wait_ms=${startedAt - queuedAt} run_ms=${PerfLog.nowMs() - startedAt}"
-                    )
+                    PerfLog.withOpId(opId) {
+                        PerfLog.event(
+                            "room_queue",
+                            "wait_ms=${startedAt - queuedAt} run_ms=${PerfLog.nowMs() - startedAt}"
+                        )
+                    }
                 }
             }
         }
+        synchronized(queueLock) {
+            (if (maintenance) maintenanceQueue else foregroundQueue).addLast(task)
+            queueLock.notifyAll()
+        }
     }
+
+    @Suppress("unused")
+    private val keepRoomThread = roomThread
     internal val roomDispatcher = roomExecutor.asCoroutineDispatcher()
+
+    fun roomQueueDepth(): Int = synchronized(queueLock) {
+        foregroundQueue.size + maintenanceQueue.size
+    }
 
     private const val DB_NAME = "monogram.db"
     private const val IDENTITY_BACKUP = "session-identity.json"
@@ -135,7 +178,8 @@ object DatabaseProvider {
                 MIGRATION_3_4,
                 MIGRATION_4_5,
                 MIGRATION_5_6,
-                MIGRATION_6_7
+                MIGRATION_6_7,
+                MIGRATION_7_8
             )
             .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .setQueryExecutor(roomExecutor)
@@ -199,4 +243,25 @@ object DatabaseProvider {
 
     private fun identityBackupFile(context: Context): File =
         File(context.filesDir, IDENTITY_BACKUP)
+}
+
+internal class RoomLane(val kind: Kind) :
+    AbstractCoroutineContextElement(Key), ThreadContextElement<RoomLane.Kind?> {
+    enum class Kind { FOREGROUND, MAINTENANCE }
+
+    override fun updateThreadContext(context: CoroutineContext): Kind? {
+        val previous = current.get()
+        current.set(kind)
+        return previous
+    }
+
+    override fun restoreThreadContext(context: CoroutineContext, oldState: Kind?) {
+        if (oldState == null) current.remove() else current.set(oldState)
+    }
+
+    companion object Key : CoroutineContext.Key<RoomLane> {
+        private val current = ThreadLocal<Kind>()
+        fun current(): Kind = current.get() ?: Kind.FOREGROUND
+        fun maintenance(): RoomLane = RoomLane(Kind.MAINTENANCE)
+    }
 }

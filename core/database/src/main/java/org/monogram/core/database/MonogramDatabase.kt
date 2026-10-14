@@ -26,6 +26,7 @@ import org.monogram.core.database.entity.ProfileMediaEntity
 import org.monogram.core.database.entity.ProfileMemberEntity
 import org.monogram.core.database.entity.ProfileTabsEntity
 import org.monogram.core.database.entity.SponsorEntity
+import org.monogram.core.database.entity.UpdateBatchReceiptEntity
 import org.monogram.core.database.entity.UpdateCursorEntity
 
 @Database(
@@ -37,6 +38,7 @@ import org.monogram.core.database.entity.UpdateCursorEntity
         org.monogram.core.database.entity.MessageTombstoneEntity::class,
         MessageHoleEntity::class,
         UpdateCursorEntity::class,
+        UpdateBatchReceiptEntity::class,
         PeerEntity::class,
         ProfileTabsEntity::class,
         ProfileMemberEntity::class,
@@ -44,7 +46,7 @@ import org.monogram.core.database.entity.UpdateCursorEntity
         ProfileCommonEntity::class,
         SponsorEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class MonogramDatabase : RoomDatabase() {

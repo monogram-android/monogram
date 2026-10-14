@@ -714,8 +714,24 @@ internal class DialogExecutor(
             }
             hydratePinned()
             hydrateSenderTags()
-            // Paint cache first, then always fetch. Skipping getHistory when a
-            // stale Room lastMessageId matched the cached tail hid new messages.
+            val slice = warmup?.historySlice(chatId, limit = HISTORY_FIRST_LIMIT)
+            if (slice != null && slice.rows.isNotEmpty() && cached.isEmpty()) {
+                publishPaintedHistory(
+                    slice.rows,
+                    fromCache = true,
+                    liveEdge = true,
+                    generation = gen
+                )
+            }
+            val coveredLatest =
+                slice != null && slice.covered && slice.confirmedEnd && slice.rows.isNotEmpty()
+            if (coveredLatest) {
+                dispatch(Msg.HasOlder(!slice.confirmedStart))
+                dispatch(Msg.Loading(false))
+                loadPinned()
+                loadChatProfile()
+                return@launch
+            }
             AppLog.api(
                 "dialog",
                 "getHistory start chat=${chatId.value} lastId=$lastId newest=$newestCachedId",

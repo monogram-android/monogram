@@ -4,10 +4,12 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ThreadContextElement
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.monogram.core.common.PerfLog
 import org.monogram.mtproto.MtprotoNative
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
@@ -22,6 +24,16 @@ internal object DispatchClass {
     const val ORDINARY_MEDIA = 5
     const val VISIBLE_MEDIA = 6
     const val USER_MEDIA = 7
+}
+
+internal class NativeRequestTag(val tag: String) : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<NativeRequestTag>
+}
+
+private val taggedRequests = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+internal fun promoteTaggedRequest(native: MtprotoNative, tag: String, dispatchClass: Int) {
+    taggedRequests[tag]?.let { native.promoteRequestControl(it, dispatchClass) }
 }
 
 private class NativeRequestContext(
@@ -62,18 +74,26 @@ internal suspend fun <T> nativeRequest(
     block: suspend () -> T,
 ): T {
     val startedAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
+    val opId = PerfLog.currentOpId()
+    val tag = currentCoroutineContext()[NativeRequestTag]?.tag
+    val serviceStartedAt = AtomicLong(0L)
     var resultLabel = "ok"
     try {
         return suspendCancellableCoroutine { continuation ->
             val id = native.createRequestControl()
+            if (tag != null) taggedRequests[tag] = id
             val result = AtomicReference<Result<T>?>(null)
             val worker =
-                CoroutineScope(dispatcher + NativeRequestContext(native, id, dispatchClass)).launch(
-                    start = CoroutineStart.LAZY
-                ) {
+                CoroutineScope(
+                    dispatcher + NativeRequestContext(native, id, dispatchClass) + PerfLog.OpTrace(
+                        opId
+                    )
+                ).launch(start = CoroutineStart.LAZY) {
+                    if (startedAt != 0L) serviceStartedAt.set(System.nanoTime())
                     result.set(runCatching { block() })
                 }
             worker.invokeOnCompletion { failure ->
+                if (tag != null) taggedRequests.remove(tag, id)
                 native.releaseRequestControl(id)
                 continuation.resumeWith(
                     result.get() ?: Result.failure(
@@ -95,14 +115,20 @@ internal suspend fun <T> nativeRequest(
         throw e
     } finally {
         if (startedAt != 0L) {
-            PerfLog.trace(
-                op = "nativeRequest",
-                phase = "dispatch",
-                elapsedMs = (System.nanoTime() - startedAt) / 1_000_000,
-                dispatchClass = dispatchClass,
-                result = resultLabel,
-                detail = "lane=${dispatchClassName(dispatchClass)}",
-            )
+            val finishedAt = System.nanoTime()
+            val serviceAt = serviceStartedAt.get().takeIf { it != 0L } ?: finishedAt
+            PerfLog.withOpId(opId) {
+                PerfLog.trace(
+                    op = "nativeRequest",
+                    phase = "dispatch",
+                    elapsedMs = (System.nanoTime() - startedAt) / 1_000_000,
+                    dispatchClass = dispatchClass,
+                    result = resultLabel,
+                    detail = "lane=${dispatchClassName(dispatchClass)} " +
+                            "queue_wait_ms=${(serviceAt - startedAt) / 1_000_000} " +
+                            "service_ms=${(finishedAt - serviceAt) / 1_000_000}",
+                )
+            }
         }
     }
 }

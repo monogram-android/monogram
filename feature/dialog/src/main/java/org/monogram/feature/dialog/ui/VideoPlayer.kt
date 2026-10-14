@@ -108,6 +108,7 @@ fun VideoPlayer(
     onClick: (() -> Unit)? = null,
     caption: String? = null,
 ) {
+    org.monogram.core.ui.rememberFileLease(file)
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val animationEnabled = LocalMediaAnimationEnabled.current

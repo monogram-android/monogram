@@ -104,6 +104,7 @@ import org.monogram.core.ui.perf.RecompositionProbe
 import org.monogram.feature.auth.ui.AuthContent
 import org.monogram.feature.chats.ui.ChatsContent
 import org.monogram.feature.dialog.DialogComponent
+import org.monogram.feature.dialog.ui.AudioMessagePlaybackScope
 import org.monogram.feature.dialog.ui.DialogContent
 import org.monogram.feature.profile.ui.ProfileContent
 import org.monogram.feature.settings.ui.ProxySettingsContent
@@ -114,7 +115,7 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalDecomposeApi::class, FaultyDecomposeApi::class)
 fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
     val stack by component.stack.subscribeAsState()
-    org.monogram.feature.dialog.ui.AudioMessagePlaybackScope(
+    AudioMessagePlaybackScope(
         enabled = !stack.active.instance.isSignedOut(),
     ) { togglePlayback -> RootPlaybackContent(component, modifier, togglePlayback) }
 }
@@ -127,6 +128,7 @@ private fun RootPlaybackContent(
     togglePlayback: () -> Unit
 ) {
     RecompositionProbe("AppRoot")
+    SideEffect { component.noteFirstFrame() }
     val currentStack by component.stack.subscribeAsState()
     val playbackContext = LocalContext.current
     val playbackSession = remember(playbackContext) { MediaPlaybackHolder.session(playbackContext) }
@@ -455,11 +457,13 @@ private fun RootPlaybackContent(
                                     component = instance.component,
                                     onOpenProxy = component::openProxy,
                                 )
+
                                 is RootComponent.Child.Proxy -> ProxySettingsContent(
                                     session = component.proxySession,
                                     onBack = component::onBack,
                                     showAppBar = true,
                                 )
+
                                 is RootComponent.Child.Home -> if (expanded) {
                                     EmptyDetailContent()
                                 } else if (compactHome) {

@@ -61,6 +61,33 @@ pub(crate) fn durable_snapshot(state: &ClientState) -> tellers_mtproto_session::
     snapshot
 }
 
+pub(crate) fn journal_to_save(
+    snapshot: crate::update_journal::UpdateJournal,
+    live: Option<crate::update_journal::UpdateJournal>,
+) -> crate::update_journal::UpdateJournal {
+    let Some(live) = live else {
+        return snapshot;
+    };
+    if live.account_generation == snapshot.account_generation
+        && live.next_batch_id >= snapshot.next_batch_id
+    {
+        live
+    } else {
+        snapshot
+    }
+}
+
+fn live_journal(path: &Path) -> Option<crate::update_journal::UpdateJournal> {
+    let clients = CLIENTS.lock();
+    for client in clients.values() {
+        let data = client.data.lock();
+        if data.session_path == path {
+            return Some((*data.journal).clone());
+        }
+    }
+    None
+}
+
 pub(crate) fn persist(state: &ClientState) -> Result<(), MtprotoError> {
     // Extra-lane snapshot_id must never replace the main session on disk.
     if EXTRA_READ_LANE.with(Cell::get) {
@@ -80,6 +107,7 @@ pub(crate) fn persist(state: &ClientState) -> Result<(), MtprotoError> {
         session_dead: state.session_dead,
         test_dc: state.test_dc,
         dc_auth_keys: state.dc_auth_keys.clone(),
+        journal: journal_to_save((*state.journal).clone(), live_journal(&state.session_path)),
     };
     let clock = persist_generation(&state.session_path);
     let _write = PERSIST_WRITE.lock();
@@ -98,11 +126,11 @@ pub(crate) fn expired_session_lease() -> MtprotoError {
     MtprotoError::Message("request cancelled: session changed".into())
 }
 
-pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(), MtprotoError> {
+pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<bool, MtprotoError> {
     // Copy under the home lane, then release it before the disk write. Chat
     // opens, media, and channel info share that lane and were waiting out the
     // whole save.
-    let (path, session, epoch, generation) = {
+    let (path, session, journal, epoch, generation) = {
         let main = client.main.lock();
         let d = client.data.lock();
         if !session_lease_valid(&d, session_id) {
@@ -130,15 +158,19 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(
             session_dead: d.session_dead,
             test_dc: d.test_dc,
             dc_auth_keys: d.dc_auth_keys.clone(),
+            journal: d.journal.header_only(),
         };
+        let journal = Arc::clone(&d.journal);
         let path = d.session_path.clone();
         let epoch = d.persist_epoch;
         drop(d);
         // Read the clock while the home lane is still held, so `persist`
         // cannot commit this file between the copy and the snapshot.
         let generation = persist_generation(&path).load(Ordering::Acquire);
-        (path, session, epoch, generation)
+        (path, session, journal, epoch, generation)
     };
+    let mut session = session;
+    session.journal = (*journal).clone();
     let clock = persist_generation(&path);
     let _write = PERSIST_WRITE.lock();
     {
@@ -154,8 +186,15 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(
             epoch,
             d.persist_epoch,
         ) {
-            return Ok(());
+            return Ok(false);
         }
+    }
+    #[cfg(test)]
+    if FORCE_STALE_SAVES
+        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |left| left.checked_sub(1))
+        .is_ok()
+    {
+        return Ok(false);
     }
     let store = FileSessionStore::new(&path);
     tcp::with_connection_control(&client.connections, || store.save(&session))
@@ -165,8 +204,44 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(
     if session_lease_valid(&d, session_id) && d.persisted_epoch < epoch {
         d.persisted_epoch = epoch;
     }
-    Ok(())
+    Ok(true)
 }
+
+#[cfg(test)]
+pub(crate) static FORCE_STALE_SAVES: AtomicU32 = AtomicU32::new(0);
+
+use std::sync::atomic::AtomicU32;
+
+pub(crate) fn persist_journal_sync(client: &Client, session_id: i64) -> Result<(), MtprotoError> {
+    let mut last = None;
+    for attempt in 0..JOURNAL_PERSIST_ATTEMPTS {
+        match persist_updates_data(client, session_id) {
+            Ok(true) => {
+                client.persist_exhausted.store(false, Ordering::Release);
+                return Ok(());
+            }
+            Ok(false) => {
+                crate::perf::count("journal.persist_superseded");
+                continue;
+            }
+            Err(error) if !session_lease_valid(&client.data.lock(), session_id) => {
+                return Err(error);
+            }
+            Err(error) => {
+                crate::perf::count("journal.persist_retry");
+                last = Some(error);
+                if attempt + 1 < JOURNAL_PERSIST_ATTEMPTS {
+                    std::thread::sleep(std::time::Duration::from_millis(25 << attempt));
+                }
+            }
+        }
+    }
+    crate::perf::count("journal.persist_exhausted");
+    client.persist_exhausted.store(true, Ordering::Release);
+    Err(last.unwrap_or_else(|| MtprotoError::Message("journal persistence failed".into())))
+}
+
+const JOURNAL_PERSIST_ATTEMPTS: u32 = 4;
 
 /// Coalesce session writes so getHistory/getChats can return before disk I/O.
 /// In-memory state is already merged; this is crash recovery, not the RPC result.
@@ -191,11 +266,19 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
                     let span = crate::perf::span("persist_session");
                     let result = persist_updates_data(&client, session_id);
                     drop(span);
+                    if result.as_ref().ok() == Some(&true) {
+                        client.persist_exhausted.store(false, Ordering::Release);
+                    }
+                    if result.as_ref().ok() == Some(&false) {
+                        client.persist_queued.store(true, Ordering::Release);
+                        continue;
+                    }
                     if result.is_err() {
                         crate::perf::count("persist_session.failed");
                         client.persist_queued.store(true, Ordering::Release);
                         failures += 1;
                         if failures >= 4 || !session_lease_valid(&client.data.lock(), session_id) {
+                            client.persist_exhausted.store(true, Ordering::Release);
                             client.persist_running.store(false, Ordering::Release);
                             break;
                         }

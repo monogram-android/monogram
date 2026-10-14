@@ -24,6 +24,8 @@ import uniffi.monogram_mtproto.AuthSignedIn
 import uniffi.monogram_mtproto.ChatDto
 import uniffi.monogram_mtproto.MessageDto
 import uniffi.monogram_mtproto.MtprotoException
+import uniffi.monogram_mtproto.UpdateBatchDto
+import uniffi.monogram_mtproto.UpdateDrainDto
 import uniffi.monogram_mtproto.UpdateEventDto
 import uniffi.monogram_mtproto.UpdatesStateDto
 import java.util.concurrent.CountDownLatch
@@ -937,6 +939,136 @@ class BridgedMtprotoClientLifecycleTest {
         }
     }
 
+    private class DurableNative : RecordingNative() {
+        val drainResults = ArrayDeque<UpdateDrainDto>()
+
+        /** Like the native journal: delivered batches stay until acknowledged. */
+        val unacked = mutableListOf<UpdateBatchDto>()
+        val calls = mutableListOf<String>()
+
+        override fun isAuthorized(handle: Long) = true
+        override fun drainUpdateBatches(handle: Long): UpdateDrainDto {
+            calls += "drain"
+            val result =
+                drainResults.removeFirstOrNull() ?: UpdateDrainDto(emptyList(), emptyList(), false)
+            unacked += result.batches
+            return result
+        }
+
+        override fun pendingUpdateBatches(handle: Long): List<UpdateBatchDto> {
+            calls += "pending"
+            return unacked.toList()
+        }
+
+        override fun acknowledgeUpdateBatch(handle: Long, accountGeneration: Long, batchId: Long) {
+            calls += "ack:$accountGeneration:$batchId"
+            unacked.removeAll { it.accountGeneration == accountGeneration && it.batchId == batchId }
+        }
+    }
+
+    private fun durableBatch(id: Long) = UpdateBatchDto(
+        accountGeneration = 7L,
+        batchId = id,
+        events = listOf(newMessageEvent(id.toInt())),
+        cursorAfter = UpdatesStateDto(id.toInt(), 0, 1, 1),
+        channelPtsAfter = emptyList(),
+    )
+
+    private suspend fun kotlinx.coroutines.test.TestScope.settle(ms: Long = 300) {
+        testScheduler.advanceTimeBy(ms)
+        testScheduler.runCurrent()
+    }
+
+    @Test
+    fun durableBatchIsCommittedBeforeItIsAcknowledged() = runTest {
+        val native = DurableNative()
+        native.drainResults += UpdateDrainDto(listOf(durableBatch(1)), emptyList(), false)
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        val commits = mutableListOf<DurableUpdateBatch>()
+        client.installDurableUpdateSink { batch ->
+            native.calls += "commit:${batch.batchId}"
+            commits += batch
+            true
+        }
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            settle()
+            val relevant = native.calls.filter { it.startsWith("commit") || it.startsWith("ack") }
+            assertEquals(listOf("commit:1", "ack:7:1"), relevant)
+            assertEquals(1, commits.single().cursor?.pts)
+            assertTrue(commits.single().updates.single() is MtprotoUpdate.NewMessage)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun failedCommitStaysQueuedAndIsReplayedWithoutDuplicateAcknowledgement() = runTest {
+        val native = DurableNative()
+        native.drainResults += UpdateDrainDto(listOf(durableBatch(1)), emptyList(), false)
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        var attempts = 0
+        client.installDurableUpdateSink { _ ->
+            attempts++
+            attempts > 1
+        }
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            settle(400)
+            assertEquals(2, attempts)
+            assertEquals(1, native.calls.count { it.startsWith("ack") })
+            val firstAck = native.calls.indexOfFirst { it.startsWith("ack") }
+            assertTrue(
+                "replay must precede the acknowledgement",
+                native.calls.indexOf("pending") in 0 until firstAck
+            )
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun batchesAreNotAcknowledgedUntilASinkExistsAndThenAreReplayed() = runTest {
+        val native = DurableNative()
+        native.drainResults += UpdateDrainDto(listOf(durableBatch(1)), emptyList(), false)
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        val committed = mutableListOf<Long>()
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            settle()
+            assertTrue(native.calls.none { it.startsWith("ack") })
+            client.installDurableUpdateSink { batch ->
+                committed += batch.batchId
+                true
+            }
+            settle()
+            assertEquals(listOf(1L), committed)
+            assertEquals(listOf("ack:7:1"), native.calls.filter { it.startsWith("ack") })
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun savedBatchesAreReplayedBeforeNewUpdatesAreDrained() = runTest {
+        val native = DurableNative()
+        native.unacked += listOf(durableBatch(1), durableBatch(2))
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        client.installDurableUpdateSink { batch ->
+            native.calls += "commit:${batch.batchId}"
+            true
+        }
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            settle()
+            val firstDrain = native.calls.indexOf("drain")
+            val lastCommit = native.calls.indexOf("commit:2")
+            assertTrue("calls=${native.calls}", lastCommit in 0 until firstDrain)
+        } finally {
+            client.close()
+        }
+    }
+
     private fun client(
         native: MtprotoNative,
         dispatcher: kotlinx.coroutines.CoroutineDispatcher,
@@ -991,6 +1123,9 @@ class BridgedMtprotoClientLifecycleTest {
     )
 
     private open class RecordingNative : MtprotoNative by MtprotoNative.Stub {
+        override fun drainUpdateBatches(handle: Long) =
+            UpdateDrainDto(emptyList(), drainUpdates(handle), false)
+
         var created = 0
         val destroyed = mutableListOf<Long>()
         override fun createClient(apiId: Int, apiHash: String, sessionPath: String): Long = (++created).toLong()

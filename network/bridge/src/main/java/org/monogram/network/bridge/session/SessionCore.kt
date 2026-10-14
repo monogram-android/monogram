@@ -3,8 +3,8 @@ package org.monogram.network.bridge.session
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -29,10 +29,12 @@ import org.monogram.core.models.AuthState
 import org.monogram.core.models.PeerId
 import org.monogram.mtproto.MtprotoNative
 import org.monogram.network.bridge.ClientInitInfo
+import org.monogram.network.bridge.DurableUpdateSink
 import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.ProxyConfig
 import uniffi.monogram_mtproto.MtprotoException
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class SessionCore(
     internal val credentials: TelegramCredentials,
@@ -50,8 +52,10 @@ internal class SessionCore(
     /** Native bootstrap (including TXT config) is valid for this handle. */
     @Volatile
     internal var connectedHandle: Long = 0L
+
     @Volatile
     private var proxyState: ProxyConnectionStatus = ProxyConnectionStatus.Disabled
+
     @Volatile
     private var updatesStartedHandle: Long = 0L
     private val updatesStartMutex = Mutex()
@@ -61,8 +65,10 @@ internal class SessionCore(
     private class SharedRead(val deferred: Deferred<*>, var consumers: Int = 0)
 
     private val inflight = HashMap<String, SharedRead>()
+
     @Volatile
     internal var sessionDead: Boolean = false
+
     @Volatile
     internal var closed: Boolean = false
     internal fun isAuthFallback(fallback: String): Boolean =
@@ -80,11 +86,17 @@ internal class SessionCore(
     /** Set by [hibernate] while requests are in flight; applied on the last completion. */
     @Volatile
     internal var hibernatePending = false
+
     @Volatile
     internal var dialogForeground: Boolean = false
     internal val scope = CoroutineScope(SupervisorJob() + nativeDispatcher)
     internal val sessionLostFlow = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     internal val localUpdates = MutableSharedFlow<MtprotoUpdate>(extraBufferCapacity = 8)
+
+    @Volatile
+    internal var durableSink: DurableUpdateSink? = null
+
+    internal val replayPending = AtomicBoolean(true)
 
     /** Wakes the update loop when a handle is created, reconnected, or closed. */
     internal val updatesWake = Channel<Unit>(capacity = Channel.CONFLATED)
@@ -199,7 +211,10 @@ internal class SessionCore(
     internal suspend fun <T> rpc(fallback: String, block: suspend (Long) -> T): Outcome<T> =
         rpc(fallback, DispatchClass.INTERACTIVE_READ, block)
 
-    internal suspend fun <T> rpcBackground(fallback: String, block: suspend (Long) -> T): Outcome<T> =
+    internal suspend fun <T> rpcBackground(
+        fallback: String,
+        block: suspend (Long) -> T
+    ): Outcome<T> =
         rpc(fallback, DispatchClass.BACKGROUND_READ, block)
 
     internal suspend fun <T> rpcWrite(fallback: String, block: suspend (Long) -> T): Outcome<T> =
@@ -414,7 +429,10 @@ internal class SessionCore(
             )
         }
         if (result is Outcome.Ok) {
-            AppLog.api("auth.sendCode", "ok type=${result.value.codeType} length=${result.value.codeLength}")
+            AppLog.api(
+                "auth.sendCode",
+                "ok type=${result.value.codeType} length=${result.value.codeLength}"
+            )
         }
         return result
     }
@@ -434,7 +452,10 @@ internal class SessionCore(
             )
         }
         if (result is Outcome.Ok) {
-            AppLog.api("auth.resendCode", "ok type=${result.value.codeType} length=${result.value.codeLength}")
+            AppLog.api(
+                "auth.resendCode",
+                "ok type=${result.value.codeType} length=${result.value.codeLength}"
+            )
         }
         return result
     }
@@ -607,7 +628,14 @@ internal class SessionCore(
                 native.clearProxy()
                 proxyState = ProxyConnectionStatus.Disabled
             } else {
-                native.setProxy(config.type.name.lowercase(), config.host, config.port, config.username, config.password, config.secret.copyOf())
+                native.setProxy(
+                    config.type.name.lowercase(),
+                    config.host,
+                    config.port,
+                    config.username,
+                    config.password,
+                    config.secret.copyOf()
+                )
                 proxyState = ProxyConnectionStatus.Disconnected
             }
             resetHandle()
@@ -682,7 +710,8 @@ internal class SessionCore(
             handle.also { handle = 0L }
         }
         connectedHandle = 0L
-        if (proxyState == ProxyConnectionStatus.Connected) proxyState = ProxyConnectionStatus.Disconnected
+        if (proxyState == ProxyConnectionStatus.Connected) proxyState =
+            ProxyConnectionStatus.Disconnected
         if (updatesStartedHandle == oldHandle) updatesStartedHandle = 0L
         if (oldHandle != 0L) native.destroyClient(oldHandle)
         updatesWake.trySend(Unit)

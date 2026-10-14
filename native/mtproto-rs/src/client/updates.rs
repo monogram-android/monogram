@@ -4,7 +4,10 @@ use crate::peers::channel_id_from_chat_id;
 use crate::session_file::ChannelRecovery;
 use crate::tcp;
 use crate::updates::updates_rpc;
-use crate::{MtprotoError, UpdateEventDto, UpdatesStateDto};
+use crate::update_journal::{DurableBatch, is_durable};
+use crate::{
+    ChannelCursorDto, MtprotoError, UpdateBatchDto, UpdateDrainDto, UpdateEventDto, UpdatesStateDto,
+};
 
 use super::*;
 
@@ -71,7 +74,7 @@ pub fn clear_active_dialog(handle: u64) -> Result<(), MtprotoError> {
         data.channel_recovery.retain(|entry| !entry.watching);
         data.home_session_id
     };
-    persist_updates_data(&client, session_id)
+    persist_updates_data(&client, session_id).map(|_| ())
 }
 
 pub(crate) fn lock_updates_lane(
@@ -91,13 +94,95 @@ pub(crate) fn lock_updates_lane(
     Ok(client.main.try_lock().map(|io| (gate, io)))
 }
 
-pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
+fn batch_dto(generation: i64, batch: &DurableBatch) -> UpdateBatchDto {
+    UpdateBatchDto {
+        account_generation: generation,
+        batch_id: batch.batch_id,
+        events: batch.events.clone(),
+        cursor_after: batch.cursor_after.clone(),
+        channel_pts_after: batch
+            .channel_pts_after
+            .iter()
+            .map(|(chat_id, pts)| ChannelCursorDto {
+                chat_id: *chat_id,
+                pts: *pts,
+            })
+            .collect(),
+    }
+}
+
+pub fn pending_update_batches(handle: u64) -> Result<Vec<UpdateBatchDto>, MtprotoError> {
+    let client = get_client(handle)?;
+    let (session_id, dirty) = {
+        let d = client.data.lock();
+        if d.journal.batches.is_empty() {
+            return Ok(Vec::new());
+        }
+        (d.home_session_id, d.persist_epoch != d.persisted_epoch)
+    };
+    if dirty {
+        persist_journal_sync(&client, session_id)?;
+    }
+    let mut d = client.data.lock();
+    if !session_lease_valid(&d, session_id) {
+        return Err(expired_session_lease());
+    }
+    let generation = d.journal.account_generation;
+    let batches = d
+        .journal
+        .pending()
+        .iter()
+        .map(|batch| batch_dto(generation, batch))
+        .collect();
+    std::sync::Arc::make_mut(&mut d.journal).mark_all_delivered();
+    Ok(batches)
+}
+
+pub fn acknowledge_update_batch(
+    handle: u64,
+    account_generation: i64,
+    batch_id: i64,
+) -> Result<(), MtprotoError> {
+    let client = get_client(handle)?;
+    let (removed, session_id) = {
+        let mut d = client.data.lock();
+        let removed = std::sync::Arc::make_mut(&mut d.journal)
+            .acknowledge(account_generation, batch_id);
+        if removed {
+            d.persist_epoch = d.persist_epoch.saturating_add(1);
+        }
+        (removed, d.home_session_id)
+    };
+    if removed {
+        schedule_persist(&client, session_id);
+    }
+    Ok(())
+}
+
+pub fn drain_updates(handle: u64) -> Result<UpdateDrainDto, MtprotoError> {
     let client = get_client(handle)?;
     if interactive_request_pending(&client) {
-        return Ok(Vec::new());
+        return Ok(UpdateDrainDto::default());
+    }
+    {
+        let d = client.data.lock();
+        if d.journal.has_undelivered() {
+            return Ok(UpdateDrainDto {
+                replay_required: true,
+                ..Default::default()
+            });
+        }
+        if !d.journal.admission_open() {
+            crate::perf::count("journal.admission_closed");
+            return Ok(UpdateDrainDto::default());
+        }
+    }
+    if client.persist_exhausted.load(std::sync::atomic::Ordering::Acquire) {
+        let session_id = client.data.lock().home_session_id;
+        schedule_persist(&client, session_id);
     }
     let Some((gate, mut io)) = lock_updates_lane(&client)? else {
-        return Ok(Vec::new());
+        return Ok(UpdateDrainDto::default());
     };
     let now = recovery_now();
     let (
@@ -120,7 +205,7 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             )));
         }
         if d.user_id.is_none() || !d.updates_started {
-            return Ok(Vec::new());
+            return Ok(UpdateDrainDto::default());
         }
         (
             d.api_id,
@@ -537,9 +622,14 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             }
             schedule_persist(&client, session_id);
         }
-        return Ok(events);
+        return Ok(UpdateDrainDto {
+            live_events: events,
+            ..Default::default()
+        });
     };
     let persist_needed;
+    let mut journal_batch = None;
+    let mut journal_generation = 0;
     let is_syncing_now;
     let should_emit_sync_state;
     {
@@ -576,7 +666,27 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
             is_syncing_now,
         );
         d.is_syncing = is_syncing_now;
-        persist_needed = new_session.is_some()
+        let durable_events: Vec<UpdateEventDto>;
+        (durable_events, events) = std::mem::take(&mut events)
+            .into_iter()
+            .partition(is_durable);
+        if !durable_events.is_empty() {
+            let channel_pts_after: Vec<(i64, i32)> = applied
+                .channel_pts
+                .iter()
+                .filter(|(chat, pts)| d.channel_pts.get(*chat) != Some(*pts))
+                .map(|(chat, pts)| (*chat, *pts))
+                .collect();
+            let journal = std::sync::Arc::make_mut(&mut d.journal);
+            journal_generation = journal.account_generation;
+            journal_batch = Some(journal.push(
+                durable_events,
+                next_cursor.clone(),
+                channel_pts_after,
+            ));
+        }
+        persist_needed = journal_batch.is_some()
+            || new_session.is_some()
             || peers_changed
             || media_changed
             || d.channel_pts != applied.channel_pts
@@ -613,16 +723,29 @@ pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
     drop(io);
     drop(gate);
     schedule_file_cleanup(&client);
-    if persist_needed {
-        crate::perf::count("updates.persist");
-        schedule_persist(&client, session_id);
-    }
     if should_emit_sync_state {
         events.push(UpdateEventDto::SyncState {
             is_syncing: is_syncing_now,
         });
     }
-    Ok(events)
+    let Some(batch) = journal_batch else {
+        if persist_needed {
+            crate::perf::count("updates.persist");
+            schedule_persist(&client, session_id);
+        }
+        return Ok(UpdateDrainDto {
+            live_events: events,
+            ..Default::default()
+        });
+    };
+    crate::perf::count("updates.persist");
+    persist_journal_sync(&client, session_id)?;
+    std::sync::Arc::make_mut(&mut client.data.lock().journal).mark_delivered(batch.batch_id);
+    Ok(UpdateDrainDto {
+        batches: vec![batch_dto(journal_generation, &batch)],
+        live_events: events,
+        replay_required: false,
+    })
 }
 
 pub fn get_updates_state(handle: u64) -> Result<UpdatesStateDto, MtprotoError> {

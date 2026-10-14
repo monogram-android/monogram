@@ -74,6 +74,7 @@ internal object MediaShareActions {
 
     suspend fun saveToGallery(context: Context, file: File, mime: String, displayName: String): Uri? =
         withContext(Dispatchers.IO) {
+            keepExplicitCopy(context, file, displayName)
             runCatching {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     saveViaMediaStore(context, file, mime, displayName)
@@ -85,6 +86,7 @@ internal object MediaShareActions {
 
     suspend fun saveToDocument(context: Context, file: File, destination: Uri): Boolean =
         withContext(Dispatchers.IO) {
+            keepExplicitCopy(context, file, file.name)
             try {
                 context.contentResolver.openOutputStream(destination, "wt")?.use { output ->
                     file.inputStream().use { input -> input.copyTo(output) }
@@ -104,6 +106,18 @@ internal object MediaShareActions {
             type = mime
             putExtra(Intent.EXTRA_TITLE, shareFileName(displayName))
         }
+
+    /** A copy outside the evictable media cache. Cache clear does not remove it. */
+    private fun keepExplicitCopy(context: Context, file: File, displayName: String) {
+        if (!file.isFile) return
+        val dir = File(context.filesDir, "downloads").apply { mkdirs() }
+        val safe = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "file" }
+        runCatching {
+            file.inputStream().use { input ->
+                File(dir, safe).outputStream().use { output -> input.copyTo(output) }
+            }
+        }
+    }
 
     private fun saveViaMediaStore(context: Context, file: File, mime: String, displayName: String): Uri? {
         val isVideo = mime.startsWith("video/")

@@ -3,6 +3,7 @@ package org.monogram.feature.chats
 import org.monogram.core.database.dao.ChatReadState
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Message
+import org.monogram.core.models.mergeIncomingMessage
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.chatListPreviewSource
 import org.monogram.core.models.isMigratedServicePlaceholder
@@ -182,28 +183,25 @@ internal fun applyUnreadReactionsDelta(chats: List<Chat>, chatId: PeerId, delta:
     }
 }
 
-internal fun Chat.withIncomingMessage(message: Message): Chat {
-    val unread =
-        if (message.outgoing || message.id.id <= readInboxMaxId ||
-            message.id.id == lastMessageId
-        ) {
-            unreadCount
-        } else {
-            unreadCount + 1
-        }
-    return copy(
-        lastMessagePreview = message.chatListPreviewSource(),
-        lastMessageOutgoing = message.outgoing,
-        lastMessageSenderName = message.senderName,
-        lastMessageMediaKind = message.mediaKind,
-        lastMessageDate = message.date,
-        unreadCount = unread,
-        lastMessageId = message.id.id,
-        lastMediaThumbCacheKey = message.thumbCacheKey ?: lastMediaThumbCacheKey,
-    )
-}
+internal fun Chat.withIncomingMessage(
+    message: Message,
+    accountGeneration: Long = 0,
+    acceptedOrder: Long = 0,
+): Chat = mergeIncomingMessage(
+    message,
+    accountGeneration = accountGeneration,
+    acceptedOrder = acceptedOrder,
+)
 
-internal fun applyIncomingMessage(chats: List<Chat>, message: Message): List<Chat> {
+internal fun applyIncomingMessage(
+    chats: List<Chat>,
+    message: Message,
+    accountGeneration: Long = 0,
+    acceptedOrder: Long = 0,
+): List<Chat> {
     val existing = chats.firstOrNull { it.id == message.id.chatId } ?: return chats
-    return mergeChats(chats, listOf(existing.withIncomingMessage(message)))
+    return mergeChats(
+        chats,
+        listOf(existing.withIncomingMessage(message, accountGeneration, acceptedOrder)),
+    )
 }

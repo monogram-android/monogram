@@ -44,6 +44,7 @@ internal object StickerCatalogMemory {
 
 internal object StickerPackMemory {
     private val packs = LinkedHashMap<Long, StickerPack>()
+    private val nativeReady = HashSet<Long>()
 
     @Synchronized
     fun get(id: Long): StickerPack? = packs[id]
@@ -53,12 +54,22 @@ internal object StickerPackMemory {
         packs[pack.id] = pack
     }
 
+    /** True after this process has indexed the pack documents in the native client. */
+    @Synchronized
+    fun isNativeReady(id: Long): Boolean = id in nativeReady
+
+    @Synchronized
+    fun markNativeReady(id: Long) {
+        nativeReady.add(id)
+    }
+
     @Synchronized
     fun snapshot(): Map<Long, StickerPack> = packs.toMap()
 
     @Synchronized
     fun clear() {
         packs.clear()
+        nativeReady.clear()
     }
 }
 

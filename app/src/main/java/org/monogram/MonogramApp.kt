@@ -3,6 +3,7 @@ package org.monogram
 import android.app.Application
 import android.os.Build
 import androidx.compose.material3.ComposeMaterial3Flags
+import androidx.compose.material3.ExperimentalMaterial3Api
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -19,6 +20,7 @@ import org.monogram.core.common.DebugLog
 import org.monogram.core.common.DebugStats
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
+import org.monogram.core.common.RuntimePressure
 import org.monogram.core.common.SponsorRegistry
 import org.monogram.core.common.TelegramCredentials
 import org.monogram.core.common.push.NotificationLocalStore
@@ -31,6 +33,7 @@ import org.monogram.core.ui.AppUpdateSettings
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.DownloadState
+import org.monogram.core.ui.FileLeases
 import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.perf.perfSpan
 import org.monogram.feature.settings.ProxySettingsStore
@@ -127,13 +130,28 @@ class MonogramApp : Application() {
         client.setDownloadChunkKib(state.downloadChunkKib)
     }
 
-    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate() {
         super.onCreate()
         ComposeMaterial3Flags.isCheckboxStylingFixEnabled = true
         val startedAt = PerfLog.nowMs()
         perfSpan("app:settings") {
             AppLog.init(cacheDir)
+        }
+        RuntimePressure.networkConstrained = {
+            getSystemService(android.net.ConnectivityManager::class.java)?.activeNetwork == null
+        }
+        RuntimePressure.thermal = {
+            if (Build.VERSION.SDK_INT < 29) {
+                false
+            } else {
+                val status =
+                    getSystemService(android.os.PowerManager::class.java)?.currentThermalStatus ?: 0
+                status >= android.os.PowerManager.THERMAL_STATUS_SEVERE
+            }
+        }
+        RuntimePressure.databaseBusy = {
+            DatabaseProvider.roomQueueDepth() > 4
         }
         settingsScope.launch(Dispatchers.IO) {
             perfSpan("app:debugStats") {
@@ -263,33 +281,44 @@ class MonogramApp : Application() {
                         telegramChunkFetcher = TelegramChunkFetcher { chatId, messageId, destPath, offset ->
                             client.downloadMessageMediaChunk(chatId, messageId, destPath, offset)
                         },
-                        telegramFetcher = TelegramMediaFetcher { chatId, messageId, destPath, kind, priority ->
-                            when (kind) {
-                                MediaFetchKind.Thumb ->
-                                    client.downloadMessageThumb(
-                                        chatId,
-                                        messageId,
-                                        destPath,
-                                        priority
-                                    )
+                        telegramFetcher = object : TelegramMediaFetcher {
+                            override fun promote(destPath: String, priority: Int) =
+                                client.promoteDownload(destPath, priority)
 
-                                MediaFetchKind.Display ->
-                                    client.downloadMessageDisplay(
-                                        chatId,
-                                        messageId,
-                                        destPath,
-                                        priority
-                                    )
+                            override suspend fun fetchMessageMedia(
+                                chatId: PeerId,
+                                messageId: Int,
+                                destPath: String,
+                                kind: MediaFetchKind,
+                                priority: Int,
+                            ): Outcome<String> =
+                                when (kind) {
+                                    MediaFetchKind.Thumb ->
+                                        client.downloadMessageThumb(
+                                            chatId,
+                                            messageId,
+                                            destPath,
+                                            priority
+                                        )
 
-                                MediaFetchKind.Full ->
-                                    client.downloadMessageMedia(
-                                        chatId,
-                                        messageId,
-                                        destPath,
-                                        priority
-                                    )
-                            }
+                                    MediaFetchKind.Display ->
+                                        client.downloadMessageDisplay(
+                                            chatId,
+                                            messageId,
+                                            destPath,
+                                            priority
+                                        )
+
+                                    MediaFetchKind.Full ->
+                                        client.downloadMessageMedia(
+                                            chatId,
+                                            messageId,
+                                            destPath,
+                                            priority
+                                        )
+                                }
                         },
+
                         customEmojiFetcher = { documentId, destPath, priority ->
                             client.downloadCustomEmoji(documentId, destPath, priority)
                         },
@@ -301,6 +330,7 @@ class MonogramApp : Application() {
                         },
                     )
                 }
+                FileLeases.leaser = mediaRepository::leaseFile
                 client.setDownloadProgressListener { path, downloaded, _ ->
                     mediaRepository.onNativeProgress(path, downloaded)
                 }
@@ -421,11 +451,11 @@ private fun isEmulatorDevice(model: String): Boolean {
     val product = Build.PRODUCT.orEmpty()
     val hardware = Build.HARDWARE.orEmpty()
     return fingerprint.startsWith("generic") ||
-        fingerprint.contains("emulator", ignoreCase = true) ||
-        product.contains("sdk", ignoreCase = true) ||
-        hardware.contains("goldfish", ignoreCase = true) ||
-        hardware.contains("ranchu", ignoreCase = true) ||
-        model.contains("sdk_gphone", ignoreCase = true) ||
-        model.contains("emulator", ignoreCase = true) ||
-        model.contains("google_sdk", ignoreCase = true)
+            fingerprint.contains("emulator", ignoreCase = true) ||
+            product.contains("sdk", ignoreCase = true) ||
+            hardware.contains("goldfish", ignoreCase = true) ||
+            hardware.contains("ranchu", ignoreCase = true) ||
+            model.contains("sdk_gphone", ignoreCase = true) ||
+            model.contains("emulator", ignoreCase = true) ||
+            model.contains("google_sdk", ignoreCase = true)
 }

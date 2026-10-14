@@ -7,6 +7,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.PerfLog
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.Message
@@ -135,7 +136,24 @@ internal fun DialogExecutor.jumpToMessageId(messageId: Int, atTop: Boolean = fal
     emit(Msg.LoadingNewer(false))
     emit(Msg.Loading(true))
     historyJob?.cancel()
-    historyJob = work.launch {
+    historyJob = work.launch(PerfLog.OpTrace()) {
+        if (ForumIo.historyThreadId(threadTopMsgId) <= 0) {
+            val around = warmup?.historySlice(
+                chatId,
+                beforeId = messageId + 1,
+                limit = HISTORY_PAGE_LIMIT,
+            )
+            if (gen == historyGen && around != null && around.rows.isNotEmpty()) {
+                serverHistoryBoundaryId = around.rows.minOf { it.id.id }
+                emit(Msg.Messages(around.rows, fromCache = true, replace = true))
+                emit(Msg.Anchor(messageId, atTop = atTop))
+                emit(Msg.HasOlder(!around.confirmedStart))
+                if (around.covered) {
+                    emit(Msg.Loading(false))
+                    return@launch
+                }
+            }
+        }
         when (
             val result = topicOrHistoryPage(
                 offsetId = messageId,
@@ -298,7 +316,7 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
     val requestId = ++olderRequestId
     activeOlderRequestId = requestId
     olderJob?.cancel()
-    olderJob = work.launch {
+    olderJob = work.launch(PerfLog.OpTrace()) {
         fun ownsRequest() = gen == historyGen && activeOlderRequestId == requestId
         if (!ownsRequest()) return@launch
         val historyTop = ForumIo.historyThreadId(threadTopMsgId)
@@ -308,16 +326,21 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
         }
         if (!ownsRequest()) return@launch
         if (historyTop <= 0) {
-            val cached = warmup?.olderMessages(chatId, boundaryId, HISTORY_PAGE_LIMIT).orEmpty()
+            val slice =
+                warmup?.historySlice(chatId, beforeId = boundaryId, limit = HISTORY_PAGE_LIMIT)
             if (!ownsRequest()) return@launch
-            if (cached.size == HISTORY_PAGE_LIMIT) {
-                emit(Msg.AppendOlder(cached))
-                serverHistoryBoundaryId = cached.minOf { it.id.id }
-                emit(Msg.HasOlder(true))
+            if (slice != null && slice.rows.isNotEmpty()) {
+                emit(Msg.AppendOlder(slice.rows))
+                serverHistoryBoundaryId = slice.rows.minOf { it.id.id }
+                resolveSendersLater(slice.rows)
+            }
+            if (slice != null && slice.covered &&
+                (slice.rows.size == HISTORY_PAGE_LIMIT || slice.confirmedStart)
+            ) {
+                emit(Msg.HasOlder(!slice.confirmedStart))
                 emit(Msg.LoadingOlder(false))
                 activeOlderRequestId = null
                 continueUnreadPaging()
-                resolveSendersLater(cached)
                 return@launch
             }
         }
@@ -464,10 +487,26 @@ internal fun DialogExecutor.loadNewer() {
     activeNewerRequestId = requestId
     emit(Msg.LoadingNewer(true))
     newerJob?.cancel()
-    newerJob = work.launch {
+    newerJob = work.launch(PerfLog.OpTrace()) {
         fun ownsRequest() = gen == historyGen && activeNewerRequestId == requestId
         try {
             if (!ownsRequest()) return@launch
+            val newerSlice = if (ForumIo.historyThreadId(threadTopMsgId) <= 0) {
+                warmup?.historySlice(chatId, afterId = newest.id.id, limit = HISTORY_PAGE_LIMIT)
+            } else {
+                null
+            }
+            if (newerSlice != null && newerSlice.rows.isNotEmpty()) {
+                emit(Msg.Prepend(newerSlice.rows))
+            }
+            if (newerSlice != null && newerSlice.covered &&
+                (newerSlice.rows.size == HISTORY_PAGE_LIMIT || newerSlice.confirmedEnd)
+            ) {
+                emit(Msg.HasNewer(!newerSlice.confirmedEnd))
+                emit(Msg.LoadingNewer(false))
+                activeNewerRequestId = null
+                return@launch
+            }
             when (
                 val result = topicOrHistoryPage(
                     offsetId = newest.id.id,
@@ -518,7 +557,7 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
     emit(Msg.LoadingNewer(false))
     emit(Msg.Loading(true))
     historyJob?.cancel()
-    historyJob = work.launch {
+    historyJob = work.launch(PerfLog.OpTrace()) {
         val historyTop = ForumIo.historyThreadId(threadTopMsgId)
         if (historyTop <= 0) {
             val cached = warmup?.let { cache ->
@@ -533,9 +572,18 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
             val paint = dateJumpCacheWindow(cached, epochSeconds)
             if (paint.isNotEmpty() && gen == historyGen) {
                 emit(Msg.Messages(paint, fromCache = true, replace = true))
+                val slice = warmup?.historySlice(
+                    chatId,
+                    beforeId = paint.maxOf { it.id.id } + 1,
+                    limit = HISTORY_PAGE_LIMIT,
+                )
+                if (slice?.covered == true) {
+                    serverHistoryBoundaryId = paint.minOf { it.id.id }
+                    emit(Msg.HasOlder(!slice.confirmedStart))
+                    emit(Msg.Loading(false))
+                    return@launch
+                }
                 emit(Msg.HasOlder(true))
-                // Keep loading until the server jump page sets serverHistoryBoundaryId.
-                // Clearing it here lets LoadOlder use a cache min as offset_id.
             }
         }
         when (

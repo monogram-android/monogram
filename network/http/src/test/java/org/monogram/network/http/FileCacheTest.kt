@@ -249,12 +249,14 @@ class FileCacheTest {
     @Test
     fun indexSurvivesRelaunch() {
         val root = tmp.newFolder("durable")
-        FileCache(root, maxBytes = 1024 * 1024).put(
+        val first = FileCache(root, maxBytes = 1024 * 1024)
+        first.put(
             "photo:7",
             byteArrayOf(1, 2, 3, 4, 5),
             chatId = 99L,
             kind = FileCache.KIND_PHOTOS,
         )
+        first.flushIndex()
         val again = FileCache(root, maxBytes = 1024 * 1024)
         assertEquals(mapOf(FileCache.KIND_PHOTOS to 5L), again.usageByKind())
         assertEquals(mapOf(99L to 5L), again.usageByChat())

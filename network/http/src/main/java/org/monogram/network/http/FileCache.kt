@@ -10,12 +10,29 @@ data class CacheRecord(
     val chatId: Long?,
     val kind: String,
     val bytes: Long,
+    /** Explicit user download: never evicted or cleared as disposable cache. */
+    val pinned: Boolean = false,
 )
+
+/**
+ * Mutually exclusive byte buckets. A byte is counted in exactly one of them:
+ * evictable completed files, protected (leased, viewport-protected or pinned)
+ * files, partial staging files, or reserved-but-unwritten space.
+ */
+data class StorageAccounting(
+    val completedBytes: Long,
+    val protectedBytes: Long,
+    val partialBytes: Long,
+    val reservedBytes: Long,
+) {
+    val totalBytes: Long get() = completedBytes + protectedBytes + partialBytes + reservedBytes
+}
 
 class FileCache(
     private val root: File,
     private val maxBytes: Long = 256L * 1024L * 1024L,
     private val maintainOnInit: Boolean = true,
+    private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
     enum class AdmissionFailure { Capacity, Storage, InUse }
     class AdmissionException(val reason: AdmissionFailure) : IOException(
@@ -32,6 +49,13 @@ class FileCache(
     private val protectedKeys = HashMap<String, Set<String>>()
     private val leases = HashMap<String, Int>()
     private val pendingDeletes = HashSet<String>()
+    private val reservations = HashMap<String, Long>()
+    private val partialBytes = HashMap<String, Long>()
+    private val lastAccess = HashMap<String, Long>()
+    private var reconciled = false
+    private var dirtyIndexMutations = 0
+    private var firstDirtyAt = 0L
+    private var indexFailures = 0
 
     class Lease internal constructor(val file: File, private val release: () -> Unit) :
         AutoCloseable {
@@ -54,10 +78,186 @@ class FileCache(
         }
     }
 
-    private fun protected(key: String): Boolean =
-        (leases[diskName(key)] ?: 0) > 0 || protectedKeys.values.any { keys ->
-            keys.any { diskName(it) == diskName(key) }
+    /** Leases a file by its physical name; null when it is not a cache file or is gone. */
+    fun acquireFile(file: File): Lease? = synchronized(recordsLock) {
+        if (file.parentFile?.canonicalFile != root.canonicalFile || !file.isFile) return@synchronized null
+        val name = file.name
+        leases[name] = (leases[name] ?: 0) + 1
+        Lease(file) {
+            synchronized(recordsLock) {
+                val remaining = (leases[name] ?: 1) - 1
+                if (remaining == 0) leases.remove(name) else leases[name] = remaining
+                flushPendingDeletes()
+            }
         }
+    }
+
+    private fun protected(key: String): Boolean =
+        (leases[diskName(key)] ?: 0) > 0 || records[key]?.pinned == true ||
+                protectedKeys.values.any { keys -> keys.any { diskName(it) == diskName(key) } }
+
+    private fun protectedNames(): Set<String> {
+        val names = HashSet<String>(leases.keys)
+        protectedKeys.values.forEach { keys -> keys.forEach { names.add(diskName(it)) } }
+        records.values.forEach { if (it.pinned) names.add(diskName(it.key)) }
+        return names
+    }
+
+    /** Space held by transfers in flight for other keys; completed files cannot be evicted for it. */
+    private fun inFlightBytesExcept(key: String): Long {
+        val name = diskName(key)
+        val partial = partialBytes.filterKeys { it != name }.values.sum()
+        val reserved = reservations.entries.filter { it.key != name }
+            .sumOf { (n, bytes) -> (bytes - (partialBytes[n] ?: 0L)).coerceAtLeast(0L) }
+        return partial + reserved
+    }
+
+    /** Derived from in-memory records and transfer state; no filesystem access. */
+    fun accounting(): StorageAccounting = synchronized(recordsLock) {
+        ensureIndexLoaded()
+        val protectedSet = protectedNames()
+        val seen = HashSet<String>()
+        var completed = 0L
+        var protectedTotal = 0L
+        for (record in records.values) {
+            val name = diskName(record.key)
+            if (!seen.add(name)) continue
+            if (name in protectedSet) protectedTotal += record.bytes else completed += record.bytes
+        }
+        for (name in protectedSet) {
+            if (name !in seen) protectedTotal += File(root, name).length()
+        }
+        StorageAccounting(
+            completedBytes = completed,
+            protectedBytes = protectedTotal,
+            partialBytes = partialBytes.values.sum(),
+            reservedBytes = reservations.entries
+                .sumOf { (n, bytes) -> (bytes - (partialBytes[n] ?: 0L)).coerceAtLeast(0L) },
+        )
+    }
+
+    class Reservation internal constructor(private val release: () -> Unit) : AutoCloseable {
+        private val closed = java.util.concurrent.atomic.AtomicBoolean(false)
+        override fun close() {
+            if (closed.compareAndSet(false, true)) release()
+        }
+    }
+
+    /**
+     * Holds [bytes] for a transfer about to write. Optional reservations are
+     * refused when protected, partial and reserved space would leave no room.
+     */
+    fun reserve(key: String, bytes: Long, optional: Boolean = true): Reservation =
+        synchronized(recordsLock) {
+            ensureIndexLoaded()
+            val name = diskName(key)
+            if (bytes < 0 || root.usableSpace - bytes < FREE_SPACE_RESERVE) {
+                throw AdmissionException(AdmissionFailure.Storage)
+            }
+            if (optional && (bytes > maxBytes ||
+                        protectedBytesExcept(key) + inFlightBytesExcept(key) > maxBytes - bytes)
+            ) {
+                throw AdmissionException(AdmissionFailure.Capacity)
+            }
+            reservations[name] = (reservations[name] ?: 0L) + bytes
+            Reservation {
+                synchronized(recordsLock) {
+                    val left = (reservations[name] ?: 0L) - bytes
+                    if (left <= 0L) reservations.remove(name) else reservations[name] = left
+                }
+            }
+        }
+
+    /** Records the current size of this key's `.part` staging file; zero clears it. */
+    fun notePartial(key: String, bytes: Long) = synchronized(recordsLock) {
+        val name = diskName(key)
+        if (bytes <= 0L) partialBytes.remove(name) else partialBytes[name] = bytes
+    }
+
+    /** Deletes staging files nobody owns and that were idle for [maxIdleMs]. */
+    fun expireInactivePartials(maxIdleMs: Long = PARTIAL_IDLE_MS): Long =
+        synchronized(recordsLock) {
+            val now = nowMs()
+            var freed = 0L
+            root.listFiles()?.forEach { file ->
+                if (!file.isFile || !file.name.endsWith(".part")) return@forEach
+                val name = file.name.removeSuffix(".part")
+                if (reservations.containsKey(name) || (leases[name] ?: 0) > 0) return@forEach
+                if (now - file.lastModified() < maxIdleMs) return@forEach
+                val length = file.length()
+                if (file.delete()) {
+                    freed += length
+                    partialBytes.remove(name)
+                }
+            }
+            freed
+        }
+
+    /** Rebuilds partial counters and the index from disk; returns tracked bytes minus real bytes. */
+    fun reconcile(): Long = synchronized(recordsLock) {
+        ensureIndexLoaded()
+        reconcileLocked()
+        accounting().let { it.completedBytes + it.protectedBytes } - completeBytesOnDisk()
+    }
+
+    private fun reconcileLocked() {
+        dropMissing()
+        backfillUnindexed()
+        partialBytes.clear()
+        root.listFiles()?.forEach { file ->
+            if (file.isFile && file.name.endsWith(".part") && !file.name.startsWith(STAGING_PUBLISH) &&
+                !file.name.startsWith(STAGING_INDEX)
+            ) {
+                partialBytes[file.name.removeSuffix(".part")] = file.length()
+            }
+        }
+        reconciled = true
+    }
+
+    private fun completeBytesOnDisk(): Long =
+        root.listFiles()?.filter { it.isFile && it.name != INDEX_NAME && !isStaging(it.name) }
+            ?.sumOf { it.length() } ?: 0L
+
+    fun pin(key: String) = synchronized(recordsLock) {
+        ensureIndexLoaded()
+        val record = records[key] ?: return@synchronized
+        if (record.pinned) return@synchronized
+        records[key] = record.copy(pinned = true)
+        markIndexDirty(force = true)
+    }
+
+    fun unpin(key: String) = synchronized(recordsLock) {
+        ensureIndexLoaded()
+        val record = records[key] ?: return@synchronized
+        if (!record.pinned) return@synchronized
+        records[key] = record.copy(pinned = false)
+        markIndexDirty(force = true)
+        flushPendingDeletes()
+    }
+
+    /** Writes the batched index now. A failure is retried by the next mutation or flush. */
+    fun flushIndex() = synchronized(recordsLock) {
+        ensureIndexLoaded()
+        if (dirtyIndexMutations > 0) writeIndex()
+    }
+
+    private fun markIndexDirty(force: Boolean = false) {
+        if (dirtyIndexMutations == 0) firstDirtyAt = nowMs()
+        dirtyIndexMutations++
+        if (force || dirtyIndexMutations >= INDEX_BATCH || nowMs() - firstDirtyAt >= INDEX_BATCH_MS) {
+            writeIndex()
+        }
+    }
+
+    private fun writeIndex() {
+        try {
+            persistIndex()
+            dirtyIndexMutations = 0
+        } catch (_: IOException) {
+            // The files stay valid; startup reconciliation recovers unindexed ones.
+            indexFailures++
+        }
+    }
 
     private fun pendingDeletion(key: String): Boolean =
         pendingDeletes.any { diskName(it) == diskName(key) }
@@ -75,8 +275,8 @@ class FileCache(
 
     internal fun maintain() = synchronized(recordsLock) {
         ensureIndexLoaded()
-        dropMissing()
-        backfillUnindexed()
+        reconcileLocked()
+        expireInactivePartials()
     }
 
     private fun ensureIndexLoaded() {
@@ -91,7 +291,9 @@ class FileCache(
         if (pendingDeletion(key)) return@synchronized null
         val file = fileFor(key)
         if (!file.isFile) return@synchronized null
-        file.setLastModified(System.currentTimeMillis())
+        val now = nowMs()
+        file.setLastModified(now)
+        lastAccess[diskName(key)] = now
         file
     }
 
@@ -184,7 +386,7 @@ class FileCache(
         }
 
     private fun protectedBytesExcept(key: String): Long {
-        val names = leases.keys + protectedKeys.values.flatten().map(::diskName)
+        val names = protectedNames()
         return names.asSequence().distinct().filter { it != diskName(key) }
             .sumOf { File(root, it).length() }
     }
@@ -198,7 +400,9 @@ class FileCache(
         if ((leases[diskName(key)] ?: 0) > 0 || pendingDeletion(key)) {
             throw AdmissionException(AdmissionFailure.InUse)
         }
-        if (!temporary && (bytes > maxBytes || protectedBytesExcept(key) > maxBytes - bytes)) {
+        if (!temporary && (bytes > maxBytes ||
+                    protectedBytesExcept(key) + inFlightBytesExcept(key) > maxBytes - bytes)
+        ) {
             throw AdmissionException(AdmissionFailure.Capacity)
         }
         if (bytes < 0 || root.usableSpace - additionalBytes < FREE_SPACE_RESERVE) {
@@ -224,8 +428,11 @@ class FileCache(
             ensureIndexLoaded()
             records.keys.filter { it != key && diskName(it) == diskName(key) }
                 .forEach(records::remove)
-            records[key] = normalized(key, chatId, kind, bytes)
-            persistIndex()
+            val pinned = records[key]?.pinned == true
+            records[key] = normalized(key, chatId, kind, bytes).copy(pinned = pinned)
+            lastAccess[diskName(key)] = nowMs()
+            partialBytes.remove(diskName(key))
+            markIndexDirty()
         }
     }
 
@@ -235,7 +442,7 @@ class FileCache(
             val existing = records[key] ?: return
             if (existing.chatId == chatId && existing.kind == kind) return
             records[key] = existing.copy(chatId = chatId, kind = kind)
-            persistIndex()
+            markIndexDirty()
         }
     }
 
@@ -282,7 +489,8 @@ class FileCache(
     }
 
     fun remove(key: String): Boolean {
-        deleteKeys(listOf(key))
+        unpin(key)
+        deleteKeys(listOf(key), force = true)
         return !fileFor(key).exists()
     }
 
@@ -298,27 +506,35 @@ class FileCache(
 
     fun trimIfNeeded() = synchronized(recordsLock) {
         ensureIndexLoaded()
-        val files = root.walkTopDown().filter { it.isFile && it.name != INDEX_NAME && !isStaging(it.name) }.toList()
-        var total = files.sumOf { it.length() }
+        if (!reconciled) reconcileLocked()
+        var total = accounting().totalBytes
         if (total <= maxBytes) return@synchronized
-        val ordered = files.sortedBy { it.lastModified() }
-        for (file in ordered) {
+        val protectedSet = protectedNames()
+        val candidates = records.values
+            .filter { diskName(it.key) !in protectedSet }
+            .distinctBy { diskName(it.key) }
+            .sortedBy { lastAccess[diskName(it.key)] ?: fileFor(it.key).lastModified() }
+        for (record in candidates) {
             if (total <= maxBytes) break
-            if (protected(ORPHAN_PREFIX + file.name)) continue
-            val len = file.length()
-            if (file.delete()) {
-                total -= len
-                val drop = records.filter { fileFor(it.key).canonicalFile == file.canonicalFile }.keys
-                drop.forEach { records.remove(it) }
+            val name = diskName(record.key)
+            val file = File(root, name)
+            val length = file.length()
+            if (!file.exists() || file.delete()) {
+                total -= length
+                records.keys.filter { diskName(it) == name }.forEach(records::remove)
+                lastAccess.remove(name)
             }
         }
-        persistIndex()
+        markIndexDirty(force = true)
     }
 
-    private fun deleteKeys(keys: List<String>): Long = synchronized(recordsLock) {
+    private fun deleteKeys(keys: List<String>, force: Boolean = false): Long =
+        synchronized(recordsLock) {
         ensureIndexLoaded()
         var freed = 0L
         keys.forEach { key ->
+            // Pinned downloads are only removed by an explicit remove().
+            if (!force && records[key]?.pinned == true) return@forEach
             if (protected(key)) {
                 pendingDeletes.add(key)
                 return@forEach
@@ -329,9 +545,10 @@ class FileCache(
                 freed += len
                 records.remove(key)
                 pendingDeletes.remove(key)
+                lastAccess.remove(diskName(key))
             }
         }
-        persistIndex()
+            markIndexDirty(force = true)
         freed
     }
 
@@ -339,7 +556,7 @@ class FileCache(
         val gone = records.filter { !fileFor(it.key).exists() }.keys
         if (gone.isEmpty()) return
         gone.forEach { records.remove(it) }
-        persistIndex()
+        markIndexDirty(force = true)
     }
 
     private fun backfillUnindexed() {
@@ -359,7 +576,7 @@ class FileCache(
             )
             added = true
         }
-        if (added) persistIndex()
+        if (added) markIndexDirty(force = true)
     }
 
     private fun loadIndex() {
@@ -372,11 +589,11 @@ class FileCache(
             val chatId = parts[1].toLongOrNull()
             val kind = parts[2].ifBlank { inferKind(key) }
             val bytes = parts[3].toLongOrNull() ?: 0L
-            val row = normalized(key, chatId, kind, bytes)
+            val row = normalized(key, chatId, kind, bytes).copy(pinned = parts.getOrNull(4) == "1")
             if (row.chatId != chatId || row.kind != kind) changed = true
             records[key] = row
         }
-        if (changed) persistIndex()
+        if (changed) markIndexDirty(force = true)
     }
 
     private fun normalized(key: String, chatId: Long?, kind: String, bytes: Long): CacheRecord {
@@ -394,7 +611,7 @@ class FileCache(
     private fun persistIndex() {
         val text = records.values.joinToString("\n") { row ->
             val chat = row.chatId?.toString().orEmpty()
-            "${row.key}\t$chat\t${row.kind}\t${row.bytes}"
+            "${row.key}\t$chat\t${row.kind}\t${row.bytes}\t${if (row.pinned) 1 else 0}"
         }
         val staging = File.createTempFile("index-", ".part", root)
         try {
@@ -421,6 +638,12 @@ class FileCache(
 
     companion object {
         const val FREE_SPACE_RESERVE = 128L * 1024 * 1024
+        const val PARTIAL_IDLE_MS = 24L * 60 * 60 * 1000
+        private const val INDEX_BATCH = 16
+        private const val INDEX_BATCH_MS = 2_000L
+        private const val STAGING_PUBLISH = "publish-"
+        private const val STAGING_INDEX = "index-"
+
         const val INDEX_NAME = "index.tsv"
         const val ORPHAN_PREFIX = "orphan:"
         const val KIND_PHOTOS = "photos"

@@ -29,6 +29,8 @@ import uniffi.monogram_mtproto.SavedGifDto
 import uniffi.monogram_mtproto.StickerCatalogDto
 import uniffi.monogram_mtproto.StickerListDto
 import uniffi.monogram_mtproto.StickerPackDto
+import uniffi.monogram_mtproto.UpdateBatchDto
+import uniffi.monogram_mtproto.UpdateDrainDto
 import uniffi.monogram_mtproto.UpdateEventDto
 import uniffi.monogram_mtproto.UpdatesStateDto
 import uniffi.monogram_mtproto.UploadItemDto
@@ -53,7 +55,9 @@ import uniffi.monogram_mtproto.destroyClient as nativeDestroyClient
 import uniffi.monogram_mtproto.downloadCustomEmoji as nativeDownloadCustomEmoji
 import uniffi.monogram_mtproto.downloadMessageMedia as nativeDownloadMessageMedia
 import uniffi.monogram_mtproto.downloadMessageThumb as nativeDownloadMessageThumb
+import uniffi.monogram_mtproto.acknowledgeUpdateBatch as nativeAcknowledgeUpdateBatch
 import uniffi.monogram_mtproto.drainUpdates as nativeDrainUpdates
+import uniffi.monogram_mtproto.pendingUpdateBatches as nativePendingUpdateBatches
 import uniffi.monogram_mtproto.editForumTopicHidden as nativeEditForumTopicHidden
 import uniffi.monogram_mtproto.editTextMessage as nativeEditTextMessage
 import uniffi.monogram_mtproto.forwardMessages as nativeForwardMessages
@@ -147,6 +151,9 @@ object MtprotoNativeUniFfi : MtprotoNative {
     override fun createRequestControl(): Long = uniffi.monogram_mtproto.createRequestControl().toLong()
     override fun bindRequestControl(id: Long): Long = uniffi.monogram_mtproto.bindRequestControl(id.toULong()).toLong()
     override fun cancelRequestControl(id: Long) = uniffi.monogram_mtproto.cancelRequestControl(id.toULong())
+
+    override fun promoteRequestControl(id: Long, dispatchClass: Int) =
+        uniffi.monogram_mtproto.promoteRequestControl(id.toULong(), dispatchClass)
     override fun releaseRequestControl(id: Long) = uniffi.monogram_mtproto.releaseRequestControl(id.toULong())
     override fun setDispatchClass(classId: Int) =
         uniffi.monogram_mtproto.setDispatchClass(classId)
@@ -720,7 +727,17 @@ object MtprotoNativeUniFfi : MtprotoNative {
     }
 
     override fun drainUpdates(handle: Long): List<UpdateEventDto> =
+        nativeDrainUpdates(handle.toULong()).let { it.batches.flatMap { batch -> batch.events } + it.liveEvents }
+
+    override fun drainUpdateBatches(handle: Long): UpdateDrainDto =
         nativeDrainUpdates(handle.toULong())
+
+    override fun pendingUpdateBatches(handle: Long): List<UpdateBatchDto> =
+        nativePendingUpdateBatches(handle.toULong())
+
+    override fun acknowledgeUpdateBatch(handle: Long, accountGeneration: Long, batchId: Long) {
+        nativeAcknowledgeUpdateBatch(handle.toULong(), accountGeneration, batchId)
+    }
 
     override fun downloadMessageMedia(
         handle: Long,

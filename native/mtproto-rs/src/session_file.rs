@@ -71,6 +71,8 @@ pub struct ClientSession {
     /// Imported master keys for foreign datacenters, keyed by DC id.
     #[serde(default)]
     pub dc_auth_keys: HashMap<i32, DcAuthKey>,
+    #[serde(default)]
+    pub(crate) journal: crate::update_journal::UpdateJournal,
 }
 
 pub fn media_key(chat_id: i64, message_id: i32) -> String {
@@ -150,6 +152,7 @@ impl FileSessionStore {
             new_session: None,
             test_dc: false,
             dc_auth_keys: HashMap::new(),
+            journal: Default::default(),
         };
         if !encrypted && key.is_some() {
             self.save(&session)?;

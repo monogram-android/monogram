@@ -416,6 +416,8 @@ pub fn get_sticker_pack(
                 document_id,
             )
         })?;
+        // Pack documents are the only file locations for stickers that have no message id.
+        persist(state)?;
         Ok(dto)
     })
 }
@@ -435,6 +437,7 @@ pub fn get_sticker_set(
                 access_hash,
             )
         })?;
+        persist(state)?;
         Ok(dto)
     })
 }

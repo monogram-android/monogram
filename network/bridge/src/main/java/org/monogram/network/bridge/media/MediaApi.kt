@@ -134,7 +134,10 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
         priority: Int,
     ): Outcome<String> {
         when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> return connected
+            is Outcome.Err -> {
+                AppLog.api("media", "downloadCustomEmoji fail id=$documentId")
+                return connected
+            }
             is Outcome.Ok -> Unit
         }
         return retryShortFlood {
@@ -146,6 +149,7 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                AppLog.api("media", "downloadCustomEmoji fail id=$documentId")
                 Outcome.Err(e.message ?: "custom emoji download failed")
             }
         }

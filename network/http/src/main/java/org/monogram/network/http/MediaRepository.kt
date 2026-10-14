@@ -650,7 +650,7 @@ class MediaRepository(
     ): Outcome<File> {
         val key = "emoji:$documentId"
         cache.get(key)?.let { return Outcome.Ok(it) }
-        return enqueueTelegram(key, priority, chatId = null) { activePriority ->
+        val result = enqueueTelegram(key, priority, chatId = null) { activePriority ->
             cache.get(key)?.let { return@enqueueTelegram Outcome.Ok(it) }
             val dest = cache.fileFor(key)
             val fetcher = customEmojiFetcher
@@ -680,6 +680,10 @@ class MediaRepository(
                 is Outcome.Err -> fetched
             }
         }
+        if (result is Outcome.Err) {
+            AppLog.api("media", "err kind=Emoji key=emoji:$documentId ${result.message}")
+        }
+        return result
     }
 
     private suspend fun ensureLocalTelegramMedia(

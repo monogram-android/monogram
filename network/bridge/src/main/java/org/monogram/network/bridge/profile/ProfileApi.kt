@@ -168,7 +168,7 @@ internal class ProfileApi(private val core: SessionCore) : ProfileOps {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpc("getStickerPack failed") { activeHandle ->
+        return core.rpcBackground("getStickerPack failed") { activeHandle ->
             core.native.getStickerPack(activeHandle, documentId).toModel()
         }
     }
@@ -178,7 +178,7 @@ internal class ProfileApi(private val core: SessionCore) : ProfileOps {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpc("getStickerSet failed") { activeHandle ->
+        return core.rpcBackground("getStickerSet failed") { activeHandle ->
             core.native.getStickerSet(activeHandle, setId, accessHash).toModel()
         }
     }

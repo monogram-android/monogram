@@ -587,18 +587,20 @@ pub fn download_custom_emoji(
     dest_path: String,
 ) -> Result<String, MtprotoError> {
     let client = get_client(handle)?;
-    let (api_id, home, media) = with_client_mut(handle, |state| {
+    let (api_id, fallback, media) = with_client_mut(handle, |state| {
         ensure_ready(state)?;
         if let Some(indexed) = state.media.get(&(document_id, 0)).cloned() {
             return Ok((state.api_id, state.snapshot.clone(), indexed));
         }
-        let indexed = call_with_migrate(state, |state| {
-            media::fetch_custom_emoji(&mut state.snapshot, state.api_id, document_id)
-        })?;
-        state.media.insert((document_id, 0), indexed.clone());
-        persist(state)?;
+        let indexed = index_missing_custom_emoji(state, document_id)?;
         Ok((state.api_id, state.snapshot.clone(), indexed))
     })?;
+    // A bound temp key leaves snapshot.session_id != home_session_id. Media
+    // leases require the permanent id, the same source message downloads use.
+    let home = {
+        let data = client.data.lock();
+        home_fork_source(&data).unwrap_or(fallback)
+    };
     match download_media_on_lane(
         handle,
         &client,
@@ -641,29 +643,103 @@ pub(crate) fn sticker_set_of(media: &media::MediaRef) -> Option<(i64, i64)> {
     media.sticker_set_id.zip(media.sticker_set_access_hash)
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CustomEmojiDocumentSource {
+    StickerSet { set_id: i64, access_hash: i64 },
+    CustomEmojiDocuments,
+}
+
+pub(crate) fn custom_emoji_document_source(
+    index: &media::MediaIndex,
+    document_id: i64,
+) -> CustomEmojiDocumentSource {
+    match sticker_set_for_document(index, document_id) {
+        Some((set_id, access_hash)) => {
+            CustomEmojiDocumentSource::StickerSet { set_id, access_hash }
+        }
+        None => CustomEmojiDocumentSource::CustomEmojiDocuments,
+    }
+}
+
+fn document_location_id(item: &media::MediaRef) -> Option<i64> {
+    match item.location {
+        media::MediaLocation::Document { id, .. } => Some(id),
+        _ => None,
+    }
+}
+
+fn sticker_set_for_document(
+    index: &media::MediaIndex,
+    document_id: i64,
+) -> Option<(i64, i64)> {
+    if let Some(set) = index.get(&(document_id, 0)).and_then(sticker_set_of) {
+        return Some(set);
+    }
+    index.iter().find_map(|(&(key_id, key_msg), item)| {
+        let same_document = (key_id == document_id && key_msg == 0)
+            || document_location_id(item) == Some(document_id);
+        if same_document {
+            sticker_set_of(item)
+        } else {
+            None
+        }
+    })
+}
+
+fn index_missing_custom_emoji(
+    state: &mut ClientState,
+    document_id: i64,
+) -> Result<media::MediaRef, MtprotoError> {
+    match custom_emoji_document_source(&state.media, document_id) {
+        CustomEmojiDocumentSource::StickerSet { set_id, access_hash } => {
+            crate::messages::sticker_rpc::get_sticker_set(
+                &mut state.snapshot,
+                state.api_id,
+                &mut state.media,
+                set_id,
+                access_hash,
+            )?;
+            persist(state)?;
+            state.media.get(&(document_id, 0)).cloned().ok_or_else(|| {
+                MtprotoError::Message(format!(
+                    "no sticker document {document_id} after getStickerSet"
+                ))
+            })
+        }
+        CustomEmojiDocumentSource::CustomEmojiDocuments => {
+            let indexed = call_with_migrate(state, |state| {
+                media::fetch_custom_emoji(&mut state.snapshot, state.api_id, document_id)
+            })?;
+            state.media.insert((document_id, 0), indexed.clone());
+            persist(state)?;
+            Ok(indexed)
+        }
+    }
+}
+
 fn refresh_document_file_reference(
     state: &mut ClientState,
     document_id: i64,
 ) -> Result<(), MtprotoError> {
-    let sticker = state
-        .media
-        .get(&(document_id, 0))
-        .and_then(sticker_set_of);
-    if let Some((set_id, access_hash)) = sticker {
-        crate::messages::sticker_rpc::get_sticker_set(
-            &mut state.snapshot,
-            state.api_id,
-            &mut state.media,
-            set_id,
-            access_hash,
-        )?;
-        return Ok(());
+    match custom_emoji_document_source(&state.media, document_id) {
+        CustomEmojiDocumentSource::StickerSet { set_id, access_hash } => {
+            crate::messages::sticker_rpc::get_sticker_set(
+                &mut state.snapshot,
+                state.api_id,
+                &mut state.media,
+                set_id,
+                access_hash,
+            )?;
+            Ok(())
+        }
+        CustomEmojiDocumentSource::CustomEmojiDocuments => {
+            let indexed = call_with_migrate(state, |state| {
+                media::fetch_custom_emoji(&mut state.snapshot, state.api_id, document_id)
+            })?;
+            state.media.insert((document_id, 0), indexed);
+            Ok(())
+        }
     }
-    let indexed = call_with_migrate(state, |state| {
-        media::fetch_custom_emoji(&mut state.snapshot, state.api_id, document_id)
-    })?;
-    state.media.insert((document_id, 0), indexed);
-    Ok(())
 }
 
 pub(crate) fn download_media_on_lane(

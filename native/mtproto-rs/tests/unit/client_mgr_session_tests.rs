@@ -61,6 +61,76 @@ fn sticker_document_refreshes_from_its_set_not_saved_gifs() {
 }
 
 #[test]
+fn custom_emoji_miss_uses_sticker_set_not_custom_emoji_documents() {
+    let sticker = media_rpc::MediaRef {
+        file_size: Some(12),
+        kind: "sticker".into(),
+        cache_key: "emoji:42".into(),
+        location: media_rpc::MediaLocation::Document {
+            id: 42,
+            access_hash: 7,
+            file_reference: vec![1],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "image/webp".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: Some(9),
+        sticker_set_access_hash: Some(11),
+        source_url: None,
+    };
+    let mut index = media_rpc::MediaIndex::default();
+    index.insert((-1004434463760, 106), sticker);
+    assert!(index.get(&(42, 0)).is_none());
+    assert_eq!(
+        custom_emoji_document_source(&index, 42),
+        CustomEmojiDocumentSource::StickerSet {
+            set_id: 9,
+            access_hash: 11,
+        },
+    );
+
+    let mut plain = sticker_without_set(99);
+    plain.sticker_set_id = None;
+    plain.sticker_set_access_hash = None;
+    index.insert((7, 3), plain);
+    assert_eq!(
+        custom_emoji_document_source(&index, 99),
+        CustomEmojiDocumentSource::CustomEmojiDocuments,
+    );
+    assert_eq!(
+        custom_emoji_document_source(&index, 1000),
+        CustomEmojiDocumentSource::CustomEmojiDocuments,
+    );
+}
+
+fn sticker_without_set(id: i64) -> media_rpc::MediaRef {
+    media_rpc::MediaRef {
+        file_size: Some(4),
+        kind: "sticker".into(),
+        cache_key: format!("emoji:{id}"),
+        location: media_rpc::MediaLocation::Document {
+            id,
+            access_hash: 1,
+            file_reference: vec![2],
+            thumb_size: String::new(),
+            dc_id: 2,
+            mime_type: "image/webp".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    }
+}
+
+#[test]
 fn file_reference_retry_requires_new_bytes() {
     let old = media_rpc::MediaLocation::Photo {
         id: 1,

@@ -101,7 +101,7 @@ open class OfflineWarmup(
     open val usesIoDispatcher: Boolean get() = db != null
 
     private suspend inline fun <T> roomIo(crossinline block: suspend () -> T): T =
-        if (db == null) block() else withContext(DatabaseProvider.roomDispatcher) { block() }
+        if (db == null) block() else DatabaseProvider.onRoom { block() }
 
     @Volatile
     private var startupCleanupDone = false
@@ -235,7 +235,7 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return emptyList()
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             database.chatDao().observeAll().map { it.toModel() }
         }
@@ -246,7 +246,7 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return chats()
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             val main = database.chatDao().mainListPage(limit, 0)
             val archived = database.chatDao().archivePreview(archiveLimit)
@@ -259,7 +259,7 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return 0
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             database.chatDao().mainListCount()
         }
@@ -270,7 +270,7 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return chats().firstOrNull { it.id == chatId }
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             database.chatDao().get(chatId.value)?.toModel()
         }
@@ -281,7 +281,7 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return emptyList()
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             database.folderDao().observeAll().map { it.toModel() }
         }
@@ -330,7 +330,7 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return emptyList()
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             val pending = database.messageDao().pendingForChat(chatId.value).map { it.toModel() }
             val latest =
@@ -345,11 +345,11 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return emptyList()
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             val holes =
                 database.messageHoleDao().forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
-            if (ids.any { id -> holes.any { id in it.startId..it.endId } }) return@withContext emptyList()
+            if (ids.any { id -> holes.any { id in it.startId..it.endId } }) return@onRoom emptyList()
             val rows = database.messageDao().byIds(chatId.value, ids).map { it.toModel() }
             val byId = rows.associateBy { it.id.id }
             ids.mapNotNull { byId[it] }
@@ -365,18 +365,18 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return emptyList()
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             val rows = database.messageDao().olderThan(chatId.value, beforeId, limit)
             if (database.metaDao()
                     .get("history_coverage:${chatId.value}") == null
-            ) return@withContext emptyList()
-            if (rows.isEmpty()) return@withContext emptyList()
+            ) return@onRoom emptyList()
+            if (rows.isEmpty()) return@onRoom emptyList()
             if (database.messageHoleDao().overlaps(
                     chatId.value, rows.minOf { it.id }, beforeId - 1,
                     MessageHoleEntity.SOURCE_HISTORY
                 )
-            ) return@withContext emptyList()
+            ) return@onRoom emptyList()
             rows.map { it.toModel() }
         }
     }
@@ -390,18 +390,18 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return emptyList()
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             val rows = database.messageDao().newerThan(chatId.value, afterId, limit)
             if (database.metaDao()
                     .get("history_coverage:${chatId.value}") == null
-            ) return@withContext emptyList()
-            if (rows.isEmpty()) return@withContext emptyList()
+            ) return@onRoom emptyList()
+            if (rows.isEmpty()) return@onRoom emptyList()
             if (database.messageHoleDao().overlaps(
                     chatId.value, afterId + 1, rows.maxOf { it.id },
                     MessageHoleEntity.SOURCE_HISTORY
                 )
-            ) return@withContext emptyList()
+            ) return@onRoom emptyList()
             rows.map { it.toModel() }
         }
     }
@@ -414,7 +414,7 @@ open class OfflineWarmup(
     ): HistorySlice {
         val database =
             db ?: return HistorySlice(emptyList(), false, emptyList(), false, false, false)
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             val rows = when {
                 beforeId != null -> database.messageDao().olderThan(chatId.value, beforeId, limit)
                 afterId != null -> database.messageDao().newerThan(chatId.value, afterId, limit)
@@ -517,7 +517,7 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             return emptyList()
         }
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             ensureStartupCleanup()
             database.messageDao()
                 .atOrBeforeDate(chatId.value, beforeDate.toLong(), limit)
@@ -546,7 +546,7 @@ open class OfflineWarmup(
     open suspend fun upsertChats(chats: List<Chat>) {
         val database = db ?: return
         if (chats.isEmpty()) return
-        withContext(DatabaseProvider.roomDispatcher) {
+        DatabaseProvider.onRoom {
             database.withTransaction {
                 val stored =
                     database.chatDao().getByIds(chats.map { it.id.value }).associateBy { it.id }
@@ -644,7 +644,7 @@ open class OfflineWarmup(
 
     open suspend fun pruneAheadOfLastMessage(chats: List<Chat>): List<HistoryPrune> {
         val database = db ?: return emptyList()
-        return withContext(DatabaseProvider.roomDispatcher) {
+        return DatabaseProvider.onRoom {
             val out = mutableListOf<HistoryPrune>()
             for (chat in chats) {
                 if (chat.lastMessageId <= 0) continue

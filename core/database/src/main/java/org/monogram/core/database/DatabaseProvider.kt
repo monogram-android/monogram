@@ -7,6 +7,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.ThreadContextElement
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.monogram.core.common.PerfLog
 import java.io.File
@@ -76,6 +77,7 @@ object DatabaseProvider {
 
     /** SQL stays off Dispatchers.IO, which media downloads also use. */
     private val queueLock = Object()
+    private val onRoomThread = ThreadLocal<Boolean>()
     private val foregroundQueue = ArrayDeque<Runnable>()
     private val maintenanceQueue = ArrayDeque<Runnable>()
     private val roomThread = Thread({
@@ -99,9 +101,11 @@ object DatabaseProvider {
         val maintenance = RoomLane.current() == RoomLane.Kind.MAINTENANCE
         val task = Runnable {
             val startedAt = PerfLog.nowMs()
+            onRoomThread.set(true)
             try {
                 PerfLog.withOpId(opId) { runnable.run() }
             } finally {
+                onRoomThread.remove()
                 if (PerfLog.isEnabled()) {
                     PerfLog.withOpId(opId) {
                         PerfLog.event(
@@ -121,6 +125,9 @@ object DatabaseProvider {
     @Suppress("unused")
     private val keepRoomThread = roomThread
     internal val roomDispatcher = roomExecutor.asCoroutineDispatcher()
+
+    internal suspend fun <T> onRoom(block: suspend () -> T): T =
+        if (onRoomThread.get() == true) block() else withContext(roomDispatcher) { block() }
 
     fun roomQueueDepth(): Int = synchronized(queueLock) {
         foregroundQueue.size + maintenanceQueue.size

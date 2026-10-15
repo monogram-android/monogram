@@ -1,4 +1,4 @@
-use crate::HashMap;
+use crate::{HashMap, IndexMap};
 
 use serde::{Deserialize, Serialize};
 use tellers_mtproto::latest::api::{
@@ -64,7 +64,7 @@ pub struct MediaRef {
     pub source_url: Option<String>,
 }
 
-pub type MediaIndex = HashMap<(i64, i32), MediaRef>;
+pub type MediaIndex = IndexMap<(i64, i32), MediaRef>;
 
 /// Avatar `InputPeerPhotoFileLocation` cannot use hash 0 / min.
 /// https://core.telegram.org/api/min
@@ -86,6 +86,10 @@ pub fn fill_zero_peer_photo_hashes(
             }
         }
     }
+}
+
+pub fn inline_payload_missing(media: &MediaRef) -> bool {
+    matches!(media.location, MediaLocation::Inline { ref bytes, .. } if bytes.is_empty())
 }
 
 pub fn peer_photo_needs_hash(media: &MediaRef) -> bool {

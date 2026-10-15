@@ -100,7 +100,7 @@ pub fn get_saved_gifs(
                     width: None,
                     height: None,
                 };
-                media_index.insert((d.id, 0), media);
+                media::insert_media(media_index, (d.id, 0), media);
                 out.push(dto);
             }
             Ok((body.hash, out))

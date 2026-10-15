@@ -46,7 +46,7 @@ fn peer_photo_location_token_tracks_access_hash() {
 
 #[test]
 fn fill_zero_peer_photo_hashes_from_full_peer() {
-    let mut media = MediaIndex::new();
+    let mut media = MediaIndex::default();
     media.insert(
         (-1_000_000_000_042, 0),
         media_ref_peer_photo(

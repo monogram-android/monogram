@@ -1144,6 +1144,7 @@ class BridgedMtprotoClientLifecycleTest {
         discussionPeerId = null,
         replyMarkupJson = null,
         forumTopic = false,
+        senderPhotoCacheKey = null,
     )
 
     private open class RecordingNative : MtprotoNative by MtprotoNative.Stub {

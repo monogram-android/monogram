@@ -177,6 +177,9 @@ pub struct MessageDto {
     /// Compact JSON for reply/inline keyboards. Never log.
     pub reply_markup_json: Option<String>,
     pub forum_topic: bool,
+    /// Avatar already indexed at `(sender_id, 0)` when its key starts with `avatar:`.
+    #[serde(default)]
+    pub sender_photo_cache_key: Option<String>,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]

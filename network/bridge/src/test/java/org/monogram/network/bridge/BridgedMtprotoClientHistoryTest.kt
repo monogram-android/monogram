@@ -700,6 +700,7 @@ class BridgedMtprotoClientHistoryTest {
                     discussionPeerId = null,
                     replyMarkupJson = null,
                     forumTopic = false,
+                    senderPhotoCacheKey = null,
                 ),
             ),
             UpdateEventDto.MessagesDeleted(chatId = 42L, messageIds = listOf(7)),
@@ -988,6 +989,7 @@ class BridgedMtprotoClientHistoryTest {
                     discussionPeerId = null,
                     replyMarkupJson = null,
                     forumTopic = false,
+                    senderPhotoCacheKey = null,
                 ),
             )
         }
@@ -1033,6 +1035,7 @@ class BridgedMtprotoClientHistoryTest {
                     discussionPeerId = null,
                     replyMarkupJson = null,
                     forumTopic = false,
+                    senderPhotoCacheKey = null,
                 ),
             )
         }
@@ -1128,6 +1131,7 @@ class BridgedMtprotoClientHistoryTest {
                     discussionPeerId = null,
                     replyMarkupJson = null,
                     forumTopic = false,
+                        senderPhotoCacheKey = null,
                     ),
                 ),
             )
@@ -1190,6 +1194,7 @@ class BridgedMtprotoClientHistoryTest {
                     discussionPeerId = null,
                     replyMarkupJson = null,
                     forumTopic = false,
+                senderPhotoCacheKey = null,
             )
         }
 
@@ -1240,6 +1245,7 @@ class BridgedMtprotoClientHistoryTest {
                     discussionPeerId = null,
                     replyMarkupJson = null,
                     forumTopic = false,
+                    senderPhotoCacheKey = null,
                 ),
             )
         }

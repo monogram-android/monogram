@@ -55,6 +55,7 @@ fn next_page_uses_last_message_and_rate() {
         discussion_peer_id: None,
         reply_markup_json: None,
         forum_topic: false,
+        sender_photo_cache_key: None,
     };
     let (rate, peer, id) = next_global_page(&[last], 17);
     assert_eq!(rate, 17);

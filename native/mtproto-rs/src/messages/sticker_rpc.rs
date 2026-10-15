@@ -61,7 +61,7 @@ pub fn get_sticker_set(
         if !previews.contains(&d.id) {
             previews.push(d.id);
         }
-        media.insert((d.id, 0), media::media_ref_from_document(d));
+        media::insert_media(media, (d.id, 0), media::media_ref_from_document(d));
     }
     if previews.is_empty() {
         if let Some(id) = set.thumb_document_id {
@@ -133,7 +133,7 @@ pub fn get_stickers(
                 if !document_ids.contains(&d.id) {
                     document_ids.push(d.id);
                 }
-                media.insert((d.id, 0), media::media_ref_from_document(d));
+                media::insert_media(media, (d.id, 0), media::media_ref_from_document(d));
             }
             Ok(StickerListDto {
                 hash: body.hash,

@@ -224,6 +224,7 @@ data class Message(
     val viaBot: String? = null,
     val senderName: String? = null,
     val senderEmojiStatusDocumentId: Long? = null,
+    val senderPhotoCacheKey: String? = null,
     val replyMarkup: ReplyMarkup? = null,
     val checklist: Checklist? = null,
 )

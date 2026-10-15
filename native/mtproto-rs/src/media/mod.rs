@@ -15,6 +15,10 @@ pub(crate) use cdn::*;
 pub(crate) use download::*;
 pub use download::{ProgressCallback, notify_progress, set_progress_callback};
 pub use index::*;
+pub(crate) use index::{
+    bound_media_index, insert_media, persisted_media_entry, session_media_kept,
+    INSTANT_VIEW_CAP, MESSAGE_MEDIA_CAP, PERSISTED_INLINE_BYTE_CAP, ZERO_ID_DOCUMENT_CAP,
+};
 pub use location::*;
 pub(crate) use page_plain::*;
 pub(crate) use structured::*;

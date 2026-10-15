@@ -27,6 +27,7 @@ fn session_file_persists_user_id() {
             peers: Default::default(),
             updates: None,
             media: Default::default(),
+            media_order: Vec::new(),
             channel_pts: Default::default(),
             seen_messages: Default::default(),
             logout_tokens: vec![vec![1, 2, 3]],

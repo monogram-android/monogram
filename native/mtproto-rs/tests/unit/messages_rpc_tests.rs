@@ -199,7 +199,7 @@ fn forward_requires_known_peers() {
     use tellers_mtproto_session::{OsRandom, Snapshot};
     let mut snapshot = Snapshot::new(2, &mut OsRandom).expect("snapshot");
     let peers = HashMap::new();
-    let mut media = crate::media::MediaIndex::new();
+    let mut media = crate::media::MediaIndex::default();
     let err = super::forward_messages(&mut snapshot, 1, &peers, &mut media, 1, vec![7], 2, false)
         .expect_err("unknown from peer");
     match err {

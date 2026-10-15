@@ -47,6 +47,7 @@ internal fun MessageDto.toModel(): Message = Message(
     viaBot = viaBot,
     senderName = senderName,
     senderEmojiStatusDocumentId = senderEmojiStatusDocumentId,
+    senderPhotoCacheKey = senderPhotoCacheKey,
     replyMarkup = ReplyMarkups.parse(replyMarkupJson),
     checklist = if (mediaKind == "todo") Checklists.parse(fileName) else null,
 )

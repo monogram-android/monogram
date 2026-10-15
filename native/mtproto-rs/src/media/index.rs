@@ -291,6 +291,139 @@ pub fn is_resolved_video_avatar(media: &MediaRef) -> bool {
     is_video_avatar(media) && matches!(media.location, MediaLocation::Photo { .. })
 }
 
+pub(crate) const MESSAGE_MEDIA_CAP: usize = 500;
+pub(crate) const ZERO_ID_DOCUMENT_CAP: usize = 200;
+pub(crate) const INSTANT_VIEW_CAP: usize = 32;
+pub(crate) const PERSISTED_INLINE_BYTE_CAP: usize = 4_096;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PersistClass {
+    Avatar,
+    Message,
+    ZeroDocument,
+    Instant,
+}
+
+fn persist_class(key: &(i64, i32), media: &MediaRef) -> PersistClass {
+    // `(id, 0)` is also stickers, GIFs, inline files, and custom emoji.
+    if matches!(media.location, MediaLocation::PeerPhoto { .. }) || is_resolved_video_avatar(media)
+    {
+        return PersistClass::Avatar;
+    }
+    if key.1 == crate::instant_view::INSTANT_VIEW_MEDIA_MSG {
+        return PersistClass::Instant;
+    }
+    if key.1 == 0 {
+        return PersistClass::ZeroDocument;
+    }
+    PersistClass::Message
+}
+
+fn class_cap(class: PersistClass) -> Option<usize> {
+    match class {
+        PersistClass::Avatar => None,
+        PersistClass::Message => Some(MESSAGE_MEDIA_CAP),
+        PersistClass::ZeroDocument => Some(ZERO_ID_DOCUMENT_CAP),
+        PersistClass::Instant => Some(INSTANT_VIEW_CAP),
+    }
+}
+
+fn evict_overflow(index: &mut MediaIndex, class: PersistClass) {
+    let Some(cap) = class_cap(class) else {
+        return;
+    };
+    let count = index
+        .iter()
+        .filter(|(key, media)| persist_class(key, media) == class)
+        .count();
+    if count <= cap {
+        return;
+    }
+    let Some(oldest) = index
+        .iter()
+        .find(|(key, media)| persist_class(key, media) == class)
+        .map(|(key, _)| *key)
+    else {
+        return;
+    };
+    index.shift_remove(&oldest);
+}
+
+pub(crate) fn insert_media(index: &mut MediaIndex, key: (i64, i32), media: MediaRef) {
+    let previous = index.get(&key).map(|existing| persist_class(&key, existing));
+    index.insert(key, media);
+    let Some(stored) = index.get(&key) else {
+        return;
+    };
+    let class = persist_class(&key, stored);
+    if let Some(previous) = previous.filter(|previous| *previous != class) {
+        evict_overflow(index, previous);
+    }
+    evict_overflow(index, class);
+}
+
+pub(crate) fn bound_media_index(index: &mut MediaIndex) {
+    for class in [
+        PersistClass::Message,
+        PersistClass::ZeroDocument,
+        PersistClass::Instant,
+    ] {
+        let Some(cap) = class_cap(class) else {
+            continue;
+        };
+        let keys: Vec<_> = index
+            .iter()
+            .filter(|(key, media)| persist_class(key, media) == class)
+            .map(|(key, _)| *key)
+            .collect();
+        let overflow = keys.len().saturating_sub(cap);
+        if overflow == 0 {
+            continue;
+        }
+        let drop_keys: crate::HashSet<(i64, i32)> = keys.into_iter().take(overflow).collect();
+        let mut kept = MediaIndex::with_capacity_and_hasher(
+            index.len() - drop_keys.len(),
+            Default::default(),
+        );
+        for (key, value) in std::mem::take(index) {
+            if !drop_keys.contains(&key) {
+                kept.insert(key, value);
+            }
+        }
+        *index = kept;
+    }
+}
+
+pub(crate) fn session_media_kept(message_id: i32, media: &MediaRef) -> bool {
+    message_id != crate::instant_view::INSTANT_VIEW_MEDIA_MSG || media.source_url.is_some()
+}
+
+/// Keep instant-view `source_url` without storing large inline preview bytes.
+pub(crate) fn persisted_media_entry(message_id: i32, media: &MediaRef) -> Option<MediaRef> {
+    if !session_media_kept(message_id, media) {
+        return None;
+    }
+    let mut copy = media.clone();
+    if message_id == crate::instant_view::INSTANT_VIEW_MEDIA_MSG {
+        strip_large_inline(&mut copy.location);
+        if let Some(location) = copy.thumb_location.as_mut() {
+            strip_large_inline(location);
+        }
+        if let Some(location) = copy.display_location.as_mut() {
+            strip_large_inline(location);
+        }
+    }
+    Some(copy)
+}
+
+fn strip_large_inline(location: &mut MediaLocation) {
+    if let MediaLocation::Inline { bytes, .. } = location {
+        if bytes.len() > PERSISTED_INLINE_BYTE_CAP {
+            bytes.clear();
+        }
+    }
+}
+
 pub fn needs_video_avatar_upgrade(media: &MediaRef) -> bool {
     is_video_avatar(media) && matches!(media.location, MediaLocation::PeerPhoto { .. })
 }
@@ -316,7 +449,7 @@ pub fn index_avatar(media: &mut MediaIndex, chat_id: i64, incoming: MediaRef) ->
         }
     }
     let cache_key = incoming.cache_key.clone();
-    media.insert(key, incoming);
+    insert_media(media, key, incoming);
     cache_key
 }
 
@@ -737,7 +870,7 @@ pub fn index_message_media(msg: &Message, index: &mut MediaIndex) -> IndexedMess
         file_size: metrics.file_size,
         supports_streaming: metrics.supports_streaming,
     };
-    index.insert((chat_id, m.id), media_ref);
+    insert_media(index, (chat_id, m.id), media_ref);
     indexed
 }
 
@@ -775,7 +908,7 @@ pub(crate) fn index_first_rich_photo(
             file_size: metrics.file_size,
             supports_streaming: false,
         };
-        index.insert((chat_id, message_id), media_ref);
+        insert_media(index, (chat_id, message_id), media_ref);
         return indexed;
     }
     IndexedMessageMedia::default()

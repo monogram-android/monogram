@@ -47,6 +47,7 @@ import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.feature.auth.AuthComponent
 import org.monogram.feature.chats.ChatsComponent
 import org.monogram.feature.dialog.DialogComponent
+import org.monogram.feature.dialog.SelectedTargetWarmup
 import org.monogram.feature.folders.FoldersComponent
 import org.monogram.feature.profile.ProfileComponent
 import org.monogram.feature.settings.AppUpdateController
@@ -77,7 +78,7 @@ class RootComponent(
 ) : ComponentContext by componentContext {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val targetWarmup = org.monogram.feature.dialog.SelectedTargetWarmup(
+    private val targetWarmup = SelectedTargetWarmup(
         scope = scope,
         tablet = {
             getSystem().configuration.smallestScreenWidthDp >= 600

@@ -281,6 +281,7 @@ fn old_session_files_without_a_journal_still_load() {
         peers: Default::default(),
         updates: None,
         media: Default::default(),
+        media_order: Vec::new(),
         channel_pts: Default::default(),
         channel_recovery: Default::default(),
         seen_messages: Default::default(),

@@ -7,7 +7,9 @@ use std::sync::{Arc, LazyLock};
 use parking_lot::Mutex;
 
 use crate::MtprotoError;
-use crate::session_file::{ClientSession, FileSessionStore, media_from_index};
+use crate::session_file::{
+    ClientSession, FileSessionStore, media_from_index, media_order_from_index,
+};
 use crate::tcp;
 
 use super::*;
@@ -88,17 +90,19 @@ fn live_journal(path: &Path) -> Option<crate::update_journal::UpdateJournal> {
     None
 }
 
-pub(crate) fn persist(state: &ClientState) -> Result<(), MtprotoError> {
+pub(crate) fn persist(state: &mut ClientState) -> Result<(), MtprotoError> {
     // Extra-lane snapshot_id must never replace the main session on disk.
     if EXTRA_READ_LANE.with(Cell::get) {
         return Ok(());
     }
+    crate::media::bound_media_index(&mut state.media);
     let session = ClientSession {
         snapshot: durable_snapshot(state),
         user_id: state.user_id,
         peers: state.peers.clone(),
         updates: state.updates.clone(),
         media: media_from_index(&state.media),
+        media_order: media_order_from_index(&state.media),
         channel_pts: state.channel_pts.clone(),
         channel_recovery: state.channel_recovery.clone(),
         seen_messages: state.seen_messages.clone(),
@@ -132,10 +136,11 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<b
     // whole save.
     let (path, session, journal, epoch, generation) = {
         let main = client.main.lock();
-        let d = client.data.lock();
+        let mut d = client.data.lock();
         if !session_lease_valid(&d, session_id) {
             return Err(expired_session_lease());
         }
+        crate::media::bound_media_index(&mut d.media);
         let mut snapshot = main.snapshot.clone();
         if main.temp_expires_at > crate::auth::bind_temp::unix_now() {
             if let Some(key) = d.home_auth_key.clone() {
@@ -150,6 +155,7 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<b
             peers: d.peers.clone(),
             updates: d.updates.clone(),
             media: media_from_index(&d.media),
+            media_order: media_order_from_index(&d.media),
             channel_pts: d.channel_pts.clone(),
             channel_recovery: d.channel_recovery.clone(),
             seen_messages: d.seen_messages.clone(),

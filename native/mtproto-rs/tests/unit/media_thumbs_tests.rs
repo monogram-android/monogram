@@ -411,7 +411,7 @@ fn profile_video_sizes_index_as_video_avatar() {
 
 #[test]
 fn resolved_video_avatar_survives_still_peer_photo() {
-    let mut media = MediaIndex::new();
+    let mut media = MediaIndex::default();
     let video = MediaRef {
         file_size: None,
         kind: "video_avatar".into(),

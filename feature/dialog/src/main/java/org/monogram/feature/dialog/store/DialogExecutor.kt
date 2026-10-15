@@ -1007,14 +1007,21 @@ internal class DialogExecutor(
         messages.forEach { message ->
             if (message.outgoing) return@forEach
             val senderId = message.senderId ?: return@forEach
-            if (senderId in state().senders || senderId in resolved) return@forEach
+            val messageKey = message.senderPhotoCacheKey?.takeIf { it.isNotBlank() }
+            val existing = resolved[senderId]
+            if (senderId in state().senders || existing != null) {
+                if (existing != null && existing.avatarCacheKey.isNullOrBlank() && messageKey != null) {
+                    resolved[senderId] = existing.copy(avatarCacheKey = messageKey)
+                }
+                return@forEach
+            }
             val cached = withContext(Dispatchers.IO) {
                 sessionStore?.readProfile(senderId.value)
             }
             val title = cached?.title?.takeIf { it.isNotBlank() }
                 ?: message.senderName?.takeIf { it.isNotBlank() }
                 ?: return@forEach
-            resolved[senderId] = (cached ?: Profile(
+            val profile = (cached ?: Profile(
                 id = senderId,
                 kind = "user",
                 title = title,
@@ -1023,6 +1030,11 @@ internal class DialogExecutor(
                 emojiStatusDocumentId = cached?.emojiStatusDocumentId
                     ?: message.senderEmojiStatusDocumentId,
             )
+            resolved[senderId] = if (profile.avatarCacheKey.isNullOrBlank() && messageKey != null) {
+                profile.copy(avatarCacheKey = messageKey)
+            } else {
+                profile
+            }
         }
         if (resolved.isNotEmpty()) {
             dispatch(Msg.Senders(resolved))

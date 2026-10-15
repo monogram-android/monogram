@@ -997,6 +997,7 @@ internal object UniffiLib {
         uniffiCallbackInterfaceDownloadProgressListener.register(this)
 
     }
+
     external fun uniffi_monogram_mtproto_fn_init_callback_vtable_downloadprogresslistener(
         `vtable`: UniffiVTableCallbackInterfaceDownloadProgressListener,
     )
@@ -1237,6 +1238,7 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_pending_update_batches(
         `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+
     external fun uniffi_monogram_mtproto_fn_func_perf_set_enabled(
         `enabled`: Byte, uniffi_out_err: UniffiRustCallStatus,
     )
@@ -3680,7 +3682,11 @@ data class MessageDto (
      */
     var `replyMarkupJson`: String?
     ,
-    var `forumTopic`: Boolean
+    var `forumTopic`: Boolean,
+    /**
+     * Avatar already indexed at `(sender_id, 0)` when its key starts with `avatar:`.
+     */
+    var `senderPhotoCacheKey`: String?
 
 ){
 
@@ -3730,6 +3736,7 @@ object FfiConverterTypeMessageDto : FfiConverterRustBuffer<MessageDto> {
             FfiConverterOptionalLong.read(buf),
             FfiConverterOptionalString.read(buf),
             FfiConverterBoolean.read(buf),
+            FfiConverterOptionalString.read(buf),
         )
     }
 
@@ -3766,7 +3773,8 @@ object FfiConverterTypeMessageDto : FfiConverterRustBuffer<MessageDto> {
             FfiConverterInt.allocationSize(value.`repliesCount`) +
             FfiConverterOptionalLong.allocationSize(value.`discussionPeerId`) +
             FfiConverterOptionalString.allocationSize(value.`replyMarkupJson`) +
-            FfiConverterBoolean.allocationSize(value.`forumTopic`)
+                    FfiConverterBoolean.allocationSize(value.`forumTopic`) +
+                    FfiConverterOptionalString.allocationSize(value.`senderPhotoCacheKey`)
     )
 
     override fun write(value: MessageDto, buf: ByteBuffer) {
@@ -3803,6 +3811,7 @@ object FfiConverterTypeMessageDto : FfiConverterRustBuffer<MessageDto> {
             FfiConverterOptionalLong.write(value.`discussionPeerId`, buf)
             FfiConverterOptionalString.write(value.`replyMarkupJson`, buf)
             FfiConverterBoolean.write(value.`forumTopic`, buf)
+        FfiConverterOptionalString.write(value.`senderPhotoCacheKey`, buf)
     }
 }
 

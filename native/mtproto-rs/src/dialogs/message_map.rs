@@ -139,6 +139,10 @@ pub(crate) fn message_to_dto_named(
                 .1,
                 reply_markup_json: crate::reply_markup::to_json(m.reply_markup.as_deref()),
                 forum_topic,
+                sender_photo_cache_key: sender_photo_cache_key(
+                    media_index,
+                    m.from_id.as_ref().map(|peer| peer_chat_id(peer)),
+                ),
             })
         }
         Message::MessageService(m) => {
@@ -186,10 +190,18 @@ pub(crate) fn message_to_dto_named(
                 discussion_peer_id: None,
                 reply_markup_json: None,
                 forum_topic,
+                sender_photo_cache_key: sender_photo_cache_key(media_index, sender_id),
             })
         }
         _ => None,
     }
+}
+
+/// `(id, 0)` also stores stickers, GIFs, and documents. Only `avatar:` keys are sender photos.
+fn sender_photo_cache_key(media_index: &MediaIndex, sender_id: Option<i64>) -> Option<String> {
+    let sender_id = sender_id?;
+    let key = media_index.get(&(sender_id, 0))?.cache_key.as_str();
+    key.starts_with("avatar:").then(|| key.to_string())
 }
 
 pub(crate) fn reply_meta(

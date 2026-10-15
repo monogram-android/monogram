@@ -6,7 +6,7 @@ use tellers_mtproto_session::{OsRandom, Snapshot};
 fn unknown_peer_fails_before_rpc() {
     let mut snapshot = Snapshot::new(2, &mut OsRandom).expect("snapshot");
     let mut peers = HashMap::new();
-    let mut media = crate::media::MediaIndex::new();
+    let mut media = crate::media::MediaIndex::default();
     let err = get_history(
         &mut snapshot,
         1,
@@ -84,7 +84,7 @@ fn get_messages_request_encodes_input_message_id() {
 fn refresh_message_media_unknown_peer_fails_before_rpc() {
     let mut snapshot = Snapshot::new(2, &mut OsRandom).expect("snapshot");
     let peers = HashMap::new();
-    let mut media = crate::media::MediaIndex::new();
+    let mut media = crate::media::MediaIndex::default();
     let err = refresh_message_media(&mut snapshot, 1, &peers, &mut media, 42, 7)
         .expect_err("unknown peer");
     match err {

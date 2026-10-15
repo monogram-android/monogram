@@ -1,4 +1,4 @@
-use super::{fill_missing_reply_quotes, fwd_from_label, reply_meta, via_bot_label};
+use super::{fill_missing_reply_quotes, fwd_from_label, message_to_dto, reply_meta, via_bot_label};
 use crate::MessageDto;
 use crate::{HashMap, HashMapExt};
 use tellers_mtproto::latest::api::{
@@ -41,6 +41,7 @@ fn dto(id: i32, text: &str, reply_to: Option<i32>, quote: Option<&str>) -> Messa
         discussion_peer_id: None,
         reply_markup_json: None,
         forum_topic: false,
+        sender_photo_cache_key: None,
     }
 }
 
@@ -156,4 +157,147 @@ fn entity_json_roundtrip_shape() {
     assert!(payload.contains("\"kind\":\"bold\""));
     assert!(payload.contains("\"offset\":0"));
     assert!(payload.contains("\"length\":4"));
+}
+
+fn photo_slot(cache_key: &str) -> crate::media::MediaRef {
+    crate::media::MediaRef {
+        file_size: None,
+        kind: "photo".into(),
+        cache_key: cache_key.into(),
+        location: crate::media::MediaLocation::Inline {
+            bytes: Vec::new(),
+            extension: "jpg".into(),
+        },
+        thumb_cache_key: None,
+        thumb_location: None,
+        display_cache_key: None,
+        display_location: None,
+        sticker_set_id: None,
+        sticker_set_access_hash: None,
+        source_url: None,
+    }
+}
+
+fn text_message(sender_id: i64, id: i32) -> tellers_mtproto::latest::api::Message {
+    use tellers_mtproto::latest::api::{
+        Message, MessageConstructor, Peer, PeerChatConstructor, PeerUserConstructor,
+    };
+    Message::Message(MessageConstructor {
+        flags: 0,
+        out: None,
+        mentioned: None,
+        media_unread: None,
+        silent: None,
+        post: None,
+        from_scheduled: None,
+        legacy: None,
+        edit_hide: None,
+        pinned: None,
+        noforwards: None,
+        invert_media: None,
+        flags2: 0,
+        offline: None,
+        video_processing_pending: None,
+        paid_suggested_post_stars: None,
+        paid_suggested_post_ton: None,
+        id,
+        from_id: Some(Box::new(Peer::PeerUser(PeerUserConstructor {
+            user_id: sender_id,
+        }))),
+        from_boosts_applied: None,
+        from_rank: None,
+        peer_id: Box::new(Peer::PeerChat(PeerChatConstructor { chat_id: 3 })),
+        saved_peer_id: None,
+        fwd_from: None,
+        via_bot_id: None,
+        via_business_bot_id: None,
+        guestchat_via_from: None,
+        reply_to: None,
+        date: 1,
+        message: "hi".into(),
+        media: None,
+        reply_markup: None,
+        entities: None,
+        views: None,
+        forwards: None,
+        replies: None,
+        edit_date: None,
+        post_author: None,
+        grouped_id: None,
+        reactions: None,
+        restriction_reason: None,
+        ttl_period: None,
+        quick_reply_shortcut_id: None,
+        effect: None,
+        factcheck: None,
+        report_delivery_until_date: None,
+        paid_message_stars: None,
+        suggested_post: None,
+        schedule_repeat_period: None,
+        summary_from_language: None,
+        rich_message: None,
+    })
+}
+
+fn service_message(sender_id: i64, id: i32) -> tellers_mtproto::latest::api::Message {
+    use tellers_mtproto::latest::api::{
+        Message, MessageAction, MessageActionHistoryClearConstructor, MessageServiceConstructor,
+        Peer, PeerChatConstructor, PeerUserConstructor,
+    };
+    Message::MessageService(MessageServiceConstructor {
+        flags: 0,
+        out: None,
+        mentioned: None,
+        media_unread: None,
+        reactions_are_possible: None,
+        silent: None,
+        post: None,
+        legacy: None,
+        id,
+        from_id: Some(Box::new(Peer::PeerUser(PeerUserConstructor {
+            user_id: sender_id,
+        }))),
+        peer_id: Box::new(Peer::PeerChat(PeerChatConstructor { chat_id: 3 })),
+        saved_peer_id: None,
+        reply_to: None,
+        date: 1,
+        action: Box::new(MessageAction::MessageActionHistoryClear(
+            MessageActionHistoryClearConstructor {},
+        )),
+        reactions: None,
+        ttl_period: None,
+    })
+}
+
+#[test]
+fn sender_photo_cache_key_defaults_and_copies_avatar_slots_only() {
+    let mut value = serde_json::to_value(dto(1, "hi", None, None)).expect("json");
+    value
+        .as_object_mut()
+        .expect("object")
+        .remove("sender_photo_cache_key");
+    let parsed: MessageDto = serde_json::from_value(value).expect("old json");
+    assert!(parsed.sender_photo_cache_key.is_none());
+
+    let mut media = crate::media::MediaIndex::default();
+    media.insert((7, 0), photo_slot("avatar:7"));
+    let mapped = message_to_dto(&text_message(7, 3), &mut media).expect("text");
+    assert_eq!(mapped.sender_photo_cache_key.as_deref(), Some("avatar:7"));
+
+    media.insert((8, 0), photo_slot("avatar:8:video"));
+    let video = message_to_dto(&text_message(8, 4), &mut media).expect("video");
+    assert_eq!(
+        video.sender_photo_cache_key.as_deref(),
+        Some("avatar:8:video")
+    );
+
+    media.insert((9, 0), photo_slot("doc:9"));
+    let document = message_to_dto(&text_message(9, 5), &mut media).expect("doc");
+    assert!(document.sender_photo_cache_key.is_none());
+
+    let service = message_to_dto(&service_message(7, 6), &mut media).expect("service");
+    assert_eq!(
+        service.sender_photo_cache_key.as_deref(),
+        Some("avatar:7")
+    );
 }

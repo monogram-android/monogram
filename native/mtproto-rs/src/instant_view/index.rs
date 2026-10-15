@@ -30,7 +30,7 @@ pub(crate) fn index_page_media<'a>(
         let cache_key = format!("photo:{id}");
         if let Some(mut indexed) = media::media_ref_from_photo_with_thumbs(photo, cache_key) {
             indexed.source_url = Some(page_url.to_string());
-            media.insert((id, INSTANT_VIEW_MEDIA_MSG), indexed);
+            media::insert_media(media, (id, INSTANT_VIEW_MEDIA_MSG), indexed);
         }
     }
     for document in documents {
@@ -39,7 +39,7 @@ pub(crate) fn index_page_media<'a>(
         };
         let mut indexed = media::media_ref_from_document(d);
         indexed.source_url = Some(page_url.to_string());
-        media.insert((d.id, INSTANT_VIEW_MEDIA_MSG), indexed);
+        media::insert_media(media, (d.id, INSTANT_VIEW_MEDIA_MSG), indexed);
     }
 }
 
@@ -150,7 +150,8 @@ pub(crate) fn index_one_map(
         },
     )?;
     let UploadWebFile::UploadWebFile(file) = response;
-    media.insert(
+    media::insert_media(
+        media,
         (geo.access_hash, INSTANT_VIEW_MEDIA_MSG),
         MediaRef {
             file_size: None,

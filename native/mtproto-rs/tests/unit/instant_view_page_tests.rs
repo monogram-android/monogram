@@ -21,7 +21,7 @@ fn not_modified_reuses_requested_hash() {
                 cached_page_views: None,
             },
         ),
-        &mut MediaIndex::new(),
+        &mut MediaIndex::default(),
         42,
     );
     assert!(dto.not_modified);
@@ -54,7 +54,7 @@ fn web_page_without_cached_page_has_no_iv() {
         cached_page: None,
         attributes: None,
     });
-    let dto = map_messages_web_page(&page, &mut MediaIndex::new(), 0);
+    let dto = map_messages_web_page(&page, &mut MediaIndex::default(), 0);
     assert!(!dto.has_instant_view);
     assert_eq!(dto.hash, 9);
     assert_eq!(dto.url, "https://example.com");
@@ -99,7 +99,7 @@ fn cached_page_part_flag_is_preserved() {
         cached_page: Some(Box::new(cached)),
         attributes: None,
     });
-    let dto = map_messages_web_page(&page, &mut MediaIndex::new(), 0);
+    let dto = map_messages_web_page(&page, &mut MediaIndex::default(), 0);
     assert!(dto.has_instant_view);
     assert!(dto.part);
     assert_eq!(dto.hash, 4);
@@ -174,7 +174,7 @@ fn cached_page_indexes_photo_and_maps_paragraph() {
         cached_page: Some(Box::new(cached)),
         attributes: None,
     });
-    let mut media = MediaIndex::new();
+    let mut media = MediaIndex::default();
     let dto = map_messages_web_page(&page, &mut media, 0);
     assert!(dto.has_instant_view);
     assert!(media.contains_key(&(77, INSTANT_VIEW_MEDIA_MSG)));
@@ -263,7 +263,7 @@ fn webpage_cover_photo_is_indexed_for_article_blocks() {
         cached_page: Some(Box::new(cached)),
         attributes: None,
     });
-    let mut media = MediaIndex::new();
+    let mut media = MediaIndex::default();
     let dto = map_messages_web_page(&page, &mut media, 0);
     assert!(media.contains_key(&(88, INSTANT_VIEW_MEDIA_MSG)));
     assert_eq!(

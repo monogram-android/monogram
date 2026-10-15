@@ -68,7 +68,7 @@ fn begin_updates_preserves_the_unapplied_cursor_in_persistence() {
         user_id: None,
         peers: HashMap::new(),
         updates: None,
-        media: MediaIndex::new(),
+        media: MediaIndex::default(),
         updates_started: false,
         channel_pts: HashMap::new(),
         channel_recovery: VecDeque::new(),
@@ -87,7 +87,7 @@ fn begin_updates_preserves_the_unapplied_cursor_in_persistence() {
     };
 
     begin_updates(&mut state);
-    persist(&state).expect("persist start marker");
+    persist(&mut state).expect("persist start marker");
     let restored = FileSessionStore::new(&path)
         .load()
         .expect("load start marker")

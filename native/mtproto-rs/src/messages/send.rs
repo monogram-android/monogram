@@ -87,6 +87,7 @@ pub(crate) fn message_from_updates(
             discussion_peer_id: None,
             reply_markup_json: None,
             forum_topic: false,
+            sender_photo_cache_key: None,
         }),
         Updates::UpdateShortMessage(m) => Some(MessageDto {
             chat_id,
@@ -126,6 +127,7 @@ pub(crate) fn message_from_updates(
             discussion_peer_id: None,
             reply_markup_json: None,
             forum_topic: false,
+            sender_photo_cache_key: None,
         }),
         Updates::UpdateShortChatMessage(m) => Some(MessageDto {
             chat_id,
@@ -165,6 +167,7 @@ pub(crate) fn message_from_updates(
             discussion_peer_id: None,
             reply_markup_json: None,
             forum_topic: false,
+            sender_photo_cache_key: None,
         }),
         _ => None,
     }
@@ -202,6 +205,7 @@ pub(crate) fn message_from_updates(
         discussion_peer_id: None,
         reply_markup_json: None,
         forum_topic: false,
+        sender_photo_cache_key: None,
     })
 }
 
@@ -613,6 +617,7 @@ pub(crate) fn first_new_from_short(updates: Updates, chat_id: i64) -> Option<Mes
             discussion_peer_id: None,
             reply_markup_json: None,
             forum_topic: false,
+            sender_photo_cache_key: None,
         }),
         _ => None,
     }

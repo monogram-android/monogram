@@ -48,7 +48,7 @@ mod session_tests;
 #[path = "../../tests/unit/transfer_policy_tests.rs"]
 mod transfer_policy_tests;
 
-use crate::{HashMap, HashMapExt, HashSet, HashSetExt};
+use crate::{HashMap, HashMapExt, HashSet, HashSetExt, IndexMap};
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -198,25 +198,82 @@ pub(crate) fn prefer_newer_cursor(
 
 // Commit only this lane's changes. An unchanged cloned entry must never
 // overwrite data fetched by another lane while this lane was on the network.
-pub(crate) fn merge_changed_entries<K: Eq + std::hash::Hash, V: PartialEq>(
-    current: &mut HashMap<K, V>,
-    before: &HashMap<K, V>,
-    incoming: HashMap<K, V>,
-) -> bool {
+pub(crate) trait MergeMap<K, V> {
+    fn contains_key(&self, key: &K) -> bool;
+    fn get(&self, key: &K) -> Option<&V>;
+    fn insert(&mut self, key: K, value: V) -> Option<V>;
+    fn retain(&mut self, f: &mut dyn FnMut(&K, &mut V) -> bool);
+    fn for_each_entry(self, f: &mut dyn FnMut(K, V));
+}
+
+impl<K, V> MergeMap<K, V> for HashMap<K, V>
+where
+    K: Eq + std::hash::Hash,
+{
+    fn contains_key(&self, key: &K) -> bool {
+        HashMap::contains_key(self, key)
+    }
+    fn get(&self, key: &K) -> Option<&V> {
+        HashMap::get(self, key)
+    }
+    fn insert(&mut self, key: K, value: V) -> Option<V> {
+        HashMap::insert(self, key, value)
+    }
+    fn retain(&mut self, f: &mut dyn FnMut(&K, &mut V) -> bool) {
+        HashMap::retain(self, |key, value| f(key, value));
+    }
+    fn for_each_entry(self, f: &mut dyn FnMut(K, V)) {
+        for (key, value) in self {
+            f(key, value);
+        }
+    }
+}
+
+impl<K, V> MergeMap<K, V> for IndexMap<K, V>
+where
+    K: Eq + std::hash::Hash,
+{
+    fn contains_key(&self, key: &K) -> bool {
+        IndexMap::contains_key(self, key)
+    }
+    fn get(&self, key: &K) -> Option<&V> {
+        IndexMap::get(self, key)
+    }
+    fn insert(&mut self, key: K, value: V) -> Option<V> {
+        IndexMap::insert(self, key, value)
+    }
+    fn retain(&mut self, f: &mut dyn FnMut(&K, &mut V) -> bool) {
+        IndexMap::retain(self, |key, value| f(key, value));
+    }
+    fn for_each_entry(self, f: &mut dyn FnMut(K, V)) {
+        for (key, value) in self {
+            f(key, value);
+        }
+    }
+}
+
+// Commit only this lane's changes. An unchanged cloned entry must never
+// overwrite data fetched by another lane while this lane was on the network.
+pub(crate) fn merge_changed_entries<K, V, M>(current: &mut M, before: &M, incoming: M) -> bool
+where
+    K: Eq + std::hash::Hash,
+    V: PartialEq,
+    M: MergeMap<K, V>,
+{
     let mut changed = false;
-    current.retain(|key, value| {
+    current.retain(&mut |key, value| {
         let keep = incoming.contains_key(key) || before.get(key) != Some(value);
         if !keep {
             changed = true;
         }
         keep
     });
-    for (key, value) in incoming {
+    incoming.for_each_entry(&mut |key, value| {
         if before.get(&key) != Some(&value) && current.get(&key) == before.get(&key) {
             current.insert(key, value);
             changed = true;
         }
-    }
+    });
     changed
 }
 
@@ -266,7 +323,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
             session.user_id,
             session.peers,
             session.updates,
-            media_to_index(&session.media),
+            media_to_index(&session.media, &session.media_order),
             session.channel_pts,
             session.seen_messages,
             session.logout_tokens,
@@ -281,7 +338,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
             None,
             HashMap::new(),
             None,
-            MediaIndex::new(),
+            MediaIndex::default(),
             HashMap::new(),
             HashSet::new(),
             Vec::new(),

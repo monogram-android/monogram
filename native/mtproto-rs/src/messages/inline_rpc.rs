@@ -278,7 +278,7 @@ fn map_inline_result(item: &BotInlineResult, media: &mut MediaIndex) -> InlineBo
                         .thumb_cache_key
                         .clone()
                         .or_else(|| Some(indexed.cache_key.clone()));
-                    media.insert((d.id, 0), indexed);
+                    media::insert_media(media, (d.id, 0), indexed);
                 }
             } else if let Some(photo) = body.photo.as_ref() {
                 if let Photo::Photo(p) = photo.as_ref() {
@@ -290,7 +290,7 @@ fn map_inline_result(item: &BotInlineResult, media: &mut MediaIndex) -> InlineBo
                             .thumb_cache_key
                             .clone()
                             .or_else(|| Some(indexed.cache_key.clone()));
-                        media.insert((p.id, 0), indexed);
+                        media::insert_media(media, (p.id, 0), indexed);
                     }
                 }
             }

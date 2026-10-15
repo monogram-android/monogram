@@ -128,7 +128,7 @@ fn chat_dialog(chat_id: i64) -> Dialog {
 #[test]
 fn left_dialogs_are_kept_so_room_can_hide_them() {
     let mut peers = HashMap::new();
-    let mut media = crate::media::MediaIndex::new();
+    let mut media = crate::media::MediaIndex::default();
     let mut channel_pts = HashMap::new();
     let out = map_peer_dialogs(
         &mut peers,
@@ -152,7 +152,7 @@ fn left_dialogs_are_kept_so_room_can_hide_them() {
 #[test]
 fn unknown_peer_dialogs_are_dropped() {
     let mut peers = HashMap::new();
-    let mut media = crate::media::MediaIndex::new();
+    let mut media = crate::media::MediaIndex::default();
     let mut channel_pts = HashMap::new();
     let out = map_peer_dialogs(
         &mut peers,

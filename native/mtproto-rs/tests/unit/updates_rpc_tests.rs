@@ -38,7 +38,7 @@ fn discussion_receipt_preserves_thread_and_read_boundary() {
     let mut events = Vec::new();
     collect_other_updates(
         std::iter::once(&update),
-        &mut MediaIndex::new(),
+        &mut MediaIndex::default(),
         &mut Vec::new(),
         &mut events,
     );
@@ -76,7 +76,7 @@ fn reaction_snapshot_requests_one_authoritative_dialog_refresh_even_when_empty()
     let mut events = Vec::new();
     collect_other_updates(
         std::iter::repeat(&update).take(2),
-        &mut MediaIndex::new(),
+        &mut MediaIndex::default(),
         &mut Vec::new(),
         &mut events,
     );
@@ -129,7 +129,7 @@ fn remote_message_contents_reads_request_authoritative_dialog_refresh() {
     let mut events = Vec::new();
     collect_other_updates(
         [&regular, &channel].into_iter(),
-        &mut MediaIndex::new(),
+        &mut MediaIndex::default(),
         &mut Vec::new(),
         &mut events,
     );
@@ -147,7 +147,7 @@ fn update_message_id_emits_random_mapping() {
     let mut events = Vec::new();
     collect_other_updates(
         std::iter::once(&update),
-        &mut MediaIndex::new(),
+        &mut MediaIndex::default(),
         &mut Vec::new(),
         &mut events,
     );
@@ -209,7 +209,7 @@ fn apply(bytes: &[u8], cursor: &mut UpdatesStateDto) -> Result<Vec<UpdateEventDt
     apply_push(
         bytes,
         &mut HashMap::new(),
-        &mut HashMap::new(),
+        &mut MediaIndex::default(),
         cursor,
         &mut HashMap::new(),
         &mut Vec::new(),
@@ -313,7 +313,7 @@ fn push_channel_gaps_defer_channel_but_apply_common_updates() {
     let events = apply_push(
         &packet(4, vec![delete(11), update]),
         &mut HashMap::new(),
-        &mut HashMap::new(),
+        &mut MediaIndex::default(),
         &mut state,
         &mut channels,
         &mut pending,
@@ -343,7 +343,7 @@ fn push_channel_too_long_and_malformed_payload() {
     apply_push(
         &bytes,
         &mut HashMap::new(),
-        &mut HashMap::new(),
+        &mut MediaIndex::default(),
         &mut state,
         &mut HashMap::new(),
         &mut pending,

@@ -9,6 +9,7 @@ import kotlinx.coroutines.yield
 import org.monogram.core.common.PerfLog
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
+import org.monogram.core.ui.DownloadSettings
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 
@@ -21,9 +22,37 @@ class DialogMediaPreloader(
     private var mediaJob: Job? = null
     private var ivJob: Job? = null
     private var lastSignature: String? = null
+    private var previousVisibleId: Int? = null
 
     fun onVisible(messages: List<Message>, visibleIds: Set<Int>) {
-        val plan = DialogMediaPreload.plan(messages, visibleIds)
+        if (visibleIds.isEmpty()) {
+            previousVisibleId = null
+            lastSignature = null
+            mediaJob?.cancel()
+            ivJob?.cancel()
+            mediaJob = null
+            ivJob = null
+            mediaRepository?.protectCacheKeys("dialog:${chatId.value}", emptySet())
+            mediaRepository?.cancelChat(chatId, belowPriority = MediaPriority.VISIBLE)
+            return
+        }
+        val settings = DownloadSettings.state.value
+        val visibleIndex = messages.indexOfFirst { it.id.id in visibleIds }.takeIf { it >= 0 }
+        val previousIndex = previousVisibleId?.let { id ->
+            messages.indexOfFirst { it.id.id == id }.takeIf { it >= 0 }
+        }
+        val direction = if (visibleIndex != null && previousIndex != null) {
+            visibleIndex.compareTo(previousIndex)
+        } else 0
+        previousVisibleId = visibleIndex?.let { messages[it].id.id }
+        val plan = DialogMediaPreload.plan(
+            messages,
+            visibleIds,
+            autoplayVideos = settings.autoplayVideos,
+            autoplayGifs = settings.autoplayGifs,
+            scrollDirection = direction,
+        )
+        mediaRepository?.protectCacheKeys("dialog:${chatId.value}", plan.mediaKeys)
         val signature = plan.signature()
         if (signature == lastSignature) return
         lastSignature = signature
@@ -54,11 +83,13 @@ class DialogMediaPreloader(
     }
 
     fun close() {
+        previousVisibleId = null
         lastSignature = null
         mediaJob?.cancel()
         ivJob?.cancel()
         mediaJob = null
         ivJob = null
+        mediaRepository?.protectCacheKeys("dialog:${chatId.value}", emptySet())
         mediaRepository?.cancelChat(chatId, belowPriority = MediaPriority.USER)
     }
 
@@ -68,10 +99,16 @@ class DialogMediaPreloader(
                 if (repository?.inlineThumbJpeg(task.message) != null) return
                 repository?.ensureLocalMessageThumb(task.message, task.priority)
             }
+
             DialogMediaPreload.Fetch.Display ->
                 repository?.ensureLocalMessageDisplay(task.message, task.priority)
+
             DialogMediaPreload.Fetch.Full ->
                 repository?.ensureLocalMessageMedia(task.message, task.priority)
+
+            DialogMediaPreload.Fetch.Prefix ->
+                repository?.ensureStreamingPrefix(task.message, task.priority)
         }
     }
+
 }

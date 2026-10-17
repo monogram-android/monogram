@@ -5,16 +5,16 @@ import org.monogram.core.models.Folder
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.ForumTopicsPage
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.isForcedVerifiedChat
 import uniffi.monogram_mtproto.ChatDto
 import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.ForumTopicDto
 import uniffi.monogram_mtproto.ForumTopicsPageDto
-import org.monogram.core.models.isForcedVerifiedChat
 
-internal fun List<ChatDto>.toChatModels(): List<Chat> {
+internal fun List<ChatDto>.toChatModels(assignPinOrder: Boolean = true): List<Chat> {
     var pin = 0
     return map { dto ->
-        dto.toModel(pinnedOrder = if (dto.pinned) pin++ else Int.MAX_VALUE)
+        dto.toModel(pinnedOrder = if (assignPinOrder && dto.pinned) pin++ else Int.MAX_VALUE)
     }
 }
 

@@ -12,6 +12,31 @@ import org.monogram.network.http.MediaPriority
 
 class DialogMediaPreloadTest {
     @Test
+    fun directionBiasRetainsReverseCoverageWithoutGrowingTheWindow() {
+        val messages = (100 downTo 1).map { photo(it) }
+        val fixed = DialogMediaPreload.plan(messages, visibleIds = setOf(50), radius = 20)
+        val older = DialogMediaPreload.plan(
+            messages,
+            visibleIds = setOf(50),
+            radius = 20,
+            scrollDirection = 1
+        )
+        val newer = DialogMediaPreload.plan(
+            messages,
+            visibleIds = setOf(50),
+            radius = 20,
+            scrollDirection = -1
+        )
+        assertEquals(30..70, fixed.window)
+        assertEquals(40..80, older.window)
+        assertEquals(20..60, newer.window)
+        assertEquals(fixed.window.count(), older.window.count())
+        assertEquals(fixed.window.count(), newer.window.count())
+        assertTrue(older.window.first < older.visibleRange.first)
+        assertTrue(newer.window.last > newer.visibleRange.last)
+    }
+
+    @Test
     fun emptyVisibleFallsBackToNewestPlusRadius() {
         val messages = (50 downTo 1).map { photo(it) }
         val plan = DialogMediaPreload.plan(messages, visibleIds = emptySet(), radius = 20)
@@ -165,6 +190,30 @@ class DialogMediaPreloadTest {
         assertFalse(roaming.media.any {
             it.message.id.id == 3 && it.fetch != DialogMediaPreload.Fetch.Thumb
         })
+    }
+
+    @Test
+    fun streamingVideoPrefetchesPrefixNotTheWholeFile() {
+        val video = Message(
+            id = MessageId(PeerId(1), 9),
+            senderId = null,
+            text = null,
+            date = 9L,
+            outgoing = false,
+            mediaKind = "video",
+            mediaCacheKey = "video:9",
+            thumbCacheKey = "video:9:thumb",
+            supportsStreaming = true,
+            fileSize = 20L * 1024 * 1024,
+        )
+        val plan = DialogMediaPreload.plan(
+            listOf(video),
+            visibleIds = setOf(9),
+            preset = AutoDownloadPreset.WIFI,
+        )
+        assertTrue(plan.media.any { it.fetch == DialogMediaPreload.Fetch.Prefix && it.cacheKey == "video:9:prefix" })
+        assertFalse(plan.media.any { it.fetch == DialogMediaPreload.Fetch.Full })
+        assertTrue(plan.media.any { it.fetch == DialogMediaPreload.Fetch.Thumb })
     }
 
     private fun photo(id: Int) = Message(

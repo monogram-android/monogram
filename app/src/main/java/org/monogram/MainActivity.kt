@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Rational
 import androidx.activity.ComponentActivity
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -23,15 +22,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.arkivanov.decompose.defaultComponentContext
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.ui.AppearanceSettings
@@ -41,20 +41,19 @@ import org.monogram.core.ui.media.LocalPictureInPictureController
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.MediaSurface
 import org.monogram.core.ui.media.MediaViewerPipStage
+import org.monogram.core.ui.media.MediaViewerSharedRoot
 import org.monogram.core.ui.media.PictureInPictureController
 import org.monogram.core.ui.theme.MonogramTheme
-import org.monogram.core.common.AppLog
 import org.monogram.push.NotificationPresenter
-import org.monogram.root.RootComponent
-import org.monogram.root.RootContent
 import org.monogram.root.IncomingShare
 import org.monogram.root.IncomingShareStager
+import org.monogram.root.RootComponent
+import org.monogram.root.RootContent
 import android.graphics.Color as AndroidColor
 
-class MainActivity : ComponentActivity() {
+open class MainActivity : ComponentActivity() {
     private lateinit var root: RootComponent
     private val startupReady = CompletableDeferred<Unit>()
-    private var idleJob: Job? = null
     private var startJob: Job? = null
     private var inPictureInPicture by mutableStateOf(false)
     private var pendingIncomingShare: IncomingShare? = null
@@ -69,7 +68,7 @@ class MainActivity : ComponentActivity() {
     private val pictureInPicture = object : PictureInPictureController {
         override val supported: Boolean
             get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+                    packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
 
         override fun enter() {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -120,7 +119,7 @@ class MainActivity : ComponentActivity() {
             finish()
             return
         }
-        enableEdgeToEdge(
+        if (this !is BubbleActivity) enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(
                 lightScrim = AndroidColor.TRANSPARENT,
                 darkScrim = AndroidColor.TRANSPARENT,
@@ -152,6 +151,10 @@ class MainActivity : ComponentActivity() {
                 notificationLocal = app.notifications,
                 onIncomingShareConsumed = { pendingIncomingShare = null },
                 appUpdate = app.appUpdate,
+                bubbleChatId = if (this@MainActivity is BubbleActivity) {
+                    intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L).takeIf { it != 0L }
+                } else null,
+                onRootBack = { finish() },
             )
             if (pendingIncomingShare != null) {
                 root.openIncomingShare(pendingIncomingShare!!)
@@ -183,15 +186,20 @@ class MainActivity : ComponentActivity() {
                             if (inPictureInPicture) {
                                 val session = MediaPlaybackHolder.peek()
                                 if (session?.current != null) {
-                                    MediaViewerPipStage(session = session, modifier = Modifier.fillMaxSize())
+                                    MediaViewerPipStage(
+                                        session = session,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
                                 } else {
                                     RootContent(component = root, modifier = Modifier.fillMaxSize())
                                 }
                             } else {
-                                RootContent(
-                                    component = root,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
+                                MediaViewerSharedRoot {
+                                    RootContent(
+                                        component = root,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
                             }
                         }
                     }
@@ -221,18 +229,27 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        idleJob?.cancel()
         startJob?.cancel()
         val app = application as MonogramApp
+        app.activityStarted(this)
         startJob = lifecycleScope.launch {
             app.awaitReady()
-            app.push.setForeground(true)
             app.push.requestPermission(this@MainActivity)
             startupReady.await()
             val started = PerfLog.nowMs()
             when (val result = runCatching { app.client.connect() }.getOrNull()) {
-                is Outcome.Ok -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=ok")
-                is Outcome.Err -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=err")
+                is Outcome.Ok -> PerfLog.mark(
+                    "activity:connect",
+                    PerfLog.nowMs() - started,
+                    "result=ok"
+                )
+
+                is Outcome.Err -> PerfLog.mark(
+                    "activity:connect",
+                    PerfLog.nowMs() - started,
+                    "result=err"
+                )
+
                 null -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=throw")
             }
         }
@@ -241,15 +258,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         val app = application as MonogramApp
         startJob?.cancel()
-        idleJob?.cancel()
-        idleJob = lifecycleScope.launch {
-            app.awaitReady()
-            app.push.setForeground(false)
-            delay(120_000)
-            if (!app.push.appForeground && app.notifications.token().isNotBlank()) {
-                app.client.hibernate()
-            }
-        }
+        app.activityStopped(this)
         super.onStop()
     }
 
@@ -270,6 +279,10 @@ class MainActivity : ComponentActivity() {
             val chatId = intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L)
             val messageId = intent.getIntExtra(NotificationPresenter.EXTRA_MESSAGE_ID, 0)
             if (chatId != 0L) root.openFromNotification(chatId, messageId)
+            return
+        }
+        if (intent.action == NotificationPresenter.ACTION_OPEN_NOTIFICATIONS) {
+            root.openNotificationSettings()
             return
         }
         val uri = intent.dataString ?: return

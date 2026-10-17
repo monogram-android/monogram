@@ -188,6 +188,36 @@ pub fn get_pinned_messages(
     )
 }
 
+pub fn search_messages_page(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &mut HashMap<i64, CachedPeer>,
+    media_index: &mut MediaIndex,
+    chat_id: i64,
+    query: &str,
+    filter: &str,
+    offset_id: i32,
+    add_offset: i32,
+    limit: i32,
+) -> Result<crate::dto::MessagesPageDto, MtprotoError> {
+    let (messages, total_count) = search_messages_with_filter_and_count(
+        snapshot,
+        api_id,
+        peers,
+        media_index,
+        chat_id,
+        query,
+        offset_id,
+        add_offset,
+        limit,
+        messages_filter(filter),
+    )?;
+    Ok(crate::dto::MessagesPageDto {
+        messages,
+        total_count,
+    })
+}
+
 pub(crate) fn search_messages_with_filter(
     snapshot: &mut Snapshot,
     api_id: i32,
@@ -200,6 +230,32 @@ pub(crate) fn search_messages_with_filter(
     limit: i32,
     filter: MessagesFilter,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
+    Ok(search_messages_with_filter_and_count(
+        snapshot,
+        api_id,
+        peers,
+        media_index,
+        chat_id,
+        query,
+        offset_id,
+        add_offset,
+        limit,
+        filter,
+    )?.0)
+}
+
+pub(crate) fn search_messages_with_filter_and_count(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &mut HashMap<i64, CachedPeer>,
+    media_index: &mut MediaIndex,
+    chat_id: i64,
+    query: &str,
+    offset_id: i32,
+    add_offset: i32,
+    limit: i32,
+    filter: MessagesFilter,
+) -> Result<(Vec<MessageDto>, i32), MtprotoError> {
     let cached = peers::require_usable_peer(peers, chat_id)?;
     let request = MessagesSearchRequest {
         flags: 0,
@@ -221,5 +277,6 @@ pub(crate) fn search_messages_with_filter(
     };
     let response: tellers_mtproto::latest::api::MessagesMessages =
         api_invoke::invoke_api(snapshot, api_id, request)?;
-    crate::dialogs::dtos_from_messages(response, peers, media_index)
+    let (dtos, _, total_count) = crate::dialogs::dtos_from_messages_page(response, peers, media_index)?;
+    Ok((dtos, total_count))
 }

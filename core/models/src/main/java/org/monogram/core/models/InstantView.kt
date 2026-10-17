@@ -1,23 +1,7 @@
 package org.monogram.core.models
 
-/** Native media index uses `(id, INSTANT_VIEW_MEDIA_MSG_ID)` for page photos/documents. */
 const val INSTANT_VIEW_MEDIA_MSG_ID = -1
 
-/**
- * Instant View client contract from official TL schema.
- *
- * Eligibility: `webPage.cached_page` offers Instant View except documented
- * exceptions (`telegram_album`, `telegram_message`). Fetch full pages with
- * `messages.getWebPage` using `webPage.hash` (or 0). `page.part` means the
- * cached preview is incomplete. `page.rtl` drives layout direction.
- *
- * PageBlock kinds rendered: unsupported, title, subtitle, authorDate, header,
- * subheader, paragraph, preformatted, footer, divider, anchor, list,
- * blockquote, pullquote, photo, video, cover, embed, embedPost, collage,
- * slideshow, channel, audio, kicker, table, orderedList, details,
- * relatedArticles, map, plus layer-229 extras (heading1-6, math, thinking,
- * document, buttons).
- */
 data class InstantViewMediaRef(
     val id: Long,
     val messageId: Int,
@@ -212,6 +196,19 @@ data class InstantViewRelatedArticle(
     val photoCacheKey: String? = null,
 )
 
+data class InstantViewHeading(
+    val index: Int,
+    val level: Int,
+    val text: String,
+)
+data class InstantViewReadingEstimate(
+    val wordCount: Int,
+    val hanCount: Int,
+    val kanaCount: Int,
+    val hangulCount: Int,
+    val minutes: Int,
+)
+
 sealed class InstantViewLink {
     data class Anchor(val name: String) : InstantViewLink()
     data class Page(val url: String, val anchor: String? = null) : InstantViewLink()
@@ -226,7 +223,6 @@ sealed class InstantViewFetchDecision {
 }
 
 object InstantViewPages {
-    /** Webpage types that carry `cached_page` but must not show an Instant View button. */
     private val noInstantViewTypes = setOf("telegram_album", "telegram_message")
 
     fun offersInstantView(type: String?, hasCachedPage: Boolean): Boolean {
@@ -258,12 +254,16 @@ object InstantViewPages {
         is InstantViewBlock.Channel -> "channel:${block.peerId}"
         is InstantViewBlock.Map ->
             "map:${block.cacheKey ?: "${block.latitude},${block.longitude}"}"
+
         is InstantViewBlock.Cover -> "cover:${blockStableKey(index, block.block)}"
         is InstantViewBlock.EmbedPost -> "embedPost:${block.url}"
         else -> "$index:${block::class.simpleName}"
     }
 
-    fun decideFetch(page: InstantViewPage, alreadyRefetchedPartial: Boolean): InstantViewFetchDecision {
+    fun decideFetch(
+        page: InstantViewPage,
+        alreadyRefetchedPartial: Boolean
+    ): InstantViewFetchDecision {
         if (page.notModified) return InstantViewFetchDecision.KeepExisting
         if (!page.hasInstantView) return InstantViewFetchDecision.Unavailable
         if (page.part && !alreadyRefetchedPartial && page.url.isNotBlank()) {
@@ -284,11 +284,11 @@ object InstantViewPages {
         val current = (pageUrl?.takeIf { it.isNotBlank() } ?: currentUrl).lowercase()
         val baseLower = base.lowercase()
         val samePage = fragment != null && (
-            base.isEmpty() ||
-            current.contains(baseLower) ||
-            baseLower.contains(current) ||
-            current.substringBefore('#') == baseLower
-        )
+                base.isEmpty() ||
+                        current.contains(baseLower) ||
+                        baseLower.contains(current) ||
+                        current.substringBefore('#') == baseLower
+                )
         if (samePage) return InstantViewLink.Anchor(fragment!!)
         if (
             trimmed.startsWith("mailto:", ignoreCase = true) ||
@@ -314,6 +314,7 @@ object InstantViewPages {
             while (occupied.size <= row) occupied.add(mutableListOf())
             while (occupied[row].size <= col) occupied[row].add(false)
         }
+
         fun isFree(row: Int, col: Int): Boolean {
             ensure(row, col)
             return !occupied[row][col]
@@ -347,7 +348,8 @@ object InstantViewPages {
     private fun blockHasTitle(block: InstantViewBlock, title: String): Boolean = when (block) {
         is InstantViewBlock.Text ->
             (block.kind == "title" || (block.kind == "heading" && block.level <= 1)) &&
-                block.text.trim().equals(title, ignoreCase = true)
+                    block.text.trim().equals(title, ignoreCase = true)
+
         is InstantViewBlock.Cover -> blockHasTitle(block.block, title)
         else -> false
     }
@@ -357,15 +359,22 @@ object InstantViewPages {
         is InstantViewBlock.Text -> entitiesHaveAnchor(block.entities, name)
         is InstantViewBlock.Quote ->
             entitiesHaveAnchor(block.entities, name) || containsAnchorName(block.blocks, name)
+
         is InstantViewBlock.ListBlock -> block.items.any {
             entitiesHaveAnchor(it.entities, name) || containsAnchorName(it.blocks, name)
         }
+
         is InstantViewBlock.Table -> block.rows.any { row ->
             row.any { entitiesHaveAnchor(it.entities, name) }
         }
+
         is InstantViewBlock.Cover -> containsAnchor(block.block, name)
         is InstantViewBlock.Details ->
-            entitiesHaveAnchor(block.title?.entities.orEmpty(), name) || containsAnchorName(block.blocks, name)
+            entitiesHaveAnchor(
+                block.title?.entities.orEmpty(),
+                name
+            ) || containsAnchorName(block.blocks, name)
+
         is InstantViewBlock.EmbedPost -> containsAnchorName(block.blocks, name)
         is InstantViewBlock.Buttons -> block.items.any { entitiesHaveAnchor(it.entities, name) }
         else -> false
@@ -377,7 +386,7 @@ object InstantViewPages {
     private fun entitiesHaveAnchor(entities: List<TextEntity>, name: String): Boolean =
         entities.any { entity ->
             entity.kind.equals("anchor", ignoreCase = true) &&
-                entity.url.orEmpty().removePrefix("#").equals(name, ignoreCase = true)
+                    entity.url.orEmpty().removePrefix("#").equals(name, ignoreCase = true)
         }
 
     private fun decodeFragment(raw: String): String =
@@ -406,6 +415,153 @@ object InstantViewPages {
             formatPublishedDate(article.publishedDate),
             article.description?.takeIf { it.isNotBlank() },
         ).joinToString(" · ")
+
+    fun outline(blocks: List<InstantViewBlock>): List<InstantViewHeading> =
+        blocks.mapIndexedNotNull { index, block ->
+            when {
+                block !is InstantViewBlock.Text -> null
+                block.kind == "title" -> block.text.headingText()?.let {
+                    InstantViewHeading(index = index, level = 0, text = it)
+                }
+
+                block.kind == "heading" -> block.text.headingText()?.let {
+                    InstantViewHeading(index = index, level = block.level.coerceIn(1, 3), text = it)
+                }
+
+                else -> null
+            }
+        }
+
+    private fun String.headingText(): String? = trim().takeIf { it.isNotEmpty() }
+
+    fun plainText(blocks: List<InstantViewBlock>): String =
+        buildList { appendPlainText(blocks, this) }
+            .filter { it.isNotBlank() }
+            .joinToString("\n\n")
+            .trim()
+
+    private fun appendPlainText(blocks: List<InstantViewBlock>, out: MutableList<String>) {
+        blocks.forEach { block ->
+            when (block) {
+                is InstantViewBlock.Text -> out += block.text
+                is InstantViewBlock.Quote -> {
+                    out += block.text
+                    appendPlainText(block.blocks, out)
+                    block.caption?.text?.let { out += it }
+                }
+
+                is InstantViewBlock.ListBlock -> {
+                    val lines = block.items.mapIndexedNotNull { index, item ->
+                        val body = buildList {
+                            if (item.text.isNotBlank()) add(item.text)
+                            val nested = mutableListOf<String>()
+                            appendPlainText(item.blocks, nested)
+                            addAll(nested)
+                        }.joinToString("\n").trim()
+                        if (body.isEmpty()) {
+                            null
+                        } else {
+                            val marker = when {
+                                item.checkbox -> if (item.checked) "☑" else "☐"
+                                block.ordered -> item.number?.takeIf { it.isNotBlank() }
+                                    ?: "${index + 1}."
+
+                                else -> "•"
+                            }
+                            val bodyLines = body.lines()
+                            bodyLines.mapIndexed { lineIndex, line ->
+                                if (lineIndex == 0) "$marker $line" else "    $line"
+                            }.joinToString("\n")
+                        }
+                    }
+                    if (lines.isNotEmpty()) out += lines.joinToString("\n")
+                }
+
+                is InstantViewBlock.Table -> {
+                    block.title?.text?.let { out += it }
+                    block.rows.forEach { row ->
+                        val cells = row.map { it.text.replace('\n', ' ').trim() }
+                        if (cells.any { it.isNotEmpty() }) out += cells.joinToString(" | ")
+                    }
+                }
+
+                is InstantViewBlock.Details -> {
+                    block.title?.text?.let { out += it }
+                    appendPlainText(block.blocks, out)
+                }
+
+                is InstantViewBlock.Photo -> block.caption?.text?.let { out += it }
+                is InstantViewBlock.Document -> {
+                    listOfNotNull(block.title, block.fileName).firstOrNull()?.let { out += it }
+                    block.caption?.text?.let { out += it }
+                }
+
+                is InstantViewBlock.Cover -> appendPlainText(listOf(block.block), out)
+                is InstantViewBlock.Embed -> block.caption?.text?.let { out += it }
+                is InstantViewBlock.EmbedPost -> {
+                    if (block.author.isNotBlank()) out += block.author
+                    appendPlainText(block.blocks, out)
+                    block.caption?.text?.let { out += it }
+                }
+
+                is InstantViewBlock.MediaGroup -> {
+                    appendPlainText(block.items, out)
+                    block.caption?.text?.let { out += it }
+                }
+
+                is InstantViewBlock.Math -> out += block.source
+                is InstantViewBlock.Map -> block.caption?.text?.let { out += it }
+                is InstantViewBlock.Channel,
+                is InstantViewBlock.Related,
+                is InstantViewBlock.Buttons,
+                is InstantViewBlock.Anchor,
+                InstantViewBlock.Divider,
+                InstantViewBlock.Unsupported,
+                    -> Unit
+            }
+        }
+    }
+
+    fun readingEstimate(text: String): InstantViewReadingEstimate {
+        if (text.isBlank()) return InstantViewReadingEstimate(0, 0, 0, 0, 0)
+
+        var wordCount = 0
+        var hanCount = 0
+        var kanaCount = 0
+        var hangulCount = 0
+        var inWord = false
+        var offset = 0
+
+        while (offset < text.length) {
+            val codePoint = text.codePointAt(offset)
+            offset += Character.charCount(codePoint)
+            val script = Character.UnicodeScript.of(codePoint)
+            when {
+                script == Character.UnicodeScript.HAN -> { hanCount++; inWord = false }
+                script == Character.UnicodeScript.HIRAGANA || script == Character.UnicodeScript.KATAKANA -> { kanaCount++; inWord = false }
+                script == Character.UnicodeScript.HANGUL -> { hangulCount++; inWord = false }
+                Character.isLetterOrDigit(codePoint) -> {
+                    if (!inWord) wordCount++
+                    inWord = true
+                }
+                else -> inWord = false
+            }
+        }
+
+        val units = wordCount / READING_WORDS_PER_MINUTE.toDouble() +
+            hanCount / HAN_CHARACTERS_PER_MINUTE.toDouble() +
+            kanaCount / KANA_CHARACTERS_PER_MINUTE.toDouble() +
+            hangulCount / HANGUL_CHARACTERS_PER_MINUTE.toDouble()
+        val minutes = kotlin.math.ceil(units).toInt().coerceAtLeast(1)
+        return InstantViewReadingEstimate(wordCount, hanCount, kanaCount, hangulCount, minutes)
+    }
+
+    fun readingMinutes(text: String): Int = readingEstimate(text).minutes
+
+    private const val READING_WORDS_PER_MINUTE = 200
+    private const val HAN_CHARACTERS_PER_MINUTE = 300
+    private const val KANA_CHARACTERS_PER_MINUTE = 400
+    private const val HANGUL_CHARACTERS_PER_MINUTE = 350
 
     fun parse(dto: InstantViewDtoLike): InstantViewPage = InstantViewPage(
         url = dto.url,
@@ -443,6 +599,7 @@ object InstantViewPages {
                     language = map.str("lang"),
                     publishedDate = map.intOrNull("d"),
                 )
+
             "quote" -> InstantViewBlock.Quote(
                 text = map.str("t").orEmpty(),
                 entities = parseEntities(map["e"]),
@@ -450,10 +607,13 @@ object InstantViewPages {
                 pull = map.bool("pull"),
                 blocks = parseBlocks(map["blocks"]),
             )
+
             "list" -> InstantViewBlock.ListBlock(
                 ordered = map.bool("ordered"),
-                items = (map["items"] as? List<*>).orEmpty().mapNotNull { parseListItem(it as? Map<*, *>) },
+                items = (map["items"] as? List<*>).orEmpty()
+                    .mapNotNull { parseListItem(it as? Map<*, *>) },
             )
+
             "table" -> InstantViewBlock.Table(
                 bordered = map.bool("bordered"),
                 striped = map.bool("striped"),
@@ -462,11 +622,13 @@ object InstantViewPages {
                     (row as? List<*>).orEmpty().mapNotNull { parseCell(it as? Map<*, *>) }
                 },
             )
+
             "details" -> InstantViewBlock.Details(
                 open = map.bool("open"),
                 title = parseRich(map["title"] as? Map<*, *>),
                 blocks = parseBlocks(map["blocks"]),
             )
+
             "photo" -> InstantViewBlock.Photo(
                 id = map.long("id"),
                 cacheKey = map.str("cache") ?: "photo:${map.long("id")}",
@@ -475,6 +637,7 @@ object InstantViewPages {
                 url = map.str("url"),
                 caption = parseCaption(map["caption"] as? Map<*, *>),
             )
+
             "video", "audio", "document" -> InstantViewBlock.Document(
                 kind = map.str("k") ?: "document",
                 id = map.long("id"),
@@ -491,8 +654,10 @@ object InstantViewPages {
                 durationSeconds = map.intOrNull("duration"),
                 caption = parseCaption(map["caption"] as? Map<*, *>),
             )
+
             "cover" -> parseBlock(map["block"] as? Map<*, *>)?.let(InstantViewBlock::Cover)
                 ?: InstantViewBlock.Unsupported
+
             "embed" -> InstantViewBlock.Embed(
                 url = map.str("url"),
                 html = map.str("html"),
@@ -503,6 +668,7 @@ object InstantViewPages {
                 posterCacheKey = map.str("poster"),
                 caption = parseCaption(map["caption"] as? Map<*, *>),
             )
+
             "embedPost" -> InstantViewBlock.EmbedPost(
                 url = map.str("url").orEmpty(),
                 author = map.str("author").orEmpty(),
@@ -511,21 +677,26 @@ object InstantViewPages {
                 blocks = parseBlocks(map["blocks"]),
                 caption = parseCaption(map["caption"] as? Map<*, *>),
             )
+
             "collage", "slideshow" -> InstantViewBlock.MediaGroup(
                 kind = map.str("k") ?: "collage",
                 items = parseBlocks(map["items"]),
                 caption = parseCaption(map["caption"] as? Map<*, *>),
             )
+
             "channel" -> InstantViewBlock.Channel(
                 peerId = map.long("id"),
                 title = map.str("title").orEmpty(),
                 username = map.str("username"),
                 photoCacheKey = map.str("photo"),
             )
+
             "related" -> InstantViewBlock.Related(
                 title = parseRich(map["title"] as? Map<*, *>),
-                articles = (map["articles"] as? List<*>).orEmpty().mapNotNull { parseRelated(it as? Map<*, *>) },
+                articles = (map["articles"] as? List<*>).orEmpty()
+                    .mapNotNull { parseRelated(it as? Map<*, *>) },
             )
+
             "map" -> InstantViewBlock.Map(
                 latitude = map.double("lat"),
                 longitude = map.double("lng"),
@@ -535,12 +706,15 @@ object InstantViewPages {
                 cacheKey = map.str("cache"),
                 caption = parseCaption(map["caption"] as? Map<*, *>),
             )
+
             "math" -> InstantViewBlock.Math(map.str("src").orEmpty())
             "anchor" -> InstantViewBlock.Anchor(map.str("n").orEmpty())
             "divider" -> InstantViewBlock.Divider
             "buttons" -> InstantViewBlock.Buttons(
-                items = (map["items"] as? List<*>).orEmpty().mapNotNull { parseRich(it as? Map<*, *>) },
+                items = (map["items"] as? List<*>).orEmpty()
+                    .mapNotNull { parseRich(it as? Map<*, *>) },
             )
+
             else -> InstantViewBlock.Unsupported
         }
     }
@@ -614,7 +788,6 @@ object InstantViewPages {
     }
 }
 
-/** Bridge-facing Instant View DTO without UniFFI types. */
 data class InstantViewDtoLike(
     val url: String,
     val displayUrl: String,
@@ -641,6 +814,7 @@ private fun Map<*, *>.intOrNull(key: String): Int? = when (val value = this[key]
     is String -> value.toIntOrNull()
     else -> null
 }
+
 private fun Map<*, *>.long(key: String): Long = longOrNull(key) ?: 0L
 private fun Map<*, *>.longOrNull(key: String): Long? = when (val value = this[key]) {
     is Long -> value
@@ -649,6 +823,7 @@ private fun Map<*, *>.longOrNull(key: String): Long? = when (val value = this[ke
     is String -> value.toLongOrNull()
     else -> null
 }
+
 private fun Map<*, *>.double(key: String): Double = when (val value = this[key]) {
     is Double -> value
     is Int -> value.toDouble()

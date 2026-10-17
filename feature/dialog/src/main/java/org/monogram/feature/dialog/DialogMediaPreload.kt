@@ -4,11 +4,12 @@ import org.monogram.core.models.Message
 import org.monogram.core.models.WebpagePreviews
 import org.monogram.core.ui.AutoDownloadPreset
 import org.monogram.core.ui.DownloadSettings
+import org.monogram.feature.dialog.ui.shouldAutoFetchFullMedia
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.photoDisplayCacheKey
 
 object DialogMediaPreload {
-    const val WINDOW_RADIUS = 4
+    const val WINDOW_RADIUS = 6
 
     private val PRELOAD_KINDS = setOf(
         "photo",
@@ -22,7 +23,7 @@ object DialogMediaPreload {
     )
     private val STICKER_KINDS = setOf("sticker", "sticker_animated", "sticker_video")
 
-    enum class Fetch { Thumb, Display, Full }
+    enum class Fetch { Thumb, Display, Full, Prefix }
 
     data class MediaTask(
         val message: Message,
@@ -76,6 +77,9 @@ object DialogMediaPreload {
         visibleIds: Set<Int>,
         radius: Int = WINDOW_RADIUS,
         preset: AutoDownloadPreset = DownloadSettings.activePreset(),
+        autoplayVideos: Boolean = true,
+        autoplayGifs: Boolean = true,
+        scrollDirection: Int = 0,
     ): Plan {
         if (messages.isEmpty()) {
             return Plan(IntRange.EMPTY, IntRange.EMPTY, emptyList(), emptyList())
@@ -89,8 +93,17 @@ object DialogMediaPreload {
             return Plan(IntRange.EMPTY, IntRange.EMPTY, emptyList(), emptyList())
         }
         val visibleRange = visibleIndices.min()..visibleIndices.max()
-        val window = (visibleRange.first - radius).coerceAtLeast(0)..
-            (visibleRange.last + radius).coerceAtMost(messages.lastIndex)
+        val boundedRadius = radius.coerceAtLeast(0)
+        val ahead = boundedRadius + boundedRadius / 2
+        val behind = boundedRadius * 2 - ahead
+        val before = when {
+            scrollDirection < 0 -> ahead; scrollDirection > 0 -> behind; else -> boundedRadius
+        }
+        val after = when {
+            scrollDirection > 0 -> ahead; scrollDirection < 0 -> behind; else -> boundedRadius
+        }
+        val window = (visibleRange.first - before).coerceAtLeast(0)..
+                (visibleRange.last + after).coerceAtMost(messages.lastIndex)
         val media = ArrayList<MediaTask>()
         val instantViews = ArrayList<InstantViewTask>()
         val seenIv = HashSet<String>()
@@ -117,11 +130,26 @@ object DialogMediaPreload {
                 val size = message.fileSize
                 val wantFull = when {
                     sticker -> visible
-                    else -> preset.allowsFull(kind, size)
+                    else -> shouldAutoFetchFullMedia(
+                        kind,
+                        userRequested = false,
+                        sizeBytes = size,
+                        preset = preset,
+                        autoplayVideos = autoplayVideos,
+                        autoplayGifs = autoplayGifs,
+                    )
                 }
-                if (!fullKey.isNullOrBlank() && wantFull) {
+                val streamPrefix = kind == "video" && message.supportsStreaming &&
+                        (wantFull || preset.allowsStream(kind, size))
+                if (!fullKey.isNullOrBlank() && streamPrefix) {
+                    media += MediaTask(message, Fetch.Prefix, priority, "$fullKey:prefix")
+                } else if (!fullKey.isNullOrBlank() && wantFull) {
                     media += MediaTask(message, Fetch.Full, priority, fullKey)
-                } else if (visible && !fullKey.isNullOrBlank() && preset.allowsDisplay(kind, size)) {
+                } else if (visible && !fullKey.isNullOrBlank() && preset.allowsDisplay(
+                        kind,
+                        size
+                    )
+                ) {
                     media += MediaTask(
                         message,
                         Fetch.Display,

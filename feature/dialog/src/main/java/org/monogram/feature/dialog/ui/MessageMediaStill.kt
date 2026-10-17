@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,10 +18,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import org.monogram.core.ui.components.MonogramPlaceholder
+import org.monogram.core.ui.components.PreviewBlurTransformation
 import org.monogram.core.ui.loading.MonogramMediaLoadingOverlay
 import org.monogram.feature.dialog.R
 import java.io.File
@@ -29,10 +34,11 @@ import java.io.File
 internal fun MediaProgressOverlay(
     visible: Boolean,
     modifier: Modifier = Modifier,
-    bytes: Long = 0L,
+    downloadProgress: Flow<Long> = flowOf(0L),
     total: Long? = null,
     uploading: Boolean = false,
 ) {
+    val bytes by downloadProgress.collectAsStateWithLifecycle(initialValue = 0L)
     val fraction = downloadProgressFraction(bytes, total)
     MonogramMediaLoadingOverlay(
         visible = visible,

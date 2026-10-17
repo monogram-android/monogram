@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -26,6 +27,7 @@ import org.monogram.core.models.SearchPeer
 import org.monogram.core.ui.components.FolderChipItem
 import org.monogram.core.ui.components.FolderChipRow
 import org.monogram.core.ui.components.FolderChips
+import org.monogram.core.ui.components.MediaScrollGate
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.showsMiniPlayer
 import org.monogram.core.ui.menu.AppMenuPopup
@@ -162,6 +164,18 @@ internal fun ChatsLazyList(
             }
         }
     }
+    val scrollGate = remember { Any() }
+    DisposableEffect(scrollGate) {
+        onDispose { MediaScrollGate.set(scrollGate, false) }
+    }
+    LaunchedEffect(listState, scrollGate) {
+        snapshotFlow { listState.isScrollInProgress }.collect {
+            MediaScrollGate.set(
+                scrollGate,
+                it
+            )
+        }
+    }
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -172,7 +186,7 @@ internal fun ChatsLazyList(
         ),
     ) {
         if (inlineFolderChips && !archive && !searchOpen && !foldersAtBottom) {
-            item(key = "folder-chips") {
+            item(key = "folder-chips", contentType = "chat-chrome") {
                 RecompositionProbe("ChipItemScope")
                 Box {
                     FolderChipRow(
@@ -203,7 +217,7 @@ internal fun ChatsLazyList(
             }
         }
         if (showArchiveRow) {
-            item(key = "archive-row") {
+            item(key = "archive-row", contentType = "chat-chrome") {
                 ArchiveRow(
                     preview = archivedTitles,
                     unmuted = archivedUnmuted,
@@ -219,7 +233,7 @@ internal fun ChatsLazyList(
         if (!loading && paneIds.isEmpty() && error == null && !searchBusy && !searchHasRows &&
             (searchError == null || !searching)
         ) {
-            item(key = "empty-state") {
+            item(key = "empty-state", contentType = "chat-chrome") {
                 FolderEmptyState(
                     archive = archive,
                     filtered = homeFolderId != null && !archive,

@@ -20,6 +20,7 @@ internal fun AnnotatedString.Builder.applyMessageEntities(
     revealSpoilers: Boolean = true,
     onLink: ((String) -> Unit)? = null,
     onSpoilerClick: (() -> Unit)? = null,
+    markColor: Color = linkColor.copy(alpha = 0.24f),
 ) {
     val len = text.length
     val linkStyle = TextLinkStyles(
@@ -33,7 +34,10 @@ internal fun AnnotatedString.Builder.applyMessageEntities(
         when (entity.kind) {
             "bold" -> addStyle(SpanStyle(fontWeight = FontWeight.Bold), start, end)
             "italic" -> addStyle(SpanStyle(fontStyle = FontStyle.Italic), start, end)
-            "underline" -> addStyle(SpanStyle(textDecoration = TextDecoration.Underline), start, end)
+            "underline" -> addStyle(
+                SpanStyle(textDecoration = TextDecoration.Underline), start, end
+            )
+
             "strike" -> addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough), start, end)
             "code", "pre", "bank_card" -> addStyle(
                 SpanStyle(
@@ -43,6 +47,8 @@ internal fun AnnotatedString.Builder.applyMessageEntities(
                 start,
                 end,
             )
+
+            "marked" -> addStyle(SpanStyle(background = markColor), start, end)
             "spoiler" -> {
                 if (revealSpoilers) {
                     addStyle(SpanStyle(background = Color.Black.copy(alpha = 0.12f)), start, end)
@@ -70,21 +76,25 @@ internal fun AnnotatedString.Builder.applyMessageEntities(
                     )
                 }
             }
+
             "blockquote" -> addStyle(
                 SpanStyle(fontStyle = FontStyle.Italic, color = linkColor.copy(alpha = 0.92f)),
                 start,
                 end,
             )
+
             "superscript" -> addStyle(
                 SpanStyle(fontSize = 0.75.em, baselineShift = BaselineShift.Superscript),
                 start,
                 end,
             )
+
             "subscript" -> addStyle(
                 SpanStyle(fontSize = 0.75.em, baselineShift = BaselineShift.Subscript),
                 start,
                 end,
             )
+
             else -> {
                 val href = entityHref(entity.kind, entity.url, slice)
                 if (href != null && onLink != null) {
@@ -107,15 +117,24 @@ internal fun entityHref(kind: String, url: String?, slice: String): String? = wh
     "text_url" -> absoluteLink(url)
     "anchor" -> url?.let { if (it.startsWith("#")) it else "#$it" }
     "url" -> absoluteLink(slice) ?: absoluteLink(url)
-    "email" -> "mailto:$slice"
-    "phone" -> {
-        val digits = slice.filter { it.isDigit() || it == '+' }
-        digits.takeIf { it.isNotBlank() }?.let { "tel:$it" }
+    "email" -> {
+        val target = url?.trim()?.takeIf { it.isNotEmpty() } ?: slice.trim()
+        val bare = target.removePrefix("mailto:").removePrefix("MAILTO:")
+        bare.takeIf { it.isNotEmpty() && it.none { ch -> ch.isWhitespace() } }?.let { "mailto:$it" }
     }
+
+    "phone" -> {
+        val target = url?.trim()?.takeIf { it.isNotEmpty() } ?: slice
+        val bare = target.removePrefix("tel:").removePrefix("TEL:")
+        val dial = bare.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }
+        dial.takeIf { it.isNotBlank() }?.let { "tel:$it" }
+    }
+
     "mention" -> {
         val user = slice.removePrefix("@").takeIf { it.isNotBlank() }
         user?.let { "https://t.me/$it" }
     }
+
     "mention_name", "text_mention" -> url?.takeIf { it.isNotBlank() }?.let { "tg://user?id=$it" }
     else -> null
 }

@@ -2,6 +2,10 @@ package org.monogram.core.models
 
 data class PeerId(val value: Long)
 
+const val CHANNEL_PEER_OFFSET: Long = 1_000_000_000_000L
+
+fun channelPeerId(channelId: Long): Long = -(CHANNEL_PEER_OFFSET + channelId)
+
 fun peerAvatarCacheKey(peerId: PeerId, stored: String? = null): String =
     stored?.takeIf { it.isNotBlank() } ?: "avatar:${peerId.value}"
 
@@ -97,9 +101,19 @@ fun Chat.mergeLocalCache(stored: Chat?): Chat {
     // A live NewMessage or a fresher Room row must not lose its tail when an
     // older getDialogs snapshot arrives after cache paint.
     val newerStored = stored?.takeIf { lastMessageId > 0 && it.lastMessageId > lastMessageId }
+    // An explicit dialog mute is newer than a page that only carries the inherited flag.
+    val keptMute = stored?.takeIf { newerStored != null || (it.muteOverride && !muteOverride) }
     return copy(
         title = preferredPeerTitle(title, stored?.title, id.value),
         dialogScrollMessageId = dialogScrollMessageId ?: stored?.dialogScrollMessageId,
+        muted = keptMute?.muted ?: muted,
+        muteOverride = keptMute?.muteOverride ?: muteOverride,
+        pinned = if (newerStored != null) newerStored.pinned else pinned,
+        pinnedOrder = when {
+            newerStored != null -> newerStored.pinnedOrder
+            pinned && stored?.pinned == true && pinnedOrder == Int.MAX_VALUE -> stored.pinnedOrder
+            else -> pinnedOrder
+        },
         photoCacheKey = photoCacheKey ?: stored?.photoCacheKey,
         emojiStatusDocumentId = emojiStatusDocumentId ?: stored?.emojiStatusDocumentId,
         readInboxMaxId = maxOf(readInboxMaxId, stored?.readInboxMaxId ?: 0),
@@ -215,6 +229,7 @@ data class Message(
     val viaBot: String? = null,
     val senderName: String? = null,
     val senderEmojiStatusDocumentId: Long? = null,
+    val senderPhotoCacheKey: String? = null,
     val replyMarkup: ReplyMarkup? = null,
     val checklist: Checklist? = null,
 )
@@ -321,6 +336,8 @@ data class Profile(
     val emojiStatusDocumentId: Long? = null,
     /** Channels only: whether the server allows listing participants. `null` = unknown. */
     val canViewParticipants: Boolean? = null,
+    /** `userFull.blocked`: this account blocked the user. */
+    val blockedByMe: Boolean = false,
 )
 
 data class StickerPack(
@@ -410,6 +427,7 @@ data class UploadItem(
     val width: Int = 0,
     val height: Int = 0,
     val randomId: Long = 0L,
+    val captionEntities: List<TextEntity> = emptyList(),
 )
 
 sealed class AuthState {

@@ -13,6 +13,21 @@ use crate::media::{MediaIndex, MediaRef};
 use crate::peers::CachedPeer;
 use crate::rpc::NewSessionMetadata;
 
+/// Imported master key for one foreign datacenter. Key bytes stay out of `Debug`.
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub(crate) struct DcAuthKey {
+    pub key: Vec<u8>,
+    pub salt: i64,
+}
+
+impl std::fmt::Debug for DcAuthKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DcAuthKey")
+            .field("key_len", &self.key.len())
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct ChannelRecovery {
     pub chat_id: i64,
@@ -33,6 +48,9 @@ pub struct ClientSession {
     /// Media download metadata keyed as "chatId:messageId".
     #[serde(default)]
     pub media: HashMap<String, MediaRef>,
+    /// Oldest-first keys for `media`. Empty on sessions saved before retention.
+    #[serde(default)]
+    pub media_order: Vec<String>,
     /// Last applied per-channel pts, keyed by chat id.
     #[serde(default)]
     pub channel_pts: HashMap<i64, i32>,
@@ -53,6 +71,11 @@ pub struct ClientSession {
     /// Connected to Telegram test DCs (`99966XYYYY`).
     #[serde(default)]
     pub test_dc: bool,
+    /// Imported master keys for foreign datacenters, keyed by DC id.
+    #[serde(default)]
+    pub dc_auth_keys: HashMap<i32, DcAuthKey>,
+    #[serde(default)]
+    pub(crate) journal: crate::update_journal::UpdateJournal,
 }
 
 pub fn media_key(chat_id: i64, message_id: i32) -> String {
@@ -60,23 +83,47 @@ pub fn media_key(chat_id: i64, message_id: i32) -> String {
 }
 
 pub fn media_from_index(index: &MediaIndex) -> HashMap<String, MediaRef> {
+    let mut out = HashMap::with_capacity(index.len());
+    for ((chat, message), media) in index {
+        if let Some(stored) = crate::media::persisted_media_entry(*message, media) {
+            out.insert(media_key(*chat, *message), stored);
+        }
+    }
+    out
+}
+
+pub fn media_order_from_index(index: &MediaIndex) -> Vec<String> {
     index
         .iter()
-        .map(|((chat, msg), r)| (media_key(*chat, *msg), r.clone()))
+        .filter(|((_, message), media)| crate::media::session_media_kept(*message, media))
+        .map(|((chat, message), _)| media_key(*chat, *message))
         .collect()
 }
 
-pub fn media_to_index(map: &HashMap<String, MediaRef>) -> MediaIndex {
-    let mut index = MediaIndex::new();
+pub fn media_to_index(map: &HashMap<String, MediaRef>, order: &[String]) -> MediaIndex {
+    let mut index = MediaIndex::default();
+    let listed: HashSet<&str> = order.iter().map(String::as_str).collect();
     for (key, media) in map {
-        let mut parts = key.splitn(2, ':');
-        let chat = parts.next().and_then(|s| s.parse().ok());
-        let msg = parts.next().and_then(|s| s.parse().ok());
-        if let (Some(chat), Some(msg)) = (chat, msg) {
-            index.insert((chat, msg), media.clone());
+        if !listed.contains(key.as_str()) {
+            insert_parsed(&mut index, key, media);
         }
     }
+    for key in order {
+        if let Some(media) = map.get(key) {
+            insert_parsed(&mut index, key, media);
+        }
+    }
+    crate::media::bound_media_index(&mut index);
     index
+}
+
+fn insert_parsed(index: &mut MediaIndex, key: &str, media: &MediaRef) {
+    let mut parts = key.splitn(2, ':');
+    let chat = parts.next().and_then(|s| s.parse().ok());
+    let message = parts.next().and_then(|s| s.parse().ok());
+    if let (Some(chat), Some(message)) = (chat, message) {
+        index.insert((chat, message), media.clone());
+    }
 }
 
 pub struct FileSessionStore {
@@ -124,6 +171,7 @@ impl FileSessionStore {
             peers: HashMap::new(),
             updates: None,
             media: HashMap::new(),
+            media_order: Vec::new(),
             channel_pts: HashMap::new(),
             channel_recovery: Default::default(),
             seen_messages: HashSet::new(),
@@ -131,6 +179,8 @@ impl FileSessionStore {
             logout_tokens: Vec::new(),
             new_session: None,
             test_dc: false,
+            dc_auth_keys: HashMap::new(),
+            journal: Default::default(),
         };
         if !encrypted && key.is_some() {
             self.save(&session)?;
@@ -218,5 +268,5 @@ impl FileSessionStore {
 }
 
 #[cfg(test)]
-#[path = "session_file_tests.rs"]
+#[path = "../tests/unit/session_file_tests.rs"]
 mod tests;

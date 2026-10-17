@@ -1,4 +1,4 @@
-use crate::HashMap;
+use crate::{HashMap, IndexMap};
 
 use serde::{Deserialize, Serialize};
 use tellers_mtproto::latest::api::{
@@ -43,6 +43,8 @@ pub enum MediaLocation {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MediaRef {
+    #[serde(default)]
+    pub file_size: Option<i64>,
     pub kind: String,
     pub cache_key: String,
     pub location: MediaLocation,
@@ -62,7 +64,7 @@ pub struct MediaRef {
     pub source_url: Option<String>,
 }
 
-pub type MediaIndex = HashMap<(i64, i32), MediaRef>;
+pub type MediaIndex = IndexMap<(i64, i32), MediaRef>;
 
 /// Avatar `InputPeerPhotoFileLocation` cannot use hash 0 / min.
 /// https://core.telegram.org/api/min
@@ -71,16 +73,23 @@ pub fn fill_zero_peer_photo_hashes(
     peers: &HashMap<i64, crate::peers::CachedPeer>,
 ) {
     for ((chat_id, _), item) in media.iter_mut() {
-        let MediaLocation::PeerPhoto { access_hash, .. } = &mut item.location else {
-            continue;
-        };
-        if *access_hash != 0 {
-            continue;
-        }
         if let Some(peer) = crate::peers::usable_cached_peer(peers, *chat_id) {
-            *access_hash = peer.access_hash;
+            if let MediaLocation::PeerPhoto { access_hash, .. } = &mut item.location {
+                if *access_hash == 0 {
+                    *access_hash = peer.access_hash;
+                }
+            }
+            if let Some(MediaLocation::PeerPhoto { access_hash, .. }) = &mut item.display_location {
+                if *access_hash == 0 {
+                    *access_hash = peer.access_hash;
+                }
+            }
         }
     }
+}
+
+pub fn inline_payload_missing(media: &MediaRef) -> bool {
+    matches!(media.location, MediaLocation::Inline { ref bytes, .. } if bytes.is_empty())
 }
 
 pub fn peer_photo_needs_hash(media: &MediaRef) -> bool {
@@ -243,7 +252,7 @@ pub(crate) fn location_is_getfile_thumb(loc: &MediaLocation) -> bool {
         MediaLocation::Photo { thumb_size, .. } | MediaLocation::Document { thumb_size, .. } => {
             is_getfile_thumb_size(thumb_size)
         }
-        MediaLocation::PeerPhoto { .. } => false,
+        MediaLocation::PeerPhoto { big, .. } => !*big,
     }
 }
 
@@ -327,6 +336,7 @@ pub fn media_for_download(
                 if location_is_getfile_thumb(loc) {
                     let mut copy = media.clone();
                     copy.location = loc.clone();
+                    copy.file_size = None;
                     copy.cache_key = media
                         .display_cache_key
                         .clone()
@@ -341,6 +351,7 @@ pub fn media_for_download(
                 if location_is_getfile_thumb(loc) {
                     let mut copy = media.clone();
                     copy.location = loc.clone();
+                    copy.file_size = None;
                     copy.cache_key = media
                         .thumb_cache_key
                         .clone()

@@ -43,6 +43,7 @@ internal val DockInset = 16.dp
 internal val DockTopPadding = 8.dp
 private val DockGap = 8.dp
 private val DockCornerRadius = 28.dp
+private val DockAboveWriteBar = 10.dp
 
 /** Height of the attach dock: the Material 3 Expressive medium button container. */
 internal val AttachDockHeight = 56.dp
@@ -78,7 +79,7 @@ internal fun AttachDock(
                 start = DockInset,
                 end = DockInset,
                 top = DockTopPadding,
-                bottom = navBarInset(),
+                bottom = navBarInset() + DockAboveWriteBar,
             )
             .background(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),

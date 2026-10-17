@@ -1,25 +1,28 @@
-document.documentElement.classList.add("motion-ready");
-
 const RELEASE_URL = "https://github.com/monogram-android/monogram/releases";
+const LATEST_RELEASE_URL = "https://github.com/monogram-android/monogram/releases/latest";
 const RELEASES_API_URL = "https://api.github.com/repos/monogram-android/monogram/releases?per_page=10";
 const LANG_KEY = "monogram-site-language";
-const LIGHT_THEME_COLOR = "#f3f4f8";
-const DARK_THEME_COLOR = "#111417";
-const translations = window.MONOGRAM_TRANSLATIONS || {};
+const THEME_KEY = "monogram-theme";
+const LIGHT = "#eef6fa";
+const DARK = "#0e1418";
 
+const translations = window.MONOGRAM_TRANSLATIONS || {};
 const root = document.documentElement;
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
 const systemThemeQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
-const topBar = document.querySelector(".top-bar");
-const revealNodes = document.querySelectorAll("[data-reveal]");
 const latestReleaseNodes = document.querySelectorAll("[data-latest-release]");
 const releasesBlock = document.querySelector("[data-releases]");
-const langChips = document.querySelectorAll("[data-lang]");
+const releaseLoading = document.querySelector("[data-release-loading]");
+const langButtons = document.querySelectorAll("[data-lang]");
+const themeToggle = document.querySelector("[data-theme-toggle]");
+const lightbox = document.querySelector("[data-lightbox]");
+const lightboxImg = document.querySelector("[data-lightbox-img]");
 
 let currentLang = "en";
+let themeChoice = "system";
 let currentReleases = [];
 
-function safeStorageGet(key) {
+function storageGet(key) {
   try {
     return localStorage.getItem(key);
   } catch {
@@ -27,86 +30,99 @@ function safeStorageGet(key) {
   }
 }
 
-function safeStorageSet(key, value) {
+function storageSet(key, value) {
   try {
     localStorage.setItem(key, value);
   } catch {
-    // Ignore storage failures.
+    /* private mode */
   }
 }
 
-function detectPreferredLanguage() {
-  const browserLanguage = (navigator.language || navigator.userLanguage || "en").toLowerCase();
-
-  if (browserLanguage.startsWith("ru")) {
-    return "ru";
-  }
-
-  if (browserLanguage.startsWith("zh")) {
-    return "zh";
-  }
-
+function detectLanguage() {
+  const value = (navigator.language || "en").toLowerCase();
+  if (value.startsWith("ru")) return "ru";
+  if (value.startsWith("zh")) return "zh";
   return "en";
 }
 
-function getDictionary(lang) {
+function dictionary(lang) {
   return translations[lang] || translations.en || {};
 }
 
-function detectSystemTheme() {
+function systemTheme() {
   return systemThemeQuery && systemThemeQuery.matches ? "dark" : "light";
 }
 
-function updateThemeColor(theme) {
-  if (themeColorMeta) {
-    themeColorMeta.setAttribute("content", theme === "dark" ? DARK_THEME_COLOR : LIGHT_THEME_COLOR);
-  }
+function resolvedTheme() {
+  return themeChoice === "light" || themeChoice === "dark" ? themeChoice : systemTheme();
 }
 
-function applySystemTheme() {
-  const theme = detectSystemTheme();
+function applyTheme() {
+  const theme = resolvedTheme();
   root.dataset.theme = theme;
-  updateThemeColor(theme);
+  root.style.colorScheme = theme;
+  if (themeColorMeta) {
+    const surface = getComputedStyle(document.body).backgroundColor;
+    themeColorMeta.setAttribute("content", surface || (theme === "dark" ? DARK : LIGHT));
+  }
+  if (themeToggle) {
+    const key = theme === "dark" ? "theme.toLight" : "theme.toDark";
+    themeToggle.setAttribute("aria-label", dictionary(currentLang)[key] || key);
+  }
 }
 
-function setupSystemTheme() {
-  applySystemTheme();
-
-  if (!systemThemeQuery) {
-    return;
-  }
-
-  const handleThemeChange = () => {
-    applySystemTheme();
+function setupTheme() {
+  const stored = storageGet(THEME_KEY);
+  themeChoice = stored === "light" || stored === "dark" ? stored : "system";
+  applyTheme();
+  if (!systemThemeQuery) return;
+  const onChange = () => {
+    if (themeChoice === "system") applyTheme();
   };
-
-  if ("addEventListener" in systemThemeQuery) {
-    systemThemeQuery.addEventListener("change", handleThemeChange);
-    return;
-  }
-
-  if ("addListener" in systemThemeQuery) {
-    systemThemeQuery.addListener(handleThemeChange);
-  }
+  if ("addEventListener" in systemThemeQuery) systemThemeQuery.addEventListener("change", onChange);
 }
 
-function updateTopBar() {
-  if (!topBar) {
-    return;
-  }
-
-  topBar.dataset.scrolled = window.scrollY > 10 ? "true" : "false";
+function universalApk(release) {
+  const assets = Array.isArray(release.assets) ? release.assets : [];
+  return assets.find((asset) => /^monogram-universal-.+-release\.apk$/i.test(asset.name || ""));
 }
 
-function setLatestReleaseTargets(url) {
+function setLatestReleaseTargets(url, filename) {
   latestReleaseNodes.forEach((node) => {
-    if (node instanceof HTMLElement) {
-      node.setAttribute("href", url || RELEASE_URL);
-    }
+    node.setAttribute("href", url || RELEASE_URL);
+    if (filename) node.setAttribute("download", filename);
+    else node.removeAttribute("download");
   });
 }
 
-function getReleaseSlotNodes(slot) {
+function formatReleaseDate(value, lang) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const locale = lang === "ru" ? "ru-RU" : lang === "zh" ? "zh-CN" : "en-US";
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(date);
+}
+
+function applyTranslations(lang) {
+  const dict = dictionary(lang);
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    const key = node.getAttribute("data-i18n");
+    if (key && dict[key]) node.textContent = dict[key];
+  });
+  document.querySelectorAll("[data-i18n-attr]").forEach((node) => {
+    const raw = node.getAttribute("data-i18n-attr");
+    if (!raw) return;
+    raw.split(",").forEach((pair) => {
+      const [attribute, key] = pair.split(":").map((part) => part.trim());
+      if (attribute && key && dict[key]) node.setAttribute(attribute, dict[key]);
+    });
+  });
+  root.lang = lang === "zh" ? "zh-CN" : lang;
+  document.title = dict["meta.title"] || "Monogram for Android";
+  const description = document.querySelector('meta[name="description"]');
+  if (description && dict["meta.description"]) description.setAttribute("content", dict["meta.description"]);
+}
+
+function slotNodes(slot) {
   return {
     container: document.querySelector(`[data-release-slot="${slot}"]`),
     label: document.querySelector(`[data-release-slot-label="${slot}"]`),
@@ -116,126 +132,37 @@ function getReleaseSlotNodes(slot) {
   };
 }
 
-function formatReleaseDate(value, lang) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const localeMap = {
-    en: "en-US",
-    ru: "ru-RU",
-    zh: "zh-CN"
-  };
-
-  return new Intl.DateTimeFormat(localeMap[lang] || "en-US", {
-    day: "numeric",
-    month: "long",
-    year: "numeric"
-  }).format(date);
-}
-
-function applyTranslations(lang) {
-  const dictionary = getDictionary(lang);
-
-  document.querySelectorAll("[data-i18n]").forEach((node) => {
-    const key = node.getAttribute("data-i18n");
-
-    if (key && dictionary[key]) {
-      node.textContent = dictionary[key];
-    }
-  });
-
-  document.querySelectorAll("[data-i18n-attr]").forEach((node) => {
-    const rawValue = node.getAttribute("data-i18n-attr");
-
-    if (!rawValue) {
-      return;
-    }
-
-    rawValue.split(",").forEach((pair) => {
-      const [attribute, key] = pair.split(":").map((part) => part.trim());
-
-      if (attribute && key && dictionary[key]) {
-        node.setAttribute(attribute, dictionary[key]);
-      }
-    });
-  });
-
-  root.lang = lang === "zh" ? "zh-CN" : lang;
-  document.title = dictionary["meta.title"] || "Monogram for Android";
-}
-
 function renderReleaseRows() {
-  if (!releasesBlock) {
-    return;
-  }
-
   const slots = [
     { key: "latest", release: currentReleases[0] || null, labelKey: "release.latestCard" },
-    { key: "previous", release: currentReleases[1] || null, labelKey: null },
-    { key: "earlier", release: currentReleases[2] || null, labelKey: null }
+    { key: "previous", release: currentReleases[1] || null },
+    { key: "earlier", release: currentReleases[2] || null }
   ];
-
   slots.forEach(({ key, release, labelKey }) => {
-    const slotNodes = getReleaseSlotNodes(key);
-
-    if (!slotNodes.container) {
-      return;
-    }
-
-    const isVisible = Boolean(release);
-    slotNodes.container.hidden = !isVisible;
-
-    if (!isVisible) {
-      return;
-    }
-
-    if (slotNodes.label && labelKey) {
-      slotNodes.label.textContent = getDictionary(currentLang)[labelKey] || "";
-    }
-
-    if (slotNodes.link instanceof HTMLElement) {
-      slotNodes.link.setAttribute("href", release.url || RELEASE_URL);
-    }
-
-    if (slotNodes.version) {
-      slotNodes.version.textContent = release.version;
-    }
-
-    if (slotNodes.date) {
-      slotNodes.date.textContent = formatReleaseDate(release.publishedAt, currentLang);
-      slotNodes.date.setAttribute("datetime", release.publishedAt);
+    const nodes = slotNodes(key);
+    if (!nodes.container) return;
+    nodes.container.hidden = !release;
+    if (!release) return;
+    if (nodes.label && labelKey) nodes.label.textContent = dictionary(currentLang)[labelKey] || "";
+    if (nodes.link) nodes.link.setAttribute("href", release.url || RELEASE_URL);
+    if (nodes.version) nodes.version.textContent = release.version;
+    if (nodes.date) {
+      nodes.date.textContent = formatReleaseDate(release.publishedAt, currentLang);
+      nodes.date.setAttribute("datetime", release.publishedAt);
     }
   });
-
 }
 
-function setReleaseVisibility(isVisible) {
-  if (!releasesBlock) {
-    return;
-  }
-
-  if (isVisible) {
-    releasesBlock.hidden = false;
-    releasesBlock.classList.remove("is-visible");
-    void releasesBlock.offsetWidth;
-    requestAnimationFrame(() => {
-      releasesBlock.classList.add("is-visible");
-    });
-    return;
-  }
-
-  releasesBlock.classList.remove("is-visible");
-  releasesBlock.hidden = true;
+function showReleases(visible) {
+  if (releaseLoading) releaseLoading.hidden = true;
+  if (!releasesBlock) return;
+  releasesBlock.hidden = !visible;
 }
 
-function updateLanguageChips(lang) {
-  langChips.forEach((chip) => {
-    const isActive = chip.getAttribute("data-lang") === lang;
-    chip.toggleAttribute("selected", isActive);
-    chip.setAttribute("aria-pressed", isActive ? "true" : "false");
+function updateLanguageButtons(lang) {
+  langButtons.forEach((button) => {
+    const active = button.getAttribute("data-lang") === lang;
+    button.setAttribute("aria-pressed", active ? "true" : "false");
   });
 }
 
@@ -243,97 +170,103 @@ function applyLanguage(lang) {
   currentLang = translations[lang] ? lang : "en";
   applyTranslations(currentLang);
   renderReleaseRows();
-  updateLanguageChips(currentLang);
-  safeStorageSet(LANG_KEY, currentLang);
+  updateLanguageButtons(currentLang);
+  applyTheme();
+  storageSet(LANG_KEY, currentLang);
 }
 
-function setupLanguageSwitcher() {
-  langChips.forEach((chip) => {
-    chip.addEventListener("click", () => {
-      applyLanguage(chip.getAttribute("data-lang") || "en");
-    });
+function setupLanguage() {
+  langButtons.forEach((button) => {
+    button.addEventListener("click", () => applyLanguage(button.getAttribute("data-lang") || "en"));
   });
 }
 
-function setupRevealAnimations() {
-  if (!("IntersectionObserver" in window) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    revealNodes.forEach((node) => node.classList.add("is-visible"));
-    return;
-  }
-
-  const observer = new IntersectionObserver(
-    (entries, activeObserver) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) {
-          return;
-        }
-
-        entry.target.classList.add("is-visible");
-        activeObserver.unobserve(entry.target);
-      });
-    },
-    {
-      threshold: 0.18,
-      rootMargin: "0px 0px -8% 0px"
-    }
-  );
-
-  revealNodes.forEach((node) => observer.observe(node));
+function setupThemeToggle() {
+  if (!themeToggle) return;
+  themeToggle.addEventListener("click", () => {
+    themeChoice = resolvedTheme() === "dark" ? "light" : "dark";
+    storageSet(THEME_KEY, themeChoice);
+    applyTheme();
+  });
 }
 
-async function loadLatestRelease() {
+function closeLightbox() {
+  if (!lightbox) return;
+  lightbox.hidden = true;
+  document.body.style.overflow = "";
+  if (lightboxImg) {
+    lightboxImg.removeAttribute("src");
+    lightboxImg.alt = "";
+  }
+}
+
+function setupLightbox() {
+  document.querySelectorAll("[data-shot]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const image = button.querySelector("img");
+      if (!image || !lightbox || !lightboxImg) return;
+      lightboxImg.src = image.currentSrc || image.src;
+      lightboxImg.alt = image.alt;
+      lightbox.hidden = false;
+      document.body.style.overflow = "hidden";
+      const close = lightbox.querySelector("[data-lightbox-close]");
+      if (close) close.focus();
+    });
+  });
+  if (!lightbox) return;
+  lightbox.addEventListener("click", (event) => {
+    if (event.target === lightbox) closeLightbox();
+  });
+  const close = lightbox.querySelector("[data-lightbox-close]");
+  if (close) close.addEventListener("click", closeLightbox);
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && lightbox && !lightbox.hidden) closeLightbox();
+  });
+}
+
+async function loadReleases() {
   try {
     const response = await fetch(RELEASES_API_URL, {
       headers: {
         Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2026-03-10"
+        "X-GitHub-Api-Version": "2022-11-28"
       }
     });
-
-    if (!response.ok) {
-      throw new Error(`GitHub API returned ${response.status}`);
-    }
-
-    const releases = await response.json();
-
-    if (!Array.isArray(releases)) {
-      throw new Error("GitHub API returned an unexpected payload.");
-    }
-
-    const publishedReleases = releases
+    if (!response.ok) throw new Error(String(response.status));
+    const payload = await response.json();
+    if (!Array.isArray(payload)) throw new Error("payload");
+    currentReleases = payload
       .filter((item) => item && !item.draft && item.published_at)
-      .sort((left, right) => new Date(right.published_at) - new Date(left.published_at))
+      .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
       .slice(0, 3)
-      .map((release) => ({
-        version: (release.tag_name || release.name || "").replace(/^v/i, ""),
-        publishedAt: release.published_at,
-        prerelease: Boolean(release.prerelease),
-        url: release.html_url || RELEASE_URL
-      }));
-
-    if (publishedReleases.length === 0) {
-      throw new Error("No published releases were found.");
-    }
-
-    currentReleases = publishedReleases;
-    setLatestReleaseTargets(publishedReleases[0].url || RELEASE_URL);
+      .map((release) => {
+        const apk = universalApk(release);
+        return {
+          version: String(release.tag_name || release.name || "").replace(/^v/i, ""),
+          publishedAt: release.published_at,
+          url: release.html_url || RELEASE_URL,
+          apkUrl: apk && apk.browser_download_url ? apk.browser_download_url : "",
+          apkName: apk && apk.name ? apk.name : ""
+        };
+      })
+      .filter((release) => release.version);
+    if (!currentReleases.length) throw new Error("empty");
+    const latest = currentReleases[0];
+    setLatestReleaseTargets(latest.apkUrl || latest.url, latest.apkName);
     renderReleaseRows();
-    setReleaseVisibility(true);
+    showReleases(true);
   } catch (error) {
     currentReleases = [];
-    setLatestReleaseTargets(RELEASE_URL);
-    setReleaseVisibility(false);
-    console.warn("Unable to load latest release metadata.", error);
+    setLatestReleaseTargets(LATEST_RELEASE_URL);
+    showReleases(false);
+    console.warn("Unable to load releases.", error);
   }
 }
 
-setupSystemTheme();
-updateTopBar();
-setupLanguageSwitcher();
-setupRevealAnimations();
-setLatestReleaseTargets(RELEASE_URL);
-setReleaseVisibility(false);
-applyLanguage(safeStorageGet(LANG_KEY) || detectPreferredLanguage());
-loadLatestRelease();
-
-window.addEventListener("scroll", updateTopBar, { passive: true });
+setupTheme();
+setupThemeToggle();
+setupLanguage();
+setupLightbox();
+setLatestReleaseTargets(LATEST_RELEASE_URL);
+applyLanguage(storageGet(LANG_KEY) || detectLanguage());
+loadReleases();

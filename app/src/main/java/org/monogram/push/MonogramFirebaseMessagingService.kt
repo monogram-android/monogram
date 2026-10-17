@@ -19,11 +19,7 @@ class MonogramFirebaseMessagingService : FirebaseMessagingService() {
         if (!app.awaitReadyBlocking()) return
         AppLog.api("fcm", "data keys=${message.data.keys.joinToString()}")
         val latch = CountDownLatch(1)
-        try {
-            app.push.handleFcm(message.data["p"])
-        } finally {
-            latch.countDown()
-        }
+        app.push.handleFcm(message.data["p"]) { latch.countDown() }
         latch.await(20, TimeUnit.SECONDS)
     }
 }

@@ -1,35 +1,53 @@
-use crate::client_mgr;
-use crate::extras_rpc;
+use crate::client;
+use crate::{UpdateBatchDto, UpdateDrainDto};
+
+#[cfg(target_os = "android")]
+#[allow(unsafe_code)]
+#[jni::jni_mangle("org.monogram.mtproto.MtprotoNativeLoader")]
+pub extern "system" fn init_platform_verifier<'caller>(
+    mut unowned_env: jni::EnvUnowned<'caller>,
+    _this: jni::objects::JObject<'caller>,
+    context: jni::objects::JObject<'caller>,
+) {
+    unowned_env
+        .with_env(|env| rustls_platform_verifier::android::init_with_env(env, context))
+        .resolve::<jni::errors::ThrowRuntimeExAndDefault>();
+}
+
+use crate::client::extras_rpc;
+use crate::client::push_rpc;
 use crate::lottie;
+use crate::messages::read_receipts_rpc;
 use crate::perf;
-use crate::push_rpc;
-use crate::read_receipts_rpc;
 use crate::request_control;
 use crate::scheduler;
 use crate::session_crypto;
 use crate::session_file;
 use crate::vpx;
+use crate::waveform;
 use crate::{
     AuthCodeSent, AuthSignedIn, BotCallbackAnswerDto, ChatDto, ContactsSearchDto, DiscussionDto,
     FolderDto, ForumTopicsPageDto, GlobalMessageSearchDto, InlineBotResultsDto, InstantViewDto,
-    LottieSize, MessageDto, MtprotoError, NotifyExceptionDto, NotifySettingsDto, ProfileDto,
+    JoinChatDto, LottieSize, MessageDto, MessagesPageDto, MtprotoError, NotifyExceptionDto, NotifySettingsDto,
+    ProfileDto,
     ReactionChoiceDto, ResolvedPeerDto, SavedGifDto, StickerCatalogDto, StickerListDto,
-    StickerPackDto, UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxFrame, WallpaperCatalogDto,
+    StickerPackDto, UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame,
+    WallpaperCatalogDto,
 };
 
 #[uniffi::export]
 pub fn get_wallpapers(handle: u64, hash: i64) -> Result<WallpaperCatalogDto, MtprotoError> {
-    client_mgr::get_wallpapers(handle, hash)
+    client::get_wallpapers(handle, hash)
 }
 
 #[uniffi::export]
 pub fn get_web_page(handle: u64, url: String, hash: i32) -> Result<InstantViewDto, MtprotoError> {
-    client_mgr::get_web_page(handle, url, hash)
+    client::get_web_page(handle, url, hash)
 }
 
 #[uniffi::export]
 pub fn get_web_page_preview(handle: u64, message: String) -> Result<InstantViewDto, MtprotoError> {
-    client_mgr::get_web_page_preview(handle, message)
+    client::get_web_page_preview(handle, message)
 }
 
 #[uniffi::export]
@@ -39,7 +57,7 @@ pub fn download_wallpaper(
     access_hash: i64,
     dest_path: String,
 ) -> Result<String, MtprotoError> {
-    client_mgr::download_wallpaper(handle, id, access_hash, dest_path)
+    client::download_wallpaper(handle, id, access_hash, dest_path)
 }
 
 #[uniffi::export]
@@ -59,14 +77,34 @@ pub fn release_request_control(id: u64) {
     request_control::release(id);
 }
 
-/// 0 interactive read, 1 background read, 2 interactive media, 3 background media,
-/// 4 interactive write.
 #[uniffi::export]
-pub fn set_dispatch_class(class: i32) {
+pub fn promote_request_control(id: u64, class: i32) {
     let class = match class {
         0 => scheduler::RequestClass::InteractiveRead,
         1 => scheduler::RequestClass::BackgroundRead,
-        2 => scheduler::RequestClass::InteractiveMedia,
+        2 | 5 | 6 | 7 => scheduler::RequestClass::InteractiveMedia,
+        3 => scheduler::RequestClass::BackgroundMedia,
+        4 => scheduler::RequestClass::InteractiveWrite,
+        _ => return,
+    };
+    request_control::promote(id, class);
+}
+
+/// 0 interactive read, 1 background read, 2 interactive media, 3 background media,
+/// 4 interactive write, 5 ordinary media, 6 visible media, 7 user media.
+#[uniffi::export]
+pub fn set_dispatch_class(class: i32) {
+    crate::media::set_request_profile(match class {
+        3 => Some(crate::media::DownloadProfile::Background),
+        5 => Some(crate::media::DownloadProfile::Ordinary),
+        6 => Some(crate::media::DownloadProfile::Visible),
+        7 => Some(crate::media::DownloadProfile::User),
+        _ => None,
+    });
+    let class = match class {
+        0 => scheduler::RequestClass::InteractiveRead,
+        1 => scheduler::RequestClass::BackgroundRead,
+        2 | 5 | 6 | 7 => scheduler::RequestClass::InteractiveMedia,
         3 => scheduler::RequestClass::BackgroundMedia,
         4 => scheduler::RequestClass::InteractiveWrite,
         _ => scheduler::RequestClass::InteractiveRead,
@@ -78,17 +116,17 @@ pub fn set_dispatch_class(class: i32) {
 #[uniffi::export]
 pub fn set_download_concurrency(lanes: i32, parts: i32) {
     scheduler::set_active_media_lanes(lanes.max(1) as usize);
-    client_mgr::set_pipeline_parts(parts.max(1) as usize);
+    client::set_pipeline_parts(parts.max(1) as usize);
 }
 
 #[uniffi::export]
 pub fn set_file_part_kib(kib: i32) {
-    crate::upload_rpc::set_file_part_kib(kib);
+    crate::upload::upload_rpc::set_file_part_kib(kib);
 }
 
 #[uniffi::export]
 pub fn set_download_chunk_kib(kib: i32) {
-    crate::media::set_chunk_size(kib * 1024);
+    crate::media::set_chunk_size(kib.checked_mul(1024).unwrap_or(0));
 }
 
 #[uniffi::export(callback_interface)]
@@ -115,7 +153,7 @@ pub fn download_chunk_kib() -> i32 {
 pub fn download_concurrency() -> Vec<i32> {
     vec![
         scheduler::active_media_lanes() as i32,
-        client_mgr::pipeline_parts() as i32,
+        client::pipeline_parts() as i32,
     ]
 }
 
@@ -140,8 +178,13 @@ pub fn library_version() -> String {
 }
 
 #[uniffi::export]
+pub fn set_init_connection_info(info: crate::InitConnectionInfo) {
+    crate::api_invoke::set_init_connection_info(info);
+}
+
+#[uniffi::export]
 pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64 {
-    client_mgr::create_client(api_id, api_hash, session_path)
+    client::create_client(api_id, api_hash, session_path)
 }
 
 #[uniffi::export]
@@ -157,44 +200,139 @@ pub fn create_encrypted_client(
     session_file::FileSessionStore::new(&session_path)
         .load()
         .map_err(|_| MtprotoError::Message("session restore failed".into()))?;
-    let handle = client_mgr::create_client(api_id, api_hash, session_path);
+    let handle = client::create_client(api_id, api_hash, session_path);
     drop(guard);
     Ok(handle)
 }
 
 #[uniffi::export]
+pub fn set_proxy(
+    kind: String,
+    host: String,
+    port: u16,
+    username: Option<String>,
+    password: Option<String>,
+    secret: Vec<u8>,
+) -> Result<(), MtprotoError> {
+    let kind = match kind.to_ascii_lowercase().as_str() {
+        "socks5" => monogram_mtproto_transport::ProxyKind::Socks5,
+        "http" => monogram_mtproto_transport::ProxyKind::Http,
+        "https" => monogram_mtproto_transport::ProxyKind::Https,
+        "mtproto" => monogram_mtproto_transport::ProxyKind::Mtproto,
+        _ => return Err(MtprotoError::Message("unsupported proxy type".into())),
+    };
+    let parsed = monogram_mtproto_transport::ProxyConfig::decode_mtproto_secret(&secret)
+        .map_err(|error| MtprotoError::Message(error.to_string()))?;
+    let (secret, fake_tls_domain) = match parsed {
+        Some((key, domain)) => (Some(key), domain),
+        None => (None, None),
+    };
+    crate::tcp::set_proxy(Some(monogram_mtproto_transport::ProxyConfig {
+        kind,
+        host,
+        port,
+        username,
+        password,
+        secret,
+        fake_tls_domain,
+    }))
+    .map_err(|e| MtprotoError::Message(e.to_string()))
+}
+
+#[uniffi::export]
+pub fn ping_proxy(
+    kind: String,
+    host: String,
+    port: u16,
+    username: Option<String>,
+    password: Option<String>,
+    secret: Vec<u8>,
+) -> Result<i64, MtprotoError> {
+    let kind = match kind.to_ascii_lowercase().as_str() {
+        "socks5" => monogram_mtproto_transport::ProxyKind::Socks5,
+        "http" => monogram_mtproto_transport::ProxyKind::Http,
+        "https" => monogram_mtproto_transport::ProxyKind::Https,
+        "mtproto" => monogram_mtproto_transport::ProxyKind::Mtproto,
+        _ => return Err(MtprotoError::Message("unsupported proxy type".into())),
+    };
+    let parsed = monogram_mtproto_transport::ProxyConfig::decode_mtproto_secret(&secret)
+        .map_err(|error| MtprotoError::Message(error.to_string()))?;
+    let (secret, fake_tls_domain) = match parsed {
+        Some((key, domain)) => (Some(key), domain),
+        None => (None, None),
+    };
+    crate::tcp::probe_proxy(monogram_mtproto_transport::ProxyConfig {
+        kind,
+        host,
+        port,
+        username,
+        password,
+        secret,
+        fake_tls_domain,
+    })
+    .map_err(|error| MtprotoError::Message(error.to_string()))
+}
+
+#[uniffi::export]
+pub fn clear_proxy() -> Result<(), MtprotoError> {
+    crate::tcp::set_proxy(None).map_err(|e| MtprotoError::Message(e.to_string()))
+}
+
+#[uniffi::export]
+pub fn set_transport_mode(mode: String) -> Result<(), MtprotoError> {
+    let mode = match mode.to_ascii_lowercase().as_str() {
+        "padded_intermediate" | "padded-intermediate" | "mtproto" => {
+            monogram_mtproto_transport::TransportMode::PaddedIntermediate
+        }
+        "http" => monogram_mtproto_transport::TransportMode::Http,
+        _ => return Err(MtprotoError::Message("unsupported transport mode".into())),
+    };
+    crate::tcp::set_transport_mode(mode);
+    Ok(())
+}
+#[uniffi::export]
 pub fn connect(handle: u64) -> Result<(), MtprotoError> {
-    perf::span("connect").with(|| client_mgr::connect(handle))
+    perf::span("connect").with(|| client::connect(handle))
 }
 
 #[uniffi::export]
 pub fn is_authorized(handle: u64) -> Result<bool, MtprotoError> {
-    client_mgr::is_authorized(handle)
+    client::is_authorized(handle)
 }
 
 #[uniffi::export]
 pub fn destroy_client(handle: u64) {
-    client_mgr::destroy_client(handle)
+    client::destroy_client(handle)
+}
+
+#[uniffi::export]
+pub fn update_lazy_sync_config(handle: u64, lazy: bool, exceptions: Vec<i64>) {
+    client::update_lazy_sync_config(handle, lazy, exceptions);
 }
 
 #[uniffi::export]
 pub fn client_exists(handle: u64) -> bool {
-    client_mgr::client_exists(handle)
+    client::client_exists(handle)
 }
 
 #[uniffi::export]
 pub fn client_api_id(handle: u64) -> i32 {
-    client_mgr::client_api_id(handle)
+    client::client_api_id(handle)
 }
 
 #[uniffi::export]
 pub fn set_client_test_dc(handle: u64, test: bool) -> Result<(), MtprotoError> {
-    client_mgr::set_client_test_dc(handle, test)
+    client::set_client_test_dc(handle, test)
+}
+
+#[uniffi::export]
+pub fn client_uses_test_dc(handle: u64) -> bool {
+    client::client_uses_test_dc(handle)
 }
 
 #[uniffi::export]
 pub fn send_auth_code(handle: u64, phone: String) -> Result<AuthCodeSent, MtprotoError> {
-    client_mgr::send_auth_code(handle, phone)
+    client::send_auth_code(handle, phone)
 }
 
 #[uniffi::export]
@@ -203,7 +341,7 @@ pub fn resend_auth_code(
     phone: String,
     phone_code_hash: String,
 ) -> Result<AuthCodeSent, MtprotoError> {
-    client_mgr::resend_auth_code(handle, phone, phone_code_hash)
+    client::resend_auth_code(handle, phone, phone_code_hash)
 }
 
 #[uniffi::export]
@@ -213,47 +351,47 @@ pub fn sign_in(
     phone_code_hash: String,
     phone_code: String,
 ) -> Result<AuthSignedIn, MtprotoError> {
-    client_mgr::sign_in(handle, phone, phone_code_hash, phone_code)
+    client::sign_in(handle, phone, phone_code_hash, phone_code)
 }
 
 #[uniffi::export]
 pub fn check_password(handle: u64, password: String) -> Result<AuthSignedIn, MtprotoError> {
-    client_mgr::check_password(handle, password)
+    client::check_password(handle, password)
 }
 
 #[uniffi::export]
 pub fn logout(handle: u64) -> Result<(), MtprotoError> {
-    client_mgr::logout(handle)
+    client::logout(handle)
 }
 
 #[uniffi::export]
 pub fn get_chats(handle: u64) -> Result<Vec<ChatDto>, MtprotoError> {
-    client_mgr::get_chats(handle)
+    client::get_chats(handle)
 }
 
 #[uniffi::export]
 pub fn get_folders(handle: u64) -> Result<Vec<FolderDto>, MtprotoError> {
-    client_mgr::get_folders(handle)
+    client::get_folders(handle)
 }
 
 #[uniffi::export]
 pub fn update_folder(handle: u64, folder: FolderDto) -> Result<(), MtprotoError> {
-    client_mgr::update_folder(handle, folder)
+    client::update_folder(handle, folder)
 }
 
 #[uniffi::export]
 pub fn delete_folder(handle: u64, id: i32) -> Result<(), MtprotoError> {
-    client_mgr::delete_folder(handle, id)
+    client::delete_folder(handle, id)
 }
 
 #[uniffi::export]
 pub fn update_folder_order(handle: u64, order: Vec<i32>) -> Result<(), MtprotoError> {
-    client_mgr::update_folder_order(handle, order)
+    client::update_folder_order(handle, order)
 }
 
 #[uniffi::export]
 pub fn get_history(handle: u64, chat_id: i64, limit: i32) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::get_history(handle, chat_id, limit, 0, 0, 0)
+    client::get_history(handle, chat_id, limit, 0, 0, 0)
 }
 
 #[uniffi::export]
@@ -265,7 +403,7 @@ pub fn get_history_page(
     offset_date: i32,
     add_offset: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::get_history(handle, chat_id, limit, offset_id, offset_date, add_offset)
+    client::get_history(handle, chat_id, limit, offset_id, offset_date, add_offset)
 }
 
 #[uniffi::export]
@@ -277,7 +415,7 @@ pub fn get_replies(
     offset_id: i32,
     add_offset: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::get_replies(handle, chat_id, msg_id, limit, offset_id, add_offset)
+    client::get_replies(handle, chat_id, msg_id, limit, offset_id, add_offset)
 }
 
 #[uniffi::export]
@@ -289,7 +427,7 @@ pub fn get_forum_topics(
     offset_topic: i32,
     limit: i32,
 ) -> Result<ForumTopicsPageDto, MtprotoError> {
-    client_mgr::get_forum_topics(handle, chat_id, offset_date, offset_id, offset_topic, limit)
+    client::get_forum_topics(handle, chat_id, offset_date, offset_id, offset_topic, limit)
 }
 
 #[uniffi::export]
@@ -298,7 +436,7 @@ pub fn get_forum_topics_by_id(
     chat_id: i64,
     topic_ids: Vec<i32>,
 ) -> Result<ForumTopicsPageDto, MtprotoError> {
-    client_mgr::get_forum_topics_by_id(handle, chat_id, topic_ids)
+    client::get_forum_topics_by_id(handle, chat_id, topic_ids)
 }
 
 #[uniffi::export]
@@ -308,7 +446,7 @@ pub fn edit_forum_topic_hidden(
     topic_id: i32,
     hidden: bool,
 ) -> Result<(), MtprotoError> {
-    client_mgr::edit_forum_topic_hidden(handle, chat_id, topic_id, hidden)
+    client::edit_forum_topic_hidden(handle, chat_id, topic_id, hidden)
 }
 
 #[uniffi::export]
@@ -319,7 +457,7 @@ pub fn load_more_chats(
     offset_peer_id: i64,
     folder_id: i32,
 ) -> Result<Vec<ChatDto>, MtprotoError> {
-    client_mgr::load_more_chats(handle, offset_date, offset_id, offset_peer_id, folder_id)
+    client::load_more_chats(handle, offset_date, offset_id, offset_peer_id, folder_id)
 }
 
 #[uniffi::export]
@@ -329,7 +467,7 @@ pub fn search_messages(
     query: String,
     limit: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::search_messages(handle, chat_id, query, limit)
+    client::search_messages(handle, chat_id, query, limit)
 }
 
 #[uniffi::export]
@@ -342,9 +480,20 @@ pub fn search_messages_filtered(
     add_offset: i32,
     limit: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::search_messages_filtered(
-        handle, chat_id, query, filter, offset_id, add_offset, limit,
-    )
+    client::search_messages_filtered(handle, chat_id, query, filter, offset_id, add_offset, limit)
+}
+
+#[uniffi::export]
+pub fn search_messages_page(
+    handle: u64,
+    chat_id: i64,
+    query: String,
+    filter: String,
+    offset_id: i32,
+    add_offset: i32,
+    limit: i32,
+) -> Result<MessagesPageDto, MtprotoError> {
+    client::search_messages_page(handle, chat_id, query, filter, offset_id, add_offset, limit)
 }
 
 #[uniffi::export]
@@ -353,7 +502,7 @@ pub fn contacts_search(
     query: String,
     limit: i32,
 ) -> Result<ContactsSearchDto, MtprotoError> {
-    client_mgr::contacts_search(handle, query, limit)
+    client::contacts_search(handle, query, limit)
 }
 
 #[uniffi::export]
@@ -366,7 +515,7 @@ pub fn search_global(
     limit: i32,
     folder_id: i32,
 ) -> Result<GlobalMessageSearchDto, MtprotoError> {
-    client_mgr::search_global(
+    client::search_global(
         handle,
         query,
         offset_rate,
@@ -383,7 +532,7 @@ pub fn get_pinned_messages(
     chat_id: i64,
     limit: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::get_pinned_messages(handle, chat_id, limit)
+    client::get_pinned_messages(handle, chat_id, limit)
 }
 
 #[uniffi::export]
@@ -395,8 +544,9 @@ pub fn send_text_message(
     entities_json: Option<String>,
     top_msg_id: i32,
     webpage_url: Option<String>,
+    client_random_id: i64,
 ) -> Result<MessageDto, MtprotoError> {
-    client_mgr::send_text_message(
+    client::send_text_message(
         handle,
         chat_id,
         text,
@@ -404,6 +554,7 @@ pub fn send_text_message(
         entities_json,
         top_msg_id,
         webpage_url,
+        client_random_id,
     )
 }
 
@@ -417,7 +568,7 @@ pub fn send_photo_message(
     top_msg_id: i32,
     entities_json: Option<String>,
 ) -> Result<MessageDto, MtprotoError> {
-    client_mgr::send_photo_message(
+    client::send_photo_message(
         handle,
         chat_id,
         path,
@@ -437,7 +588,7 @@ pub fn send_uploaded_media(
     top_msg_id: i32,
     entities_json: Option<String>,
 ) -> Result<MessageDto, MtprotoError> {
-    client_mgr::send_uploaded_media(
+    client::send_uploaded_media(
         handle,
         chat_id,
         item,
@@ -455,7 +606,7 @@ pub fn send_uploaded_album(
     reply_to_msg_id: i32,
     top_msg_id: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::send_uploaded_album(handle, chat_id, items, reply_to_msg_id, top_msg_id)
+    client::send_uploaded_album(handle, chat_id, items, reply_to_msg_id, top_msg_id)
 }
 
 #[uniffi::export]
@@ -466,7 +617,7 @@ pub fn edit_text_message(
     text: String,
     entities_json: Option<String>,
 ) -> Result<MessageDto, MtprotoError> {
-    client_mgr::edit_text_message(handle, chat_id, message_id, text, entities_json)
+    client::edit_text_message(handle, chat_id, message_id, text, entities_json)
 }
 
 #[uniffi::export]
@@ -476,7 +627,7 @@ pub fn delete_message(
     message_id: i32,
     revoke: bool,
 ) -> Result<(), MtprotoError> {
-    client_mgr::delete_message(handle, chat_id, message_id, revoke)
+    client::delete_message(handle, chat_id, message_id, revoke)
 }
 
 #[uniffi::export]
@@ -487,12 +638,12 @@ pub fn forward_messages(
     to_chat_id: i64,
     drop_author: bool,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::forward_messages(handle, from_chat_id, message_ids, to_chat_id, drop_author)
+    client::forward_messages(handle, from_chat_id, message_ids, to_chat_id, drop_author)
 }
 
 #[uniffi::export]
 pub fn read_history(handle: u64, chat_id: i64, max_id: i32) -> Result<(), MtprotoError> {
-    client_mgr::read_history(handle, chat_id, max_id)
+    client::read_history(handle, chat_id, max_id)
 }
 
 /// https://core.telegram.org/method/messages.readMessageContents
@@ -503,13 +654,13 @@ pub fn read_message_contents(
     chat_id: i64,
     message_ids: Vec<i32>,
 ) -> Result<(), MtprotoError> {
-    client_mgr::read_message_contents(handle, chat_id, message_ids)
+    client::read_message_contents(handle, chat_id, message_ids)
 }
 
 /// https://core.telegram.org/method/messages.markDialogUnread
 #[uniffi::export]
 pub fn mark_dialog_unread(handle: u64, chat_id: i64, unread: bool) -> Result<(), MtprotoError> {
-    client_mgr::mark_dialog_unread(handle, chat_id, unread)
+    client::mark_dialog_unread(handle, chat_id, unread)
 }
 
 /// https://core.telegram.org/method/messages.getUnreadMentions
@@ -522,13 +673,13 @@ pub fn get_unread_mentions(
     limit: i32,
     top_msg_id: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::get_unread_mentions(handle, chat_id, offset_id, add_offset, limit, top_msg_id)
+    client::get_unread_mentions(handle, chat_id, offset_id, add_offset, limit, top_msg_id)
 }
 
 /// https://core.telegram.org/method/messages.readMentions
 #[uniffi::export]
 pub fn read_mentions(handle: u64, chat_id: i64, top_msg_id: i32) -> Result<(), MtprotoError> {
-    client_mgr::read_mentions(handle, chat_id, top_msg_id)
+    client::read_mentions(handle, chat_id, top_msg_id)
 }
 
 /// https://core.telegram.org/method/messages.getUnreadReactions
@@ -541,13 +692,13 @@ pub fn get_unread_reactions(
     limit: i32,
     top_msg_id: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
-    client_mgr::get_unread_reactions(handle, chat_id, offset_id, add_offset, limit, top_msg_id)
+    client::get_unread_reactions(handle, chat_id, offset_id, add_offset, limit, top_msg_id)
 }
 
 /// https://core.telegram.org/method/messages.readReactions
 #[uniffi::export]
 pub fn read_reactions(handle: u64, chat_id: i64, top_msg_id: i32) -> Result<(), MtprotoError> {
-    client_mgr::read_reactions(handle, chat_id, top_msg_id)
+    client::read_reactions(handle, chat_id, top_msg_id)
 }
 
 #[uniffi::export]
@@ -557,17 +708,17 @@ pub fn read_discussion(
     msg_id: i32,
     read_max_id: i32,
 ) -> Result<(), MtprotoError> {
-    client_mgr::read_discussion(handle, chat_id, msg_id, read_max_id)
+    client::read_discussion(handle, chat_id, msg_id, read_max_id)
 }
 
 #[uniffi::export]
 pub fn set_typing(handle: u64, chat_id: i64, typing: bool) -> Result<(), MtprotoError> {
-    client_mgr::set_typing(handle, chat_id, typing)
+    client::set_typing(handle, chat_id, typing)
 }
 
 #[uniffi::export]
 pub fn update_status(handle: u64, offline: bool) -> Result<(), MtprotoError> {
-    client_mgr::update_status(handle, offline)
+    client::update_status(handle, offline)
 }
 
 #[uniffi::export]
@@ -580,7 +731,7 @@ pub fn register_device(
     app_sandbox: bool,
     other_uids: Vec<i64>,
 ) -> Result<(), MtprotoError> {
-    client_mgr::register_device(
+    client::register_device(
         handle,
         token_type,
         token,
@@ -598,7 +749,7 @@ pub fn unregister_device(
     token: String,
     other_uids: Vec<i64>,
 ) -> Result<(), MtprotoError> {
-    client_mgr::unregister_device(handle, token_type, token, other_uids)
+    client::unregister_device(handle, token_type, token, other_uids)
 }
 
 #[uniffi::export]
@@ -607,7 +758,7 @@ pub fn get_notify_settings(
     peer_kind: String,
     chat_id: i64,
 ) -> Result<NotifySettingsDto, MtprotoError> {
-    client_mgr::get_notify_settings(handle, peer_kind, chat_id)
+    client::get_notify_settings(handle, peer_kind, chat_id)
 }
 
 #[uniffi::export]
@@ -615,13 +766,13 @@ pub fn update_notify_settings(
     handle: u64,
     peer_kind: String,
     chat_id: i64,
-    show_previews: bool,
+    show_previews: Option<bool>,
     silent: bool,
     mute_until: i32,
     stories_muted: bool,
     sound: String,
 ) -> Result<(), MtprotoError> {
-    client_mgr::update_notify_settings(
+    client::update_notify_settings(
         handle,
         peer_kind,
         chat_id,
@@ -635,12 +786,22 @@ pub fn update_notify_settings(
 
 #[uniffi::export]
 pub fn reset_notify_settings(handle: u64) -> Result<(), MtprotoError> {
-    client_mgr::reset_notify_settings(handle)
+    client::reset_notify_settings(handle)
+}
+
+#[uniffi::export]
+pub fn join_chat(handle: u64, chat_id: i64) -> Result<JoinChatDto, MtprotoError> {
+    client::join_chat(handle, chat_id)
+}
+
+#[uniffi::export]
+pub fn unblock_user(handle: u64, chat_id: i64) -> Result<(), MtprotoError> {
+    client::unblock_user(handle, chat_id)
 }
 
 #[uniffi::export]
 pub fn set_contact_joined_silent(handle: u64, silent: bool) -> Result<(), MtprotoError> {
-    client_mgr::set_contact_joined_silent(handle, silent)
+    client::set_contact_joined_silent(handle, silent)
 }
 
 #[uniffi::export]
@@ -648,7 +809,7 @@ pub fn get_notify_exceptions(
     handle: u64,
     compare_sound: bool,
 ) -> Result<Vec<NotifyExceptionDto>, MtprotoError> {
-    client_mgr::get_notify_exceptions(handle, compare_sound)
+    client::get_notify_exceptions(handle, compare_sound)
 }
 
 #[uniffi::export]
@@ -658,12 +819,12 @@ pub fn decrypt_push_payload(secret: Vec<u8>, payload: String) -> Result<String, 
 
 #[uniffi::export]
 pub fn get_profile(handle: u64, peer_id: i64) -> Result<ProfileDto, MtprotoError> {
-    client_mgr::get_profile(handle, peer_id)
+    client::get_profile(handle, peer_id)
 }
 
 #[uniffi::export]
 pub fn get_group_admin_tags(handle: u64, chat_id: i64) -> Result<String, MtprotoError> {
-    client_mgr::get_group_admin_tags(handle, chat_id)
+    client::get_group_admin_tags(handle, chat_id)
 }
 
 /// `messages.getSearchCounters` counts per filter (photo_video/document/url/gif/voice/music/...).
@@ -673,7 +834,7 @@ pub fn get_search_counters(
     chat_id: i64,
     filters: Vec<String>,
 ) -> Result<String, MtprotoError> {
-    client_mgr::get_search_counters(handle, chat_id, filters)
+    client::get_search_counters(handle, chat_id, filters)
 }
 
 /// Participant page with roles for groups and channels, as compact JSON.
@@ -686,7 +847,7 @@ pub fn get_participants(
     offset: i32,
     limit: i32,
 ) -> Result<String, MtprotoError> {
-    client_mgr::get_participants(handle, chat_id, filter, query, offset, limit)
+    client::get_participants(handle, chat_id, filter, query, offset, limit)
 }
 
 /// Groups and channels shared with a user, as compact JSON.
@@ -697,37 +858,51 @@ pub fn get_common_chats(
     max_id: i64,
     limit: i32,
 ) -> Result<String, MtprotoError> {
-    client_mgr::get_common_chats(handle, user_id, max_id, limit)
+    client::get_common_chats(handle, user_id, max_id, limit)
 }
 
 #[uniffi::export]
 pub fn start_updates(handle: u64) -> Result<(), MtprotoError> {
-    client_mgr::start_updates(handle)
+    client::start_updates(handle)
 }
 
 #[uniffi::export]
 pub fn clear_active_dialog(handle: u64) -> Result<(), MtprotoError> {
-    client_mgr::clear_active_dialog(handle)
+    client::clear_active_dialog(handle)
 }
 
 #[uniffi::export]
-pub fn drain_updates(handle: u64) -> Result<Vec<UpdateEventDto>, MtprotoError> {
-    client_mgr::drain_updates(handle)
+pub fn drain_updates(handle: u64) -> Result<UpdateDrainDto, MtprotoError> {
+    client::drain_updates(handle)
+}
+
+#[uniffi::export]
+pub fn pending_update_batches(handle: u64) -> Result<Vec<UpdateBatchDto>, MtprotoError> {
+    client::pending_update_batches(handle)
+}
+
+#[uniffi::export]
+pub fn acknowledge_update_batch(
+    handle: u64,
+    account_generation: i64,
+    batch_id: i64,
+) -> Result<(), MtprotoError> {
+    client::acknowledge_update_batch(handle, account_generation, batch_id)
 }
 
 #[uniffi::export]
 pub fn animated_emoji_max(handle: u64) -> Result<i32, MtprotoError> {
-    client_mgr::animated_emoji_max(handle)
+    client::animated_emoji_max(handle)
 }
 
 #[uniffi::export]
 pub fn custom_emoji_is_free(handle: u64, document_id: i64) -> Result<bool, MtprotoError> {
-    client_mgr::custom_emoji_is_free(handle, document_id)
+    client::custom_emoji_is_free(handle, document_id)
 }
 
 #[uniffi::export]
 pub fn get_updates_state(handle: u64) -> Result<UpdatesStateDto, MtprotoError> {
-    client_mgr::get_updates_state(handle)
+    client::get_updates_state(handle)
 }
 
 #[uniffi::export]
@@ -737,7 +912,7 @@ pub fn download_message_media(
     message_id: i32,
     dest_path: String,
 ) -> Result<String, MtprotoError> {
-    client_mgr::download_message_media(
+    client::download_message_media(
         handle,
         chat_id,
         message_id,
@@ -754,7 +929,7 @@ pub fn download_message_media_chunk(
     dest_path: String,
     offset: i64,
 ) -> Result<String, MtprotoError> {
-    client_mgr::download_message_media_range(
+    client::download_message_media_range(
         handle,
         chat_id,
         message_id,
@@ -771,7 +946,7 @@ pub fn download_message_thumb(
     message_id: i32,
     dest_path: String,
 ) -> Result<String, MtprotoError> {
-    client_mgr::download_message_media(
+    client::download_message_media(
         handle,
         chat_id,
         message_id,
@@ -782,7 +957,12 @@ pub fn download_message_thumb(
 
 #[uniffi::export]
 pub fn peek_message_inline_thumb(handle: u64, chat_id: i64, message_id: i32) -> Option<Vec<u8>> {
-    client_mgr::peek_message_inline_thumb(handle, chat_id, message_id)
+    client::peek_message_inline_thumb(handle, chat_id, message_id)
+}
+
+#[uniffi::export]
+pub fn peek_peer_inline_thumb(handle: u64, peer_id: i64) -> Option<Vec<u8>> {
+    client::peek_peer_inline_thumb(handle, peer_id)
 }
 
 #[uniffi::export]
@@ -792,7 +972,7 @@ pub fn download_message_display(
     message_id: i32,
     dest_path: String,
 ) -> Result<String, MtprotoError> {
-    client_mgr::download_message_media(
+    client::download_message_media(
         handle,
         chat_id,
         message_id,
@@ -807,12 +987,12 @@ pub fn download_custom_emoji(
     document_id: i64,
     dest_path: String,
 ) -> Result<String, MtprotoError> {
-    client_mgr::download_custom_emoji(handle, document_id, dest_path)
+    client::download_custom_emoji(handle, document_id, dest_path)
 }
 
 #[uniffi::export]
 pub fn get_sticker_pack(handle: u64, document_id: i64) -> Result<StickerPackDto, MtprotoError> {
-    client_mgr::get_sticker_pack(handle, document_id)
+    client::get_sticker_pack(handle, document_id)
 }
 
 #[uniffi::export]
@@ -821,17 +1001,17 @@ pub fn get_sticker_set(
     set_id: i64,
     access_hash: i64,
 ) -> Result<StickerPackDto, MtprotoError> {
-    client_mgr::get_sticker_set(handle, set_id, access_hash)
+    client::get_sticker_set(handle, set_id, access_hash)
 }
 
 #[uniffi::export]
 pub fn get_all_stickers(handle: u64, hash: i64) -> Result<StickerCatalogDto, MtprotoError> {
-    client_mgr::get_all_stickers(handle, hash)
+    client::get_all_stickers(handle, hash)
 }
 
 #[uniffi::export]
 pub fn get_emoji_stickers(handle: u64, hash: i64) -> Result<StickerCatalogDto, MtprotoError> {
-    client_mgr::get_emoji_stickers(handle, hash)
+    client::get_emoji_stickers(handle, hash)
 }
 
 #[uniffi::export]
@@ -840,12 +1020,12 @@ pub fn get_stickers(
     emoticon: String,
     hash: i64,
 ) -> Result<StickerListDto, MtprotoError> {
-    client_mgr::get_stickers(handle, emoticon, hash)
+    client::get_stickers(handle, emoticon, hash)
 }
 
 #[uniffi::export]
 pub fn resolve_username(handle: u64, username: String) -> Result<ResolvedPeerDto, MtprotoError> {
-    client_mgr::resolve_username(handle, username)
+    client::resolve_username(handle, username)
 }
 
 #[uniffi::export]
@@ -856,7 +1036,7 @@ pub fn get_inline_bot_results(
     query: String,
     offset: String,
 ) -> Result<InlineBotResultsDto, MtprotoError> {
-    client_mgr::get_inline_bot_results(handle, chat_id, bot_id, query, offset)
+    client::get_inline_bot_results(handle, chat_id, bot_id, query, offset)
 }
 
 #[uniffi::export]
@@ -868,7 +1048,7 @@ pub fn send_inline_bot_result(
     reply_to_msg_id: i32,
     top_msg_id: i32,
 ) -> Result<MessageDto, MtprotoError> {
-    client_mgr::send_inline_bot_result(
+    client::send_inline_bot_result(
         handle,
         chat_id,
         query_id,
@@ -880,7 +1060,7 @@ pub fn send_inline_bot_result(
 
 #[uniffi::export]
 pub fn get_saved_gifs(handle: u64) -> Result<Vec<SavedGifDto>, MtprotoError> {
-    client_mgr::get_saved_gifs(handle)
+    client::get_saved_gifs(handle)
 }
 
 #[uniffi::export]
@@ -893,7 +1073,7 @@ pub fn send_location(
     heading: i32,
     reply_to_msg_id: i32,
 ) -> Result<(), MtprotoError> {
-    client_mgr::send_location(
+    client::send_location(
         handle,
         chat_id,
         latitude,
@@ -910,7 +1090,7 @@ pub fn get_message_reactions_list(
     chat_id: i64,
     message_id: i32,
 ) -> Result<extras_rpc::ReactionPeersDto, MtprotoError> {
-    client_mgr::get_message_reactions_list(handle, chat_id, message_id)
+    client::get_message_reactions_list(handle, chat_id, message_id)
 }
 
 #[uniffi::export]
@@ -919,7 +1099,7 @@ pub fn get_poll_votes(
     chat_id: i64,
     message_id: i32,
 ) -> Result<extras_rpc::PollVotersDto, MtprotoError> {
-    client_mgr::get_poll_votes(handle, chat_id, message_id)
+    client::get_poll_votes(handle, chat_id, message_id)
 }
 
 #[uniffi::export]
@@ -929,7 +1109,7 @@ pub fn send_poll_vote(
     message_id: i32,
     options: Vec<Vec<u8>>,
 ) -> Result<(), MtprotoError> {
-    client_mgr::send_poll_vote(handle, chat_id, message_id, options)
+    client::send_poll_vote(handle, chat_id, message_id, options)
 }
 
 #[uniffi::export]
@@ -940,7 +1120,7 @@ pub fn append_todo_items(
     first_id: i32,
     titles: Vec<String>,
 ) -> Result<(), MtprotoError> {
-    client_mgr::append_todo_items(handle, chat_id, message_id, first_id, titles)
+    client::append_todo_items(handle, chat_id, message_id, first_id, titles)
 }
 
 #[uniffi::export]
@@ -951,7 +1131,7 @@ pub fn toggle_todo_completed(
     completed: Vec<i32>,
     incompleted: Vec<i32>,
 ) -> Result<(), MtprotoError> {
-    client_mgr::toggle_todo_completed(handle, chat_id, message_id, completed, incompleted)
+    client::toggle_todo_completed(handle, chat_id, message_id, completed, incompleted)
 }
 
 #[uniffi::export]
@@ -961,7 +1141,7 @@ pub fn get_bot_callback_answer(
     message_id: i32,
     data_hex: String,
 ) -> Result<BotCallbackAnswerDto, MtprotoError> {
-    client_mgr::get_bot_callback_answer(handle, chat_id, message_id, data_hex)
+    client::get_bot_callback_answer(handle, chat_id, message_id, data_hex)
 }
 
 #[uniffi::export]
@@ -972,7 +1152,7 @@ pub fn send_saved_gif(
     reply_to_msg_id: i32,
     top_msg_id: i32,
 ) -> Result<MessageDto, MtprotoError> {
-    client_mgr::send_saved_gif(handle, chat_id, document_id, reply_to_msg_id, top_msg_id)
+    client::send_saved_gif(handle, chat_id, document_id, reply_to_msg_id, top_msg_id)
 }
 
 #[uniffi::export]
@@ -983,7 +1163,7 @@ pub fn send_reaction(
     emoticon: String,
     document_id: i64,
 ) -> Result<(), MtprotoError> {
-    client_mgr::send_reaction(handle, chat_id, message_id, emoticon, document_id)
+    client::send_reaction(handle, chat_id, message_id, emoticon, document_id)
 }
 
 #[uniffi::export]
@@ -992,12 +1172,12 @@ pub fn get_discussion_message(
     chat_id: i64,
     message_id: i32,
 ) -> Result<DiscussionDto, MtprotoError> {
-    client_mgr::get_discussion_message(handle, chat_id, message_id)
+    client::get_discussion_message(handle, chat_id, message_id)
 }
 
 #[uniffi::export]
 pub fn get_recent_reactions(handle: u64) -> Result<Vec<ReactionChoiceDto>, MtprotoError> {
-    client_mgr::get_recent_reactions(handle)
+    client::get_recent_reactions(handle)
 }
 
 #[uniffi::export]
@@ -1057,7 +1237,7 @@ pub fn get_message_read_participants(
     chat_id: i64,
     msg_id: i32,
 ) -> Result<read_receipts_rpc::ReadParticipantsDto, MtprotoError> {
-    client_mgr::get_message_read_participants(handle, chat_id, msg_id)
+    client::get_message_read_participants(handle, chat_id, msg_id)
 }
 
 #[uniffi::export]
@@ -1066,12 +1246,46 @@ pub fn get_outbox_read_date(
     chat_id: i64,
     msg_id: i32,
 ) -> Result<read_receipts_rpc::OutboxReadDto, MtprotoError> {
-    client_mgr::get_outbox_read_date(handle, chat_id, msg_id)
+    client::get_outbox_read_date(handle, chat_id, msg_id)
 }
 
 #[uniffi::export]
 pub fn get_read_receipt_config(
     handle: u64,
 ) -> Result<read_receipts_rpc::ReadReceiptConfigDto, MtprotoError> {
-    client_mgr::get_read_receipt_config(handle)
+    client::get_read_receipt_config(handle)
+}
+
+#[uniffi::export]
+pub fn decode_vpx_alpha_packet(
+    handle: u64,
+    data: Vec<u8>,
+) -> Result<Option<VpxAlphaFrame>, MtprotoError> {
+    vpx::decode_vpx_alpha_packet(handle, data)
+}
+
+#[uniffi::export]
+pub fn create_waveform(duration_us: u64) -> Result<u64, MtprotoError> {
+    waveform::create(duration_us)
+}
+
+#[uniffi::export]
+pub fn add_waveform_pcm(
+    handle: u64,
+    samples: Vec<i16>,
+    sample_rate: u32,
+    channels: u32,
+    presentation_time_us: u64,
+) -> Result<(), MtprotoError> {
+    waveform::add_pcm(handle, samples, sample_rate, channels, presentation_time_us)
+}
+
+#[uniffi::export]
+pub fn finish_waveform(handle: u64) -> Result<Vec<f32>, MtprotoError> {
+    waveform::finish(handle)
+}
+
+#[uniffi::export]
+pub fn destroy_waveform(handle: u64) {
+    waveform::destroy(handle)
 }

@@ -57,15 +57,22 @@ object Presence {
         )
     }
 
-    fun withReadState(messages: List<Message>, readOutboxMaxId: Int): List<Message> =
-        messages.map { message ->
-            message.copy(
-                read = outgoingRead(
-                    outgoing = message.outgoing,
-                    pending = message.pending,
-                    messageId = message.id.id,
-                    readOutboxMaxId = readOutboxMaxId,
-                ),
+    fun withReadState(messages: List<Message>, readOutboxMaxId: Int): List<Message> {
+        var changed = false
+        val next = messages.map { message ->
+            val read = outgoingRead(
+                outgoing = message.outgoing,
+                pending = message.pending,
+                messageId = message.id.id,
+                readOutboxMaxId = readOutboxMaxId,
             )
+            if (message.read == read) {
+                message
+            } else {
+                changed = true
+                message.copy(read = read)
+            }
         }
+        return if (changed) next else messages
+    }
 }

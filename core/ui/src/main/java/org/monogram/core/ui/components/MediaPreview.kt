@@ -47,10 +47,15 @@ import java.io.File
 
 @Suppress("DEPRECATION")
 @Composable
-fun MediaPreviewWindow(onDismiss: () -> Unit, content: @Composable BoxScope.() -> Unit) {
+fun MediaPreviewWindow(
+    onDismiss: () -> Unit,
+    dismissOnBackPress: Boolean = true,
+    content: @Composable BoxScope.() -> Unit,
+) {
     val background = Color.Black
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(
         usePlatformDefaultWidth = false,
+        dismissOnBackPress = dismissOnBackPress,
         decorFitsSystemWindows = false,
     )) {
         val view = LocalView.current

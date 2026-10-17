@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,15 +34,17 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Videocam
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,9 +58,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -74,7 +77,9 @@ import org.monogram.core.ui.components.ChatRowMetrics
 import org.monogram.core.ui.components.EmojiStatusMark
 import org.monogram.core.ui.components.OutgoingStatusMark
 import org.monogram.core.ui.components.PeerAvatar
+import org.monogram.core.ui.components.PeerPresence
 import org.monogram.core.ui.components.ServiceAvatar
+import org.monogram.core.ui.components.SponsorBadge
 import org.monogram.core.ui.components.TypingDots
 import org.monogram.core.ui.components.UnreadBadge
 import org.monogram.core.ui.components.UnreadCountRow
@@ -86,6 +91,7 @@ import org.monogram.core.ui.components.typingStatusText
 import org.monogram.core.ui.perf.RecompositionProbe
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.core.ui.serviceMessageCatalog
 import org.monogram.feature.chats.ChatPreviewMedia
 import org.monogram.feature.chats.R
@@ -94,7 +100,6 @@ import org.monogram.feature.chats.splitPreviewSender
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 import org.monogram.feature.chats.chatListPreviewText as formatPreviewText
-import org.monogram.core.ui.components.SponsorBadge
 
 internal val ChatRowHeight = 72.dp
 internal val ChatRowAvatarSize = ChatRowMetrics.AvatarSize
@@ -343,10 +348,13 @@ internal fun ChatRow(
                             chat = chat,
                             mediaRepository = mediaRepository,
                         ),
+                        previewBytes = rememberStrippedPreview(chat.id) {
+                            mediaRepository?.peerInlineThumbJpeg(chat.id)
+                        },
                     )
                 }
-                if (!savedMessages && isOnline(chat)) {
-                    OnlineDot(modifier = Modifier.align(Alignment.BottomEnd))
+                if (!savedMessages) {
+                    ChatOnlineDot(chat, Modifier.align(Alignment.BottomEnd))
                 }
             }
             Spacer(Modifier.width(ChatRowMetrics.AvatarGap))
@@ -475,7 +483,9 @@ internal fun ChatRow(
                 checked = selected,
                 onCheckedChange = null,
                 enabled = recipientSelectable,
-                modifier = Modifier.size(48.dp).clearAndSetSemantics { },
+                modifier = Modifier
+                    .size(48.dp)
+                    .clearAndSetSemantics { },
                 colors = CheckboxDefaults.colors(
                     checkedColor = MaterialTheme.colorScheme.primary,
                     uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -594,6 +604,7 @@ private fun ChatRowContainer(
                 },
             )
             .then(clickModifier)
+            .semantics { if (!selectingRecipient) this.selected = selected }
             .padding(
                 horizontal = ChatRowMetrics.ContentPaddingH,
                 vertical = ChatRowMetrics.ContentPaddingV,
@@ -776,10 +787,13 @@ private fun rememberChatAvatar(
 )
 
 @Composable
-private fun isOnline(chat: Chat): Boolean {
-    if (chat.isChannel || chat.isGroup) return false
-    val now = rememberPeerStatusNow(chat.peerStatus, chat.peerStatusAt)
-    return isPeerOnline(chat.peerStatus, chat.peerStatusAt, now)
+private fun ChatOnlineDot(chat: Chat, modifier: Modifier) {
+    if (chat.isChannel || chat.isGroup) return
+    val live by PeerPresence.flow(chat.id.value).collectAsState()
+    val status = live?.status ?: chat.peerStatus
+    val statusAt = live?.statusAt ?: chat.peerStatusAt
+    val now = rememberPeerStatusNow(status, statusAt)
+    if (isPeerOnline(status, statusAt, now)) OnlineDot(modifier)
 }
 
 @Composable

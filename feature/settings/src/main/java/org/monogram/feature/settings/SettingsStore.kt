@@ -6,7 +6,9 @@ import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.telegram.TelegramError
@@ -15,8 +17,8 @@ import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.models.Chat
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
-import org.monogram.network.bridge.MtprotoClient
 import org.monogram.core.ui.ImageCache
+import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
 
 interface SettingsStore : Store<SettingsStore.Intent, SettingsStore.State, SettingsStore.Label> {
@@ -24,7 +26,7 @@ interface SettingsStore : Store<SettingsStore.Intent, SettingsStore.State, Setti
         data object Refresh : Intent
         data object ClearCache : Intent
         data class ClearChatCache(val chatId: Long) : Intent
-        data class ClearKindCache(val kind: String) : Intent
+        data class ClearKinds(val kinds: Set<String>) : Intent
         data object Logout : Intent
         data object ExportDebugStats : Intent
         data object ClearDebugStats : Intent
@@ -66,6 +68,9 @@ internal class SettingsStoreFactory(
     private val appVersion: String,
     private val buildStamp: String,
     private val pushRegistration: PushRegistration?,
+    private val clearKindCache: (String) -> Long = { kind ->
+        mediaRepository?.clearKindCache(kind) ?: 0L
+    },
 ) {
     fun create(): SettingsStore =
         object :
@@ -110,8 +115,10 @@ internal class SettingsStoreFactory(
                     mediaRepository?.clearChatCache(intent.chatId)
                     refreshCache()
                 }
-                is SettingsStore.Intent.ClearKindCache -> {
-                    mediaRepository?.clearKindCache(intent.kind)
+                is SettingsStore.Intent.ClearKinds -> {
+                    kindsToClear(intent.kinds, confirmed = true).forEach { kind ->
+                        clearKindCache(kind)
+                    }
                     refreshCache()
                 }
                 SettingsStore.Intent.Logout -> logout()
@@ -149,17 +156,15 @@ internal class SettingsStoreFactory(
         }
 
         private fun refreshCache() {
-            dispatch(Msg.CacheBytes(mediaRepository?.cacheSizeBytes() ?: 0L))
-            dispatch(Msg.CacheByKind(mediaRepository?.cacheByKind().orEmpty()))
             scope.launch {
-                dispatch(
-                    Msg.CacheChats(
-                        cacheChatRows(
-                            usageByChat = mediaRepository?.cacheByChat().orEmpty(),
-                            chats = warmup?.chats().orEmpty(),
-                        ),
-                    ),
-                )
+                val bytes = withContext(Dispatchers.IO) { mediaRepository?.cacheSizeBytes() ?: 0L }
+                val byKind =
+                    withContext(Dispatchers.IO) { mediaRepository?.cacheByKind().orEmpty() }
+                val byChat =
+                    withContext(Dispatchers.IO) { mediaRepository?.cacheByChat().orEmpty() }
+                dispatch(Msg.CacheBytes(bytes))
+                dispatch(Msg.CacheByKind(byKind))
+                dispatch(Msg.CacheChats(cacheChatRows(byChat, warmup?.chats().orEmpty())))
             }
         }
 
@@ -176,14 +181,17 @@ internal class SettingsStoreFactory(
             dispatch(Msg.Loading(true))
             scope.launch {
                 try {
+                    pushRegistration?.unregisterPush()
                     when (val result = client.logout()) {
                         is Outcome.Err -> dispatch(Msg.Error(result.telegramError))
-                        is Outcome.Ok -> pushRegistration?.onLogout()
+                        is Outcome.Ok -> Unit
                     }
+                    pushRegistration?.onLogout()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     dispatch(Msg.Error(TelegramError.parse(e.message ?: "logout failed")))
+                    pushRegistration?.onLogout()
                 }
                 warmup?.clearAccountCache()
                 sessionStore?.clearSession()
@@ -243,13 +251,13 @@ internal fun cacheChatRows(
     chats: List<Chat>,
 ): List<SettingsStore.CacheChatRow> {
     val byId = chats.associateBy { it.id.value }
-    return usageByChat.map { (id, bytes) ->
-        val chat = byId[id]
+    return usageByChat.mapNotNull { (id, bytes) ->
+        val chat = byId[id] ?: return@mapNotNull null
         SettingsStore.CacheChatRow(
             chatId = id,
-            title = chat?.title ?: id.toString(),
+            title = chat.title,
             bytes = bytes,
-            photoCacheKey = chat?.photoCacheKey,
+            photoCacheKey = chat.photoCacheKey,
         )
     }.sortedByDescending { it.bytes }
 }

@@ -42,15 +42,37 @@ internal object StickerCatalogMemory {
     }
 }
 
+internal const val STICKER_PACK_CAP = 24
+
 internal object StickerPackMemory {
-    private val packs = LinkedHashMap<Long, StickerPack>()
+    private val packs = object : java.util.LinkedHashMap<Long, StickerPack>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, StickerPack>?) =
+            size > STICKER_PACK_CAP
+    }
+    private val nativeReady = HashSet<Long>()
+    private var evicted: Long? = null
 
     @Synchronized
     fun get(id: Long): StickerPack? = packs[id]
 
     @Synchronized
-    fun put(pack: StickerPack) {
+    fun put(pack: StickerPack): Long? {
+        evicted = null
+        val eldest = packs.entries.firstOrNull()?.key
         packs[pack.id] = pack
+        val dropped = if (eldest != null && eldest != pack.id && eldest !in packs) eldest else null
+        if (dropped != null) nativeReady.remove(dropped)
+        evicted = dropped
+        return dropped
+    }
+
+    /** True after this process has indexed the pack documents in the native client. */
+    @Synchronized
+    fun isNativeReady(id: Long): Boolean = id in nativeReady
+
+    @Synchronized
+    fun markNativeReady(id: Long) {
+        nativeReady.add(id)
     }
 
     @Synchronized
@@ -59,6 +81,7 @@ internal object StickerPackMemory {
     @Synchronized
     fun clear() {
         packs.clear()
+        nativeReady.clear()
     }
 }
 
@@ -120,6 +143,10 @@ internal object PickerDisk {
 
     suspend fun writePack(store: SessionMetadataStore, pack: StickerPack) {
         store.writeMeta(KEY_PACK_PREFIX + pack.id, encodePack(pack))
+    }
+
+    suspend fun deletePack(store: SessionMetadataStore, id: Long) {
+        store.deleteMeta(KEY_PACK_PREFIX + id)
     }
 
     suspend fun readGifs(store: SessionMetadataStore): List<SavedGif>? {

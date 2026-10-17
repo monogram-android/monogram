@@ -23,11 +23,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.monogram.core.common.Outcome
@@ -36,9 +38,32 @@ import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.feature.dialog.R
 import org.monogram.network.bridge.MtprotoClient
 
+/** Document that opened the pack sheet, and whether that open was an emoji pack. */
+internal data class OpenedPack(
+    val documentId: Long,
+    val emojiPack: Boolean,
+)
+
+internal val OpenedPackSaver = listSaver<OpenedPack?, Any>(
+    save = { pack ->
+        if (pack == null) emptyList() else listOf(pack.documentId, pack.emojiPack)
+    },
+    restore = { values ->
+        if (values.size < 2) {
+            null
+        } else {
+            OpenedPack(
+                documentId = values[0] as Long,
+                emojiPack = values[1] as Boolean,
+            )
+        }
+    },
+)
+
 @Composable
 internal fun StickerPackSheet(
     documentId: Long,
+    emojiPack: Boolean,
     client: MtprotoClient,
     onDismiss: () -> Unit,
 ) {
@@ -59,6 +84,8 @@ internal fun StickerPackSheet(
     }
     val sheetMax = (LocalConfiguration.current.screenHeightDp.dp * 0.72f)
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val packGap = 8.dp
+    val packPadding = PaddingValues(top = 8.dp, bottom = 24.dp + navBottom)
     AppModalSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -75,12 +102,26 @@ internal fun StickerPackSheet(
             val title = pack?.title?.takeIf { it.isNotBlank() }
                 ?: stringResource(R.string.dialog_media_sticker)
             Text(text = title, style = MaterialTheme.typography.titleLarge)
+            val countStyle = MaterialTheme.typography.bodyMedium
+            val countColor = MaterialTheme.colorScheme.onSurfaceVariant
             if (pack == null && error == null) {
+                Text(
+                    text = "\u00a0",
+                    style = countStyle,
+                    color = Color.Transparent,
+                    minLines = 1,
+                )
                 PickerSkeleton(
-                    kind = PickerSkeletonKind.StickerPack,
+                    kind = if (emojiPack) {
+                        PickerSkeletonKind.EmojiPack
+                    } else {
+                        PickerSkeletonKind.StickerPack
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 420.dp),
+                    gap = packGap,
+                    contentPadding = packPadding,
                 )
             }
             pack?.let { info ->
@@ -97,8 +138,8 @@ internal fun StickerPackSheet(
                             append(info.shortName)
                         }
                     },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = countStyle,
+                    color = countColor,
                 )
                 if (info.previewDocumentIds.isNotEmpty()) {
                     val cell = if (info.isEmoji) {
@@ -113,9 +154,9 @@ internal fun StickerPackSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 420.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp + navBottom),
+                        horizontalArrangement = Arrangement.spacedBy(packGap),
+                        verticalArrangement = Arrangement.spacedBy(packGap),
+                        contentPadding = packPadding,
                         ) {
                             items(info.previewDocumentIds, key = { it }) { id ->
                                 Box(

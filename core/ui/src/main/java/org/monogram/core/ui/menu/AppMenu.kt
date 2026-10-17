@@ -152,7 +152,11 @@ fun AppMenuDivider(modifier: Modifier = Modifier) {
     )
 }
 
-data class AppMenuAvatar(val label: String, val imageFile: File? = null)
+data class AppMenuAvatar(
+    val label: String,
+    val imageFile: File? = null,
+    val previewBytes: ByteArray? = null,
+)
 
 @Composable
 fun AppMenuAvatarStack(
@@ -170,6 +174,7 @@ fun AppMenuAvatarStack(
             PeerAvatar(
                 title = avatar.label,
                 imageFile = avatar.imageFile,
+                previewBytes = avatar.previewBytes,
                 size = size,
                 modifier = Modifier
                     .offset(x = overlap * index)

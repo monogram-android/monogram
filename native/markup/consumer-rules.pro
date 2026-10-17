@@ -1,6 +1,4 @@
 -keep class com.sun.jna.** { *; }
 -keep class * implements com.sun.jna.** { *; }
 -keep class uniffi.monogram_markup.** { *; }
--keepclassmembers class uniffi.monogram_markup.** { *; }
--keep class org.monogram.markup.** { *; }
 -dontwarn java.awt.**

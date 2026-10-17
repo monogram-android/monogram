@@ -65,6 +65,7 @@ fun UpdatePromptSheet(
     val skippedThis = key.isNotEmpty() && key == skipped
     val keepOpen = state is AppUpdateState.Downloading ||
         state is AppUpdateState.ReadyToInstall ||
+        state is AppUpdateState.Installing ||
         (state is AppUpdateState.Error && info != null)
     if (info == null || (skippedThis && !keepOpen) || (hidden && !keepOpen)) return
     val wide = LocalConfiguration.current.screenWidthDp >= 840
@@ -132,6 +133,7 @@ private fun UpdatePromptBody(
 ) {
     val downloading = state as? AppUpdateState.Downloading
     val ready = state is AppUpdateState.ReadyToInstall
+    val installing = state is AppUpdateState.Installing
     val error = state as? AppUpdateState.Error
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -142,6 +144,7 @@ private fun UpdatePromptBody(
         Spacer(Modifier.height(16.dp))
         Text(
             text = when {
+                installing -> stringResource(R.string.update_prompt_installing)
                 ready -> stringResource(R.string.update_prompt_ready)
                 else -> stringResource(R.string.update_prompt_title, info.version)
             },
@@ -159,7 +162,7 @@ private fun UpdatePromptBody(
                     formatUpdateBytes(downloading.bytes),
                     formatUpdateBytes(info.fileSize),
                 )
-                ready -> stringResource(R.string.update_prompt_body, formatUpdateBytes(info.fileSize))
+                installing -> stringResource(R.string.update_prompt_installing_body, info.version)
                 else -> stringResource(R.string.update_prompt_body, formatUpdateBytes(info.fileSize))
             },
             style = if (downloading != null) {
@@ -187,7 +190,7 @@ private fun UpdatePromptBody(
             val commit = info.commit
             commit != null && line.equals(commit, ignoreCase = true)
         }
-        if (notes.isNotEmpty() && downloading == null && error == null) {
+        if (notes.isNotEmpty() && downloading == null && error == null && !installing) {
             Spacer(Modifier.height(16.dp))
             Text(
                 text = notes.take(4).joinToString("\n"),
@@ -231,6 +234,16 @@ private fun UpdatePromptBody(
             }
         }
         Spacer(Modifier.height(24.dp))
+        if (installing) {
+            Spacer(Modifier.height(16.dp))
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
+        }
         when {
             downloading != null -> {
                 TextButton(
@@ -243,6 +256,7 @@ private fun UpdatePromptBody(
                     Text(stringResource(R.string.update_prompt_hide), style = MaterialTheme.typography.labelLarge)
                 }
             }
+            installing -> Unit
             ready -> {
                 Button(
                     onClick = onInstall,
@@ -346,6 +360,7 @@ private fun updateInfo(state: AppUpdateState): AppUpdateInfo? = when (state) {
     is AppUpdateState.Available -> state.info
     is AppUpdateState.Downloading -> state.info
     is AppUpdateState.ReadyToInstall -> state.info
+    is AppUpdateState.Installing -> state.info
     is AppUpdateState.Error -> state.info
     else -> null
 }

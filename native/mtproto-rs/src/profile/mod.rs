@@ -14,3 +14,7 @@ pub use full::*;
 pub(crate) use participants::custom_or_role;
 pub use participants::*;
 pub use status::*;
+
+#[cfg(test)]
+#[path = "../../tests/unit/profile_mod_tests.rs"]
+mod tests;

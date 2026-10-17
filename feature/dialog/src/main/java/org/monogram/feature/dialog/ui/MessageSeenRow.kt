@@ -60,8 +60,10 @@ import org.monogram.core.ui.menu.AppMenuGroup
 import org.monogram.core.ui.menu.AppMenuItem
 import org.monogram.core.ui.menu.AppMenuMotion
 import org.monogram.core.ui.menu.AppMenuSurface
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.dialog.DialogTime
 import org.monogram.feature.dialog.R
+import org.monogram.network.http.MediaRepository
 import java.io.File
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -74,6 +76,7 @@ fun MessageSeenByRow(
     onOpenProfile: (Long) -> Unit,
     modifier: Modifier = Modifier,
     startExpanded: Boolean = false,
+    mediaRepository: MediaRepository? = null,
 ) {
     var expanded by rememberSaveable { mutableStateOf(startExpanded) }
     if (viewers !is MessageViewers.Ready && viewers != MessageViewers.Loading) return
@@ -109,6 +112,7 @@ fun MessageSeenByRow(
                         ExpandedViewerList(
                             viewers = list,
                             viewerAvatar = viewerAvatar,
+                            mediaRepository = mediaRepository,
                             onBack = { expanded = false },
                             onOpenProfile = onOpenProfile,
                         )
@@ -116,6 +120,7 @@ fun MessageSeenByRow(
                         CollapsedViewerRow(
                             viewers = viewers,
                             viewerAvatar = viewerAvatar,
+                            mediaRepository = mediaRepository,
                             onOpenProfile = onOpenProfile,
                             onExpand = { expanded = true },
                         )
@@ -146,6 +151,7 @@ internal fun PeerListSheet(
     onDismiss: () -> Unit,
     poll: Poll? = null,
     initialFilter: String? = null,
+    mediaRepository: MediaRepository? = null,
 ) {
     val title = stringResource(
         if (kind == "poll") R.string.dialog_poll_voters_title else R.string.dialog_reaction_users_title,
@@ -169,7 +175,7 @@ internal fun PeerListSheet(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(chips, key = { it.key }) { chip ->
+                items(chips, key = { it.key }, contentType = { "seen-filter" }) { chip ->
                     FilterChip(
                         selected = selectedKey == chip.key,
                         onClick = { selectedKey = chip.key },
@@ -222,6 +228,7 @@ internal fun PeerListSheet(
                             "${it.peerId.value}:${it.date}:${it.emoticon}:${it.documentId}:" +
                                 it.pollOptionHex.joinToString()
                         },
+                        contentType = { "seen-peer" },
                     ) { viewer ->
                         PeerChoiceRow(
                             viewer = viewer,
@@ -229,6 +236,7 @@ internal fun PeerListSheet(
                             poll = poll,
                             yesterday = yesterday,
                             viewerAvatar = viewerAvatar,
+                            mediaRepository = mediaRepository,
                             onOpenProfile = onOpenProfile,
                         )
                     }
@@ -271,6 +279,7 @@ private fun PeerChoiceRow(
     poll: Poll?,
     yesterday: String,
     viewerAvatar: (MessageViewer) -> File?,
+    mediaRepository: MediaRepository?,
     onOpenProfile: (Long) -> Unit,
 ) {
     val pollLabel = if (kind == "poll") pollAnswersLabel(viewer, poll) else null
@@ -287,6 +296,9 @@ private fun PeerChoiceRow(
             title = viewer.title.orEmpty(),
             size = 40.dp,
             imageFile = viewerAvatar(viewer),
+            previewBytes = rememberStrippedPreview(viewer.peerId) {
+                mediaRepository?.peerInlineThumbJpeg(viewer.peerId)
+            },
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -352,6 +364,7 @@ fun seenByLabelFor(
 private fun CollapsedViewerRow(
     viewers: MessageViewers.Ready,
     viewerAvatar: (MessageViewer) -> File?,
+    mediaRepository: MediaRepository?,
     onOpenProfile: (Long) -> Unit,
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
@@ -377,7 +390,13 @@ private fun CollapsedViewerRow(
         } else {
             {
                 AppMenuAvatarStack(
-                    avatars = list.map { AppMenuAvatar(it.title.orEmpty(), viewerAvatar(it)) },
+                    avatars = list.map { viewer ->
+                        AppMenuAvatar(
+                            label = viewer.title.orEmpty(),
+                            imageFile = viewerAvatar(viewer),
+                            previewBytes = mediaRepository?.peerInlineThumbJpeg(viewer.peerId),
+                        )
+                    },
                 )
             }
         },
@@ -396,13 +415,16 @@ private fun CollapsedViewerRow(
 private fun ExpandedViewerList(
     viewers: List<MessageViewer>,
     viewerAvatar: (MessageViewer) -> File?,
+    mediaRepository: MediaRepository?,
     onBack: () -> Unit,
     onOpenProfile: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val yesterday = stringResource(R.string.dialog_yesterday)
     Column(
-        modifier = modifier.heightIn(max = 312.dp).verticalScroll(rememberScrollState()),
+        modifier = modifier
+            .heightIn(max = 312.dp)
+            .verticalScroll(rememberScrollState()),
     ) {
         AppMenuGroup {
             AppMenuItem(
@@ -421,6 +443,9 @@ private fun ExpandedViewerList(
                             title = viewer.title.orEmpty(),
                             size = 40.dp,
                             imageFile = viewerAvatar(viewer),
+                            previewBytes = rememberStrippedPreview(viewer.peerId) {
+                                mediaRepository?.peerInlineThumbJpeg(viewer.peerId)
+                            },
                         )
                     },
                     trailingText = viewer.date.takeIf { it > 0 }?.let { formatSeenDate(it, yesterdayLabel = yesterday) },

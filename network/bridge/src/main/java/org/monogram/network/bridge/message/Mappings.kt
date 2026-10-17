@@ -8,6 +8,12 @@ import org.monogram.core.models.ReplyMarkups
 import org.monogram.core.models.TextEntities
 import org.monogram.core.models.UploadItem
 import uniffi.monogram_mtproto.MessageDto
+import uniffi.monogram_mtproto.MessagesPageDto
+
+internal fun MessagesPageDto.toModel(): MessagePage = MessagePage(
+    messages = messages.map { it.toModel() },
+    totalCount = totalCount,
+)
 
 internal fun MessageDto.toModel(): Message = Message(
     id = MessageId(chatId = PeerId(chatId), id = id),
@@ -41,6 +47,7 @@ internal fun MessageDto.toModel(): Message = Message(
     viaBot = viaBot,
     senderName = senderName,
     senderEmojiStatusDocumentId = senderEmojiStatusDocumentId,
+    senderPhotoCacheKey = senderPhotoCacheKey,
     replyMarkup = ReplyMarkups.parse(replyMarkupJson),
     checklist = if (mediaKind == "todo") Checklists.parse(fileName) else null,
 )
@@ -51,6 +58,7 @@ internal fun UploadItem.toDto() = uniffi.monogram_mtproto.UploadItemDto(
     mimeType = mimeType,
     fileName = fileName,
     caption = caption,
+    entitiesJson = TextEntities.serialize(captionEntities),
     duration = duration,
     width = width,
     height = height,

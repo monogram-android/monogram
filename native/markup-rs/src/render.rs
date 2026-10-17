@@ -59,5 +59,11 @@ pub fn render_blocks(
 }
 
 #[cfg(test)]
-#[path = "render_tests.rs"]
-mod tests;
+#[path = "../tests/unit/render_quote_tests.rs"]
+mod quote_tests;
+#[cfg(test)]
+#[path = "../tests/unit/render_server_entity_tests.rs"]
+mod server_entity_tests;
+#[cfg(test)]
+#[path = "../tests/unit/render_structure_tests.rs"]
+mod structure_tests;

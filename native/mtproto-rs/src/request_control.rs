@@ -13,8 +13,10 @@ use tellers_mtproto_transport::Error;
 static NEXT: AtomicU64 = AtomicU64::new(1);
 static REQUESTS: LazyLock<Mutex<HashMap<u64, Arc<ConnectionControl>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+static PROMOTIONS: LazyLock<Mutex<HashMap<u64, u8>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 thread_local! {
     static CURRENT: RefCell<(u64, Option<Arc<ConnectionControl>>)> = const { RefCell::new((0, None)) };
+    static SHARED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 pub fn create() -> u64 {
@@ -39,6 +41,22 @@ pub fn bind(id: u64) -> u64 {
     CURRENT.with(|cell| cell.replace((id, control)).0)
 }
 
+pub(crate) fn current_id() -> u64 {
+    CURRENT.with(|cell| cell.borrow().0)
+}
+
+pub(crate) fn with_shared_binding<T>(id: u64, body: impl FnOnce() -> T) -> T {
+    struct Restore(u64, bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            bind(self.0);
+            SHARED.with(|cell| cell.set(self.1));
+        }
+    }
+    let _restore = Restore(bind(id), SHARED.with(|cell| cell.replace(true)));
+    body()
+}
+
 pub fn cancel(id: u64) {
     let control = REQUESTS.lock().get(&id).cloned();
     if let Some(control) = control {
@@ -48,9 +66,37 @@ pub fn cancel(id: u64) {
 
 pub fn release(id: u64) {
     REQUESTS.lock().remove(&id);
+    PROMOTIONS.lock().remove(&id);
+}
+
+pub fn promote(id: u64, class: crate::scheduler::RequestClass) {
+    if !REQUESTS.lock().contains_key(&id) {
+        return;
+    }
+    let mut promotions = PROMOTIONS.lock();
+    let entry = promotions.entry(id).or_insert(class.bits());
+    let current = crate::scheduler::RequestClass::from_bits(*entry);
+    if current.is_none_or(|c| class.priority() < c.priority()) {
+        *entry = class.bits();
+    }
+}
+
+pub(crate) fn promoted_class() -> Option<crate::scheduler::RequestClass> {
+    let id = current_id();
+    if id == 0 {
+        return None;
+    }
+    PROMOTIONS
+        .lock()
+        .get(&id)
+        .and_then(|bits| crate::scheduler::RequestClass::from_bits(*bits))
 }
 
 pub(crate) fn detach_sockets() {
+    // A finished parallel lane must not unregister the other lane's socket.
+    if SHARED.with(|cell| cell.get()) {
+        return;
+    }
     CURRENT.with(|cell| {
         if let Some(control) = &cell.borrow().1 {
             control.detach_sockets();
@@ -81,67 +127,5 @@ pub(crate) fn register(stream: &Arc<TcpStream>) -> Result<(), Error> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn cancellation_is_scoped_and_binding_restores() {
-        let first = create();
-        let second = create();
-        let original = bind(first);
-        assert!(check().is_ok());
-        cancel(first);
-        assert!(check().is_err());
-        let previous = bind(second);
-        assert!(check().is_ok());
-        bind(previous);
-        assert!(check().is_err());
-        bind(original);
-        release(first);
-        release(second);
-    }
-
-    #[test]
-    fn cancel_closes_only_registered_socket_and_rejects_reuse() {
-        use std::io::Read;
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let socket = Arc::new(TcpStream::connect(listener.local_addr().unwrap()).unwrap());
-        let (mut server, _) = listener.accept().unwrap();
-        server
-            .set_read_timeout(Some(std::time::Duration::from_secs(1)))
-            .unwrap();
-        let id = create();
-        let previous = bind(id);
-        register(&socket).unwrap();
-        cancel(id);
-        assert_eq!(server.read(&mut [0; 1]).unwrap(), 0);
-        assert!(register(&socket).is_err());
-        bind(previous);
-        release(id);
-    }
-
-    #[test]
-    fn finished_request_cannot_close_socket_reused_by_next_request() {
-        use std::io::{Read, Write};
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let socket = Arc::new(TcpStream::connect(listener.local_addr().unwrap()).unwrap());
-        let (mut server, _) = listener.accept().unwrap();
-        server
-            .set_read_timeout(Some(std::time::Duration::from_secs(1)))
-            .unwrap();
-        let first = create();
-        let second = create();
-        let previous = bind(first);
-        register(&socket).unwrap();
-        detach_sockets();
-        bind(second);
-        register(&socket).unwrap();
-        cancel(first);
-        socket.as_ref().write_all(b"ok").unwrap();
-        let mut bytes = [0; 2];
-        server.read_exact(&mut bytes).unwrap();
-        assert_eq!(&bytes, b"ok");
-        bind(previous);
-        release(first);
-        release(second);
-    }
-}
+#[path = "../tests/unit/request_control_tests.rs"]
+mod tests;

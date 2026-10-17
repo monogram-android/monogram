@@ -14,9 +14,9 @@ use tellers_mtproto_session::Snapshot;
 
 use crate::api_invoke;
 use crate::dialogs::dtos_from_messages;
+use crate::dialogs::rich_rpc;
 use crate::media::MediaIndex;
 use crate::peers::{self, CachedPeer, PeerKind, channel_id_from_chat_id, input_peer_from_cached};
-use crate::rich_rpc;
 use crate::{MessageDto, MtprotoError};
 
 pub fn read_history(

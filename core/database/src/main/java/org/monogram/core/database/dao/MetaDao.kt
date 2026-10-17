@@ -11,6 +11,9 @@ interface MetaDao {
     @Query("SELECT * FROM meta WHERE key = :key LIMIT 1")
     suspend fun get(key: String): MetaEntity?
 
+    @Query("SELECT `key` FROM meta WHERE `key` LIKE :pattern")
+    suspend fun keysLike(pattern: String): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: MetaEntity)
 

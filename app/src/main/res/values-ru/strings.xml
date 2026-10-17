@@ -22,6 +22,7 @@
     <string name="push_channel_groups">Группы</string>
     <string name="push_channel_channels">Каналы</string>
     <string name="push_channel_other">Другое</string>
+    <string name="push_channel_calls">Звонки</string>
     <string name="push_channel_stories">Истории</string>
     <string name="push_channel_reactions">Реакции</string>
     <string name="push_folder">Папка %1$d</string>
@@ -31,6 +32,9 @@
     <string name="push_reply">Ответить</string>
     <string name="push_reply_hint">Сообщение</string>
     <string name="push_mark_read">Прочитать</string>
+    <string name="push_not_sent">Не отправлено</string>
+    <string name="push_mute_hour">Без звука на час</string>
+    <string name="push_notification_settings">Настройки уведомлений</string>
     <string name="push_open_link">Открыть ссылку</string>
     <string name="push_more_chats">ещё +%1$d</string>
     <plurals name="push_new_messages">
@@ -40,7 +44,7 @@
         <item quantity="other">%1$d новых сообщений</item>
     </plurals>
     <string name="crash_title">Что-то пошло не так</string>
-    <string name="crash_subtitle">В Monogram произошла непредвиденная ошибка. Отчёт ниже поможет её исправить.</string>
+    <string name="crash_subtitle">В Monogram произошла непредвиденная ошибка. Отчёт ниже поможет её исправить</string>
     <string name="crash_log_label">Журнал сбоя</string>
     <string name="crash_copy">Скопировать детали</string>
     <string name="crash_copied">Детали сбоя скопированы</string>
@@ -48,13 +52,15 @@
     <string name="crash_share_title">Отправить отчёт о сбое</string>
     <string name="crash_restart">Перезапустить Monogram</string>
     <string name="update_prompt_title">Обновление до %1$s</string>
-    <string name="update_prompt_body">Доступна новая сборка. Размер загрузки — %1$s.</string>
+    <string name="update_prompt_body">Доступна новая сборка. Размер загрузки — %1$s</string>
     <string name="update_prompt_skip">Пропустить</string>
     <string name="update_prompt_update">Обновить</string>
     <string name="update_prompt_hide">Скрыть</string>
     <string name="update_prompt_progress">Загрузка %1$s из %2$s</string>
     <string name="update_prompt_install">Установить</string>
     <string name="update_prompt_ready">Готово к установке</string>
+    <string name="update_prompt_installing">Установка обновления</string>
+    <string name="update_prompt_installing_body">Устанавливается %1$s</string>
     <string name="update_prompt_error">Не удалось скачать обновление</string>
     <string name="update_prompt_retry">Повторить</string>
 </resources>

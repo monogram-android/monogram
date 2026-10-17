@@ -89,14 +89,14 @@ class MediaViewerBackgroundTest {
 
     /** photo, video, photo, video: the mixed album the background rules are written for. */
     private fun mixedAlbum(): List<MediaViewerItem> = listOf(
-        MediaViewerItem("p1", MediaViewerKind.PHOTO, MediaSource.Local(poster("bg-p1.png", Color.rgb(240, 240, 245))), senderName = "Anna"),
+        MediaViewerItem("bg-test-p1", MediaViewerKind.PHOTO, MediaSource.Local(poster("bg-p1.png", Color.rgb(240, 240, 245))), senderName = "Anna"),
         MediaViewerItem(
-            "v1", MediaViewerKind.VIDEO, MediaSource.Local(fixture("video_short.mp4")),
+            "bg-test-v1", MediaViewerKind.VIDEO, MediaSource.Local(fixture("video_short.mp4")),
             durationSeconds = 12, senderName = "Anna", preview = poster("bg-v1.png", Color.rgb(30, 32, 44)),
         ),
-        MediaViewerItem("p2", MediaViewerKind.PHOTO, MediaSource.Local(poster("bg-p2.png", Color.rgb(16, 14, 20))), senderName = "Anna"),
+        MediaViewerItem("bg-test-p2", MediaViewerKind.PHOTO, MediaSource.Local(poster("bg-p2.png", Color.rgb(16, 14, 20))), senderName = "Anna"),
         MediaViewerItem(
-            "v2", MediaViewerKind.VIDEO, MediaSource.Local(fixture("video_medium.mp4")),
+            "bg-test-v2", MediaViewerKind.VIDEO, MediaSource.Local(fixture("video_medium.mp4")),
             durationSeconds = 46, senderName = "Anna", preview = poster("bg-v2.png", Color.rgb(40, 44, 60)),
         ),
     )
@@ -195,10 +195,14 @@ class MediaViewerBackgroundTest {
             .performTouchInput { click() }
         compose.waitUntil(5_000) { compose.onAllNodes(hasText(listenLabel)).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText(listenLabel).performClick()
-        compose.waitUntil(5_000) { session.audioOnly }
+        val pauseLabel = compose.activity.getString(R.string.media_mini_player_pause)
+        compose.waitUntil(5_000) {
+            session.audioOnly && session.playing &&
+                compose.onAllNodes(hasContentDescription(pauseLabel)).fetchSemanticsNodes().size == 1
+        }
         compose.waitForIdle()
-        assertEquals("v1", session.current?.id)
-        assertTrue("position is kept, not restarted", session.positionFor("v1") >= 3_500L)
+        assertEquals("bg-test-v1", session.current?.id)
+        assertTrue("position is kept, not restarted", session.positionFor("bg-test-v1") >= 3_500L)
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.media_mini_player_pause)).performClick()
         compose.waitForIdle()
         assertNotNull(session.current)
@@ -208,19 +212,19 @@ class MediaViewerBackgroundTest {
     fun videoQueueWalksVideosOnlyAndStopsAtTheEnd() {
         launch(mixedAlbum(), startIndex = 1)
         val session = MediaPlaybackHolder.session(compose.activity)
-        compose.waitUntil(10_000) { session.current?.id == "v1" }
+        compose.waitUntil(10_000) { session.current?.id == "bg-test-v1" }
         assertTrue(session.selectNextVideo())
-        compose.waitUntil(5_000) { session.current?.id == "v2" }
-        assertEquals("the notification's next skips the photo in between", "v2", session.current?.id)
+        compose.waitUntil(5_000) { session.current?.id == "bg-test-v2" }
+        assertEquals("the notification's next skips the photo in between", "bg-test-v2", session.current?.id)
         assertFalse("there is no video after the last one", session.selectNextVideo())
-        assertEquals("and it does not fall back to an unrelated item", "v2", session.current?.id)
+        assertEquals("and it does not fall back to an unrelated item", "bg-test-v2", session.current?.id)
     }
 
     @Test
     fun mixedAlbumIsNeverTreatedAsVideoOnly() {
         launch(mixedAlbum(), startIndex = 1)
         val session = MediaPlaybackHolder.session(compose.activity)
-        compose.waitUntil(10_000) { session.current?.id == "v1" }
+        compose.waitUntil(10_000) { session.current?.id == "bg-test-v1" }
         assertFalse("a mixed album must not auto-advance into a photo", session.isAlbumVideoOnly)
         assertTrue("and the player must stop instead of rolling on", session.pausesAtEndOfMixedVideo)
         assertTrue(session.hasAlbum)
@@ -230,7 +234,7 @@ class MediaViewerBackgroundTest {
     fun videoAfterAPhotoStartsMutedAndAfterAVideoInheritsSound() {
         launch(mixedAlbum(), startIndex = 1)
         val session = MediaPlaybackHolder.session(compose.activity)
-        compose.waitUntil(10_000) { session.current?.id == "v1" }
+        compose.waitUntil(10_000) { session.current?.id == "bg-test-v1" }
         compose.runOnIdle {
             session.setQueue(mixedAlbum(), 1, autoplay = true, startMuted = true, preserveUserMute = false)
         }
@@ -247,6 +251,7 @@ class MediaViewerBackgroundTest {
     }
 
     @Test
+    @androidx.test.filters.SdkSuppress(minSdkVersion = 26)
     fun enteringPictureInPictureKeepsTheSameSession() {
         val supportsPip = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             compose.activity.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
@@ -265,6 +270,7 @@ class MediaViewerBackgroundTest {
     }
 
     @Test
+    @androidx.test.filters.SdkSuppress(minSdkVersion = 26)
     fun theShippedActivityDeclaresPictureInPictureSupport() {
         val info = compose.activity.packageManager.getActivityInfo(
             android.content.ComponentName(compose.activity.packageName, "org.monogram.MainActivity"),

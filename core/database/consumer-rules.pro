@@ -1,2 +1,1 @@
--keep class * extends androidx.room.RoomDatabase
--keep @androidx.room.Entity class *
+# Room runtime supplies the reflective RoomDatabase constructor rules.

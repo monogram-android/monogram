@@ -10,12 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -84,12 +84,18 @@ internal fun pickerSkeletonSpec(kind: PickerSkeletonKind): PickerSkeletonSpec = 
     )
 }
 
+internal val LocalPickerBottomInset = staticCompositionLocalOf { PickerTabClearance }
+
 /** Content padding for picker grids and their placeholders, so cells line up exactly. */
-internal fun PickerGridPadding(top: Dp = PickerMetrics.GridSpacing.dp): PaddingValues = PaddingValues(
+@Composable
+internal fun PickerGridPadding(
+    top: Dp = PickerMetrics.GridSpacing.dp,
+    bottom: Dp = LocalPickerBottomInset.current,
+): PaddingValues = PaddingValues(
     start = PickerMetrics.GridPadding.dp,
     end = PickerMetrics.GridPadding.dp,
     top = top,
-    bottom = PickerTabClearance,
+    bottom = bottom,
 )
 
 /** Content padding for the pack and category chip rows. */
@@ -122,14 +128,31 @@ internal fun PickerPlaceholderChips(
     }
 }
 
+@Composable
+private fun pickerSkeletonContentPadding(kind: PickerSkeletonKind): PaddingValues {
+    // Emoji grid keeps the default top inset. Sticker and GIF grids use the larger top inset
+    // their loaded panels already reserve. Opened packs pass their own padding.
+    val gridTop = if (kind == PickerSkeletonKind.Emoji) {
+        PickerMetrics.GridSpacing.dp
+    } else {
+        PickerMetrics.GridPadding.dp
+    }
+    return PickerGridPadding(top = gridTop)
+}
+
 /**
  * Loading placeholder for the emoji, sticker and GIF menus: the same grid, chips and pack title the
  * loaded menu shows, filled with shimmering cells.
+ *
+ * [gap] and [contentPadding] default to the tab grids. The opened-pack sheet passes the loaded
+ * sheet's 8.dp gap and padding so those cells do not jump.
  */
 @Composable
 internal fun PickerSkeleton(
     kind: PickerSkeletonKind,
     modifier: Modifier = Modifier,
+    gap: Dp = PickerMetrics.GridSpacing.dp,
+    contentPadding: PaddingValues = pickerSkeletonContentPadding(kind),
 ) {
     val spec = pickerSkeletonSpec(kind)
     val description = stringResource(R.string.dialog_media_loading)
@@ -141,27 +164,31 @@ internal fun PickerSkeleton(
         if (spec.packChips) {
             PickerPlaceholderChips()
         }
-        if (spec.packTitle) {
-            MonogramPlaceholder(
-                modifier = Modifier
-                    .padding(start = PickerMetrics.GridPadding.dp, top = PickerMetrics.GridPadding.dp)
-                    .fillMaxWidth(0.42f)
-                    .height(14.dp),
-                shape = RoundedCornerShape(6.dp),
-            )
-        }
         LazyVerticalGrid(
             columns = GridCells.Adaptive(spec.cellDp.dp),
             modifier = Modifier.weight(1f),
-            contentPadding = PickerGridPadding(),
-            horizontalArrangement = Arrangement.spacedBy(PickerMetrics.GridSpacing.dp),
-            verticalArrangement = Arrangement.spacedBy(PickerMetrics.GridSpacing.dp),
+            contentPadding = contentPadding,
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            verticalArrangement = Arrangement.spacedBy(gap),
+            userScrollEnabled = false,
         ) {
+            if (spec.packTitle) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MonogramPlaceholder(
+                        modifier = Modifier
+                            .padding(
+                                horizontal = PickerMetrics.GridPadding.dp,
+                                vertical = PickerMetrics.GridPadding.dp,
+                            )
+                            .fillMaxWidth(0.42f)
+                            .height(14.dp),
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                }
+            }
             items(PickerMetrics.PlaceholderCells) {
                 MonogramPlaceholder(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(spec.cellDp.dp),
+                    modifier = Modifier.size(spec.cellDp.dp),
                     shape = MaterialTheme.shapes.small,
                 )
             }

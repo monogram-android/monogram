@@ -22,6 +22,7 @@
     <string name="push_channel_groups">群组</string>
     <string name="push_channel_channels">频道</string>
     <string name="push_channel_other">其他</string>
+    <string name="push_channel_calls">通话</string>
     <string name="push_channel_stories">动态</string>
     <string name="push_channel_reactions">表情回应</string>
     <string name="push_folder">文件夹 %1$d</string>
@@ -31,13 +32,16 @@
     <string name="push_reply">回复</string>
     <string name="push_reply_hint">消息</string>
     <string name="push_mark_read">标为已读</string>
+    <string name="push_not_sent">未发送</string>
+    <string name="push_mute_hour">静音 1 小时</string>
+    <string name="push_notification_settings">通知设置</string>
     <string name="push_open_link">打开链接</string>
     <string name="push_more_chats">另有 %1$d 个</string>
     <plurals name="push_new_messages">
         <item quantity="other">%1$d 条新消息</item>
     </plurals>
     <string name="crash_title">出了点问题</string>
-    <string name="crash_subtitle">Monogram 遇到了意外错误。下方报告有助于修复。</string>
+    <string name="crash_subtitle">Monogram 遇到了意外错误。下方报告有助于修复</string>
     <string name="crash_log_label">崩溃日志</string>
     <string name="crash_copy">复制详情</string>
     <string name="crash_copied">已复制崩溃详情</string>
@@ -48,10 +52,12 @@
     <string name="update_prompt_skip">跳过</string>
     <string name="update_prompt_update">更新</string>
     <string name="update_prompt_install">安装</string>
-    <string name="update_prompt_body">有新的构建可用。下载大小 %1$s。</string>
+    <string name="update_prompt_body">有新的构建可用。下载大小 %1$s</string>
     <string name="update_prompt_hide">隐藏</string>
     <string name="update_prompt_progress">正在下载 %1$s / %2$s</string>
     <string name="update_prompt_error">无法下载更新</string>
     <string name="update_prompt_retry">重试</string>
     <string name="update_prompt_ready">已准备好安装</string>
+    <string name="update_prompt_installing">正在安装更新</string>
+    <string name="update_prompt_installing_body">正在安装 %1$s</string>
 </resources>

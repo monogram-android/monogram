@@ -126,6 +126,33 @@ class RichTextTest {
     }
 
     @Test
+    fun serverRuleAndTableEntitiesBecomeBlocks() {
+        assertEquals(
+            RichBlock.Rule,
+            splitRichText("---", listOf(TextEntity("rule", 0, 3))).single()
+        )
+        val pipes = "| A | B |\n| 1 | 2 |"
+        val table = splitRichText(
+            pipes,
+            listOf(TextEntity("table", 0, pipes.length, "A\u001fB\u001e1\u001f2")),
+        ).single() as RichBlock.Table
+        assertEquals(listOf("A", "B"), table.headers)
+        assertEquals(listOf(listOf("1", "2")), table.rows)
+    }
+
+    @Test
+    fun inlineServerEntitiesDoNotGuessMarkdown() {
+        val blocks = splitRichText(
+            "# Hi\n---",
+            listOf(TextEntity("marked", 0, 4)),
+        )
+        val paragraph = blocks.first() as RichBlock.Paragraph
+        assertEquals("# Hi", paragraph.text)
+        assertEquals("marked", paragraph.entities.single().kind)
+        assertTrue(blocks.none { it is RichBlock.Heading })
+    }
+
+    @Test
     fun splitsHorizontalRule() {
         val blocks = splitRichText("before\n---\nafter")
         assertEquals(3, blocks.size)

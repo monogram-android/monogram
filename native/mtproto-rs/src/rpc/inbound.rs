@@ -1,13 +1,15 @@
 //! https://core.telegram.org/mtproto/service_messages
 //! https://core.telegram.org/mtproto/service_messages_about_messages
 
+use flate2::Compression;
 use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
 use std::cell::RefCell;
-use std::io::Read;
+use std::io::{Read, Write};
 use tellers_mtproto::codec::{Boxed, Decoder, Encoder, Limits, TlDecode};
 use tellers_mtproto::transport::{
-    BadMsgNotificationConstructor, BadServerSaltConstructor, GzipPackedConstructor,
-    MsgContainerConstructor, MsgCopyConstructor, MsgDetailedInfoConstructor,
+    BadMsgNotificationConstructor, BadServerSaltConstructor, FutureSaltsConstructor,
+    GzipPackedConstructor, MsgContainerConstructor, MsgCopyConstructor, MsgDetailedInfoConstructor,
     MsgNewDetailedInfoConstructor, MsgsAckConstructor, MsgsStateInfoConstructor,
     NewSessionCreatedConstructor, PongConstructor, RpcErrorConstructor, RpcResultConstructor,
 };
@@ -69,6 +71,70 @@ pub(crate) fn ungzip_if_needed(bytes: &[u8]) -> Result<Vec<u8>, MtprotoError> {
     Ok(out)
 }
 
+/// Gzip an API body when the wrapper is smaller. Bodies under 256 bytes stay plain.
+pub(crate) fn gzip_if_smaller(body: &[u8]) -> Vec<u8> {
+    const MIN_BYTES: usize = 256;
+    if body.len() < MIN_BYTES {
+        return body.to_vec();
+    }
+    if body.len() >= 4 {
+        let ctor = u32::from_le_bytes(body[0..4].try_into().unwrap());
+        if ctor == GZIP_PACKED {
+            return body.to_vec();
+        }
+    }
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
+    if encoder.write_all(body).is_err() {
+        return body.to_vec();
+    }
+    let Ok(packed) = encoder.finish() else {
+        return body.to_vec();
+    };
+    if packed.len() >= body.len() {
+        return body.to_vec();
+    }
+    encode_boxed_bytes(&GzipPackedConstructor {
+        packed_data: packed,
+    })
+    .unwrap_or_else(|_| body.to_vec())
+}
+
+/// `future_salts` uses a bare vector of bare `future_salt` values: a count, then
+/// `valid_since`, `valid_until`, and `salt` with no constructor ids. A malformed
+/// answer is ignored so it cannot fail the RPC that shared the socket.
+fn parse_future_salts(body: &[u8]) -> Result<Vec<InboundEvent>, MtprotoError> {
+    let ignore = || Ok(vec![InboundEvent::Ignored]);
+    if body.len() < 20 {
+        return ignore();
+    }
+    let count = u32::from_le_bytes(body[16..20].try_into().unwrap());
+    if count > 64 {
+        return ignore();
+    }
+    let count = count as usize;
+    if body.len() < 20 + count * 16 {
+        return ignore();
+    }
+    let mut windows = Vec::with_capacity(count);
+    for index in 0..count {
+        let at = 20 + index * 16;
+        windows.push(super::salts::SaltWindow {
+            valid_since: i32::from_le_bytes(body[at..at + 4].try_into().unwrap()),
+            valid_until: i32::from_le_bytes(body[at + 4..at + 8].try_into().unwrap()),
+            salt: i64::from_le_bytes(body[at + 8..at + 16].try_into().unwrap()),
+        });
+    }
+    Ok(vec![InboundEvent::FutureSalts(windows)])
+}
+
+#[cfg(test)]
+#[path = "../../tests/unit/rpc_inbound_gzip_tests.rs"]
+mod gzip_tests;
+
+#[cfg(test)]
+#[path = "../../tests/unit/rpc_inbound_future_salt_tests.rs"]
+mod future_salt_tests;
+
 pub(crate) enum InboundEvent {
     Updates(Vec<u8>),
     RpcResult { req_msg_id: i64, body: Vec<u8> },
@@ -77,6 +143,8 @@ pub(crate) enum InboundEvent {
     BadMessage { bad_msg_id: i64, error_code: i32 },
     Pong { ping_id: i64 },
     AnswerAvailable { answer_msg_id: i64 },
+    MessageStatus { req_msg_id: i64, info: Vec<u8> },
+    FutureSalts(Vec<super::salts::SaltWindow>),
     Ignored,
 }
 
@@ -234,6 +302,7 @@ pub(crate) fn parse_service_at_depth(
         NEW_SESSION_CREATED => Ok(vec![InboundEvent::SaltUpdated {
             body: body.to_vec(),
         }]),
+        ctor if ctor == FutureSaltsConstructor::ID => parse_future_salts(body),
         BAD_SERVER_SALT => {
             let mut decoder = Decoder::new(body, Limits::default())
                 .map_err(|e| MtprotoError::Message(e.to_string()))?;
@@ -303,9 +372,12 @@ pub(crate) fn parse_service_at_depth(
             let invalid = || MtprotoError::Message("invalid MTProto message status".into());
             let mut decoder = Decoder::new(body, Limits::default()).map_err(|_| invalid())?;
             decoder.read_u32().map_err(|_| invalid())?;
-            MsgsStateInfoConstructor::decode(&mut decoder).map_err(|_| invalid())?;
+            let status = MsgsStateInfoConstructor::decode(&mut decoder).map_err(|_| invalid())?;
             decoder.finish().map_err(|_| invalid())?;
-            Ok(vec![InboundEvent::Ignored])
+            Ok(vec![InboundEvent::MessageStatus {
+                req_msg_id: status.req_msg_id,
+                info: status.info,
+            }])
         }
         MSGS_ACK => Ok(vec![InboundEvent::Ignored]),
         // The constructor ID is protocol metadata, not message content. Keep it

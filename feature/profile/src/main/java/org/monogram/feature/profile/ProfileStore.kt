@@ -8,7 +8,6 @@ import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.Outcome
@@ -194,8 +193,7 @@ internal class ProfileStoreFactory(
         }
 
         private suspend fun loadTabCounts(): ProfileTabCounts? {
-            val result = client.getProfileTabCounts(peerId)
-            return when (result) {
+            return when (val result = client.getProfileTabCounts(peerId)) {
                 is Outcome.Ok -> {
                     dispatch(Msg.TabCounts(result.value))
                     withContext(ioDispatcher) {
@@ -254,7 +252,7 @@ internal class ProfileStoreFactory(
             dispatch(Msg.SharedMediaLoading(tab, true))
             dispatch(Msg.SharedMediaError(null))
             scope.launch {
-                val result = client.searchMessagesFiltered(
+                val result = client.searchMessagesPage(
                     chatId = peerId,
                     query = "",
                     filter = tab.wire,
@@ -264,12 +262,20 @@ internal class ProfileStoreFactory(
                 )
                 when (result) {
                     is Outcome.Ok -> {
-                        val page = result.value.filter { it.id.id > 0 }
+                        val page = result.value.messages.filter { it.id.id > 0 }
+                        val existing =
+                            if (reset) emptyList() else state().sharedMedia[tab].orEmpty()
+                        val loaded = (existing + page).distinctBy { it.id.id }.size
                         dispatch(
                             Msg.SharedMediaPage(
                                 tab = tab,
                                 messages = page,
-                                end = page.isEmpty() || page.size < MEDIA_PAGE_SIZE,
+                                end = sharedMediaPageEnded(
+                                    pageSize = page.size,
+                                    loaded = loaded,
+                                    totalCount = result.value.totalCount,
+                                    pageLimit = MEDIA_PAGE_SIZE,
+                                ),
                                 replace = reset,
                             ),
                         )
@@ -380,7 +386,7 @@ internal class ProfileStoreFactory(
                 membersTotal = if (msg.total > 0) msg.total else msg.members.size,
                 membersEnd = msg.end,
             ).withPanels()
-            is Msg.MembersUnavailable -> copy(membersAvailable = if (msg.value) false else true)
+            is Msg.MembersUnavailable -> copy(membersAvailable = !msg.value)
                 .withPanels()
             is Msg.CommonChatsLoading -> copy(commonChatsLoading = msg.value)
             is Msg.CommonChatsLoaded -> copy(
@@ -425,6 +431,17 @@ internal class ProfileStoreFactory(
         const val MEMBER_PAGE_SIZE = 50
         const val COMMON_CHATS_LIMIT = 100
     }
+}
+
+internal fun sharedMediaPageEnded(
+    pageSize: Int,
+    loaded: Int,
+    totalCount: Int,
+    pageLimit: Int,
+): Boolean = when {
+    pageSize == 0 -> true
+    totalCount > 0 -> loaded >= totalCount
+    else -> pageSize < pageLimit
 }
 
 private fun isParticipantsHidden(error: TelegramError): Boolean {

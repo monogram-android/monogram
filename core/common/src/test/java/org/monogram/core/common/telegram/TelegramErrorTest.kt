@@ -111,7 +111,19 @@ class TelegramErrorTest {
         val migrate = TelegramError.parse("RPC 303: PHONE_MIGRATE_2")
         assertEquals(TelegramError.Kind.SeeOther, migrate.kind)
         assertEquals(2, migrate.migrateDcId)
+        assertEquals("PHONE", migrate.migrateKind)
         assertTrue(migrate.recognized)
+
+        val file = TelegramError.parse("RPC 303: FILE_MIGRATE_4")
+        assertEquals(303, file.httpCode)
+        assertEquals(4, file.migrateDcId)
+        assertEquals("FILE", file.migrateKind)
+
+        val premium = TelegramError.parse("RPC 420: FLOOD_PREMIUM_WAIT_120")
+        assertEquals(TelegramError.Kind.Flood, premium.kind)
+        assertEquals(120, premium.retryAfterSeconds)
+        assertTrue(premium.premiumFlood)
+        assertFalse(TelegramError.parse("RPC 420: FLOOD_WAIT_5").premiumFlood)
 
         val timeout = TelegramError.parse("RPC timeout")
         assertEquals(TelegramError.Kind.Network, timeout.kind)

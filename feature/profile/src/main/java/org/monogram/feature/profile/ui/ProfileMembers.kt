@@ -29,6 +29,7 @@ import org.monogram.core.ui.components.peerStatusLabel
 import org.monogram.core.ui.components.rememberPeerStatusNow
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.profile.ProfileComponent
 import org.monogram.feature.profile.ProfilePanel
 import org.monogram.feature.profile.ProfileStore
@@ -124,6 +125,9 @@ private fun MemberRow(
             title = member.title,
             size = 44.dp,
             imageFile = avatar,
+            previewBytes = rememberStrippedPreview(member.id) {
+                repository?.peerInlineThumbJpeg(member.id)
+            },
         )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -216,7 +220,14 @@ private fun CommonGroupRow(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PeerAvatar(title = chat.title, size = 44.dp, imageFile = avatar)
+        PeerAvatar(
+            title = chat.title,
+            size = 44.dp,
+            imageFile = avatar,
+            previewBytes = rememberStrippedPreview(chat.id) {
+                repository?.peerInlineThumbJpeg(chat.id)
+            },
+        )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(

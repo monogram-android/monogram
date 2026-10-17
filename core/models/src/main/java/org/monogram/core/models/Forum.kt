@@ -34,7 +34,7 @@ data class ForumTopicsPage(
  * https://core.telegram.org/api/forum#interacting-within-topics
  */
 object ForumIo {
-    const val CHANNEL_PEER_OFFSET: Long = 1_000_000_000_000L
+    const val CHANNEL_PEER_OFFSET: Long = org.monogram.core.models.CHANNEL_PEER_OFFSET
 
     fun isChannelPeer(peerId: PeerId): Boolean = peerId.value <= -CHANNEL_PEER_OFFSET
 

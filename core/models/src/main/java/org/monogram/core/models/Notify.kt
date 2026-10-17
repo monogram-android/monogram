@@ -18,6 +18,7 @@ data class NotifySettings(
     val storiesMuted: Boolean = false,
     val storiesHideSender: Boolean = false,
     val sound: String = "default",
+    val previewInherited: Boolean = false,
 ) {
     /** `mute_until` at or before [now] is unmuted; 0 is unmuted and `Int.MAX_VALUE` is forever. */
     fun isMuted(now: Int): Boolean = muteUntil > now
@@ -55,6 +56,7 @@ data class NotifyException(
     val peerKind: String,
     val chatId: PeerId,
     val settings: NotifySettings,
+    val topicId: Int? = null,
 )
 
 data class PushDebugState(
@@ -66,4 +68,7 @@ data class PushDebugState(
     val lastLocKey: String = "",
     val lastCustomIds: String = "",
     val permissionGranted: Boolean = false,
+    val tokenType: Int = 0,
+    val endpointHost: String = "",
+    val lastMessageAt: Long = 0L,
 )

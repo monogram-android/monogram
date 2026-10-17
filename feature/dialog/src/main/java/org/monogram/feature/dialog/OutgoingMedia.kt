@@ -17,6 +17,12 @@ internal fun localOutgoingFile(cacheKey: String?): File? {
     return File(path).takeIf { it.isFile && it.length() > 0L }
 }
 
+internal fun releaseAttachCopy(path: String) {
+    val file = File(path)
+    if (!file.name.startsWith("attach-")) return
+    if (file.isFile) file.delete()
+}
+
 /** Native emits `UpdateMessageId:{random_id}:{id}` through the existing Ignored event. */
 internal fun parseUpdateMessageId(kind: String): Pair<Long, Int>? {
     val prefix = "UpdateMessageId:"
@@ -28,6 +34,10 @@ internal fun parseUpdateMessageId(kind: String): Pair<Long, Int>? {
     if (randomId == 0L || messageId <= 0) return null
     return randomId to messageId
 }
+
+/** The row stays pending until `updateMessageID` assigns a positive server id. */
+internal fun staysPendingUntilMessageId(pending: Boolean, messageId: Int): Boolean =
+    pending || messageId <= 0
 
 internal fun isTransientSendFailure(error: TelegramError): Boolean =
     error.kind == TelegramError.Kind.Network ||

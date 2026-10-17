@@ -1,5 +1,6 @@
 package org.monogram.feature.dialog
 
+import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.models.CompactJson
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.Message
@@ -169,53 +170,83 @@ fun mergeSenderTags(
 }
 
 internal object SenderTagMemory {
-    private val byChat = mutableMapOf<Long, Map<PeerId, String>>()
+    private val byChat = dialogChatMemory<Map<PeerId, String>>()
 
-    fun get(chatId: Long): Map<PeerId, String> = byChat[chatId].orEmpty()
+    fun get(chatId: Long): Map<PeerId, String> = synchronized(byChat) { byChat[chatId].orEmpty() }
 
-    fun put(chatId: Long, tags: Map<PeerId, String>) {
-        if (tags.isEmpty()) byChat.remove(chatId) else byChat[chatId] = tags
+    fun put(chatId: Long, tags: Map<PeerId, String>): Long? = synchronized(byChat) {
+        if (tags.isEmpty()) {
+            byChat.remove(chatId)
+            return@synchronized null
+        }
+        val eldest = byChat.entries.firstOrNull()?.key
+        byChat[chatId] = tags
+        if (eldest != null && eldest != chatId && !byChat.containsKey(eldest)) eldest else null
     }
 
-    fun clear() = byChat.clear()
+    fun clear() = synchronized(byChat) { byChat.clear() }
 }
 
 internal object TopicListMemory {
-    private val byChat = mutableMapOf<Long, List<ForumTopic>>()
+    private val byChat = dialogChatMemory<List<ForumTopic>>()
 
-    fun get(chatId: Long): List<ForumTopic> = byChat[chatId].orEmpty()
+    fun get(chatId: Long): List<ForumTopic> = synchronized(byChat) { byChat[chatId].orEmpty() }
 
-    fun put(chatId: Long, topics: List<ForumTopic>) {
-        if (topics.isEmpty()) byChat.remove(chatId) else byChat[chatId] = topics
+    fun put(chatId: Long, topics: List<ForumTopic>): Long? = synchronized(byChat) {
+        if (topics.isEmpty()) {
+            byChat.remove(chatId)
+            return@synchronized null
+        }
+        val eldest = byChat.entries.firstOrNull()?.key
+        byChat[chatId] = topics
+        if (eldest != null && eldest != chatId && !byChat.containsKey(eldest)) eldest else null
     }
 
-    fun clear() = byChat.clear()
+    fun clear() = synchronized(byChat) { byChat.clear() }
 }
 
 internal object PinnedBarMemory {
-    private val byChat = mutableMapOf<Long, PinnedBarSnapshot>()
+    private val byChat = dialogChatMemory<PinnedBarSnapshot>()
 
-    fun get(chatId: Long): PinnedBarSnapshot? = byChat[chatId]
+    fun get(chatId: Long): PinnedBarSnapshot? = synchronized(byChat) { byChat[chatId] }
 
-    fun put(chatId: Long, messages: List<Message>, index: Int) {
+    fun put(chatId: Long, messages: List<Message>, index: Int): Long? = synchronized(byChat) {
         if (messages.isEmpty()) {
             byChat.remove(chatId)
-        } else {
-            byChat[chatId] = PinnedBarSnapshot(
-                messages = messages,
-                index = index.coerceIn(0, messages.lastIndex),
-            )
+            return@synchronized null
         }
+        val eldest = byChat.entries.firstOrNull()?.key
+        byChat[chatId] = PinnedBarSnapshot(
+            messages = messages,
+            index = index.coerceIn(0, messages.lastIndex),
+        )
+        if (eldest != null && eldest != chatId && !byChat.containsKey(eldest)) eldest else null
     }
 
-    fun clear() = byChat.clear()
+    fun clear() = synchronized(byChat) { byChat.clear() }
 }
+
+private const val DIALOG_MEMORY_CHATS = 32
+
+private fun <T> dialogChatMemory(): java.util.LinkedHashMap<Long, T> =
+    object : java.util.LinkedHashMap<Long, T>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, T>?) =
+            size > DIALOG_MEMORY_CHATS
+    }
 
 fun pinnedMetaKey(chatId: Long): String = "pinned.$chatId"
 
 fun tagsMetaKey(chatId: Long): String = "tags.$chatId"
 
 fun topicsMetaKey(chatId: Long): String = "topics.$chatId"
+
+internal suspend fun forgetEvictedDialogMeta(
+    store: SessionMetadataStore?,
+    evicted: Long?,
+    key: (Long) -> String,
+) {
+    if (evicted != null) store?.deleteMeta(key(evicted))
+}
 
 fun parsePinnedIds(raw: String?): List<Int> =
     raw?.split(',')?.mapNotNull { it.trim().toIntOrNull() }.orEmpty()
@@ -320,7 +351,8 @@ fun shouldFollowIncomingNewest(
     scrolling: Boolean,
     newestArrived: Boolean,
     olderPageGrew: Boolean,
-): Boolean = followBottom && !scrolling && newestArrived && !olderPageGrew
+    cacheToNetwork: Boolean = false,
+): Boolean = followBottom && !scrolling && newestArrived && !olderPageGrew && !cacheToNetwork
 
 /** Content inserts can bump [firstVisibleIndex] without a user gesture. Only drop
  * follow-bottom while a scroll is in progress; restore it when the latest row is
@@ -391,10 +423,10 @@ fun applyMessageEdit(messages: List<Message>, edited: Message): List<Message> =
             current
         } else {
             val reactionOnly = current.text == edited.text &&
-                current.mediaKind == edited.mediaKind &&
-                current.mediaCacheKey == edited.mediaCacheKey &&
-                current.reactionsJson != edited.reactionsJson &&
-                current.editDate == null
+                    current.mediaKind == edited.mediaKind &&
+                    current.mediaCacheKey == edited.mediaCacheKey &&
+                    current.reactionsJson != edited.reactionsJson &&
+                    current.editDate == null
             edited.copy(
                 pending = current.pending,
                 read = current.read,
@@ -455,8 +487,8 @@ fun mergeLiveEdgeMessages(current: List<Message>, incoming: List<Message>): List
     val incomingIds = incoming.mapTo(HashSet()) { it.id.id }
     val keep = current.filter { message ->
         message.id.id < minIncoming ||
-            message.id.id > maxIncoming ||
-            ((message.pending || message.failed || message.id.id <= 0) && message.id.id !in incomingIds)
+                message.id.id > maxIncoming ||
+                ((message.pending || message.failed || message.id.id <= 0) && message.id.id !in incomingIds)
     }
     return incoming + keep
 }
@@ -576,15 +608,16 @@ fun messageRowIndex(messages: List<Message>, messageId: Int): Int {
     return (0..index).count { isAlbumHead(messages, it) } - 1
 }
 
-fun visibleAlbumMessageIds(messages: List<Message>, visibleRowIndices: Set<Int>): Set<Int> = buildSet {
-    var row = 0
-    messages.indices.forEach { index ->
-        if (isAlbumHead(messages, index)) {
-            if (row in visibleRowIndices) albumSlice(messages, index).forEach { add(it.id.id) }
-            row++
+fun visibleAlbumMessageIds(messages: List<Message>, visibleRowIndices: Set<Int>): Set<Int> =
+    buildSet {
+        var row = 0
+        messages.indices.forEach { index ->
+            if (isAlbumHead(messages, index)) {
+                if (row in visibleRowIndices) albumSlice(messages, index).forEach { add(it.id.id) }
+                row++
+            }
         }
     }
-}
 
 private val ALBUM_VISUAL_KINDS = setOf("photo", "video", "gif")
 

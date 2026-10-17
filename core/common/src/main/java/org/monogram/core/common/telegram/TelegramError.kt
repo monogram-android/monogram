@@ -18,6 +18,8 @@ data class TelegramError(
     val recognized: Boolean,
     val retryAfterSeconds: Int? = null,
     val migrateDcId: Int? = null,
+    val premiumFlood: Boolean = false,
+    val migrateKind: String? = null,
 ) {
     val message: String get() = description.ifBlank { type.ifBlank { "Request failed" } }
 
@@ -103,6 +105,14 @@ data class TelegramError(
             }
             val retry = argument.takeIf { kind == Kind.Flood || resolvedType.contains("WAIT") }
             val migrate = argument.takeIf { kind == Kind.SeeOther }
+            val premiumFlood = resolvedType.contains("FLOOD_PREMIUM")
+            val migrateKind = when {
+                resolvedType.startsWith("FILE_MIGRATE") -> "FILE"
+                resolvedType.startsWith("USER_MIGRATE") -> "USER"
+                resolvedType.startsWith("PHONE_MIGRATE") -> "PHONE"
+                resolvedType.startsWith("NETWORK_MIGRATE") -> "NETWORK"
+                else -> null
+            }
             return TelegramError(
                 httpCode = http,
                 type = resolvedType,
@@ -113,6 +123,8 @@ data class TelegramError(
                 recognized = row != null,
                 retryAfterSeconds = retry,
                 migrateDcId = migrate,
+                premiumFlood = premiumFlood,
+                migrateKind = migrateKind,
             )
         }
 

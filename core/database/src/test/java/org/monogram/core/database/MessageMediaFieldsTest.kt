@@ -12,11 +12,14 @@ import org.monogram.core.models.ReplyButton
 import org.monogram.core.models.ReplyButtonType
 import org.monogram.core.models.ReplyMarkup
 import org.monogram.core.models.ReplyMarkupKind
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class MessageMediaFieldsTest {
     @Test
     fun schemaVersionIsCurrent() {
-        assertEquals(4, DatabaseProvider.SCHEMA_VERSION)
+        assertEquals(8, DatabaseProvider.SCHEMA_VERSION)
     }
 
     @Test
@@ -28,6 +31,18 @@ class MessageMediaFieldsTest {
         assertTrue(DatabaseProvider.hasMigrationPath(3, 4))
         assertFalse(DatabaseProvider.hasMigrationPath(32))
         assertFalse(DatabaseProvider.hasMigrationPath(3, 2))
+    }
+
+    @Test
+    fun roomExecutorIsDedicated() {
+        val name = AtomicReference<String>()
+        val done = CountDownLatch(1)
+        DatabaseProvider.roomExecutor.execute {
+            name.set(Thread.currentThread().name)
+            done.countDown()
+        }
+        assertTrue(done.await(2, TimeUnit.SECONDS))
+        assertEquals("monogram-room", name.get())
     }
 
     @Test
@@ -94,7 +109,7 @@ class MessageMediaFieldsTest {
     @Test
     fun chatRoundtripsUnreadMentionAndReactionCounts() {
         val chat = org.monogram.core.models.Chat(
-            id = org.monogram.core.models.PeerId(9),
+            id = PeerId(9),
             title = "Ada",
             unreadMentionsCount = 3,
             unreadReactionsCount = 2,

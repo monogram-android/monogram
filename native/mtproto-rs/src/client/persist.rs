@@ -7,7 +7,9 @@ use std::sync::{Arc, LazyLock};
 use parking_lot::Mutex;
 
 use crate::MtprotoError;
-use crate::session_file::{ClientSession, FileSessionStore, media_from_index};
+use crate::session_file::{
+    ClientSession, FileSessionStore, media_from_index, media_order_from_index,
+};
 use crate::tcp;
 
 use super::*;
@@ -51,17 +53,56 @@ thread_local! {
     pub(crate) static EXTRA_READ_LANE: Cell<bool> = const { Cell::new(false) };
 }
 
-pub(crate) fn persist(state: &ClientState) -> Result<(), MtprotoError> {
+pub(crate) fn durable_snapshot(state: &ClientState) -> tellers_mtproto_session::Snapshot {
+    let mut snapshot = state.snapshot.clone();
+    if let Some(key) = &state.perm_auth_key {
+        snapshot.auth_key = Some(key.clone());
+        snapshot.server_salt = state.perm_salt;
+        snapshot.session_id = state.perm_session_id;
+    }
+    snapshot
+}
+
+pub(crate) fn journal_to_save(
+    snapshot: crate::update_journal::UpdateJournal,
+    live: Option<crate::update_journal::UpdateJournal>,
+) -> crate::update_journal::UpdateJournal {
+    let Some(live) = live else {
+        return snapshot;
+    };
+    if live.account_generation == snapshot.account_generation
+        && live.next_batch_id >= snapshot.next_batch_id
+    {
+        live
+    } else {
+        snapshot
+    }
+}
+
+fn live_journal(path: &Path) -> Option<crate::update_journal::UpdateJournal> {
+    let clients = CLIENTS.lock();
+    for client in clients.values() {
+        let data = client.data.lock();
+        if data.session_path == path {
+            return Some((*data.journal).clone());
+        }
+    }
+    None
+}
+
+pub(crate) fn persist(state: &mut ClientState) -> Result<(), MtprotoError> {
     // Extra-lane snapshot_id must never replace the main session on disk.
     if EXTRA_READ_LANE.with(Cell::get) {
         return Ok(());
     }
+    crate::media::bound_media_index(&mut state.media);
     let session = ClientSession {
-        snapshot: state.snapshot.clone(),
+        snapshot: durable_snapshot(state),
         user_id: state.user_id,
         peers: state.peers.clone(),
         updates: state.updates.clone(),
         media: media_from_index(&state.media),
+        media_order: media_order_from_index(&state.media),
         channel_pts: state.channel_pts.clone(),
         channel_recovery: state.channel_recovery.clone(),
         seen_messages: state.seen_messages.clone(),
@@ -69,6 +110,8 @@ pub(crate) fn persist(state: &ClientState) -> Result<(), MtprotoError> {
         new_session: state.new_session.clone(),
         session_dead: state.session_dead,
         test_dc: state.test_dc,
+        dc_auth_keys: state.dc_auth_keys.clone(),
+        journal: journal_to_save((*state.journal).clone(), live_journal(&state.session_path)),
     };
     let clock = persist_generation(&state.session_path);
     let _write = PERSIST_WRITE.lock();
@@ -87,22 +130,32 @@ pub(crate) fn expired_session_lease() -> MtprotoError {
     MtprotoError::Message("request cancelled: session changed".into())
 }
 
-pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(), MtprotoError> {
+pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<bool, MtprotoError> {
     // Copy under the home lane, then release it before the disk write. Chat
     // opens, media, and channel info share that lane and were waiting out the
     // whole save.
-    let (path, session, epoch, generation) = {
+    let (path, session, journal, epoch, generation) = {
         let main = client.main.lock();
-        let d = client.data.lock();
+        let mut d = client.data.lock();
         if !session_lease_valid(&d, session_id) {
             return Err(expired_session_lease());
         }
+        crate::media::bound_media_index(&mut d.media);
+        let mut snapshot = main.snapshot.clone();
+        if main.temp_expires_at > crate::auth::bind_temp::unix_now() {
+            if let Some(key) = d.home_auth_key.clone() {
+                snapshot.auth_key = Some(key);
+                snapshot.server_salt = d.home_salt;
+                snapshot.session_id = d.home_session_id;
+            }
+        }
         let session = ClientSession {
-            snapshot: main.snapshot.clone(),
+            snapshot,
             user_id: d.user_id,
             peers: d.peers.clone(),
             updates: d.updates.clone(),
             media: media_from_index(&d.media),
+            media_order: media_order_from_index(&d.media),
             channel_pts: d.channel_pts.clone(),
             channel_recovery: d.channel_recovery.clone(),
             seen_messages: d.seen_messages.clone(),
@@ -110,15 +163,20 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(
             new_session: d.new_session.clone(),
             session_dead: d.session_dead,
             test_dc: d.test_dc,
+            dc_auth_keys: d.dc_auth_keys.clone(),
+            journal: d.journal.header_only(),
         };
+        let journal = Arc::clone(&d.journal);
         let path = d.session_path.clone();
         let epoch = d.persist_epoch;
         drop(d);
         // Read the clock while the home lane is still held, so `persist`
         // cannot commit this file between the copy and the snapshot.
         let generation = persist_generation(&path).load(Ordering::Acquire);
-        (path, session, epoch, generation)
+        (path, session, journal, epoch, generation)
     };
+    let mut session = session;
+    session.journal = (*journal).clone();
     let clock = persist_generation(&path);
     let _write = PERSIST_WRITE.lock();
     {
@@ -134,8 +192,15 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(
             epoch,
             d.persist_epoch,
         ) {
-            return Ok(());
+            return Ok(false);
         }
+    }
+    #[cfg(test)]
+    if FORCE_STALE_SAVES
+        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |left| left.checked_sub(1))
+        .is_ok()
+    {
+        return Ok(false);
     }
     let store = FileSessionStore::new(&path);
     tcp::with_connection_control(&client.connections, || store.save(&session))
@@ -145,8 +210,44 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<(
     if session_lease_valid(&d, session_id) && d.persisted_epoch < epoch {
         d.persisted_epoch = epoch;
     }
-    Ok(())
+    Ok(true)
 }
+
+#[cfg(test)]
+pub(crate) static FORCE_STALE_SAVES: AtomicU32 = AtomicU32::new(0);
+
+use std::sync::atomic::AtomicU32;
+
+pub(crate) fn persist_journal_sync(client: &Client, session_id: i64) -> Result<(), MtprotoError> {
+    let mut last = None;
+    for attempt in 0..JOURNAL_PERSIST_ATTEMPTS {
+        match persist_updates_data(client, session_id) {
+            Ok(true) => {
+                client.persist_exhausted.store(false, Ordering::Release);
+                return Ok(());
+            }
+            Ok(false) => {
+                crate::perf::count("journal.persist_superseded");
+                continue;
+            }
+            Err(error) if !session_lease_valid(&client.data.lock(), session_id) => {
+                return Err(error);
+            }
+            Err(error) => {
+                crate::perf::count("journal.persist_retry");
+                last = Some(error);
+                if attempt + 1 < JOURNAL_PERSIST_ATTEMPTS {
+                    std::thread::sleep(std::time::Duration::from_millis(25 << attempt));
+                }
+            }
+        }
+    }
+    crate::perf::count("journal.persist_exhausted");
+    client.persist_exhausted.store(true, Ordering::Release);
+    Err(last.unwrap_or_else(|| MtprotoError::Message("journal persistence failed".into())))
+}
+
+const JOURNAL_PERSIST_ATTEMPTS: u32 = 4;
 
 /// Coalesce session writes so getHistory/getChats can return before disk I/O.
 /// In-memory state is already merged; this is crash recovery, not the RPC result.
@@ -155,10 +256,12 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
     if client.persist_running.swap(true, Ordering::AcqRel) {
         return;
     }
-    let client = Arc::clone(client);
-    let _ = std::thread::Builder::new()
+    let worker_client = Arc::clone(client);
+    let spawned = std::thread::Builder::new()
         .name("mtproto-persist".into())
         .spawn(move || {
+            let client = worker_client;
+            let mut failures = 0_u32;
             loop {
                 client.persist_queued.store(false, Ordering::Release);
                 let skip = {
@@ -167,8 +270,28 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
                 };
                 if !skip {
                     let span = crate::perf::span("persist_session");
-                    let _ = persist_updates_data(&client, session_id);
+                    let result = persist_updates_data(&client, session_id);
                     drop(span);
+                    if result.as_ref().ok() == Some(&true) {
+                        client.persist_exhausted.store(false, Ordering::Release);
+                    }
+                    if result.as_ref().ok() == Some(&false) {
+                        client.persist_queued.store(true, Ordering::Release);
+                        continue;
+                    }
+                    if result.is_err() {
+                        crate::perf::count("persist_session.failed");
+                        client.persist_queued.store(true, Ordering::Release);
+                        failures += 1;
+                        if failures >= 4 || !session_lease_valid(&client.data.lock(), session_id) {
+                            client.persist_exhausted.store(true, Ordering::Release);
+                            client.persist_running.store(false, Ordering::Release);
+                            break;
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(100 * (1 << failures)));
+                        continue;
+                    }
+                    failures = 0;
                 }
                 if client.persist_queued.load(Ordering::Acquire) {
                     continue;
@@ -182,44 +305,15 @@ pub(crate) fn schedule_persist(client: &Arc<Client>, session_id: i64) {
                 break;
             }
         });
+    if spawned.is_err() {
+        crate::perf::count("persist_session.spawn_failed");
+        client.persist_running.store(false, Ordering::Release);
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn generation_lookup_does_not_wait_for_disk_write() {
-        let write = PERSIST_WRITE.lock();
-        let (tx, rx) = std::sync::mpsc::channel();
-        let worker = std::thread::spawn(move || {
-            let clock = persist_generation(Path::new("generation-lookup-test"));
-            tx.send(clock.load(Ordering::Acquire)).unwrap();
-        });
-        let result = rx.recv_timeout(std::time::Duration::from_millis(500));
-        drop(write);
-        worker.join().unwrap();
-        assert_eq!(result.ok(), Some(0));
-    }
-
-    #[test]
-    fn generations_are_per_file_and_visible_to_existing_captures() {
-        let first = persist_generation(Path::new("generation-first-test"));
-        let same = persist_generation(Path::new("generation-first-test"));
-        let other = persist_generation(Path::new("generation-other-test"));
-        let previous = first.load(Ordering::Acquire);
-        let unrelated = other.load(Ordering::Acquire);
-        bump_persist_clock(&first);
-        assert_eq!(same.load(Ordering::Acquire), previous + 1);
-        assert_eq!(other.load(Ordering::Acquire), unrelated);
-        assert!(captured_session_is_stale(
-            previous,
-            same.load(Ordering::Acquire),
-            1,
-            1
-        ));
-    }
-}
+#[path = "../../tests/unit/client_persist_tests.rs"]
+mod tests;
 
 pub(crate) fn flush_persist(client: &Arc<Client>) {
     let session_id = client.data.lock().home_session_id;

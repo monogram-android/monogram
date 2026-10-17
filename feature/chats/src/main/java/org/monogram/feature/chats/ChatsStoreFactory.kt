@@ -29,7 +29,15 @@ internal class ChatsStoreFactory(
             ChatsStore,
             Store<ChatsStore.Intent, ChatsStore.State, Nothing> by storeFactory.create(
                 name = "ChatsStore",
-                initialState = ChatsStore.State(loading = true),
+                initialState = warmup?.startupSnapshot()?.let { snapshot ->
+                    ChatsStore.State(
+                        chats = sortChats(snapshot.chats),
+                        self = snapshot.self,
+                        fromCache = true,
+                        syncing = true,
+                        hasMore = snapshot.mainCount > snapshot.chats.count { !it.archived && !it.left },
+                    )
+                } ?: ChatsStore.State(loading = true),
                 bootstrapper = SimpleBootstrapper(Unit),
                 executorFactory = {
                     ChatsExecutor(

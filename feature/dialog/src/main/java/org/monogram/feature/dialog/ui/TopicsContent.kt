@@ -18,8 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -48,28 +48,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Velocity
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.ForumTopic
-import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.core.ui.components.AppStatusBanner
 import org.monogram.core.ui.components.AppSyncStatus
 import org.monogram.core.ui.components.MessageListSkeleton
 import org.monogram.core.ui.components.UnreadBadge
+import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.R
@@ -99,7 +99,7 @@ fun TopicsContent(
                         Text(text = title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     },
                     navigationIcon = {
-                        IconButton(onClick = component::onBack) {
+                        if (component.showBackButton) IconButton(onClick = component::onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                                 contentDescription = stringResource(R.string.dialog_back),
@@ -250,12 +250,14 @@ internal fun TopicsList(
             }
             val peekDp = with(density) { peekPx.value.toDp() }
             LazyColumn(
-                modifier = modifier.fillMaxSize().nestedScroll(pull),
+                modifier = modifier
+                    .fillMaxSize()
+                    .nestedScroll(pull),
                 state = listState,
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
                 if (hiddenCount > 0) {
-                    item(key = "archive-peek") {
+                    item(key = "archive-peek", contentType = "topic-archive") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -278,7 +280,7 @@ internal fun TopicsList(
                         }
                     }
                 }
-                items(visibleTopics, key = { it.id }) { topic ->
+                items(visibleTopics, key = { it.id }, contentType = { "topic" }) { topic ->
                     TopicRow(
                         modifier = Modifier.animateItem(),
                         topic = topic,

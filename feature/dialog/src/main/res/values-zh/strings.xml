@@ -31,6 +31,12 @@
         <item quantity="other">%d 个文件</item>
     </plurals>
     <string name="dialog_media_document">文件</string>
+    <string name="dialog_media_link">链接</string>
+    <string name="dialog_media_checklist">清单</string>
+    <string name="dialog_media_poll">投票</string>
+    <string name="dialog_media_location">位置</string>
+    <string name="dialog_media_contact">联系人</string>
+    <string name="dialog_media_dice">骰子</string>
     <string name="dialog_unsupported_message">暂不支持此消息类型</string>
     <string name="dialog_poll_quiz">测验</string>
     <string name="dialog_poll_closed">已结束</string>
@@ -106,6 +112,7 @@
     <string name="dialog_panel_emoji">表情</string>
     <string name="dialog_panel_stickers">贴纸</string>
     <string name="dialog_emoji_open">表情、贴纸和 GIF</string>
+    <string name="dialog_emoji_recent">最近</string>
     <string name="dialog_emoji_category_smileys">表情与情感</string>
     <string name="dialog_emoji_category_people">人物与身体</string>
     <string name="dialog_emoji_category_nature">动物与自然</string>
@@ -149,8 +156,6 @@
     <string name="dialog_cut">剪切</string>
     <string name="dialog_paste">粘贴</string>
     <string name="dialog_copy_selected">复制所选</string>
-    <string name="dialog_select_text">选择</string>
-    <string name="dialog_select_message">选择消息</string>
     <plurals name="dialog_messages_selected">
         <item quantity="other">已选择 %1$d 条消息</item>
     </plurals>
@@ -175,8 +180,12 @@
     <string name="dialog_forwarded">已转发到 %1$s</string>
     <string name="dialog_delete_confirm">删除这条消息？</string>
     <string name="dialog_delete_for_everyone">为所有人删除</string>
+    <string name="dialog_delete_for_me">仅为我删除</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="other">删除 %1$d 条消息？</item>
+    </plurals>
     <string name="dialog_cancel">取消</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">预览</string>
     <string name="dialog_markdown_expand">打开 Markdown 编辑器</string>
     <string name="dialog_markdown_apply">应用</string>
@@ -207,6 +216,10 @@
     <string name="dialog_cant_send">你无法在此发送消息</string>
     <string name="dialog_cant_send_photos">此聊天不允许发送图片</string>
     <string name="dialog_channel_readonly">只有管理员可以在此频道发帖</string>
+    <string name="dialog_join">加入</string>
+    <string name="dialog_mute">静音</string>
+    <string name="dialog_unmute">取消静音</string>
+    <string name="dialog_unblock">解除屏蔽</string>
     <string name="dialog_protected">此聊天已禁止转发</string>
     <string name="dialog_editing">编辑消息</string>
     <string name="dialog_replying">回复</string>
@@ -242,9 +255,36 @@
     <string name="dialog_instant_view_unsupported">不支持此内容块</string>
     <string name="dialog_instant_view_map">打开地图</string>
     <string name="dialog_instant_view_related">相关文章</string>
+    <string name="dialog_instant_view_contents">目录</string>
+    <string name="dialog_instant_view_contents_empty">此文章没有章节</string>
+    <string name="dialog_instant_view_beginning">开头</string>
+    <string name="dialog_instant_view_min_read">%1 分钟阅读</string>
+    <string name="dialog_instant_view_to_top">回到顶部</string>
+    <string name="dialog_instant_view_reload">重新加载</string>
+    <string name="dialog_instant_view_text">文章内容</string>
+    <string name="dialog_instant_view_chars">%1 个字符</string>
+    <string name="dialog_instant_view_select_all">全选</string>
+    <string name="dialog_instant_view_clear_selection">取消选择</string>
+    <string name="dialog_instant_view_copy">复制</string>
+    <string name="dialog_instant_view_done">完成</string>
+    <string name="dialog_instant_view_font_reset">重置</string>
+    <string name="dialog_instant_view_font_smaller">调小文字</string>
+    <string name="dialog_instant_view_font_larger">调大文字</string>
+    <string name="dialog_instant_view_search_previous">上一个匹配</string>
+    <string name="dialog_instant_view_search_clear">清除搜索</string>
+    <string name="dialog_instant_view_search_close">关闭搜索</string>
+    <string name="dialog_instant_view_error_hint">请检查网络连接后重试</string>
+    <string name="dialog_instant_view_collapse">折叠</string>
+    <string name="dialog_instant_view_expand">展开</string>
+    <string name="dialog_instant_view_media_page">%1$d / %2$d</string>
+    <string name="dialog_instant_view_media_load">下载并播放</string>
+    <string name="dialog_instant_view_media_ready">音频已就绪</string>
+    <string name="dialog_instant_view_media_download">下载文件</string>
+    <string name="dialog_instant_view_media_open">打开文件</string>
+    <string name="dialog_instant_view_media_cancel">取消下载</string>
     <string name="media_delete_title">删除媒体</string>
-    <string name="media_delete_body_single">删除此项？将从你和此聊天中移除。</string>
-    <string name="media_delete_body_album">删除全部 %1$d 项？将从你和此聊天中移除。</string>
+    <string name="media_delete_body_single">删除此项？将从你和此聊天中移除</string>
+    <string name="media_delete_body_album">删除全部 %1$d 项？将从你和此聊天中移除</string>
     <string name="media_delete_confirm">删除</string>
     <string name="media_delete_cancel">取消</string>
     <string name="media_action_copied_image">已复制图片</string>
@@ -291,4 +331,17 @@
     <plurals name="dialog_subscribers_count">
         <item quantity="other">%1$s 位订阅者</item>
     </plurals>
+    <string name="dialog_send_formatted">带格式发送</string>
+    <string name="dialog_editor_title">消息编辑器</string>
+    <string name="dialog_editor_send_preview">发送预览</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">已选文字</string>
+    <string name="dialog_editor_select_hint">选择文字以设置格式</string>
+    <string name="dialog_editor_expandable_quote">可展开引用</string>
+    <string name="dialog_editor_clear">清除格式</string>
+    <string name="dialog_editor_url">链接地址</string>
+    <string name="dialog_editor_language">语言（可选）</string>
+    <string name="dialog_editor_open">展开编辑器</string>
+    <string name="dialog_rich_date_at_time">%1$s %2$s</string>
+    <string name="dialog_media_progress_speed">%1$s · %2$s/秒</string>
 </resources>

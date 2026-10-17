@@ -20,11 +20,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.TextStyle
@@ -33,14 +34,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.Outcome
 import org.monogram.core.models.TextEntity
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
+import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.feature.dialog.PickerPoster
+import org.monogram.feature.dialog.PosterLoadGate
+import org.monogram.feature.dialog.posterRequestKey
 import org.monogram.network.http.MediaRepository
 import java.io.File
-import org.monogram.core.ui.loading.MonogramLoading
 
 internal val LocalDialogMedia = staticCompositionLocalOf<MediaRepository?> { null }
 
@@ -55,14 +60,23 @@ internal fun isInViewport(
 ): Boolean {
     if (right <= left || bottom <= top || viewportWidth <= 0 || viewportHeight <= 0) return false
     return right > -lookaheadPx &&
-        bottom > -lookaheadPx &&
-        left < viewportWidth + lookaheadPx &&
-        top < viewportHeight + lookaheadPx
+            bottom > -lookaheadPx &&
+            left < viewportWidth + lookaheadPx &&
+            top < viewportHeight + lookaheadPx
 }
 
 @Composable
 internal fun rememberViewportVisible(key: Any?): Pair<Boolean, Modifier> {
+    var measuredVisible by remember(key) { mutableStateOf(false) }
     var visible by remember(key) { mutableStateOf(false) }
+    LaunchedEffect(measuredVisible) {
+        if (measuredVisible) {
+            visible = true
+        } else {
+            delay(250L)
+            visible = false
+        }
+    }
     val modifier = Modifier.onGloballyPositioned { coordinates ->
         if (!coordinates.isAttached) return@onGloballyPositioned
         val bounds = coordinates.boundsInRoot()
@@ -77,7 +91,7 @@ internal fun rememberViewportVisible(key: Any?): Pair<Boolean, Modifier> {
             viewportHeight = root.height,
             lookaheadPx = lookahead,
         )
-        if (visible != next) visible = next
+        if (measuredVisible != next) measuredVisible = next
     }
     return visible to modifier
 }
@@ -110,7 +124,7 @@ internal fun customEmojiInlineMap(
     }
 }
 
-internal fun androidx.compose.ui.text.AnnotatedString.Builder.appendWithCustomEmoji(
+internal fun AnnotatedString.Builder.appendWithCustomEmoji(
     text: String,
     entities: List<TextEntity>,
 ) {
@@ -139,12 +153,17 @@ internal fun CustomEmojiGlyph(
     size: Dp = 20.dp,
     compact: Boolean = false,
     onClick: (() -> Unit)? = null,
+    playback: PanelCellPlayback? = null,
 ) {
     val repo = LocalDialogMedia.current
-    val animationEnabled = LocalMediaAnimationEnabled.current
+    val animationEnabled = if (playback == null) LocalMediaAnimationEnabled.current else false
     val (mediaVisible, visibilityModifier) = rememberViewportVisible(documentId)
-    val mediaAnimationEnabled = animationEnabled && mediaVisible
-    val cacheGeneration = repo?.cacheGeneration?.collectAsState()?.value ?: 0L
+    val mediaAnimationEnabled = playback == null && animationEnabled && mediaVisible
+    val placedVisibility = if (playback == null) visibilityModifier else Modifier
+    val cacheChanges = remember(repo, documentId) {
+        repo?.cacheGeneration("emoji:$documentId")
+    }
+    val cacheGeneration = cacheChanges?.collectAsState(initial = 0L)?.value ?: 0L
     val file = rememberEnsuredFile(
         generation = cacheGeneration,
         identity = documentId,
@@ -156,11 +175,18 @@ internal fun CustomEmojiGlyph(
                 is Outcome.Err -> null
             }
         },
+        demand = playback?.decode != false,
     )
     val click = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     val local = file?.takeIf { it.exists() && it.length() > 0L }
+    val kind = remember(cacheGeneration, local?.absolutePath, local?.length()) {
+        local?.let(::glyphFileKind)
+    }
     Box(
-        modifier = Modifier.size(size).then(click).then(visibilityModifier),
+        modifier = Modifier
+            .size(size)
+            .then(click)
+            .then(placedVisibility),
         contentAlignment = Alignment.Center,
     ) {
         if (local == null) {
@@ -172,7 +198,14 @@ internal fun CustomEmojiGlyph(
             return@Box
         }
         when {
-            gzipFile(local) -> {
+            playback != null && (kind == GlyphFileKind.Gzip || kind == GlyphFileKind.Webm) -> PanelPooledGlyph(
+                documentId = documentId,
+                file = local,
+                playback = playback,
+                modifier = Modifier.fillMaxSize(),
+            )
+
+            kind == GlyphFileKind.Gzip -> {
                 val bytes by produceState<ByteArray?>(initialValue = null, local) {
                     value = withContext(Dispatchers.IO) {
                         runCatching { local.readBytes() }.getOrNull()
@@ -183,27 +216,21 @@ internal fun CustomEmojiGlyph(
                         lottieBytes = bytes!!,
                         modifier = Modifier.fillMaxSize(),
                         displaySize = size,
-                        active = mediaAnimationEnabled && !compact,
+                        active = mediaAnimationEnabled,
                     )
                 } else if (fallback.isNotEmpty()) {
                     Text(text = fallback, style = TextStyle(fontSize = 18.sp))
                 }
             }
-            webmFile(local) && compact -> {
-                VideoStill(
-                    file = local,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit,
-                    maxSizePx = 128,
-                )
-            }
-            webmFile(local) -> {
+
+            kind == GlyphFileKind.Webm -> {
                 VpxStickerPlayer(
                     file = local,
                     active = mediaAnimationEnabled,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+
             else -> {
                 AsyncImage(
                     model = local,
@@ -216,16 +243,27 @@ internal fun CustomEmojiGlyph(
     }
 }
 
+internal val PanelVideoPosterGate = PosterLoadGate<Bitmap>()
+
 @Composable
 internal fun VideoStill(
     file: File,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
     maxSizePx: Int = 720,
+    extract: Boolean = true,
+    requestKey: String? = null,
 ) {
-    val thumbnail by produceState<Bitmap?>(initialValue = null, file, maxSizePx) {
-        val decoded = withContext(Dispatchers.IO) { videoThumbnail(file, maxSizePx) }
-        if (decoded != null) value = decoded
+    val maxSide = maxSizePx.coerceAtLeast(1)
+    val key = requestKey ?: posterRequestKey(file.absolutePath, maxSide)
+    var thumbnail by remember(key) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(key, file, maxSide, extract) {
+        PanelVideoPosterGate.cached(key)?.let { thumbnail = it }
+        if (!extract || thumbnail != null || gzipFile(file)) return@LaunchedEffect
+        val decoded = PanelVideoPosterGate.load(key) {
+            withContext(Dispatchers.IO) { videoThumbnail(file, maxSide) }
+        }
+        if (decoded != null) thumbnail = decoded
     }
     if (thumbnail != null) {
         Image(
@@ -236,3 +274,5 @@ internal fun VideoStill(
         )
     }
 }
+
+internal fun coldPosterAdmitted(choice: PickerPoster): Boolean = choice == PickerPoster.ColdStill

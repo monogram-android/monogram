@@ -2,38 +2,37 @@ package org.monogram
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.longClick
-import androidx.compose.ui.test.click
-import androidx.compose.ui.test.swipe
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.isDialog
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
@@ -42,7 +41,10 @@ import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.monogram.core.common.Outcome
@@ -52,14 +54,19 @@ import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
+import org.monogram.core.ui.media.MediaPlaybackHolder
+import org.monogram.core.ui.media.MediaSource
+import org.monogram.core.ui.media.MediaSurface
+import org.monogram.core.ui.media.MediaViewerItem
+import org.monogram.core.ui.media.MediaViewerKind
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
 import org.monogram.network.http.TelegramMediaFetcher
 import org.monogram.root.RootComponent
 import org.monogram.root.RootContent
-import java.lang.reflect.Proxy
 import java.io.File
+import java.lang.reflect.Proxy
 import kotlin.math.abs
 
 class TabletStateTest {
@@ -82,13 +89,10 @@ class TabletStateTest {
         launch(false, listOf(message), fullWindow = true)
         row("Chat 001").performClick()
         compose.onNodeWithText("Bottom target").assertIsDisplayed()
-        compose.onNodeWithText("val bottom = 42").performTouchInput { click() }
-        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_select_text)).assertIsDisplayed()
-        androidx.test.espresso.Espresso.pressBack()
-        compose.mainClock.advanceTimeBy(300)
+        compose.onNodeWithText("val bottom = 42").performTouchInput { longClick() }
+        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_copy))
+            .assertDoesNotExist()
         compose.onNodeWithText("Bottom target").performTouchInput { longClick() }
-        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_select_text)).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_select_text)).performClick()
         compose.mainClock.advanceTimeBy(300)
         compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_copy_selected)).assertDoesNotExist()
         compose.onNodeWithText("Bottom target").performTouchInput { longClick() }
@@ -271,8 +275,14 @@ class TabletStateTest {
         compose.onNode(hasSetTextAction()).assertTextContains("applied")
     }
 
+    @Before
+    fun clearPlayback() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { MediaPlaybackHolder.peek()?.stop() }
+    }
+
     @After
     fun tearDown() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { MediaPlaybackHolder.peek()?.stop() }
         scenario?.close()
         repository?.shutdown()
         UiStateTestActivity.content = {}
@@ -391,6 +401,80 @@ class TabletStateTest {
         row("Chat 030").assertIsDisplayed()
     }
 
+    @Test
+    fun messagePlaybackBarSurvivesRootNavigationAndRecreationAndStopsOnLogout() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val file = File(context.cacheDir, "root-playback-short.mp4")
+        instrumentation.context.assets.open("media/video_short.mp4").use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+        val sourceMessage = Message(
+            id = MessageId(PeerId(1), 7), senderId = null, text = "Playback source message",
+            date = 1L, outgoing = false,
+        )
+        launch(expandedInitially = false, messages = listOf(sourceMessage))
+        val voice = MediaViewerItem(
+            id = "root-voice", kind = MediaViewerKind.VOICE, source = MediaSource.Local(file),
+            durationSeconds = 12, senderName = "Root playback sender",
+            sourceChatId = 1L, sourceMessageId = 7,
+        )
+        val session = compose.runOnIdle {
+            MediaPlaybackHolder.session(context).also {
+                it.rememberPosition(voice.id, 0L)
+                it.setQueue(listOf(voice), 0, autoplay = true, startMuted = true)
+                it.changeSpeed(1f)
+            }
+        }
+        compose.waitUntil(15_000) { compose.runOnIdle { session.playing && session.positionMs > 200L } }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle {
+            assertTrue(root.stack.value.active.instance is RootComponent.Child.Home)
+            session.pause()
+            (root.stack.value.active.instance as RootComponent.Child.Home).component.chats.onOpenSettings()
+        }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle {
+            assertTrue(root.stack.value.active.instance is RootComponent.Child.Settings)
+            (root.stack.value.active.instance as RootComponent.Child.Settings).component.onOpenProfile()
+        }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle { assertTrue(root.stack.value.active.instance is RootComponent.Child.Profile) }
+        compose.onNodeWithText("Root playback sender").performClick()
+        compose.runOnIdle {
+            val dialog = root.stack.value.active.configuration as RootComponent.Config.Dialog
+            assertEquals(1L, dialog.chatId)
+            assertEquals(7, dialog.jumpToMessageId)
+            assertSame(session, MediaPlaybackHolder.peek())
+            assertFalse(session.player.playWhenReady)
+        }
+        compose.onNodeWithText("Playback source message").assertIsDisplayed()
+        scenario!!.recreate()
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle {
+            assertSame(session, MediaPlaybackHolder.peek())
+            assertEquals(voice.id, session.current?.id)
+            assertFalse(session.player.playWhenReady)
+            assertEquals(1L, (root.stack.value.active.configuration as RootComponent.Config.Dialog).chatId)
+            expanded = true
+        }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle {
+            val home = root.stack.value.items.first { it.instance is RootComponent.Child.Home }
+            (home.instance as RootComponent.Child.Home).component.chats.onOpenSettings()
+        }
+        compose.onNodeWithText("Root playback sender").assertIsDisplayed()
+        compose.runOnIdle { (root.stack.value.active.instance as RootComponent.Child.Settings).component.onLogout() }
+        compose.waitUntil(10_000) { compose.runOnIdle { root.stack.value.active.instance is RootComponent.Child.Auth } }
+        compose.onNodeWithText("Root playback sender").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(MediaSurface.STOPPED, session.surface)
+            assertTrue(session.queue.isEmpty())
+            assertEquals(0, session.player.mediaItemCount)
+            assertFalse(session.playing)
+        }
+    }
+
     private fun row(title: String) = compose.onNode(hasText(title) and selectable)
 
     private fun launch(expandedInitially: Boolean, messages: List<Message> = emptyList(), fullWindow: Boolean = false) {
@@ -436,6 +520,7 @@ class TabletStateTest {
                 "hashCode" -> System.identityHashCode(proxy)
                 "toString" -> "TabletStateFakeClient"
                 "libraryVersion" -> "test"
+                "proxyConnectionStatus" -> org.monogram.network.bridge.session.ProxyConnectionStatus.Disabled
                 "updates", "sessionLost" -> emptyFlow<Nothing>()
                 "getChats" -> Outcome.Ok(chats)
                 "getFolders" -> Outcome.Ok(folders)
@@ -447,7 +532,7 @@ class TabletStateTest {
                 }
                 "getGroupAdminTags" -> Outcome.Ok(emptyMap<PeerId, String>())
                 "setDialogForeground", "close" -> Unit
-                "updateStatus", "setTyping", "readHistory" -> Outcome.Ok(Unit)
+                "updateStatus", "setTyping", "readHistory", "logout" -> Outcome.Ok(Unit)
                 else -> Outcome.Err("Unsupported in tablet UI test: ${method.name}")
             }
         } as MtprotoClient

@@ -13,6 +13,8 @@ data class PeerNotificationMode(
     val preview: Boolean = true,
     val sound: Boolean = true,
     val popup: Boolean = true,
+    val mentions: Boolean = true,
+    val pinned: Boolean = true,
 ) {
     fun isMuted(nowSeconds: Int): Boolean = muteUntil > nowSeconds
 
@@ -25,7 +27,7 @@ data class PeerNotificationMode(
 }
 
 /**
- * Compact storage form for [PeerNotificationMode]: `peerId|muteUntil|preview|sound|popup`.
+ * Compact storage form for [PeerNotificationMode]: `peerId|muteUntil|preview|sound|popup|mentions|pinned`.
  * Fields are positional and flags are `1`/`0` so an older string still decodes when a trailing
  * field is added.
  */
@@ -37,7 +39,9 @@ object PeerNotificationModeCodec {
         append(mode.muteUntil).append(SEPARATOR)
         append(flag(mode.preview)).append(SEPARATOR)
         append(flag(mode.sound)).append(SEPARATOR)
-        append(flag(mode.popup))
+        append(flag(mode.popup)).append(SEPARATOR)
+        append(flag(mode.mentions)).append(SEPARATOR)
+        append(flag(mode.pinned))
     }
 
     fun decode(raw: String?): Pair<Long, PeerNotificationMode>? {
@@ -45,10 +49,13 @@ object PeerNotificationModeCodec {
         if (parts.size < 2) return null
         val peerId = parts[0].toLongOrNull() ?: return null
         val model = PeerNotificationMode(
-            muteUntil = parts.getOrNull(1)?.toIntOrNull() ?: 0,
+            muteUntil = parts.getOrNull(1)?.toLongOrNull()?.coerceIn(0, Int.MAX_VALUE.toLong())
+                ?.toInt() ?: 0,
             preview = flag(parts.getOrNull(2)),
             sound = flag(parts.getOrNull(3)),
             popup = flag(parts.getOrNull(4)),
+            mentions = flag(parts.getOrNull(5)),
+            pinned = flag(parts.getOrNull(6)),
         )
         return peerId to model
     }

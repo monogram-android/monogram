@@ -8,8 +8,10 @@ import com.arkivanov.decompose.router.slot.childSlot
 import com.arkivanov.decompose.router.slot.dismiss
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.essenty.instancekeeper.getOrCreate
+import com.arkivanov.essenty.lifecycle.Lifecycle
 import com.arkivanov.essenty.lifecycle.doOnDestroy
 import com.arkivanov.essenty.lifecycle.doOnStart
+import com.arkivanov.essenty.lifecycle.doOnStop
 import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
@@ -21,6 +23,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.serializer
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
@@ -28,10 +31,17 @@ import org.monogram.core.markup.KotlinMarkupParser
 import org.monogram.core.markup.MarkupParser
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.ForumTopic
+import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.TextEntity
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.canForwardFrom
+import org.monogram.core.models.prepareComposerText
+import org.monogram.core.models.remapTextEntities
 import org.monogram.core.ui.DownloadSettings
+import org.monogram.core.ui.gzipFile
+import org.monogram.core.ui.webmFile
+import org.monogram.feature.dialog.store.filterComposerPayload
 import org.monogram.feature.dialog.ui.InstantViewController
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
@@ -53,7 +63,8 @@ class DialogComponent(
     private val onBack: () -> Unit,
     private val onOpenProfile: (PeerId) -> Unit = {},
     private val onOpenChat: (PeerId, Int, Int) -> Unit = { _, _, _ -> },
-    private val onRequestForward: ((List<org.monogram.core.models.Message>) -> Unit)? = null,
+    private val onRequestForward: ((List<Message>) -> Unit)? = null,
+    val showBackButton: Boolean = true,
 ) : ComponentContext by componentContext {
 
     /** Dialog identity for saveable state. */
@@ -73,8 +84,11 @@ class DialogComponent(
     )
 
     init {
+        warmup?.setOpenChat(chatId.value)
         lifecycle.doOnStart { client.setDialogForeground(true) }
+        lifecycle.doOnStop { client.setDialogForeground(false) }
         lifecycle.doOnDestroy {
+            warmup?.clearOpenChat(chatId.value)
             client.setDialogForeground(false)
             mediaPreloader.close()
             pickerPreloader.close()
@@ -82,7 +96,8 @@ class DialogComponent(
         }
     }
 
-    class MarkdownEditorChild(componentContext: ComponentContext) : ComponentContext by componentContext
+    class MarkdownEditorChild(componentContext: ComponentContext) :
+        ComponentContext by componentContext
 
     private val editorNavigation = SlotNavigation<Unit>()
     val editorSlot: Value<ChildSlot<Unit, MarkdownEditorChild>> = childSlot(
@@ -92,8 +107,26 @@ class DialogComponent(
         handleBackButton = true,
     ) { _, ctx -> MarkdownEditorChild(ctx) }
 
+    val markdownAvailable: Boolean get() = isPremium()
+
     fun openMarkdownEditor() = editorNavigation.activate(Unit)
     fun closeMarkdownEditor() = editorNavigation.dismiss()
+
+    internal suspend fun prepareEditorPayload(
+        text: String,
+        entities: List<TextEntity>,
+        markdown: Boolean
+    ): org.monogram.core.models.StyledText {
+        val current = state.value
+        val mentions = current.draftMentions.map {
+            TextEntity("mention_name", it.start, it.length, it.peerId.value.toString())
+        }
+        val mappedMentions = remapTextEntities(current.draft, text, mentions)
+        val parsed = withContext(Dispatchers.Default) {
+            prepareComposerText(text, markdown && isPremium(), entities + mappedMentions)
+        }
+        return filterComposerPayload(parsed, client, isPremium())
+    }
 
     private val store = instanceKeeper.getStore {
         DialogStoreFactory(
@@ -115,9 +148,21 @@ class DialogComponent(
     init {
         var started = false
         lifecycle.doOnStart {
-            if (started) onRefreshPresence()
+            store.accept(DialogStore.Intent.ReadReceipts(true))
+            if (started) {
+                store.accept(DialogStore.Intent.Resume)
+                onRefreshPresence()
+                mediaPreloader.onVisible(store.state.messages, lastVisibleIds)
+            }
             started = true
         }
+        lifecycle.doOnStop {
+            store.accept(DialogStore.Intent.ReadReceipts(false))
+            store.accept(DialogStore.Intent.Leave)
+            mediaPreloader.close()
+            pickerPreloader.close()
+        }
+        lifecycle.doOnDestroy { store.accept(DialogStore.Intent.ReadReceipts(false)) }
         preloadScope.launch {
             DownloadSettings.state.drop(1).collect {
                 mediaPreloader.onVisible(store.state.messages, lastVisibleIds)
@@ -128,24 +173,50 @@ class DialogComponent(
         }
     }
 
-    fun onPickerDocumentsVisible(documentIds: List<Long>, visibleIds: Set<Long>) {
-        pickerPreloader.onPlan(
-            PickerMediaPreload.plan(PickerMediaPreload.documents(documentIds), visibleIds),
-        )
+    fun onPickerDocumentsVisible(
+        documentIds: List<Long>,
+        visibleIds: Set<Long>,
+        idle: Boolean,
+    ) {
+        preloadScope.launch {
+            val items = PickerMediaPreload.documents(documentIds).map { item ->
+                item.copy(kind = pickerDocKind(mediaRepository?.cachedFile(item.cacheKey)))
+            }
+            pickerPreloader.onPlan(PickerMediaPreload.plan(items, visibleIds, idle = idle))
+        }
     }
 
-    fun onPickerGifsVisible(gifs: List<org.monogram.core.models.SavedGif>, visibleIds: Set<Long>) {
+    fun onPickerGifsVisible(
+        gifs: List<org.monogram.core.models.SavedGif>,
+        visibleIds: Set<Long>,
+        idle: Boolean,
+    ) {
         pickerPreloader.onPlan(
-            PickerMediaPreload.plan(PickerMediaPreload.gifs(gifs), visibleIds),
+            PickerMediaPreload.plan(PickerMediaPreload.gifs(gifs), visibleIds, idle = idle),
         )
     }
 
     fun onPickerClosed() = pickerPreloader.close()
 
+    private fun pickerDocKind(file: java.io.File?): PickerMediaPreload.DocKind {
+        if (file == null || !file.isFile || file.length() <= 0L) return PickerMediaPreload.DocKind.Unknown
+        return when {
+            webmFile(file) -> PickerMediaPreload.DocKind.Webm
+            gzipFile(file) -> PickerMediaPreload.DocKind.Tgs
+            else -> PickerMediaPreload.DocKind.Webp
+        }
+    }
+
     fun onRefresh() = store.accept(DialogStore.Intent.Refresh)
     fun onRefreshPresence() = store.accept(DialogStore.Intent.RefreshPresence)
     fun onLoadOlder() = store.accept(DialogStore.Intent.LoadOlder)
     fun onLoadNewer() = store.accept(DialogStore.Intent.LoadNewer)
+    fun onDraftFormatting(enabled: Boolean) =
+        store.accept(DialogStore.Intent.SetDraftFormatting(enabled))
+
+    fun onDraftEntities(entities: List<TextEntity>) =
+        store.accept(DialogStore.Intent.SetDraftEntities(entities))
+
     fun onDraftChanged(value: String) = store.accept(DialogStore.Intent.DraftChanged(value))
     fun onFixLinkPreview() = store.accept(DialogStore.Intent.FixLinkPreview)
     fun onDismissLinkPreview() = store.accept(DialogStore.Intent.DismissLinkPreview)
@@ -172,20 +243,26 @@ class DialogComponent(
     ) = store.accept(
         DialogStore.Intent.SendUpload(path, kind, fileName, mimeType, duration, width, height),
     )
+
     fun onSendAlbum(items: List<UploadItem>) =
         store.accept(DialogStore.Intent.SendAlbum(items))
+
     fun onOpenStickerPack(setId: Long, accessHash: Long) =
         store.accept(DialogStore.Intent.OpenStickerPack(setId, accessHash))
-    fun onReply(message: org.monogram.core.models.Message, focusComposer: Boolean = false) =
+
+    fun onReply(message: Message, focusComposer: Boolean = false) =
         store.accept(DialogStore.Intent.ReplyTo(message, focusComposer = focusComposer))
+
     fun onClearReply() = store.accept(DialogStore.Intent.ClearReply)
-    fun onEdit(message: org.monogram.core.models.Message) =
+    fun onEdit(message: Message) =
         store.accept(DialogStore.Intent.Edit(message))
+
     fun onCancelEdit() = store.accept(DialogStore.Intent.CancelEdit)
     fun onDelete(messageId: Int, revoke: Boolean) =
         store.accept(DialogStore.Intent.Delete(messageId, revoke))
-    fun onForwardPick(message: org.monogram.core.models.Message) = onForwardMessages(listOf(message))
-    fun onForwardMessages(messages: List<org.monogram.core.models.Message>) {
+
+    fun onForwardPick(message: Message) = onForwardMessages(listOf(message))
+    fun onForwardMessages(messages: List<Message>) {
         val chatCanForward = state.value.canForward
         val selected = messages
             .filter { it.id.chatId == chatId && it.canForwardFrom(chatCanForward) }
@@ -195,11 +272,13 @@ class DialogComponent(
         if (onRequestForward != null) onRequestForward.invoke(selected)
         else store.accept(DialogStore.Intent.ForwardPick(selected.first()))
     }
+
     fun onClearForward() = store.accept(DialogStore.Intent.ClearForward)
     fun onForwardQuery(value: String) = store.accept(DialogStore.Intent.ForwardQuery(value))
     fun onForwardTo(peerId: PeerId) = store.accept(DialogStore.Intent.ForwardTo(peerId))
     fun onClearForwardHint() = store.accept(DialogStore.Intent.ClearForwardHint)
     fun onSend(text: String? = null) = store.accept(DialogStore.Intent.Send(text))
+    fun onReadOnlyBar() = store.accept(DialogStore.Intent.ReadOnlyBar)
     fun onRetryFailed() = store.accept(DialogStore.Intent.RetryFailed)
     fun onSearch(query: String) = store.accept(DialogStore.Intent.Search(query))
     fun onClearSearch() = store.accept(DialogStore.Intent.ClearSearch)
@@ -215,24 +294,34 @@ class DialogComponent(
     fun onJumpUnreadReaction() = store.accept(DialogStore.Intent.JumpUnreadReaction)
     fun onJumpLatest() = store.accept(DialogStore.Intent.JumpLatest)
     fun onMarkRead() = store.accept(DialogStore.Intent.MarkRead)
-    fun onLoadReadReceipts(messageId: Int) = store.accept(DialogStore.Intent.LoadReadReceipts(messageId))
+    fun onLoadReadReceipts(messageId: Int) =
+        store.accept(DialogStore.Intent.LoadReadReceipts(messageId))
+
     fun onLoadReactionUsers(messageId: Int) =
         store.accept(DialogStore.Intent.LoadReactionUsers(messageId))
+
     fun onLoadPollVoters(messageId: Int) =
         store.accept(DialogStore.Intent.LoadPollVoters(messageId))
-    fun onVisibleNewest(messageId: Int, atLiveEdge: Boolean = false) =
+
+    fun onVisibleNewest(messageId: Int, atLiveEdge: Boolean = false) {
+        if (lifecycle.state != Lifecycle.State.STARTED && lifecycle.state != Lifecycle.State.RESUMED) return
         store.accept(DialogStore.Intent.VisibleRead(messageId, atLiveEdge))
+    }
+
     fun onVisibleWindow(visibleIds: Set<Int>) {
         lastVisibleIds = visibleIds
         mediaPreloader.onVisible(store.state.messages, visibleIds)
         store.accept(DialogStore.Intent.VisibleWindow(visibleIds))
     }
+
     fun onToggleGifPicker() = store.accept(DialogStore.Intent.ToggleGifPicker)
     fun onSendSavedGif(documentId: Long) = store.accept(DialogStore.Intent.SendSavedGif(documentId))
     fun onReact(messageId: Int, emoticon: String, documentId: Long) =
         store.accept(DialogStore.Intent.React(messageId, emoticon, documentId))
-    fun onOpenComments(message: org.monogram.core.models.Message) =
+
+    fun onOpenComments(message: Message) =
         store.accept(DialogStore.Intent.OpenComments(message))
+
     fun onOpenedChat() = store.accept(DialogStore.Intent.ClearPendingChat)
     fun openPendingChatIfAny() {
         val id = store.state.pendingChatId ?: return
@@ -240,44 +329,57 @@ class DialogComponent(
         onOpenedChat()
         onOpenChat(id, 0, messageId)
     }
+
     fun onBack() = onBack.invoke()
     fun onOpenProfile() = onOpenProfile.invoke(chatId)
     fun onOpenPeer(peerId: PeerId) = onOpenProfile.invoke(peerId)
     fun onLoadMoreTopics() = store.accept(DialogStore.Intent.LoadMoreTopics)
     fun onToggleTopicHidden(topicId: Int, hidden: Boolean) =
         store.accept(DialogStore.Intent.ToggleTopicHidden(topicId, hidden))
+
     fun onToggleChecklist(messageId: Int, itemId: Int) =
         store.accept(DialogStore.Intent.ToggleChecklist(messageId, itemId))
+
     fun onVotePoll(messageId: Int, options: List<ByteArray>) =
         store.accept(DialogStore.Intent.VotePoll(messageId, options))
+
     fun onAppendChecklistItems(messageId: Int, firstId: Int, titles: List<String>) =
         store.accept(DialogStore.Intent.AppendChecklistItems(messageId, firstId, titles))
+
     /** 0 sends a static pin; a positive period sends a live location for that many seconds. */
     fun onSendLocation(latitude: Double, longitude: Double, livePeriodSeconds: Int = 0) =
         store.accept(DialogStore.Intent.SendLocation(latitude, longitude, livePeriodSeconds))
+
     fun onBotButton(
         messageId: Int,
         button: org.monogram.core.models.ReplyButton,
         fromKeyboard: Boolean,
     ) = store.accept(DialogStore.Intent.BotButton(messageId, button, fromKeyboard))
+
     fun onClearBotNotice() = store.accept(DialogStore.Intent.ClearBotNotice)
     fun onDismissBotAlert() = store.accept(DialogStore.Intent.DismissBotAlert)
     fun onClearBotUrl() = store.accept(DialogStore.Intent.ClearBotUrl)
     fun onClearCopyText() = store.accept(DialogStore.Intent.ClearCopyText)
     fun onSendInlineResult(resultId: String) =
         store.accept(DialogStore.Intent.SendInlineResult(resultId))
+
     fun onLoadMoreInlineResults() =
         store.accept(DialogStore.Intent.LoadMoreInlineResults)
+
     fun onRetryInlineResults() =
         store.accept(DialogStore.Intent.RetryInlineResults)
+
     fun onSelectMention(candidate: MentionCandidate) =
         store.accept(DialogStore.Intent.SelectMention(candidate))
+
     fun onLoadMoreMentions() =
         store.accept(DialogStore.Intent.LoadMoreMentions)
+
     internal fun instantViewController(url: String, hash: Int): InstantViewController =
         instanceKeeper.getOrCreate("iv:$url:$hash") {
             InstantViewController(client, url, hash)
         }
+
     fun onOpenTopic(topic: ForumTopic) {
         onOpenChat(chatId, 0, ForumIo.dialogThreadId(topic.id))
     }

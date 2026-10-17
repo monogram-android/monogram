@@ -1,7 +1,9 @@
 package org.monogram.feature.dialog
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.Message
@@ -9,8 +11,16 @@ import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
 import org.monogram.core.ui.components.AppSyncStatus
+import org.monogram.feature.dialog.store.incomingFitsOpenWindow
 
 class DialogNavigationTest {
+    @Test
+    fun liveMessageStaysOutOfAnOlderWindow() {
+        assertTrue(incomingFitsOpenWindow(hasNewer = false, newestLoadedId = 40, incomingId = 90))
+        assertTrue(incomingFitsOpenWindow(hasNewer = true, newestLoadedId = 80, incomingId = 70))
+        assertFalse(incomingFitsOpenWindow(hasNewer = true, newestLoadedId = 40, incomingId = 90))
+    }
+
     @Test
     fun jumpToAlbumMemberUsesItsRenderedRow() {
         val messages = listOf(msg(9), msg(8).copy(groupedId = 1), msg(7).copy(groupedId = 1), msg(6))
@@ -511,6 +521,16 @@ class DialogNavigationTest {
                 olderPageGrew = false,
             ),
         )
+        assertEquals(
+            false,
+            shouldFollowIncomingNewest(
+                followBottom = true,
+                scrolling = false,
+                newestArrived = true,
+                olderPageGrew = false,
+                cacheToNetwork = true,
+            ),
+        )
     }
 
     @Test
@@ -562,6 +582,16 @@ class DialogNavigationTest {
 
     @Test
     fun pageOlderNearOldest() {
+        assertEquals(
+            true,
+            shouldPageOlder(
+                15,
+                size = 20,
+                hasOlder = true,
+                loadingOlder = false,
+                firstVisibleIndex = 4
+            ),
+        )
         assertEquals(
             true,
             shouldPageOlder(18, size = 20, hasOlder = true, loadingOlder = false, firstVisibleIndex = 4),

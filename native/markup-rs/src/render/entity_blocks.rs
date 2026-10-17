@@ -2,7 +2,6 @@ use crate::utf16::utf16_len;
 use crate::{MarkupBlockDto, MarkupEntityDto};
 
 use super::block;
-use super::markdown_blocks::{is_rule_line, parse_loose_pipe_table};
 
 fn byte_at_utf16(text: &str, offset: i32) -> Option<usize> {
     if offset < 0 {
@@ -57,7 +56,14 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
         .filter(|entity| {
             matches!(
                 entity.kind.as_str(),
-                "pre" | "blockquote" | "heading" | "details" | "rule" | "task" | "photo"
+                "pre"
+                    | "blockquote"
+                    | "heading"
+                    | "details"
+                    | "rule"
+                    | "task"
+                    | "photo"
+                    | "table"
             )
         })
         .collect();
@@ -75,13 +81,14 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
         if cursor < entity.offset {
             push_entity_paragraph(text, &valid, cursor, entity.offset, &mut blocks);
         }
-        let kind = match entity.kind.as_str() {
+        let mut kind = match entity.kind.as_str() {
             "pre" => "code",
             "blockquote" => "quote",
             "details" => "details",
             "rule" => "rule",
             "task" => "tasks",
             "photo" => "photo",
+            "table" => "table",
             _ => "heading",
         };
         let source =
@@ -98,6 +105,21 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
             cursor = end;
             continue;
         }
+        if kind == "table" {
+            if let Some((headers, rows)) =
+                decode_table_payload(entity.extra.as_deref().unwrap_or(""))
+            {
+                if !headers.is_empty() {
+                    let mut table = block("table", String::new(), Vec::new());
+                    table.headers = headers;
+                    table.rows = rows;
+                    blocks.push(table);
+                    cursor = end;
+                    continue;
+                }
+            }
+            kind = "paragraph";
+        }
         if kind == "details" {
             let split = source.find('\n');
             let (title, body) = split
@@ -106,15 +128,14 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
             blocks.push(MarkupBlockDto {
                 kind: kind.into(),
                 text: format!("{title}\n{body}"),
-                entities: Vec::new(),
+                entities: slice_entities(&valid, entity.offset, end).into_iter().filter(|inner| {
+                    inner.kind != "details" || inner.offset > 0 || inner.length < entity.length
+                }).collect(),
                 language: None,
                 level: 0,
                 headers: Vec::new(),
                 rows: Vec::new(),
             });
-            // Details children are carried by the DTO text and mapped in Kotlin.
-            // Keep the block range atomic so nested structural entities cannot
-            // render after the collapsed section.
             cursor = end;
             continue;
         }
@@ -124,20 +145,6 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
             slice_entities(&valid, entity.offset, end),
         );
         if kind == "code" {
-            let source = &current.text;
-            let language = entity
-                .extra
-                .as_deref()
-                .unwrap_or("")
-                .trim()
-                .to_ascii_lowercase();
-            if language == "table" || language == "markdown-table" {
-                if let Some(table) = parse_loose_pipe_table(source) {
-                    blocks.push(table);
-                    cursor = end;
-                    continue;
-                }
-            }
             current.language = entity.extra.clone();
             current.entities.clear();
         }
@@ -228,19 +235,51 @@ fn push_entity_paragraph(
     push_plain_gap(content, entities, from, blocks);
 }
 
-fn unicode_task_line(line: &str) -> Option<(bool, String)> {
-    let trimmed = line
-        .trim_start()
-        .replace('\u{fe0f}', "")
-        .replace('\u{fe0e}', "");
-    let mut chars = trimmed.chars();
-    let mark = chars.next()?;
-    let rest = chars.as_str().trim().to_string();
-    match mark {
-        '\u{2611}' | '\u{2705}' | '\u{2714}' | '\u{2612}' => Some((true, rest)),
-        '\u{2610}' | '\u{25A1}' | '\u{25A2}' | '\u{25CB}' => Some((false, rest)),
-        _ => None,
+/// Inverse of the mtproto table payload: `\u{1e}` rows, `\u{1f}` cells.
+fn decode_table_payload(payload: &str) -> Option<(Vec<String>, Vec<Vec<String>>)> {
+    if payload.is_empty() {
+        return None;
     }
+    let records: Vec<Vec<String>> = payload
+        .split('\u{1e}')
+        .map(|row| row.split('\u{1f}').map(unescape_table_cell).collect())
+        .filter(|row: &Vec<String>| !row.is_empty())
+        .collect();
+    let mut records = records.into_iter();
+    let headers = records.next()?;
+    if headers.iter().all(|cell| cell.is_empty()) {
+        return None;
+    }
+    let width = headers.len();
+    let rows = records
+        .map(|row| {
+            (0..width)
+                .map(|index| row.get(index).cloned().unwrap_or_default())
+                .collect()
+        })
+        .collect();
+    Some((headers, rows))
+}
+
+fn unescape_table_cell(text: &str) -> String {
+    let mut out = String::new();
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            out.push(ch);
+            continue;
+        }
+        match chars.next() {
+            Some('\\') => out.push('\\'),
+            Some('R') => out.push('\u{1e}'),
+            Some('C') => out.push('\u{1f}'),
+            Some('n') => out.push('\n'),
+            Some('r') => out.push('\r'),
+            Some(other) => out.push(other),
+            None => out.push('\\'),
+        }
+    }
+    out
 }
 
 fn push_plain_gap(
@@ -249,64 +288,7 @@ fn push_plain_gap(
     from: i32,
     blocks: &mut Vec<MarkupBlockDto>,
 ) {
-    let lines: Vec<&str> = content.lines().collect();
-    let mut i = 0;
-    let mut utf16 = from;
-    while i < lines.len() {
-        if let Some((done, item)) = unicode_task_line(lines[i]) {
-            let mut rows = vec![vec![if done { "1".into() } else { "0".into() }, item]];
-            utf16 += utf16_len(lines[i]) + 1;
-            i += 1;
-            while i < lines.len() {
-                let Some((done, item)) = unicode_task_line(lines[i]) else {
-                    break;
-                };
-                rows.push(vec![if done { "1".into() } else { "0".into() }, item]);
-                utf16 += utf16_len(lines[i]) + 1;
-                i += 1;
-            }
-            let text = rows
-                .iter()
-                .map(|row| row.get(1).cloned().unwrap_or_default())
-                .collect::<Vec<_>>()
-                .join("\n");
-            blocks.push(MarkupBlockDto {
-                kind: "tasks".into(),
-                text,
-                entities: Vec::new(),
-                language: None,
-                level: 0,
-                headers: Vec::new(),
-                rows,
-            });
-            continue;
-        }
-        if is_rule_line(lines[i].trim()) {
-            blocks.push(block("rule", String::new(), Vec::new()));
-            utf16 += utf16_len(lines[i]) + 1;
-            i += 1;
-            continue;
-        }
-        let para_from = utf16;
-        let mut paragraph = String::new();
-        while i < lines.len()
-            && unicode_task_line(lines[i]).is_none()
-            && !is_rule_line(lines[i].trim())
-        {
-            if !paragraph.is_empty() {
-                paragraph.push('\n');
-            }
-            paragraph.push_str(lines[i]);
-            utf16 += utf16_len(lines[i]) + 1;
-            i += 1;
-        }
-        if !paragraph.trim().is_empty() {
-            let cleaned = paragraph.replace('\u{FFFC}', "");
-            blocks.push(block(
-                "paragraph",
-                cleaned.clone(),
-                slice_entities(entities, para_from, para_from + utf16_len(&cleaned)),
-            ));
-        }
+    if !content.is_empty() {
+        blocks.push(block("paragraph", content.into(), slice_entities(entities, from, from + utf16_len(content))));
     }
 }

@@ -1,25 +1,30 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@file:OptIn(ExperimentalFoundationApi::class)
 
 package org.monogram.feature.dialog.ui
 
 import android.content.res.Configuration
 import android.net.Uri
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.content.MediaType
 import androidx.compose.foundation.content.ReceiveContentListener
 import androidx.compose.foundation.content.TransferableContent
-import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.consume
+import androidx.compose.foundation.content.contentReceiver
 import androidx.compose.foundation.content.hasMediaType
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,60 +36,56 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMenuDropdownProvider
 import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMenuToolbarProvider
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Send
-import androidx.compose.material.icons.outlined.AttachFile
-import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.OpenInFull
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.monogram.core.ui.AppearanceSettings
-import org.monogram.core.ui.components.ChatComposerLayout
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalTextToolbar
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -94,18 +95,31 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import java.io.File
-import java.net.URI
+import org.monogram.core.models.StyledText
+import org.monogram.core.models.TextEntity
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.WebpagePreview
+import org.monogram.core.ui.AppearanceSettings
+import org.monogram.core.ui.ComposerSlotAction
 import org.monogram.core.ui.ExpressiveDefaults
+import org.monogram.core.ui.canSend
+import org.monogram.core.ui.components.ChatComposerLayout
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.ReadOnlyBarAction
+import org.monogram.feature.dialog.readOnlyBarAction
+import java.io.File
+import java.net.URI
+import kotlin.math.abs
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -116,18 +130,30 @@ import org.monogram.feature.dialog.R
 internal fun DialogWriteBar(
     composer: TextFieldValue,
     onComposerChange: (TextFieldValue) -> Unit,
+    draftFormatting: Boolean = false,
+    markdownAvailable: Boolean = false,
+    onOpenEditor: (() -> Unit)? = null,
+    draftPreview: StyledText? = null,
+    draftHasMarkdown: Boolean = false,
+    draftHasEntities: Boolean = false,
+    draftEntities: List<TextEntity> = emptyList(),
+    onDraftFormatting: (Boolean) -> Unit = {},
     sending: Boolean,
     canSendPlain: Boolean,
     canSendPhotos: Boolean,
     isChannel: Boolean,
+    isGroup: Boolean = false,
+    left: Boolean = false,
+    muted: Boolean = false,
+    blockedByMe: Boolean = false,
+    onReadOnlyBar: () -> Unit = {},
     editing: Boolean,
     editingBody: String,
     replyBody: String?,
     pendingAttach: List<UploadItem>,
     hasFailed: Boolean,
     onSend: () -> Unit,
-    onAttach: () -> Unit,
-    onEmoji: () -> Unit = {},
+    onSlot: (ComposerSlotAction) -> Unit = {},
     onRetryFailed: () -> Unit,
     onCancelEdit: () -> Unit,
     onClearReply: () -> Unit,
@@ -144,34 +170,59 @@ internal fun DialogWriteBar(
     onSelectLinkPreview: (String) -> Unit = {},
     onDismissLinkPreview: () -> Unit = {},
     onRestoreLinkPreview: () -> Unit = {},
+    panelOpen: Boolean = false,
+    onClosePanel: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val composerFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val closePanel = rememberUpdatedState(onClosePanel)
+    var panelWasOpen by remember { mutableStateOf(panelOpen) }
+    LaunchedEffect(panelOpen) {
+        val closedAfterPanel = panelWasOpen && !panelOpen
+        panelWasOpen = panelOpen
+        if (closedAfterPanel) {
+            composerFocus.requestFocus()
+            keyboard?.show()
+        }
+    }
     LaunchedEffect(composerFocusSeq) {
         if (composerFocusSeq <= 0) return@LaunchedEffect
         composerFocus.requestFocus()
         keyboard?.show()
     }
     val appearance by AppearanceSettings.state.collectAsStateWithLifecycle()
-    val canCompose = canSendPlain || canSendPhotos
-    if (!canCompose) {
-        RestrictionBar(
-            text = when {
-                isChannel -> stringResource(R.string.dialog_channel_readonly)
-                else -> stringResource(R.string.dialog_cant_send)
-            },
-            modifier = modifier,
+    val canCompose = (canSendPlain || canSendPhotos) && !blockedByMe
+    val readOnly = remember { MutableTransitionState(!canCompose) }
+    readOnly.targetState = !canCompose
+    val motion = MaterialTheme.motionScheme
+    AnimatedVisibility(
+        visibleState = readOnly,
+        modifier = modifier,
+        enter = fadeIn(motion.fastEffectsSpec()) +
+                slideInVertically(motion.fastSpatialSpec()) { it / 2 },
+        exit = fadeOut(motion.fastEffectsSpec()) +
+                slideOutVertically(motion.fastSpatialSpec()) { it / 2 },
+    ) {
+        ReadOnlyActionBar(
+            action = readOnlyBarAction(
+                isChannel = isChannel,
+                isGroup = isGroup,
+                left = left,
+                muted = muted,
+                blockedByMe = blockedByMe,
+            ),
+            onClick = onReadOnlyBar,
         )
-        return
     }
+    if (readOnly.currentState || readOnly.targetState) return
 
     val sendEnabled = when {
-        sending && editing -> false
+        sending -> false
         editing -> composer.text.isNotBlank()
         else -> (composer.text.isNotBlank() && canSendPlain) ||
-            (pendingAttach.isNotEmpty() && canSendPhotos)
+                (pendingAttach.isNotEmpty() && canSendPhotos)
     }
     val scheme = MaterialTheme.colorScheme
 
@@ -186,229 +237,292 @@ internal fun DialogWriteBar(
                 .padding(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-                if (hasFailed) {
-                    TextButton(
-                        onClick = onRetryFailed,
-                        shapes = ExpressiveDefaults.buttonShapesFor(ButtonDefaults.MinHeight),
-                    ) {
-                        Text(stringResource(R.string.dialog_retry))
-                    }
-                }
-                if (editing) {
-                    WriteBarContext(
-                        title = stringResource(R.string.dialog_editing),
-                        body = editingBody,
-                        onClear = onCancelEdit,
-                    )
-                }
-                replyBody?.let { body ->
-                    WriteBarContext(
-                        title = stringResource(R.string.dialog_replying),
-                        body = body,
-                        onClear = onClearReply,
-                    )
-                }
-                LinkPreviewWriteBar(
-                    urls = linkPreviewUrls,
-                    choice = linkPreviewChoice,
-                    preview = linkPreview,
-                    loading = linkPreviewLoading,
-                    hidden = linkPreviewHidden,
-                    onSelect = onSelectLinkPreview,
-                    onDismiss = onDismissLinkPreview,
-                    onRestore = onRestoreLinkPreview,
-                )
-                if (pendingAttach.isNotEmpty()) {
-                    WriteBarContext(
-                        title = when {
-                            pendingAttach.size > 1 -> stringResource(R.string.dialog_attach)
-                            pendingAttach.first().kind == "video" -> stringResource(R.string.dialog_media_video)
-                            pendingAttach.first().kind == "document" -> stringResource(R.string.dialog_media_document)
-                            else -> stringResource(R.string.dialog_media_photo)
-                        },
-                        body = if (pendingAttach.size > 1) pendingAttach.size.toString() else "",
-                        onClear = onClearAttach,
-                        leading = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                pendingAttach.take(4).forEach { item ->
-                                    AsyncImage(
-                                        model = File(item.path),
-                                        contentDescription = stringResource(R.string.dialog_attach),
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(MaterialTheme.shapes.extraSmall),
-                                    )
-                                }
-                            }
-                        },
-                        clearDescription = stringResource(R.string.dialog_attach_remove),
-                    )
-                }
-                ChatComposerLayout(
-                    style = appearance.composerStyle,
-                    showEmoji = appearance.showEmojiButton,
-                    attachEnabled = !editing && (canSendPhotos || canSendPlain),
-                    emojiEnabled = !editing && canSendPlain,
-                    sendEnabled = sendEnabled,
-                    sending = sending,
-                    editing = editing,
-                    attachDescription = stringResource(R.string.dialog_attach),
-                    emojiDescription = stringResource(R.string.dialog_emoji_open),
-                    sendDescription = stringResource(if (editing) R.string.dialog_editing else R.string.dialog_send),
-                    onAttach = onAttach,
-                    onEmoji = onEmoji,
-                    onSend = onSend,
+            val longDraft =
+                remember(composer.text) { shouldShowFullScreenEditor(composer.text, false) }
+            val currentFormattingCallback by rememberUpdatedState(onDraftFormatting)
+            val currentEditorCallback by rememberUpdatedState(onOpenEditor)
+            val setFormatting =
+                remember { { enabled: Boolean -> currentFormattingCallback(enabled) } }
+            val openEditor = remember { { currentEditorCallback?.invoke(); Unit } }
+            ComposerFormattingActions(
+                markdownAvailable, draftHasMarkdown, draftFormatting, longDraft,
+                draftHasEntities, onOpenEditor != null,
+                setFormatting, openEditor,
+            )
+            ComposerSendPreview(
+                draftPreview,
+                composer.text.isNotEmpty() && ((markdownAvailable && draftFormatting) || draftHasEntities),
+            )
+            if (hasFailed) {
+                TextButton(
+                    onClick = onRetryFailed,
+                    shapes = ExpressiveDefaults.buttonShapesFor(ButtonDefaults.MinHeight),
                 ) {
-                    Box(contentAlignment = Alignment.CenterStart) {
-                        if (composer.text.isEmpty()) {
-                            Text(
-                                text = hint ?: stringResource(R.string.dialog_message_hint),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = scheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 2.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
-                            )
-                        }
-                        val markdownPreview = remember(scheme.primary) {
-                            markdownOutputTransformation(scheme.primary)
-                        }
-                        val textFieldState = rememberTextFieldState(
-                            initialText = composer.text,
-                            initialSelection = composer.selection,
-                        )
-                        val latestComposer by rememberUpdatedState(composer)
-                        val latestComposerChange by rememberUpdatedState(onComposerChange)
-                        val latestReceiveMedia by rememberUpdatedState(onReceiveMedia)
-                        LaunchedEffect(textFieldState) {
-                            snapshotFlow {
-                                TextFieldValue(
-                                    text = textFieldState.text.toString(),
-                                    selection = textFieldState.selection,
-                                    composition = textFieldState.composition,
+                    Text(stringResource(R.string.dialog_retry))
+                }
+            }
+            if (editing) {
+                WriteBarContext(
+                    title = stringResource(R.string.dialog_editing),
+                    body = editingBody,
+                    onClear = onCancelEdit,
+                )
+            }
+            replyBody?.let { body ->
+                WriteBarContext(
+                    title = stringResource(R.string.dialog_replying),
+                    body = body,
+                    onClear = onClearReply,
+                )
+            }
+            LinkPreviewWriteBar(
+                urls = linkPreviewUrls,
+                choice = linkPreviewChoice,
+                preview = linkPreview,
+                loading = linkPreviewLoading,
+                hidden = linkPreviewHidden,
+                onSelect = onSelectLinkPreview,
+                onDismiss = onDismissLinkPreview,
+                onRestore = onRestoreLinkPreview,
+            )
+            if (pendingAttach.isNotEmpty()) {
+                WriteBarContext(
+                    title = when {
+                        pendingAttach.size > 1 -> stringResource(R.string.dialog_attach)
+                        pendingAttach.first().kind == "video" -> stringResource(R.string.dialog_media_video)
+                        pendingAttach.first().kind == "document" -> stringResource(R.string.dialog_media_document)
+                        else -> stringResource(R.string.dialog_media_photo)
+                    },
+                    body = if (pendingAttach.size > 1) pendingAttach.size.toString() else "",
+                    onClear = onClearAttach,
+                    leading = {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            pendingAttach.take(4).forEach { item ->
+                                AsyncImage(
+                                    model = File(item.path),
+                                    contentDescription = stringResource(R.string.dialog_attach),
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(MaterialTheme.shapes.extraSmall),
                                 )
-                            }.collect { updated ->
-                                if (updated != latestComposer) latestComposerChange(updated)
                             }
                         }
-                        LaunchedEffect(composer.text, composer.selection) {
-                            val fieldText = textFieldState.text.toString()
-                            val fieldSelection = textFieldState.selection
-                            if (fieldText == composer.text && fieldSelection == composer.selection) {
-                                return@LaunchedEffect
-                            }
-                            textFieldState.edit {
-                                // Replacing an unchanged buffer collapses IME selection, so
-                                // the next Delete only removes the last glyph.
-                                if (fieldText != composer.text) {
-                                    replace(0, length, composer.text)
-                                }
-                                selection = composer.selection
+                    },
+                    clearDescription = stringResource(R.string.dialog_attach_remove),
+                )
+            }
+            val leftAction = appearance.leftComposerAction
+            val rightAction = appearance.rightComposerAction
+            ChatComposerLayout(
+                style = appearance.composerStyle,
+                leftAction = leftAction,
+                rightAction = rightAction,
+                leftEnabled = !editing && leftAction.canSend(canSendPlain, canSendPhotos),
+                rightEnabled = !editing && rightAction.canSend(canSendPlain, canSendPhotos),
+                sendEnabled = sendEnabled,
+                sending = sending,
+                editing = editing,
+                leftDescription = composerSlotDescription(leftAction),
+                rightDescription = composerSlotDescription(rightAction),
+                sendDescription = stringResource(if (editing) R.string.dialog_editing else R.string.dialog_send),
+                onLeft = {
+                    keyboard?.hide()
+                    onSlot(leftAction)
+                },
+                onRight = {
+                    keyboard?.hide()
+                    onSlot(rightAction)
+                },
+                onSend = onSend,
+            ) {
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (composer.text.isEmpty()) {
+                        Text(
+                            text = hint ?: stringResource(R.string.dialog_message_hint),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = scheme.onSurfaceVariant,
+                            modifier = Modifier.padding(
+                                start = 2.dp,
+                                end = 12.dp,
+                                top = 12.dp,
+                                bottom = 12.dp
+                            ),
+                        )
+                    }
+                    val textFieldState = rememberTextFieldState(
+                        initialText = composer.text,
+                        initialSelection = composer.selection,
+                    )
+                    val latestComposer by rememberUpdatedState(composer)
+                    val publishedEdits = remember { mutableListOf<TextFieldValue>() }
+                    val latestComposerChange by rememberUpdatedState(onComposerChange)
+                    val latestReceiveMedia by rememberUpdatedState(onReceiveMedia)
+                    LaunchedEffect(textFieldState) {
+                        snapshotFlow {
+                            TextFieldValue(
+                                text = textFieldState.text.toString(),
+                                selection = textFieldState.selection,
+                                composition = textFieldState.composition,
+                            )
+                        }.collect { updated ->
+                            if (updated != latestComposer) {
+                                publishedEdits.add(updated)
+                                latestComposerChange(updated)
                             }
                         }
-                        val receiveMedia = remember(canSendPhotos, editing) {
-                            ReceiveContentListener { content ->
-                                if (!canSendPhotos || editing || !content.hasMediaType(MediaType.Image)) {
-                                    content
-                                } else {
-                                    val uris = buildList {
-                                        val clip = content.clipEntry.clipData
-                                        for (index in 0 until clip.itemCount) {
-                                            clip.getItemAt(index).uri?.let(::add)
-                                        }
-                                    }.distinct().filter { uri ->
-                                        runCatching {
-                                            context.contentResolver.getType(uri)?.startsWith("image/") == true
-                                        }.getOrDefault(false)
+                    }
+                    LaunchedEffect(composer.text, composer.selection) {
+                        val acknowledged = publishedEdits.indexOfLast {
+                            it.text == composer.text && it.selection == composer.selection
+                        }
+                        if (acknowledged >= 0) {
+                            // Parent acknowledgements can arrive after the IME has advanced.
+                            publishedEdits.subList(0, acknowledged + 1).clear()
+                            return@LaunchedEffect
+                        }
+                        publishedEdits.clear()
+                        val fieldText = textFieldState.text.toString()
+                        val fieldSelection = textFieldState.selection
+                        if (fieldText == composer.text && fieldSelection == composer.selection) {
+                            return@LaunchedEffect
+                        }
+                        textFieldState.edit {
+                            // Replacing an unchanged buffer collapses IME selection, so
+                            // the next Delete only removes the last glyph.
+                            if (fieldText != composer.text) {
+                                replace(0, length, composer.text)
+                            }
+                            selection = composer.selection
+                        }
+                    }
+                    val receiveMedia = remember(canSendPhotos, editing) {
+                        ReceiveContentListener { content ->
+                            if (!canSendPhotos || editing || !content.hasMediaType(MediaType.Image)) {
+                                content
+                            } else {
+                                val uris = buildList {
+                                    val clip = content.clipEntry.clipData
+                                    for (index in 0 until clip.itemCount) {
+                                        clip.getItemAt(index).uri?.let(::add)
                                     }
-                                    if (uris.isNotEmpty()) latestReceiveMedia(uris, content)
-                                    content.consume { it.uri in uris }
+                                }.distinct().filter { uri ->
+                                    runCatching {
+                                        context.contentResolver.getType(uri)
+                                            ?.startsWith("image/") == true
+                                    }.getOrDefault(false)
                                 }
+                                if (uris.isNotEmpty()) latestReceiveMedia(uris, content)
+                                content.consume { it.uri in uris }
                             }
                         }
-                        val emojiSpans = remember(composer.text) { composerEmojiSpans(composer.text) }
-                        val measurer = rememberTextMeasurer()
-                        val fieldStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface)
-                        var fieldWidth by remember { mutableIntStateOf(0) }
-                        val latestSelectionMenuVisibilityChange by rememberUpdatedState(onSelectionMenuVisibilityChange)
-                        val textToolbar = remember {
-                            ComposerTextToolbar { latestSelectionMenuVisibilityChange(it) }
-                        }
-                        val textContextMenu = remember {
-                            ComposerTextContextMenu { latestSelectionMenuVisibilityChange(it) }
-                        }
-                        CompositionLocalProvider(
-                            LocalTextToolbar provides textToolbar,
-                            LocalTextContextMenuToolbarProvider provides textContextMenu,
-                            LocalTextContextMenuDropdownProvider provides textContextMenu,
+                    }
+                    val emojiSpans = remember(composer.text, draftEntities) {
+                        composerEmojiSpans(composer.text) + draftEntities.asSequence()
+                            .filter { it.kind == "custom_emoji" }
+                            .mapNotNull { entity ->
+                                val documentId = entity.url?.toLongOrNull() ?: return@mapNotNull null
+                                ComposerEmojiSpan(
+                                    documentId = documentId,
+                                    displayStart = entity.offset,
+                                    displayLength = entity.length,
+                                )
+                            }
+                            .toList()
+                    }.distinctBy { it.displayStart to it.documentId }
+                    val measurer = rememberTextMeasurer()
+                    val fieldStyle =
+                        MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface)
+                    var fieldWidth by remember { mutableIntStateOf(0) }
+                    val latestSelectionMenuVisibilityChange by rememberUpdatedState(
+                        onSelectionMenuVisibilityChange
+                    )
+                    val textToolbar = remember {
+                        ComposerTextToolbar { latestSelectionMenuVisibilityChange(it) }
+                    }
+                    val textContextMenu = remember {
+                        ComposerTextContextMenu { latestSelectionMenuVisibilityChange(it) }
+                    }
+                    CompositionLocalProvider(
+                        LocalTextToolbar provides textToolbar,
+                        LocalTextContextMenuToolbarProvider provides textContextMenu,
+                        LocalTextContextMenuDropdownProvider provides textContextMenu,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 2.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
                         ) {
-                            Box(
+                            BasicTextField(
+                                state = textFieldState,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 2.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
-                            ) {
-                                BasicTextField(
-                                    state = textFieldState,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .focusRequester(composerFocus)
-                                        .contentReceiver(receiveMedia)
-                                        .onPreviewKeyEvent { event ->
-                                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                                            if (event.key != Key.Backspace && event.key != Key.Delete) {
-                                                return@onPreviewKeyEvent false
-                                            }
-                                            val range = textFieldState.selection
-                                            if (!composerDeleteRemovesSelection(range)) return@onPreviewKeyEvent false
-                                            textFieldState.edit {
-                                                replace(range.min, range.max, "")
-                                                selection = TextRange(range.min)
-                                            }
-                                            true
+                                    .focusRequester(composerFocus)
+                                    .closePanelOnTap(panelOpen) {
+                                        closePanel.value()
+                                    }
+                                    .contentReceiver(receiveMedia)
+                                    .onPreviewKeyEvent { event ->
+                                        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                        if (event.key != Key.Backspace && event.key != Key.Delete) {
+                                            return@onPreviewKeyEvent false
                                         }
-                                        .onSizeChanged { fieldWidth = it.width },
-                                    enabled = editing || canSendPlain,
-                                    outputTransformation = markdownPreview,
-                                    textStyle = fieldStyle,
-                                    cursorBrush = SolidColor(scheme.primary),
-                                    lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 4),
-                                    keyboardOptions = KeyboardOptions(
-                                        capitalization = KeyboardCapitalization.Sentences,
-                                        keyboardType = KeyboardType.Text,
-                                        imeAction = if (appearance.sendByEnter) ImeAction.Send else ImeAction.Default,
-                                    ),
-                                    onKeyboardAction = {
-                                        if (appearance.sendByEnter && sendEnabled) onSend()
-                                    },
-                                )
-                                if (emojiSpans.isNotEmpty() && fieldWidth > 0) {
-                                    val collapsed = collapseCustomEmojiMarkdown(composer.text)?.text?.text
+                                        val range = textFieldState.selection
+                                        if (!composerDeleteRemovesSelection(range)) return@onPreviewKeyEvent false
+                                        textFieldState.edit {
+                                            replace(range.min, range.max, "")
+                                            selection = TextRange(range.min)
+                                        }
+                                        true
+                                    }
+                                    .onSizeChanged { fieldWidth = it.width },
+                                enabled = editing || canSendPlain,
+                                outputTransformation = null,
+                                textStyle = fieldStyle,
+                                cursorBrush = SolidColor(scheme.primary),
+                                lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 4),
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    keyboardType = KeyboardType.Text,
+                                    imeAction = if (appearance.sendByEnter) ImeAction.Send else ImeAction.Default,
+                                ),
+                                onKeyboardAction = {
+                                    if (appearance.sendByEnter && sendEnabled) onSend()
+                                },
+                            )
+                            if (emojiSpans.isNotEmpty() && fieldWidth > 0) {
+                                val collapsed =
+                                    collapseCustomEmojiMarkdown(composer.text)?.text?.text
                                         ?: composer.text
-                                    val layout = measurer.measure(
-                                        text = collapsed,
-                                        style = fieldStyle,
-                                        constraints = Constraints(maxWidth = fieldWidth),
+                                val layout = measurer.measure(
+                                    text = collapsed,
+                                    style = fieldStyle,
+                                    constraints = Constraints(maxWidth = fieldWidth),
+                                )
+                                emojiSpans.forEach { span ->
+                                    val index = span.displayStart.coerceIn(
+                                        0,
+                                        (collapsed.length - 1).coerceAtLeast(0)
                                     )
-                                    emojiSpans.forEach { span ->
-                                        val index = span.displayStart.coerceIn(0, (collapsed.length - 1).coerceAtLeast(0))
-                                        val box = layout.getBoundingBox(index)
-                                        Box(
-                                            modifier = Modifier.offset {
-                                                IntOffset(box.left.toInt(), box.top.toInt())
-                                            },
-                                        ) {
-                                            CustomEmojiGlyph(
-                                                documentId = span.documentId,
-                                                fallback = "🙂",
-                                                size = 20.dp,
-                                                compact = true,
-                                            )
-                                        }
+                                    val box = layout.getBoundingBox(index)
+                                    Box(
+                                        modifier = Modifier.offset {
+                                            IntOffset(box.left.toInt(), box.top.toInt())
+                                        },
+                                    ) {
+                                        CustomEmojiGlyph(
+                                            documentId = span.documentId,
+                                            fallback = "🙂",
+                                            size = 20.dp,
+                                            compact = true,
+                                        )
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
         }
     }
 }
@@ -474,9 +588,11 @@ private fun LinkPreviewWriteBar(
                     body = "",
                     onClear = onDismiss,
                 )
+
                 hidden -> TextButton(onClick = onRestore) {
                     Text(stringResource(R.string.dialog_restore_preview))
                 }
+
                 else -> preview?.takeIf { it.hasContent }?.let { page ->
                     WriteBarContext(
                         title = page.siteName?.takeIf { it.isNotBlank() }
@@ -497,6 +613,52 @@ internal fun composerLinkPreviewTabLabel(url: String): String {
         ?.removePrefix("www.")
         ?.takeIf { it.isNotBlank() }
     return host ?: url
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ReadOnlyActionBar(
+    action: ReadOnlyBarAction,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val label = stringResource(
+        when (action) {
+            ReadOnlyBarAction.Join -> R.string.dialog_join
+            ReadOnlyBarAction.Mute -> R.string.dialog_mute
+            ReadOnlyBarAction.Unmute -> R.string.dialog_unmute
+            ReadOnlyBarAction.Unblock -> R.string.dialog_unblock
+        },
+    )
+    val motion = MaterialTheme.motionScheme
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Button(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            shapes = ExpressiveDefaults.buttonShapesFor(ButtonDefaults.MinHeight),
+        ) {
+            AnimatedContent(
+                targetState = label,
+                transitionSpec = {
+                    (fadeIn(motion.fastEffectsSpec()) +
+                            slideInVertically(motion.fastSpatialSpec()) { it / 3 })
+                        .togetherWith(
+                            fadeOut(motion.fastEffectsSpec()) +
+                                    slideOutVertically(motion.fastSpatialSpec()) { -it / 3 },
+                        )
+                },
+                label = "readOnlyAction",
+            ) { text ->
+                Text(text)
+            }
+        }
+    }
 }
 
 @Composable
@@ -591,7 +753,6 @@ private fun DialogWriteBarIdlePreview() {
             pendingAttach = emptyList(),
             hasFailed = false,
             onSend = {},
-            onAttach = {},
             onRetryFailed = {},
             onCancelEdit = {},
             onClearReply = {},
@@ -617,7 +778,6 @@ private fun DialogWriteBarReadyPreview() {
             pendingAttach = emptyList(),
             hasFailed = true,
             onSend = {},
-            onAttach = {},
             onRetryFailed = {},
             onCancelEdit = {},
             onClearReply = {},
@@ -643,7 +803,6 @@ private fun DialogWriteBarLinkPreviewPreview() {
             pendingAttach = emptyList(),
             hasFailed = false,
             onSend = {},
-            onAttach = {},
             onRetryFailed = {},
             onCancelEdit = {},
             onClearReply = {},
@@ -658,6 +817,64 @@ private fun DialogWriteBarLinkPreviewPreview() {
             linkPreviewChoice = "https://example.com",
         )
     }
+}
+
+/** A sideways drag on the writebar must not start the chat-back swipe. */
+internal fun Modifier.blockWriteBarChatSwipe(): Modifier = pointerInput(Unit) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val slop = viewConfiguration.touchSlop
+        var horizontal = false
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            if (!horizontal) {
+                val delta = change.position - down.position
+                if (abs(delta.y) > slop && abs(delta.y) >= abs(delta.x)) break
+                if (abs(delta.x) <= slop) {
+                    if (!change.pressed) break
+                    continue
+                }
+                horizontal = true
+            }
+            change.consume()
+            if (!change.pressed) break
+        }
+    }
+}
+
+/** A tap on the field closes the open panel. A sideways drag does not close the chat. */
+private fun Modifier.closePanelOnTap(enabled: Boolean, onTap: () -> Unit): Modifier {
+    if (!enabled) return this
+    return pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val slop = viewConfiguration.touchSlop
+            var moved = false
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Final)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                val delta = change.position - down.position
+                if (abs(delta.x) > slop || abs(delta.y) > slop) moved = true
+                if (!change.pressed) {
+                    if (!moved) onTap()
+                    break
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun composerSlotDescription(action: ComposerSlotAction): String = when (action) {
+    ComposerSlotAction.None -> ""
+    ComposerSlotAction.Emoji -> stringResource(R.string.dialog_panel_emoji)
+    ComposerSlotAction.Stickers -> stringResource(R.string.dialog_panel_stickers)
+    ComposerSlotAction.Gifs -> stringResource(R.string.dialog_saved_gifs)
+    ComposerSlotAction.Attach -> stringResource(R.string.dialog_attach)
+    ComposerSlotAction.Photos -> stringResource(R.string.dialog_attach_gallery)
+    ComposerSlotAction.File -> stringResource(R.string.dialog_attach_file)
+    ComposerSlotAction.Location -> stringResource(R.string.dialog_location_action)
 }
 
 @Preview(showBackground = true, name = "Readonly channel")
@@ -677,11 +894,73 @@ private fun DialogWriteBarRestrictedPreview() {
             pendingAttach = emptyList(),
             hasFailed = false,
             onSend = {},
-            onAttach = {},
             onRetryFailed = {},
             onCancelEdit = {},
             onClearReply = {},
             onClearAttach = {},
         )
     }
+}
+
+@Composable
+private fun ComposerFormattingActions(
+    markdownAvailable: Boolean,
+    draftHasMarkdown: Boolean,
+    draftFormatting: Boolean,
+    longDraft: Boolean,
+    hasEntities: Boolean,
+    editorAvailable: Boolean,
+    onDraftFormatting: (Boolean) -> Unit,
+    onOpenEditor: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    AnimatedVisibility(
+        visible = (markdownAvailable && (draftHasMarkdown || draftFormatting)) ||
+                (editorAvailable && (longDraft || hasEntities)),
+        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) + expandVertically(
+            MaterialTheme.motionScheme.fastSpatialSpec()
+        ),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkVertically(
+            MaterialTheme.motionScheme.fastSpatialSpec()
+        ),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            if (markdownAvailable && (draftHasMarkdown || draftFormatting)) FilterChip(
+                selected = draftFormatting,
+                onClick = { onDraftFormatting(!draftFormatting) },
+                label = { Text(stringResource(R.string.dialog_send_formatted)) },
+                modifier = Modifier.weight(1f, fill = false),
+            ) else androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            if (editorAvailable) SmallFloatingActionButton(
+                onClick = onOpenEditor,
+                containerColor = scheme.secondaryContainer,
+                contentColor = scheme.onSecondaryContainer,
+            ) { Icon(Icons.Outlined.OpenInFull, stringResource(R.string.dialog_editor_open)) }
+        }
+    }
+}
+
+@Composable
+private fun ComposerSendPreview(preview: StyledText?, enabled: Boolean) {
+    var displayed by remember { mutableStateOf<StyledText?>(null) }
+    LaunchedEffect(preview, enabled) {
+        if (!enabled) displayed = null
+        else if (preview != null) displayed = preview
+    }
+    val current = displayed?.takeIf { enabled && it.text.isNotEmpty() } ?: return
+    RichMessageContent(
+        text = current.text, entities = current.entities,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        linkColor = MaterialTheme.colorScheme.primary,
+        revealSpoilers = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 120.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp),
+    )
 }

@@ -52,6 +52,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -96,10 +98,13 @@ fun MediaViewerShell(
             ?.isTouchExplorationEnabled == true
     }
     val motion = mediaViewerMotionEnabled()
+    val chromeEffects = MediaMotion.effects<Float>(motion)
+    val chromeSpatial = MediaMotion.spatial<androidx.compose.ui.unit.IntOffset>(motion)
 
     val pagerState = rememberPagerState(initialPage = album.index.coerceIn(0, album.items.lastIndex)) { album.items.size }
     var chromeVisible by rememberSaveable { mutableStateOf(startChromeVisible) }
     var captionOpen by rememberSaveable { mutableStateOf(false) }
+    var overviewOpen by rememberSaveable { mutableStateOf(false) }
     var detent by rememberSaveable { mutableStateOf(CaptionDetent.COLLAPSED) }
     var dragDistance by remember { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
@@ -109,12 +114,16 @@ fun MediaViewerShell(
     val current = album.items[currentIndex]
 
     // The pager owns the album position; the caller just observes it.
-    LaunchedEffect(pagerState.currentPage, album.items) {
+    LaunchedEffect(pagerState.currentPage) {
         val page = pagerState.currentPage.coerceIn(0, album.items.lastIndex)
         album.index = page
         onIndexChange(page)
+    }
+    LaunchedEffect(current.id, album.items) {
+        val page = currentIndex
         onRequestItem(album.items[page])
         album.items.getOrNull(page + 1)?.let(onRequestItem)
+        album.items.getOrNull(page - 1)?.let(onRequestItem)
     }
     LaunchedEffect(album.index, album.items.size) {
         if (album.index != pagerState.currentPage && album.index in album.items.indices) {
@@ -123,7 +132,7 @@ fun MediaViewerShell(
     }
 
     // Video pages mount the shared session; photos pause it but keep it warm.
-    LaunchedEffect(current.id) {
+    LaunchedEffect(current.id, current.source) {
         val target = session ?: return@LaunchedEffect
         val previousItem = target.queue.getOrNull(target.index)
         val previousWasPlayingVideo = previousItem?.isVideo == true && target.playing
@@ -137,8 +146,8 @@ fun MediaViewerShell(
         target.setQueue(
             album.items,
             currentIndex,
-            autoplay = current.isVideo,
-            startMuted = initialMute,
+            autoplay = current.isPlayable && !current.spoiler,
+            startMuted = if (current.isAudio) false else initialMute,
             // After the first open the user's mute choice and the album inheritance rule win.
             preserveUserMute = !isFirstOpen,
         )
@@ -150,8 +159,13 @@ fun MediaViewerShell(
         val target = session ?: return@LaunchedEffect
         target.onVideoQueueStep = { position -> scope.launch { pagerState.animateScrollToPage(position) } }
     }
+    LaunchedEffect(current.id, session?.videoHdr) {
+        if (current.isVideo && session?.current?.id == current.id) {
+            album.setHdr(current.id, session.videoHdr)
+        }
+    }
     var speedBeforeHold by remember { mutableFloatStateOf(1f) }
-    val pageIsVideo by rememberUpdatedState(current.isVideo)
+    val pageIsVideo by rememberUpdatedState(current.isPlayable)
     DisposableEffect(session) {
         onDispose {
             session?.onVideoQueueStep = null
@@ -168,6 +182,7 @@ fun MediaViewerShell(
     val chromeAutoHide = current.isVideo &&
         !touchExploration &&
         !captionOpen &&
+        !overviewOpen &&
         !overflowOpen &&
         session?.playing == true
     var chromeTouchedAt by remember { mutableIntStateOf(0) }
@@ -185,6 +200,23 @@ fun MediaViewerShell(
         if (allowVerticalDismiss) onDismiss() else chromeVisible = false
     }
 
+    androidx.activity.compose.PredictiveBackHandler(
+        enabled = allowVerticalDismiss && !captionOpen && !overviewOpen && !overflowOpen,
+    ) { events ->
+        try {
+            dragging = true
+            events.collect { event ->
+                dragDistance = event.progress.coerceIn(0f, 1f) * rootHeight
+            }
+            // Normal completion is the system's commit, even for a short back gesture.
+            dismiss()
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            dragDistance = 0f
+            throw cancelled
+        } finally {
+            dragging = false
+        }
+    }
     val settledDrag by animateFloatAsState(
         targetValue = dragDistance,
         animationSpec = if (dragging) snap() else MediaMotion.spatial(motion),
@@ -203,11 +235,31 @@ fun MediaViewerShell(
         HorizontalPager(
             state = pagerState,
             beyondViewportPageCount = 1,
+            key = { page -> album.items[page].id },
             modifier = Modifier.fillMaxSize(),
         ) { page ->
             val item = album.items.getOrNull(page) ?: return@HorizontalPager
             val active = page == currentIndex
+            val label = pageLabel(item, page, album, mediaLabel)
             when {
+                item.isAudio && session != null -> Surface(
+                    modifier = Modifier.align(Alignment.Center).padding(24.dp)
+                        .semantics { contentDescription = label },
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ) {
+                    Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(item.fileName ?: item.senderName.orEmpty(), style = MaterialTheme.typography.titleLarge)
+                        MediaPlayPauseHero(
+                            playing = active && session.playing,
+                            enabled = active && item.source != null && !session.failed,
+                            contentDescriptionPlay = stringResource(R.string.media_video_play),
+                            contentDescriptionPause = stringResource(R.string.media_video_pause),
+                            onClick = { session.togglePlayPause() },
+                        )
+                    }
+                }
+                item.kind == MediaViewerKind.UNKNOWN -> Spacer(Modifier.fillMaxSize().semantics { contentDescription = label })
                 item.isVideo && session != null -> MediaVideoPage(
                     item = item,
                     session = session,
@@ -233,7 +285,8 @@ fun MediaViewerShell(
                         }
                     },
                     testTagPrefix = testTagPrefix,
-                    label = pageLabel(current, currentIndex, album, mediaLabel),
+                    modifier = Modifier.mediaViewerSharedBounds(item.id, active),
+                    label = label,
                 )
                 else -> MediaPhotoPage(
                     item = item,
@@ -243,21 +296,37 @@ fun MediaViewerShell(
                         dragging = false
                         if (shouldDismiss && allowVerticalDismiss) dismiss() else dragDistance = 0f
                     },
-                    label = pageLabel(current, currentIndex, album, mediaLabel),
+                    modifier = Modifier.mediaViewerSharedBounds(item.id, active),
+                    label = label,
+                    onHdrDetected = { album.setHdr(item.id, it) },
+                    onDimensionsDetected = { width, height -> album.setDimensions(item.id, width, height) },
                 )
             }
         }
 
         AnimatedVisibility(
             visible = chromeVisible,
-            enter = fadeIn(tween(if (motion) 180 else 0)) + slideInVertically(tween(if (motion) 180 else 0)) { -it / 6 },
-            exit = fadeOut(tween(if (motion) 160 else 0)) + slideOutVertically(tween(if (motion) 160 else 0)) { -it / 6 },
+            enter = fadeIn(chromeEffects) + slideInVertically(chromeSpatial) { -it / 6 },
+            exit = fadeOut(chromeEffects) + slideOutVertically(chromeSpatial) { -it / 6 },
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
             MediaTopBar(
                 title = headerTitle ?: current.senderName.orEmpty(),
-                subtitle = subtitleFor(album, current, currentIndex),
+                date = current.dateLabel.orEmpty(),
+                counter = if (album.count > 1) {
+                    stringResource(R.string.media_viewer_page_position, currentIndex + 1, album.count)
+                } else null,
                 onClose = dismiss,
+                hdr = current.hdr != MediaHdr.None,
+                menu = {
+                    MediaViewerOverflow(
+                        item = current, actions = actions, session = session, chatKey = chatKey,
+                        albumSize = album.count,
+                        onOpenCaption = { captionOpen = true; detent = CaptionDetent.HALF },
+                        onOpenOverview = { overviewOpen = true },
+                        onVisibilityChange = { overflowOpen = it; if (it) chromeTouchedAt++ },
+                    )
+                },
             )
         }
 
@@ -268,33 +337,18 @@ fun MediaViewerShell(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
         ) {
             AnimatedVisibility(
-                visible = chromeVisible,
-                enter = fadeIn(tween(if (motion) 200 else 0)) +
+                visible = chromeVisible && (!current.caption.isNullOrBlank() || current.isPlayable || album.count > 1),
+                enter = fadeIn(chromeEffects) +
                     slideInVertically(MediaMotion.spatial(motion)) { it / 4 },
-                exit = fadeOut(tween(if (motion) 160 else 0)) +
+                exit = fadeOut(chromeEffects) +
                     slideOutVertically(MediaMotion.spatial(motion)) { it / 4 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.fillMaxWidth().animateContentSize(MediaMotion.quick(motion))) {
-                    if (!current.isVideo && !captionOpen) {
-                        PhotoActionToolbar(
-                            item = current,
-                            actions = actions,
-                            albumSize = album.count,
-                            session = session,
-                            chatKey = chatKey,
-                            onOpenCaption = { captionOpen = true; detent = CaptionDetent.HALF },
-                            onOverflowChange = { open ->
-                                overflowOpen = open
-                                if (open) chromeTouchedAt++
-                            },
-                        )
-                    }
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
                         contentColor = MaterialTheme.colorScheme.onSurface,
-                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                        tonalElevation = 2.dp,
+                        shape = androidx.compose.ui.graphics.RectangleShape,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
@@ -302,16 +356,20 @@ fun MediaViewerShell(
                                 WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
                             ),
                         ) {
-                            ViewerCaptionRow(
-                                caption = if (captionOpen) null else current.caption,
-                                reserved = albumHasCaption,
-                                onExpand = { captionOpen = true; detent = CaptionDetent.HALF },
-                            )
+                            if (!captionOpen) {
+                                ViewerCaptionRow(
+                                    caption = current.caption,
+                                    entities = current.captionEntities,
+                                    actions = actions,
+                                    reserved = !current.caption.isNullOrBlank(),
+                                    onExpand = { captionOpen = true; detent = CaptionDetent.HALF },
+                                )
+                            }
                             AnimatedContent(
-                                targetState = current.isVideo && session != null,
+                                targetState = current.isPlayable && session != null,
                                 transitionSpec = {
-                                    fadeIn(tween(if (motion) 200 else 0)) togetherWith
-                                        fadeOut(tween(if (motion) 120 else 0))
+                                    fadeIn(chromeEffects) togetherWith
+                                        fadeOut(chromeEffects)
                                 },
                                 label = "controlSet",
                             ) { videoControls ->
@@ -336,7 +394,12 @@ fun MediaViewerShell(
                                 Filmstrip(
                                     items = album.items,
                                     currentIndex = currentIndex,
-                                    onSelect = { target -> scope.launch { pagerState.animateScrollToPage(target) } },
+                                    onSelect = { target ->
+                                        if (album.selection.active) album.toggleSelection(album.items[target].id)
+                                        else scope.launch { pagerState.animateScrollToPage(target) }
+                                    },
+                                    selectedIds = album.selection.ids,
+                                    onLongPress = { target -> album.toggleSelection(album.items[target].id) },
                                 )
                             }
                         }
@@ -345,7 +408,7 @@ fun MediaViewerShell(
             }
         }
 
-        if (current.failed && current.source == null && actions.canRetry) {
+        if (current.kind == MediaViewerKind.UNKNOWN || (current.failed && current.source == null)) {
             Surface(
                 modifier = Modifier.align(Alignment.Center),
                 shape = MaterialTheme.shapes.large,
@@ -361,8 +424,10 @@ fun MediaViewerShell(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { actions.onRetry(current) }) {
-                            Text(stringResource(R.string.media_video_retry))
+                        if (actions.canRetry && current.kind != MediaViewerKind.UNKNOWN) {
+                            TextButton(onClick = { actions.onRetry(current) }) {
+                                Text(stringResource(R.string.media_video_retry))
+                            }
                         }
                         TextButton(onClick = { actions.onOpenExternally(current) }) {
                             Text(stringResource(R.string.media_action_open_externally))
@@ -372,7 +437,16 @@ fun MediaViewerShell(
             }
         }
 
-        val wideLayout = LocalConfiguration.current.let { it.screenWidthDp > it.screenHeightDp }
+        if (overviewOpen) {
+            AlbumOverview(
+                album = album,
+                onSelect = { target -> scope.launch {
+                    if (motion) pagerState.animateScrollToPage(target) else pagerState.scrollToPage(target)
+                } },
+                onDismiss = { overviewOpen = false },
+            )
+        }
+        val wideLayout = LocalConfiguration.current.screenWidthDp >= 600
         MediaCaptionSheet(
             visible = captionOpen,
             detent = detent,
@@ -402,17 +476,19 @@ private fun pageLabel(
 ): String {
     if (explicit != null) return explicit
     val kind = stringResource(
-        if (item.isVideo) R.string.media_badge_video_lower else R.string.media_badge_photo_lower,
+        when (item.kind) {
+            MediaViewerKind.PHOTO -> R.string.media_badge_photo_lower
+            MediaViewerKind.VIDEO -> R.string.media_badge_video_lower
+            MediaViewerKind.VIDEO_NOTE -> R.string.media_kind_video_note
+            MediaViewerKind.VOICE -> R.string.media_kind_voice
+            MediaViewerKind.AUDIO -> R.string.media_kind_audio
+            MediaViewerKind.UNKNOWN -> R.string.media_kind_unknown
+        },
     )
-    val sender = item.senderName ?: stringResource(R.string.media_sender_unknown)
-    val date = item.dateLabel ?: ""
-    return stringResource(R.string.media_viewer_album_item, kind, index + 1, album.count, sender, date)
-}
-
-private fun subtitleFor(album: MediaAlbumState, item: MediaViewerItem, index: Int): String {
-    val parts = mutableListOf<String>()
-    item.dateLabel?.takeIf { it.isNotBlank() }?.let(parts::add)
-    if (album.count > 1) parts += "${index + 1}/${album.count}"
-    if (item.isVideo) parts += "video"
-    return parts.joinToString(" · ")
+    val kindAndHdr = if (item.hdr != MediaHdr.None) {
+        stringResource(R.string.media_viewer_kind_hdr, kind, stringResource(R.string.media_info_hdr))
+    } else kind
+    val position = stringResource(R.string.media_viewer_page_position, index + 1, album.count)
+    val sender = item.senderName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.media_sender_unknown)
+    return stringResource(R.string.media_viewer_page_item, position, kindAndHdr, sender, item.dateLabel.orEmpty())
 }

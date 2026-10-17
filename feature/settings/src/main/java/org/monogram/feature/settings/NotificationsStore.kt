@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.PeerNotificationMode
+import org.monogram.core.common.push.PushProviderMode
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.models.Chat
@@ -43,6 +44,11 @@ interface NotificationsStore : Store<NotificationsStore.Intent, NotificationsSto
         data object Reregister : Intent
         data class Simulate(val locKey: String) : Intent
         data object RequestPermission : Intent
+        data class SetProviderMode(val mode: PushProviderMode) : Intent
+        data class SelectDistributor(val packageName: String) : Intent
+        data class SetGateway(val url: String) : Intent
+        data class SetNoMuted(val enabled: Boolean) : Intent
+        data class SetBubbles(val enabled: Boolean) : Intent
     }
 
     /** Local channel preferences of a folder, applied to its `folder_<id>` notification channel. */
@@ -93,6 +99,12 @@ interface NotificationsStore : Store<NotificationsStore.Intent, NotificationsSto
         val repeatMinutes: Int = 0,
         val callsVibrate: String = "default",
         val callsRingtone: String = "default",
+        val providerMode: PushProviderMode = PushProviderMode.Auto,
+        val distributors: List<String> = emptyList(),
+        val distributorPackage: String = "",
+        val gateway: String = "",
+        val noMuted: Boolean = true,
+        val bubbles: Boolean = false,
         val debug: PushDebugState = PushDebugState(),
         val loading: Boolean = false,
         val message: String? = null,
@@ -138,6 +150,12 @@ internal class NotificationsStoreFactory(
                     reactionsPopup = local?.categoryPopup("reactions") ?: true,
                     callsVibrate = local?.callsVibrate ?: "default",
                     callsRingtone = local?.callsRingtone ?: "default",
+                    providerMode = local?.providerMode ?: PushProviderMode.Auto,
+                    distributors = push?.distributors().orEmpty(),
+                    distributorPackage = local?.distributorPackage.orEmpty(),
+                    gateway = local?.simplePushGateway.orEmpty(),
+                    noMuted = local?.noMuted ?: true,
+                    bubbles = local?.bubblesEnabled ?: false,
                     badge = local?.badgeEnabled ?: true,
                     badgeMuted = local?.badgeMuted ?: true,
                     badgeMessages = local?.badgeMessages ?: true,
@@ -204,15 +222,24 @@ internal class NotificationsStoreFactory(
                     dispatchLocal()
                 }
                 is NotificationsStore.Intent.ResetException -> scope.launch {
-                    client.updateNotifySettings("peer", NotifySettings(), PeerId(intent.chatId))
+                    if (client.updateNotifySettings(
+                            "peer",
+                            NotifySettings(),
+                            PeerId(intent.chatId)
+                        ) is Outcome.Ok
+                    ) {
+                        local?.cacheNotifySettings("peer", intent.chatId, NotifySettings())
+                    }
                     refresh()
                 }
                 is NotificationsStore.Intent.AddException -> scope.launch {
-                    client.updateNotifySettings(
+                    val settings = NotifySettings(muteUntil = Int.MAX_VALUE, showPreviews = true)
+                    if (client.updateNotifySettings(
                         "peer",
-                        NotifySettings(muteUntil = Int.MAX_VALUE, showPreviews = true),
+                            settings,
                         PeerId(intent.chatId),
-                    )
+                        ) is Outcome.Ok
+                    ) local?.cacheNotifySettings("peer", intent.chatId, settings)
                     refresh()
                 }
                 is NotificationsStore.Intent.SetPeerMode -> {
@@ -252,7 +279,10 @@ internal class NotificationsStoreFactory(
                     dispatchLocal()
                 }
                 NotificationsStore.Intent.Reset -> scope.launch {
-                    client.resetNotifySettings()
+                    if (client.resetNotifySettings() is Outcome.Ok) {
+                        local?.notifyDefaults = org.monogram.core.models.NotifyDefaults()
+                        local?.notifyExceptions = emptyList()
+                    }
                     refresh()
                 }
                 NotificationsStore.Intent.Reregister -> scope.launch {
@@ -267,6 +297,42 @@ internal class NotificationsStoreFactory(
                     push?.requestPermission()
                     dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
                 }
+                is NotificationsStore.Intent.SetProviderMode -> {
+                    local?.providerMode = intent.mode
+                    dispatchLocal()
+                    scope.launch {
+                        push?.reregister()
+                        dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
+                    }
+                }
+                is NotificationsStore.Intent.SelectDistributor -> {
+                    local?.distributorPackage = intent.packageName
+                    dispatchLocal()
+                    scope.launch {
+                        push?.reregister()
+                        dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
+                    }
+                }
+                is NotificationsStore.Intent.SetGateway -> {
+                    local?.simplePushGateway = intent.url
+                    dispatchLocal()
+                    scope.launch {
+                        push?.reregister()
+                        dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
+                    }
+                }
+                is NotificationsStore.Intent.SetNoMuted -> {
+                    local?.noMuted = intent.enabled
+                    dispatchLocal()
+                    scope.launch {
+                        push?.reregister()
+                        dispatch(Msg.Debug(push?.debugState() ?: PushDebugState()))
+                    }
+                }
+                is NotificationsStore.Intent.SetBubbles -> {
+                    local?.bubblesEnabled = intent.enabled
+                    dispatchLocal()
+                }
             }
         }
 
@@ -278,13 +344,15 @@ internal class NotificationsStoreFactory(
                 val cachedChats = warmup?.chats().orEmpty()
                 if (cachedExceptions.isNotEmpty() || cachedFolders.isNotEmpty() || cachedChats.isNotEmpty()) {
                     val titles = cachedChats.associate { it.id.value to it.title }
-                    val exceptIds = cachedExceptions.map { it.chatId.value }.toSet()
+                    val exceptIds =
+                        cachedExceptions.filter { it.topicId == null }.map { it.chatId.value }
+                            .toSet()
                     dispatch(
                         Msg.Loaded(
                             users = local?.notifyDefaults?.users ?: NotifySettings(),
                             chats = local?.notifyDefaults?.chats ?: NotifySettings(),
                             broadcasts = local?.notifyDefaults?.broadcasts ?: NotifySettings(),
-                            exceptions = cachedExceptions,
+                            exceptions = cachedExceptions.filter { it.topicId == null },
                             folders = cachedFolders,
                             chatsById = titles,
                             addableChats = cachedChats.filter { it.id.value !in exceptIds }.take(40),
@@ -297,10 +365,9 @@ internal class NotificationsStoreFactory(
                 val chats = settings("chats")
                 val broadcasts = settings("broadcasts")
                 val exceptions = when (val result = client.getNotifyExceptions()) {
-                    is Outcome.Ok -> result.value
+                    is Outcome.Ok -> result.value.also { local?.notifyExceptions = it }
                     is Outcome.Err -> cachedExceptions
                 }
-                local?.notifyExceptions = exceptions
                 val folders = when (val result = client.getFolders()) {
                     is Outcome.Ok -> result.value
                     is Outcome.Err -> cachedFolders
@@ -314,14 +381,15 @@ internal class NotificationsStoreFactory(
                     }
                 }
                 val titles = dialogs.associate { it.id.value to it.title }
-                val exceptIds = exceptions.map { it.chatId.value }.toSet()
+                val exceptIds =
+                    exceptions.filter { it.topicId == null }.map { it.chatId.value }.toSet()
                 val addable = dialogs.filter { it.id.value !in exceptIds }.take(40)
                 dispatch(
                     Msg.Loaded(
                         users = users,
                         chats = chats,
                         broadcasts = broadcasts,
-                        exceptions = exceptions,
+                        exceptions = exceptions.filter { it.topicId == null },
                         folders = folders,
                         chatsById = titles,
                         addableChats = addable,
@@ -336,8 +404,12 @@ internal class NotificationsStoreFactory(
 
         private suspend fun settings(kind: String): NotifySettings =
             when (val result = client.getNotifySettings(kind)) {
-                is Outcome.Ok -> result.value
-                is Outcome.Err -> NotifySettings()
+                is Outcome.Ok -> result.value.also { local?.cacheNotifySettings(kind, 0L, it) }
+                is Outcome.Err -> when (kind) {
+                    "chats" -> local?.notifyDefaults?.chats ?: state().chats
+                    "broadcasts" -> local?.notifyDefaults?.broadcasts ?: state().broadcasts
+                    else -> local?.notifyDefaults?.users ?: state().users
+                }
             }
 
         private fun toggleGlobal(kind: String, enabled: Boolean) {
@@ -348,7 +420,10 @@ internal class NotificationsStoreFactory(
                     "broadcasts" -> state().broadcasts
                     else -> state().users
                 }
-                client.updateNotifySettings(kind, current.copy(muteUntil = muteUntil), PeerId(0))
+                val settings = current.copy(muteUntil = muteUntil)
+                if (client.updateNotifySettings(kind, settings, PeerId(0)) is Outcome.Ok) {
+                    local?.cacheNotifySettings(kind, 0L, settings)
+                }
                 if (kind == "stories") local?.storiesEnabled = enabled
                 if (kind == "reactions") local?.reactionsEnabled = enabled
                 refresh()
@@ -356,7 +431,7 @@ internal class NotificationsStoreFactory(
         }
 
         private fun setPreview(kind: String, preview: Boolean) {
-            updateKind(kind) { it.copy(showPreviews = preview) }
+            updateKind(kind) { it.copy(showPreviews = preview, previewInherited = false) }
         }
 
         private fun updateKind(kind: String, transform: (NotifySettings) -> NotifySettings) {
@@ -366,7 +441,10 @@ internal class NotificationsStoreFactory(
                     "broadcasts" -> state().broadcasts
                     else -> state().users
                 }
-                client.updateNotifySettings(kind, transform(current), PeerId(0))
+                val settings = transform(current)
+                if (client.updateNotifySettings(kind, settings, PeerId(0)) is Outcome.Ok) {
+                    local?.cacheNotifySettings(kind, 0L, settings)
+                }
                 refresh()
             }
         }
@@ -427,6 +505,12 @@ internal class NotificationsStoreFactory(
                         reactionsPopup = local?.categoryPopup("reactions") ?: current.reactionsPopup,
                         callsVibrate = local?.callsVibrate ?: current.callsVibrate,
                         callsRingtone = local?.callsRingtone ?: current.callsRingtone,
+                        providerMode = local?.providerMode ?: current.providerMode,
+                        distributors = push?.distributors().orEmpty(),
+                        distributorPackage = local?.distributorPackage.orEmpty(),
+                        gateway = local?.simplePushGateway.orEmpty(),
+                        noMuted = local?.noMuted ?: current.noMuted,
+                        bubbles = local?.bubblesEnabled ?: current.bubbles,
                         badge = local?.badgeEnabled ?: current.badge,
                         badgeMuted = local?.badgeMuted ?: current.badgeMuted,
                         badgeMessages = local?.badgeMessages ?: current.badgeMessages,

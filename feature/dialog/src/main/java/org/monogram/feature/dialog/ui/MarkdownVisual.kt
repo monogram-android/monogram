@@ -143,6 +143,17 @@ internal fun markdownOutputTransformation(linkColor: Color): OutputTransformatio
     }
 }
 
+internal fun composerOutputTransformation(entities: List<org.monogram.core.models.TextEntity>): OutputTransformation =
+    OutputTransformation {
+        entities.asSequence()
+            .filter { it.kind == "custom_emoji" }
+            .forEach { entity ->
+                val start = entity.offset.coerceIn(0, length)
+                val end = (entity.offset + entity.length).coerceIn(start, length)
+                if (start < end) addStyle(SpanStyle(color = Color.Transparent), start, end)
+            }
+    }
+
 internal fun collapseCustomEmojiMarkdown(raw: String): TransformedText? {
     val matches = CustomEmojiMarkdown.findAll(raw).toList()
     if (matches.isEmpty()) return null

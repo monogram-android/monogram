@@ -1,6 +1,9 @@
 package org.monogram
 
 import android.app.Application
+import android.os.Build
+import androidx.compose.material3.ComposeMaterial3Flags
+import androidx.compose.material3.ExperimentalMaterial3Api
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -8,14 +11,18 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.monogram.core.common.AppLog
+import org.monogram.core.common.DebugLog
 import org.monogram.core.common.DebugStats
+import org.monogram.core.common.MediaCacheLimitStore
 import org.monogram.core.common.Outcome
-import org.monogram.core.common.SponsorRegistry
 import org.monogram.core.common.PerfLog
+import org.monogram.core.common.RuntimePressure
+import org.monogram.core.common.SponsorRegistry
 import org.monogram.core.common.TelegramCredentials
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.database.DatabaseProvider
@@ -27,20 +34,29 @@ import org.monogram.core.ui.AppUpdateSettings
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.DownloadState
+import org.monogram.core.ui.FileLeases
 import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.perf.perfSpan
+import org.monogram.feature.settings.ProxySettingsStore
+import org.monogram.mtproto.MtprotoNativeLoader
 import org.monogram.network.bridge.BridgedMtprotoClient
+import org.monogram.network.bridge.ClientInitInfo
+import org.monogram.network.bridge.MtprotoTransportMode
+import org.monogram.network.bridge.ProxyConfig
+import org.monogram.network.bridge.ProxyType
 import org.monogram.network.http.MediaFetchKind
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 import org.monogram.network.http.TelegramChunkFetcher
 import org.monogram.network.http.TelegramInlineThumbPeek
 import org.monogram.network.http.TelegramMediaFetcher
+import org.monogram.network.http.TelegramPeerInlineThumbPeek
 import org.monogram.push.PushCoordinator
 import org.monogram.sponsor.SponsorSyncManager
 import org.monogram.update.AndroidAppUpdateInstaller
 import org.monogram.update.AppUpdateManager
 import java.io.File
+import java.util.Locale
 
 class MonogramApp : Application() {
     lateinit var client: BridgedMtprotoClient
@@ -62,6 +78,34 @@ class MonogramApp : Application() {
 
     private val settingsScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val ready = CompletableDeferred<Unit>()
+    private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val startedActivities = mutableSetOf<MainActivity>()
+    private var activityIdleJob: Job? = null
+
+    internal fun activityStarted(activity: MainActivity) {
+        startedActivities.add(activity)
+        updateActivityForeground()
+    }
+
+    internal fun activityStopped(activity: MainActivity) {
+        startedActivities.remove(activity)
+        updateActivityForeground()
+    }
+
+    private fun updateActivityForeground() {
+        activityIdleJob?.cancel()
+        activityIdleJob = activityScope.launch {
+            awaitReady()
+            val foreground = startedActivities.isNotEmpty()
+            push.setForeground(foreground)
+            if (!foreground) {
+                delay(120_000)
+                if (startedActivities.isEmpty() && notifications.token().isNotBlank()) {
+                    client.hibernate()
+                }
+            }
+        }
+    }
 
     suspend fun awaitReady() = ready.await()
 
@@ -82,22 +126,38 @@ class MonogramApp : Application() {
         }
 
     private fun applyDownloadSettings(state: DownloadState) {
-        client.applyDownloadConcurrency(state.lanes, state.parts)
+        client.applyDownloadConcurrency(state.effectiveLanes, state.parts)
         client.setFilePartKib(state.filePartKib)
         client.setDownloadChunkKib(state.downloadChunkKib)
     }
 
-    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate() {
         super.onCreate()
-        androidx.compose.material3.ComposeMaterial3Flags.isCheckboxStylingFixEnabled = true
+        ComposeMaterial3Flags.isCheckboxStylingFixEnabled = true
         val startedAt = PerfLog.nowMs()
         perfSpan("app:settings") {
             AppLog.init(cacheDir)
         }
+        RuntimePressure.networkConstrained = {
+            getSystemService(android.net.ConnectivityManager::class.java)?.activeNetwork == null
+        }
+        RuntimePressure.thermal = {
+            if (Build.VERSION.SDK_INT < 29) {
+                false
+            } else {
+                val status =
+                    getSystemService(android.os.PowerManager::class.java)?.currentThermalStatus ?: 0
+                status >= android.os.PowerManager.THERMAL_STATUS_SEVERE
+            }
+        }
+        RuntimePressure.databaseBusy = {
+            DatabaseProvider.roomQueueDepth() > 4
+        }
         settingsScope.launch(Dispatchers.IO) {
             perfSpan("app:debugStats") {
                 DebugStats.install(BuildConfig.DEBUG, cacheDir)
+                DebugLog.install(BuildConfig.DEBUG || BuildConfig.BUILD_TYPE == "beta")
             }
         }
         settingsScope.launch(Dispatchers.IO) {
@@ -106,6 +166,7 @@ class MonogramApp : Application() {
                 runFirstPaintStartup(settingsScope, steps)
                 ready.complete(Unit)
                 PerfLog.mark("app:ready", PerfLog.nowMs() - startedAt)
+                settingsScope.launch { steps.mediaMigration() }
                 startAfterFirstPaint(steps)
             } catch (cancelled: CancellationException) {
                 ready.completeExceptionally(cancelled)
@@ -139,6 +200,7 @@ class MonogramApp : Application() {
                 }
             },
             createClient = {
+                MtprotoNativeLoader.initializePlatformVerifier(this)
                 val sessionFile = File(filesDir, "mtproto.session.json")
                 perfSpan("app:tdlibImport") {
                     runCatching { TdlibSessionImport.maybeImport(filesDir, sessionFile, cacheDir) }
@@ -148,14 +210,41 @@ class MonogramApp : Application() {
                     BridgedMtprotoClient(
                         credentials = credentials,
                         sessionPath = sessionFile.absolutePath,
+                        initConnection = monogramInitConnection(),
                     )
+                }
+                ProxySettingsStore.load(this)?.let { saved ->
+                    val applied = runCatching {
+                        val transportMode =
+                            MtprotoTransportMode.valueOf(saved.transportMode.uppercase())
+                        val proxyType = ProxyType.valueOf(saved.kind)
+                        if (proxyType == ProxyType.NONE) false else
+                            client.setTransportMode(transportMode) is Outcome.Ok &&
+                                    client.configureProxy(
+                                        ProxyConfig(
+                                            proxyType,
+                                            saved.host,
+                                            saved.port,
+                                            saved.username,
+                                            saved.password,
+                                            saved.secret
+                                        )
+                                    ) is Outcome.Ok
+                    }.getOrDefault(false)
+                    if (!applied) {
+                        runCatching { client.clearProxy() }
+                        runCatching { client.setTransportMode(MtprotoTransportMode.PADDED_INTERMEDIATE) }
+                        ProxySettingsStore.clearActive(this)
+                        ProxySettingsStore.markStartupFailure(this)
+                        AppLog.warn("proxy", "stored proxy settings rejected")
+                    }
                 }
             },
             installImageCache = {
                 perfSpan("app:imageCache") { ImageCache.install(this) }
             },
             cleanup = {
-                runCatching { warmup.ensureStartupCleanup() }
+                runCatching { warmup.prepareStartupSnapshot(sessionStore) }
                     .onFailure { AppLog.warn("warmup", "startup cleanup failed") }
             },
             prewarm = {
@@ -164,8 +253,10 @@ class MonogramApp : Application() {
                     when (val result = runCatching { client.connect() }.getOrNull()) {
                         is Outcome.Ok ->
                             PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=ok")
+
                         is Outcome.Err ->
                             PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=err")
+
                         null ->
                             PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=throw")
                     }
@@ -181,6 +272,8 @@ class MonogramApp : Application() {
             installDownloadSettings = {
                 perfSpan("app:downloadConcurrency") {
                     DownloadSettings.install(this, ::applyDownloadSettings)
+                    DownloadSettings.setPremium(sessionStore.readPremium())
+                    MediaCacheLimitStore.install(filesDir)
                 }
             },
             createMedia = {
@@ -190,26 +283,68 @@ class MonogramApp : Application() {
                         telegramChunkFetcher = TelegramChunkFetcher { chatId, messageId, destPath, offset ->
                             client.downloadMessageMediaChunk(chatId, messageId, destPath, offset)
                         },
-                        telegramFetcher = TelegramMediaFetcher { chatId, messageId, destPath, kind, priority ->
-                            when (kind) {
-                                MediaFetchKind.Thumb ->
-                                    client.downloadMessageThumb(chatId, messageId, destPath, priority)
-                                MediaFetchKind.Display ->
-                                    client.downloadMessageDisplay(chatId, messageId, destPath, priority)
-                                MediaFetchKind.Full ->
-                                    client.downloadMessageMedia(chatId, messageId, destPath, priority)
-                            }
+                        telegramFetcher = object : TelegramMediaFetcher {
+                            override fun promote(destPath: String, priority: Int) =
+                                client.promoteDownload(destPath, priority)
+
+                            override suspend fun fetchMessageMedia(
+                                chatId: PeerId,
+                                messageId: Int,
+                                destPath: String,
+                                kind: MediaFetchKind,
+                                priority: Int,
+                            ): Outcome<String> =
+                                when (kind) {
+                                    MediaFetchKind.Thumb ->
+                                        client.downloadMessageThumb(
+                                            chatId,
+                                            messageId,
+                                            destPath,
+                                            priority
+                                        )
+
+                                    MediaFetchKind.Display ->
+                                        client.downloadMessageDisplay(
+                                            chatId,
+                                            messageId,
+                                            destPath,
+                                            priority
+                                        )
+
+                                    MediaFetchKind.Full ->
+                                        client.downloadMessageMedia(
+                                            chatId,
+                                            messageId,
+                                            destPath,
+                                            priority
+                                        )
+                                }
                         },
+
                         customEmojiFetcher = { documentId, destPath, priority ->
                             client.downloadCustomEmoji(documentId, destPath, priority)
                         },
                         inlineThumbPeek = TelegramInlineThumbPeek { chatId, messageId ->
                             client.peekMessageInlineThumb(chatId, messageId)
                         },
+                        peerInlineThumbPeek = TelegramPeerInlineThumbPeek { peerId ->
+                            client.peekPeerInlineThumb(peerId)
+                        },
+                        cacheLimitBytes = MediaCacheLimitStore.current.value.bytes,
                     )
                 }
+                FileLeases.leaser = mediaRepository::leaseFile
                 client.setDownloadProgressListener { path, downloaded, _ ->
                     mediaRepository.onNativeProgress(path, downloaded)
+                }
+                settingsScope.launch {
+                    ready.await()
+                    warmup.prepareRecentHistory()
+                    warmup.recentHistory.warmedMessages().forEach { message ->
+                        if (!message.thumbCacheKey.isNullOrBlank()) {
+                            mediaRepository.ensureLocalMessageThumb(message, MediaPriority.THUMB)
+                        }
+                    }
                 }
             },
             createPush = {
@@ -221,6 +356,7 @@ class MonogramApp : Application() {
                         notifications,
                         mediaRepository,
                         DefaultStoreFactory(),
+                        sessionStore,
                     )
                 }
                 sponsorSync = SponsorSyncManager(
@@ -266,7 +402,7 @@ class MonogramApp : Application() {
                     currentVersionCode = { BuildConfig.VERSION_CODE },
                     currentCommit = { BuildConfig.GIT_COMMIT },
                     buildType = BuildConfig.BUILD_TYPE,
-                    supportedAbis = { android.os.Build.SUPPORTED_ABIS.toList() },
+                    supportedAbis = { Build.SUPPORTED_ABIS.toList() },
                     installer = AndroidAppUpdateInstaller(this),
                     updateDir = File(cacheDir, "updates"),
                 )
@@ -285,4 +421,44 @@ class MonogramApp : Application() {
             },
         )
     }
+
+    private fun monogramInitConnection(): ClientInitInfo {
+        val locale = Locale.getDefault()
+        return ClientInitInfo(
+            deviceModel = initDeviceModel(),
+            systemVersion = Build.VERSION.RELEASE.orEmpty().ifBlank {
+                "SDK ${Build.VERSION.SDK_INT}"
+            },
+            appVersion = BuildConfig.VERSION_NAME.ifBlank { "0" },
+            systemLangCode = locale.language.ifBlank { "en" },
+            langPack = "android",
+            langCode = locale.toLanguageTag().ifBlank { "en" },
+        )
+    }
+}
+
+private fun initDeviceModel(): String {
+    val manufacturer = Build.MANUFACTURER.orEmpty().trim()
+    val model = Build.MODEL.orEmpty().trim()
+    if (isEmulatorDevice(model)) return "Android Emulator"
+    return when {
+        model.isEmpty() && manufacturer.isEmpty() -> "Android"
+        model.isEmpty() -> manufacturer
+        manufacturer.isEmpty() || model.startsWith(manufacturer, ignoreCase = true) -> model
+        else -> "$manufacturer $model"
+    }
+}
+
+private fun isEmulatorDevice(model: String): Boolean {
+    val fingerprint = Build.FINGERPRINT.orEmpty()
+    val product = Build.PRODUCT.orEmpty()
+    val hardware = Build.HARDWARE.orEmpty()
+    return fingerprint.startsWith("generic") ||
+            fingerprint.contains("emulator", ignoreCase = true) ||
+            product.contains("sdk", ignoreCase = true) ||
+            hardware.contains("goldfish", ignoreCase = true) ||
+            hardware.contains("ranchu", ignoreCase = true) ||
+            model.contains("sdk_gphone", ignoreCase = true) ||
+            model.contains("emulator", ignoreCase = true) ||
+            model.contains("google_sdk", ignoreCase = true)
 }

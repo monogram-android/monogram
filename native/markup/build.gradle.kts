@@ -88,7 +88,9 @@ fun hostCdylibName(libName: String): String {
     }
 }
 
-val hostUniffiLib = rustCrate.file("target/debug/${hostCdylibName("monogram_markup")}")
+val workspaceLock = rootProject.layout.projectDirectory.file("native/Cargo.lock")
+val workspaceTarget = rootProject.layout.projectDirectory.dir("native/target")
+val hostUniffiLib = workspaceTarget.file("debug/${hostCdylibName("monogram_markup")}")
 val uniffiKotlin = layout.projectDirectory.file(
     "src/main/java/uniffi/monogram_markup/monogram_markup.kt",
 )
@@ -108,7 +110,7 @@ val buildNativeMarkup =
         val jobs = maxOf(2, Runtime.getRuntime().availableProcessors() / maxOf(1, abis.size))
         inputs.files(
             rustCrate.file("Cargo.toml"),
-            rustCrate.file("Cargo.lock"),
+            workspaceLock,
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
@@ -164,7 +166,7 @@ val buildHostUniffiMarkup =
         commandLine(cargoCommand(listOf("cargo", "build", "--lib", "--features", "bindgen-cli")))
         inputs.files(
             rustCrate.file("Cargo.toml"),
-            rustCrate.file("Cargo.lock"),
+            workspaceLock,
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
@@ -183,7 +185,7 @@ val generateUniffiMarkup =
         commandLine(
             cargoCommand(
                 listOf(
-                    "cargo", "run", "--features", "bindgen-cli", "--bin", "uniffi-bindgen", "--",
+                    "cargo", "run", "-p", "monogram-markup", "--features", "bindgen-cli", "--bin", "uniffi-bindgen", "--",
                     "generate",
                     "--library", hostUniffiLib.asFile.absolutePath,
                     "--language", "kotlin",
@@ -194,7 +196,7 @@ val generateUniffiMarkup =
         )
         inputs.files(
             rustCrate.file("Cargo.toml"),
-            rustCrate.file("Cargo.lock"),
+            workspaceLock,
             rustCrate.file("build.rs"),
             rustCrate.file("uniffi-bindgen.rs"),
             hostUniffiLib,

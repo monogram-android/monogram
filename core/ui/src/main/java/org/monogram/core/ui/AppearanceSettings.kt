@@ -17,6 +17,35 @@ enum class WallpaperMode { Monogram, None, Image }
 enum class AccentPreset { Monogram, Sakura, Ocean, Forest, Sunset, Violet, Amber, Rose, Slate, Teal }
 enum class ComposerStyle { IOS, Material }
 
+enum class ComposerSlotAction {
+    None,
+    Emoji,
+    Stickers,
+    Gifs,
+    Attach,
+    Photos,
+    File,
+    Location,
+}
+
+internal fun restoreComposerSlot(raw: String?, default: ComposerSlotAction): ComposerSlotAction =
+    ComposerSlotAction.entries.firstOrNull { it.name == raw } ?: default
+
+internal fun restoreRightComposerSlot(raw: String?, legacyShowEmoji: Boolean): ComposerSlotAction =
+    if (raw != null) restoreComposerSlot(raw, ComposerSlotAction.Emoji)
+    else if (legacyShowEmoji) ComposerSlotAction.Emoji else ComposerSlotAction.None
+
+fun ComposerSlotAction.canSend(canSendPlain: Boolean, canSendPhotos: Boolean): Boolean = when (this) {
+    ComposerSlotAction.None -> false
+    ComposerSlotAction.Emoji, ComposerSlotAction.Location -> canSendPlain
+    ComposerSlotAction.Photos -> canSendPhotos
+    ComposerSlotAction.Stickers,
+    ComposerSlotAction.Gifs,
+    ComposerSlotAction.Attach,
+    ComposerSlotAction.File,
+    -> canSendPlain || canSendPhotos
+}
+
 internal fun restoreWallpaperMode(raw: String?, path: String?): WallpaperMode {
     val mode = WallpaperMode.entries.firstOrNull { it.name == raw }
         ?: if (path != null) WallpaperMode.Image else WallpaperMode.Monogram
@@ -38,7 +67,8 @@ data class AppearanceState(
     val wallpaperDim: Float = 0.15f,
     val wallpaperMode: WallpaperMode = WallpaperMode.Monogram,
     val composerStyle: ComposerStyle = ComposerStyle.Material,
-    val showEmojiButton: Boolean = true,
+    val leftComposerAction: ComposerSlotAction = ComposerSlotAction.Attach,
+    val rightComposerAction: ComposerSlotAction = ComposerSlotAction.Emoji,
     val sendByEnter: Boolean = false,
     val fixLinkPreviews: Boolean = true,
     val ivFontSize: Int = AppearanceSettings.DEFAULT_IV_FONT_SIZE,
@@ -87,6 +117,8 @@ object AppearanceSettings {
     private const val KEY_READ_STATUS = "show_read_status"
     private const val KEY_COMPOSER_STYLE = "composer_style"
     private const val KEY_SHOW_EMOJI_BUTTON = "show_emoji_button"
+    private const val KEY_LEFT_SLOT = "composer_left_action"
+    private const val KEY_RIGHT_SLOT = "composer_right_action"
     private const val KEY_SEND_BY_ENTER = "send_by_enter"
     private const val KEY_FIX_LINK_PREVIEWS = "fix_link_previews"
     private const val KEY_IV_FONT_SIZE = "iv_font_size"
@@ -118,7 +150,14 @@ object AppearanceSettings {
             wallpaperMode = restoreWallpaperMode(prefs.getString("wallpaper_mode", null), wallpaperPath),
             wallpaperDim = prefs.getFloat("wallpaper_dim", 0.15f).coerceIn(0f, 0.8f),
             composerStyle = parseComposerStyle(prefs.getString(KEY_COMPOSER_STYLE, null)),
-            showEmojiButton = prefs.getBoolean(KEY_SHOW_EMOJI_BUTTON, true),
+            leftComposerAction = restoreComposerSlot(
+                prefs.getString(KEY_LEFT_SLOT, null),
+                ComposerSlotAction.Attach,
+            ),
+            rightComposerAction = restoreRightComposerSlot(
+                prefs.getString(KEY_RIGHT_SLOT, null),
+                prefs.getBoolean(KEY_SHOW_EMOJI_BUTTON, true),
+            ),
             sendByEnter = prefs.getBoolean(KEY_SEND_BY_ENTER, false),
             fixLinkPreviews = prefs.getBoolean(KEY_FIX_LINK_PREVIEWS, true),
             ivFontSize = parseIvFontSize(prefs.getInt(KEY_IV_FONT_SIZE, DEFAULT_IV_FONT_SIZE)),
@@ -200,8 +239,13 @@ object AppearanceSettings {
         persist()
     }
 
-    fun setShowEmojiButton(enabled: Boolean) {
-        mutable.update { it.copy(showEmojiButton = enabled) }
+    fun setLeftComposerAction(action: ComposerSlotAction) {
+        mutable.update { it.copy(leftComposerAction = action) }
+        persist()
+    }
+
+    fun setRightComposerAction(action: ComposerSlotAction) {
+        mutable.update { it.copy(rightComposerAction = action) }
         persist()
     }
 
@@ -258,7 +302,8 @@ object AppearanceSettings {
                 .putFloat("wallpaper_dim", current.wallpaperDim)
                 .putString("wallpaper_mode", current.wallpaperMode.name)
                 .putString(KEY_COMPOSER_STYLE, current.composerStyle.name)
-                .putBoolean(KEY_SHOW_EMOJI_BUTTON, current.showEmojiButton)
+                .putString(KEY_LEFT_SLOT, current.leftComposerAction.name)
+                .putString(KEY_RIGHT_SLOT, current.rightComposerAction.name)
                 .putBoolean(KEY_SEND_BY_ENTER, current.sendByEnter)
                 .putBoolean(KEY_FIX_LINK_PREVIEWS, current.fixLinkPreviews)
                 .putInt(KEY_IV_FONT_SIZE, current.ivFontSize)

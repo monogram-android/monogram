@@ -31,6 +31,12 @@
         <item quantity="other">%d 件のファイル</item>
     </plurals>
     <string name="dialog_media_document">ファイル</string>
+    <string name="dialog_media_link">リンク</string>
+    <string name="dialog_media_checklist">チェックリスト</string>
+    <string name="dialog_media_poll">投票</string>
+    <string name="dialog_media_location">位置情報</string>
+    <string name="dialog_media_contact">連絡先</string>
+    <string name="dialog_media_dice">サイコロ</string>
     <string name="dialog_unsupported_message">このメッセージの種類はまだ未対応です</string>
     <string name="dialog_poll_quiz">クイズ</string>
     <string name="dialog_poll_closed">終了</string>
@@ -106,6 +112,7 @@
     <string name="dialog_panel_emoji">絵文字</string>
     <string name="dialog_panel_stickers">スタンプ</string>
     <string name="dialog_emoji_open">絵文字、スタンプ、GIF</string>
+    <string name="dialog_emoji_recent">最近</string>
     <string name="dialog_emoji_category_smileys">顔文字と感情</string>
     <string name="dialog_emoji_category_people">人と体</string>
     <string name="dialog_emoji_category_nature">動物と自然</string>
@@ -149,8 +156,6 @@
     <string name="dialog_cut">切り取り</string>
     <string name="dialog_paste">貼り付け</string>
     <string name="dialog_copy_selected">選択をコピー</string>
-    <string name="dialog_select_text">選択</string>
-    <string name="dialog_select_message">メッセージを選択</string>
     <plurals name="dialog_messages_selected">
         <item quantity="other">%1$d件のメッセージを選択中</item>
     </plurals>
@@ -175,8 +180,12 @@
     <string name="dialog_forwarded">%1$s に転送しました</string>
     <string name="dialog_delete_confirm">このメッセージを削除しますか？</string>
     <string name="dialog_delete_for_everyone">全員から削除</string>
+    <string name="dialog_delete_for_me">自分だけ削除</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="other">%1$d件のメッセージを削除しますか？</item>
+    </plurals>
     <string name="dialog_cancel">キャンセル</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">プレビュー</string>
     <string name="dialog_markdown_expand">Markdown エディタを開く</string>
     <string name="dialog_markdown_apply">適用</string>
@@ -207,6 +216,10 @@
     <string name="dialog_cant_send">ここにメッセージを送信できません</string>
     <string name="dialog_cant_send_photos">このチャットでは写真は送れません</string>
     <string name="dialog_channel_readonly">このチャンネルに投稿できるのは管理者だけです</string>
+    <string name="dialog_join">参加</string>
+    <string name="dialog_mute">ミュート</string>
+    <string name="dialog_unmute">ミュート解除</string>
+    <string name="dialog_unblock">ブロック解除</string>
     <string name="dialog_protected">このチャットでは転送が無効です</string>
     <string name="dialog_editing">メッセージを編集</string>
     <string name="dialog_replying">返信</string>
@@ -242,9 +255,36 @@
     <string name="dialog_instant_view_unsupported">このブロックは未対応です</string>
     <string name="dialog_instant_view_map">地図を開く</string>
     <string name="dialog_instant_view_related">関連記事</string>
+    <string name="dialog_instant_view_contents">目次</string>
+    <string name="dialog_instant_view_contents_empty">この記事にはセクションがありません</string>
+    <string name="dialog_instant_view_beginning">最初へ</string>
+    <string name="dialog_instant_view_min_read">読了目安: %1$d分</string>
+    <string name="dialog_instant_view_to_top">先頭に戻る</string>
+    <string name="dialog_instant_view_reload">再読み込み</string>
+    <string name="dialog_instant_view_text">本文</string>
+    <string name="dialog_instant_view_chars">%1$d文字</string>
+    <string name="dialog_instant_view_select_all">すべて選択</string>
+    <string name="dialog_instant_view_clear_selection">選択を解除</string>
+    <string name="dialog_instant_view_copy">コピー</string>
+    <string name="dialog_instant_view_done">完了</string>
+    <string name="dialog_instant_view_font_reset">リセット</string>
+    <string name="dialog_instant_view_font_smaller">文字を小さく</string>
+    <string name="dialog_instant_view_font_larger">文字を大きく</string>
+    <string name="dialog_instant_view_search_previous">前の一致</string>
+    <string name="dialog_instant_view_search_clear">検索をクリア</string>
+    <string name="dialog_instant_view_search_close">検索を閉じる</string>
+    <string name="dialog_instant_view_error_hint">通信環境を確認して、もう一度お試しください</string>
+    <string name="dialog_instant_view_collapse">折りたたむ</string>
+    <string name="dialog_instant_view_expand">展開</string>
+    <string name="dialog_instant_view_media_page">%1$d / %2$d</string>
+    <string name="dialog_instant_view_media_load">ダウンロードして再生</string>
+    <string name="dialog_instant_view_media_ready">音声の準備完了</string>
+    <string name="dialog_instant_view_media_download">ファイルをダウンロード</string>
+    <string name="dialog_instant_view_media_open">ファイルを開く</string>
+    <string name="dialog_instant_view_media_cancel">ダウンロードをキャンセル</string>
     <string name="media_delete_title">メディアを削除</string>
-    <string name="media_delete_body_single">この項目を削除しますか？あなたとこのチャットから削除されます。</string>
-    <string name="media_delete_body_album">%1$d件すべてを削除しますか？あなたとこのチャットから削除されます。</string>
+    <string name="media_delete_body_single">この項目を削除しますか？あなたとこのチャットから削除されます</string>
+    <string name="media_delete_body_album">%1$d件すべてを削除しますか？あなたとこのチャットから削除されます</string>
     <string name="media_delete_confirm">削除</string>
     <string name="media_delete_cancel">キャンセル</string>
     <string name="media_action_copied_image">画像をコピーしました</string>
@@ -291,4 +331,17 @@
     <plurals name="dialog_subscribers_count">
         <item quantity="other">購読者 %1$s人</item>
     </plurals>
+    <string name="dialog_send_formatted">書式付きで送信</string>
+    <string name="dialog_editor_title">メッセージエディター</string>
+    <string name="dialog_editor_send_preview">送信プレビュー</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">選択したテキスト</string>
+    <string name="dialog_editor_select_hint">書式を設定するテキストを選択</string>
+    <string name="dialog_editor_expandable_quote">展開できる引用</string>
+    <string name="dialog_editor_clear">書式を削除</string>
+    <string name="dialog_editor_url">リンクのURL</string>
+    <string name="dialog_editor_language">言語（任意）</string>
+    <string name="dialog_editor_open">エディターを展開</string>
+    <string name="dialog_rich_date_at_time">%1$s %2$s</string>
+    <string name="dialog_media_progress_speed">%1$s · %2$s/秒</string>
 </resources>

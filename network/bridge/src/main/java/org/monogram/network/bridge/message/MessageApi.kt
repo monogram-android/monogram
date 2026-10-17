@@ -13,11 +13,13 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.ReactionChoice
 import org.monogram.core.models.ReadReceiptConfig
 import org.monogram.core.models.SavedGif
+import org.monogram.core.models.TextEntities.serialize
 import org.monogram.core.models.UploadItem
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.profile.ProfileOps
 import org.monogram.network.bridge.session.DispatchClass
 import org.monogram.network.bridge.session.SessionCore
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class MessageApi(
     private val core: SessionCore,
@@ -29,7 +31,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         val historyAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
-        val outcome = withTimeoutOrNull(core.historyTimeoutMs) {
+        val outcome = withTimeoutOrNull(core.historyTimeoutMs.milliseconds) {
             core.rpc("getHistory failed") { activeHandle ->
                 core.native.getHistory(activeHandle, chatId.value, limit).map { it.toModel() }
             }
@@ -58,7 +60,31 @@ internal class MessageApi(
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpc("getHistoryPage failed") { activeHandle ->
+        return historyPage(chatId, limit, offsetId, offsetDate, addOffset, background = false)
+    }
+
+    override suspend fun getHistoryPageBackground(
+        chatId: PeerId,
+        limit: Int,
+        offsetId: Int,
+        offsetDate: Int,
+        addOffset: Int,
+    ): Outcome<List<Message>> =
+        historyPage(chatId, limit, offsetId, offsetDate, addOffset, background = true)
+
+    private suspend fun historyPage(
+        chatId: PeerId,
+        limit: Int,
+        offsetId: Int,
+        offsetDate: Int,
+        addOffset: Int,
+        background: Boolean,
+    ): Outcome<List<Message>> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        val call: suspend (Long) -> List<Message> = { activeHandle ->
             core.native.getHistoryPage(
                 activeHandle,
                 chatId.value,
@@ -67,6 +93,11 @@ internal class MessageApi(
                 offsetDate,
                 addOffset,
             ).map { it.toModel() }
+        }
+        return if (background) {
+            core.rpcBackground("getHistoryPage failed", call)
+        } else {
+            core.rpc("getHistoryPage failed", call)
         }
     }
 
@@ -107,6 +138,31 @@ internal class MessageApi(
                 addOffset,
                 limit,
             ).map { it.toModel() }
+        }
+    }
+
+    override suspend fun searchMessagesPage(
+        chatId: PeerId,
+        query: String,
+        filter: String,
+        offsetId: Int,
+        addOffset: Int,
+        limit: Int,
+    ): Outcome<MessagePage> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcBackground("searchMessagesPage failed") { activeHandle ->
+            core.native.searchMessagesPage(
+                activeHandle,
+                chatId.value,
+                query,
+                filter,
+                offsetId,
+                addOffset,
+                limit,
+            ).toModel()
         }
     }
 
@@ -215,6 +271,7 @@ internal class MessageApi(
         entitiesJson: String?,
         topMsgId: Int,
         webpageUrl: String?,
+        randomId: Long,
     ): Outcome<Message> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
@@ -237,6 +294,7 @@ internal class MessageApi(
                 entitiesJson,
                 topMsgId,
                 webpageUrl,
+                randomId,
             ).toModel()
             AppLog.api("sendText", "ok id=${sent.id.id}")
             sent
@@ -300,7 +358,7 @@ internal class MessageApi(
                 item.toDto(),
                 replyToMsgId,
                 topMsgId,
-                entitiesJson,
+                entitiesJson ?: serialize(item.captionEntities),
             ).toModel()
         }
     }

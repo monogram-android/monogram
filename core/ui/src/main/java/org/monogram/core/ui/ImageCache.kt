@@ -2,12 +2,17 @@ package org.monogram.core.ui
 
 import android.content.Context
 import coil.Coil
+import coil.EventListener
 import coil.ImageLoader
 import coil.annotation.ExperimentalCoilApi
 import coil.decode.VideoFrameDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import coil.request.ErrorResult
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 /** Process-wide Coil memory + durable disk cache for avatars, thumbs, and photos. */
 object ImageCache {
@@ -33,10 +38,32 @@ object ImageCache {
             }
             .respectCacheHeaders(false)
             .components { add(VideoFrameDecoder.Factory()) }
+            .eventListener(leaseListener)
             .crossfade(false)
             .build()
         loader = created
         Coil.setImageLoader(created)
+    }
+
+    private val leases = ConcurrentHashMap<ImageRequest, AutoCloseable>()
+
+    private val leaseListener = object : EventListener {
+        override fun onStart(request: ImageRequest) {
+            val file = request.data as? File ?: return
+            FileLeases.acquire(file)?.let { leases[request] = it }
+        }
+
+        override fun onSuccess(request: ImageRequest, result: SuccessResult) {
+            leases.remove(request)?.close()
+        }
+
+        override fun onError(request: ImageRequest, result: ErrorResult) {
+            leases.remove(request)?.close()
+        }
+
+        override fun onCancel(request: ImageRequest) {
+            leases.remove(request)?.close()
+        }
     }
 
     @OptIn(ExperimentalCoilApi::class)

@@ -6,8 +6,8 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +42,9 @@ sealed class DownloadStatus {
 }
 
 /**
- * Bounded concurrent download queue for CDN/media HTTP fetches (Ktor).
+ * Bounded concurrent queue for CDN and web-file HTTP fetches.
+ * Datacenter `upload.getFile` parts are not queued here.
+ * https://core.telegram.org/api/files
  * Higher [DownloadRequest.priority] runs first; equal priority stays FIFO.
  */
 class DownloadQueue(

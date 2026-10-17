@@ -54,6 +54,7 @@ import org.monogram.feature.profile.ProfileComponent
 import org.monogram.feature.profile.R
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
+import org.monogram.network.http.peerPhotoSmallCacheKey
 
 private val ProfileAtTopTolerance = 12
 private const val ProfileAvatarCollapsedScale = 0.82f
@@ -203,7 +204,7 @@ fun ProfileContent(component: ProfileComponent, modifier: Modifier = Modifier) {
     if (showAvatar) {
         MediaPreviewViewer(
             file = avatarFile,
-            stateKey = "avatar:${profile?.id?.value}",
+            stateKey = "avatar:${profile?.id?.value}:${avatarFile?.absolutePath}",
             fallbackTitle = profile?.title.orEmpty(),
             contentDescription = stringResource(R.string.profile_open_photo),
             loop = true,
@@ -239,22 +240,28 @@ private fun rememberProfileAvatar(
     LaunchedEffect(peer, cacheKey, attempt, cacheGeneration, repository) {
         val repo = repository ?: return@LaunchedEffect
         val key = peerAvatarCacheKey(peer, cacheKey)
+        val smallKey = peerPhotoSmallCacheKey(key)
+        fun showCachedFull(): Boolean {
+            val full = repo.cachedFile(key)
+            if (full == null) return false
+            state = ProfileAvatar.Ready(full)
+            return true
+        }
+        if (showCachedFull()) return@LaunchedEffect
         repeat(3) { attempt ->
-            repo.cachedFile(key)?.let {
-                state = ProfileAvatar.Ready(it)
-                return@LaunchedEffect
+            if (showCachedFull()) return@LaunchedEffect
+            if (state !is ProfileAvatar.Ready) {
+                repo.cachedFile(smallKey)?.let { state = ProfileAvatar.Ready(it) }
+                    ?: repo.cachedAvatar(peer)?.let { state = ProfileAvatar.Ready(it) }
             }
-            repo.cachedAvatar(peer)?.let {
-                state = ProfileAvatar.Ready(it)
-                return@LaunchedEffect
-            }
-            state = ProfileAvatar.Loading
+            if (state !is ProfileAvatar.Ready) state = ProfileAvatar.Loading
             when (val result = repo.ensureLocalAvatar(peer, key, MediaPriority.USER)) {
                 is Outcome.Ok -> {
-                    state = ProfileAvatar.Ready(result.value)
+                    if (!showCachedFull()) state = ProfileAvatar.Ready(result.value)
                     return@LaunchedEffect
                 }
                 is Outcome.Err -> {
+                    if (showCachedFull() || state is ProfileAvatar.Ready) return@LaunchedEffect
                     if (attempt == 2) state = ProfileAvatar.Failed
                     else delay(400L * (attempt + 1))
                 }

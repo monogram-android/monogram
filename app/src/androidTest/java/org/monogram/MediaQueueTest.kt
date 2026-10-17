@@ -42,7 +42,7 @@ class MediaQueueTest {
             val jobs = (1L..20L).map { id ->
                 async(Dispatchers.IO) {
                     val priority = if (id > 12) MediaPriority.VISIBLE else MediaPriority.IDLE
-                    repo.ensureLocalAvatar(PeerId(id), "photo:$id", priority)
+                    repo.ensureIndexedMedia(PeerId(id), 0, "photo:$id", priority = priority)
                 }
             }
             val results = withTimeout(8_000) { jobs.map { it.await() } }

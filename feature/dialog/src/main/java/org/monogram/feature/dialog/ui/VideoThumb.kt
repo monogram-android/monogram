@@ -13,6 +13,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +21,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import org.monogram.feature.dialog.R
 import java.io.File
 
@@ -32,7 +36,7 @@ internal fun VideoThumb(
     failed: Boolean,
     loading: Boolean,
     previewLoading: Boolean = false,
-    downloadedBytes: Long = 0L,
+    downloadProgress: Flow<Long> = flowOf(0L),
     fileSize: Long? = null,
     onPlay: () -> Unit,
     compact: Boolean = false,
@@ -61,8 +65,8 @@ internal fun VideoThumb(
             modifier = Modifier.fillMaxSize(),
         )
         when {
-            loading -> DownloadCancelBadge(
-                bytes = downloadedBytes,
+            loading -> VideoDownloadBadge(
+                progress = downloadProgress,
                 total = fileSize,
                 modifier = Modifier.size(playSize),
                 color = Color.White,
@@ -97,4 +101,24 @@ internal fun VideoThumb(
             )
         }
     }
+}
+
+@Composable
+private fun VideoDownloadBadge(
+    progress: Flow<Long>,
+    total: Long?,
+    modifier: Modifier,
+    color: Color,
+    trackColor: Color,
+    scrim: Color,
+) {
+    val bytes by progress.collectAsStateWithLifecycle(initialValue = 0L)
+    DownloadCancelBadge(
+        bytes = bytes,
+        total = total,
+        modifier = modifier,
+        color = color,
+        trackColor = trackColor,
+        scrim = scrim,
+    )
 }

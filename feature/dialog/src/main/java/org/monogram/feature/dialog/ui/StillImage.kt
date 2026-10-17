@@ -2,6 +2,7 @@ package org.monogram.feature.dialog.ui
 
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import org.monogram.feature.dialog.scaledSize
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -49,6 +50,25 @@ internal fun stillImageFile(file: File?): Boolean {
     }.getOrDefault(false)
 }
 
+internal enum class GlyphFileKind { Gzip, Webm, Still }
+
+internal fun glyphFileKind(file: File): GlyphFileKind {
+    val header = fileHeader(file, 4) ?: return GlyphFileKind.Still
+    if (header.size >= 2 && header[0] == 0x1f.toByte() && header[1] == 0x8b.toByte()) {
+        return GlyphFileKind.Gzip
+    }
+    if (
+        header.size >= 4 &&
+        header[0] == 0x1a.toByte() &&
+        header[1] == 0x45.toByte() &&
+        header[2] == 0xdf.toByte() &&
+        header[3] == 0xa3.toByte()
+    ) {
+        return GlyphFileKind.Webm
+    }
+    return GlyphFileKind.Still
+}
+
 internal fun gzipFile(file: File?): Boolean {
     val header = fileHeader(file, 2) ?: return false
     return header.size >= 2 && header[0] == 0x1f.toByte() && header[1] == 0x8b.toByte()
@@ -57,21 +77,45 @@ internal fun gzipFile(file: File?): Boolean {
 internal fun webmFile(file: File?): Boolean {
     val header = fileHeader(file, 4) ?: return false
     return header.size >= 4 &&
-        header[0] == 0x1a.toByte() &&
-        header[1] == 0x45.toByte() &&
-        header[2] == 0xdf.toByte() &&
-        header[3] == 0xa3.toByte()
+            header[0] == 0x1a.toByte() &&
+            header[1] == 0x45.toByte() &&
+            header[2] == 0xdf.toByte() &&
+            header[3] == 0xa3.toByte()
+}
+
+internal fun posterOutputSize(width: Int, height: Int, maxSizePx: Int): Pair<Int, Int>? {
+    if (width <= 0 || height <= 0 || maxSizePx <= 0) return null
+    return scaledSize(width, height, maxSizePx)
+}
+
+internal fun pngFile(file: File?): Boolean {
+    val header = fileHeader(file, 8) ?: return false
+    return header.size >= 8 &&
+            header[0] == 0x89.toByte() &&
+            header[1] == 0x50.toByte() &&
+            header[2] == 0x4E.toByte() &&
+            header[3] == 0x47.toByte()
 }
 
 internal fun videoThumbnail(file: File, maxSizePx: Int = 0): Bitmap? {
+    if (maxSizePx <= 0 || gzipFile(file)) return null
     val retriever = MediaMetadataRetriever()
     return try {
         retriever.setDataSource(file.absolutePath)
-        if (maxSizePx > 0) {
-            scaledFrame(retriever, maxSizePx)
-                ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST)
-        } else {
-            retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST)
+        val durationUs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            ?.toLongOrNull()
+            ?.times(1000L)
+            ?.coerceAtLeast(0L)
+            ?: 0L
+        val timestamps = buildList {
+            add(0L)
+            if (durationUs > 0L) {
+                add((durationUs / 10L).coerceAtLeast(1L))
+                add((durationUs / 2L).coerceAtLeast(1L))
+            }
+        }.distinct()
+        timestamps.firstNotNullOfOrNull { timeUs ->
+            frameAt(retriever, timeUs, maxSizePx)
         }
     } catch (_: RuntimeException) {
         null
@@ -80,8 +124,33 @@ internal fun videoThumbnail(file: File, maxSizePx: Int = 0): Bitmap? {
     }
 }
 
+private fun frameAt(
+    retriever: MediaMetadataRetriever,
+    timeUs: Long,
+    maxSizePx: Int,
+): Bitmap? {
+    if (maxSizePx <= 0) return null
+    scaledFrame(retriever, maxSizePx, timeUs)?.let { return it }
+    val raw = runCatching {
+        retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+    }.getOrNull() ?: return null
+    return limitPosterBitmap(raw, maxSizePx)
+}
+
+private fun limitPosterBitmap(bitmap: Bitmap, maxSizePx: Int): Bitmap {
+    val target = posterOutputSize(bitmap.width, bitmap.height, maxSizePx) ?: return bitmap
+    if (target.first == bitmap.width && target.second == bitmap.height) return bitmap
+    val scaled = Bitmap.createScaledBitmap(bitmap, target.first, target.second, true)
+    if (scaled != bitmap) bitmap.recycle()
+    return scaled
+}
+
 /** Decodes straight into a capped size; null when the source is small enough already. */
-private fun scaledFrame(retriever: MediaMetadataRetriever, maxSizePx: Int): Bitmap? {
+private fun scaledFrame(
+    retriever: MediaMetadataRetriever,
+    maxSizePx: Int,
+    timeUs: Long,
+): Bitmap? {
     val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
         ?.toIntOrNull() ?: return null
     val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
@@ -92,8 +161,8 @@ private fun scaledFrame(retriever: MediaMetadataRetriever, maxSizePx: Int): Bitm
     val targetHeight = (height * scale).roundToInt().coerceAtLeast(1)
     return runCatching {
         retriever.getScaledFrameAtTime(
-            0L,
-            MediaMetadataRetriever.OPTION_CLOSEST,
+            timeUs,
+            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
             targetWidth,
             targetHeight,
         )

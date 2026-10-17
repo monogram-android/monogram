@@ -26,10 +26,12 @@ object AppLog {
     }
 
     fun api(op: String, detail: String) {
+        DebugLog.ingestApi(op, detail)
         runCatching { Log.i("$TAG.api", "$op ${redact(detail)}") }
     }
 
     fun warn(op: String, detail: String) {
+        DebugLog.ingestWarn(op, detail)
         runCatching { Log.w("$TAG.api", "$op ${redact(detail)}") }
     }
 
@@ -39,6 +41,7 @@ object AppLog {
             append(" thread=").append(thread).append('\n')
             append(redact(stackTrace(error)))
         }
+        DebugLog.ingestCrash(thread, body)
         Log.e("$TAG.crash", body)
         runCatching {
             val file = crashFile ?: return@runCatching

@@ -1,11 +1,8 @@
 package org.monogram.network.http
 
 /**
- * Maps Telegram Android FileLoader onto this queue:
- * PRIORITY_LOW -> [IDLE], PRIORITY_NORMAL -> [DEFAULT],
- * PRIORITY_HIGH -> [VISIBLE], stripped/cached JPEG -> [THUMB],
- * force/tap -> [USER].
- * Worker cap matches MessagesController.smallQueueMaxActiveOperations (5).
+ * Queue rank for `upload.getFile`. Higher runs first.
+ * https://core.telegram.org/api/files
  */
 object MediaPriority {
     const val IDLE = 0
@@ -16,4 +13,30 @@ object MediaPriority {
     const val USER = 30
 
     fun isBackground(priority: Int): Boolean = priority <= IDLE
+
+    fun downloadProfile(priority: Int, kind: MediaFetchKind): DownloadProfile = when {
+        kind == MediaFetchKind.Thumb -> DownloadProfile.Thumb
+        priority >= USER -> DownloadProfile.User
+        priority >= VISIBLE -> DownloadProfile.Visible
+        priority <= IDLE -> DownloadProfile.Background
+        else -> DownloadProfile.Ordinary
+    }
+}
+
+/** Same windows as the native download profiles. https://core.telegram.org/api/files */
+enum class DownloadProfile {
+    Thumb,
+    Ordinary,
+    Background,
+    Visible,
+    Playing,
+    User,
+}
+
+fun isLargeDownload(totalBytes: Long?): Boolean = totalBytes != null && totalBytes >= 20_000_000L
+
+fun DownloadProfile.requestsInFlight(): Int = when (this) {
+    DownloadProfile.Thumb -> 1
+    DownloadProfile.Ordinary, DownloadProfile.Background -> 4
+    DownloadProfile.Visible, DownloadProfile.Playing, DownloadProfile.User -> 8
 }

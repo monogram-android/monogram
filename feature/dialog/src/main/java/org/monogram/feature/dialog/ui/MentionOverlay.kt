@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -53,6 +52,7 @@ import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.loading.MonogramLoadingListSize
 import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.dialog.MentionCandidate
 import org.monogram.feature.dialog.R
 import org.monogram.network.http.MediaPriority
@@ -162,7 +162,11 @@ internal fun MentionOverlay(
                             .fillMaxWidth()
                             .heightIn(max = composerPanelHeight() - 48.dp),
                     ) {
-                        items(candidates, key = { it.peerId.value }) { candidate ->
+                        items(
+                            candidates,
+                            key = { it.peerId.value },
+                            contentType = { "mention" },
+                        ) { candidate ->
                             MentionRow(
                                 candidate = candidate,
                                 mediaRepository = mediaRepository,
@@ -171,7 +175,7 @@ internal fun MentionOverlay(
                             )
                         }
                         if (loading) {
-                            item(key = "mention-loading") {
+                            item(key = "mention-loading", contentType = "mention-status") {
                                 MonogramLoading(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -251,6 +255,9 @@ private fun MentionRow(
                 title = candidate.title,
                 size = 44.dp,
                 imageFile = avatarFile,
+                previewBytes = rememberStrippedPreview(candidate.peerId) {
+                    mediaRepository?.peerInlineThumbJpeg(candidate.peerId)
+                },
             )
             if (candidate.isBot) {
                 Box(

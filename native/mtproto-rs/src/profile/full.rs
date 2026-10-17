@@ -103,6 +103,7 @@ pub(crate) fn index_user_avatar(
                     p.dc_id,
                     media::avatar_cache_key(peer_chat_id, has_video),
                     has_video,
+                    p.stripped_thumb.as_deref(),
                 );
                 return Some(media::index_avatar(media_index, peer_chat_id, media));
             }
@@ -131,6 +132,7 @@ pub(crate) fn index_chat_photo(
         p.dc_id,
         media::avatar_cache_key(peer_chat_id, has_video),
         has_video,
+        p.stripped_thumb.as_deref(),
     );
     Some(media::index_avatar(media_index, peer_chat_id, media))
 }
@@ -189,6 +191,11 @@ pub(crate) fn fetch_user_full(
         ),
         _ => (None, false, false, false, false),
     };
+    if is_self {
+        crate::transfer_policy::current()
+            .premium
+            .store(is_premium, std::sync::atomic::Ordering::Relaxed);
+    }
     Ok(ProfileDto {
         id: peer_id,
         kind: if is_bot { "bot".into() } else { "user".into() },
@@ -215,6 +222,7 @@ pub(crate) fn fetch_user_full(
             },
             is_premium,
             None,
+            info.blocked.is_some(),
         ),
     })
 }
@@ -276,6 +284,7 @@ pub(crate) fn fetch_basic_chat(
             None,
             false,
             None,
+            false,
         ),
     })
 }
@@ -385,6 +394,7 @@ pub(crate) fn fetch_channel(
             emoji_status,
             false,
             participants_visible,
+            false,
         ),
     })
 }
@@ -439,6 +449,7 @@ pub(crate) fn profile_extra_json(
     emoji: Option<i64>,
     premium: bool,
     participants: Option<bool>,
+    blocked: bool,
 ) -> Option<String> {
     if members.is_none()
         && online.is_none()
@@ -450,6 +461,7 @@ pub(crate) fn profile_extra_json(
         && emoji.is_none()
         && !premium
         && participants.is_none()
+        && !blocked
     {
         return None;
     }
@@ -465,6 +477,7 @@ pub(crate) fn profile_extra_json(
             "emoji": emoji,
             "premium": premium,
             "participants": participants,
+            "blocked": blocked,
         })
         .to_string(),
     )

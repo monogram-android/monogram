@@ -4,8 +4,7 @@ use tellers_mtproto::latest::api::{Chat as TlChat, ChatPhoto, Peer, User, UserPr
 
 use super::permissions::{
     admin_can_delete, admin_can_manage_topics, admin_can_post, banned_media, banned_photos,
-    banned_plain, banned_send,
-    banned_view, resolve_permissions,
+    banned_plain, banned_send, banned_view, resolve_permissions,
 };
 use crate::media::{self, MediaIndex};
 use crate::peers::{
@@ -63,6 +62,7 @@ pub(crate) fn cache_from_users_chats(
                                 p.photo_id,
                                 p.dc_id,
                                 p.has_video.is_some(),
+                                p.stripped_thumb.as_deref(),
                             );
                         }
                     }
@@ -85,6 +85,7 @@ pub(crate) fn cache_from_users_chats(
                         p.photo_id,
                         p.dc_id,
                         p.has_video.is_some(),
+                        p.stripped_thumb.as_deref(),
                     );
                 }
             }
@@ -110,6 +111,7 @@ pub(crate) fn cache_from_users_chats(
                                 p.photo_id,
                                 p.dc_id,
                                 p.has_video.is_some(),
+                                p.stripped_thumb.as_deref(),
                             );
                         }
                     }
@@ -130,6 +132,7 @@ pub(crate) fn index_dialog_avatar(
     photo_id: i64,
     dc_id: i32,
     has_video: bool,
+    stripped_thumb: Option<&[u8]>,
 ) -> String {
     let cache_key = media::avatar_cache_key(chat_id, has_video);
     let media = media::media_ref_peer_photo(
@@ -140,6 +143,7 @@ pub(crate) fn index_dialog_avatar(
         dc_id,
         cache_key,
         has_video,
+        stripped_thumb,
     );
     media::index_avatar(media_index, chat_id, media)
 }

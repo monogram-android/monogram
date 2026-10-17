@@ -3,7 +3,9 @@ package org.monogram.network.bridge.session
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
@@ -26,8 +28,13 @@ import org.monogram.core.models.AuthSession
 import org.monogram.core.models.AuthState
 import org.monogram.core.models.PeerId
 import org.monogram.mtproto.MtprotoNative
+import org.monogram.network.bridge.ClientInitInfo
+import org.monogram.network.bridge.DurableUpdateSink
+import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.MtprotoUpdate
+import org.monogram.network.bridge.ProxyConfig
 import uniffi.monogram_mtproto.MtprotoException
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class SessionCore(
     internal val credentials: TelegramCredentials,
@@ -37,6 +44,7 @@ internal class SessionCore(
     internal val nativeDispatcher: CoroutineDispatcher,
     internal val refreshDcSidecar: (String) -> Unit,
     internal val clock: MonotonicClock = NanoTimeClock,
+    internal val initConnection: ClientInitInfo? = null,
 ) : SessionOps {
     @Volatile
     internal var handle: Long = 0L
@@ -44,14 +52,23 @@ internal class SessionCore(
     /** Native bootstrap (including TXT config) is valid for this handle. */
     @Volatile
     internal var connectedHandle: Long = 0L
+
+    @Volatile
+    private var proxyState: ProxyConnectionStatus = ProxyConnectionStatus.Disabled
+
     @Volatile
     private var updatesStartedHandle: Long = 0L
     private val updatesStartMutex = Mutex()
     internal val connectMutex = Mutex()
     private val inflightMutex = Mutex()
-    private val inflight = HashMap<String, Deferred<*>>()
+
+    private class SharedRead(val deferred: Deferred<*>, var consumers: Int = 0)
+
+    private val inflight = HashMap<String, SharedRead>()
+
     @Volatile
     internal var sessionDead: Boolean = false
+
     @Volatile
     internal var closed: Boolean = false
     internal fun isAuthFallback(fallback: String): Boolean =
@@ -69,11 +86,17 @@ internal class SessionCore(
     /** Set by [hibernate] while requests are in flight; applied on the last completion. */
     @Volatile
     internal var hibernatePending = false
+
     @Volatile
     internal var dialogForeground: Boolean = false
     internal val scope = CoroutineScope(SupervisorJob() + nativeDispatcher)
     internal val sessionLostFlow = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     internal val localUpdates = MutableSharedFlow<MtprotoUpdate>(extraBufferCapacity = 8)
+
+    @Volatile
+    internal var durableSink: DurableUpdateSink? = null
+
+    internal val replayPending = AtomicBoolean(true)
 
     /** Wakes the update loop when a handle is created, reconnected, or closed. */
     internal val updatesWake = Channel<Unit>(capacity = Channel.CONFLATED)
@@ -188,7 +211,10 @@ internal class SessionCore(
     internal suspend fun <T> rpc(fallback: String, block: suspend (Long) -> T): Outcome<T> =
         rpc(fallback, DispatchClass.INTERACTIVE_READ, block)
 
-    internal suspend fun <T> rpcBackground(fallback: String, block: suspend (Long) -> T): Outcome<T> =
+    internal suspend fun <T> rpcBackground(
+        fallback: String,
+        block: suspend (Long) -> T
+    ): Outcome<T> =
         rpc(fallback, DispatchClass.BACKGROUND_READ, block)
 
     internal suspend fun <T> rpcWrite(fallback: String, block: suspend (Long) -> T): Outcome<T> =
@@ -196,17 +222,28 @@ internal class SessionCore(
 
     /** One native call per key while identical reads overlap. */
     internal suspend fun <T> coalesce(key: String, block: suspend () -> T): T {
-        val deferred = inflightMutex.withLock {
-            @Suppress("UNCHECKED_CAST")
-            (inflight[key] as Deferred<T>?) ?: scope.async {
-                try {
-                    block()
-                } finally {
-                    inflightMutex.withLock { inflight.remove(key) }
-                }
-            }.also { inflight[key] = it }
+        val shared = inflightMutex.withLock {
+            val current = inflight[key]
+            val entry = current?.takeUnless { it.deferred.isCompleted }
+                ?: SharedRead(scope.async(start = CoroutineStart.LAZY) { block() })
+                    .also { inflight[key] = it }
+            entry.consumers++
+            entry
         }
-        return deferred.await()
+        try {
+            @Suppress("UNCHECKED_CAST")
+            return (shared.deferred as Deferred<T>).await()
+        } finally {
+            withContext(NonCancellable) {
+                inflightMutex.withLock {
+                    shared.consumers--
+                    if (shared.consumers == 0) {
+                        if (inflight[key] === shared) inflight.remove(key)
+                        if (!shared.deferred.isCompleted) shared.deferred.cancel()
+                    }
+                }
+            }
+        }
     }
 
     internal suspend fun <T> rpc(
@@ -258,6 +295,16 @@ internal class SessionCore(
     internal fun ensureHandleLocked() {
         check(!closed) { "MTProto client is closed" }
         if (handle == 0L) {
+            initConnection?.let { info ->
+                native.setInitConnectionInfo(
+                    deviceModel = info.deviceModel,
+                    systemVersion = info.systemVersion,
+                    appVersion = info.appVersion,
+                    systemLangCode = info.systemLangCode,
+                    langPack = info.langPack,
+                    langCode = info.langCode,
+                )
+            }
             handle = native.createClient(
                 apiId = credentials.apiId,
                 apiHash = credentials.apiHash,
@@ -283,6 +330,11 @@ internal class SessionCore(
                 try {
                     if (native.isAuthorized(activeHandle)) {
                         native.startUpdates(activeHandle)
+                        native.updateLazySyncConfig(
+                            activeHandle,
+                            lazy = true,
+                            exceptions = emptyList()
+                        )
                         if (isCurrentHandle(activeHandle)) updatesStartedHandle = activeHandle
                         PerfLog.trace("updates", "start", handle = activeHandle)
                         updatesWake.trySend(Unit)
@@ -302,6 +354,11 @@ internal class SessionCore(
             native.setTestDc(activeHandle, enabled)
         }
 
+    override suspend fun usesTestDc(): Outcome<Boolean> =
+        rpc("usesTestDc failed") { activeHandle ->
+            native.usesTestDc(activeHandle)
+        }
+
     override suspend fun connect(): Outcome<Unit> {
         if (sessionDead) return deadSessionError()
         val already = if (closed) 0L else handle
@@ -317,6 +374,7 @@ internal class SessionCore(
                 return Outcome.Ok(Unit)
             }
             AppLog.api("connect", "start handle=$locked")
+            if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connecting
             val connected = rpc("connect failed") { activeHandle ->
                 refreshDcSidecar(sessionPath)
                 try {
@@ -324,13 +382,17 @@ internal class SessionCore(
                     if (isCurrentHandle(activeHandle)) connectedHandle = activeHandle
                 } catch (e: Exception) {
                     connectedHandle = 0L
+                    if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Failed
                     throw e
                 } finally {
                     DcTxtBootstrap.logNativeStatus(sessionPath)
                 }
                 activeHandle
             }
-            if (connected is Outcome.Ok) maybeStartUpdates(connected.value)
+            if (connected is Outcome.Ok) {
+                if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connected
+                maybeStartUpdates(connected.value)
+            }
             return when (connected) {
                 is Outcome.Ok -> Outcome.Ok(Unit)
                 is Outcome.Err -> connected
@@ -367,7 +429,10 @@ internal class SessionCore(
             )
         }
         if (result is Outcome.Ok) {
-            AppLog.api("auth.sendCode", "ok type=${result.value.codeType} length=${result.value.codeLength}")
+            AppLog.api(
+                "auth.sendCode",
+                "ok type=${result.value.codeType} length=${result.value.codeLength}"
+            )
         }
         return result
     }
@@ -387,7 +452,10 @@ internal class SessionCore(
             )
         }
         if (result is Outcome.Ok) {
-            AppLog.api("auth.resendCode", "ok type=${result.value.codeType} length=${result.value.codeLength}")
+            AppLog.api(
+                "auth.resendCode",
+                "ok type=${result.value.codeType} length=${result.value.codeLength}"
+            )
         }
         return result
     }
@@ -550,6 +618,83 @@ internal class SessionCore(
         resetHandle()
     }
 
+    override fun configureProxy(config: ProxyConfig): Outcome<Unit> {
+        when (val valid = config.validate()) {
+            is Outcome.Err -> return valid
+            is Outcome.Ok -> Unit
+        }
+        return try {
+            if (config.type == org.monogram.network.bridge.ProxyType.NONE) {
+                native.clearProxy()
+                proxyState = ProxyConnectionStatus.Disabled
+            } else {
+                native.setProxy(
+                    config.type.name.lowercase(),
+                    config.host,
+                    config.port,
+                    config.username,
+                    config.password,
+                    config.secret.copyOf()
+                )
+                proxyState = ProxyConnectionStatus.Disconnected
+            }
+            resetHandle()
+            Outcome.Ok(Unit)
+        } catch (error: Throwable) {
+            Outcome.Err(error.message ?: "proxy configuration failed", error)
+        }
+    }
+
+    override fun setTransportMode(mode: MtprotoTransportMode): Outcome<Unit> = try {
+        native.setTransportMode(
+            when (mode) {
+                MtprotoTransportMode.PADDED_INTERMEDIATE -> "padded_intermediate"
+                MtprotoTransportMode.HTTP -> "http"
+            },
+        )
+        resetHandle()
+        Outcome.Ok(Unit)
+    } catch (error: Throwable) {
+        Outcome.Err(error.message ?: "transport mode configuration failed", error)
+    }
+
+    override suspend fun pingProxy(config: ProxyConfig): Outcome<Long> {
+        when (val valid = config.validate()) {
+            is Outcome.Err -> return valid
+            is Outcome.Ok -> Unit
+        }
+        if (config.type == org.monogram.network.bridge.ProxyType.NONE) {
+            return Outcome.Err("proxy is disabled")
+        }
+        return withContext(nativeDispatcher) {
+            try {
+                Outcome.Ok(
+                    native.pingProxy(
+                        config.type.name.lowercase(),
+                        config.host,
+                        config.port,
+                        config.username,
+                        config.password,
+                        config.secret.copyOf(),
+                    ),
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                Outcome.Err(error.message ?: "proxy ping failed", error)
+            }
+        }
+    }
+
+    override fun clearProxy(): Outcome<Unit> = try {
+        native.clearProxy()
+        proxyState = ProxyConnectionStatus.Disabled
+        resetHandle()
+        Outcome.Ok(Unit)
+    } catch (error: Throwable) {
+        Outcome.Err(error.message ?: "proxy configuration failed", error)
+    }
+
     override fun close() {
         synchronized(handleLock) {
             if (closed) return
@@ -565,8 +710,14 @@ internal class SessionCore(
             handle.also { handle = 0L }
         }
         connectedHandle = 0L
+        if (proxyState == ProxyConnectionStatus.Connected) proxyState =
+            ProxyConnectionStatus.Disconnected
         if (updatesStartedHandle == oldHandle) updatesStartedHandle = 0L
         if (oldHandle != 0L) native.destroyClient(oldHandle)
         updatesWake.trySend(Unit)
     }
+
+    override fun proxyConnectionStatus(): ProxyConnectionStatus = proxyState
+
+    private fun nativeProxyConfigured(): Boolean = proxyState != ProxyConnectionStatus.Disabled
 }

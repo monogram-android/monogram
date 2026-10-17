@@ -23,6 +23,23 @@ interface PeerDao {
     @Query("UPDATE peers SET emojiStatusDocumentId = :documentId WHERE id = :id")
     suspend fun updateEmojiStatus(id: Long, documentId: Long?)
 
+    @Query(
+        """
+        SELECT id FROM peers
+        WHERE id NOT IN (SELECT id FROM chats)
+        AND id NOT IN (SELECT senderId FROM messages WHERE senderId IS NOT NULL)
+        AND id NOT IN (SELECT peerId FROM profile_tabs)
+        AND id NOT IN (SELECT peerId FROM profile_members)
+        AND id NOT IN (SELECT peerId FROM profile_media)
+        AND id NOT IN (SELECT peerId FROM profile_common)
+        LIMIT :limit
+        """,
+    )
+    suspend fun unreferencedIds(limit: Int): List<Long>
+
+    @Query("DELETE FROM peers WHERE id IN (:ids)")
+    suspend fun deleteIds(ids: List<Long>)
+
     @Query("DELETE FROM peers")
     suspend fun clear()
 }

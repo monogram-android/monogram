@@ -52,9 +52,7 @@ fun mediaViewerColorScheme(): ColorScheme {
             surfaceVariant = MediaViewerTokens.ChromeHighest,
             outline = MediaViewerTokens.Outline,
             outlineVariant = MediaViewerTokens.Outline,
-            primaryContainer = MediaViewerTokens.PaleChrome,
-            onPrimaryContainer = MediaViewerTokens.OnPaleChrome,
-            // Dark chrome whatever the app theme is, so un-paled tonal parts stay dark too.
+            // Dark chrome regardless of the app theme; accent containers retain the app palette.
             secondary = MediaViewerTokens.OnChromeVariant,
             onSecondary = MediaViewerTokens.Chrome,
             secondaryContainer = MediaViewerTokens.ChromeHighest,

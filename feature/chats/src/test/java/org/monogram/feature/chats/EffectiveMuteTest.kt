@@ -33,6 +33,19 @@ class EffectiveMuteTest {
     }
 
     @Test
+    fun inheritedMutedChannelUsesTheBroadcastDefault() {
+        val defaults = NotifyDefaults(broadcasts = mutedForever)
+        val channel = Chat(
+            PeerId(-100), "News", isChannel = true, muted = false, muteOverride = false,
+        )
+
+        val rows = withEffectiveMutes(listOf(channel), defaults, defaultsLoaded = true)
+
+        assertTrue(rows.single().muted)
+        assertFalse(rows.single().muteOverride)
+    }
+
+    @Test
     fun ownSettingWinsOverThePeerTypeDefault() {
         val defaults = NotifyDefaults(users = mutedForever)
         val chat = Chat(PeerId(7), "Ada", muted = false, muteOverride = true)

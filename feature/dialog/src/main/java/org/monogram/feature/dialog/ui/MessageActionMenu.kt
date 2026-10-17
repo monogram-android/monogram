@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Forward
 import androidx.compose.material.icons.automirrored.outlined.Reply
-import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -25,8 +24,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.monogram.core.models.Message
 import org.monogram.core.ui.menu.AppMenuDefaults
-import org.monogram.core.ui.menu.AppMenuGrowth
 import org.monogram.core.ui.menu.AppMenuGroup
+import org.monogram.core.ui.menu.AppMenuGrowth
 import org.monogram.core.ui.menu.AppMenuItem
 import org.monogram.core.ui.menu.AppMenuMotion
 import org.monogram.core.ui.menu.AppMenuSurface
@@ -39,7 +38,6 @@ data class MessageMenuActions(
     val canDelete: Boolean,
     val canForward: Boolean,
     val forwardRestricted: Boolean,
-    val canSelectForForwarding: Boolean = canForward,
 )
 
 @Composable
@@ -50,8 +48,6 @@ fun MessageActionMenu(
     onDismiss: () -> Unit,
     onReply: (Message) -> Unit,
     onCopy: (Message) -> Unit,
-    onSelectText: (Message) -> Unit = {},
-    onSelectForForwarding: (Message) -> Unit = {},
     onEdit: (Message) -> Unit,
     onDelete: (Message) -> Unit,
     onForward: (Message) -> Unit,
@@ -123,16 +119,6 @@ fun MessageActionMenu(
                             },
                         )
                     }
-                    if (actions.canSelectForForwarding) {
-                        AppMenuItem(
-                            text = stringResource(R.string.dialog_select_message),
-                            icon = Icons.Outlined.Checklist,
-                            onClick = {
-                                onSelectForForwarding(target)
-                                onDismiss()
-                            },
-                        )
-                    }
                 }
                 if (actions.canCopy || actions.canEdit) {
                     AppMenuGroup {
@@ -142,14 +128,6 @@ fun MessageActionMenu(
                                 icon = Icons.Outlined.ContentCopy,
                                 onClick = {
                                     onCopy(target)
-                                    onDismiss()
-                                },
-                            )
-                            AppMenuItem(
-                                text = stringResource(R.string.dialog_select_text),
-                                icon = Icons.Outlined.Checklist,
-                                onClick = {
-                                    onSelectText(target)
                                     onDismiss()
                                 },
                             )

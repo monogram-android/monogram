@@ -1,5 +1,8 @@
 package org.monogram.feature.dialog.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,8 +10,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,14 +23,20 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.monogram.core.models.InstantViewBlock
 import org.monogram.core.models.InstantViewCaption
 import org.monogram.core.models.InstantViewRichText
@@ -47,15 +58,49 @@ internal fun InstantViewMediaGroup(
 ) {
     if (block.kind == "slideshow" && block.items.isNotEmpty()) {
         val pager = rememberPagerState(pageCount = { block.items.size })
-        Column {
-            HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth()) { page ->
-                InstantViewBlockContent(block.items[page], scale, query, mediaRepository, onOpenUrl, onOpenPeer)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            HorizontalPager(
+                state = pager,
+                modifier = Modifier.fillMaxWidth(),
+                pageSpacing = 12.dp,
+            ) { page ->
+                InstantViewBlockContent(
+                    block = block.items[page],
+                    scale = scale,
+                    query = query,
+                    mediaRepository = mediaRepository,
+                    onOpenUrl = onOpenUrl,
+                    onOpenPeer = onOpenPeer,
+                )
             }
-            Text(
-                text = "${pager.currentPage + 1} / ${block.items.size}",
-                modifier = Modifier.padding(top = 8.dp).align(Alignment.CenterHorizontally),
-                style = MaterialTheme.typography.labelMedium,
-            )
+            if (block.items.size > 1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    repeat(block.items.size) { index ->
+                        val active = pager.currentPage == index
+                        val width by animateFloatAsState(
+                            targetValue = if (active) 18f else 6f,
+                            label = "ivSlideDot",
+                        )
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 3.dp)
+                                .size(width = width.dp, height = 6.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (active) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                                    },
+                                ),
+                        )
+                    }
+                }
+            }
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -63,7 +108,14 @@ internal fun InstantViewMediaGroup(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { item ->
                         Box(Modifier.weight(1f)) {
-                            InstantViewBlockContent(item, scale, query, mediaRepository, onOpenUrl, onOpenPeer)
+                            InstantViewBlockContent(
+                                block = item,
+                                scale = scale,
+                                query = query,
+                                mediaRepository = mediaRepository,
+                                onOpenUrl = onOpenUrl,
+                                onOpenPeer = onOpenPeer,
+                            )
                         }
                     }
                     if (row.size == 1) Spacer(Modifier.weight(1f))
@@ -77,20 +129,25 @@ internal fun InstantViewMediaGroup(
 @Composable
 internal fun InstantViewMath(source: String, scale: Float) {
     val color = MaterialTheme.colorScheme.onSurface
-    val density = androidx.compose.ui.platform.LocalDensity.current
+    val density = LocalDensity.current
     val textSize = with(density) { (16 * scale).sp.toPx() }
-    val maxWidth = density.run { 280.dp.roundToPx() }
-    val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, source, textSize, color) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+    val maxWidth = with(density) { IvSpacing.ReadableWidth.roundToPx() }
+    val bitmap by produceState<ImageBitmap?>(null, source, textSize, color, maxWidth) {
+        value = withContext(Dispatchers.Default) {
             renderLatexBitmap(source, true, color.toArgb(), textSize, maxWidth)
         }
     }
-    if (bitmap != null) {
-        androidx.compose.foundation.Image(bitmap!!, contentDescription = source, modifier = Modifier.fillMaxWidth())
+    val rendered = bitmap
+    if (rendered != null) {
+        Image(
+            bitmap = rendered,
+            contentDescription = source,
+            modifier = Modifier.fillMaxWidth(),
+        )
     } else {
         Text(
             text = source,
-            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontSize = (14 * scale).sp),
+            style = ivTextStyle("pre", 0, scale),
         )
     }
 }
@@ -105,19 +162,27 @@ internal fun InstantViewCover(
     onOpenPeer: (PeerId) -> Unit,
 ) {
     when (inner) {
-        is InstantViewBlock.Photo -> InstantViewPhoto(
-            cacheKey = inner.cacheKey,
-            width = inner.width,
-            height = inner.height,
-            mediaRepository = mediaRepository,
-            hero = true,
-            openable = true,
+        is InstantViewBlock.Photo -> {
+            InstantViewPhoto(
+                cacheKey = inner.cacheKey,
+                width = inner.width,
+                height = inner.height,
+                mediaRepository = mediaRepository,
+                hero = true,
+                openable = true,
+            )
+            inner.caption?.let { InstantViewCaption(it, scale, query, onOpenUrl) }
+        }
+
+        is InstantViewBlock.Document -> InstantViewDocument(
+            inner,
+            scale,
+            query,
+            mediaRepository,
+            onOpenUrl
         )
-        is InstantViewBlock.Document -> InstantViewDocument(inner, scale, query, mediaRepository, onOpenUrl)
+
         else -> InstantViewBlockContent(inner, scale, query, mediaRepository, onOpenUrl, onOpenPeer)
-    }
-    if (inner is InstantViewBlock.Photo) {
-        inner.caption?.let { InstantViewCaption(it, scale, query, onOpenUrl) }
     }
 }
 
@@ -128,16 +193,20 @@ internal fun InstantViewCaption(
     query: String,
     onOpenUrl: (String) -> Unit,
 ) {
-    if (caption.text.isNotBlank()) {
-        InstantViewText(
-            caption.text,
-            caption.entities,
-            MaterialTheme.typography.bodySmall.copy(fontSize = (13 * scale).sp),
-            query,
-            onOpenUrl,
-        )
+    if (caption.text.isBlank() && caption.credit == null) return
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (caption.text.isNotBlank()) {
+            InstantViewText(
+                text = caption.text,
+                entities = caption.entities,
+                style = ivCaptionStyle(scale),
+                query = query,
+                onOpenUrl = onOpenUrl,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        caption.credit?.let { InstantViewRich(it, scale, query, onOpenUrl) }
     }
-    caption.credit?.let { InstantViewRich(it, scale, query, onOpenUrl) }
 }
 
 @Composable
@@ -148,11 +217,12 @@ internal fun InstantViewRich(
     onOpenUrl: (String) -> Unit,
 ) {
     InstantViewText(
-        rich.text,
-        rich.entities,
-        MaterialTheme.typography.bodySmall.copy(fontSize = (13 * scale).sp),
-        query,
-        onOpenUrl,
+        text = rich.text,
+        entities = rich.entities,
+        style = ivCreditStyle(scale),
+        query = query,
+        onOpenUrl = onOpenUrl,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
@@ -160,13 +230,18 @@ internal fun InstantViewRich(
 internal fun InstantViewText(
     text: String,
     entities: List<TextEntity>,
-    style: androidx.compose.ui.text.TextStyle,
+    style: TextStyle,
     query: String,
     onOpenUrl: (String) -> Unit,
+    color: Color? = null,
+    softWrap: Boolean = true,
+    overflow: TextOverflow = TextOverflow.Clip,
 ) {
     if (text.isBlank()) return
     val linkColor = MaterialTheme.colorScheme.primary
-    val annotated = remember(text, entities, query, linkColor, onOpenUrl) {
+    val highlight = ivSearchHighlight()
+    val resolved = if (color != null) style.copy(color = color) else style
+    val annotated = remember(text, entities, query, linkColor, highlight, resolved, onOpenUrl) {
         buildAnnotatedString {
             append(text)
             applyMessageEntities(text, entities, linkColor, onLink = onOpenUrl)
@@ -176,18 +251,22 @@ internal fun InstantViewText(
                 while (from < text.length) {
                     val at = text.indexOf(needle, from, ignoreCase = true)
                     if (at < 0) break
-                    addStyle(SpanStyle(background = Color.Yellow.copy(alpha = 0.45f)), at, at + needle.length)
+                    addStyle(SpanStyle(background = highlight), at, at + needle.length)
                     from = at + needle.length
                 }
             }
         }
     }
     SelectionContainer {
-        Text(text = annotated, style = style)
+        Text(
+            text = annotated,
+            style = resolved,
+            softWrap = softWrap,
+            overflow = overflow,
+        )
     }
 }
 
-/** Full-screen viewer for article photos and page media. */
 @Composable
 internal fun InstantViewMediaViewer(
     cacheKey: String,
@@ -216,15 +295,29 @@ internal fun blockSearchText(block: InstantViewBlock): String = when (block) {
     is InstantViewBlock.Quote -> block.text + block.blocks.joinToString { blockSearchText(it) }
     is InstantViewBlock.ListBlock -> block.items.joinToString { it.text }
     is InstantViewBlock.Table -> block.rows.joinToString { row -> row.joinToString { it.text } }
-    is InstantViewBlock.Details -> (block.title?.text.orEmpty()) + block.blocks.joinToString { blockSearchText(it) }
+    is InstantViewBlock.Details -> (block.title?.text.orEmpty()) + block.blocks.joinToString {
+        blockSearchText(
+            it
+        )
+    }
+
     is InstantViewBlock.Related -> block.articles.joinToString { it.title.orEmpty() + it.description.orEmpty() }
     is InstantViewBlock.Math -> block.source
     is InstantViewBlock.EmbedPost -> block.author + block.blocks.joinToString { blockSearchText(it) }
     is InstantViewBlock.Cover -> blockSearchText(block.block)
     is InstantViewBlock.MediaGroup -> block.items.joinToString { blockSearchText(it) }
-    is InstantViewBlock.Document -> listOfNotNull(block.title, block.fileName, block.performer, block.caption?.text).joinToString()
+    is InstantViewBlock.Document -> listOfNotNull(
+        block.title,
+        block.fileName,
+        block.performer,
+        block.caption?.text
+    )
+        .joinToString()
+
     is InstantViewBlock.Photo -> block.caption?.text.orEmpty()
     is InstantViewBlock.Channel -> listOfNotNull(block.title, block.username).joinToString()
     is InstantViewBlock.Map -> block.caption?.text.orEmpty()
-    else -> ""
+    is InstantViewBlock.Embed -> block.caption?.text.orEmpty()
+    is InstantViewBlock.Buttons -> block.items.joinToString { it.text }
+    is InstantViewBlock.Anchor, InstantViewBlock.Divider, InstantViewBlock.Unsupported -> ""
 }

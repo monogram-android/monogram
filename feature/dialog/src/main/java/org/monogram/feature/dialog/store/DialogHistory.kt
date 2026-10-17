@@ -1,10 +1,7 @@
 package org.monogram.feature.dialog.store
 
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -12,70 +9,21 @@ import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.telegram.TelegramError
-import org.monogram.core.models.Chat
-import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.ForumIo
-import org.monogram.core.models.ForumTopic
-import org.monogram.core.models.InlineBotResult
-import org.monogram.core.models.InlineBotResults
 import org.monogram.core.models.Message
-import org.monogram.core.models.MessageId
-import org.monogram.core.models.MessageViewers
-import org.monogram.core.models.OutboxReadState
-import org.monogram.core.models.PeerId
-import org.monogram.core.models.Profile
-import org.monogram.core.models.ReactionChoice
-import org.monogram.core.models.ReadReceiptConfig
-import org.monogram.core.models.ReplyButton
-import org.monogram.core.models.ReplyButtonType
-import org.monogram.core.models.ReplyMarkups
-import org.monogram.core.models.SavedGif
-import org.monogram.core.models.StickerPack
-import org.monogram.core.models.StyledText
-import org.monogram.core.models.TextEntities
-import org.monogram.core.models.TextEntity
-import org.monogram.core.models.TypingPresence
-import org.monogram.core.models.UploadItem
-import org.monogram.core.models.canShowMessageViewers
-import org.monogram.core.models.canShowOutboxReadDate
-import org.monogram.core.models.geoPlace
-import org.monogram.core.models.isPlaceholderPeerTitle
-import org.monogram.core.models.peerAvatarCacheKey
-import org.monogram.core.models.playedMediaKind
-import org.monogram.core.models.preferredPeerTitle
-import org.monogram.feature.dialog.ComposerAt
-import org.monogram.feature.dialog.ComposerAtToken
-import org.monogram.feature.dialog.ComposerPanels
-import org.monogram.feature.dialog.DialogStore
-import org.monogram.feature.dialog.DraftMention
-import org.monogram.feature.dialog.InlineBotQuery
-import org.monogram.feature.dialog.MentionCandidate
-import org.monogram.feature.dialog.PinnedBarMemory
-import org.monogram.feature.dialog.parsePinnedIds
-import org.monogram.feature.dialog.pinnedMetaKey
-import org.monogram.feature.dialog.SEARCH_DEBOUNCE_MS
-import org.monogram.feature.dialog.SavedGifMemory
-import org.monogram.feature.dialog.SenderTagMemory
-import org.monogram.feature.dialog.StickerCatalogMemory
-import org.monogram.feature.dialog.StickerPackMemory
 import org.monogram.feature.dialog.HISTORY_PAGE_LIMIT
-import org.monogram.feature.dialog.applyMessageEdit
+import org.monogram.feature.dialog.SEARCH_DEBOUNCE_MS
+import org.monogram.feature.dialog.atHistoryOldest
 import org.monogram.feature.dialog.contiguousOlderCache
 import org.monogram.feature.dialog.dateJumpCacheWindow
-import org.monogram.feature.dialog.mergeLiveEdgeMessages
-import org.monogram.feature.dialog.paintHistoryWindow
-import org.monogram.feature.dialog.atHistoryOldest
 import org.monogram.feature.dialog.historyHasMore
-import org.monogram.feature.dialog.historyPagingAllowed
-import org.monogram.feature.dialog.isTransientSendFailure
 import org.monogram.feature.dialog.jumpNeedsFetch
+import org.monogram.feature.dialog.mergeLiveEdgeMessages
 import org.monogram.feature.dialog.nextPinnedIndex
+import org.monogram.feature.dialog.paintHistoryWindow
+import org.monogram.feature.dialog.parsePinnedIds
+import org.monogram.feature.dialog.pinnedMetaKey
 import org.monogram.feature.dialog.unreadAnchorId
-import org.monogram.feature.dialog.localMediaCacheKey
-import org.monogram.feature.dialog.mergeSenderTags
-import org.monogram.feature.dialog.parseUpdateMessageId
-import org.monogram.network.bridge.MtprotoClient
-import org.monogram.network.bridge.MtprotoUpdate
 import kotlin.time.Duration.Companion.milliseconds
 
 internal suspend fun DialogExecutor.hydrateSenderTags() {
@@ -107,12 +55,14 @@ internal suspend fun DialogExecutor.hydratePinned() {
     if (messages.isEmpty()) return
     AppLog.api("dialog", "pinned cache chat=${chatId.value} count=${messages.size}")
     emit(Msg.Pinned(messages))
+    rememberPinned()
 }
 
 internal fun DialogExecutor.loadPinned() {
     if (pinnedRequested) return
     if (snapshot().pinnedMessages.isNotEmpty()) {
         pinnedRequested = true
+        rememberPinned()
         return
     }
     pinnedRequested = true
@@ -185,7 +135,25 @@ internal fun DialogExecutor.jumpToMessageId(messageId: Int, atTop: Boolean = fal
     emit(Msg.LoadingOlder(false))
     emit(Msg.LoadingNewer(false))
     emit(Msg.Loading(true))
-    work.launch {
+    historyJob?.cancel()
+    historyJob = work.launch(PerfLog.OpTrace()) {
+        if (ForumIo.historyThreadId(threadTopMsgId) <= 0) {
+            val around = warmup?.historySlice(
+                chatId,
+                beforeId = messageId + 1,
+                limit = HISTORY_PAGE_LIMIT,
+            )
+            if (gen == historyGen && around != null && around.rows.isNotEmpty()) {
+                serverHistoryBoundaryId = around.rows.minOf { it.id.id }
+                emit(Msg.Messages(around.rows, fromCache = true, replace = true))
+                emit(Msg.Anchor(messageId, atTop = atTop))
+                emit(Msg.HasOlder(!around.confirmedStart))
+                if (around.covered) {
+                    emit(Msg.Loading(false))
+                    return@launch
+                }
+            }
+        }
         when (
             val result = topicOrHistoryPage(
                 offsetId = messageId,
@@ -207,7 +175,7 @@ internal fun DialogExecutor.jumpToMessageId(messageId: Int, atTop: Boolean = fal
                 // Anchor belongs to the committed jump window; publish it before any
                 // suspending enrichment so an obsolete jump cannot overwrite a newer one.
                 emit(Msg.Anchor(messageId, atTop = atTop))
-                resolveSenders(result.value)
+                resolveSendersLater(result.value)
                 warmup?.upsertMessages(result.value)
                 sessionStore?.upsertPeerMins(result.value)
             }
@@ -347,7 +315,8 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
     val gen = historyGen
     val requestId = ++olderRequestId
     activeOlderRequestId = requestId
-    work.launch {
+    olderJob?.cancel()
+    olderJob = work.launch(PerfLog.OpTrace()) {
         fun ownsRequest() = gen == historyGen && activeOlderRequestId == requestId
         if (!ownsRequest()) return@launch
         val historyTop = ForumIo.historyThreadId(threadTopMsgId)
@@ -356,6 +325,25 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
             return@launch
         }
         if (!ownsRequest()) return@launch
+        if (historyTop <= 0) {
+            val slice =
+                warmup?.historySlice(chatId, beforeId = boundaryId, limit = HISTORY_PAGE_LIMIT)
+            if (!ownsRequest()) return@launch
+            if (slice != null && slice.rows.isNotEmpty()) {
+                emit(Msg.AppendOlder(slice.rows))
+                serverHistoryBoundaryId = slice.rows.minOf { it.id.id }
+                resolveSendersLater(slice.rows)
+            }
+            if (slice != null && slice.covered &&
+                (slice.rows.size == HISTORY_PAGE_LIMIT || slice.confirmedStart)
+            ) {
+                emit(Msg.HasOlder(!slice.confirmedStart))
+                emit(Msg.LoadingOlder(false))
+                activeOlderRequestId = null
+                continueUnreadPaging()
+                return@launch
+            }
+        }
         when (
             val result = if (historyTop > 0) {
                 client.getReplies(
@@ -392,15 +380,21 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
                 activeOlderRequestId = null
                 if (warmup?.usesIoDispatcher == true || sessionStore != null) {
                     withContext(Dispatchers.IO) {
-                        warmup?.upsertMessages(result.value)
+                        if (historyTop <= 0) warmup?.cacheHistoryPage(
+                            chatId, result.value, olderBoundary = boundaryId,
+                            reachesOldest = !historyHasMore(result.value.size),
+                        ) else warmup?.upsertMessages(result.value)
                         sessionStore?.upsertPeerMins(result.value)
                     }
                 } else {
-                    warmup?.upsertMessages(result.value)
+                    if (historyTop <= 0) warmup?.cacheHistoryPage(
+                        chatId, result.value, olderBoundary = boundaryId,
+                        reachesOldest = !historyHasMore(result.value.size),
+                    ) else warmup?.upsertMessages(result.value)
                     sessionStore?.upsertPeerMins(result.value)
                 }
                 continueUnreadPaging()
-                resolveSenders(result.value)
+                resolveSendersLater(result.value)
             }
             is Outcome.Err -> if (ownsRequest()) {
                 // A failed page is not an end-of-history signal. Preserve the cursor and
@@ -492,10 +486,27 @@ internal fun DialogExecutor.loadNewer() {
     val requestId = ++newerRequestId
     activeNewerRequestId = requestId
     emit(Msg.LoadingNewer(true))
-    work.launch {
+    newerJob?.cancel()
+    newerJob = work.launch(PerfLog.OpTrace()) {
         fun ownsRequest() = gen == historyGen && activeNewerRequestId == requestId
         try {
             if (!ownsRequest()) return@launch
+            val newerSlice = if (ForumIo.historyThreadId(threadTopMsgId) <= 0) {
+                warmup?.historySlice(chatId, afterId = newest.id.id, limit = HISTORY_PAGE_LIMIT)
+            } else {
+                null
+            }
+            if (newerSlice != null && newerSlice.rows.isNotEmpty()) {
+                emit(Msg.Prepend(newerSlice.rows))
+            }
+            if (newerSlice != null && newerSlice.covered &&
+                (newerSlice.rows.size == HISTORY_PAGE_LIMIT || newerSlice.confirmedEnd)
+            ) {
+                emit(Msg.HasNewer(!newerSlice.confirmedEnd))
+                emit(Msg.LoadingNewer(false))
+                activeNewerRequestId = null
+                return@launch
+            }
             when (
                 val result = topicOrHistoryPage(
                     offsetId = newest.id.id,
@@ -510,7 +521,7 @@ internal fun DialogExecutor.loadNewer() {
                     activeNewerRequestId = null
                     warmup?.upsertMessages(result.value)
                     sessionStore?.upsertPeerMins(result.value)
-                    resolveSenders(result.value)
+                    resolveSendersLater(result.value)
                 }
                 is Outcome.Err -> if (ownsRequest()) {
                     // A transient newer-page failure is retryable; it is not proof that the
@@ -545,7 +556,8 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
     emit(Msg.LoadingOlder(false))
     emit(Msg.LoadingNewer(false))
     emit(Msg.Loading(true))
-    work.launch {
+    historyJob?.cancel()
+    historyJob = work.launch(PerfLog.OpTrace()) {
         val historyTop = ForumIo.historyThreadId(threadTopMsgId)
         if (historyTop <= 0) {
             val cached = warmup?.let { cache ->
@@ -560,9 +572,18 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
             val paint = dateJumpCacheWindow(cached, epochSeconds)
             if (paint.isNotEmpty() && gen == historyGen) {
                 emit(Msg.Messages(paint, fromCache = true, replace = true))
+                val slice = warmup?.historySlice(
+                    chatId,
+                    beforeId = paint.maxOf { it.id.id } + 1,
+                    limit = HISTORY_PAGE_LIMIT,
+                )
+                if (slice?.covered == true) {
+                    serverHistoryBoundaryId = paint.minOf { it.id.id }
+                    emit(Msg.HasOlder(!slice.confirmedStart))
+                    emit(Msg.Loading(false))
+                    return@launch
+                }
                 emit(Msg.HasOlder(true))
-                // Keep loading until the server jump page sets serverHistoryBoundaryId.
-                // Clearing it here lets LoadOlder use a cache min as offset_id.
             }
         }
         when (
@@ -577,7 +598,7 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
                 emit(Msg.HasOlder(minId != null && !atHistoryOldest(minId)))
                 warmup?.upsertMessages(result.value)
                 sessionStore?.upsertPeerMins(result.value)
-                resolveSenders(result.value)
+                resolveSendersLater(result.value)
             }
             is Outcome.Err -> if (gen == historyGen) handleError(result.telegramError, false)
         }
@@ -636,7 +657,7 @@ internal fun DialogExecutor.search(query: String) {
                             searchHit = true,
                         ),
                     )
-                    resolveSenders(result.value)
+                    resolveSendersLater(result.value)
                 }
                 is Outcome.Err -> handleError(result.telegramError, true)
             }

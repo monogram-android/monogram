@@ -53,11 +53,28 @@ internal object MediaShareActions {
         true
     }.getOrDefault(false)
 
+    fun shareMultiple(context: Context, files: List<File>, mime: String): Boolean = runCatching {
+        val uris = ArrayList(files.map { contentUri(context, it) })
+        val send = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+            type = mime
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            clipData = android.content.ClipData.newRawUri("media", uris.first()).apply {
+                uris.drop(1).forEach { addItem(android.content.ClipData.Item(it)) }
+            }
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(send, null).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (context !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        })
+    }.isSuccess
+
     fun copyToClipboard(context: Context, file: File, mime: String): Boolean =
         org.monogram.core.ui.copyMediaToClipboard(context, file, mime)
 
     suspend fun saveToGallery(context: Context, file: File, mime: String, displayName: String): Uri? =
         withContext(Dispatchers.IO) {
+            keepExplicitCopy(context, file, displayName)
             runCatching {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     saveViaMediaStore(context, file, mime, displayName)
@@ -66,6 +83,41 @@ internal object MediaShareActions {
                 }
             }.getOrNull()
         }
+
+    suspend fun saveToDocument(context: Context, file: File, destination: Uri): Boolean =
+        withContext(Dispatchers.IO) {
+            keepExplicitCopy(context, file, file.name)
+            try {
+                context.contentResolver.openOutputStream(destination, "wt")?.use { output ->
+                    file.inputStream().use { input -> input.copyTo(output) }
+                } != null
+            } catch (_: java.io.IOException) {
+                false
+            } catch (_: SecurityException) {
+                false
+            } catch (_: IllegalArgumentException) {
+                false
+            }
+        }
+
+    fun createDocumentIntent(mime: String, displayName: String): Intent =
+        Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = mime
+            putExtra(Intent.EXTRA_TITLE, shareFileName(displayName))
+        }
+
+    /** A copy outside the evictable media cache. Cache clear does not remove it. */
+    private fun keepExplicitCopy(context: Context, file: File, displayName: String) {
+        if (!file.isFile) return
+        val dir = File(context.filesDir, "downloads").apply { mkdirs() }
+        val safe = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "file" }
+        runCatching {
+            file.inputStream().use { input ->
+                File(dir, safe).outputStream().use { output -> input.copyTo(output) }
+            }
+        }
+    }
 
     private fun saveViaMediaStore(context: Context, file: File, mime: String, displayName: String): Uri? {
         val isVideo = mime.startsWith("video/")

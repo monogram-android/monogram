@@ -75,7 +75,7 @@ internal class NotifyApi(private val core: SessionCore) : NotifyOps {
                 activeHandle,
                 peerKind,
                 chatId.value,
-                settings.showPreviews,
+                settings.showPreviews.takeUnless { settings.previewInherited },
                 settings.silent,
                 settings.muteUntil,
                 settings.storiesMuted,

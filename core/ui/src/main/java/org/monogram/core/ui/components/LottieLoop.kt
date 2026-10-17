@@ -55,6 +55,10 @@ fun LottieLoop(
         val outH = max(1, (height * scale).roundToInt())
         var frameIndex = 0
         while (isActive) {
+            if (MediaScrollGate.isScrolling()) {
+                delay(32)
+                continue
+            }
             val bmp = withContext(Dispatchers.Default) {
                 val rgba = runCatching {
                     LottieNative.renderFrame(handle, frameIndex.toFloat(), outW, outH)

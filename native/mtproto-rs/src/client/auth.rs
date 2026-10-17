@@ -3,7 +3,7 @@
 
 use tellers_mtproto_session::{OsRandom, Snapshot};
 
-use crate::auth_rpc;
+use crate::auth::auth_rpc;
 use crate::session_file::FileSessionStore;
 use crate::{AuthCodeSent, AuthSignedIn, MtprotoError};
 
@@ -53,7 +53,9 @@ pub fn connect(handle: u64) -> Result<(), MtprotoError> {
         }
         recover_imported_user(state)?;
         Ok(())
-    })
+    })?;
+    crate::auth::bind_temp::prepare_extra_main_sessions(handle);
+    Ok(())
 }
 
 fn recover_imported_user(state: &mut ClientState) -> Result<(), MtprotoError> {
@@ -109,6 +111,7 @@ pub(crate) fn apply_test_dc(
     crate::rpc::drop_live_transport();
     crate::rpc::set_use_test_dc(want_test);
     state.test_dc = want_test;
+    state.dc_auth_keys.clear();
     state.snapshot =
         Snapshot::new(want_dc, &mut OsRandom).map_err(|e| MtprotoError::Message(e.to_string()))?;
     state.session_dead = false;
@@ -137,7 +140,16 @@ pub fn send_auth_code(handle: u64, phone: String) -> Result<AuthCodeSent, Mtprot
     let sent = with_client_mut(handle, |state| {
         apply_test_dc_for_phone(state, &phone)?;
         if state.session_dead {
-            recreate_mtproto_session(state)?;
+            // account.* before sign-in returns AUTH_KEY_UNREGISTERED. The key is
+            // still the one auth.sendCode must use; replacing it drops the login.
+            let unregistered = state.user_id.is_none()
+                && state.session_dead_reason.as_deref() == Some("AUTH_KEY_UNREGISTERED");
+            if unregistered {
+                state.session_dead = false;
+                state.session_dead_reason = None;
+            } else {
+                recreate_mtproto_session(state)?;
+            }
         }
         let attempt = |state: &mut ClientState| {
             call_with_migrate(state, |state| {
@@ -162,7 +174,7 @@ pub fn send_auth_code(handle: u64, phone: String) -> Result<AuthCodeSent, Mtprot
                 ensure_ready(state)?;
                 attempt(state)?
             }
-            Err(err) if is_auth_restart(&err) || crate::auth_rpc::is_srp_id_invalid(&err) => {
+            Err(err) if is_auth_restart(&err) || crate::auth::auth_rpc::is_srp_id_invalid(&err) => {
                 // Stale 2FA/auth-key leftover from a previous attempt.
                 recreate_mtproto_session(state)?;
                 ensure_ready(state)?;
@@ -280,9 +292,11 @@ pub fn logout(handle: u64) -> Result<(), MtprotoError> {
         state.channel_pts.clear();
         state.channel_recovery.clear();
         state.seen_messages.clear();
+        std::sync::Arc::make_mut(&mut state.journal).reset_account();
         state.updates_started = false;
         state.session_dead = false;
         state.new_session = None;
+        state.dc_auth_keys.clear();
         state.snapshot =
             Snapshot::new(dc, &mut OsRandom).map_err(|e| MtprotoError::Message(e.to_string()))?;
         if state.logout_tokens.is_empty() {
@@ -295,6 +309,9 @@ pub fn logout(handle: u64) -> Result<(), MtprotoError> {
 
         remote.map(|_| ())
     });
+    if let Ok(client) = get_client(handle) {
+        client.data.lock().dc_temp_auth.clear();
+    }
     drop_all_transports(handle);
     result
 }

@@ -49,6 +49,15 @@ class NotificationBatchTest {
     }
 
     @Test
+    fun readAndDeleteRemoveOnlyAffectedMessages() {
+        val batch = listOf(message(2, "a"), message(5, "b"), message(9, "c"))
+        assertEquals(listOf(9), NotificationBatch.retain(batch, dropIds = setOf(2, 5)).map { it.messageId })
+        assertEquals(listOf(9), NotificationBatch.retain(batch, upTo = historyReadUpTo(4, 5)).map { it.messageId })
+        assertEquals(9, historyReadUpTo(messageId = 4, maxId = 9))
+        assertEquals(emptyList<Int>(), NotificationBatch.retain(batch, upTo = historyReadUpTo(0, 0)).map { it.messageId })
+    }
+
+    @Test
     fun hiddenCountGrowsWithPushesAndKeepsQuietRepaints() {
         assertEquals(1, NotificationBatch.countHidden(previousCount = 0, isNewPush = true))
         assertEquals(4, NotificationBatch.countHidden(previousCount = 3, isNewPush = true))

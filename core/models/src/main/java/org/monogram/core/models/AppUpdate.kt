@@ -31,6 +31,7 @@ sealed interface AppUpdateState {
     data object UpToDate : AppUpdateState
     data class Downloading(val info: AppUpdateInfo, val bytes: Long) : AppUpdateState
     data class ReadyToInstall(val info: AppUpdateInfo, val filePath: String) : AppUpdateState
+    data class Installing(val info: AppUpdateInfo, val filePath: String) : AppUpdateState
     data class Error(val message: String, val info: AppUpdateInfo? = null) : AppUpdateState
 }
 
@@ -238,4 +239,68 @@ object AppUpdate {
         }
         return AppUpdateState.UpToDate
     }
+
+    const val INSTALL_FAILED = "install_failed"
+    const val INSTALL_STATUS_SUCCESS = 0
+    const val INSTALL_STATUS_PENDING_USER_ACTION = -1
+    const val INSTALL_STATUS_FAILURE_ABORTED = 3
+
+    enum class InstallStatusKind {
+        Success,
+        PendingUserAction,
+        Cancelled,
+        Failed,
+    }
+
+    fun installRequiresUserAction(selfInstaller: Boolean): Boolean = !selfInstaller
+
+    fun installStatusKind(status: Int): InstallStatusKind = when (status) {
+        INSTALL_STATUS_SUCCESS -> InstallStatusKind.Success
+        INSTALL_STATUS_PENDING_USER_ACTION -> InstallStatusKind.PendingUserAction
+        INSTALL_STATUS_FAILURE_ABORTED -> InstallStatusKind.Cancelled
+        else -> InstallStatusKind.Failed
+    }
+
+    fun shouldOpenInstallConfirm(kind: InstallStatusKind): Boolean =
+        kind == InstallStatusKind.PendingUserAction
+
+    fun beginInstall(state: AppUpdateState): AppUpdateState {
+        val ready = state as? AppUpdateState.ReadyToInstall ?: return state
+        return AppUpdateState.Installing(ready.info, ready.filePath)
+    }
+
+    fun afterInstallStatus(
+        installing: AppUpdateState.Installing,
+        kind: InstallStatusKind,
+        confirmShown: Boolean = true,
+    ): AppUpdateState = when (kind) {
+        InstallStatusKind.Success -> AppUpdateState.UpToDate
+        InstallStatusKind.PendingUserAction ->
+            if (confirmShown) {
+                installing
+            } else {
+                AppUpdateState.Error(INSTALL_FAILED, installing.info)
+            }
+        InstallStatusKind.Cancelled ->
+            AppUpdateState.ReadyToInstall(installing.info, installing.filePath)
+        InstallStatusKind.Failed -> AppUpdateState.Error(INSTALL_FAILED, installing.info)
+    }
+
+    enum class InstallLaunch {
+        Session,
+        ExternalHandoff,
+        Failed,
+    }
+
+    fun stateAfterInstallLaunch(
+        installing: AppUpdateState.Installing,
+        launch: InstallLaunch,
+    ): AppUpdateState = when (launch) {
+        InstallLaunch.Session,
+        InstallLaunch.ExternalHandoff -> installing
+        InstallLaunch.Failed -> AppUpdateState.Error(INSTALL_FAILED, installing.info)
+    }
+
+    fun afterExternalHandoffEnded(installing: AppUpdateState.Installing): AppUpdateState =
+        AppUpdateState.ReadyToInstall(installing.info, installing.filePath)
 }

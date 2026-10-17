@@ -38,14 +38,14 @@ class MediaRepositoryPriorityTest {
             maxConcurrentTelegram = 1,
         )
         val blocker = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(1), "photo:1", MediaPriority.IDLE)
+            repo.ensureIndexedMedia(PeerId(1), 0, "photo:1", priority = MediaPriority.IDLE)
         }
         blockerStarted.await()
         val idle = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(2), "photo:2", MediaPriority.IDLE)
+            repo.ensureIndexedMedia(PeerId(2), 0, "photo:2", priority = MediaPriority.IDLE)
         }
         val visible = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(3), "photo:3", MediaPriority.VISIBLE)
+            repo.ensureIndexedMedia(PeerId(3), 0, "photo:3", priority = MediaPriority.VISIBLE)
         }
         delay(80)
         assertEquals(listOf(1L), order.toList())
@@ -76,11 +76,11 @@ class MediaRepositoryPriorityTest {
             maxConcurrentTelegram = 1,
         )
         val full = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(1), "photo:1", MediaPriority.DEFAULT)
+            repo.ensureIndexedMedia(PeerId(1), 0, "photo:1", priority = MediaPriority.DEFAULT)
         }
         blockerStarted.await()
         val display = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(2), "photo:2", MediaPriority.DISPLAY)
+            repo.ensureIndexedMedia(PeerId(2), 0, "photo:2", priority = MediaPriority.DISPLAY)
         }
         delay(80)
         assertEquals(listOf(1L), started.toList())
@@ -110,11 +110,11 @@ class MediaRepositoryPriorityTest {
             maxConcurrentTelegram = 1,
         )
         val first = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(1), "photo:1", MediaPriority.DEFAULT)
+            repo.ensureIndexedMedia(PeerId(1), 0, "photo:1", priority = MediaPriority.DEFAULT)
         }
         firstStarted.await()
         val second = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(2), "photo:2", MediaPriority.DISPLAY)
+            repo.ensureIndexedMedia(PeerId(2), 0, "photo:2", priority = MediaPriority.DISPLAY)
         }
         delay(40)
         repo.cancelRunning("photo:2")
@@ -143,7 +143,7 @@ class MediaRepositoryPriorityTest {
             maxConcurrentTelegram = 1,
         )
         val download = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(1), "doc:user", MediaPriority.USER)
+            repo.ensureIndexedMedia(PeerId(1), 0, "doc:user", priority = MediaPriority.USER)
         }
         started.await()
         assertEquals(true, repo.isUserDownload("doc:user"))
@@ -175,15 +175,15 @@ class MediaRepositoryPriorityTest {
             maxConcurrentTelegram = 1,
         )
         val blocker = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(1), "photo:1", MediaPriority.DEFAULT)
+            repo.ensureIndexedMedia(PeerId(1), 0, "photo:1", priority = MediaPriority.DEFAULT)
         }
         blockerStarted.await()
         val first = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(2), "photo:2", MediaPriority.DEFAULT)
+            repo.ensureIndexedMedia(PeerId(2), 0, "photo:2", priority = MediaPriority.DEFAULT)
         }
         delay(40)
         val second = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(3), "photo:3", MediaPriority.DEFAULT)
+            repo.ensureIndexedMedia(PeerId(3), 0, "photo:3", priority = MediaPriority.DEFAULT)
         }
         delay(40)
         release.complete(Unit)
@@ -213,19 +213,19 @@ class MediaRepositoryPriorityTest {
             maxConcurrentTelegram = 1,
         )
         val blocker = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(1), "photo:1", MediaPriority.IDLE)
+            repo.ensureIndexedMedia(PeerId(1), 0, "photo:1", priority = MediaPriority.IDLE)
         }
         blockerStarted.await()
         val idleTarget = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(2), "photo:2", MediaPriority.IDLE)
+            repo.ensureIndexedMedia(PeerId(2), 0, "photo:2", priority = MediaPriority.IDLE)
         }
         delay(40)
         val idleOther = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(3), "photo:3", MediaPriority.IDLE)
+            repo.ensureIndexedMedia(PeerId(3), 0, "photo:3", priority = MediaPriority.IDLE)
         }
         delay(40)
         val bumped = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(2), "photo:2", MediaPriority.VISIBLE)
+            repo.ensureIndexedMedia(PeerId(2), 0, "photo:2", priority = MediaPriority.VISIBLE)
         }
         delay(80)
         assertEquals(listOf(1L), order.toList())
@@ -259,14 +259,14 @@ class MediaRepositoryPriorityTest {
             maxConcurrentTelegram = 1,
         )
         val blocker = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(1), "photo:1", MediaPriority.IDLE)
+            repo.ensureIndexedMedia(PeerId(1), 0, "photo:1", priority = MediaPriority.IDLE)
         }
         blockerStarted.await()
         val visible = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(2), "photo:2", MediaPriority.VISIBLE)
+            repo.ensureIndexedMedia(PeerId(2), 0, "photo:2", priority = MediaPriority.VISIBLE)
         }
         val idle = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(3), "photo:3", MediaPriority.IDLE)
+            repo.ensureIndexedMedia(PeerId(3), 0, "photo:3", priority = MediaPriority.IDLE)
         }
         delay(80)
         assertEquals(listOf(1L), started.toList())
@@ -295,7 +295,7 @@ class MediaRepositoryPriorityTest {
             maxConcurrentTelegram = 1,
         )
         val job = async(Dispatchers.IO) {
-            repo.ensureLocalAvatar(PeerId(1), "photo:1", MediaPriority.USER)
+            repo.ensureIndexedMedia(PeerId(1), 0, "photo:1", priority = MediaPriority.USER)
         }
         started.await()
         delay(30)

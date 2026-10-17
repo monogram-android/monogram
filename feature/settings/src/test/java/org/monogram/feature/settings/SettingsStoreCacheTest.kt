@@ -26,6 +26,7 @@ import org.monogram.core.models.Profile
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.UpdatesCursor
+import org.monogram.network.http.FileCache
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsStoreCacheTest {
@@ -48,13 +49,11 @@ class SettingsStoreCacheTest {
                 Chat(id = PeerId(7), title = "Docs", photoCacheKey = "photo:7"),
             ),
         )
-        assertEquals(listOf(3L, 7L, 9L), rows.map { it.chatId })
+        assertEquals(listOf(3L, 7L), rows.map { it.chatId })
         assertEquals("Photos", rows[0].title)
         assertEquals("avatar:3:video", rows[0].photoCacheKey)
         assertEquals("Docs", rows[1].title)
         assertEquals("photo:7", rows[1].photoCacheKey)
-        assertEquals("9", rows[2].title)
-        assertNull(rows[2].photoCacheKey)
     }
 
     @Test
@@ -92,6 +91,34 @@ class SettingsStoreCacheTest {
         }
     }
 
+    @Test
+    fun clearKindsDeletesOnlyTheConfirmedSelection() {
+        val cleared = mutableListOf<String>()
+        val store = SettingsStoreFactory(
+            DefaultStoreFactory(),
+            StubClient(),
+            sessionStore = null,
+            warmup = null,
+            mediaRepository = null,
+            appVersion = "test",
+            buildStamp = "test",
+            pushRegistration = null,
+            clearKindCache = { kind ->
+                cleared += kind
+                1L
+            },
+        ).create()
+        try {
+            val opened = setOf(FileCache.KIND_PHOTOS, FileCache.KIND_FILES)
+            assertTrue(kindsToClear(opened, confirmed = false).isEmpty())
+            assertTrue(cleared.isEmpty())
+            store.accept(SettingsStore.Intent.ClearKinds(setOf(FileCache.KIND_FILES)))
+            assertEquals(listOf(FileCache.KIND_FILES), cleared)
+        } finally {
+            store.dispose()
+        }
+    }
+
     private class StubClient : MtprotoClient {
         override suspend fun connect() = Outcome.Ok(Unit)
         override suspend fun sendAuthCode(phone: String) = unused<AuthState.AwaitingCode>()
@@ -119,6 +146,7 @@ class SettingsStoreCacheTest {
             entitiesJson: String?,
             topMsgId: Int,
             webpageUrl: String?,
+            randomId: Long,
         ) = unused<Message>()
         override suspend fun sendPhoto(
             chatId: PeerId,

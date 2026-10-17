@@ -4,62 +4,79 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.app.RemoteInput
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.LocusIdCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.drawable.toBitmap
+import org.monogram.BubbleActivity
 import org.monogram.MainActivity
 import org.monogram.R
 import org.monogram.core.common.push.BadgeSettings
-import org.monogram.core.common.push.NotificationAlertThrottle
 import org.monogram.core.common.push.NotificationBadgePlan
 import org.monogram.core.common.push.NotificationBatch
 import org.monogram.core.common.push.NotificationConversation
 import org.monogram.core.common.push.NotificationDecision
+import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.NotificationMessage
 import org.monogram.core.common.push.PeerNotificationMode
-import org.monogram.core.common.push.PushChannelKind
 import org.monogram.core.common.push.PushPayload
+import org.monogram.core.common.push.callNotice
+import org.monogram.core.common.push.conversationStyle
+import org.monogram.core.common.push.evictedShareChatIds
+import org.monogram.core.common.push.mayPostNotifications
 import org.monogram.core.common.push.notificationHttpUrl
+import org.monogram.core.common.push.rankedShareChatIds
+import org.monogram.core.common.push.shadeText
+import org.monogram.core.common.push.bubbleFromShortcut
+import org.monogram.core.common.push.shouldAttachBubble
+import org.monogram.core.common.push.shouldAutoExpandBubble
+import org.monogram.core.common.push.shouldRetryPostWithoutBubble
 import java.io.File
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.toBitmap
 
 object NotificationPresenter {
     const val ACTION_OPEN_CHAT = "org.monogram.push.OPEN_CHAT"
     const val ACTION_REPLY = "org.monogram.push.REPLY"
     const val ACTION_MARK_READ = "org.monogram.push.MARK_READ"
+    const val ACTION_MUTE = "org.monogram.push.MUTE"
+    const val ACTION_OPEN_NOTIFICATIONS = "org.monogram.push.OPEN_NOTIFICATIONS"
 
     /** Fired when the user clears a chat notification from the shade. */
     const val ACTION_DISMISS = "org.monogram.push.DISMISS"
     const val EXTRA_CHAT_ID = "chat_id"
-    const val EXTRA_MESSAGE_ID = "message_id"
+    const val EXTRA_MESSAGE_ID = "monogram_message_id"
+    const val EXTRA_MAX_ID = "max_id"
     const val KEY_TEXT_REPLY = "push_reply_text"
 
     /** Every chat notification joins this group so a burst collapses into one stack in the shade. */
-    const val GROUP_KEY = "org.monogram.push.messages"
+    const val GROUP_KEY = NotificationConversation.GROUP_KEY
 
     /** Chat ids keep the sign bit clear, so the group summary can never collide with a chat id. */
     private const val SUMMARY_ID = Int.MIN_VALUE
 
     private const val MAX_SUMMARY_LINES = 5
     private const val EXTRA_BATCH_MESSAGE_ID = "org.monogram.push.batch_msg_id"
+    private const val EXTRA_BATCH_TOPIC_ID = "org.monogram.push.batch_topic_id"
 
     private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
+    private const val BUBBLE_HEIGHT_DP = 600
 
     /** Accent Android tints the small icon and app name with, matching the launcher mark. */
     private const val NOTIFICATION_COLOR = 0xFF3E6F87.toInt()
@@ -82,13 +99,21 @@ object NotificationPresenter {
         pictureFile: File? = null,
     ) {
         if (!decision.show) return
+        if (!mayPostNotifications(
+                Build.VERSION.SDK_INT,
+                ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED,
+            )
+        ) {
+            return
+        }
         val chatId = payload.chatId ?: 0L
         val id = notificationIdFor(payload)
         val active = activeBatch(context, id)
         // A quiet repaint only refreshes a notification that is still in the shade.
         if (quiet && active == null) return
         val title = if (decision.preview) payload.title else context.getString(R.string.push_hidden_title)
-        val body = if (decision.preview) payload.body else context.getString(R.string.push_hidden_body)
+        val body = shadeText(decision.preview, payload.body, context.getString(R.string.push_hidden_body))
         val channel = NotificationChannels.channelFor(
             context = context,
             kind = decision.channelKind,
@@ -101,23 +126,42 @@ object NotificationPresenter {
         )
         val avatarBitmap = avatarBitmap(avatarFile)
         val avatar = avatarBitmap?.let { IconCompat.createWithBitmap(it) }
-        val person = senderPerson(title, chatId, avatar)
-        val shortcutId = if (chatId != 0L) "chat:$chatId" else "loc:${payload.locKey}"
-        runCatching {
-            val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
-                .setShortLabel(title.take(30).ifBlank { context.getString(R.string.app_name) })
-                // Telegram labels the conversation with the full chat name and a locus id
-                // (NotificationsController:3610-3628) so the system can rank the conversation.
-                .setLongLabel(title)
-                .setLocusId(LocusIdCompat(shortcutId))
-                .setLongLived(true)
-                .setPerson(person)
-                .setIcon(avatar ?: IconCompat.createWithResource(context, R.mipmap.ic_launcher))
-                .setIntent(openChatIntent(context, chatId, payload.messageId ?: 0))
-                .build()
-            ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
+        val now = System.currentTimeMillis()
+        val style = conversationStyle(payload, quiet, lastAlertAt[id] ?: 0L, now)
+        val call = callNotice(payload.locKey, canAnswer = false, fullScreenAllowed = false)
+        val person = senderPerson(
+            style.personName.ifBlank { title },
+            style.personKey ?: NotificationConversation.peerPersonKey(chatId),
+            avatar,
+        )
+        val shortcutId = style.shortcutId
+        val demoted = shortcutId != null && isConversationDemoted(context, shortcutId)
+        val bubbleIcon = if (shouldAttachBubble(
+                enabled = NotificationLocalStore(context).bubblesEnabled,
+                conversation = shortcutId != null,
+                demoted = demoted,
+            )
+        ) {
+            bubbleIcon(context, chatId, avatarBitmap)
+        } else {
+            null
         }
-        val incoming = NotificationMessage(payload.messageId ?: 0, body, System.currentTimeMillis())
+        val shortcutPublished = shortcutId != null && !demoted && publishConversationShortcut(
+            context = context,
+            shortcutId = shortcutId,
+            chatId = chatId,
+            label = style.shortcutLabel ?: title,
+            locusId = style.locusId ?: shortcutId,
+            person = person,
+            icon = bubbleIcon ?: avatar ?: IconCompat.createWithResource(context, R.mipmap.ic_launcher),
+            messageId = payload.messageId ?: 0,
+            bubble = bubbleIcon != null,
+        )
+        val incoming = NotificationMessage(
+            payload.messageId ?: 0, body, System.currentTimeMillis(),
+            outgoing = payload.scheduled, senderName = style.messageSenderName,
+            senderKey = style.messagePersonKey, topicId = payload.topicId
+        )
         val previous = active?.messages.orEmpty().filter { it.messageId != HIDDEN_MESSAGE_ID }
         val batch = if (quiet) {
             previous.ifEmpty { listOf(incoming) }
@@ -134,19 +178,22 @@ object NotificationPresenter {
                     messageId = HIDDEN_MESSAGE_ID,
                     text = context.resources.getQuantityString(R.plurals.push_new_messages, total, total),
                     timestamp = active?.messages?.lastOrNull()?.timestamp ?: incoming.timestamp,
+                    topicId = payload.topicId,
                 ),
             )
         } else {
             batch
         }
-        val now = System.currentTimeMillis()
-        val throttled = !NotificationAlertThrottle.shouldAlert(lastAlertAt[id] ?: 0L, now)
         val uri = pictureUri(context, pictureFile)
-        // Full-width picture for a single media message (what Telegram shows in the shade) while a
-        // batch keeps the conversation style and carries the image inside its newest message.
-        val bigPicture = if (uri != null && shown.size == 1) pictureFile?.let { decodePicture(it) } else null
-        val silent = quiet || payload.silent || (!decision.sound && mode?.sound != false) || throttled
-        if (!silent) lastAlertAt[id] = now
+        val bigPicture = if (!style.messagingStyle && uri != null && shown.size == 1) {
+            pictureFile?.let { decodePicture(it) }
+        } else {
+            null
+        }
+        val silent = !style.countsAsNewAlert || payload.silent || (!decision.sound && mode?.sound != false)
+        if (style.countsAsNewAlert && !payload.silent && (decision.sound || mode?.sound == false)) {
+            lastAlertAt[id] = now
+        }
         val builder = builderFor(
             context = context,
             id = id,
@@ -164,13 +211,39 @@ object NotificationPresenter {
             largeIcon = avatarBitmap?.let { Icon.createWithBitmap(it) },
             pictureUri = if (bigPicture == null) uri else null,
             pictureBitmap = bigPicture,
-            isConversation = decision.channelKind != PushChannelKind.Private,
+            conversationTitle = style.conversationTitle,
+            messageSenderName = style.messageSenderName,
+            allowReply = style.reply,
             silent = silent,
+            onlyAlertOnce = style.onlyAlertOnce || silent,
+            maxId = payload.maxId ?: 0,
+            category = if (call.categoryCall) {
+                NotificationCompat.CATEGORY_CALL
+            } else if (call.call) {
+                NotificationCompat.CATEGORY_MISSED_CALL
+            } else {
+                NotificationCompat.CATEGORY_MESSAGE
+            },
+            stayUntilOpened = call.staysUntilOpened,
         )
-        val posted = runCatching {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        val bubbleShortcut = shortcutId?.takeIf {
+            bubbleFromShortcut(Build.VERSION.SDK_INT, it) && shortcutPublished && bubbleIcon != null
+        }
+        if (bubbleShortcut != null) {
+            builder.setBubbleMetadata(
+                shortcutBubble(
+                    bubbleShortcut,
+                    suppressNotification = false,
+                    expand = shouldAutoExpandBubble(true),
+                ),
+            )
+        }
+        var posted = runCatching {
+            NotificationManagerCompat.from(context).notify(id, builder.build())
+        }
+        if (shouldRetryPostWithoutBubble(bubbleShortcut != null, posted.isFailure)) {
+            builder.setBubbleMetadata(null)
+            posted = runCatching {
                 NotificationManagerCompat.from(context).notify(id, builder.build())
             }
         }
@@ -206,11 +279,36 @@ object NotificationPresenter {
 
     fun removeShortcut(context: Context, chatId: Long) {
         if (chatId == 0L) return
-        val id = "chat:$chatId"
+        removeShareShortcuts(context, listOf(chatId))
+    }
+
+    private fun rememberShareChat(context: Context, chatId: Long): Int {
+        val local = NotificationLocalStore(context)
+        val maxCount = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context)
+        val previous = local.shareChatIds
+        val next = rankedShareChatIds(previous, chatId, maxCount)
+        removeShareShortcuts(context, evictedShareChatIds(previous, next))
+        if (next != previous) local.shareChatIds = next
+        return next.indexOf(chatId).coerceAtLeast(0)
+    }
+
+    private fun removeShareShortcuts(context: Context, chatIds: List<Long>) {
+        val ids = chatIds.filter { it != 0L }.map { "chat:$it" }
+        if (ids.isEmpty()) return
         runCatching {
-            ShortcutManagerCompat.removeDynamicShortcuts(context, listOf(id))
-            if (Build.VERSION.SDK_INT >= 30) ShortcutManagerCompat.removeLongLivedShortcuts(context, listOf(id))
+            ShortcutManagerCompat.removeDynamicShortcuts(context, ids)
+            if (Build.VERSION.SDK_INT >= 30) ShortcutManagerCompat.removeLongLivedShortcuts(context, ids)
         }
+    }
+
+    /** A demoted conversation stays cached and is no longer dynamic. Do not push it back. */
+    private fun isConversationDemoted(context: Context, shortcutId: String): Boolean {
+        if (Build.VERSION.SDK_INT < 30) return false
+        val cached = runCatching {
+            ShortcutManagerCompat.getShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_CACHED)
+        }.getOrDefault(emptyList())
+        val match = cached.firstOrNull { it.id == shortcutId } ?: return false
+        return match.isCached && !match.isDynamic
     }
 
     /**
@@ -220,6 +318,10 @@ object NotificationPresenter {
     fun clear(context: Context) {
         runCatching { NotificationManagerCompat.from(context).cancelAll() }
         runCatching {
+            if (Build.VERSION.SDK_INT >= 30) {
+                val ids = ShortcutManagerCompat.getDynamicShortcuts(context).map { it.id }
+                if (ids.isNotEmpty()) ShortcutManagerCompat.removeLongLivedShortcuts(context, ids)
+            }
             ShortcutManagerCompat.removeAllDynamicShortcuts(context)
             lastAlertAt.clear()
         }
@@ -228,6 +330,31 @@ object NotificationPresenter {
     fun cancel(context: Context, chatId: Long, badge: BadgeSettings = BadgeSettings()) {
         NotificationManagerCompat.from(context).cancel(notificationId(chatId))
         refreshSummary(context, badge)
+    }
+
+    fun suppressVisibleBubble(context: Context, chatId: Long, bubblesEnabled: Boolean): Boolean {
+        if (!bubblesEnabled || Build.VERSION.SDK_INT < 30) return false
+        val id = notificationId(chatId)
+        val active = NotificationManagerCompat.from(context).activeNotifications
+            .firstOrNull { it.id == id } ?: return false
+        val post = active.notification
+        if (post.flags and Notification.FLAG_BUBBLE == 0) return false
+        val metadata = post.bubbleMetadata ?: return false
+        val shortcutId = metadata.shortcutId ?: return false
+        if (metadata.isNotificationSuppressed && !metadata.autoExpandBubble) return true
+        return runCatching {
+            val builder = Notification.Builder.recoverBuilder(context, post)
+                .setOnlyAlertOnce(true)
+                .setNumber(0)
+                .setBubbleMetadata(
+                    Notification.BubbleMetadata.Builder(shortcutId)
+                        .setDesiredHeight(BUBBLE_HEIGHT_DP)
+                        .setSuppressNotification(true)
+                        .setAutoExpandBubble(false)
+                        .build(),
+                )
+            NotificationManagerCompat.from(context).notify(id, builder.build())
+        }.isSuccess
     }
 
     /**
@@ -246,7 +373,7 @@ object NotificationPresenter {
             runCatching { candidate.loadDrawable(context)?.toBitmap() }.getOrNull()
                 ?.let { IconCompat.createWithBitmap(it) }
         }
-        val person = senderPerson(title, chatId, iconCompat)
+        val person = senderPerson(title, NotificationConversation.peerPersonKey(chatId), iconCompat)
         val builder = builderFor(
             context = context,
             id = id,
@@ -261,9 +388,15 @@ object NotificationPresenter {
             largeIcon = icon,
             pictureUri = null,
             pictureBitmap = null,
-            isConversation = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(post)
-                ?.conversationTitle != null,
+            conversationTitle = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(post)
+                ?.conversationTitle?.toString(),
+            messageSenderName = null,
+            allowReply = chatId != 0L,
             silent = false,
+            onlyAlertOnce = false,
+            maxId = 0,
+            category = NotificationCompat.CATEGORY_MESSAGE,
+            stayUntilOpened = false,
         )
         if (!(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) ==
@@ -294,24 +427,45 @@ object NotificationPresenter {
         largeIcon: Icon?,
         pictureUri: Uri?,
         pictureBitmap: Bitmap?,
-        isConversation: Boolean,
+        conversationTitle: String?,
+        messageSenderName: String?,
+        allowReply: Boolean,
         silent: Boolean,
+        onlyAlertOnce: Boolean,
+        maxId: Int,
+        category: String,
+        stayUntilOpened: Boolean,
     ): NotificationCompat.Builder {
         val last = messages.last()
         val messageId = last.messageId.takeIf { it > 0 } ?: 0
         val self = selfPerson(context)
         val style = NotificationCompat.MessagingStyle(self)
         messages.forEachIndexed { index, message ->
-            val author = if (message.outgoing) self else person
+            val senderName = message.senderName
+            val author = when {
+                message.outgoing -> self
+                senderName != null -> senderPerson(
+                    senderName,
+                    message.senderKey ?: NotificationConversation.senderPersonKey(senderName),
+                    null,
+                )
+                messageSenderName != null -> senderPerson(
+                    messageSenderName,
+                    person.key ?: NotificationConversation.peerPersonKey(chatId),
+                    null,
+                )
+                else -> person
+            }
             val entry = NotificationCompat.MessagingStyle.Message(message.text, message.timestamp, author)
             if (message.messageId != 0) entry.extras.putInt(EXTRA_BATCH_MESSAGE_ID, message.messageId)
+            message.topicId?.let { entry.extras.putInt(EXTRA_BATCH_TOPIC_ID, it) }
             // Attach the picture to the newest message so the shade renders it inside the
             // conversation instead of replacing MessagingStyle (Telegram serves it the same way,
             // through its NotificationImageProvider).
             if (pictureUri != null && index == messages.lastIndex) entry.setData("image/*", pictureUri)
             style.addMessage(entry)
         }
-        if (isConversation) style.setConversationTitle(title)
+        conversationTitle?.let { style.setConversationTitle(it) }
         val pictureStyle = pictureBitmap?.let {
             NotificationCompat.BigPictureStyle().bigPicture(it).setSummaryText(last.text)
         }
@@ -328,22 +482,25 @@ object NotificationPresenter {
                     setSubText(context.resources.getQuantityString(R.plurals.push_new_messages, count, count))
                 }
             }
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setCategory(category)
             .setGroup(GROUP_KEY)
             .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
-            .setAutoCancel(true)
-            .setOnlyAlertOnce(silent)
+            .setAutoCancel(!stayUntilOpened)
+            .setOnlyAlertOnce(onlyAlertOnce)
             .setContentIntent(pendingActivity(context, id, openChatIntent(context, chatId, messageId)))
             .setPriority(
                 if (silent) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_HIGH,
             )
         if (shortcutId != null) builder.setShortcutId(shortcutId)
+        builder.addPerson(person)
         if (largeIcon != null) builder.setLargeIcon(largeIcon)
         builder.setDeleteIntent(dismissIntent(context, id))
-        if (chatId != 0L) {
+        if (allowReply && chatId != 0L) {
             openLinkAction(context, id, last.text)?.let { builder.addAction(it) }
-            builder.addAction(replyAction(context, id, chatId, messageId))
-                .addAction(markReadAction(context, id, chatId, messageId))
+            builder.addAction(replyAction(context, id, chatId, messageId, maxId))
+                .addAction(markReadAction(context, id, chatId, messageId, maxId))
+                .addAction(muteAction(context, id, chatId))
+                .addAction(notificationSettingsAction(context, id))
         }
         if (silent) builder.setSilent(true)
         return builder
@@ -368,6 +525,9 @@ object NotificationPresenter {
                 text = text,
                 timestamp = message.timestamp,
                 outgoing = NotificationConversation.isOutgoing(message.person?.key, userKey),
+                senderName = message.person?.name?.toString(),
+                senderKey = message.person?.key,
+                topicId = message.extras.getInt(EXTRA_BATCH_TOPIC_ID, 0).takeIf { it > 0 },
             )
         }
     }
@@ -378,10 +538,10 @@ object NotificationPresenter {
             .setKey(NotificationConversation.SELF_PERSON_KEY)
             .build()
 
-    private fun senderPerson(title: String, chatId: Long, avatar: IconCompat?): Person =
+    private fun senderPerson(name: String, key: String, avatar: IconCompat?): Person =
         Person.Builder()
-            .setName(title)
-            .setKey(NotificationConversation.peerPersonKey(chatId))
+            .setName(name)
+            .setKey(key)
             .apply { if (avatar != null) setIcon(avatar) }
             .build()
 
@@ -462,6 +622,7 @@ object NotificationPresenter {
         id: Int,
         chatId: Long,
         messageId: Int,
+        maxId: Int,
     ): NotificationCompat.Action {
         val remote = RemoteInput.Builder(KEY_TEXT_REPLY)
             .setLabel(context.getString(R.string.push_reply_hint))
@@ -470,6 +631,7 @@ object NotificationPresenter {
             .setAction(ACTION_REPLY)
             .putExtra(EXTRA_CHAT_ID, chatId)
             .putExtra(EXTRA_MESSAGE_ID, messageId)
+            .putExtra(EXTRA_MAX_ID, maxId)
         val pending = PendingIntent.getBroadcast(
             context,
             id xor 1,
@@ -493,11 +655,13 @@ object NotificationPresenter {
         id: Int,
         chatId: Long,
         messageId: Int,
+        maxId: Int,
     ): NotificationCompat.Action {
         val intent = Intent(context, NotificationActionReceiver::class.java)
             .setAction(ACTION_MARK_READ)
             .putExtra(EXTRA_CHAT_ID, chatId)
             .putExtra(EXTRA_MESSAGE_ID, messageId)
+            .putExtra(EXTRA_MAX_ID, maxId)
         val pending = PendingIntent.getBroadcast(
             context,
             id xor 2,
@@ -513,6 +677,214 @@ object NotificationPresenter {
             .setShowsUserInterface(false)
             .build()
     }
+
+    private fun muteAction(context: Context, id: Int, chatId: Long): NotificationCompat.Action {
+        val intent = Intent(context, NotificationActionReceiver::class.java)
+            .setAction(ACTION_MUTE)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+        val pending = PendingIntent.getBroadcast(
+            context,
+            id xor 8,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or immutableFlags(),
+        )
+        return NotificationCompat.Action.Builder(
+            R.drawable.ic_push_read,
+            context.getString(R.string.push_mute_hour),
+            pending,
+        )
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE)
+            .setShowsUserInterface(false)
+            .build()
+    }
+
+    private fun notificationSettingsAction(context: Context, id: Int): NotificationCompat.Action {
+        val pending = pendingActivity(context, id xor 16, openNotificationsIntent(context))
+        return NotificationCompat.Action.Builder(
+            R.drawable.ic_notification,
+            context.getString(R.string.push_notification_settings),
+            pending,
+        ).build()
+    }
+
+    fun showNotSent(context: Context, chatId: Long) {
+        val id = notificationId(chatId)
+        val active = NotificationManagerCompat.from(context).activeNotifications.firstOrNull { it.id == id } ?: return
+        val messages = batchMessages(active.notification) +
+            NotificationMessage(0, context.getString(R.string.push_not_sent), System.currentTimeMillis())
+        repost(context, chatId, active.notification, messages, silent = true, onlyAlertOnce = true)
+    }
+
+    fun dropMessages(
+        context: Context,
+        chatId: Long,
+        dropIds: Set<Int>,
+        upTo: Int?,
+        badge: BadgeSettings,
+        topicId: Int? = null,
+    ) {
+        val id = notificationId(chatId)
+        val active = NotificationManagerCompat.from(context).activeNotifications.firstOrNull { it.id == id } ?: return
+        val messages = batchMessages(active.notification)
+        val kept = if (topicId == null) NotificationBatch.retain(messages, dropIds, upTo)
+        else messages.filter { message ->
+            message.topicId != topicId || NotificationBatch.retain(listOf(message), dropIds, upTo)
+                .isNotEmpty()
+        }
+        if (kept.isEmpty()) {
+            if (upTo == null || !suppressVisibleBubble(
+                    context, chatId, NotificationLocalStore(context).bubblesEnabled,
+                )) cancel(context, chatId, badge)
+        }
+        else repost(context, chatId, active.notification, kept, silent = true, onlyAlertOnce = true)
+    }
+
+    private fun repost(
+        context: Context,
+        chatId: Long,
+        post: Notification,
+        messages: List<NotificationMessage>,
+        silent: Boolean,
+        onlyAlertOnce: Boolean,
+    ) {
+        if (messages.isEmpty()) return
+        val id = notificationId(chatId)
+        val title = post.extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString().orEmpty()
+        val icon = post.getLargeIcon()
+        val iconCompat = icon?.let { candidate ->
+            runCatching { candidate.loadDrawable(context)?.toBitmap() }.getOrNull()
+                ?.let { IconCompat.createWithBitmap(it) }
+        }
+        val person = senderPerson(title, NotificationConversation.peerPersonKey(chatId), iconCompat)
+        val builder = builderFor(
+            context = context,
+            id = id,
+            channel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) post.channelId else NotificationChannels.OTHER,
+            title = title,
+            chatId = chatId,
+            person = person,
+            messages = messages,
+            count = messages.size,
+            shortcutId = if (chatId != 0L) "chat:$chatId" else null,
+            largeIcon = icon,
+            pictureUri = null,
+            pictureBitmap = null,
+            conversationTitle = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(post)
+                ?.conversationTitle?.toString(),
+            messageSenderName = null,
+            allowReply = chatId != 0L,
+            silent = silent,
+            onlyAlertOnce = onlyAlertOnce,
+            maxId = 0,
+            category = NotificationCompat.CATEGORY_MESSAGE,
+            stayUntilOpened = false,
+        )
+        if (!mayPostNotifications(
+                Build.VERSION.SDK_INT,
+                ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED,
+            )
+        ) {
+            return
+        }
+        if (Build.VERSION.SDK_INT >= 30) {
+            post.bubbleMetadata?.shortcutId?.let {
+                builder.setBubbleMetadata(shortcutBubble(it, suppressNotification = false, expand = false))
+            }
+        }
+        runCatching { NotificationManagerCompat.from(context).notify(id, builder.build()) }
+    }
+
+    private fun shortcutBubble(
+        shortcutId: String,
+        suppressNotification: Boolean,
+        expand: Boolean,
+    ): NotificationCompat.BubbleMetadata =
+        NotificationCompat.BubbleMetadata.Builder(shortcutId)
+            .setDesiredHeight(BUBBLE_HEIGHT_DP)
+            .setAutoExpandBubble(expand)
+            .setSuppressNotification(suppressNotification)
+            .build()
+
+    private fun publishConversationShortcut(
+        context: Context,
+        shortcutId: String,
+        chatId: Long,
+        label: String,
+        locusId: String,
+        person: Person,
+        icon: IconCompat,
+        messageId: Int,
+        bubble: Boolean,
+    ): Boolean {
+        val rank = rememberShareChat(context, chatId)
+        val shortcutPerson = Person.Builder()
+            .setName(person.name)
+            .setKey(person.key)
+            .setUri(person.uri)
+            .setIcon(person.icon)
+            .setBot(person.isBot)
+            .setImportant(true)
+            .build()
+        val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
+            .setShortLabel(label.take(30).ifBlank { context.getString(R.string.app_name) })
+            .setLongLabel(label)
+            .setLocusId(LocusIdCompat(locusId))
+            .setLongLived(true)
+            .setIsConversation()
+            .setRank(rank)
+            .setPerson(shortcutPerson)
+            .setIcon(icon)
+            .setIntent(
+                if (bubble) bubbleChatIntent(context, chatId, messageId)
+                else openChatIntent(context, chatId, messageId),
+            )
+            .build()
+        return runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, shortcut) }.isSuccess
+    }
+
+    private fun bubbleChatIntent(context: Context, chatId: Long, messageId: Int): Intent =
+        Intent(context, BubbleActivity::class.java)
+            .setAction(ACTION_OPEN_CHAT)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putExtra(EXTRA_MESSAGE_ID, messageId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    /** 108dp adaptive canvas; the picture stays inside the 72dp safe zone so the bubble is not a white ring. */
+    private fun bubbleIcon(context: Context, chatId: Long, avatar: Bitmap?): IconCompat? {
+        val density = context.resources.displayMetrics.density
+        val canvasPx = (108f * density).toInt().coerceAtLeast(1)
+        val safePx = (72f * density).toInt().coerceAtLeast(1)
+        val bitmap = Bitmap.createBitmap(canvasPx, canvasPx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val inset = (canvasPx - safePx) / 2f
+        val dest = RectF(inset, inset, inset + safePx, inset + safePx)
+        val source = avatar ?: run {
+            val drawable = context.getDrawable(R.mipmap.ic_launcher)
+            val fallback = Bitmap.createBitmap(safePx, safePx, Bitmap.Config.ARGB_8888)
+            drawable?.setBounds(0, 0, safePx, safePx)
+            drawable?.draw(Canvas(fallback))
+            fallback
+        }
+        canvas.save()
+        canvas.clipPath(Path().apply { addOval(dest, Path.Direction.CW) })
+        canvas.drawBitmap(source, null, dest, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+        canvas.restore()
+        if (Build.VERSION.SDK_INT < 30) return IconCompat.createWithAdaptiveBitmap(bitmap)
+        val file = File(context.cacheDir, "bubbles/$chatId.png")
+        file.parentFile?.mkdirs()
+        val written = runCatching {
+            file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }.isSuccess
+        if (!written) return null
+        val uri = pictureUri(context, file) ?: return null
+        return IconCompat.createWithAdaptiveBitmapContentUri(uri)
+    }
+
+    private fun openNotificationsIntent(context: Context): Intent =
+        Intent(context, MainActivity::class.java)
+            .setAction(ACTION_OPEN_NOTIFICATIONS)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
 
     private fun pendingActivity(context: Context, requestCode: Int, intent: Intent): PendingIntent =
         PendingIntent.getActivity(

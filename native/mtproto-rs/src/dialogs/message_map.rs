@@ -126,19 +126,23 @@ pub(crate) fn message_to_dto_named(
                 file_name: indexed.file_name,
                 file_size: indexed.file_size,
                 supports_streaming: indexed.supports_streaming,
-                reactions_json: crate::extras_rpc::reactions_to_json(
+                reactions_json: crate::client::extras_rpc::reactions_to_json(
                     m.reactions.as_ref().map(|r| r.as_ref()),
                 ),
-                replies_count: crate::extras_rpc::replies_meta(
+                replies_count: crate::client::extras_rpc::replies_meta(
                     m.replies.as_ref().map(|r| r.as_ref()),
                 )
                 .0,
-                discussion_peer_id: crate::extras_rpc::replies_meta(
+                discussion_peer_id: crate::client::extras_rpc::replies_meta(
                     m.replies.as_ref().map(|r| r.as_ref()),
                 )
                 .1,
                 reply_markup_json: crate::reply_markup::to_json(m.reply_markup.as_deref()),
                 forum_topic,
+                sender_photo_cache_key: sender_photo_cache_key(
+                    media_index,
+                    m.from_id.as_ref().map(|peer| peer_chat_id(peer)),
+                ),
             })
         }
         Message::MessageService(m) => {
@@ -186,10 +190,18 @@ pub(crate) fn message_to_dto_named(
                 discussion_peer_id: None,
                 reply_markup_json: None,
                 forum_topic,
+                sender_photo_cache_key: sender_photo_cache_key(media_index, sender_id),
             })
         }
         _ => None,
     }
+}
+
+/// `(id, 0)` also stores stickers, GIFs, and documents. Only `avatar:` keys are sender photos.
+fn sender_photo_cache_key(media_index: &MediaIndex, sender_id: Option<i64>) -> Option<String> {
+    let sender_id = sender_id?;
+    let key = media_index.get(&(sender_id, 0))?.cache_key.as_str();
+    key.starts_with("avatar:").then(|| key.to_string())
 }
 
 pub(crate) fn reply_meta(
@@ -347,14 +359,19 @@ pub(crate) fn dtos_from_messages_page(
     response: MessagesMessages,
     peers: &mut HashMap<i64, CachedPeer>,
     media_index: &mut MediaIndex,
-) -> Result<(Vec<MessageDto>, i32), MtprotoError> {
-    let (messages, users, chats, next_rate) = match response {
-        MessagesMessages::MessagesMessages(m) => (m.messages, m.users, m.chats, 0),
-        MessagesMessages::MessagesMessagesSlice(m) => {
-            (m.messages, m.users, m.chats, m.next_rate.unwrap_or(0))
+) -> Result<(Vec<MessageDto>, i32, i32), MtprotoError> {
+    let (messages, users, chats, next_rate, total_count) = match response {
+        MessagesMessages::MessagesMessages(m) => {
+            let count = vector_boxed_items(&m.messages).count() as i32;
+            (m.messages, m.users, m.chats, 0, count)
         }
-        MessagesMessages::MessagesChannelMessages(m) => (m.messages, m.users, m.chats, 0),
-        MessagesMessages::MessagesMessagesNotModified(_) => return Ok((Vec::new(), 0)),
+        MessagesMessages::MessagesMessagesSlice(m) => {
+            (m.messages, m.users, m.chats, m.next_rate.unwrap_or(0), m.count)
+        }
+        MessagesMessages::MessagesChannelMessages(m) => {
+            (m.messages, m.users, m.chats, 0, m.count)
+        }
+        MessagesMessages::MessagesMessagesNotModified(_) => return Ok((Vec::new(), 0, 0)),
         _ => return Err(MtprotoError::Message("unexpected messages.messages".into())),
     };
     let user_list = vector_boxed_items(&users).cloned().collect::<Vec<_>>();
@@ -373,7 +390,7 @@ pub(crate) fn dtos_from_messages_page(
         })
         .collect();
     fill_missing_reply_quotes(&mut dtos);
-    Ok((dtos, next_rate))
+    Ok((dtos, next_rate, total_count))
 }
 
 #[derive(serde::Serialize)]

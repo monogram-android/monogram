@@ -22,6 +22,7 @@
     <string name="push_channel_groups">グループ</string>
     <string name="push_channel_channels">チャンネル</string>
     <string name="push_channel_other">その他</string>
+    <string name="push_channel_calls">通話</string>
     <string name="push_channel_stories">ストーリー</string>
     <string name="push_channel_reactions">リアクション</string>
     <string name="push_folder">フォルダ %1$d</string>
@@ -31,13 +32,16 @@
     <string name="push_reply">返信</string>
     <string name="push_reply_hint">メッセージ</string>
     <string name="push_mark_read">既読にする</string>
+    <string name="push_not_sent">送信できませんでした</string>
+    <string name="push_mute_hour">1時間ミュート</string>
+    <string name="push_notification_settings">通知の設定</string>
     <string name="push_open_link">リンクを開く</string>
     <string name="push_more_chats">他 +%1$d</string>
     <plurals name="push_new_messages">
         <item quantity="other">%1$d件の新しいメッセージ</item>
     </plurals>
     <string name="crash_title">問題が発生しました</string>
-    <string name="crash_subtitle">Monogram で予期しないエラーが発生しました。下のレポートは修正に役立ちます。</string>
+    <string name="crash_subtitle">Monogram で予期しないエラーが発生しました。下のレポートは修正に役立ちます</string>
     <string name="crash_log_label">クラッシュログ</string>
     <string name="crash_copy">詳細をコピー</string>
     <string name="crash_copied">クラッシュの詳細をコピーしました</string>
@@ -48,10 +52,12 @@
     <string name="update_prompt_skip">スキップ</string>
     <string name="update_prompt_update">アップデート</string>
     <string name="update_prompt_install">インストール</string>
-    <string name="update_prompt_body">新しいビルドがあります。ダウンロードサイズは %1$s です。</string>
+    <string name="update_prompt_body">新しいビルドがあります。ダウンロードサイズは %1$s です</string>
     <string name="update_prompt_hide">非表示</string>
     <string name="update_prompt_progress">ダウンロード中 %1$s / %2$s</string>
     <string name="update_prompt_error">アップデートをダウンロードできませんでした</string>
     <string name="update_prompt_retry">再試行</string>
     <string name="update_prompt_ready">インストールの準備完了</string>
+    <string name="update_prompt_installing">アップデートをインストール中</string>
+    <string name="update_prompt_installing_body">%1$s をインストールしています</string>
 </resources>

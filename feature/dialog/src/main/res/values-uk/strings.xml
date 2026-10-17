@@ -34,6 +34,12 @@
         <item quantity="other">%d файлу</item>
     </plurals>
     <string name="dialog_media_document">Файл</string>
+    <string name="dialog_media_link">Посилання</string>
+    <string name="dialog_media_checklist">Список завдань</string>
+    <string name="dialog_media_poll">Опитування</string>
+    <string name="dialog_media_location">Геопозиція</string>
+    <string name="dialog_media_contact">Контакт</string>
+    <string name="dialog_media_dice">Кубик</string>
     <string name="dialog_unsupported_message">Цей тип повідомлення поки не підтримується</string>
     <string name="dialog_poll_quiz">Вікторина</string>
     <string name="dialog_poll_closed">Опитування закрито</string>
@@ -112,6 +118,7 @@
     <string name="dialog_panel_emoji">Емодзі</string>
     <string name="dialog_panel_stickers">Стікери</string>
     <string name="dialog_emoji_open">Емодзі, стікери і GIF</string>
+    <string name="dialog_emoji_recent">Нещодавні</string>
     <string name="dialog_emoji_category_smileys">Смайли та емоції</string>
     <string name="dialog_emoji_category_people">Люди та жести</string>
     <string name="dialog_emoji_category_nature">Тварини та природа</string>
@@ -155,8 +162,6 @@
     <string name="dialog_cut">Вирізати</string>
     <string name="dialog_paste">Вставити</string>
     <string name="dialog_copy_selected">Копіювати виділене</string>
-    <string name="dialog_select_text">Вибрати</string>
-    <string name="dialog_select_message">Вибрати повідомлення</string>
     <plurals name="dialog_messages_selected">
         <item quantity="one">Вибрано %1$d повідомлення</item>
         <item quantity="few">Вибрано %1$d повідомлення</item>
@@ -184,8 +189,15 @@
     <string name="dialog_forwarded">Переслано в %1$s</string>
     <string name="dialog_delete_confirm">Видалити це повідомлення?</string>
     <string name="dialog_delete_for_everyone">Видалити для всіх</string>
+    <string name="dialog_delete_for_me">Видалити в мене</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">Видалити %1$d повідомлення?</item>
+        <item quantity="few">Видалити %1$d повідомлення?</item>
+        <item quantity="many">Видалити %1$d повідомлень?</item>
+        <item quantity="other">Видалити %1$d повідомлення?</item>
+    </plurals>
     <string name="dialog_cancel">Скасувати</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Перегляд</string>
     <string name="dialog_markdown_expand">На весь екран</string>
     <string name="dialog_markdown_apply">Застосувати</string>
@@ -216,6 +228,10 @@
     <string name="dialog_cant_send">Ви не можете надсилати повідомлення в цей чат</string>
     <string name="dialog_cant_send_photos">Надсилання фото заборонено в цьому чаті</string>
     <string name="dialog_channel_readonly">Лише адміністратори можуть писати в цей канал</string>
+    <string name="dialog_join">Приєднатися</string>
+    <string name="dialog_mute">Вимкнути звук</string>
+    <string name="dialog_unmute">Увімкнути звук</string>
+    <string name="dialog_unblock">Розблокувати</string>
     <string name="dialog_protected">Копіювання і пересилання заборонені</string>
     <string name="dialog_editing">Редагування</string>
     <string name="dialog_replying">Відповідь</string>
@@ -251,9 +267,36 @@
     <string name="dialog_instant_view_unsupported">Цей блок не підтримується</string>
     <string name="dialog_instant_view_map">Відкрити карту</string>
     <string name="dialog_instant_view_related">Схожі статті</string>
+    <string name="dialog_instant_view_contents">Зміст</string>
+    <string name="dialog_instant_view_contents_empty">У цій статті немає розділів</string>
+    <string name="dialog_instant_view_beginning">Початок</string>
+    <string name="dialog_instant_view_min_read">%1$d хв читання</string>
+    <string name="dialog_instant_view_to_top">Вгору</string>
+    <string name="dialog_instant_view_reload">Перезавантажити</string>
+    <string name="dialog_instant_view_text">Текст статті</string>
+    <string name="dialog_instant_view_chars">%1$d символів</string>
+    <string name="dialog_instant_view_select_all">Вибрати все</string>
+    <string name="dialog_instant_view_clear_selection">Зняти виділення</string>
+    <string name="dialog_instant_view_copy">Копіювати</string>
+    <string name="dialog_instant_view_done">Готово</string>
+    <string name="dialog_instant_view_font_reset">Скинути</string>
+    <string name="dialog_instant_view_font_smaller">Зменшити текст</string>
+    <string name="dialog_instant_view_font_larger">Збільшити текст</string>
+    <string name="dialog_instant_view_search_previous">Попередній збіг</string>
+    <string name="dialog_instant_view_search_clear">Очистити пошук</string>
+    <string name="dialog_instant_view_search_close">Закрити пошук</string>
+    <string name="dialog_instant_view_error_hint">Перевірте з\'єднання та спробуйте знову</string>
+    <string name="dialog_instant_view_collapse">Згорнути</string>
+    <string name="dialog_instant_view_expand">Розгорнути</string>
+    <string name="dialog_instant_view_media_page">%1$d з %2$d</string>
+    <string name="dialog_instant_view_media_load">Завантажити та відтворити</string>
+    <string name="dialog_instant_view_media_ready">Аудіо готове</string>
+    <string name="dialog_instant_view_media_download">Завантажити файл</string>
+    <string name="dialog_instant_view_media_open">Відкрити файл</string>
+    <string name="dialog_instant_view_media_cancel">Скасувати завантаження</string>
     <string name="media_delete_title">Видалити медіа</string>
-    <string name="media_delete_body_single">Видалити цей елемент? Його буде видалено у вас і в цьому чаті.</string>
-    <string name="media_delete_body_album">Видалити всі елементи (%1$d)? Їх буде видалено у вас і в цьому чаті.</string>
+    <string name="media_delete_body_single">Видалити цей елемент? Його буде видалено у вас і в цьому чаті</string>
+    <string name="media_delete_body_album">Видалити всі елементи (%1$d)? Їх буде видалено у вас і в цьому чаті</string>
     <string name="media_delete_confirm">Видалити</string>
     <string name="media_delete_cancel">Скасувати</string>
     <string name="media_action_copied_image">Зображення скопійовано</string>
@@ -321,4 +364,17 @@
         <item quantity="many">%1$s підписників</item>
         <item quantity="other">%1$s підписників</item>
     </plurals>
+    <string name="dialog_send_formatted">Надіслати з форматуванням</string>
+    <string name="dialog_editor_title">Редактор повідомлення</string>
+    <string name="dialog_editor_send_preview">Так буде надіслано</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Вибраний текст</string>
+    <string name="dialog_editor_select_hint">Виділіть текст для форматування</string>
+    <string name="dialog_editor_expandable_quote">Розгортана цитата</string>
+    <string name="dialog_editor_clear">Прибрати форматування</string>
+    <string name="dialog_editor_url">Адреса посилання</string>
+    <string name="dialog_editor_language">Мова (необов’язково)</string>
+    <string name="dialog_editor_open">Розгорнути редактор</string>
+    <string name="dialog_rich_date_at_time">%1$s о %2$s</string>
+    <string name="dialog_media_progress_speed">%1$s · %2$s/с</string>
 </resources>

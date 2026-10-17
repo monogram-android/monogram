@@ -10,6 +10,7 @@ import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
 import org.monogram.feature.dialog.store.matchingPending
+import org.monogram.feature.dialog.ui.downloadProgressFraction
 import java.io.File
 
 class OutgoingMediaTest {
@@ -58,6 +59,16 @@ class OutgoingMediaTest {
         )
         val matched = matchingPending(listOf(newer, older), incoming)
         assertEquals(-2, matched?.id?.id)
+    }
+
+    @Test
+    fun partProgressIsNotDeliveryAndRowStaysPendingUntilServerId() {
+        assertEquals(0.5f, downloadProgressFraction(4L, 8L))
+        assertEquals(1f, downloadProgressFraction(8L, 8L))
+        assertNull(downloadProgressFraction(1L, 0L))
+        assertTrue(staysPendingUntilMessageId(pending = true, messageId = -3))
+        assertTrue(staysPendingUntilMessageId(pending = false, messageId = -1))
+        assertFalse(staysPendingUntilMessageId(pending = false, messageId = 44))
     }
 
     @Test

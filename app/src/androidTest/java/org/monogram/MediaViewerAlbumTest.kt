@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
@@ -24,6 +25,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -31,13 +33,17 @@ import androidx.compose.ui.test.swipe
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.monogram.core.ui.R
 import org.monogram.core.ui.media.MediaAlbumState
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.MediaSource
 import org.monogram.core.ui.media.MediaViewerItem
+import org.monogram.core.ui.media.MediaViewerActions
 import org.monogram.core.ui.media.MediaViewerKind
 import org.monogram.core.ui.media.MediaViewerShell
 import org.monogram.core.ui.media.rememberAlbumState
@@ -125,21 +131,31 @@ class MediaViewerAlbumTest {
         ),
     )
 
-    private fun launch(album: List<MediaViewerItem>, startIndex: Int) {
+    private fun launch(
+        album: List<MediaViewerItem>,
+        startIndex: Int,
+        motion: Boolean = true,
+        actions: MediaViewerActions = MediaViewerActions(),
+    ) {
         compose.setContent {
             MonogramTheme {
                 val context = LocalContext.current
                 val session = remember(context) { MediaPlaybackHolder.session(context) }
                 Box(Modifier.fillMaxSize()) { Text("Underlying chat") }
                 if (visible) {
-                    MediaViewerTheme {
-                        MediaViewerShell(
-                            album = remember(album, startIndex) { MediaAlbumState(album, startIndex) },
-                            onDismiss = { visible = false },
-                            session = session,
-                            chatKey = "test-chat",
-                            onIndexChange = { albumIndex = it },
-                        )
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        org.monogram.core.ui.media.LocalMediaViewerMotion provides motion,
+                    ) {
+                        MediaViewerTheme {
+                            MediaViewerShell(
+                                album = remember(album, startIndex) { MediaAlbumState(album, startIndex) },
+                                onDismiss = { visible = false },
+                                actions = actions,
+                                session = session,
+                                chatKey = "test-chat",
+                                onIndexChange = { albumIndex = it },
+                            )
+                        }
                     }
                 }
             }
@@ -148,17 +164,124 @@ class MediaViewerAlbumTest {
     }
 
     @Test
+    fun captionlessSinglePhotoHasNoBottomActionsAndMoreOpensSaveShare() {
+        var shares = 0
+        var saves = 0
+        launch(
+            listOf(mixedAlbum().first().copy(caption = null)),
+            0,
+            actions = MediaViewerActions(
+                onShare = { shares++ },
+                onSave = { saves++ },
+            ),
+        )
+        val more = compose.activity.getString(org.monogram.core.ui.R.string.media_more_actions)
+        compose.onNodeWithContentDescription(more).assertExists().performClick()
+        compose.onNodeWithText(compose.activity.getString(org.monogram.core.ui.R.string.media_action_share))
+            .assertExists().performClick()
+        compose.onNodeWithContentDescription(more).performClick()
+        compose.onNodeWithText(compose.activity.getString(org.monogram.core.ui.R.string.media_action_save))
+            .assertExists().performClick()
+        compose.runOnIdle {
+            assertEquals(1, shares)
+            assertEquals(1, saves)
+        }
+    }
+
+    @Test
+    fun reducedMotionStillAllowsDownwardDismiss() {
+        launch(listOf(mixedAlbum().first()), 0, motion = false)
+        compose.onNodeWithContentDescription(pageLabel(MediaViewerKind.PHOTO, 0, 1)).performTouchInput {
+            swipe(Offset(center.x, height * 0.25f), Offset(center.x, height * 0.85f), 500)
+        }
+        compose.waitUntil(5_000) { !visible }
+        compose.onNodeWithText("Underlying chat").assertExists()
+    }
+
+    @Test
+    fun predictiveBackCancelRestoresViewerAndCommitDismisses() {
+        launch(listOf(mixedAlbum().first()), 0)
+        compose.runOnIdle {
+            val dispatcher = compose.activity.onBackPressedDispatcher
+            dispatcher.dispatchOnBackStarted(androidx.activity.BackEventCompat(0f, 0f, 0f, 0))
+            dispatcher.dispatchOnBackProgressed(androidx.activity.BackEventCompat(0f, 0f, 0.5f, 0))
+        }
+        compose.waitForIdle()
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.dispatchOnBackCancelled() }
+        compose.waitForIdle()
+        assertTrue(visible)
+        compose.onNodeWithText("Anna").assertExists()
+        compose.runOnIdle {
+            val dispatcher = compose.activity.onBackPressedDispatcher
+            dispatcher.dispatchOnBackStarted(androidx.activity.BackEventCompat(0f, 0f, 0f, 0))
+            dispatcher.dispatchOnBackProgressed(androidx.activity.BackEventCompat(0f, 0f, 0.2f, 0))
+        }
+        compose.waitForIdle()
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitUntil(5_000) { !visible }
+        compose.onNodeWithText("Underlying chat").assertExists()
+    }
+
+    @Test
+    fun ordinaryBackAfterPredictiveCancellationDismisses() {
+        launch(listOf(mixedAlbum().first()), 0, motion = false)
+        compose.runOnIdle {
+            val dispatcher = compose.activity.onBackPressedDispatcher
+            dispatcher.dispatchOnBackStarted(androidx.activity.BackEventCompat(0f, 0f, 0f, 1))
+            dispatcher.dispatchOnBackProgressed(androidx.activity.BackEventCompat(0f, 0f, 0.8f, 1))
+        }
+        compose.waitForIdle()
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.dispatchOnBackCancelled() }
+        compose.waitForIdle()
+        assertTrue(visible)
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitUntil(5_000) { !visible }
+        compose.onNodeWithText("Underlying chat").assertExists()
+    }
+
+    @Test
+    fun spoilerPreviewIsConcealedUntilTapped() {
+        val item = mixedAlbum().first().copy(spoiler = true)
+        launch(listOf(item), 0)
+        compose.onNodeWithTag("media-photo-spoiler").assertExists()
+        compose.onNodeWithTag("media-photo-spoiler").performTouchInput { click(center) }
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasTestTag("media-photo-spoiler")).fetchSemanticsNodes().isEmpty()
+        }
+        compose.onNodeWithText("Anna").assertExists()
+    }
+
+    @Test
+    fun videoSpoilerBlocksSurfaceAndPlaybackUntilReveal() {
+        launch(listOf(mixedAlbum()[1].copy(spoiler = true)), 0)
+        val session = MediaPlaybackHolder.session(compose.activity)
+        compose.onNodeWithTag("media-video-spoiler").assertExists()
+        compose.waitUntil(5_000) { !session.playing }
+        compose.onNodeWithTag("media-video-ready").assertDoesNotExist()
+        compose.onNodeWithTag("media-video-spoiler").performTouchInput { click(center) }
+        compose.waitUntil(10_000) {
+            compose.onAllNodes(hasTestTag("media-video-ready")).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.waitUntil(5_000) { session.playing }
+        compose.onNodeWithTag("media-video-spoiler").assertDoesNotExist()
+    }
+
+    @Test
     fun mixedAlbumShowsCounterKindAndFilmstrip() {
         launch(mixedAlbum(), startIndex = 0)
         compose.onNodeWithText("Anna").assertExists()
-        compose.onNodeWithText("yesterday · 1/4").assertExists()
+        compose.onNodeWithText(position(0, 4)).assertExists()
+        compose.onNodeWithText("yesterday").assertExists()
+        compose.onNodeWithContentDescription(pageLabel(MediaViewerKind.PHOTO, 0, 4)).assertExists()
         capture("E-mixed-photo")
         compose.onRoot().performTouchInput { swipe(centerRight, centerLeft, 220) }
         compose.waitUntil(10_000) { albumIndex == 1 }
         compose.waitUntil(10_000) {
             compose.onAllNodes(hasTestTag("media-video-ready")).fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("yesterday · 2/4 · video").assertExists()
+        compose.onNodeWithText(position(1, 4)).assertExists()
+        compose.onNodeWithText("yesterday").assertExists()
+        compose.onNodeWithContentDescription(pageLabel(MediaViewerKind.VIDEO, 1, 4)).assertExists()
         capture("E-mixed-video")
     }
 
@@ -176,21 +299,20 @@ class MediaViewerAlbumTest {
 
     @Test
     fun captionHidesWithTheChromeAndReturnsWithIt() {
-        val captioned = mixedAlbum().toMutableList()
-        captioned[1] = captioned[1].copy(caption = "A caption that belongs to the chrome")
-        launch(captioned, startIndex = 1)
+        val captioned = mixedAlbum().first().copy(caption = "A caption that belongs to the chrome")
+        launch(listOf(captioned), startIndex = 0)
         val close = compose.activity.getString(org.monogram.core.ui.R.string.media_preview_close)
-        compose.waitUntil(10_000) {
-            compose.onAllNodes(hasTestTag("media-video-ready")).fetchSemanticsNodes().isNotEmpty()
-        }
+        val page = hasContentDescription(pageLabel(MediaViewerKind.PHOTO, 0, 1)) and
+            SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "100%")
         compose.onNodeWithText("A caption that belongs to the chrome").assertExists()
         capture("C-caption-with-chrome")
-        compose.waitUntil(10_000) {
+        compose.onNode(page).performTouchInput { click(center) }
+        compose.waitUntil(5_000) {
             compose.onAllNodes(hasContentDescription(close)).fetchSemanticsNodes().isEmpty()
         }
         compose.onNodeWithText("A caption that belongs to the chrome").assertDoesNotExist()
         capture("C-caption-hidden-with-chrome")
-        compose.onNode(hasTestTag("media-video-ready")).performTouchInput { click(center) }
+        compose.onNode(page).performTouchInput { click(center) }
         compose.waitUntil(5_000) {
             compose.onAllNodes(hasContentDescription(close)).fetchSemanticsNodes().isNotEmpty()
         }
@@ -271,6 +393,28 @@ class MediaViewerAlbumTest {
     }
 
     @Test
+    fun loopPreferenceSurvivesPageChangesAndGifsStayForced() {
+        val album = mixedAlbum()
+        launch(album, startIndex = 1)
+        val session = MediaPlaybackHolder.session(compose.activity)
+        compose.waitUntil(10_000) {
+            compose.onAllNodes(hasTestTag("media-video-ready")).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.runOnIdle {
+            session.setLoopingCurrent(false)
+            assertEquals(androidx.media3.common.Player.REPEAT_MODE_OFF, session.player.repeatMode)
+            session.setQueue(album, 3, autoplay = false, startMuted = false)
+            session.setQueue(album, 1, autoplay = false, startMuted = false)
+            assertEquals(androidx.media3.common.Player.REPEAT_MODE_OFF, session.player.repeatMode)
+            val gif = album[1].copy(id = "gif", forceLoop = true)
+            session.setQueue(listOf(gif), 0, autoplay = false, startMuted = false)
+            session.setLoopingCurrent(false)
+            assertEquals(androidx.media3.common.Player.REPEAT_MODE_ONE, session.player.repeatMode)
+            assertFalse(session.player.pauseAtEndOfMediaItems)
+        }
+    }
+
+    @Test
     fun overflowStaysOpenAndItsActionsApply() {
         launch(mixedAlbum(), startIndex = 1)
         val session = MediaPlaybackHolder.session(compose.activity)
@@ -302,6 +446,28 @@ class MediaViewerAlbumTest {
     }
 
     @Test
+    fun fillingEarlierSiblingsKeepsTheVisiblePage() {
+        val full = mixedAlbum()
+        var items by mutableStateOf(listOf(full[2]))
+        compose.setContent {
+            MonogramTheme {
+                MediaViewerTheme {
+                    MediaViewerShell(
+                        album = rememberAlbumState(items),
+                        onDismiss = {},
+                        onIndexChange = { albumIndex = it },
+                    )
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText("Item 3 caption only").assertExists()
+        compose.runOnIdle { items = full }
+        compose.waitUntil(5_000) { albumIndex == 2 }
+        compose.onNodeWithText("Item 3 caption only").assertExists()
+    }
+
+    @Test
     fun aRebuiltItemListDoesNotRewindTheAlbum() {
         var tick by mutableIntStateOf(0)
         compose.setContent {
@@ -322,19 +488,33 @@ class MediaViewerAlbumTest {
             }
         }
         compose.waitForIdle()
-        compose.onNodeWithText("yesterday · 1/4").assertExists()
+        compose.onNodeWithText(position(0, 4)).assertExists()
+        compose.onNodeWithText("yesterday").assertExists()
 
         compose.onRoot().performTouchInput { swipe(centerRight, centerLeft, 220) }
         compose.waitUntil(5_000) { albumIndex == 1 }
-        compose.onNodeWithText("yesterday · 2/4 · video").assertExists()
+        compose.onNodeWithText(position(1, 4)).assertExists()
+        compose.onNodeWithText("yesterday").assertExists()
 
         repeat(3) {
             compose.runOnIdle { tick++ }
             compose.waitForIdle()
         }
-        compose.onNodeWithText("yesterday · 2/4 · video").assertExists()
-        compose.onNodeWithText("yesterday · 1/4").assertDoesNotExist()
+        compose.onNodeWithText(position(1, 4)).assertExists()
+        compose.onNodeWithText("yesterday").assertExists()
+        compose.onNodeWithText(position(0, 4)).assertDoesNotExist()
     }
+
+    private fun position(index: Int, count: Int): String =
+        compose.activity.getString(R.string.media_viewer_page_position, index + 1, count)
+
+    private fun pageLabel(kind: MediaViewerKind, index: Int, count: Int): String = compose.activity.getString(
+        R.string.media_viewer_page_item,
+        position(index, count),
+        compose.activity.getString(if (kind == MediaViewerKind.VIDEO) R.string.media_badge_video_lower else R.string.media_badge_photo_lower),
+        "Anna",
+        "yesterday",
+    )
 
     private fun playbackPosition(): Float = compose
         .onNodeWithContentDescription(compose.activity.getString(org.monogram.core.ui.R.string.media_video_seek))

@@ -152,7 +152,7 @@ pub(crate) fn pick_document_thumb_size(sizes: &[PhotoSize]) -> Option<(String, O
     pick_inline_or_thumb_candidate(&collect_photo_sizes(sizes))
 }
 
-/// Chat-cell JPEG: `m` (~320) like Telegram Android bubbles. `x` only if `m` is already the thumb.
+/// Chat-cell JPEG: `m` (~320). `x` only if `m` is already the thumb.
 /// https://core.telegram.org/api/files
 pub(crate) fn pick_display_candidate(
     sizes: &[(String, i32, Option<Vec<u8>>)],

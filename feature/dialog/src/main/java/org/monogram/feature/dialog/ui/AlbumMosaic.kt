@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import org.monogram.core.models.Message
+import org.monogram.core.ui.media.mediaMosaicSharedBounds
 import org.monogram.feature.dialog.albumVisualItems
 import org.monogram.network.http.MediaRepository
 import kotlin.math.roundToInt
@@ -136,6 +137,7 @@ fun AlbumMosaic(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .mediaMosaicSharedBounds("${message.id.chatId.value}:${message.id.id}")
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                 ) {
                     MessageMedia(

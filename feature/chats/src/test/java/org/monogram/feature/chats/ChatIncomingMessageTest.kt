@@ -1,6 +1,8 @@
 package org.monogram.feature.chats
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.core.database.dao.ChatReadState
 import org.monogram.core.models.Chat
@@ -185,6 +187,31 @@ class ChatIncomingMessageTest {
         )
         assertEquals("sent", next.single().lastMessagePreview)
         assertEquals("You: sent", next.single().displayPreview())
+    }
+
+    @Test
+    fun staleDialogsPageKeepsNewerMutePinAndReadCursor() {
+        val current = chat(1, readInbox = 20, pinned = true, pinnedOrder = 1).copy(
+            muted = false,
+            muteOverride = true,
+            lastMessageId = 30,
+        )
+        val stale = current.copy(
+            muted = true,
+            muteOverride = false,
+            pinned = false,
+            pinnedOrder = Int.MAX_VALUE,
+            readInboxMaxId = 4,
+            lastMessageId = 10,
+            title = "Renamed",
+        )
+        val next = mergeChats(listOf(current), listOf(stale)).single()
+        assertFalse(next.muted)
+        assertTrue(next.muteOverride)
+        assertTrue(next.pinned)
+        assertEquals(1, next.pinnedOrder)
+        assertEquals(20, next.readInboxMaxId)
+        assertEquals(30, next.lastMessageId)
     }
 
     @Test

@@ -3,11 +3,32 @@ use tellers_mtproto_transport::PaddedIntermediate;
 
 use crate::MtprotoError;
 use crate::api_invoke;
-use crate::auth_key::create_auth_key;
+use crate::auth::auth_key::create_auth_key;
 use crate::rpc::dc_endpoints;
 use crate::tcp;
 
 use super::*;
+
+/// File parts use one extra session on the same datacenter authorization.
+/// It keeps its own `session_id` so it is not a second main session.
+/// https://core.telegram.org/api/optimisation
+/// https://core.telegram.org/api/datacenter#parallel-sessions
+pub(crate) fn sync_upload_snapshot(upload: &mut Snapshot, home: &Snapshot) -> bool {
+    let replaced = upload.dc_id != home.dc_id
+        || upload.auth_key != home.auth_key
+        || upload.session_id == home.session_id;
+    if replaced {
+        let previous = upload.session_id;
+        *upload = fork_session(home);
+        if previous != upload.session_id {
+            crate::rpc::salts::forget_session(previous);
+        }
+        return true;
+    }
+    upload.server_salt = home.server_salt;
+    upload.time_offset_micros = home.time_offset_micros;
+    false
+}
 
 pub(crate) fn fork_session(home: &Snapshot) -> Snapshot {
     let mut forked = Snapshot::new(home.dc_id, &mut OsRandom).expect("updates session");
@@ -30,8 +51,12 @@ pub(crate) fn apply_home_auth(
     target.server_salt = salt;
     target.time_offset_micros = time_offset;
     if changed {
+        let previous = target.session_id;
         let fresh = Snapshot::new(dc, &mut OsRandom).expect("resession");
         target.session_id = fresh.session_id;
+        if previous != target.session_id {
+            crate::rpc::salts::forget_session(previous);
+        }
         target.last_message_id = 0;
         target.content_sequence = 0;
         target.pending_acknowledgements.clear();
@@ -62,22 +87,43 @@ pub(crate) fn ensure_auth_key(state: &mut ClientState) -> Result<(), MtprotoErro
     persist(state)
 }
 
+pub(crate) fn is_foreign_auth_key_failure(err: &MtprotoError) -> bool {
+    let MtprotoError::Message(message) = err else {
+        return false;
+    };
+    let upper = message.to_ascii_uppercase();
+    upper.contains("AUTH_KEY_UNREGISTERED")
+        || upper.contains("AUTH_KEY_INVALID")
+        || upper.contains("AUTH_KEY_DUPLICATED")
+}
+
 pub(crate) fn copy_authorization_to_dc(
-    home: &mut Snapshot,
-    api_id: i32,
+    state: &mut ClientState,
     target_dc: i32,
 ) -> Result<Snapshot, MtprotoError> {
+    use crate::session_file::DcAuthKey;
     use tellers_mtproto::latest::api::{
         AuthAuthorization, AuthExportAuthorizationRequest, AuthExportedAuthorization,
         AuthImportAuthorizationRequest,
     };
+    if target_dc != state.snapshot.dc_id {
+        if let Some(cached) = state.dc_auth_keys.get(&target_dc) {
+            if cached.key.len() == 256 {
+                let mut dest = fork_session(&state.snapshot);
+                dest.dc_id = target_dc;
+                dest.auth_key = Some(cached.key.clone());
+                dest.server_salt = cached.salt;
+                return Ok(dest);
+            }
+        }
+    }
     let exported: AuthExportedAuthorization = crate::api_invoke::invoke_api(
-        home,
-        api_id,
+        &mut state.snapshot,
+        state.api_id,
         AuthExportAuthorizationRequest { dc_id: target_dc },
     )?;
     let AuthExportedAuthorization::AuthExportedAuthorization(exp) = exported;
-    let mut dest = fork_session(home);
+    let mut dest = fork_session(&state.snapshot);
     dest.dc_id = target_dc;
     dest.auth_key = None;
     dest.server_salt = 0;
@@ -85,7 +131,7 @@ pub(crate) fn copy_authorization_to_dc(
     ensure_auth_key_on(&mut dest)?;
     let _: AuthAuthorization = crate::api_invoke::invoke_api(
         &mut dest,
-        api_id,
+        state.api_id,
         AuthImportAuthorizationRequest {
             id: exp.id,
             bytes: exp.bytes,
@@ -93,6 +139,19 @@ pub(crate) fn copy_authorization_to_dc(
     )?;
     // The destination snapshot leaves this lane; never retain its TCP here.
     crate::rpc::drop_live_transport();
+    if target_dc != state.snapshot.dc_id {
+        if let Some(key) = dest.auth_key.clone() {
+            if key.len() == 256 {
+                state.dc_auth_keys.insert(
+                    target_dc,
+                    DcAuthKey {
+                        key,
+                        salt: dest.server_salt,
+                    },
+                );
+            }
+        }
+    }
     Ok(dest)
 }
 
@@ -107,6 +166,18 @@ pub(crate) fn is_unrecoverable_session(err: &MtprotoError) -> bool {
         || upper.contains("SESSION_REVOKED")
         || upper.contains("SESSION_EXPIRED")
         || upper.contains("USER_DEACTIVATED")
+}
+
+/// A pre-login auth key is unregistered until `auth.signIn`. That 401 must not
+/// persist `session_dead`: the next `auth.sendCode` would throw the key away.
+pub(crate) fn kills_session(user_id: Option<i64>, err: &MtprotoError) -> bool {
+    if !is_unrecoverable_session(err) {
+        return false;
+    }
+    let MtprotoError::Message(msg) = err else {
+        return true;
+    };
+    !(user_id.is_none() && msg.to_ascii_uppercase().contains("AUTH_KEY_UNREGISTERED"))
 }
 
 pub(crate) fn mark_session_dead(state: &mut ClientState, err: &MtprotoError) {
@@ -170,8 +241,7 @@ pub(crate) fn ensure_ready_after_migrate(
                     // exportAuthorization/importAuthorization. Dropping the
                     // home auth key here turns a normal USER/NETWORK_MIGRATE
                     // into an unnecessary logout and breaks all update lanes.
-                    let mut home = state.snapshot.clone();
-                    let destination = copy_authorization_to_dc(&mut home, state.api_id, dc)?;
+                    let destination = copy_authorization_to_dc(state, dc)?;
                     state.snapshot = destination;
                     // Authorization moved, but these are still the same
                     // account's applied update sequences.
@@ -198,7 +268,7 @@ pub(crate) fn call_with_migrate<T>(
     let before = state.snapshot.clone();
     match op(state) {
         Ok(v) => Ok(v),
-        Err(err) if is_unrecoverable_session(&err) => {
+        Err(err) if kills_session(state.user_id, &err) => {
             mark_session_dead(state, &err);
             Err(err)
         }
@@ -209,10 +279,13 @@ pub(crate) fn call_with_migrate<T>(
             if api_invoke::migrate_dc(&err).is_some() {
                 state.snapshot = before;
             }
+            if !kills_session(state.user_id, &err) && is_unrecoverable_session(&err) {
+                return Err(err);
+            }
             ensure_ready_after_migrate(state, err)?;
             match op(state) {
                 Ok(v) => Ok(v),
-                Err(err) if is_unrecoverable_session(&err) => {
+                Err(err) if kills_session(state.user_id, &err) => {
                     mark_session_dead(state, &err);
                     Err(err)
                 }
@@ -242,6 +315,9 @@ pub(crate) fn drop_all_transports(handle: u64) {
         for lane in client.media.iter() {
             lane.io.lock().transport = None;
         }
+        for lane in &client.upload {
+            lane.io.lock().transport = None;
+        }
     }
 }
 
@@ -253,6 +329,7 @@ pub(crate) fn recreate_mtproto_session(state: &mut ClientState) -> Result<(), Mt
     state.session_dead = false;
     crate::rpc::drop_live_transport();
     state.media.clear();
+    state.dc_auth_keys.clear();
     // Keep peer cache; drop auth key so the next RPC builds a fresh session.
     state.snapshot =
         Snapshot::new(dc, &mut OsRandom).map_err(|e| MtprotoError::Message(e.to_string()))?;

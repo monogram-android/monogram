@@ -13,33 +13,211 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.automirrored.outlined.VolumeUp
-import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.monogram.core.common.push.PeerNotificationMode
+import org.monogram.core.common.push.PushProviderMode
+import org.monogram.core.common.push.showsUnifiedPushSettings
 import org.monogram.core.ui.components.ItemPosition
 import org.monogram.core.ui.components.SectionHeader
 import org.monogram.core.ui.components.SettingsTile
 import org.monogram.feature.settings.NotificationsStore
 import org.monogram.feature.settings.R
 import org.monogram.feature.settings.SettingsComponent
+
+private fun LazyListScope.notificationDeliveryItems(
+    component: SettingsComponent,
+    state: NotificationsStore.State,
+) {
+    val showUnifiedPush = showsUnifiedPushSettings(
+        state.providerMode,
+        state.debug.gmsAvailable,
+        state.debug.transport,
+    )
+    val needsRetry = state.providerMode != PushProviderMode.Off &&
+        state.debug.lastRegister.isNotBlank() &&
+        !state.debug.lastRegister.endsWith("ok")
+    item { SectionHeader(stringResource(R.string.settings_notifications_provider)) }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.Notifications,
+            title = stringResource(R.string.settings_notifications_provider),
+            subtitle = stringResource(providerLabel(state.providerMode)),
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = if (showUnifiedPush || needsRetry) ItemPosition.TOP else ItemPosition.STANDALONE,
+            onClick = {
+                val next = when (state.providerMode) {
+                    PushProviderMode.Auto -> PushProviderMode.ForceFcm
+                    PushProviderMode.ForceFcm -> PushProviderMode.ForceUnifiedPush
+                    PushProviderMode.ForceUnifiedPush -> PushProviderMode.Off
+                    PushProviderMode.Off -> PushProviderMode.Auto
+                }
+                component.onNotification(NotificationsStore.Intent.SetProviderMode(next))
+            },
+        )
+    }
+    if (needsRetry) {
+        item {
+            SettingsTile(
+                icon = Icons.Outlined.Refresh,
+                title = stringResource(R.string.settings_notifications_retry),
+                subtitle = state.debug.lastRegister,
+                iconColor = MaterialTheme.colorScheme.error,
+                position = if (showUnifiedPush) ItemPosition.MIDDLE else ItemPosition.BOTTOM,
+                onClick = { component.onNotification(NotificationsStore.Intent.Reregister) },
+            )
+        }
+    }
+    if (showUnifiedPush) {
+        if (state.distributors.isEmpty()) {
+            item {
+                SettingsTile(
+                    icon = Icons.Outlined.Notifications,
+                    title = stringResource(R.string.settings_notifications_distributor),
+                    subtitle = stringResource(R.string.settings_notifications_distributor_none),
+                    iconColor = MaterialTheme.colorScheme.tertiary,
+                    position = ItemPosition.MIDDLE,
+                    onClick = { component.onNotification(NotificationsStore.Intent.Reregister) },
+                )
+            }
+        } else {
+            state.distributors.forEach { name ->
+                item {
+                    SettingsTile(
+                        icon = Icons.Outlined.Notifications,
+                        title = name,
+                        subtitle = stringResource(R.string.settings_notifications_distributor),
+                        iconColor = MaterialTheme.colorScheme.tertiary,
+                        position = ItemPosition.MIDDLE,
+                        onClick = { component.onNotification(NotificationsStore.Intent.SelectDistributor(name)) },
+                        trailingContent = {
+                            if (name == state.distributorPackage) {
+                                Text(stringResource(R.string.settings_notifications_on))
+                            }
+                        },
+                    )
+                }
+            }
+        }
+        item {
+            var open by remember { mutableStateOf(false) }
+            var draft by remember(state.gateway) { mutableStateOf(state.gateway) }
+            SettingsTile(
+                icon = Icons.Outlined.Notifications,
+                title = stringResource(R.string.settings_notifications_gateway),
+                subtitle = state.gateway.ifBlank { stringResource(R.string.settings_notifications_gateway_sub) },
+                iconColor = MaterialTheme.colorScheme.primary,
+                position = ItemPosition.MIDDLE,
+                onClick = {
+                    draft = state.gateway
+                    open = true
+                },
+            )
+            if (open) {
+                AlertDialog(
+                    onDismissRequest = { open = false },
+                    title = { Text(stringResource(R.string.settings_notifications_gateway)) },
+                    text = {
+                        OutlinedTextField(
+                            value = draft,
+                            onValueChange = { draft = it },
+                            placeholder = { Text(stringResource(R.string.settings_notifications_gateway_sub)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            component.onNotification(NotificationsStore.Intent.SetGateway(draft.trim()))
+                            open = false
+                        }) { Text(stringResource(R.string.settings_save)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { open = false }) {
+                            Text(stringResource(android.R.string.cancel))
+                        }
+                    },
+                )
+            }
+        }
+    }
+    noMutedRow(component, state, if (showUnifiedPush) ItemPosition.MIDDLE else ItemPosition.TOP)
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.Notifications,
+            title = stringResource(R.string.settings_notifications_bubbles),
+            subtitle = stringResource(R.string.settings_notifications_bubbles_sub),
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = ItemPosition.BOTTOM,
+            onClick = { component.onNotification(NotificationsStore.Intent.SetBubbles(!state.bubbles)) },
+            trailingContent = {
+                Switch(checked = state.bubbles, onCheckedChange = null)
+            },
+        )
+    }
+}
+
+@Composable
+private fun callsVibrateLabel(value: String): String = when (value) {
+    "off" -> stringResource(R.string.settings_notifications_off)
+    "short" -> stringResource(R.string.settings_notifications_vibrate_short)
+    else -> stringResource(R.string.settings_notifications_sound_default)
+}
+
+@Composable
+private fun callsRingtoneLabel(value: String): String = when (value) {
+    "none" -> stringResource(R.string.settings_notifications_sound_none)
+    else -> stringResource(R.string.settings_notifications_sound_default)
+}
+
+private fun providerLabel(mode: PushProviderMode): Int = when (mode) {
+    PushProviderMode.Auto -> R.string.settings_notifications_provider_auto
+    PushProviderMode.ForceFcm -> R.string.settings_notifications_provider_fcm
+    PushProviderMode.ForceUnifiedPush -> R.string.settings_notifications_provider_up
+    PushProviderMode.Off -> R.string.settings_notifications_provider_off
+}
+
+private fun LazyListScope.noMutedRow(
+    component: SettingsComponent,
+    state: NotificationsStore.State,
+    position: ItemPosition,
+) {
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.NotificationsOff,
+            title = stringResource(R.string.settings_notifications_nomuted),
+            subtitle = stringResource(R.string.settings_notifications_nomuted_sub),
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = position,
+            onClick = { component.onNotification(NotificationsStore.Intent.SetNoMuted(!state.noMuted)) },
+            trailingContent = {
+                Switch(checked = state.noMuted, onCheckedChange = null)
+            },
+        )
+    }
+}
 
 internal fun LazyListScope.notificationsItems(
     component: SettingsComponent,
@@ -50,6 +228,7 @@ internal fun LazyListScope.notificationsItems(
     onOpenExceptions: () -> Unit,
 ) {
     val now = (System.currentTimeMillis() / 1000L).toInt()
+    notificationDeliveryItems(component, state)
     item { SectionHeader(stringResource(R.string.settings_notifications_section_global)) }
     globalRow(component, "users", R.string.settings_notifications_private, state.users, now, 0, 2, onOpenCategory)
     globalRow(component, "chats", R.string.settings_notifications_groups, state.chats, now, 1, 2, onOpenCategory)
@@ -122,7 +301,7 @@ internal fun LazyListScope.notificationsItems(
         SettingsTile(
             icon = Icons.Outlined.Phone,
             title = stringResource(R.string.settings_notifications_calls_vibrate),
-            subtitle = state.callsVibrate,
+            subtitle = callsVibrateLabel(state.callsVibrate),
             iconColor = MaterialTheme.colorScheme.primary,
             position = ItemPosition.TOP,
             onClick = { component.onNotification(NotificationsStore.Intent.CycleCallsVibrate) },
@@ -132,7 +311,7 @@ internal fun LazyListScope.notificationsItems(
         SettingsTile(
             icon = Icons.Outlined.Phone,
             title = stringResource(R.string.settings_notifications_calls_ringtone),
-            subtitle = state.callsRingtone,
+            subtitle = callsRingtoneLabel(state.callsRingtone),
             iconColor = MaterialTheme.colorScheme.primary,
             position = ItemPosition.BOTTOM,
             onClick = { component.onNotification(NotificationsStore.Intent.CycleCallsRingtone) },
@@ -209,14 +388,30 @@ internal fun LazyListScope.notificationDebugItems(component: SettingsComponent, 
     val debug = state.debug
     item { SectionHeader(stringResource(R.string.settings_notifications_debug)) }
     item {
+        val none = stringResource(R.string.settings_notifications_debug_none)
+        val type = if (debug.tokenType == 0) {
+            none
+        } else {
+            stringResource(R.string.settings_notifications_debug_token_type, debug.tokenType)
+        }
         SettingsTile(
             icon = Icons.Outlined.BugReport,
-            title = stringResource(R.string.settings_notifications_debug_transport, debug.transport),
+            title = stringResource(
+                R.string.settings_notifications_debug_summary,
+                stringResource(providerLabel(state.providerMode)),
+                debug.distributor.ifBlank { none },
+                type,
+            ),
             subtitle = stringResource(
-                R.string.settings_notifications_debug_status,
-                debug.tokenRedacted.ifBlank { "—" },
-                if (debug.gmsAvailable) "GMS" else "no-GMS",
-                debug.distributor.ifBlank { "—" },
+                R.string.settings_notifications_debug_detail,
+                debug.tokenRedacted.ifBlank { none },
+                debug.lastRegister.ifBlank { none },
+                debug.lastLocKey.ifBlank { none },
+                if (debug.permissionGranted) {
+                    stringResource(R.string.settings_notifications_debug_granted)
+                } else {
+                    stringResource(R.string.settings_notifications_debug_missing)
+                },
             ),
             iconColor = MaterialTheme.colorScheme.tertiary,
             position = ItemPosition.TOP,
@@ -226,8 +421,10 @@ internal fun LazyListScope.notificationDebugItems(component: SettingsComponent, 
     item {
         SettingsTile(
             icon = Icons.Outlined.Notifications,
-            title = stringResource(R.string.settings_notifications_debug_last, debug.lastLocKey.ifBlank { "—" }),
-            subtitle = debug.lastCustomIds.ifBlank { debug.lastRegister },
+            title = stringResource(R.string.settings_notifications_debug_last, debug.lastLocKey.ifBlank {
+                stringResource(R.string.settings_notifications_debug_none)
+            }),
+            subtitle = debug.lastRegister.ifBlank { stringResource(R.string.settings_notifications_debug_none) },
             iconColor = MaterialTheme.colorScheme.secondary,
             position = ItemPosition.MIDDLE,
             onClick = { },
@@ -503,7 +700,8 @@ private fun position(index: Int, size: Int): ItemPosition = when {
 
 /** Mute options offered per chat; [seconds] of 0 clears the mute and [Int.MAX_VALUE] mutes forever. */
 private data class ChatMuteChoice(val labelRes: Int, val seconds: Int) {
-    fun until(now: Int): Int = if (seconds == Int.MAX_VALUE) Int.MAX_VALUE else now + seconds
+    fun until(now: Int): Int = if (seconds == Int.MAX_VALUE) Int.MAX_VALUE
+    else (now.toLong() + seconds).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 }
 
 private val CHAT_MUTE_CHOICES = listOf(
@@ -569,6 +767,22 @@ internal fun NotificationChatModeDialog(
                 modeSwitch(R.string.settings_notifications_popup, mode.popup) { value ->
                     component.onNotification(NotificationsStore.Intent.SetPeerMode(chatId, mode.copy(popup = value)))
                 }
+                modeSwitch(R.string.settings_notifications_chat_mentions, mode.mentions) { value ->
+                    component.onNotification(
+                        NotificationsStore.Intent.SetPeerMode(
+                            chatId,
+                            mode.copy(mentions = value)
+                        )
+                    )
+                }
+                modeSwitch(R.string.settings_notifications_pinned, mode.pinned) { value ->
+                    component.onNotification(
+                        NotificationsStore.Intent.SetPeerMode(
+                            chatId,
+                            mode.copy(pinned = value)
+                        )
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = stringResource(R.string.settings_notifications_chat_mute),
@@ -612,8 +826,12 @@ internal fun NotificationChatModeDialog(
 
 @Composable
 private fun modeSwitch(labelRes: Int, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(stringResource(labelRes))
+    Row(modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(stringResource(labelRes), modifier = Modifier
+            .weight(1f)
+            .padding(end = 12.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

@@ -8,8 +8,9 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
-import org.monogram.core.common.PerfLog
+import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.PerfLog
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import java.io.File
@@ -26,13 +27,16 @@ class TelegramVideoDataSource private constructor(
     private val message: Message,
     private val directory: File,
     private val fetcher: TelegramChunkFetcher?,
+    private val cache: FileCache?,
 ) : BaseDataSource(true) {
     class Factory(
         private val message: Message,
         private val directory: File,
         private val fetcher: TelegramChunkFetcher?,
+        private val cache: FileCache? = null,
     ) : DataSource.Factory {
-        override fun createDataSource(): DataSource = TelegramVideoDataSource(message, directory, fetcher)
+        override fun createDataSource(): DataSource =
+            TelegramVideoDataSource(message, directory, fetcher, cache)
     }
 
     private var uri: Uri? = null
@@ -41,7 +45,9 @@ class TelegramVideoDataSource private constructor(
     private var partOffset = -1L
     private var partLength = 0L
     private var partFile: File? = null
+    private var partIsPrefix = false
     private var partHandle: RandomAccessFile? = null
+    private var partLease: FileCache.Lease? = null
     @Volatile private var request: Job? = null
 
     override fun open(dataSpec: DataSpec): Long {
@@ -77,7 +83,7 @@ class TelegramVideoDataSource private constructor(
         val take = if (remaining < 0) Long.MAX_VALUE else remaining
         val count = minOf(length.toLong(), partLength - position, take).toInt().coerceAtLeast(1)
         val handle = partHandle ?: throw IOException("Media part unavailable")
-        handle.seek(position)
+        handle.seek(position - partOffset)
         val read = handle.read(buffer, offset, count)
         if (read <= 0) {
             if (remaining > 0) throw IOException("Unexpected end of media")
@@ -92,23 +98,73 @@ class TelegramVideoDataSource private constructor(
     private fun openPart(offset: Long, active: Job) {
         if (!directory.isDirectory && !directory.mkdirs()) throw IOException("Cannot create media buffer")
         releasePart()
-        val file = File.createTempFile("video-", ".part", directory)
+        val mediaKey = streamMediaKey(message)
+        val key = mediaKey?.let { streamPartKey(it, offset) }
+        val acquired = key?.let { cache?.acquire(it) }
+        val reused = reusableStreamPrefix(acquired?.file, offset, message.fileSize)
+        if (reused == null) acquired?.close() else partLease = acquired
+        val file = reused ?: File.createTempFile("video-", ".part", directory)
+        partIsPrefix = reused != null
+        if (reused != null) {
+            AppLog.api("stream", "prefix-hit offset=$offset bytes=${reused.length()}")
+        }
         val started = PerfLog.nowMs()
         try {
-            runBlocking(active) {
-                when (val result = checkNotNull(fetcher).fetch(message.id.chatId, message.id.id, file.absolutePath, offset)) {
-                    is Outcome.Err -> throw IOException(result.message)
-                    is Outcome.Ok -> Unit
+            if (reused == null) {
+                runBlocking(active) {
+                    when (val result = checkNotNull(fetcher).fetch(
+                        message.id.chatId,
+                        message.id.id,
+                        file.absolutePath,
+                        offset
+                    )) {
+                        is Outcome.Err -> throw IOException(result.message)
+                        is Outcome.Ok -> Unit
+                    }
                 }
             }
+            if (reused == null && file.length() > PART_SIZE) {
+                RandomAccessFile(file, "rw").use { it.setLength(PART_SIZE) }
+            }
             val length = file.length()
-            if (length <= offset) throw IOException("Empty media part")
-            partFile = file
-            partLength = length
-            partHandle = RandomAccessFile(file, "r")
+            if (length <= 0) throw IOException("Invalid media part: length=$length offset=$offset")
+            if (key != null && message.fileSize?.takeIf { it > 0 } != null && reusableStreamPrefix(
+                    file,
+                    offset,
+                    message.fileSize
+                ) == null) {
+                throw IOException("Incomplete media part")
+            }
+            if (reused == null) RandomAccessFile(file, "rw").use { it.fd.sync() }
+            if (reused == null && key != null && cache != null) {
+                try {
+                    partLease = cache.publishLeased(
+                        key,
+                        file,
+                        message.id.chatId.value,
+                        FileCache.KIND_VIDEOS
+                    )
+                } catch (error: FileCache.AdmissionException) {
+                    if (error.reason != FileCache.AdmissionFailure.InUse) throw error
+                    val concurrent = cache.acquire(key)
+                    if (reusableStreamPrefix(concurrent?.file, offset, message.fileSize) != null) {
+                        partLease = concurrent
+                    } else {
+                        concurrent?.close()
+                    }
+                }
+            }
+            val published = partLease?.file ?: file
+            partIsPrefix = partLease != null
+            partFile = published
+            if (partIsPrefix && reused == null) file.delete()
+            partLength = offset + length
+            partHandle = RandomAccessFile(published, "r")
             partOffset = offset
         } catch (e: Exception) {
-            file.delete()
+            partLease?.close()
+            partLease = null
+            if (reused == null) file.delete()
             partOffset = -1
             throw IOException("Media part unavailable: ${e.message}", e)
         } finally {
@@ -121,9 +177,12 @@ class TelegramVideoDataSource private constructor(
     private fun releasePart() {
         runCatching { partHandle?.close() }
         partHandle = null
-        // The file is only unlinked here: an open handle keeps serving already-read bytes.
-        runCatching { partFile?.delete() }
+        partLease?.close()
+        partLease = null
+        if (!partIsPrefix) runCatching { partFile?.delete() }
         partFile = null
+        cache?.trimIfNeeded()
+        partIsPrefix = false
         partLength = 0L
         partOffset = -1
     }

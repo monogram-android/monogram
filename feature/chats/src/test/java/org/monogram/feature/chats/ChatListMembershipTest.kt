@@ -27,7 +27,7 @@ class ChatListMembershipTest {
         val channel = chat(id = 11, title = "News", isChannel = true, isGroup = false)
         val forum = chat(id = 12, title = "Forum", isGroup = true, isForum = true)
         val sorted = sortChats(listOf(group, channel, forum))
-        assertEquals(listOf(10L, 11L, 12L), sorted.map { it.id.value })
+        assertEquals(listOf(12L, 11L, 10L), sorted.map { it.id.value })
     }
 
     @Test

@@ -1,6 +1,6 @@
 package org.monogram.core.common.telegram
 
-import org.monogram.core.common.push.CHANNEL_ID_OFFSET
+import org.monogram.core.models.channelPeerId
 
 /**
  * Parses `t.me` / `tg:` deep links.
@@ -19,7 +19,7 @@ sealed class TelegramLink {
         val channelId: Long,
         val messageId: Int,
     ) : TelegramLink() {
-        val chatId: Long get() = -(CHANNEL_ID_OFFSET + channelId)
+        val chatId: Long get() = channelPeerId(channelId)
     }
 
     data class Invite(val hash: String) : TelegramLink()

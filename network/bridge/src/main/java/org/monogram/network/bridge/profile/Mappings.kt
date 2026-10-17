@@ -16,9 +16,9 @@ import org.monogram.core.models.SearchPeer
 import org.monogram.core.models.StickerCatalog
 import org.monogram.core.models.StickerList
 import org.monogram.core.models.StickerPack
+import org.monogram.core.models.isForcedVerifiedUser
 import uniffi.monogram_mtproto.ProfileDto
 import org.monogram.network.bridge.message.toModel as toMessageModel
-import org.monogram.core.models.isForcedVerifiedUser
 
 internal fun ProfileDto.toModel(): Profile {
     val extra = ProfileExtras.parse(extraJson)
@@ -42,6 +42,7 @@ internal fun ProfileDto.toModel(): Profile {
         isPremium = extra.isPremium,
         emojiStatusDocumentId = extra.emojiStatusDocumentId,
         canViewParticipants = extra.canViewParticipants,
+        blockedByMe = extra.blockedByMe,
     )
 }
 

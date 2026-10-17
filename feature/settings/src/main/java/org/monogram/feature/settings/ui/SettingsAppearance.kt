@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -25,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -37,14 +36,14 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.FormatLineSpacing
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Keyboard
-import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.RestartAlt
@@ -58,6 +57,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import org.monogram.core.ui.AccentPreset
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.AppearanceState
+import org.monogram.core.ui.ComposerSlotAction
 import org.monogram.core.ui.ComposerStyle
 import org.monogram.core.ui.ThemePreference
 import org.monogram.core.ui.components.ChatComposerLayout
@@ -81,7 +84,11 @@ import org.monogram.core.ui.components.SettingsCard
 import org.monogram.core.ui.components.SettingsCardRow
 import org.monogram.core.ui.components.SettingsChoice
 import org.monogram.core.ui.components.SettingsChoiceGroup
-import org.monogram.core.ui.components.SettingsTile
+import org.monogram.core.ui.components.composerSlotIcon
+import org.monogram.core.ui.menu.AppMenuGroup
+import org.monogram.core.ui.menu.AppMenuItem
+import org.monogram.core.ui.menu.AppMenuPopup
+import org.monogram.core.ui.menu.AppMenuSurface
 import org.monogram.core.ui.theme.accentSwatch
 import org.monogram.feature.settings.R
 
@@ -244,13 +251,23 @@ internal fun LazyListScope.appearanceItems(
             )
             InputBarPreview(appearance)
             SettingsCardDivider()
-            SwitchRow(
-                icon = Icons.Outlined.EmojiEmotions,
+            ComposerSlotMenu(
+                icon = composerSlotIcon(appearance.leftComposerAction, appearance.composerStyle),
                 iconColor = MaterialTheme.colorScheme.tertiary,
-                title = stringResource(R.string.settings_input_bar_emoji_shortcut),
-                subtitle = stringResource(R.string.settings_input_bar_emoji_shortcut_sub),
-                checked = appearance.showEmojiButton,
-                onCheckedChange = AppearanceSettings::setShowEmojiButton,
+                title = stringResource(R.string.settings_input_bar_left),
+                subtitle = stringResource(R.string.settings_input_bar_left_sub),
+                selected = appearance.leftComposerAction,
+                style = appearance.composerStyle,
+                onSelect = AppearanceSettings::setLeftComposerAction,
+            )
+            ComposerSlotMenu(
+                icon = composerSlotIcon(appearance.rightComposerAction, appearance.composerStyle),
+                iconColor = MaterialTheme.colorScheme.secondary,
+                title = stringResource(R.string.settings_input_bar_right),
+                subtitle = stringResource(R.string.settings_input_bar_right_sub),
+                selected = appearance.rightComposerAction,
+                style = appearance.composerStyle,
+                onSelect = AppearanceSettings::setRightComposerAction,
             )
             SwitchRow(
                 icon = Icons.Outlined.Keyboard,
@@ -312,9 +329,9 @@ private fun MessageTextSizeRow(appearance: AppearanceState) {
             valueLabel = sizeLabel,
             value = appearance.messageTextSize.toFloat(),
             valueRange = AppearanceSettings.MIN_MESSAGE_TEXT_SIZE.toFloat()..
-                AppearanceSettings.MAX_MESSAGE_TEXT_SIZE.toFloat(),
+                    AppearanceSettings.MAX_MESSAGE_TEXT_SIZE.toFloat(),
             steps = AppearanceSettings.MAX_MESSAGE_TEXT_SIZE -
-                AppearanceSettings.MIN_MESSAGE_TEXT_SIZE - 1,
+                    AppearanceSettings.MIN_MESSAGE_TEXT_SIZE - 1,
             onValueChange = { AppearanceSettings.setMessageTextSize(it.toInt()) },
             isDefault = appearance.messageTextSize == AppearanceSettings.DEFAULT_MESSAGE_TEXT_SIZE,
             resetLabel = stringResource(R.string.settings_reset_control, sizeTitle),
@@ -327,7 +344,7 @@ private fun MessageTextSizeRow(appearance: AppearanceState) {
             value = appearance.lineSpacing,
             valueRange = AppearanceSettings.MIN_LINE_SPACING..AppearanceSettings.MAX_LINE_SPACING,
             steps = ((AppearanceSettings.MAX_LINE_SPACING - AppearanceSettings.MIN_LINE_SPACING) /
-                0.05f).toInt() - 1,
+                    0.05f).toInt() - 1,
             onValueChange = AppearanceSettings::setLineSpacing,
             isDefault = appearance.lineSpacing == AppearanceSettings.DEFAULT_LINE_SPACING,
             resetLabel = stringResource(R.string.settings_reset_control, spacingTitle),
@@ -340,7 +357,7 @@ private fun MessageTextSizeRow(appearance: AppearanceState) {
             value = appearance.letterSpacing,
             valueRange = AppearanceSettings.MIN_LETTER_SPACING..AppearanceSettings.MAX_LETTER_SPACING,
             steps = ((AppearanceSettings.MAX_LETTER_SPACING - AppearanceSettings.MIN_LETTER_SPACING) /
-                0.01f).toInt() - 1,
+                    0.01f).toInt() - 1,
             onValueChange = AppearanceSettings::setLetterSpacing,
             isDefault = appearance.letterSpacing == AppearanceSettings.DEFAULT_LETTER_SPACING,
             resetLabel = stringResource(R.string.settings_reset_control, letterTitle),
@@ -458,93 +475,88 @@ private fun DynamicColorRow(appearance: AppearanceState) {
         },
     )
 }
+
 @Composable
-private fun InputBarSettings(appearance: AppearanceState) {
-    Column {
-        Surface(
-            modifier = Modifier.fillMaxWidth().selectableGroup(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-        ) {
-            Row(Modifier.padding(4.dp).height(64.dp)) {
-                listOf(ComposerStyle.IOS, ComposerStyle.Material).forEach { style ->
-                    val selected = appearance.composerStyle == style
-                    val shape = MaterialTheme.shapes.medium
-                    Surface(
-                        color = if (selected) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceContainerLow,
-                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        shape = shape,
-                        modifier = Modifier.weight(1f).fillMaxHeight().clip(shape)
-                            .selectable(selected, role = Role.RadioButton) {
-                                AppearanceSettings.setComposerStyle(style)
-                            },
+private fun ComposerSlotMenu(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: androidx.compose.ui.graphics.Color,
+    title: String,
+    subtitle: String,
+    selected: ComposerSlotAction,
+    style: ComposerStyle,
+    onSelect: (ComposerSlotAction) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = composerSlotLabel(selected)
+    SettingsCardRow(
+        icon = icon,
+        iconColor = iconColor,
+        title = title,
+        subtitle = subtitle,
+        onClick = { expanded = true },
+        trailingContent = {
+            Box {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = selectedLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                AppMenuPopup(
+                    expanded = expanded,
+                    onDismiss = { expanded = false },
+                    alignToAnchorEnd = true,
+                ) {
+                    AppMenuSurface(
+                        modifier = Modifier.heightIn(max = 360.dp),
+                        scrollState = rememberScrollState(),
                     ) {
-                        Row(
-                            Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = composerStyleLabel(style),
-                                style = MaterialTheme.typography.labelLarge,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            )
-                            if (selected) {
-                                Icon(Icons.Outlined.Check, null, Modifier.padding(start = 8.dp).size(16.dp))
+                        AppMenuGroup {
+                            ComposerSlotAction.entries.forEach { action ->
+                                AppMenuItem(
+                                    text = composerSlotLabel(action),
+                                    icon = composerSlotIcon(action, style),
+                                    trailing = if (action == selected) {
+                                        {
+                                            Icon(
+                                                Icons.Outlined.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp),
+                                            )
+                                        }
+                                    } else {
+                                        null
+                                    },
+                                    onClick = {
+                                        onSelect(action)
+                                        expanded = false
+                                    },
+                                )
                             }
                         }
                     }
                 }
             }
-        }
-        Spacer(Modifier.height(10.dp))
-        InputBarPreview(appearance)
-        Spacer(Modifier.height(10.dp))
-        SettingsTile(
-            icon = Icons.Outlined.EmojiEmotions,
-            title = stringResource(R.string.settings_input_bar_emoji_shortcut),
-            subtitle = stringResource(R.string.settings_input_bar_emoji_shortcut_sub),
-            iconColor = MaterialTheme.colorScheme.tertiary,
-            position = ItemPosition.TOP,
-            onClick = { AppearanceSettings.setShowEmojiButton(!appearance.showEmojiButton) },
-            trailingContent = {
-                Switch(
-                    checked = appearance.showEmojiButton,
-                    onCheckedChange = AppearanceSettings::setShowEmojiButton,
-                )
-            },
-        )
-        SettingsTile(
-            icon = Icons.Outlined.Keyboard,
-            title = stringResource(R.string.settings_input_bar_send_by_enter),
-            subtitle = stringResource(R.string.settings_input_bar_send_by_enter_sub),
-            iconColor = MaterialTheme.colorScheme.primary,
-            position = ItemPosition.MIDDLE,
-            onClick = { AppearanceSettings.setSendByEnter(!appearance.sendByEnter) },
-            trailingContent = {
-                Switch(
-                    checked = appearance.sendByEnter,
-                    onCheckedChange = AppearanceSettings::setSendByEnter,
-                )
-            },
-        )
-        SettingsTile(
-            icon = Icons.Outlined.Link,
-            title = stringResource(R.string.settings_input_bar_fix_previews),
-            subtitle = stringResource(R.string.settings_input_bar_fix_previews_sub),
-            iconColor = MaterialTheme.colorScheme.tertiary,
-            position = ItemPosition.BOTTOM,
-            onClick = { AppearanceSettings.setFixLinkPreviews(!appearance.fixLinkPreviews) },
-            trailingContent = {
-                Switch(
-                    checked = appearance.fixLinkPreviews,
-                    onCheckedChange = AppearanceSettings::setFixLinkPreviews,
-                )
-            },
-        )
-    }
+        },
+    )
+}
+
+@Composable
+private fun composerSlotLabel(action: ComposerSlotAction): String = when (action) {
+    ComposerSlotAction.None -> stringResource(R.string.settings_slot_none)
+    ComposerSlotAction.Emoji -> stringResource(R.string.settings_slot_emoji)
+    ComposerSlotAction.Stickers -> stringResource(R.string.settings_slot_stickers)
+    ComposerSlotAction.Gifs -> stringResource(R.string.settings_slot_gifs)
+    ComposerSlotAction.Attach -> stringResource(R.string.settings_slot_attach)
+    ComposerSlotAction.Photos -> stringResource(R.string.settings_slot_photos)
+    ComposerSlotAction.File -> stringResource(R.string.settings_slot_file)
+    ComposerSlotAction.Location -> stringResource(R.string.settings_slot_location)
 }
 
 @Composable
@@ -583,38 +595,33 @@ private fun InputBarPreview(appearance: AppearanceState) {
             ChatComposerLayout(
                 style = appearance.composerStyle,
                 modifier = Modifier.fillMaxWidth(),
-                showEmoji = appearance.showEmojiButton,
-                attachEnabled = true,
-                emojiEnabled = true,
+                leftAction = appearance.leftComposerAction,
+                rightAction = appearance.rightComposerAction,
+                leftEnabled = true,
+                rightEnabled = true,
                 sendEnabled = true,
                 sending = false,
                 editing = false,
-                attachDescription = stringResource(R.string.settings_input_bar_attach),
-                emojiDescription = stringResource(R.string.settings_input_bar_emoji),
+                leftDescription = composerSlotLabel(appearance.leftComposerAction),
+                rightDescription = composerSlotLabel(appearance.rightComposerAction),
                 sendDescription = stringResource(R.string.settings_input_bar_send),
-                onAttach = {},
-                onEmoji = {},
+                onLeft = {},
+                onRight = {},
                 onSend = {},
             ) {
-                    BasicTextField(
-                        value = stringResource(R.string.settings_input_bar_message),
-                        onValueChange = {},
-                        readOnly = true,
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                        ),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    )
+                BasicTextField(
+                    value = stringResource(R.string.settings_input_bar_message),
+                    onValueChange = {},
+                    readOnly = true,
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                )
             }
         }
     }
-}
-
-@Composable
-private fun composerStyleLabel(style: ComposerStyle): String = when (style) {
-    ComposerStyle.IOS -> stringResource(R.string.settings_input_bar_ios)
-    ComposerStyle.Material -> stringResource(R.string.settings_input_bar_material)
 }
 
 @Composable
@@ -640,13 +647,19 @@ private fun ChatListPreview(
             .animateContentSize(),
     ) {
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 72.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AnimatedVisibility(showAvatar) {
                 Row {
                     Box(
-                        modifier = Modifier.size(54.dp).clip(CircleShape).background(avatar),
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(avatar),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -659,7 +672,10 @@ private fun ChatListPreview(
                     Spacer(Modifier.width(12.dp))
                 }
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = stringResource(R.string.settings_preview_sample_title),
@@ -688,10 +704,13 @@ private fun ChatListPreview(
         }
     }
 }
+
 @Composable
 private fun AccentPicker(preset: AccentPreset, dynamic: Boolean, onSelect: (AccentPreset) -> Unit) {
     LazyRow(
-        modifier = Modifier.fillMaxWidth().selectableGroup(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectableGroup(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -748,7 +767,9 @@ private fun AccentPicker(preset: AccentPreset, dynamic: Boolean, onSelect: (Acce
                             .size(if (selected) 38.dp else 44.dp)
                             .clip(CircleShape)
                             .background(
-                                color = if (dynamic) accentSwatch(accent).copy(alpha = 0.45f) else accentSwatch(accent),
+                                color = if (dynamic) accentSwatch(accent).copy(alpha = 0.45f) else accentSwatch(
+                                    accent
+                                ),
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -779,6 +800,7 @@ private fun AccentPicker(preset: AccentPreset, dynamic: Boolean, onSelect: (Acce
         }
     }
 }
+
 @Composable
 private fun themeLabel(pref: ThemePreference): String = when (pref) {
     ThemePreference.System -> stringResource(R.string.settings_theme_system)

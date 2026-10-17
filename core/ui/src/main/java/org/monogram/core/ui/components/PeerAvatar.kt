@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import org.monogram.core.ui.mp4File
 import org.monogram.core.ui.webmFile
@@ -70,6 +71,7 @@ fun PeerAvatar(
     modifier: Modifier = Modifier,
     size: Dp = 52.dp,
     imageFile: File? = null,
+    previewBytes: ByteArray? = null,
 ) {
     val initial = remember(title) { peerInitials(title) }
     val avatarBg = remember(title) { org.monogram.core.ui.ColorUtils.generateColorFromHash(title) }
@@ -89,6 +91,7 @@ fun PeerAvatar(
             color = avatarBg,
         )
         val file = imageFile?.takeIf { it.exists() && it.length() > 0L }
+        val preview = previewBytes?.takeIf { file == null && it.isNotEmpty() }
         if (file != null) {
             if (webmFile(file) || mp4File(file)) {
                 LoopingVideo(
@@ -114,6 +117,23 @@ fun PeerAvatar(
                     contentScale = ContentScale.Crop,
                 )
             }
+        } else if (preview != null) {
+            val context = LocalContext.current
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(preview)
+                    .memoryCacheKey("peer-stripped:${preview.size}:${preview.contentHashCode()}")
+                    .diskCachePolicy(CachePolicy.DISABLED)
+                    .crossfade(false)
+                    .size(128)
+                    .transformations(PreviewBlurTransformation())
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
         }
     }
 }

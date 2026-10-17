@@ -7,14 +7,32 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 
 /** Reads a media cache generation at the point of use. */
 @Composable
 fun rememberCacheGeneration(generation: Flow<Long>?): Long =
     generation?.collectAsState(initial = 0L)?.value ?: 0L
+
+@Composable
+fun rememberStrippedPreview(identity: Any?, load: () -> ByteArray?): ByteArray? {
+    var cached by remember(identity) { mutableStateOf(load()?.takeIf { it.isNotEmpty() }) }
+    if (cached == null) {
+        LaunchedEffect(identity) {
+            repeat(8) { attempt ->
+                val peeked = load()?.takeIf { it.isNotEmpty() }
+                if (peeked != null) {
+                    cached = peeked
+                    return@LaunchedEffect
+                }
+                if (attempt < 7) delay(250L * (attempt + 1))
+            }
+        }
+    }
+    return cached
+}
 
 /**
  * Resolves a local media file, then keeps it in sync when [generation] changes
@@ -26,9 +44,14 @@ fun rememberEnsuredFile(
     identity: Any?,
     resolve: () -> File?,
     ensure: suspend () -> File?,
+    demand: Boolean = true,
 ): File? {
     var file by remember(identity) { mutableStateOf(resolve()) }
-    LaunchedEffect(identity, generation) {
+    LaunchedEffect(identity, generation, demand) {
+        if (!demand) {
+            file = resolve()
+            return@LaunchedEffect
+        }
         repeat(3) { attempt ->
             val resolved = resolve()
             if (resolved != null) {
@@ -43,5 +66,6 @@ fun rememberEnsuredFile(
             if (attempt < 2) delay(400L * (attempt + 1))
         }
     }
+    rememberFileLease(file)
     return file
 }

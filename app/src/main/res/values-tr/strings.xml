@@ -22,6 +22,7 @@
     <string name="push_channel_groups">Gruplar</string>
     <string name="push_channel_channels">Kanallar</string>
     <string name="push_channel_other">Diğer</string>
+    <string name="push_channel_calls">Aramalar</string>
     <string name="push_channel_stories">Hikayeler</string>
     <string name="push_channel_reactions">Tepkiler</string>
     <string name="push_folder">Klasör %1$d</string>
@@ -31,6 +32,9 @@
     <string name="push_reply">Yanıtla</string>
     <string name="push_reply_hint">Mesaj</string>
     <string name="push_mark_read">Okundu olarak işaretle</string>
+    <string name="push_not_sent">Gönderilmedi</string>
+    <string name="push_mute_hour">1 saat sessize al</string>
+    <string name="push_notification_settings">Bildirim ayarları</string>
     <string name="push_open_link">Bağlantıyı aç</string>
     <string name="push_more_chats">+%1$d daha</string>
     <plurals name="push_new_messages">
@@ -38,7 +42,7 @@
         <item quantity="other">%1$d yeni mesaj</item>
     </plurals>
     <string name="crash_title">Bir şeyler ters gitti</string>
-    <string name="crash_subtitle">Monogram beklenmeyen bir hatayla karşılaştı. Aşağıdaki rapor düzeltmeye yardımcı olur.</string>
+    <string name="crash_subtitle">Monogram beklenmeyen bir hatayla karşılaştı. Aşağıdaki rapor düzeltmeye yardımcı olur</string>
     <string name="crash_log_label">Çökme kaydı</string>
     <string name="crash_copy">Ayrıntıları kopyala</string>
     <string name="crash_copied">Çökme ayrıntıları kopyalandı</string>
@@ -49,10 +53,12 @@
     <string name="update_prompt_skip">Atla</string>
     <string name="update_prompt_update">Güncelle</string>
     <string name="update_prompt_install">Yükle</string>
-    <string name="update_prompt_body">Yeni bir derleme hazır. İndirme boyutu %1$s.</string>
+    <string name="update_prompt_body">Yeni bir derleme hazır. İndirme boyutu %1$s</string>
     <string name="update_prompt_hide">Gizle</string>
     <string name="update_prompt_progress">İndiriliyor %1$s / %2$s</string>
     <string name="update_prompt_error">Güncelleme indirilemedi</string>
     <string name="update_prompt_retry">Yeniden dene</string>
     <string name="update_prompt_ready">Yüklemeye hazır</string>
+    <string name="update_prompt_installing">Güncelleme yükleniyor</string>
+    <string name="update_prompt_installing_body">%1$s yükleniyor</string>
 </resources>

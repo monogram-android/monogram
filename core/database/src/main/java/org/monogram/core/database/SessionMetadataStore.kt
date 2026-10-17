@@ -6,7 +6,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.monogram.core.database.entity.MetaEntity
 import org.monogram.core.database.entity.PeerEntity
-import org.monogram.core.database.entity.ProfileMemberEntity
 import org.monogram.core.database.entity.ProfileTabsEntity
 import org.monogram.core.database.entity.UpdateCursorEntity
 import org.monogram.core.models.AuthSession
@@ -14,7 +13,6 @@ import org.monogram.core.models.Chat
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
-import org.monogram.core.models.ProfileMember
 import org.monogram.core.models.ProfileMemberPage
 import org.monogram.core.models.ProfileTab
 import org.monogram.core.models.ProfileTabCounts
@@ -54,6 +52,7 @@ open class SessionMetadataStore(
         val database = db ?: return
         database.metaDao().clear()
         database.updateCursorDao().clear()
+        database.updateCursorDao().clearReceipts()
         database.profileTabsDao().clear()
         database.profileMembersDao().clear()
         database.profileMediaDao().clear()
@@ -209,6 +208,7 @@ open class SessionMetadataStore(
     open suspend fun saveProfileMembers(peerId: Long, page: ProfileMemberPage) {
         val database = db ?: return
         database.withTransaction {
+            touchProfileTabs(database, peerId)
             database.profileMembersDao().delete(peerId)
             if (page.members.isNotEmpty()) {
                 database.profileMembersDao().upsertAll(
@@ -233,6 +233,7 @@ open class SessionMetadataStore(
     open suspend fun saveProfileMedia(peerId: Long, tab: ProfileTab, messages: List<Message>) {
         val database = db ?: return
         database.withTransaction {
+            touchProfileTabs(database, peerId)
             database.profileMediaDao().deleteTab(peerId, tab.wire)
             if (messages.isNotEmpty()) {
                 database.profileMediaDao().upsertAll(
@@ -254,6 +255,7 @@ open class SessionMetadataStore(
     open suspend fun saveProfileCommonChats(peerId: Long, chats: List<Chat>) {
         val database = db ?: return
         database.withTransaction {
+            touchProfileTabs(database, peerId)
             database.profileCommonDao().delete(peerId)
             if (chats.isNotEmpty()) {
                 database.profileCommonDao().upsertAll(
@@ -261,6 +263,17 @@ open class SessionMetadataStore(
                 )
             }
         }
+    }
+
+    private suspend fun touchProfileTabs(database: MonogramDatabase, peerId: Long) {
+        val existing = database.profileTabsDao().get(peerId)
+        database.profileTabsDao().upsert(
+            ProfileTabsEntity(
+                peerId = peerId,
+                tabsJson = existing?.tabsJson ?: "",
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
     }
 
     open suspend fun saveUpdatesCursor(pts: Int, qts: Int, date: Int, seq: Int) {
@@ -283,6 +296,10 @@ open class SessionMetadataStore(
 
     open suspend fun writeMeta(key: String, value: String) {
         db?.metaDao()?.upsert(MetaEntity(key, value))
+    }
+
+    open suspend fun deleteMeta(key: String) {
+        db?.metaDao()?.delete(key)
     }
 
     companion object {

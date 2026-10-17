@@ -2,26 +2,26 @@ package org.monogram.feature.chats
 
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.time.Duration.Companion.milliseconds
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.telegram.TelegramError
+import org.monogram.core.database.ChatCacheCursor
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.database.dao.ChatReadState
@@ -34,14 +34,19 @@ import org.monogram.core.models.GlobalMessageSearch
 import org.monogram.core.models.LastSeen
 import org.monogram.core.models.Message
 import org.monogram.core.models.NotifyDefaults
-import org.monogram.core.models.SearchPeer
 import org.monogram.core.models.NotifySettings
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.SearchPeer
 import org.monogram.core.models.TypingPresence
 import org.monogram.core.models.displayedChatAction
 import org.monogram.core.models.isPlaceholderPeerTitle
+import org.monogram.core.ui.components.PeerPresence
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.coroutineContext
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 internal class ChatsExecutor(
     private val client: MtprotoClient,
@@ -68,6 +73,7 @@ internal class ChatsExecutor(
     private var folderSelectionGeneration = 0L
     private var pendingFolderInitialLoad: Int? = null
     private val folderPaging = HashMap<Int, FolderPaging>()
+
     /** Archive cursor used when a custom filter has no server-side dialog stream. */
     private val folderArchivePaging = HashMap<Int, FolderPaging>()
 
@@ -83,6 +89,7 @@ internal class ChatsExecutor(
     private var cachedTail: List<Chat> = emptyList()
     private var roomMainCount = 0
     private var titleRecoveryJob: Job? = null
+    private var catalogGeneration = 0
     private val attemptedTitleRecovery = mutableSetOf<PeerId>()
     private var searchJob: Job? = null
     private var searchMoreJob: Job? = null
@@ -140,9 +147,8 @@ internal class ChatsExecutor(
                                 } else {
                                     mergeChats(listed, mapped)
                                 }
-                                val merged = mergeChats(allListed(), rebuilt)
                                 republishListedLocked(
-                                    merged,
+                                    rebuilt,
                                     fromCache = false,
                                     hasMore = null,
                                     keep = paintKeep(),
@@ -150,22 +156,29 @@ internal class ChatsExecutor(
                                 changed = mapped.filter { row ->
                                     val previous = before[row.id.value] ?: return@filter true
                                     previous.muted != row.muted ||
-                                        previous.title != row.title ||
-                                        previous.muteOverride != row.muteOverride ||
-                                        previous.unreadMark != row.unreadMark
-                                }
+                                            previous.title != row.title ||
+                                            previous.muteOverride != row.muteOverride ||
+                                            previous.unreadMark != row.unreadMark ||
+                                            previous.left != row.left ||
+                                            previous.archived != row.archived ||
+                                            previous.pinned != row.pinned ||
+                                            (row.pinnedOrder != Int.MAX_VALUE && previous.pinnedOrder != row.pinnedOrder)
+                                }.map { row -> rebuilt.firstOrNull { it.id == row.id } ?: row }
                             }
                             if (changed.isNotEmpty()) scope.launch { warmup?.upsertChats(changed) }
                         }
                         // Empty payload is peer metadata. Full getChats is
                         // only for differenceTooLong (Ignored below).
                     }
+
                     is MtprotoUpdate.Ignored -> if (update.kind == "difference_too_long") {
-                        refresh(force = true)
+                        refresh(force = false)
                     }
+
                     is MtprotoUpdate.PeerTyping -> scope.launch {
                         applyPeerTyping(update)
                     }
+
                     is MtprotoUpdate.PeerStatus -> {
                         val current = state().chats.firstOrNull { it.id == update.userId }
                         val visible = current == null || LastSeen.affectsUi(
@@ -174,7 +187,20 @@ internal class ChatsExecutor(
                             update.status,
                             update.statusAt,
                         )
-                        if (visible && current != null) {
+                        if (current != null && visible) {
+                            PeerPresence.record(
+                                update.userId.value,
+                                update.status,
+                                update.statusAt,
+                            )
+                        }
+                        val dotChanged = current != null && onlineDotChanged(
+                            current.peerStatus,
+                            current.peerStatusAt,
+                            update.status,
+                            update.statusAt,
+                        )
+                        if (dotChanged) {
                             listPublicationMutex.withLock {
                                 dispatch(Msg.Status(update.userId, update.status, update.statusAt))
                             }
@@ -189,6 +215,7 @@ internal class ChatsExecutor(
                             }
                         }
                     }
+
                     is MtprotoUpdate.PeerEmojiStatus -> {
                         val current = state().chats.firstOrNull { it.id == update.userId }
                         if (current == null || current.emojiStatusDocumentId != update.documentId) {
@@ -205,15 +232,18 @@ internal class ChatsExecutor(
                             }
                         }
                     }
+
                     is MtprotoUpdate.NewMessage -> {
                         val named = withSenderName(update.message)
-                        absorbIncoming(named)
+                        absorbIncoming(named, update.accountGeneration, update.acceptedOrder)
                     }
+
                     is MtprotoUpdate.MessageEdited -> {
                         listPublicationMutex.withLock {
                             dispatch(Msg.Edited(update.message))
                         }
                     }
+
                     is MtprotoUpdate.MessagesDeleted -> {
                         scope.launch {
                             warmup?.deleteMessages(update.chatId, update.messageIds)
@@ -223,7 +253,7 @@ internal class ChatsExecutor(
                                 // an incoming message may already have advanced this dialog.
                                 val affected = state().chats.filter { chat ->
                                     (update.chatId == null || update.chatId == chat.id) &&
-                                        chat.lastMessageId in ids
+                                            chat.lastMessageId in ids
                                 }
                                 for (chat in affected) {
                                     val latest = warmup?.messages(chat.id, 1)?.firstOrNull()
@@ -232,6 +262,7 @@ internal class ChatsExecutor(
                             }
                         }
                     }
+
                     is MtprotoUpdate.ReadInbox -> {
                         val current = state().chats.firstOrNull { it.id == update.chatId }
                         if (current == null ||
@@ -245,6 +276,7 @@ internal class ChatsExecutor(
                             }
                         }
                     }
+
                     is MtprotoUpdate.ReadOutbox -> {
                         val current = state().chats.firstOrNull { it.id == update.chatId }
                         if (current == null || current.readOutboxMaxId != update.maxId) {
@@ -253,6 +285,7 @@ internal class ChatsExecutor(
                             }
                         }
                     }
+
                     is MtprotoUpdate.ReadHistoryConfirmed -> {
                         val current = state().chats.firstOrNull { it.id == update.chatId }
                         if (current != null && current.readInboxMaxId < update.maxId) {
@@ -261,22 +294,31 @@ internal class ChatsExecutor(
                             }
                         }
                     }
+
                     is MtprotoUpdate.UnreadMentions -> {
                         val current = state().chats.firstOrNull { it.id == update.chatId }
-                        if (current == null || current.unreadMentionsCount != update.stillUnread.coerceAtLeast(0)) {
+                        if (current == null || current.unreadMentionsCount != update.stillUnread.coerceAtLeast(
+                                0
+                            )
+                        ) {
                             listPublicationMutex.withLock {
                                 dispatch(Msg.UnreadMentions(update.chatId, update.stillUnread))
                             }
                         }
                     }
+
                     is MtprotoUpdate.UnreadReactions -> {
                         val current = state().chats.firstOrNull { it.id == update.chatId }
-                        if (current == null || current.unreadReactionsCount != update.stillUnread.coerceAtLeast(0)) {
+                        if (current == null || current.unreadReactionsCount != update.stillUnread.coerceAtLeast(
+                                0
+                            )
+                        ) {
                             listPublicationMutex.withLock {
                                 dispatch(Msg.UnreadReactions(update.chatId, update.stillUnread))
                             }
                         }
                     }
+
                     is MtprotoUpdate.UnreadMentionsDelta -> {
                         if (state().chats.any { it.id == update.chatId }) {
                             listPublicationMutex.withLock {
@@ -284,6 +326,7 @@ internal class ChatsExecutor(
                             }
                         }
                     }
+
                     is MtprotoUpdate.UnreadReactionsDelta -> {
                         if (state().chats.any { it.id == update.chatId }) {
                             listPublicationMutex.withLock {
@@ -291,6 +334,7 @@ internal class ChatsExecutor(
                             }
                         }
                     }
+
                     is MtprotoUpdate.DialogUnreadMark -> {
                         val current = state().chats.firstOrNull { it.id == update.chatId }
                         if (current == null || current.unreadMark != update.unread) {
@@ -305,13 +349,16 @@ internal class ChatsExecutor(
                             }
                         }
                     }
+
                     is MtprotoUpdate.NotifySettingsChanged -> scope.launch {
+                        if (update.topicId != null) return@launch
                         if (update.peerKind == PEER_NOTIFY_KIND && update.chatId.value != 0L) {
-                            applyPeerMute(update.chatId, update.muteUntil)
+                            applyPeerMute(update.chatId, update.muteUntil, update.muteSpecified)
                         } else {
                             loadNotifyDefaults(force = true)
                         }
                     }
+
                     else -> Unit
                 }
             }
@@ -330,6 +377,7 @@ internal class ChatsExecutor(
             ChatsStore.Intent.LoadMore -> {
                 if (state().query.isNotBlank()) loadMoreSearch() else loadMore()
             }
+
             is ChatsStore.Intent.FolderSelected -> {
                 val changed = activeFolderId != intent.folderId
                 if (changed) folderSelectionGeneration++
@@ -341,7 +389,7 @@ internal class ChatsExecutor(
                 // the shared loading gate.
                 val wire = wireFolderId(intent.folderId)
                 val needsInitial = changed && isFolderScopedStream(intent.folderId) &&
-                    folderPaging[wire]?.started != true
+                        folderPaging[wire]?.started != true
                 if (needsInitial) {
                     dispatch(Msg.HasMore(true))
                     if (state().loadingMore) {
@@ -363,11 +411,13 @@ internal class ChatsExecutor(
                     }
                 }
             }
+
             is ChatsStore.Intent.MarkUnread -> markUnread(intent.chatId, intent.unread)
             is ChatsStore.Intent.QueryChanged -> {
                 dispatch(Msg.Query(intent.value))
                 startSearch(intent.value, immediate = false)
             }
+
             ChatsStore.Intent.RetrySearch -> startSearch(state().query, immediate = true)
             is ChatsStore.Intent.MarkRead -> markRead(intent.chatIds)
         }
@@ -389,6 +439,9 @@ internal class ChatsExecutor(
      */
     private suspend fun loadNotifyDefaults(force: Boolean = false) = notifyDefaultsMutex.withLock {
         if (notifyDefaultsRefreshed && !force) return@withLock
+        val loggedOut = sessionStore?.isAuthorized() == false &&
+                client.isLocallyAuthorized() != Outcome.Ok(true)
+        if (loggedOut) return@withLock
         val users = notifySettingsFor("users") ?: return@withLock
         val chats = notifySettingsFor("chats") ?: return@withLock
         val broadcasts = notifySettingsFor("broadcasts") ?: return@withLock
@@ -400,7 +453,7 @@ internal class ChatsExecutor(
         AppLog.api(
             "chats",
             "notify defaults users=${users.muteUntil} chats=${chats.muteUntil} " +
-                "broadcasts=${broadcasts.muteUntil}",
+                    "broadcasts=${broadcasts.muteUntil}",
         )
         listPublicationMutex.withLock {
             val current = state().chats
@@ -425,10 +478,16 @@ internal class ChatsExecutor(
      * `account.updateNotifySettings` for one peer: the row and the cache show the new bell
      * straight away instead of waiting for the next dialog page.
      */
-    private suspend fun applyPeerMute(chatId: PeerId, muteUntil: Int) {
+    private suspend fun applyPeerMute(chatId: PeerId, muteUntil: Int, specified: Boolean) {
         val updated = listPublicationMutex.withLock {
             val current = state().chats.firstOrNull { it.id == chatId } ?: return
-            val next = current.withOwnMute(muteUntil, nowEpochSeconds())
+            val next = if (specified) {
+                current.withOwnMute(muteUntil, nowEpochSeconds())
+            } else if (current.muteOverride || !notifyDefaultsLoaded) {
+                current
+            } else {
+                withEffectiveMutes(listOf(current), notifyDefaults, true).single()
+            }
             if (next == current) return
             dispatch(Msg.Chats(listOf(next), fromCache = false, replace = false))
             next
@@ -463,11 +522,14 @@ internal class ChatsExecutor(
         return when {
             archiveFallback != null ->
                 mainNetworkHasMore || (folderArchivePaging[archiveFallback]?.hasMore ?: true)
+
             folderId == null || folderId == MAIN_FOLDER_WIRE_ID ->
                 cachedTail.any { it.isMainListRow() } || mainNetworkHasMore
+
             folderId == ARCHIVE_FOLDER_ID ->
                 cachedTail.any { it.isArchiveListRow() } ||
-                    (folderPaging[wire]?.hasMore ?: true)
+                        (folderPaging[wire]?.hasMore ?: true)
+
             else -> folderPaging[wire]?.hasMore ?: true
         }
     }
@@ -482,6 +544,7 @@ internal class ChatsExecutor(
                     is Outcome.Ok -> listPublicationMutex.withLock {
                         dispatch(Msg.InboxRead(chat.id, chat.lastMessageId, unread = 0))
                     }
+
                     is Outcome.Err -> AppLog.warn("chats", result.telegramError.logLine())
                 }
             }
@@ -513,6 +576,7 @@ internal class ChatsExecutor(
                         store?.saveAuthorized(AuthSession(result.value.id, 0))
                     }
                 }
+
                 is Outcome.Err -> Unit
             }
         }
@@ -524,12 +588,15 @@ internal class ChatsExecutor(
         val hasMemory = state().chats.isNotEmpty()
         if (!hasMemory) dispatch(Msg.Loading(true))
         dispatch(Msg.Error(null))
+        val generation = ++catalogGeneration
         scope.launch {
+            var catalogSeed: List<Chat>? = null
             try {
-                val cached = warmup?.chatsWindow(DIALOGS_NETWORK_PAGE).orEmpty()
-                roomMainCount = warmup?.mainListCount()?.takeIf { it > 0 }
-                    ?: cached.count { it.isMainListRow() }
-                if (cached.isNotEmpty() && (!hasMemory || force)) {
+                val snapshot = if (!force) warmup?.takeStartupSnapshot() else null
+                val cached = snapshot?.chats ?: warmup?.chatsWindow(DIALOGS_NETWORK_PAGE).orEmpty()
+                roomMainCount = snapshot?.mainCount ?: warmup?.mainListCount()?.takeIf { it > 0 }
+                        ?: cached.count { it.isMainListRow() }
+                if (cached.isNotEmpty() && (!hasMemory || force || snapshot != null)) {
                     AppLog.api(
                         "chats",
                         "cache hit count=${cached.size} main=$roomMainCount",
@@ -558,14 +625,16 @@ internal class ChatsExecutor(
                     cachedTail = tail
                     recoverMissingTitles()
                     if (cachedTail.none { it.isMainListRow() }) {
-                        val extra = warmup?.chatsExcluding(
-                            first.map { it.id.value },
-                            DIALOGS_NETWORK_PAGE,
-                        ).orEmpty().filter { it.isMainListRow() }
+                        val tail = listTail(first, archived = false)
+                        val extra = if (warmup == null || tail == null) {
+                            emptyList()
+                        } else {
+                            warmup.chatsAfter(ChatCacheCursor.from(tail), DIALOGS_NETWORK_PAGE)
+                        }.filter { it.isMainListRow() }
                         cachedTail = extra + cachedTail
                     }
                     val loadedMain = first.count { it.isMainListRow() } +
-                        cachedTail.count { it.isMainListRow() }
+                            cachedTail.count { it.isMainListRow() }
                     dispatch(
                         Msg.HasMore(
                             cachedTail.any { it.isMainListRow() } || loadedMain < roomMainCount,
@@ -598,7 +667,10 @@ internal class ChatsExecutor(
                 }
                 when (result) {
                     is Outcome.Ok -> {
-                        AppLog.api("chats", "network count=${result.value.size} merge=${hasMemory || cached.isNotEmpty()}")
+                        AppLog.api(
+                            "chats",
+                            "network count=${result.value.size} merge=${hasMemory || cached.isNotEmpty()}"
+                        )
                         lastNetworkPage = result.value
                         mainNetworkHasMore = dialogsHasMore(result.value.size)
                         failedOffsetPeers.clear()
@@ -606,7 +678,7 @@ internal class ChatsExecutor(
                         AppLog.api(
                             "chats",
                             "mute state overrides=${mapped.count { it.muteOverride }} " +
-                                "muted=${mapped.count { it.muted }} of ${mapped.size}",
+                                    "muted=${mapped.count { it.muted }} of ${mapped.size}",
                         )
                         // Keep the live-list snapshot, expensive merge, and replace publication
                         // under one lock. A read/update completion cannot land between the
@@ -642,6 +714,7 @@ internal class ChatsExecutor(
                         val hidden = mapped.filter { !it.isShownInChatList() }
                         warmup?.upsertChats(if (hidden.isEmpty()) persisted else persisted + hidden)
                         sessionStore?.upsertPeersFromChats(persisted)
+                        catalogSeed = mapped
                         if (!isFolderScopedStream(activeFolderId) &&
                             cachedTail.any { it.isMainListRow() }
                         ) {
@@ -658,12 +731,13 @@ internal class ChatsExecutor(
                                 AppLog.api(
                                     "chats",
                                     "prune chat=${row.chatId} lastId=${row.lastMessageId} " +
-                                        "cachedMax=${row.cachedMaxId} dropped=${row.droppedIds.size} " +
-                                        "ids=${row.droppedIds.take(12).joinToString(",")}",
+                                            "cachedMax=${row.cachedMaxId} dropped=${row.droppedIds.size} " +
+                                            "ids=${row.droppedIds.take(12).joinToString(",")}",
                                 )
                             }
                         }
                     }
+
                     is Outcome.Err -> {
                         AppLog.warn("chats", result.telegramError.logLine())
                         if (state().chats.isEmpty()) {
@@ -673,7 +747,14 @@ internal class ChatsExecutor(
                 }
                 if (state().loading) dispatch(Msg.Loading(false))
                 if (state().syncing) dispatch(Msg.Syncing(false))
-            } catch (error: kotlinx.coroutines.CancellationException) {
+                catalogSeed?.let { seed ->
+                    refreshInFlight.set(false)
+                    if (generation == catalogGeneration) {
+                        fillDialogCatalog(generation, archived = false, seed = seed)
+                        fillDialogCatalog(generation, archived = true, seed = emptyList())
+                    }
+                }
+            } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
                 if (state().loading) dispatch(Msg.Loading(false))
@@ -699,7 +780,7 @@ internal class ChatsExecutor(
                     dispatch(
                         Msg.HasMore(
                             cachedTail.any { it.isArchiveListRow() } ||
-                                (folderPaging[ARCHIVE_FOLDER_WIRE_ID]?.hasMore ?: true),
+                                    (folderPaging[ARCHIVE_FOLDER_WIRE_ID]?.hasMore ?: true),
                         ),
                     )
                     scope.launch {
@@ -712,12 +793,15 @@ internal class ChatsExecutor(
                     dispatch(Msg.LoadingMore(true))
                     scope.launch {
                         try {
-                            val loadedIds = state().chats.map { it.id.value } +
-                                cachedTail.map { it.id.value }
-                            val roomPage = warmup.chatsArchiveExcluding(
-                                loadedIds,
-                                DIALOGS_NETWORK_PAGE,
-                            ).filter { it.isArchiveListRow() }
+                            val tail = listTail(state().chats + cachedTail, archived = true)
+                            val roomPage = if (tail == null) {
+                                emptyList()
+                            } else {
+                                warmup.chatsAfter(
+                                    ChatCacheCursor.from(tail),
+                                    DIALOGS_NETWORK_PAGE,
+                                )
+                            }.filter { it.isArchiveListRow() }
                             AppLog.api("chats", "loadMore archive room count=${roomPage.size}")
                             if (roomPage.isNotEmpty()) {
                                 dispatch(Msg.Append(roomPage))
@@ -763,10 +847,12 @@ internal class ChatsExecutor(
             dispatch(Msg.LoadingMore(true))
             scope.launch {
                 try {
-                    val loadedIds = state().chats.map { it.id.value } +
-                        cachedTail.map { it.id.value }
-                    val roomPage = warmup.chatsExcluding(loadedIds, DIALOGS_NETWORK_PAGE)
-                        .filter { it.isMainListRow() }
+                    val tail = listTail(state().chats + cachedTail, archived = false)
+                    val roomPage = if (tail == null) {
+                        emptyList()
+                    } else {
+                        warmup.chatsAfter(ChatCacheCursor.from(tail), DIALOGS_NETWORK_PAGE)
+                    }.filter { it.isMainListRow() }
                     AppLog.api("chats", "loadMore room count=${roomPage.size}")
                     if (roomPage.isNotEmpty()) {
                         dispatch(Msg.Append(roomPage))
@@ -825,8 +911,8 @@ internal class ChatsExecutor(
                     val wire = wireFolderId(requestFolderId)
                     val archiveFallback = fallbackArchiveFolderId(requestFolderId)
                     val useArchiveFallback = archiveFallback != null &&
-                        folderArchivePaging[archiveFallback]?.hasMore != false &&
-                        (!mainNetworkHasMore || fetched % 2 == 0)
+                            folderArchivePaging[archiveFallback]?.hasMore != false &&
+                            (!mainNetworkHasMore || fetched % 2 == 0)
                     val folderScoped = isFolderScopedStream(requestFolderId)
                     val pageBudget = pagesPerRequest(requestFolderId)
                     val stateful = when {
@@ -841,6 +927,7 @@ internal class ChatsExecutor(
                             failedOffsetPeers,
                             skipArchived = false,
                         )
+
                         archiveFallback != null && !mainNetworkHasMore -> null
                         else -> dialogsPageCursor(lastNetworkPage, failedOffsetPeers)
                     }
@@ -851,8 +938,8 @@ internal class ChatsExecutor(
                             mainNetworkHasMore = false
                         }
                         val otherStreamHasMore = archiveFallback != null &&
-                            if (useArchiveFallback) mainNetworkHasMore
-                            else folderArchivePaging[archiveFallback]?.hasMore == true
+                                if (useArchiveFallback) mainNetworkHasMore
+                                else folderArchivePaging[archiveFallback]?.hasMore == true
                         if (otherStreamHasMore) {
                             // One stream ended, but the other still has pages. Continue
                             // the same request rather than declaring the folder exhausted.
@@ -862,7 +949,7 @@ internal class ChatsExecutor(
                             dispatch(
                                 Msg.HasMore(
                                     mainNetworkHasMore ||
-                                        (folderArchivePaging[archiveFallback]?.hasMore == true),
+                                            (folderArchivePaging[archiveFallback]?.hasMore == true),
                                 ),
                             )
                         } else if (!folderScoped) {
@@ -880,7 +967,7 @@ internal class ChatsExecutor(
                     AppLog.api(
                         "chats",
                         "loadMore folder=$requestFolder pages=$fetched/$pageBudget " +
-                            "offsetDate=$date offsetId=$offsetId peer=$peerId",
+                                "offsetDate=$date offsetId=$offsetId peer=$peerId",
                     )
                     val result = if (useArchiveFallback || folderScoped) {
                         client.loadMoreFolderChats(requestFolder, date, offsetId, peerId)
@@ -914,7 +1001,7 @@ internal class ChatsExecutor(
                                     Msg.HasMore(
                                         if (archiveFallback != null) {
                                             mainNetworkHasMore ||
-                                                (folderArchivePaging[archiveFallback]?.hasMore == true)
+                                                    (folderArchivePaging[archiveFallback]?.hasMore == true)
                                         } else {
                                             mainNetworkHasMore
                                         },
@@ -938,6 +1025,7 @@ internal class ChatsExecutor(
                             // enough: keep going until the budget is spent or the stream ends.
                             if (fetched >= pageBudget) return@run
                         }
+
                         is Outcome.Err -> {
                             val error = result.telegramError
                             AppLog.warn("chats", error.logLine())
@@ -953,9 +1041,11 @@ internal class ChatsExecutor(
                                     folderPaging.remove(wire)
                                     folderArchivePaging.getOrPut(wire) { FolderPaging() }
                                 }
+
                                 useArchiveFallback && error.type == FOLDER_ID_INVALID -> {
                                     stateful?.hasMore = false
                                 }
+
                                 error.kind == TelegramError.Kind.Peer -> failedOffsetPeers += peerId
                                 else -> {
                                     dispatch(Msg.Error(error))
@@ -968,7 +1058,7 @@ internal class ChatsExecutor(
                                         dispatch(
                                             Msg.HasMore(
                                                 mainNetworkHasMore ||
-                                                    (folderArchivePaging[archiveFallback]?.hasMore == true),
+                                                        (folderArchivePaging[archiveFallback]?.hasMore == true),
                                             ),
                                         )
                                     } else {
@@ -984,7 +1074,7 @@ internal class ChatsExecutor(
             }
             if (!paged) {
                 val stillCurrent = requestGeneration == folderSelectionGeneration &&
-                    requestFolderId == activeFolderId
+                        requestFolderId == activeFolderId
                 val archiveFallback = fallbackArchiveFolderId(requestFolderId)
                 if (!stillCurrent) {
                     // A replacement folder owns the next loading transition.
@@ -993,7 +1083,8 @@ internal class ChatsExecutor(
                     folderArchivePaging[archiveFallback]?.hasMore = false
                     dispatch(Msg.HasMore(false))
                 } else if (isFolderScopedStream(requestFolderId)) {
-                    folderPaging.getOrPut(wireFolderId(requestFolderId)) { FolderPaging() }.hasMore = false
+                    folderPaging.getOrPut(wireFolderId(requestFolderId)) { FolderPaging() }.hasMore =
+                        false
                     dispatch(Msg.HasMore(false))
                 } else {
                     mainNetworkHasMore = false
@@ -1085,6 +1176,7 @@ internal class ChatsExecutor(
             activeFolderId == ARCHIVE_FOLDER_ID -> known.coerceAtLeast(ARCHIVE_PAINT_LIMIT)
             activeFolderId != null && activeFolderId != MAIN_FOLDER_WIRE_ID ->
                 known.coerceAtLeast(ARCHIVE_PAINT_LIMIT)
+
             else -> ARCHIVE_PAINT_LIMIT
         }
     }
@@ -1138,8 +1230,8 @@ internal class ChatsExecutor(
         // network stream's state instead of turning an unfinished stream off.
         val streamHasMore = hasMoreOverride ?: state().hasMore
         return tail.any { it.isMainListRow() } ||
-            streamHasMore ||
-            loadedMain < roomMainCount
+                streamHasMore ||
+                loadedMain < roomMainCount
     }
 
     private fun recoverMissingTitles() {
@@ -1148,7 +1240,10 @@ internal class ChatsExecutor(
             // Resolve sequentially, once per refresh, so missing peers cannot flood the RPC queue.
             while (true) {
                 val missing = state().chats.firstOrNull {
-                    it.id !in attemptedTitleRecovery && isPlaceholderPeerTitle(it.title, it.id.value)
+                    it.id !in attemptedTitleRecovery && isPlaceholderPeerTitle(
+                        it.title,
+                        it.id.value
+                    )
                 } ?: break
                 attemptedTitleRecovery += missing.id
                 val cached = sessionStore?.readProfile(missing.id.value)
@@ -1162,7 +1257,11 @@ internal class ChatsExecutor(
                 // Re-read after the RPC: messages and read state may have changed while waiting.
                 val updated = listPublicationMutex.withLock {
                     val current = listedChat(missing.id) ?: return@withLock null
-                    if (!isPlaceholderPeerTitle(current.title, current.id.value)) return@withLock null
+                    if (!isPlaceholderPeerTitle(
+                            current.title,
+                            current.id.value
+                        )
+                    ) return@withLock null
                     val next = current.copy(
                         title = profile.title,
                         isChannel = profile.kind == "channel",
@@ -1178,7 +1277,11 @@ internal class ChatsExecutor(
         }
     }
 
-    private fun absorbIncoming(message: Message) {
+    private fun absorbIncoming(
+        message: Message,
+        accountGeneration: Long = 0,
+        acceptedOrder: Long = 0,
+    ) {
         scope.launch {
             var persistHidden: Chat? = null
             val published = listPublicationMutex.withLock {
@@ -1186,9 +1289,11 @@ internal class ChatsExecutor(
                 when {
                     current == null -> false
                     !current.isShownInChatList() -> {
-                        persistHidden = current.withIncomingMessage(message)
+                        persistHidden =
+                            current.withIncomingMessage(message, accountGeneration, acceptedOrder)
                         true
                     }
+
                     else -> {
                         cachedTail = cachedTail.filter { it.id != current.id }
                         val listed = buildList {
@@ -1197,7 +1302,7 @@ internal class ChatsExecutor(
                             if (none { it.id == current.id }) add(current)
                         }
                         republishListedLocked(
-                            applyIncomingMessage(listed, message),
+                            applyIncomingMessage(listed, message, accountGeneration, acceptedOrder),
                             fromCache = false,
                             hasMore = null,
                             keep = paintKeep(),
@@ -1212,12 +1317,25 @@ internal class ChatsExecutor(
                 warmup?.chat(message.id.chatId)
             } ?: return@launch
             if (!stored.isMainListRow()) {
-                warmup?.upsertChats(listOf(stored.withIncomingMessage(message)))
+                warmup?.upsertChats(
+                    listOf(
+                        stored.withIncomingMessage(
+                            message,
+                            accountGeneration,
+                            acceptedOrder
+                        )
+                    )
+                )
                 return@launch
             }
             listPublicationMutex.withLock {
                 republishListedLocked(
-                    applyIncomingMessage(allListed() + stored, message),
+                    applyIncomingMessage(
+                        allListed() + stored,
+                        message,
+                        accountGeneration,
+                        acceptedOrder
+                    ),
                     fromCache = false,
                     hasMore = null,
                     keep = paintKeep(),
@@ -1225,6 +1343,83 @@ internal class ChatsExecutor(
             }
         }
     }
+
+    private suspend fun fillDialogCatalog(
+        generation: Int,
+        archived: Boolean,
+        seed: List<Chat>,
+    ) {
+        var cursor = catalogCursor(archived, seed) ?: return
+        var pages = 0
+        while (pages < 500 && generation == catalogGeneration) {
+            coroutineContext.ensureActive()
+            val (date, offsetId, peerId) = cursor
+            val result = if (archived) {
+                client.loadMoreFolderChats(ARCHIVE_FOLDER_WIRE_ID, date, offsetId, peerId)
+            } else {
+                client.loadMoreChats(date, offsetId, peerId)
+            }
+            when (result) {
+                is Outcome.Err -> {
+                    val wait = result.telegramError.retryAfterSeconds
+                    if (result.telegramError.kind == TelegramError.Kind.Flood &&
+                        wait != null &&
+                        wait > 0
+                    ) {
+                        delay(wait.seconds)
+                        continue
+                    }
+                    AppLog.warn("chats", result.telegramError.logLine())
+                    return
+                }
+
+                is Outcome.Ok -> {
+                    val mapped = muteChats(result.value)
+                    if (mapped.isNotEmpty()) warmup?.upsertChats(mapped)
+                    if (!dialogsHasMore(mapped.size)) {
+                        if (!archived) {
+                            mainNetworkHasMore = false
+                            roomMainCount = warmup?.mainListCount() ?: roomMainCount
+                        }
+                        return
+                    }
+                    val next = dialogsPageCursor(mapped, skipArchived = !archived) ?: return
+                    if (next == cursor) return
+                    cursor = next
+                    pages += 1
+                }
+            }
+        }
+    }
+
+    private suspend fun catalogCursor(
+        archived: Boolean,
+        seed: List<Chat>,
+    ): Triple<Int, Int, Long>? {
+        val seedCursor = dialogsPageCursor(seed, skipArchived = !archived)
+        val saved = warmup?.oldestListed(archived)?.let { dialogsPageOffset(it) }
+        if (!archived && seed.isNotEmpty() && !dialogsHasMore(seed.size)) {
+            if (saved != null && seedCursor != null && offsetIsOlder(
+                    saved,
+                    seedCursor
+                )
+            ) return saved
+            return null
+        }
+        if (saved != null && (seedCursor == null || offsetIsOlder(saved, seedCursor))) return saved
+        if (!archived) return seedCursor
+        // A real database can keep the archive catalog. In-memory tests have nothing to store,
+        // and a zero-offset probe would consume the page the visible archive loader still owns.
+        return if (warmup?.usesIoDispatcher == true) Triple(0, 0, 0L) else null
+    }
+
+    private fun offsetIsOlder(
+        left: Triple<Int, Int, Long>,
+        right: Triple<Int, Int, Long>
+    ): Boolean =
+        left.first < right.first ||
+                (left.first == right.first && left.second < right.second) ||
+                (left.first == right.first && left.second == right.second && left.third < right.third)
 
     private suspend fun muteChats(chats: List<Chat>): List<Chat> {
         val apply = {
@@ -1368,6 +1563,7 @@ internal class ChatsExecutor(
                     knownIds + people.map { it.id.value },
                 )
             }
+
             is Outcome.Err -> contactsErr = contacts.telegramError
         }
         when (global) {
@@ -1400,6 +1596,7 @@ internal class ChatsExecutor(
                     "search people=${people.size} chats=${foundChats.size} messages=${messages.size}",
                 )
             }
+
             is Outcome.Err -> {
                 globalErr = global.telegramError
                 if (reset) {
@@ -1442,4 +1639,16 @@ internal class ChatsExecutor(
             action = shown?.action,
         )
     }
+}
+
+private fun onlineDotChanged(
+    previousStatus: String?,
+    previousAt: Long?,
+    nextStatus: String?,
+    nextAt: Long?,
+): Boolean {
+    val now = System.currentTimeMillis()
+    val wasOnline = LastSeen.resolve(previousStatus, previousAt, now) == LastSeen.Online
+    val nowOnline = LastSeen.resolve(nextStatus, nextAt, now) == LastSeen.Online
+    return wasOnline != nowOnline
 }

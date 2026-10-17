@@ -1,7 +1,9 @@
 //! Shared InvokeWithLayer(InitConnection(...)) helpers for API RPCs.
 
 use std::cell::Cell;
+use std::sync::LazyLock;
 
+use parking_lot::Mutex;
 use tellers_mtproto::LATEST_API_LAYER;
 use tellers_mtproto::codec::{Boxed, BoxedDecode, TlEncode};
 use tellers_mtproto::latest::api::{
@@ -9,11 +11,23 @@ use tellers_mtproto::latest::api::{
 };
 use tellers_mtproto_session::Snapshot;
 
+use crate::InitConnectionInfo;
 use crate::MtprotoError;
 use crate::rpc::{self, BoxedQuery};
 
 thread_local! {
     static WITHOUT_UPDATES: Cell<bool> = const { Cell::new(false) };
+}
+
+static INIT_CONNECTION: LazyLock<Mutex<InitConnectionInfo>> =
+    LazyLock::new(|| Mutex::new(InitConnectionInfo::default()));
+
+pub fn set_init_connection_info(info: InitConnectionInfo) {
+    *INIT_CONNECTION.lock() = info.sanitized();
+}
+
+fn current_init_connection() -> InitConnectionInfo {
+    INIT_CONNECTION.lock().clone()
 }
 
 /// Extra home-DC RPC sessions must not subscribe for updates.
@@ -48,17 +62,18 @@ pub fn wrap_init_connection_at_layer<X: TlEncode>(
     layer: i32,
     query: X,
 ) -> InvokeWithLayerRequest<BoxedQuery<InitConnectionRequest<BoxedQuery<X>>>> {
+    let info = current_init_connection();
     InvokeWithLayerRequest {
         layer,
         query: BoxedQuery(InitConnectionRequest {
             flags: 0,
             api_id,
-            device_model: "Android".into(),
-            system_version: "14".into(),
-            app_version: env!("CARGO_PKG_VERSION").into(),
-            system_lang_code: "en".into(),
-            lang_pack: "android".into(),
-            lang_code: "en".into(),
+            device_model: info.device_model,
+            system_version: info.system_version,
+            app_version: info.app_version,
+            system_lang_code: info.system_lang_code,
+            lang_pack: info.lang_pack,
+            lang_code: info.lang_code,
             proxy: None,
             params: None,
             query: BoxedQuery(query),
@@ -125,6 +140,11 @@ where
 /// `updates.getDifference` / `updates.getState` / channel difference: this
 /// lane is the updates subscriber. Do not wrap `invokeWithoutUpdates`.
 /// https://core.telegram.org/api/invoking#disabling-updates
+/// Body actually written on the updates lane, including gzip when it shrinks the query.
+pub(crate) fn encode_updates_lane_body(body: &[u8]) -> Vec<u8> {
+    rpc::gzip_if_smaller(body)
+}
+
 pub fn invoke_api_allow_updates<Req, Res>(
     snapshot: &mut Snapshot,
     api_id: i32,
@@ -142,8 +162,9 @@ where
             |new_connection| {
                 if new_connection {
                     rpc::encode_boxed_bytes(&wrap_init_connection(api_id, request.clone()))
+                        .map(|body| encode_updates_lane_body(&body))
                 } else {
-                    rpc::encode_boxed_bytes(&request)
+                    rpc::encode_boxed_bytes(&request).map(|body| encode_updates_lane_body(&body))
                 }
             },
         )
@@ -355,152 +376,5 @@ fn decode_response<Res: BoxedDecode>(body: &[u8]) -> Result<Res, MtprotoError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use tellers_mtproto::latest::api::{Bool, BoolTrueConstructor, HelpGetConfigRequest};
-
-    #[test]
-    fn reconnect_replays_reads_but_not_mutations_or_unknown_methods() {
-        use tellers_mtproto::latest::api::*;
-        assert!(replay_safe_method(MessagesGetHistoryRequest::ID));
-        assert!(replay_safe_method(UploadGetFileRequest::ID));
-        assert!(replay_safe_method(UploadSaveFilePartRequest::ID));
-        assert!(replay_safe_method(UploadSaveBigFilePartRequest::ID));
-        assert!(!replay_safe_method(AuthSendCodeRequest::ID));
-        assert!(!replay_safe_method(MessagesSendMessageRequest::ID));
-        assert!(!replay_safe_method(MessagesSendMediaRequest::ID));
-        assert!(!replay_safe_method(MessagesForwardMessagesRequest::ID));
-        assert!(!replay_safe_method(0));
-    }
-
-    fn contains_ctor(bytes: &[u8], ctor: u32) -> bool {
-        let marker = ctor.to_le_bytes();
-        bytes.windows(4).any(|w| w == marker)
-    }
-
-    #[test]
-    fn file_wrap_includes_invoke_without_updates() {
-        let query = rpc::encode_boxed_bytes(&wrap_init_connection_without_updates(
-            1,
-            HelpGetConfigRequest {},
-        ))
-        .expect("query wrap");
-        let updates = rpc::encode_boxed_bytes(&wrap_init_connection(1, HelpGetConfigRequest {}))
-            .expect("updates wrap");
-        let file = rpc::encode_boxed_bytes(&wrap_init_connection_without_updates(
-            1,
-            HelpGetConfigRequest {},
-        ))
-        .expect("file wrap");
-        assert!(
-            contains_ctor(&query, InvokeWithoutUpdatesRequest::<()>::ID),
-            "query RPCs must wrap invokeWithoutUpdates so updates do not starve rpc_result",
-        );
-        assert!(
-            !contains_ctor(&updates, InvokeWithoutUpdatesRequest::<()>::ID),
-            "getDifference/getState must subscribe the updates lane",
-        );
-        assert!(
-            contains_ctor(&file, InvokeWithoutUpdatesRequest::<()>::ID),
-            "file RPCs must wrap invokeWithoutUpdates (0xbf9459b7)",
-        );
-        assert!(contains_ctor(&file, InitConnectionRequest::<()>::ID));
-        assert!(contains_ctor(&file, InvokeWithLayerRequest::<()>::ID));
-        assert_ne!(query, updates);
-    }
-
-    #[test]
-    fn established_query_uses_only_invoke_without_updates() {
-        let first = rpc::encode_boxed_bytes(&wrap_init_connection_without_updates(
-            1,
-            HelpGetConfigRequest {},
-        ))
-        .expect("first query wrap");
-        let established = rpc::encode_boxed_bytes(&wrap_without_updates(HelpGetConfigRequest {}))
-            .expect("established query wrap");
-        assert!(contains_ctor(&first, InitConnectionRequest::<()>::ID));
-        assert!(contains_ctor(&first, InvokeWithLayerRequest::<()>::ID));
-        assert!(contains_ctor(
-            &established,
-            InvokeWithoutUpdatesRequest::<()>::ID
-        ));
-        assert!(!contains_ctor(
-            &established,
-            InitConnectionRequest::<()>::ID
-        ));
-        assert!(!contains_ctor(
-            &established,
-            InvokeWithLayerRequest::<()>::ID
-        ));
-    }
-
-    #[test]
-    fn established_updates_lane_uses_the_method_without_wrappers() {
-        let first = rpc::encode_boxed_bytes(&wrap_init_connection(1, HelpGetConfigRequest {}))
-            .expect("first update-lane wrap");
-        let established = rpc::encode_boxed_bytes(&HelpGetConfigRequest {})
-            .expect("established update-lane request");
-        assert!(contains_ctor(&first, InitConnectionRequest::<()>::ID));
-        assert!(contains_ctor(&first, InvokeWithLayerRequest::<()>::ID));
-        assert!(!contains_ctor(
-            &established,
-            InitConnectionRequest::<()>::ID
-        ));
-        assert!(!contains_ctor(
-            &established,
-            InvokeWithLayerRequest::<()>::ID
-        ));
-        assert!(!contains_ctor(
-            &established,
-            InvokeWithoutUpdatesRequest::<()>::ID
-        ));
-    }
-
-    #[test]
-    fn file_migrate_still_media_dc_only() {
-        assert_eq!(
-            migrate_dc(&MtprotoError::Message("FILE_MIGRATE_4".into())),
-            Some(4)
-        );
-        assert_eq!(
-            migrate_dc(&MtprotoError::Message("RPC 303: FILE_MIGRATE_2".into())),
-            Some(2)
-        );
-        assert_eq!(
-            migrate_dc(&MtprotoError::Message("USER_MIGRATE_5".into())),
-            Some(5)
-        );
-        assert_eq!(
-            migrate_dc(&MtprotoError::Message("RPC timeout recv=0".into())),
-            None
-        );
-    }
-
-    #[test]
-    fn extra_read_flag_selects_without_updates_wrap() {
-        assert!(!invoking_without_updates());
-        with_invoke_without_updates(|| {
-            assert!(invoking_without_updates());
-            let established =
-                rpc::encode_boxed_bytes(&wrap_without_updates(HelpGetConfigRequest {}))
-                    .expect("extra-lane wrap");
-            assert!(contains_ctor(
-                &established,
-                InvokeWithoutUpdatesRequest::<()>::ID,
-            ));
-            assert!(!contains_ctor(
-                &established,
-                InitConnectionRequest::<()>::ID
-            ));
-        });
-        assert!(!invoking_without_updates());
-    }
-
-    #[test]
-    fn response_decode_rejects_trailing_tl_bytes() {
-        let mut encoded = rpc::encode_boxed_bytes(&BoolTrueConstructor {}).expect("encode bool");
-        encoded.extend_from_slice(&0_u32.to_le_bytes());
-
-        assert!(decode_response::<Bool>(&encoded).is_err());
-    }
-}
+#[path = "../tests/unit/api_invoke_tests.rs"]
+mod tests;

@@ -1,6 +1,7 @@
 package org.monogram.core.database.entity
 
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.Index
 
 @Entity(
@@ -41,6 +42,7 @@ data class MessageEntity(
     val senderName: String? = null,
     val replyMarkupJson: String? = null,
     val pending: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val failed: Boolean = false,
     val randomId: Long? = null,
     val checklistJson: String? = null,
 )

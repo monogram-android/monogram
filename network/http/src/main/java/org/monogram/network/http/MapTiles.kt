@@ -6,12 +6,12 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
-import java.io.File
-import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 
 /**
  * OpenStreetMap raster tile fetcher and cache.
@@ -58,9 +58,17 @@ class MapTileStore(
                 if (partial.length() < MIN_TILE_BYTES) error("tile too small")
                 if (!partial.renameTo(file)) error("cannot publish tile")
                 file.setLastModified(System.currentTimeMillis())
+                trimOldest()
                 file
             }.getOrNull()
         }
+    }
+
+    private fun trimOldest() {
+        trimOldestFiles(
+            root.walkTopDown().filter { it.isFile && it.extension == "png" }.toList(),
+            MAX_CACHE_BYTES,
+        )
     }
 
     private fun tileFile(z: Int, x: Int, y: Int) = File(root, "$z/$x/$y.png")
@@ -74,5 +82,16 @@ class MapTileStore(
         const val MAX_ZOOM = 19
         private const val MAX_TILE_BYTES = 512 * 1024
         private const val MIN_TILE_BYTES = 128
+        private const val MAX_CACHE_BYTES = 32L * 1024 * 1024
+    }
+}
+
+internal fun trimOldestFiles(files: List<File>, capBytes: Long) {
+    var total = files.sumOf { it.length() }
+    if (total <= capBytes) return
+    for (file in files.sortedBy { it.lastModified() }) {
+        if (total <= capBytes) return
+        val length = file.length()
+        if (file.delete()) total -= length
     }
 }

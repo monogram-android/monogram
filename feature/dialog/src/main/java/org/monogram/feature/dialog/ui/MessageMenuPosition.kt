@@ -27,13 +27,14 @@ fun rememberMessageMenuPosition(
     val imeBottom = WindowInsets.ime.getBottom(density)
     val statusTop = WindowInsets.statusBars.getTop(density)
     val composer = with(density) { 72.dp.roundToPx() }
+    val bottomGuard = if (imeBottom > 0) navBottom else navBottom + composer
     return rememberAppMenuPositionProvider(
         touch = touch,
         alignToAnchorEnd = outgoing,
         margin = AppMenuScreenMargin,
         gap = 6.dp,
         topInset = with(density) { statusTop.toDp() } + AppMenuSystemBarInset,
-        bottomInset = with(density) { (maxOf(navBottom, imeBottom) + composer).toDp() } + AppMenuSystemBarInset,
+        bottomInset = with(density) { bottomGuard.toDp() } + AppMenuSystemBarInset,
         placementState = placementState,
     )
 }

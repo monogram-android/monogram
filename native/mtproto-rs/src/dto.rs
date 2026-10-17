@@ -12,7 +12,55 @@ pub struct AuthSignedIn {
     pub dc_id: i32,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+/// Values sent in `initConnection` on a fresh transport.
+/// https://core.telegram.org/api/invoking
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct InitConnectionInfo {
+    pub device_model: String,
+    pub system_version: String,
+    pub app_version: String,
+    pub system_lang_code: String,
+    pub lang_pack: String,
+    pub lang_code: String,
+}
+
+impl Default for InitConnectionInfo {
+    fn default() -> Self {
+        Self {
+            device_model: "Android".into(),
+            system_version: "14".into(),
+            app_version: env!("CARGO_PKG_VERSION").into(),
+            system_lang_code: "en".into(),
+            lang_pack: "android".into(),
+            lang_code: "en".into(),
+        }
+    }
+}
+
+impl InitConnectionInfo {
+    pub(crate) fn sanitized(self) -> Self {
+        let fallback = Self::default();
+        Self {
+            device_model: nonempty(self.device_model, &fallback.device_model),
+            system_version: nonempty(self.system_version, &fallback.system_version),
+            app_version: nonempty(self.app_version, &fallback.app_version),
+            system_lang_code: nonempty(self.system_lang_code, &fallback.system_lang_code),
+            lang_pack: nonempty(self.lang_pack, &fallback.lang_pack),
+            lang_code: nonempty(self.lang_code, &fallback.lang_code),
+        }
+    }
+}
+
+fn nonempty(value: String, fallback: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        fallback.to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record)]
 pub struct ChatDto {
     pub id: i64,
     pub title: String,
@@ -92,7 +140,7 @@ pub struct ProfileDto {
     pub extra_json: Option<String>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record)]
 pub struct MessageDto {
     pub chat_id: i64,
     pub id: i32,
@@ -129,6 +177,15 @@ pub struct MessageDto {
     /// Compact JSON for reply/inline keyboards. Never log.
     pub reply_markup_json: Option<String>,
     pub forum_topic: bool,
+    /// Avatar already indexed at `(sender_id, 0)` when its key starts with `avatar:`.
+    #[serde(default)]
+    pub sender_photo_cache_key: Option<String>,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct MessagesPageDto {
+    pub messages: Vec<MessageDto>,
+    pub total_count: i32,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -178,7 +235,7 @@ pub struct ReactionChoiceDto {
     pub document_id: i64,
 }
 
-#[derive(Debug, Clone, uniffi::Enum)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Enum)]
 pub enum UpdateEventDto {
     ChatsChanged,
     FoldersChanged,
@@ -227,14 +284,44 @@ pub enum UpdateEventDto {
         top_message_id: i32,
         read_max_id: i32,
     },
+    /// Dialog rows from a lazy `messages.getPeerDialogs` batch. Not a full chat refresh.
+    DialogsPatched {
+        chats: Vec<ChatDto>,
+    },
+    /// Edge-triggered catch-up signal. True while difference or channel recovery is in flight.
+    SyncState {
+        is_syncing: bool,
+    },
     Ignored {
         kind: String,
     },
 }
 
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct ChannelCursorDto {
+    pub chat_id: i64,
+    pub pts: i32,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct UpdateBatchDto {
+    pub account_generation: i64,
+    pub batch_id: i64,
+    pub events: Vec<UpdateEventDto>,
+    pub cursor_after: Option<UpdatesStateDto>,
+    pub channel_pts_after: Vec<ChannelCursorDto>,
+}
+
+#[derive(Debug, Clone, Default, uniffi::Record)]
+pub struct UpdateDrainDto {
+    pub batches: Vec<UpdateBatchDto>,
+    pub live_events: Vec<UpdateEventDto>,
+    pub replay_required: bool,
+}
+
 #[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct NotifySettingsDto {
-    pub show_previews: bool,
+    pub show_previews: Option<bool>,
     pub silent: bool,
     pub mute_until: i32,
     pub stories_muted: bool,
@@ -246,7 +333,8 @@ pub struct NotifySettingsDto {
 pub struct NotifyExceptionDto {
     pub peer_kind: String,
     pub chat_id: i64,
-    pub show_previews: bool,
+    pub topic_id: Option<i32>,
+    pub show_previews: Option<bool>,
     pub silent: bool,
     pub mute_until: i32,
     pub stories_muted: bool,
@@ -355,10 +443,18 @@ pub struct UploadItemDto {
     pub mime_type: String,
     pub file_name: String,
     pub caption: String,
+    pub entities_json: Option<String>,
     pub duration: i32,
     pub width: i32,
     pub height: i32,
     pub random_id: i64,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct JoinChatDto {
+    pub joined: bool,
+    pub can_send_plain: bool,
+    pub can_send_photos: bool,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -372,4 +468,11 @@ pub struct VpxFrame {
     pub width: u32,
     pub height: u32,
     pub rgba: Vec<u8>,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct VpxAlphaFrame {
+    pub width: u32,
+    pub height: u32,
+    pub alpha: Vec<u8>,
 }

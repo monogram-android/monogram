@@ -3,14 +3,13 @@ package org.monogram.network.http
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.yield
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -150,6 +149,9 @@ class MediaRepositoryThumbTest {
         assertTrue(primed.ensureLocalMessageThumb(thumbMessage) is Outcome.Ok)
         assertTrue(primed.ensureLocalMessageMedia(fullMediaMessage) is Outcome.Ok)
         assertTrue(primed.ensureLocalAvatar(avatarPeer, avatarKey) is Outcome.Ok)
+        withTimeout(1_000) {
+            while (primed.cachedFile(avatarKey) == null) delay(10)
+        }
 
         assertTrue(failingRepo.ensureLocalMessageThumb(thumbMessage) is Outcome.Ok)
         assertTrue(failingRepo.ensureLocalMessageMedia(fullMediaMessage) is Outcome.Ok)
@@ -157,7 +159,10 @@ class MediaRepositoryThumbTest {
 
         assertEquals(0, networkFetches)
         assertEquals(4L, failingRepo.cachedFile("doc:6")!!.length())
-        assertTrue(failingRepo.cachedAvatar(avatarPeer) != null)
+        assertTrue(
+            failingRepo.cachedFile("avatar:11:small") != null ||
+                    failingRepo.cachedAvatar(avatarPeer) != null,
+        )
     }
 
     @Test

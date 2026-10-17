@@ -34,6 +34,12 @@
         <item quantity="other">%d súborov</item>
     </plurals>
     <string name="dialog_media_document">Dokument</string>
+    <string name="dialog_media_link">Odkaz</string>
+    <string name="dialog_media_checklist">Zoznam úloh</string>
+    <string name="dialog_media_poll">Anketa</string>
+    <string name="dialog_media_location">Poloha</string>
+    <string name="dialog_media_contact">Kontakt</string>
+    <string name="dialog_media_dice">Kocka</string>
     <string name="dialog_unsupported_message">Tento typ správy zatiaľ nie je podporovaný</string>
     <string name="dialog_poll_quiz">Kvíz</string>
     <string name="dialog_poll_closed">Uzavreté</string>
@@ -112,6 +118,7 @@
     <string name="dialog_panel_emoji">Emoji</string>
     <string name="dialog_panel_stickers">Nálepky</string>
     <string name="dialog_emoji_open">Emoji, nálepky a GIF</string>
+    <string name="dialog_emoji_recent">Nedávne</string>
     <string name="dialog_emoji_category_smileys">Smajlíky a emócie</string>
     <string name="dialog_emoji_category_people">Ľudia a telo</string>
     <string name="dialog_emoji_category_nature">Zvieratá a príroda</string>
@@ -155,8 +162,6 @@
     <string name="dialog_cut">Vystrihnúť</string>
     <string name="dialog_paste">Prilepiť</string>
     <string name="dialog_copy_selected">Kopírovať výber</string>
-    <string name="dialog_select_text">Vybrať</string>
-    <string name="dialog_select_message">Vybrať správy</string>
     <plurals name="dialog_messages_selected">
         <item quantity="one">Vybraná %1$d správa</item>
         <item quantity="few">Vybrané %1$d správy</item>
@@ -184,8 +189,15 @@
     <string name="dialog_forwarded">Preposlané do %1$s</string>
     <string name="dialog_delete_confirm">Odstrániť túto správu?</string>
     <string name="dialog_delete_for_everyone">Odstrániť pre všetkých</string>
+    <string name="dialog_delete_for_me">Odstrániť pre mňa</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">Odstrániť %1$d správu?</item>
+        <item quantity="few">Odstrániť %1$d správy?</item>
+        <item quantity="many">Odstrániť %1$d správ?</item>
+        <item quantity="other">Odstrániť %1$d správy?</item>
+    </plurals>
     <string name="dialog_cancel">Zrušiť</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Náhľad</string>
     <string name="dialog_markdown_expand">Otvoriť editor</string>
     <string name="dialog_markdown_apply">Použiť</string>
@@ -216,6 +228,10 @@
     <string name="dialog_cant_send">Sem nemôžete posielať správy</string>
     <string name="dialog_cant_send_photos">Fotky v tomto chate nie sú povolené</string>
     <string name="dialog_channel_readonly">Do tohto kanála môžu písať len správcovia</string>
+    <string name="dialog_join">Pripojiť sa</string>
+    <string name="dialog_mute">Stlmiť</string>
+    <string name="dialog_unmute">Zapnúť zvuk</string>
+    <string name="dialog_unblock">Odblokovať</string>
     <string name="dialog_protected">Preposielanie je v tomto chate vypnuté</string>
     <string name="dialog_editing">Úprava správy</string>
     <string name="dialog_replying">Odpoveď</string>
@@ -251,9 +267,36 @@
     <string name="dialog_instant_view_unsupported">Tento blok nie je podporovaný</string>
     <string name="dialog_instant_view_map">Otvoriť mapu</string>
     <string name="dialog_instant_view_related">Súvisiace články</string>
+    <string name="dialog_instant_view_contents">Obsah</string>
+    <string name="dialog_instant_view_contents_empty">Tento článok nemá žiadne časti</string>
+    <string name="dialog_instant_view_beginning">Začiatok</string>
+    <string name="dialog_instant_view_min_read">%1$d min čítania</string>
+    <string name="dialog_instant_view_to_top">Späť hore</string>
+    <string name="dialog_instant_view_reload">Znova načítať</string>
+    <string name="dialog_instant_view_text">Text článku</string>
+    <string name="dialog_instant_view_chars">%1$d znakov</string>
+    <string name="dialog_instant_view_select_all">Vybrať všetko</string>
+    <string name="dialog_instant_view_clear_selection">Zrušiť výber</string>
+    <string name="dialog_instant_view_copy">Kopírovať</string>
+    <string name="dialog_instant_view_done">Hotovo</string>
+    <string name="dialog_instant_view_font_reset">Obnoviť</string>
+    <string name="dialog_instant_view_font_smaller">Menší text</string>
+    <string name="dialog_instant_view_font_larger">Väčší text</string>
+    <string name="dialog_instant_view_search_previous">Predchádzajúci výskyt</string>
+    <string name="dialog_instant_view_search_clear">Vymazať hľadanie</string>
+    <string name="dialog_instant_view_search_close">Zavrieť hľadanie</string>
+    <string name="dialog_instant_view_error_hint">Skontrolujte pripojenie a skúste to znova</string>
+    <string name="dialog_instant_view_collapse">Zbaliť</string>
+    <string name="dialog_instant_view_expand">Rozbaliť</string>
+    <string name="dialog_instant_view_media_page">%1$d z %2$d</string>
+    <string name="dialog_instant_view_media_load">Stiahnuť a prehrať</string>
+    <string name="dialog_instant_view_media_ready">Zvuk pripravený</string>
+    <string name="dialog_instant_view_media_download">Stiahnuť súbor</string>
+    <string name="dialog_instant_view_media_open">Otvoriť súbor</string>
+    <string name="dialog_instant_view_media_cancel">Zrušiť sťahovanie</string>
     <string name="media_delete_title">Odstrániť médiá</string>
-    <string name="media_delete_body_single">Odstrániť túto položku? Odstráni sa u vás aj v tomto chate.</string>
-    <string name="media_delete_body_album">Odstrániť všetkých %1$d položiek? Odstránia sa u vás aj v tomto chate.</string>
+    <string name="media_delete_body_single">Odstrániť túto položku? Odstráni sa u vás aj v tomto chate</string>
+    <string name="media_delete_body_album">Odstrániť všetkých %1$d položiek? Odstránia sa u vás aj v tomto chate</string>
     <string name="media_delete_confirm">Odstrániť</string>
     <string name="media_delete_cancel">Zrušiť</string>
     <string name="media_action_copied_image">Obrázok skopírovaný</string>
@@ -321,4 +364,17 @@
         <item quantity="many">%1$s odberateľov</item>
         <item quantity="other">%1$s odberateľov</item>
     </plurals>
+    <string name="dialog_send_formatted">Odoslať s formátovaním</string>
+    <string name="dialog_editor_title">Editor správ</string>
+    <string name="dialog_editor_send_preview">Ukážka odoslania</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Vybraný text</string>
+    <string name="dialog_editor_select_hint">Vyberte text na formátovanie</string>
+    <string name="dialog_editor_expandable_quote">Rozbaliteľný citát</string>
+    <string name="dialog_editor_clear">Odstrániť formátovanie</string>
+    <string name="dialog_editor_url">Adresa odkazu</string>
+    <string name="dialog_editor_language">Jazyk (voliteľné)</string>
+    <string name="dialog_editor_open">Rozbaliť editor</string>
+    <string name="dialog_rich_date_at_time">%1$s o %2$s</string>
+    <string name="dialog_media_progress_speed">%1$s · %2$s/s</string>
 </resources>

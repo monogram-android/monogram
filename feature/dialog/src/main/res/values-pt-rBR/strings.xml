@@ -32,6 +32,12 @@
         <item quantity="other">%d arquivos</item>
     </plurals>
     <string name="dialog_media_document">Arquivo</string>
+    <string name="dialog_media_link">Link</string>
+    <string name="dialog_media_checklist">Lista de tarefas</string>
+    <string name="dialog_media_poll">Enquete</string>
+    <string name="dialog_media_location">Localização</string>
+    <string name="dialog_media_contact">Contato</string>
+    <string name="dialog_media_dice">Dado</string>
     <string name="dialog_unsupported_message">Este tipo de mensagem ainda não é suportado</string>
     <string name="dialog_poll_quiz">Quiz</string>
     <string name="dialog_poll_closed">Encerrada</string>
@@ -108,6 +114,7 @@
     <string name="dialog_panel_emoji">Emoji</string>
     <string name="dialog_panel_stickers">Stickers</string>
     <string name="dialog_emoji_open">Emoji, stickers e GIFs</string>
+    <string name="dialog_emoji_recent">Recentes</string>
     <string name="dialog_emoji_category_smileys">Smileys e emoções</string>
     <string name="dialog_emoji_category_people">Pessoas e corpo</string>
     <string name="dialog_emoji_category_nature">Animais e natureza</string>
@@ -151,8 +158,6 @@
     <string name="dialog_cut">Recortar</string>
     <string name="dialog_paste">Colar</string>
     <string name="dialog_copy_selected">Copiar selecionado</string>
-    <string name="dialog_select_text">Selecionar</string>
-    <string name="dialog_select_message">Selecionar mensagens</string>
     <plurals name="dialog_messages_selected">
         <item quantity="one">%1$d mensagem selecionada</item>
         <item quantity="other">%1$d mensagens selecionadas</item>
@@ -178,8 +183,13 @@
     <string name="dialog_forwarded">Encaminhado para %1$s</string>
     <string name="dialog_delete_confirm">Excluir esta mensagem?</string>
     <string name="dialog_delete_for_everyone">Excluir para todos</string>
+    <string name="dialog_delete_for_me">Excluir para mim</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">Excluir %1$d mensagem?</item>
+        <item quantity="other">Excluir %1$d mensagens?</item>
+    </plurals>
     <string name="dialog_cancel">Cancelar</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Prévia</string>
     <string name="dialog_markdown_expand">Abrir editor</string>
     <string name="dialog_markdown_apply">Aplicar</string>
@@ -210,6 +220,10 @@
     <string name="dialog_cant_send">Você não pode enviar mensagens aqui</string>
     <string name="dialog_cant_send_photos">Fotos não são permitidas nesta conversa</string>
     <string name="dialog_channel_readonly">Somente administradores podem postar neste canal</string>
+    <string name="dialog_join">Entrar</string>
+    <string name="dialog_mute">Silenciar</string>
+    <string name="dialog_unmute">Ativar som</string>
+    <string name="dialog_unblock">Desbloquear</string>
     <string name="dialog_protected">O encaminhamento está desativado nesta conversa</string>
     <string name="dialog_editing">Editar mensagem</string>
     <string name="dialog_replying">Resposta</string>
@@ -245,9 +259,36 @@
     <string name="dialog_instant_view_unsupported">Este bloco não é suportado</string>
     <string name="dialog_instant_view_map">Abrir mapa</string>
     <string name="dialog_instant_view_related">Artigos relacionados</string>
+    <string name="dialog_instant_view_contents">Conteúdo</string>
+    <string name="dialog_instant_view_contents_empty">Este artigo não tem seções</string>
+    <string name="dialog_instant_view_beginning">Início</string>
+    <string name="dialog_instant_view_min_read">%1$d min de leitura</string>
+    <string name="dialog_instant_view_to_top">Voltar ao topo</string>
+    <string name="dialog_instant_view_reload">Recarregar</string>
+    <string name="dialog_instant_view_text">Texto do artigo</string>
+    <string name="dialog_instant_view_chars">%1$d caracteres</string>
+    <string name="dialog_instant_view_select_all">Selecionar tudo</string>
+    <string name="dialog_instant_view_clear_selection">Limpar seleção</string>
+    <string name="dialog_instant_view_copy">Copiar</string>
+    <string name="dialog_instant_view_done">Concluído</string>
+    <string name="dialog_instant_view_font_reset">Redefinir</string>
+    <string name="dialog_instant_view_font_smaller">Texto menor</string>
+    <string name="dialog_instant_view_font_larger">Texto maior</string>
+    <string name="dialog_instant_view_search_previous">Ocorrência anterior</string>
+    <string name="dialog_instant_view_search_clear">Limpar busca</string>
+    <string name="dialog_instant_view_search_close">Fechar busca</string>
+    <string name="dialog_instant_view_error_hint">Verifique sua conexão e tente novamente</string>
+    <string name="dialog_instant_view_collapse">Recolher</string>
+    <string name="dialog_instant_view_expand">Expandir</string>
+    <string name="dialog_instant_view_media_page">%1$d de %2$d</string>
+    <string name="dialog_instant_view_media_load">Baixar e reproduzir</string>
+    <string name="dialog_instant_view_media_ready">Áudio pronto</string>
+    <string name="dialog_instant_view_media_download">Baixar arquivo</string>
+    <string name="dialog_instant_view_media_open">Abrir arquivo</string>
+    <string name="dialog_instant_view_media_cancel">Cancelar download</string>
     <string name="media_delete_title">Excluir mídia</string>
-    <string name="media_delete_body_single">Excluir este item? Ele é removido para você e desta conversa.</string>
-    <string name="media_delete_body_album">Excluir todos os %1$d itens? Eles são removidos para você e desta conversa.</string>
+    <string name="media_delete_body_single">Excluir este item? Ele é removido para você e desta conversa</string>
+    <string name="media_delete_body_album">Excluir todos os %1$d itens? Eles são removidos para você e desta conversa</string>
     <string name="media_delete_confirm">Excluir</string>
     <string name="media_delete_cancel">Cancelar</string>
     <string name="media_action_copied_image">Imagem copiada</string>
@@ -301,4 +342,17 @@
         <item quantity="one">%1$s inscrito</item>
         <item quantity="other">%1$s inscritos</item>
     </plurals>
+    <string name="dialog_send_formatted">Enviar com formatação</string>
+    <string name="dialog_editor_title">Editor de mensagens</string>
+    <string name="dialog_editor_send_preview">Prévia do envio</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Texto selecionado</string>
+    <string name="dialog_editor_select_hint">Selecione o texto para formatar</string>
+    <string name="dialog_editor_expandable_quote">Citação expansível</string>
+    <string name="dialog_editor_clear">Remover formatação</string>
+    <string name="dialog_editor_url">URL do link</string>
+    <string name="dialog_editor_language">Linguagem (opcional)</string>
+    <string name="dialog_editor_open">Expandir editor</string>
+    <string name="dialog_rich_date_at_time">%1$s às %2$s</string>
+    <string name="dialog_media_progress_speed">%1$s · %2$s/s</string>
 </resources>

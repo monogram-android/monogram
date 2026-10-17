@@ -1,71 +1,14 @@
 package org.monogram.feature.dialog.store
 
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
-import org.monogram.core.common.PerfLog
-import org.monogram.core.common.telegram.TelegramError
-import org.monogram.core.models.Chat
-import org.monogram.core.models.ChatActionKind
-import org.monogram.core.models.ForumIo
-import org.monogram.core.models.ForumTopic
-import org.monogram.core.models.InlineBotResult
-import org.monogram.core.models.InlineBotResults
-import org.monogram.core.models.Message
-import org.monogram.core.models.MessageId
-import org.monogram.core.models.MessageViewers
-import org.monogram.core.models.OutboxReadState
-import org.monogram.core.models.PeerId
-import org.monogram.core.models.Profile
-import org.monogram.core.models.ReactionChoice
-import org.monogram.core.models.ReadReceiptConfig
-import org.monogram.core.models.ReplyButton
-import org.monogram.core.models.ReplyButtonType
-import org.monogram.core.models.ReplyMarkups
-import org.monogram.core.models.SavedGif
-import org.monogram.core.models.StickerPack
-import org.monogram.core.models.StyledText
-import org.monogram.core.models.TextEntities
-import org.monogram.core.models.TextEntity
-import org.monogram.core.models.TypingPresence
-import org.monogram.core.models.UploadItem
-import org.monogram.core.models.canShowMessageViewers
-import org.monogram.core.models.canShowOutboxReadDate
-import org.monogram.core.models.geoPlace
-import org.monogram.core.models.isPlaceholderPeerTitle
-import org.monogram.core.models.peerAvatarCacheKey
-import org.monogram.core.models.playedMediaKind
-import org.monogram.core.models.preferredPeerTitle
-import org.monogram.feature.dialog.ComposerAt
-import org.monogram.feature.dialog.ComposerAtToken
 import org.monogram.feature.dialog.ComposerPanels
-import org.monogram.feature.dialog.DialogStore
-import org.monogram.feature.dialog.DraftMention
-import org.monogram.feature.dialog.InlineBotQuery
-import org.monogram.feature.dialog.MentionCandidate
 import org.monogram.feature.dialog.PickerDisk
-import org.monogram.feature.dialog.PinnedBarMemory
-import org.monogram.feature.dialog.SEARCH_DEBOUNCE_MS
 import org.monogram.feature.dialog.SavedGifMemory
-import org.monogram.feature.dialog.StickerCatalogSnapshot
-import org.monogram.feature.dialog.SenderTagMemory
 import org.monogram.feature.dialog.StickerCatalogMemory
+import org.monogram.feature.dialog.StickerCatalogSnapshot
 import org.monogram.feature.dialog.StickerPackMemory
-import org.monogram.feature.dialog.applyMessageEdit
-import org.monogram.feature.dialog.historyPagingAllowed
-import org.monogram.feature.dialog.isTransientSendFailure
-import org.monogram.feature.dialog.jumpNeedsFetch
-import org.monogram.feature.dialog.localMediaCacheKey
-import org.monogram.feature.dialog.mergeSenderTags
-import org.monogram.feature.dialog.parseUpdateMessageId
-import org.monogram.network.bridge.MtprotoClient
-import org.monogram.network.bridge.MtprotoUpdate
-import kotlin.time.Duration.Companion.milliseconds
 
 internal fun DialogExecutor.warmPickerCatalogs() {
     warmStickerCatalog(emoji = false)
@@ -215,32 +158,55 @@ internal fun DialogExecutor.refreshStickerCatalog(emoji: Boolean, hash: Long) {
 
 internal fun DialogExecutor.loadStickerPack(setId: Long, accessHash: Long) {
     val cached = StickerPackMemory.get(setId) ?: snapshot().loadedStickerPacks[setId]
-    if (cached != null && cached.previewDocumentIds.isNotEmpty()) {
+    val hasPreviews = cached != null && cached.previewDocumentIds.isNotEmpty()
+    // A process restart keeps preview ids on disk but drops the native document
+    // locations. Show the cached pack, then still fetch it once so downloads work.
+    if (cached != null && hasPreviews && StickerPackMemory.isNativeReady(setId)) {
         emit(Msg.StickerPackLoaded(cached))
         return
     }
     if (!loadingStickerPacks.add(setId)) return
-    emit(Msg.StickerPackLoading(setId))
+    if (!hasPreviews) emit(Msg.StickerPackLoading(setId))
     work.launch {
         try {
-            if (cached == null) {
-                sessionStore?.let { PickerDisk.readPack(it, setId) }?.let { disk ->
-                    StickerPackMemory.put(disk)
+            var known = cached
+            if (known == null) {
+                val store = sessionStore
+                val disk = store?.let { PickerDisk.readPack(it, setId) }
+                if (disk != null) {
+                    val dropped = StickerPackMemory.put(disk)
+                    if (dropped != null) PickerDisk.deletePack(store, dropped)
                     emit(Msg.StickerPackLoaded(disk))
-                    if (disk.previewDocumentIds.isNotEmpty()) return@launch
+                    known = disk
                 }
+            } else {
+                val already = known
+                if (already != null) emit(Msg.StickerPackLoaded(already))
+            }
+            val shown = known
+            if (shown != null &&
+                shown.previewDocumentIds.isNotEmpty() &&
+                StickerPackMemory.isNativeReady(setId)
+            ) {
+                return@launch
             }
             stickerPackRequests.acquire()
             try {
                 when (val result = client.getStickerSet(setId, accessHash)) {
                     is Outcome.Ok -> {
-                        StickerPackMemory.put(result.value)
-                        sessionStore?.let { PickerDisk.writePack(it, result.value) }
+                        val dropped = StickerPackMemory.put(result.value)
+                        StickerPackMemory.markNativeReady(setId)
+                        sessionStore?.let {
+                            if (dropped != null) PickerDisk.deletePack(it, dropped)
+                            PickerDisk.writePack(it, result.value)
+                        }
                         emit(Msg.StickerPackLoaded(result.value))
                     }
                     is Outcome.Err -> {
                         handleError(result.telegramError, false)
-                        emit(Msg.StickerPackFailed(setId))
+                        if (shown == null || shown.previewDocumentIds.isEmpty()) {
+                            emit(Msg.StickerPackFailed(setId))
+                        }
                     }
                 }
             } finally {

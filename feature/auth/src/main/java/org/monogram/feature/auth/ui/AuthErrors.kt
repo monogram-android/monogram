@@ -21,13 +21,6 @@ import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.feature.auth.AuthStore
 import org.monogram.feature.auth.R
 
-private val AuthFloodWait = Regex("FLOOD_WAIT_(\\d+)")
-
-internal fun floodWaitSeconds(error: AuthStore.Error?): Int {
-    val type = (error as? AuthStore.Error.Rpc)?.error?.type ?: return 0
-    return AuthFloodWait.find(type)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-}
-
 @Composable
 internal fun AuthInlineError(message: String?, modifier: Modifier = Modifier) {
     AnimatedVisibility(

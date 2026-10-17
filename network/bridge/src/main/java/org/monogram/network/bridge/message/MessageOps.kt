@@ -12,6 +12,11 @@ import org.monogram.core.models.ReadReceiptConfig
 import org.monogram.core.models.SavedGif
 import org.monogram.core.models.UploadItem
 
+data class MessagePage(
+    val messages: List<Message>,
+    val totalCount: Int,
+)
+
 interface MessageOps {
     suspend fun getHistory(chatId: PeerId, limit: Int = 50): Outcome<List<Message>>
     suspend fun getHistoryPage(
@@ -21,6 +26,14 @@ interface MessageOps {
         offsetDate: Int = 0,
         addOffset: Int = 0,
     ): Outcome<List<Message>>
+
+    suspend fun getHistoryPageBackground(
+        chatId: PeerId,
+        limit: Int = 40,
+        offsetId: Int = 0,
+        offsetDate: Int = 0,
+        addOffset: Int = 0,
+    ): Outcome<List<Message>> = getHistoryPage(chatId, limit, offsetId, offsetDate, addOffset)
 
     suspend fun searchMessages(
         chatId: PeerId,
@@ -36,6 +49,15 @@ interface MessageOps {
         addOffset: Int = 0,
         limit: Int = 40,
     ): Outcome<List<Message>> = Outcome.Err("unsupported")
+
+    suspend fun searchMessagesPage(
+        chatId: PeerId,
+        query: String = "",
+        filter: String,
+        offsetId: Int = 0,
+        addOffset: Int = 0,
+        limit: Int = 40,
+    ): Outcome<MessagePage> = Outcome.Err("unsupported")
 
     suspend fun getPinnedMessages(chatId: PeerId, limit: Int = 40): Outcome<List<Message>>
 
@@ -74,6 +96,7 @@ interface MessageOps {
         entitiesJson: String? = null,
         topMsgId: Int = 0,
         webpageUrl: String? = null,
+        randomId: Long = 0,
     ): Outcome<Message>
 
     suspend fun sendPhoto(

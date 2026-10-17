@@ -32,6 +32,12 @@
         <item quantity="other">%d ֆայլ</item>
     </plurals>
     <string name="dialog_media_document">Փաստաթուղթ</string>
+    <string name="dialog_media_link">Հղում</string>
+    <string name="dialog_media_checklist">Առաջադրանքների ցանկ</string>
+    <string name="dialog_media_poll">Հարցում</string>
+    <string name="dialog_media_location">Գտնվելու վայր</string>
+    <string name="dialog_media_contact">Կոնտակտ</string>
+    <string name="dialog_media_dice">Զառ</string>
     <string name="dialog_unsupported_message">Այս հաղորդագրության տեսակը դեռ չի աջակցվում</string>
     <string name="dialog_poll_quiz">Վիկտորինա</string>
     <string name="dialog_poll_closed">Փակված</string>
@@ -108,6 +114,7 @@
     <string name="dialog_panel_emoji">Էմոջի</string>
     <string name="dialog_panel_stickers">Կպչուն պիտակներ</string>
     <string name="dialog_emoji_open">Էմոջի, կպչուն պիտակներ և GIF</string>
+    <string name="dialog_emoji_recent">Վերջինները</string>
     <string name="dialog_emoji_category_smileys">Ժպիտներ և զգացմունքներ</string>
     <string name="dialog_emoji_category_people">Մարդիկ և ժեստեր</string>
     <string name="dialog_emoji_category_nature">Կենդանիներ և բնություն</string>
@@ -151,8 +158,6 @@
     <string name="dialog_cut">Կտրել</string>
     <string name="dialog_paste">Տեղադրել</string>
     <string name="dialog_copy_selected">Պատճենել ընտրվածը</string>
-    <string name="dialog_select_text">Ընտրել</string>
-    <string name="dialog_select_message">Ընտրել հաղորդագրություններ</string>
     <plurals name="dialog_messages_selected">
         <item quantity="one">Ընտրված է %1$d հաղորդագրություն</item>
         <item quantity="other">Ընտրված է %1$d հաղորդագրություն</item>
@@ -176,10 +181,15 @@
     <string name="dialog_forward_search">Որոնել զրույցներ</string>
     <string name="dialog_forward_empty">Ուղարկելու զրույցներ չկան</string>
     <string name="dialog_forwarded">Վերահասցեավորվեց %1$s</string>
-    <string name="dialog_delete_confirm">Ջնջե՞լ այս հաղորդագրությունը։</string>
+    <string name="dialog_delete_confirm">Ջնջե՞լ այս հաղորդագրությունը</string>
     <string name="dialog_delete_for_everyone">Ջնջել բոլորի համար</string>
+    <string name="dialog_delete_for_me">Ջնջել ինձ համար</string>
+    <plurals name="dialog_delete_confirm_count">
+        <item quantity="one">Ջնջե՞լ %1$d հաղորդագրություն</item>
+        <item quantity="other">Ջնջե՞լ %1$d հաղորդագրություն</item>
+    </plurals>
     <string name="dialog_cancel">Չեղարկել</string>
-    <string name="dialog_markdown_editor">Markdown</string>
+    <string name="dialog_markdown_editor">Markdown / HTML</string>
     <string name="dialog_markdown_preview">Նախադիտում</string>
     <string name="dialog_markdown_expand">Բացել խմբագրիչը</string>
     <string name="dialog_markdown_apply">Կիրառել</string>
@@ -210,6 +220,10 @@
     <string name="dialog_cant_send">Այստեղ հաղորդագրություններ չեք կարող ուղարկել</string>
     <string name="dialog_cant_send_photos">Այս զրույցում լուսանկարներ չեն թույլատրվում</string>
     <string name="dialog_channel_readonly">Այս ալիքում կարող են գրել միայն ադմինները</string>
+    <string name="dialog_join">Միանալ</string>
+    <string name="dialog_mute">Անջատել ձայնը</string>
+    <string name="dialog_unmute">Միացնել ձայնը</string>
+    <string name="dialog_unblock">Արգելափակումը հանել</string>
     <string name="dialog_protected">Այս զրույցում վերահասցեավորումն անջատված է</string>
     <string name="dialog_editing">Խմբագրում</string>
     <string name="dialog_replying">Պատասխան</string>
@@ -245,9 +259,36 @@
     <string name="dialog_instant_view_unsupported">Այս բլոկը չի աջակցվում</string>
     <string name="dialog_instant_view_map">Բացել քարտեզը</string>
     <string name="dialog_instant_view_related">Առնչվող հոդվածներ</string>
+    <string name="dialog_instant_view_contents">Բովանդակություն</string>
+    <string name="dialog_instant_view_contents_empty">Այս հոդվածը բաժիններ չունի</string>
+    <string name="dialog_instant_view_beginning">Սկիզբ</string>
+    <string name="dialog_instant_view_min_read">%1$d րոպե ընթերցում</string>
+    <string name="dialog_instant_view_to_top">Վերադառնալ վերև</string>
+    <string name="dialog_instant_view_reload">Վերբեռնել</string>
+    <string name="dialog_instant_view_text">Հոդվածի տեքստ</string>
+    <string name="dialog_instant_view_chars">%1$d նիշ</string>
+    <string name="dialog_instant_view_select_all">Ընտրել բոլորը</string>
+    <string name="dialog_instant_view_clear_selection">Մաքրել ընտրությունը</string>
+    <string name="dialog_instant_view_copy">Պատճենել</string>
+    <string name="dialog_instant_view_done">Պատրաստ է</string>
+    <string name="dialog_instant_view_font_reset">Վերականգնել</string>
+    <string name="dialog_instant_view_font_smaller">Ավելի փոքր տեքստ</string>
+    <string name="dialog_instant_view_font_larger">Ավելի մեծ տեքստ</string>
+    <string name="dialog_instant_view_search_previous">Նախորդ համընկնում</string>
+    <string name="dialog_instant_view_search_clear">Մաքրել որոնումը</string>
+    <string name="dialog_instant_view_search_close">Փակել որոնումը</string>
+    <string name="dialog_instant_view_error_hint">Ստուգեք կապը և փորձեք կրկին</string>
+    <string name="dialog_instant_view_collapse">Ծալել</string>
+    <string name="dialog_instant_view_expand">Բացել</string>
+    <string name="dialog_instant_view_media_page">%1$d/%2$d</string>
+    <string name="dialog_instant_view_media_load">Ներբեռնել և նվագարկել</string>
+    <string name="dialog_instant_view_media_ready">Ձայնը պատրաստ է</string>
+    <string name="dialog_instant_view_media_download">Ներբեռնել ֆայլը</string>
+    <string name="dialog_instant_view_media_open">Բացել ֆայլը</string>
+    <string name="dialog_instant_view_media_cancel">Չեղարկել ներբեռնումը</string>
     <string name="media_delete_title">Ջնջել մեդիան</string>
-    <string name="media_delete_body_single">Ջնջե՞լ այս տարրը։ Այն կհեռացվի ձեզնից և այս զրույցից։</string>
-    <string name="media_delete_body_album">Ջնջե՞լ բոլոր %1$d տարրը։ Դրանք կհեռացվեն ձեզնից և այս զրույցից։</string>
+    <string name="media_delete_body_single">Ջնջե՞լ այս տարրը։ Այն կհեռացվի ձեզնից և այս զրույցից</string>
+    <string name="media_delete_body_album">Ջնջե՞լ բոլոր %1$d տարրը։ Դրանք կհեռացվեն ձեզնից և այս զրույցից</string>
     <string name="media_delete_confirm">Ջնջել</string>
     <string name="media_delete_cancel">Չեղարկել</string>
     <string name="media_action_copied_image">Պատկերը պատճենվեց</string>
@@ -301,4 +342,17 @@
         <item quantity="one">%1$s բաժանորդ</item>
         <item quantity="other">%1$s բաժանորդ</item>
     </plurals>
+    <string name="dialog_send_formatted">Ուղարկել ձևաչափմամբ</string>
+    <string name="dialog_editor_title">Հաղորդագրության խմբագիր</string>
+    <string name="dialog_editor_send_preview">Ուղարկման նախադիտում</string>
+    <string name="dialog_editor_premium">Markdown / HTML · Premium</string>
+    <string name="dialog_editor_selection">Ընտրված տեքստ</string>
+    <string name="dialog_editor_select_hint">Ձևաչափելու համար ընտրեք տեքստը</string>
+    <string name="dialog_editor_expandable_quote">Ընդլայնվող մեջբերում</string>
+    <string name="dialog_editor_clear">Հեռացնել ձևաչափումը</string>
+    <string name="dialog_editor_url">Հղման հասցե</string>
+    <string name="dialog_editor_language">Լեզու (ըստ ցանկության)</string>
+    <string name="dialog_editor_open">Ընդլայնել խմբագիրը</string>
+    <string name="dialog_rich_date_at_time">%1$s, %2$s</string>
+    <string name="dialog_media_progress_speed">%1$s · %2$s/վ</string>
 </resources>

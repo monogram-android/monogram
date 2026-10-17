@@ -18,7 +18,7 @@ class ChatListSnapshotTest {
         snapshot.replace(listOf(first.copy(typing = true), second))
         assertSame(ids, snapshot.ids)
         assertEquals(true, snapshot.chat(1)?.typing)
-        assertEquals(second, snapshot.chat(2))
+        assertSame(second, snapshot.chat(2))
         assertEquals(0, snapshot.unmutedUnread)
     }
 

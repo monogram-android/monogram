@@ -13,6 +13,21 @@ class DownloadSettingsTest {
     }
 
     @Test
+    fun premiumDownloadKeepsLargeChunksWithConservativeConcurrency() {
+        val free = DownloadState(premium = false, lanes = 99)
+        assertEquals(DownloadConcurrency(2, 4), free.concurrency)
+        assertEquals(256, free.downloadChunkKib)
+        assertEquals(512, free.filePartKib)
+        val premium = DownloadState(premium = true, lanes = 7)
+        assertEquals(DownloadConcurrency(7, 4), premium.concurrency)
+        assertEquals(DownloadConcurrency(2, 4), DownloadState(premium = true).concurrency)
+        assertEquals(512, premium.downloadChunkKib)
+        assertEquals(512, premium.filePartKib)
+        assertEquals(1, DownloadState(lanes = 1, premium = true).effectiveLanes)
+        assertEquals(8, DownloadState(lanes = 99, premium = true).effectiveLanes)
+    }
+
+    @Test
     fun telegramDefaultsMatchWifiMobileRoaming() {
         assertTrue(AutoDownloadPreset.WIFI.photos)
         assertTrue(AutoDownloadPreset.WIFI.videos)

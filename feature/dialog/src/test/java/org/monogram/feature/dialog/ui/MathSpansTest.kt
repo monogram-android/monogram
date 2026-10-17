@@ -11,6 +11,22 @@ class MathSpansTest {
     private val span = MathSpan(7, 12, false, "x^2")
 
     @Test
+    fun serverMathEntitiesKeepSourceAndDisplayMode() {
+        val inline = mathSpansFromEntities(
+            "E=mc^2",
+            listOf(TextEntity("math", 0, 6, "inline")),
+        )
+        assertEquals(listOf(MathSpan(0, 6, false, "E=mc^2")), inline)
+        val source = "\\frac{1}{2}"
+        val block = mathSpansFromEntities(
+            source,
+            listOf(TextEntity("math", 0, source.length, "block")),
+        )
+        assertEquals(true, block.single().display)
+        assertEquals("\\frac{1}{2}", block.single().source)
+    }
+
+    @Test
     fun hiddenSpoilerCannotBecomeAnImage() {
         val spoiler = listOf(TextEntity("spoiler", 7, 5))
         assertTrue(eligibleMathSpans(text, listOf(span), spoiler, false).isEmpty())

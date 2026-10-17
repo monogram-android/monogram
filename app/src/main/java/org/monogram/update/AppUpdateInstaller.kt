@@ -1,10 +1,13 @@
 package org.monogram.update
 
+import android.app.Activity
+import android.app.Application
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
@@ -13,15 +16,33 @@ import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileInputStream
 import org.monogram.core.common.AppLog
+import org.monogram.core.models.AppUpdate
+
+enum class AppUpdateInstallLaunch {
+    SessionStarted,
+    NeedsUserPermission,
+    ExternalConfirm,
+    Failed,
+}
 
 fun interface AppUpdateInstaller {
-    fun install(file: File)
+    fun install(file: File): AppUpdateInstallLaunch
+}
+
+internal object UpdateInstallBridge {
+    @Volatile
+    var onStatus: ((Int) -> Unit)? = null
+
+    @Volatile
+    var onHandoffEnded: (() -> Unit)? = null
 }
 
 class AndroidAppUpdateInstaller(
     private val context: Context,
 ) : AppUpdateInstaller {
-    override fun install(file: File) {
+    private var handoffCallbacks: Application.ActivityLifecycleCallbacks? = null
+
+    override fun install(file: File): AppUpdateInstallLaunch {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             !context.packageManager.canRequestPackageInstalls()
         ) {
@@ -31,17 +52,59 @@ class AndroidAppUpdateInstaller(
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 },
             )
-            return
+            armReturnFromHandoff()
+            return AppUpdateInstallLaunch.NeedsUserPermission
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             try {
                 installWithSession(file)
-                return
+                return AppUpdateInstallLaunch.SessionStarted
             } catch (error: Exception) {
                 AppLog.warn("update", "session install failed ${error.javaClass.simpleName}")
             }
         }
-        installWithIntent(file)
+        return if (installWithIntent(file)) {
+            armReturnFromHandoff()
+            AppUpdateInstallLaunch.ExternalConfirm
+        } else {
+            AppUpdateInstallLaunch.Failed
+        }
+    }
+
+    private fun armReturnFromHandoff() {
+        val app = context.applicationContext as? Application ?: return
+        handoffCallbacks?.let { app.unregisterActivityLifecycleCallbacks(it) }
+        var left = false
+        val callbacks = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityPaused(activity: Activity) {
+                left = true
+            }
+
+            override fun onActivityResumed(activity: Activity) {
+                if (!left) return
+                app.unregisterActivityLifecycleCallbacks(this)
+                if (handoffCallbacks === this) handoffCallbacks = null
+                UpdateInstallBridge.onHandoffEnded?.invoke()
+            }
+
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+            override fun onActivityDestroyed(activity: Activity) = Unit
+        }
+        handoffCallbacks = callbacks
+        app.registerActivityLifecycleCallbacks(callbacks)
+    }
+
+    private fun selfInstalled(): Boolean {
+        val installer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.getInstallerPackageName(context.packageName)
+        }
+        return installer == context.packageName
     }
 
     private fun installWithSession(file: File) {
@@ -50,7 +113,12 @@ class AndroidAppUpdateInstaller(
             setAppPackageName(context.packageName)
             setSize(file.length())
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                val action = if (AppUpdate.installRequiresUserAction(selfInstalled())) {
+                    PackageInstaller.SessionParams.USER_ACTION_REQUIRED
+                } else {
+                    PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED
+                }
+                setRequireUserAction(action)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 setPackageSource(PackageInstaller.PACKAGE_SOURCE_DOWNLOADED_FILE)
@@ -79,17 +147,19 @@ class AndroidAppUpdateInstaller(
         }
     }
 
-    private fun installWithIntent(file: File) {
+    private fun installWithIntent(file: File): Boolean {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
         val view = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        try {
+        return try {
             context.startActivity(view)
+            true
         } catch (_: ActivityNotFoundException) {
             AppLog.warn("update", "no installer activity")
+            false
         }
     }
 }
@@ -101,18 +171,27 @@ class UpdateInstallReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_FAILURE,
         )
         AppLog.api("update", "install status=$status")
-        if (status != PackageInstaller.STATUS_PENDING_USER_ACTION) return
+        val kind = AppUpdate.installStatusKind(status)
+        if (!AppUpdate.shouldOpenInstallConfirm(kind)) {
+            UpdateInstallBridge.onStatus?.invoke(status)
+            return
+        }
         val confirm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
         } else {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra(Intent.EXTRA_INTENT)
-        } ?: return
+        } ?: run {
+            UpdateInstallBridge.onStatus?.invoke(PackageInstaller.STATUS_FAILURE)
+            return
+        }
         confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             context.startActivity(confirm)
+            UpdateInstallBridge.onStatus?.invoke(status)
         } catch (_: ActivityNotFoundException) {
             AppLog.warn("update", "no confirm installer activity")
+            UpdateInstallBridge.onStatus?.invoke(PackageInstaller.STATUS_FAILURE)
         }
     }
 }

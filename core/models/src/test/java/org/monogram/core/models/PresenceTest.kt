@@ -2,6 +2,7 @@ package org.monogram.core.models
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -14,6 +15,38 @@ class PresenceTest {
         assertFalse(Presence.outgoingRead(true, true, 10, 10))
         assertFalse(Presence.outgoingRead(false, false, 10, 10))
         assertFalse(Presence.outgoingRead(true, false, -1, 10))
+    }
+
+    @Test
+    fun readCursorKeepsUnchangedMessages() {
+        val incoming = Message(
+            id = MessageId(PeerId(1), 4),
+            senderId = null,
+            text = "in",
+            date = 1,
+            outgoing = false,
+        )
+        val already = Message(
+            id = MessageId(PeerId(1), 5),
+            senderId = null,
+            text = "old",
+            date = 2,
+            outgoing = true,
+            read = true,
+        )
+        val fresh = Message(
+            id = MessageId(PeerId(1), 6),
+            senderId = null,
+            text = "new",
+            date = 3,
+            outgoing = true,
+            read = false,
+        )
+        val next = Presence.withReadState(listOf(incoming, already, fresh), 6)
+        assertSame(incoming, next[0])
+        assertSame(already, next[1])
+        assertTrue(next[2].read)
+        assertSame(next, Presence.withReadState(next, 6))
     }
 
     @Test

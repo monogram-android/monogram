@@ -128,6 +128,14 @@ internal fun mergeById(messages: List<Message>): List<Message> {
     return historyOrder(visibleMessages(messages.filter { seen.add(it.id.id) }))
 }
 
+/** A message newer than the loaded window must not be spliced into older history. */
+internal fun incomingFitsOpenWindow(
+    hasNewer: Boolean,
+    newestLoadedId: Int,
+    incomingId: Int
+): Boolean =
+    !hasNewer || incomingId <= newestLoadedId
+
 internal fun upsertMessage(messages: List<Message>, incoming: Message): List<Message> {
     val index = messages.indexOfFirst { it.id.id == incoming.id.id }
     if (index < 0) {

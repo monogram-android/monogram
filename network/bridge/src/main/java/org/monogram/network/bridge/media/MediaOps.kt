@@ -60,6 +60,8 @@ interface MediaOps {
         priority: Int,
     ): Outcome<String> = downloadMessageDisplay(chatId, messageId, destPath)
 
+    fun promoteDownload(destPath: String, priority: Int) = Unit
+
     suspend fun downloadCustomEmoji(documentId: Long, destPath: String): Outcome<String> =
         Outcome.Err("unsupported")
 
@@ -70,4 +72,6 @@ interface MediaOps {
     ): Outcome<String> = downloadCustomEmoji(documentId, destPath)
 
     fun peekMessageInlineThumb(chatId: PeerId, messageId: Int): ByteArray? = null
+
+    fun peekPeerInlineThumb(peerId: PeerId): ByteArray? = null
 }

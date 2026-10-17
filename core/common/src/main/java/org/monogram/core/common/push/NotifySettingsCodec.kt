@@ -6,7 +6,8 @@ import org.monogram.core.models.NotifySettings
  * Compact storage form for [NotifySettings]: `muteUntil|showPreviews|silent|storiesMuted|`
  * `storiesHideSender|sound`.
  *
- * Fields are positional and flags are `1`/`0`, so an older string still decodes when a trailing
+ * Fields are positional; preview uses `inherit` when unset, other flags use `1`/`0`.
+ * An older string still decodes when a trailing
  * field is added. [sound][NotifySettings.sound] is written last because it is free-form text.
  */
 object NotifySettingsCodec {
@@ -15,7 +16,9 @@ object NotifySettingsCodec {
 
     fun encode(settings: NotifySettings): String = buildString {
         append(settings.muteUntil).append(SEPARATOR)
-        append(flag(settings.showPreviews)).append(SEPARATOR)
+        append(if (settings.previewInherited) "inherit" else flag(settings.showPreviews)).append(
+            SEPARATOR
+        )
         append(flag(settings.silent)).append(SEPARATOR)
         append(flag(settings.storiesMuted)).append(SEPARATOR)
         append(flag(settings.storiesHideSender)).append(SEPARATOR)
@@ -25,10 +28,12 @@ object NotifySettingsCodec {
     fun decode(raw: String?): NotifySettings? {
         val parts = raw?.trim()?.split(SEPARATOR, limit = FIELD_COUNT) ?: return null
         if (parts.isEmpty() || parts[0].isBlank()) return null
-        val muteUntil = parts[0].toIntOrNull() ?: return null
+        val muteUntil =
+            parts[0].toLongOrNull()?.coerceIn(0, Int.MAX_VALUE.toLong())?.toInt() ?: return null
         return NotifySettings(
             muteUntil = muteUntil,
             showPreviews = flag(parts.getOrNull(1)),
+            previewInherited = parts.getOrNull(1) == "inherit",
             silent = flag(parts.getOrNull(2)),
             storiesMuted = flag(parts.getOrNull(3)),
             storiesHideSender = flag(parts.getOrNull(4)),

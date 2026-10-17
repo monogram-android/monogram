@@ -23,9 +23,25 @@ data class UpdatesCursor(
     val seq: Int,
 )
 
+data class DurableUpdateBatch(
+    val accountGeneration: Long,
+    val batchId: Long,
+    val updates: List<MtprotoUpdate>,
+    val cursor: UpdatesCursor?,
+    val channelCursors: Map<Long, Int>,
+)
+
+fun interface DurableUpdateSink {
+    suspend fun commit(batch: DurableUpdateBatch): Boolean
+}
+
 sealed class MtprotoUpdate {
     data class ChatsChanged(val chats: List<Chat>) : MtprotoUpdate()
-    data class NewMessage(val message: Message) : MtprotoUpdate()
+    data class NewMessage(
+        val message: Message,
+        val accountGeneration: Long = 0,
+        val acceptedOrder: Long = 0,
+    ) : MtprotoUpdate()
     data class MessageEdited(val message: Message) : MtprotoUpdate()
     data class MessagesDeleted(val chatId: PeerId?, val messageIds: List<Int>) : MtprotoUpdate()
     data class FoldersChanged(val folders: List<Folder>) : MtprotoUpdate()
@@ -67,6 +83,9 @@ sealed class MtprotoUpdate {
         val peerKind: String,
         val chatId: PeerId,
         val muteUntil: Int,
+        val topicId: Int? = null,
+        /** False when `mute_until` was absent, so the dialog still inherits its type default. */
+        val muteSpecified: Boolean = true,
     ) : MtprotoUpdate()
 
     data class ReadOutbox(
@@ -97,4 +116,7 @@ sealed class MtprotoUpdate {
 
     data class UnreadMentionsDelta(val chatId: PeerId, val delta: Int) : MtprotoUpdate()
     data class UnreadReactionsDelta(val chatId: PeerId, val delta: Int) : MtprotoUpdate()
+
+    /** Catch-up edge from the native client. Not a banner; collectors may ignore it. */
+    data class SyncState(val isSyncing: Boolean) : MtprotoUpdate()
 }

@@ -12,32 +12,48 @@ import uniffi.monogram_mtproto.GlobalMessageSearchDto
 import uniffi.monogram_mtproto.InlineBotResultsDto
 import uniffi.monogram_mtproto.InstantViewDto
 import uniffi.monogram_mtproto.MessageDto
+import uniffi.monogram_mtproto.MessagesPageDto
 import uniffi.monogram_mtproto.MtprotoException
 import uniffi.monogram_mtproto.NotifyExceptionDto
 import uniffi.monogram_mtproto.NotifySettingsDto
 import uniffi.monogram_mtproto.OutboxReadDto
+import uniffi.monogram_mtproto.PollVotersDto
 import uniffi.monogram_mtproto.ProfileDto
+import uniffi.monogram_mtproto.ReactionChoiceDto
+import uniffi.monogram_mtproto.ReactionPeersDto
 import uniffi.monogram_mtproto.ReadParticipantsDto
 import uniffi.monogram_mtproto.ReadReceiptConfigDto
-import uniffi.monogram_mtproto.ReactionChoiceDto
 import uniffi.monogram_mtproto.ResolvedPeerDto
 import uniffi.monogram_mtproto.SavedGifDto
 import uniffi.monogram_mtproto.StickerCatalogDto
 import uniffi.monogram_mtproto.StickerListDto
 import uniffi.monogram_mtproto.StickerPackDto
+import uniffi.monogram_mtproto.UpdateBatchDto
+import uniffi.monogram_mtproto.UpdateDrainDto
 import uniffi.monogram_mtproto.UpdateEventDto
 import uniffi.monogram_mtproto.UpdatesStateDto
 import uniffi.monogram_mtproto.UploadItemDto
-import uniffi.monogram_mtproto.ReactionPeersDto
-import uniffi.monogram_mtproto.PollVotersDto
 
 /**
  * Low-level UniFFI surface backed by the Tellers MTProto runtime.
  */
+data class NativeJoinResult(
+    val joined: Boolean,
+    val canSendPlain: Boolean,
+    val canSendPhotos: Boolean,
+)
+
 interface MtprotoNative {
+    fun setTransportMode(mode: String) = Unit
+    fun setProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray) = Unit
+    fun pingProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray): Long =
+        throw UnsupportedOperationException("proxy ping")
+    fun clearProxy() = Unit
     fun createRequestControl(): Long = 0L
     fun bindRequestControl(id: Long): Long = 0L
     fun cancelRequestControl(id: Long) = Unit
+
+    fun promoteRequestControl(id: Long, dispatchClass: Int) = Unit
     fun releaseRequestControl(id: Long) = Unit
 
     /** Dispatch class for the request on this thread. */
@@ -63,6 +79,15 @@ interface MtprotoNative {
 
     fun libraryVersion(): String
 
+    fun setInitConnectionInfo(
+        deviceModel: String,
+        systemVersion: String,
+        appVersion: String,
+        systemLangCode: String,
+        langPack: String,
+        langCode: String,
+    ) = Unit
+
     /** Switches Rust netcode timing spans on or off (off by default). */
     fun perfSetEnabled(enabled: Boolean) = Unit
 
@@ -73,6 +98,8 @@ interface MtprotoNative {
 
     @Throws(MtprotoException::class)
     fun setTestDc(handle: Long, enabled: Boolean) = Unit
+
+    fun usesTestDc(handle: Long): Boolean = false
 
     @Throws(MtprotoException::class)
     fun isAuthorized(handle: Long): Boolean
@@ -216,6 +243,17 @@ interface MtprotoNative {
     ): List<MessageDto> = throw MtprotoException.Message("filtered search requires native rebuild")
 
     @Throws(MtprotoException::class)
+    fun searchMessagesPage(
+        handle: Long,
+        chatId: Long,
+        query: String,
+        filter: String,
+        offsetId: Int,
+        addOffset: Int,
+        limit: Int,
+    ): MessagesPageDto = throw MtprotoException.Message("search page requires native rebuild")
+
+    @Throws(MtprotoException::class)
     fun contactsSearch(handle: Long, query: String, limit: Int): ContactsSearchDto =
         throw MtprotoException.Message("contacts search requires native rebuild")
 
@@ -280,6 +318,7 @@ interface MtprotoNative {
         entitiesJson: String? = null,
         topMsgId: Int = 0,
         webpageUrl: String? = null,
+        randomId: Long = 0,
     ): MessageDto
 
     @Throws(MtprotoException::class)
@@ -416,7 +455,7 @@ interface MtprotoNative {
         handle: Long,
         peerKind: String,
         chatId: Long,
-        showPreviews: Boolean,
+        showPreviews: Boolean?,
         silent: Boolean,
         muteUntil: Int,
         storiesMuted: Boolean,
@@ -425,6 +464,14 @@ interface MtprotoNative {
 
     @Throws(MtprotoException::class)
     fun resetNotifySettings(handle: Long)
+
+    /** `channels.joinChannel` or `messages.addChatUser`. `joined` is false when membership was not granted. */
+    @Throws(MtprotoException::class)
+    fun joinChat(handle: Long, chatId: Long): NativeJoinResult
+
+    /** `contacts.unblock` for a user peer. */
+    @Throws(MtprotoException::class)
+    fun unblockUser(handle: Long, chatId: Long)
 
     @Throws(MtprotoException::class)
     fun setContactJoinedSilent(handle: Long, silent: Boolean)
@@ -463,11 +510,31 @@ interface MtprotoNative {
     @Throws(MtprotoException::class)
     fun startUpdates(handle: Long)
 
+    /**
+     * Offscreen channels use `messages.getPeerDialogs`. The open chat stays on
+     * channel difference through the native history cursor.
+     */
+    fun updateLazySyncConfig(handle: Long, lazy: Boolean, exceptions: List<Long>) = Unit
+
     @Throws(MtprotoException::class)
     fun clearActiveDialog(handle: Long) = Unit
 
     @Throws(MtprotoException::class)
     fun drainUpdates(handle: Long): List<UpdateEventDto>
+
+    @Throws(MtprotoException::class)
+    fun drainUpdateBatches(handle: Long): UpdateDrainDto =
+        UpdateDrainDto(
+            batches = emptyList(),
+            liveEvents = drainUpdates(handle),
+            replayRequired = false
+        )
+
+    @Throws(MtprotoException::class)
+    fun pendingUpdateBatches(handle: Long): List<UpdateBatchDto> = emptyList()
+
+    @Throws(MtprotoException::class)
+    fun acknowledgeUpdateBatch(handle: Long, accountGeneration: Long, batchId: Long) = Unit
 
     @Throws(MtprotoException::class)
     fun downloadMessageMedia(handle: Long, chatId: Long, messageId: Int, destPath: String): String
@@ -479,6 +546,8 @@ interface MtprotoNative {
         downloadMessageMedia(handle, chatId, messageId, destPath)
 
     fun peekMessageInlineThumb(handle: Long, chatId: Long, messageId: Int): ByteArray? = null
+
+    fun peekPeerInlineThumb(handle: Long, peerId: Long): ByteArray? = null
 
     @Throws(MtprotoException::class)
     fun downloadMessageDisplay(handle: Long, chatId: Long, messageId: Int, destPath: String): String =

@@ -20,14 +20,19 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.monogram.core.common.MediaCacheLimit
+import org.monogram.core.common.MediaCacheLimitStore
+import org.monogram.core.common.push.NotificationLocalStore
+import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
-import org.monogram.core.models.PeerId
-import org.monogram.network.bridge.MtprotoClient
-import org.monogram.network.http.MediaRepository
-import org.monogram.core.common.push.PushRegistration
-import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.models.AppUpdateState
+import org.monogram.core.models.PeerId
+import org.monogram.feature.settings.ui.ProxySession
+import org.monogram.network.bridge.MtprotoClient
+import org.monogram.network.bridge.MtprotoTransportMode
+import org.monogram.network.bridge.ProxyConfig
+import org.monogram.network.http.MediaRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsComponent(
@@ -46,9 +51,11 @@ class SettingsComponent(
     val debugNotifications: Boolean = false,
     notificationLocal: NotificationLocalStore? = null,
     openFolders: Boolean = false,
+    openProxy: Boolean = false,
+    openNotifications: Boolean = false,
     val appUpdate: AppUpdateController? = null,
     val updatesEnabled: Boolean = true,
-) : ComponentContext by componentContext {
+) : ComponentContext by componentContext, ProxySession {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val store = instanceKeeper.getStore {
@@ -87,7 +94,12 @@ class SettingsComponent(
     val pages: Value<ChildStack<SettingsPage, SettingsPage>> = childStack(
         source = pageNavigation,
         serializer = SettingsPage.serializer(),
-        initialConfiguration = if (openFolders) SettingsPage.Folders else SettingsPage.Home,
+        initialConfiguration = when {
+            openProxy -> SettingsPage.Proxy
+            openFolders -> SettingsPage.Folders
+            openNotifications -> SettingsPage.Notifications
+            else -> SettingsPage.Home
+        },
         childFactory = { page, _ -> page },
     )
 
@@ -112,17 +124,31 @@ class SettingsComponent(
         lifecycle.doOnDestroy { scope.cancel() }
     }
 
+    override fun configureProxy(config: ProxyConfig) = client.configureProxy(config)
+    override fun clearProxy() = client.clearProxy()
+    override fun setTransportMode(mode: MtprotoTransportMode) = client.setTransportMode(mode)
+    override suspend fun testProxyConnection() = client.connect()
+    override suspend fun pingProxy(config: ProxyConfig) = client.pingProxy(config)
+
     fun onRefresh() = store.accept(SettingsStore.Intent.Refresh)
-    fun onOpenWallpapers(cacheDirectory: java.io.File) = wallpaperStore.accept(WallpaperStore.Intent.Open(
-        java.io.File(cacheDirectory, "wallpapers/${state.value.profile?.id?.value ?: 0L}"),
-    ))
+    fun onOpenWallpapers(cacheDirectory: java.io.File) = wallpaperStore.accept(
+        WallpaperStore.Intent.Open(
+            java.io.File(cacheDirectory, "wallpapers/${state.value.profile?.id?.value ?: 0L}"),
+        )
+    )
+
     fun onRetryWallpapers() = wallpaperStore.accept(WallpaperStore.Intent.Retry)
     fun onPreviewWallpaper(wallpaper: org.monogram.core.models.Wallpaper) =
         wallpaperStore.accept(WallpaperStore.Intent.Preview(wallpaper))
+
     fun onCloseWallpapers() = wallpaperStore.accept(WallpaperStore.Intent.Close)
     fun onClearCache() = store.accept(SettingsStore.Intent.ClearCache)
     fun onClearChatCache(chatId: Long) = store.accept(SettingsStore.Intent.ClearChatCache(chatId))
-    fun onClearKindCache(kind: String) = store.accept(SettingsStore.Intent.ClearKindCache(kind))
+    fun onClearKinds(kinds: Set<String>) = store.accept(SettingsStore.Intent.ClearKinds(kinds))
+    fun onCacheLimit(directory: java.io.File, limit: MediaCacheLimit) {
+        MediaCacheLimitStore.write(directory, limit)
+        mediaRepository?.setCacheLimit(limit.bytes)
+    }
     fun onLogout() = store.accept(SettingsStore.Intent.Logout)
     fun onCheckForUpdates() = appUpdate?.checkForUpdates()
     fun onDownloadUpdate() = appUpdate?.downloadUpdate()
@@ -133,8 +159,9 @@ class SettingsComponent(
     fun openPage(page: SettingsPage) = pageNavigation.pushNew(page)
     fun popPage() {
         if (pageBackHandler?.invoke() == true) return
-        pageNavigation.pop()
+        if (pages.value.backStack.isEmpty()) onBack() else pageNavigation.pop()
     }
+
     fun onBack() = onBack.invoke()
     fun onOpenProfile() = onOpenProfile(PeerId(0L))
     fun onNotification(intent: NotificationsStore.Intent) = notificationsStore.accept(intent)

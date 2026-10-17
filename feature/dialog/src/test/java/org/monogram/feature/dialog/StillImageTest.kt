@@ -1,8 +1,11 @@
 package org.monogram.feature.dialog
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.feature.dialog.ui.posterOutputSize
 import org.monogram.feature.dialog.ui.stillImageMagic
 
 class StillImageTest {
@@ -31,5 +34,12 @@ class StillImageTest {
         mp4[6] = 'y'.code.toByte()
         mp4[7] = 'p'.code.toByte()
         assertFalse(stillImageMagic(mp4))
+    }
+
+    @Test
+    fun posterOutputStaysInsideTheRequestedSide() {
+        assertEquals(216 to 108, posterOutputSize(432, 216, 216))
+        assertEquals(80 to 40, posterOutputSize(80, 40, 216))
+        assertNull(posterOutputSize(80, 40, 0))
     }
 }

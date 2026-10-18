@@ -44,7 +44,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -80,6 +79,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.monogram.core.models.Message
@@ -107,7 +107,6 @@ import org.monogram.feature.dialog.shouldPageNewer
 import org.monogram.feature.dialog.shouldPageOlder
 import org.monogram.feature.dialog.unreadDividerIndex
 import org.monogram.feature.dialog.visibleAlbumMessageIds
-import org.monogram.feature.dialog.visibleUnreadBadgeCount
 import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -132,7 +131,17 @@ internal fun ColumnScope.DialogHistoryPane(
     val listState = rememberLazyListState(
         cacheWindow = LazyLayoutCacheWindow(ahead = 1000.dp, behind = 1000.dp),
     )
-    var lastScrolledAnchor by rememberSaveable(state.chatId.value) { mutableStateOf<Int?>(null) }
+    var lastScrolledAnchorRequest by rememberSaveable(state.chatId.value) {
+        mutableStateOf<String?>(
+            null
+        )
+    }
+    val messageHeads = remember(state.messages) {
+        state.messages.mapIndexedNotNull { index, message ->
+            if (isAlbumHead(state.messages, index)) index to message else null
+        }
+    }
+    val rowMessageIndices = remember(messageHeads) { messageHeads.map { it.first } }
     var followBottom by rememberSaveable(state.chatId.value) { mutableStateOf(false) }
     var previousFromCache by rememberSaveable(state.chatId.value) { mutableStateOf(false) }
     var previousCount by rememberSaveable(state.chatId.value) { mutableIntStateOf(0) }
@@ -157,8 +166,9 @@ internal fun ColumnScope.DialogHistoryPane(
             menuMessageId = null
         }
     }
-    val menuMessage = state.messages.firstOrNull { it.id.id == menuMessageId }
-    val selectingMessage = state.messages.firstOrNull { it.id.id == selectingMessageId }
+    val menuMessage = menuMessageId?.let { id -> state.messages.firstOrNull { it.id.id == id } }
+    val selectingMessage =
+        selectingMessageId?.let { id -> state.messages.firstOrNull { it.id.id == id } }
     val multiSelecting = selectedIds.isNotEmpty()
     androidx.activity.compose.BackHandler(enabled = menuExpanded && selectingMessageId == null) {
         val effect = backOutMessageSelection(selectedIds, selectingMessageId, menuOpen = true)
@@ -185,7 +195,7 @@ internal fun ColumnScope.DialogHistoryPane(
             menuExpanded = false
         }
     }
-    val appearance by AppearanceSettings.state.collectAsState()
+    val appearance by AppearanceSettings.state.collectAsStateWithLifecycle()
     val pinned = state.pinnedMessages.getOrNull(state.pinnedIndex)
         ?: state.pinnedMessages.firstOrNull()
     val showPinned = !state.isCommentThread && pinned != null
@@ -269,11 +279,6 @@ internal fun ColumnScope.DialogHistoryPane(
                         previousFromCache = state.fromCache
                     }
                     val zone = remember { ZoneId.systemDefault() }
-                    val messageHeads = remember(state.messages) {
-                        state.messages.mapIndexedNotNull { index, message ->
-                            if (isAlbumHead(state.messages, index)) index to message else null
-                        }
-                    }
                     val messageById = remember(state.messages) {
                         state.messages.associateBy { it.id.id }
                     }
@@ -292,14 +297,19 @@ internal fun ColumnScope.DialogHistoryPane(
                     }
                     val unreadRow =
                         unreadAt?.let { messageRowIndex(state.messages, state.messages[it].id.id) }
-                    LaunchedEffect(state.anchorMessageId, state.messages.size, state.anchorAtTop) {
+                    LaunchedEffect(
+                        state.anchorRequestId,
+                        state.anchorMessageId,
+                        state.messages.size,
+                        state.anchorAtTop
+                    ) {
                         val anchor = state.anchorMessageId ?: return@LaunchedEffect
-                        if (anchor == lastScrolledAnchor) return@LaunchedEffect
+                        if (state.anchorRequestId == lastScrolledAnchorRequest) return@LaunchedEffect
                         val alreadyVisible =
                             !state.anchorAtTop && listState.firstVisibleItemIndex == 0 &&
                                     state.messages.firstOrNull()?.id?.id == anchor
                         if (alreadyVisible) {
-                            lastScrolledAnchor = anchor
+                            lastScrolledAnchorRequest = state.anchorRequestId
                             return@LaunchedEffect
                         }
                         val index = messageRowIndex(state.messages, anchor)
@@ -320,14 +330,16 @@ internal fun ColumnScope.DialogHistoryPane(
                                     listState.scrollToItem(index, row.size - height)
                                 }
                             }
-                            lastScrolledAnchor = anchor
+                            lastScrolledAnchorRequest = state.anchorRequestId
                         }
                     }
                     LaunchedEffect(
                         listState,
                         state.messages.size,
                         state.hasOlder,
-                        state.loadingOlder
+                        state.loadingOlder,
+                        state.searchQuery,
+                        messageHeads.size,
                     ) {
                         snapshotFlow {
                             val visible = listState.layoutInfo.visibleItemsInfo
@@ -355,7 +367,8 @@ internal fun ColumnScope.DialogHistoryPane(
                         listState,
                         state.messages.size,
                         state.hasNewer,
-                        state.loadingNewer
+                        state.loadingNewer,
+                        state.searchQuery,
                     ) {
                         snapshotFlow {
                             listState.firstVisibleItemIndex
@@ -373,9 +386,9 @@ internal fun ColumnScope.DialogHistoryPane(
                             val scrolling = listState.isScrollInProgress
                             val index =
                                 listState.layoutInfo.visibleItemsInfo.minByOrNull { it.index }?.index
-                            // reverseLayout: index 0 / no forward scroll means the newest row is on screen.
-                            val atLiveEdge =
-                                listState.firstVisibleItemIndex == 0 || !listState.canScrollForward
+                            val atLiveEdge = org.monogram.feature.dialog.isHistoryLiveEdge(
+                                listState.firstVisibleItemIndex, listState.canScrollBackward,
+                            )
                             Triple(
                                 scrolling,
                                 index?.let { messageHeads.getOrNull(it)?.second?.id?.id },
@@ -389,12 +402,15 @@ internal fun ColumnScope.DialogHistoryPane(
                     }
                     LaunchedEffect(listState, state.chatId, messageHeads) {
                         snapshotFlow {
-                            visibleAlbumMessageIds(
-                                state.messages,
-                                listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.index },
+                            listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.index }
+                        }.collect { rows ->
+                            component.onVisibleWindow(
+                                visibleAlbumMessageIds(
+                                    state.messages,
+                                    rows,
+                                    rowMessageIndices
+                                )
                             )
-                        }.collect { ids ->
-                            component.onVisibleWindow(ids)
                         }
                     }
                     val scrollGate = remember { Any() }
@@ -747,7 +763,6 @@ internal fun ColumnScope.DialogHistoryPane(
                             Box {
                                 SmallFloatingActionButton(
                                     onClick = {
-                                        lastScrolledAnchor = null
                                         component.onJumpUnreadReaction()
                                     },
                                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -780,7 +795,6 @@ internal fun ColumnScope.DialogHistoryPane(
                                 val mentionJump = stringResource(R.string.dialog_jump_mention)
                                 SmallFloatingActionButton(
                                     onClick = {
-                                        lastScrolledAnchor = null
                                         component.onJumpMention()
                                     },
                                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -818,8 +832,6 @@ internal fun ColumnScope.DialogHistoryPane(
                                 SmallFloatingActionButton(
                                     onClick = {
                                         if (unreadRow != null && firstVisible > unreadRow) {
-                                            // Re-arm the anchor: the same unread message may be tapped twice.
-                                            lastScrolledAnchor = null
                                             component.onJumpUnread()
                                         } else {
                                             followBottom = true
@@ -842,12 +854,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                     )
                                 }
                                 UnreadBadge(
-                                    count = visibleUnreadBadgeCount(
-                                        state.messages,
-                                        state.unreadCount,
-                                        state.readInboxMaxId,
-                                        state.hasNewer,
-                                    ),
+                                    count = if (unreadAt != null) state.unreadCount else 0,
                                     muted = false,
                                     compact = true,
                                     modifier = Modifier
@@ -900,10 +907,7 @@ internal fun ColumnScope.DialogHistoryPane(
                     val scrolling = listState.isScrollInProgress
                     val topIndex =
                         listState.layoutInfo.visibleItemsInfo.maxByOrNull { it.index }?.index
-                    val heads = state.messages.mapIndexedNotNull { index, message ->
-                        if (isAlbumHead(state.messages, index)) message else null
-                    }
-                    val date = topIndex?.let { heads.getOrNull(it)?.date }
+                    val date = topIndex?.let { messageHeads.getOrNull(it)?.second?.date }
                     scrolling to date
                 }.collect { (scrolling, date) ->
                     if (date != null) dateOverlayEpoch = date

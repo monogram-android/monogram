@@ -1,6 +1,7 @@
 package org.monogram.feature.dialog.store
 
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
@@ -781,8 +782,16 @@ internal class DialogExecutor(
             } else if (!hasMemory) {
                 dispatch(Msg.Loading(true))
             }
-            hydratePinned()
-            hydrateSenderTags()
+            launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                try {
+                    hydratePinned(gen)
+                    hydrateSenderTags(gen)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    AppLog.warn("dialog", "cached metadata unavailable")
+                }
+            }
             val slice = warmup?.historySlice(chatId, limit = HISTORY_FIRST_LIMIT)
             if (slice != null && slice.rows.isNotEmpty() && cached.isEmpty()) {
                 publishPaintedHistory(

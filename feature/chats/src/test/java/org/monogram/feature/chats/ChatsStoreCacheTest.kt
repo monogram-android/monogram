@@ -46,6 +46,19 @@ import java.util.ArrayDeque
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatsStoreCacheTest {
+    private fun ChatsStoreFactory(
+        storeFactory: com.arkivanov.mvikotlin.core.store.StoreFactory,
+        client: MtprotoClient,
+        warmup: OfflineWarmup?,
+        sessionStore: org.monogram.core.database.SessionMetadataStore?,
+        notifications: org.monogram.core.common.push.NotificationLocalStore? = null,
+        refreshMergeHook: (suspend () -> Unit)? = null,
+        readStateHook: (suspend () -> Unit)? = null,
+    ) = ChatsStoreFactory(
+        storeFactory, client, warmup, sessionStore, notifications, refreshMergeHook, readStateHook,
+        ioContext = Dispatchers.Main.immediate,
+    )
+
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -54,6 +67,91 @@ class ChatsStoreCacheTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun protocolCatchupKeepsUpdatingAfterDialogsRefreshCompletes() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val release = CompletableDeferred<Unit>()
+        val cached = Chat(PeerId(1), "Synthetic", lastMessageDate = 5, lastMessageId = 1)
+        val warmup = object : OfflineWarmup() {
+            override suspend fun chatsWindow(limit: Int, archiveLimit: Int) = listOf(cached)
+            override suspend fun mainListCount() = 1
+        }
+        val client = StubClient(chats = Outcome.Ok(listOf(cached)))
+        client.chatsGate = release
+        val store =
+            ChatsStoreFactory(DefaultStoreFactory(), client, warmup, sessionStore = null).create()
+        try {
+            runCurrent()
+            client.events.emit(MtprotoUpdate.SyncState(true))
+            release.complete(Unit)
+            advanceUntilIdle()
+            assertFalse(store.state.loading)
+            assertEquals(cached.id, store.state.chats.single().id)
+            assertTrue(
+                "Unfinished protocol recovery must keep Updating visible",
+                store.state.syncing
+            )
+            client.events.emit(MtprotoUpdate.SyncState(false))
+            runCurrent()
+            assertFalse(store.state.syncing)
+        } finally {
+            release.complete(Unit)
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun reconnectCatchupUpdatesAlreadyLoadedChats() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val client = StubClient(chats = Outcome.Ok(emptyList()))
+        val store = ChatsStoreFactory(
+            DefaultStoreFactory(),
+            client,
+            warmup = null,
+            sessionStore = null
+        ).create()
+        try {
+            advanceUntilIdle()
+            assertFalse(store.state.syncing)
+            client.events.emit(MtprotoUpdate.SyncState(true))
+            runCurrent()
+            assertTrue(store.state.syncing)
+            client.events.emit(MtprotoUpdate.SyncState(false))
+            runCurrent()
+            assertFalse(store.state.syncing)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun protocolCompletionDoesNotClearAnOutstandingDialogsRefresh() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val release = CompletableDeferred<Unit>()
+        val cached = Chat(PeerId(1), "Synthetic", lastMessageDate = 5, lastMessageId = 1)
+        val warmup = object : OfflineWarmup() {
+            override suspend fun chatsWindow(limit: Int, archiveLimit: Int) = listOf(cached)
+            override suspend fun mainListCount() = 1
+        }
+        val client = StubClient(chats = Outcome.Ok(listOf(cached)))
+        client.chatsGate = release
+        val store =
+            ChatsStoreFactory(DefaultStoreFactory(), client, warmup, sessionStore = null).create()
+        try {
+            runCurrent()
+            client.events.emit(MtprotoUpdate.SyncState(true))
+            client.events.emit(MtprotoUpdate.SyncState(false))
+            runCurrent()
+            assertTrue(store.state.syncing)
+            release.complete(Unit)
+            advanceUntilIdle()
+            assertFalse(store.state.syncing)
+        } finally {
+            release.complete(Unit)
+            store.dispose()
+        }
     }
 
     @Test

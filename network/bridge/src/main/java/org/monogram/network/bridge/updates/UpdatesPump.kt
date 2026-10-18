@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
@@ -33,6 +34,17 @@ private const val REPLAY_WAIT_MS = 200L
 
 internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
     private var premiumRefreshPending = false
+    private var completionHandle = 0L
+    private var durablePendingHandle = 0L
+
+    private fun publishCompletionIfReady(handle: Long) {
+        if (completionHandle == handle &&
+            (durablePendingHandle != handle || !core.replayPending.get())
+        ) {
+            core.publishSyncState(handle, false)
+            completionHandle = 0L
+        }
+    }
     private var chatsRefreshPending = false
     private var foldersRefreshPending = false
 
@@ -102,6 +114,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     delay(drainDelayMs)
                     continue
                 }
+                publishCompletionIfReady(activeHandle)
                 val drainAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
                 val drained = nativeRequest(
                     core.native,
@@ -154,10 +167,13 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 }
                 UpdateDrainDto(emptyList(), emptyList(), false)
             }
-            for (batch in drain.batches) {
-                deliverEvents(batch.events, batch.accountGeneration, batch.batchId)
+            if (drain.batches.isNotEmpty() || drain.replayRequired) {
+                durablePendingHandle = activeHandle
             }
-            deliverEvents(drain.liveEvents, 0L, 0L)
+            for (batch in drain.batches) {
+                deliverEvents(batch.events, batch.accountGeneration, batch.batchId, activeHandle)
+            }
+            deliverEvents(drain.liveEvents, 0L, 0L, activeHandle)
             for (batch in drain.batches) {
                 rememberEmitted(batch)
                 if (!commitAndAcknowledge(activeHandle, batch)) {
@@ -165,6 +181,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     break
                 }
             }
+            publishCompletionIfReady(activeHandle)
             // Chat metadata events carry no self-user flags. Coalesce the fallback
             // lookup after delivering messages and bound it during busy updates.
             val now = core.clock.elapsedMs()
@@ -258,7 +275,11 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 }
             }
             if (core.isCurrentHandle(activeHandle)) {
-                delay(drainDelayMs)
+                if (drain.batches.isNotEmpty() && !core.replayPending.get()) {
+                    yield()
+                } else {
+                    delay(drainDelayMs)
+                }
             }
         }
     }
@@ -300,7 +321,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             AppLog.warn("updates", "durable commit failed")
             false
         }
-        if (!committed) return false
+        if (!committed || !core.isCurrentHandle(handle)) return false
         nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
             core.native.acknowledgeUpdateBatch(handle, batch.accountGeneration, batch.batchId)
         }
@@ -317,9 +338,10 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
                 core.native.pendingUpdateBatches(handle)
             }
+        if (!core.isCurrentHandle(handle)) return false
         for (batch in pending) {
             if ((batch.accountGeneration to batch.batchId) !in emitted) {
-                deliverEvents(batch.events, batch.accountGeneration, batch.batchId)
+                deliverEvents(batch.events, batch.accountGeneration, batch.batchId, handle)
                 rememberEmitted(batch)
             }
             if (!commitAndAcknowledge(handle, batch)) return false
@@ -332,9 +354,20 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         events: List<UpdateEventDto>,
         accountGeneration: Long,
         acceptedOrder: Long,
+        handle: Long,
     ) {
         for (event in events) {
+            if (!core.isCurrentHandle(handle)) return
             when (event) {
+                is UpdateEventDto.SyncState -> {
+                    if (event.isSyncing) {
+                        completionHandle = 0L
+                        core.publishSyncState(handle, true)
+                    } else {
+                        completionHandle = handle
+                    }
+                }
+
                 is UpdateEventDto.ChatsChanged -> {
                     chatsRefreshPending = true
                     premiumRefreshPending = true
@@ -362,6 +395,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         core.updatesWake.trySend(Unit)
     }
 
-    override fun updates(): Flow<MtprotoUpdate> = merge(core.updatesEvents, core.localUpdates)
+    override fun updates(): Flow<MtprotoUpdate> =
+        merge(core.updatesEvents, core.localUpdates, core.syncState)
     override fun sessionLost(): Flow<Unit> = core.sessionLostFlow.asSharedFlow()
 }

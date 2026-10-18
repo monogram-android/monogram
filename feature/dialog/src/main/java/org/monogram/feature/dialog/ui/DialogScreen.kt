@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +44,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.monogram.core.models.GeoPlace
 import org.monogram.core.models.PeerId
@@ -64,7 +64,7 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
-    val state by component.state.collectAsState()
+    val state by component.state.collectAsStateWithLifecycle()
     val mediaTitleHolder = LocalChatTitleHolder.current
     SideEffect { mediaTitleHolder?.value = state.title }
     val receiptHolder = LocalReadReceiptHolder.current

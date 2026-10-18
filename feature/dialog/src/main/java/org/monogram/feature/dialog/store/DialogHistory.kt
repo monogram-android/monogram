@@ -26,8 +26,8 @@ import org.monogram.feature.dialog.pinnedMetaKey
 import org.monogram.feature.dialog.unreadAnchorId
 import kotlin.time.Duration.Companion.milliseconds
 
-internal suspend fun DialogExecutor.hydrateSenderTags() {
-    if (snapshot().senderTags.isNotEmpty()) return
+internal suspend fun DialogExecutor.hydrateSenderTags(generation: Int = historyGen) {
+    if (generation != historyGen || snapshot().senderTags.isNotEmpty()) return
     val ram = org.monogram.feature.dialog.SenderTagMemory.get(chatId.value)
     if (ram.isNotEmpty()) {
         emit(Msg.SenderTags(ram))
@@ -36,13 +36,13 @@ internal suspend fun DialogExecutor.hydrateSenderTags() {
     val parsed = org.monogram.feature.dialog.parseSenderTags(
         sessionStore?.readMeta(org.monogram.feature.dialog.tagsMetaKey(chatId.value)),
     )
-    if (parsed.isEmpty()) return
+    if (generation != historyGen || snapshot().senderTags.isNotEmpty() || parsed.isEmpty()) return
     org.monogram.feature.dialog.SenderTagMemory.put(chatId.value, parsed)
     emit(Msg.SenderTags(parsed))
 }
 
-internal suspend fun DialogExecutor.hydratePinned() {
-    if (snapshot().pinnedMessages.isNotEmpty()) return
+internal suspend fun DialogExecutor.hydratePinned(generation: Int = historyGen) {
+    if (generation != historyGen || pinnedRequested || snapshot().pinnedMessages.isNotEmpty()) return
     val ids = parsePinnedIds(sessionStore?.readMeta(pinnedMetaKey(chatId.value)))
     if (ids.isEmpty()) return
     val messages = warmup?.let { cache ->
@@ -52,7 +52,7 @@ internal suspend fun DialogExecutor.hydratePinned() {
             cache.messagesByIds(chatId, ids)
         }
     }.orEmpty()
-    if (messages.isEmpty()) return
+    if (generation != historyGen || pinnedRequested || snapshot().pinnedMessages.isNotEmpty() || messages.isEmpty()) return
     AppLog.api("dialog", "pinned cache chat=${chatId.value} count=${messages.size}")
     emit(Msg.Pinned(messages))
     rememberPinned()
@@ -239,16 +239,7 @@ internal suspend fun DialogExecutor.publishPaintedHistory(
     }
     if (generation != null && generation != historyGen) return
     cachedOlderTail = tail
-    val sameWindow = current.size == paint.size &&
-        current.indices.all { index ->
-            val old = current[index]
-            val next = paint[index]
-            old.id.id == next.id.id &&
-                old.text == next.text &&
-                old.mediaCacheKey == next.mediaCacheKey &&
-                old.mediaKind == next.mediaKind
-        }
-    if (!sameWindow) {
+    if (current != paint) {
         emit(
             Msg.Messages(
                 paint,
@@ -496,6 +487,7 @@ internal fun DialogExecutor.loadNewer() {
             } else {
                 null
             }
+            if (!ownsRequest()) return@launch
             if (newerSlice != null && newerSlice.rows.isNotEmpty()) {
                 emit(Msg.Prepend(newerSlice.rows))
             }

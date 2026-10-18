@@ -223,6 +223,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val readOutboxMaxId: Int = 0,
         val photoCacheKey: String? = null,
         val anchorMessageId: Int? = null,
+        val anchorRequestId: String? = null,
 
         /** The anchor is the first unread row: show it at the top edge, like Telegram does. */
         val anchorAtTop: Boolean = false,

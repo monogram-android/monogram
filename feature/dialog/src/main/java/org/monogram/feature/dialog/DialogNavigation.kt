@@ -411,6 +411,9 @@ fun shouldPageOlder(
     return true
 }
 
+fun isHistoryLiveEdge(firstVisibleIndex: Int, canScrollBackward: Boolean): Boolean =
+    firstVisibleIndex == 0 || !canScrollBackward
+
 fun shouldPageNewer(
     firstVisibleIndex: Int,
     hasNewer: Boolean,
@@ -608,16 +611,16 @@ fun messageRowIndex(messages: List<Message>, messageId: Int): Int {
     return (0..index).count { isAlbumHead(messages, it) } - 1
 }
 
-fun visibleAlbumMessageIds(messages: List<Message>, visibleRowIndices: Set<Int>): Set<Int> =
-    buildSet {
-        var row = 0
-        messages.indices.forEach { index ->
-            if (isAlbumHead(messages, index)) {
-                if (row in visibleRowIndices) albumSlice(messages, index).forEach { add(it.id.id) }
-                row++
-            }
-        }
+fun visibleAlbumMessageIds(
+    messages: List<Message>,
+    visibleRowIndices: Set<Int>,
+    rowMessageIndices: List<Int> = messages.indices.filter { isAlbumHead(messages, it) },
+): Set<Int> = buildSet {
+    visibleRowIndices.forEach { row ->
+        val index = rowMessageIndices.getOrNull(row) ?: return@forEach
+        albumSlice(messages, index).forEach { add(it.id.id) }
     }
+}
 
 private val ALBUM_VISUAL_KINDS = setOf("photo", "video", "gif")
 

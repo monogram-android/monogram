@@ -114,7 +114,11 @@ internal sealed interface Msg {
     data class MarkFailed(val pendingId: Int) : Msg
     data class Drop(val messageId: Int) : Msg
     data class PhotoCacheKey(val value: String?) : Msg
-    data class Anchor(val value: Int?, val atTop: Boolean = false) : Msg
+    data class Anchor(
+        val value: Int?,
+        val atTop: Boolean = false,
+        val requestId: String = java.util.UUID.randomUUID().toString(),
+    ) : Msg
     data class SavedGifs(val value: List<SavedGif>, val error: Boolean = false) : Msg
     data class SavedGifsLoaded(val value: Boolean) : Msg
     data class GifPicker(val open: Boolean) : Msg

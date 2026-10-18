@@ -55,6 +55,7 @@ dependencies {
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.runtime)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    androidTestImplementation(project(":native:mtproto"))
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.activity.compose)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

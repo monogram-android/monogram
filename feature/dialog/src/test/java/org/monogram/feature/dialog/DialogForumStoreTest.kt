@@ -75,6 +75,86 @@ class DialogForumStoreTest {
     }
 
     @Test
+    fun slowPinnedCacheDoesNotDelayFirstHistoryPublication() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val chatId = PeerId(5)
+        val meta = object : SessionMetadataStore() {
+            override suspend fun readMeta(key: String): String? {
+                if (key == pinnedMetaKey(chatId.value)) gate.await()
+                return null
+            }
+
+            override suspend fun writeMeta(key: String, value: String) = Unit
+        }
+        val message = Message(
+            id = MessageId(chatId, 7),
+            senderId = null,
+            text = "Synthetic",
+            date = 1L,
+            outgoing = false
+        )
+        val client = FakeClient().apply { history = listOf(message) }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, FakeWarmup(), meta,
+            chatId = chatId, seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            runCurrent()
+            assertFalse(gate.isCompleted)
+            assertEquals(
+                "History must publish while unrelated pinned metadata is suspended",
+                listOf(7),
+                store.state.messages.map { it.id.id })
+            assertFalse(store.state.loading)
+        } finally {
+            gate.complete(Unit)
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun delayedPinnedCacheCannotReplaceNewerNetworkPins() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val chatId = PeerId(5)
+        val oldPin = Message(
+            id = MessageId(chatId, 7),
+            senderId = null,
+            text = "Old synthetic pin",
+            date = 1L,
+            outgoing = false
+        )
+        val newPin = oldPin.copy(id = MessageId(chatId, 8), text = "New synthetic pin")
+        val meta = object : SessionMetadataStore() {
+            override suspend fun readMeta(key: String): String? {
+                if (key != pinnedMetaKey(chatId.value)) return null
+                gate.await()
+                return "7"
+            }
+
+            override suspend fun writeMeta(key: String, value: String) = Unit
+        }
+        val warmup = FakeWarmup().apply { storedMessages[chatId.value] = listOf(oldPin) }
+        val client = FakeClient().apply { history = listOf(newPin); pinned = listOf(newPin) }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup, meta, chatId = chatId, seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            runCurrent()
+            assertEquals(listOf(8), store.state.pinnedMessages.map { it.id.id })
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(listOf(8), store.state.pinnedMessages.map { it.id.id })
+        } finally {
+            gate.complete(Unit)
+            store.dispose()
+        }
+    }
+
+    @Test
     fun rememberedHistoryPaintsBeforeRpc() = runBlocking {
         val gate = CompletableDeferred<Unit>()
         val chatId = PeerId(5)
@@ -790,7 +870,7 @@ class DialogForumStoreTest {
     }
 
     @Test
-    fun visibleReadAcknowledgesOnlyMessagesOnScreen() = runTest {
+    fun visibleReadAtOlderEndAcknowledgesOnlyMessagesOnScreen() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val client = FakeClient().apply {
             history = listOf(topicMessage(12), topicMessage(11), topicMessage(10))
@@ -802,8 +882,13 @@ class DialogForumStoreTest {
         ).create()
         try {
             advanceUntilIdle()
-            // 12 is loaded but off screen (the user scrolled up): only 11 may be acknowledged.
-            store.accept(DialogStore.Intent.VisibleRead(11))
+            // 12 is loaded but off screen at the older end: only 11 may be acknowledged.
+            store.accept(
+                DialogStore.Intent.VisibleRead(
+                    11,
+                    atLiveEdge = isHistoryLiveEdge(firstVisibleIndex = 1, canScrollBackward = true),
+                )
+            )
             advanceUntilIdle()
             assertEquals("reads=${client.readIds} messages=${store.state.messages.map { it.id.id }}", listOf(11), client.readIds)
             assertEquals(11, store.state.readInboxMaxId)
@@ -1740,6 +1825,130 @@ class DialogForumStoreTest {
             advanceUntilIdle()
             assertFalse(store.state.loading)
             assertTrue(store.state.messages.all { it.id.id in 161..240 })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun networkRefreshPublishesFormattingAndAlbumChangesWithUnchangedText() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val client = FakeClient()
+        val cached = client.topicMessage(44).copy(text = "same text")
+        val updated = cached.copy(
+            groupedId = 9L,
+            entities = listOf(TextEntity("bold", 0, 4)),
+        )
+        client.history = listOf(updated)
+        client.historyGate = gate
+        val warmup = FakeWarmup().apply { storedMessages[5L] = listOf(cached) }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            assertEquals(cached.entities, store.state.messages.single().entities)
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(updated.entities, store.state.messages.single().entities)
+            assertEquals(updated.groupedId, store.state.messages.single().groupedId)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun recreatedStoreDoesNotReuseThePreviousScrollRequestToken() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient().apply { history = listOf(topicMessage(40), topicMessage(39)) }
+        val factory = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        )
+        val first = factory.create()
+        val previousToken = try {
+            advanceUntilIdle()
+            first.accept(DialogStore.Intent.JumpToMessage(40))
+            first.state.anchorRequestId.also { assertTrue(it != null) }
+        } finally {
+            first.dispose()
+        }
+        val recreated = factory.create()
+        try {
+            advanceUntilIdle()
+            recreated.accept(DialogStore.Intent.JumpToMessage(40))
+            assertEquals(40, recreated.state.anchorMessageId)
+            assertTrue(recreated.state.anchorRequestId != null)
+            assertFalse(previousToken == recreated.state.anchorRequestId)
+        } finally {
+            recreated.dispose()
+        }
+    }
+
+    @Test
+    fun repeatedJumpToSameMessagePublishesAnotherScrollRequest() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient().apply { history = listOf(topicMessage(40), topicMessage(39)) }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            val id = store.state.messages.first().id.id
+            store.accept(DialogStore.Intent.JumpToMessage(id))
+            advanceUntilIdle()
+            val previous = store.state
+            store.accept(DialogStore.Intent.JumpToMessage(id))
+            advanceUntilIdle()
+            assertEquals(id, store.state.anchorMessageId)
+            assertEquals(previous.messages, store.state.messages)
+            assertFalse(
+                "repeated navigation must survive StateFlow equality",
+                previous == store.state
+            )
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun dateJumpRejectsLateNewerCacheRowsAndEndMarker() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val gate = CompletableDeferred<Unit>()
+        val client = FakeClient().apply {
+            history = (1..80).reversed().map { topicMessage(it) }
+            jumpPage = (101..140).reversed().map { topicMessage(it) }
+        }
+        val warmup = FakeWarmup().apply {
+            newerSliceGate = gate
+            newerSliceRows = (141..180).reversed().map(client::topicMessage)
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.JumpToDate(42))
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.LoadNewer)
+            advanceUntilIdle()
+            assertTrue(store.state.loadingNewer)
+            client.jumpPage = (401..440).reversed().map(client::topicMessage)
+            store.accept(DialogStore.Intent.JumpToDate(43))
+            advanceUntilIdle()
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertTrue(store.state.messages.all { it.id.id in 401..440 })
+            assertTrue(store.state.hasNewer)
+            assertFalse(store.state.loadingNewer)
         } finally {
             store.dispose()
         }
@@ -3575,6 +3784,27 @@ class DialogForumStoreTest {
     }
 
     private class FakeWarmup : OfflineWarmup() {
+        var newerSliceGate: CompletableDeferred<Unit>? = null
+        var newerSliceRows: List<Message> = emptyList()
+        override suspend fun historySlice(
+            chatId: PeerId, beforeId: Int?, afterId: Int?, limit: Int,
+        ): org.monogram.core.database.HistorySlice {
+            if (afterId == null || newerSliceGate == null) return super.historySlice(
+                chatId,
+                beforeId,
+                afterId,
+                limit
+            )
+            newerSliceGate?.await()
+            return org.monogram.core.database.HistorySlice(
+                newerSliceRows,
+                true,
+                emptyList(),
+                false,
+                true,
+                true
+            )
+        }
         var olderPage: List<Message> = emptyList()
         var beforeDatePage: List<Message> = emptyList()
         override suspend fun olderMessages(chatId: PeerId, beforeId: Int, limit: Int): List<Message> {

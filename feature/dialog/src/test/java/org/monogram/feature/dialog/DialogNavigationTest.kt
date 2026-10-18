@@ -336,6 +336,37 @@ class DialogNavigationTest {
     }
 
     @Test
+    fun oldestLoadedEndIsNotTheLiveEdgeOfAReversedHistory() {
+        assertFalse(isHistoryLiveEdge(firstVisibleIndex = 40, canScrollBackward = true))
+        assertTrue(isHistoryLiveEdge(firstVisibleIndex = 0, canScrollBackward = false))
+        assertTrue(isHistoryLiveEdge(firstVisibleIndex = 0, canScrollBackward = true))
+    }
+
+    @Test
+    fun visibleAlbumExpansionReadsOnlyIndexedVisibleMessages() {
+        val backing = (10_000 downTo 1).map { id ->
+            msg(id).let { if (id in 9978..9980) it.copy(groupedId = 1L) else it }
+        }
+        val rowIndices = backing.indices.filter { isAlbumHead(backing, it) }
+        var reads = 0
+        val messages = object : AbstractList<Message>() {
+            override val size: Int get() = backing.size
+            override fun get(index: Int): Message {
+                reads++
+                return backing[index]
+            }
+        }
+        val visibleRows = setOf(0, 20, rowIndices.lastIndex, -1, 20_000)
+        val expanded = visibleAlbumMessageIds(messages, visibleRows)
+        assertTrue("uncached row indexing traverses the loaded history", reads >= backing.size)
+        reads = 0
+        val indexed = visibleAlbumMessageIds(messages, visibleRows, rowIndices)
+        assertEquals(setOf(10_000, 9980, 9979, 9978, 1), indexed)
+        assertEquals(expanded, indexed)
+        assertTrue("viewport work must not scan 10,000 messages: $reads reads", reads < 20)
+    }
+
+    @Test
     fun visibleAlbumMessageIdsExpandsVisibleAlbumRowsAndSkipsInvalidRows() {
         val messages = listOf(
             msg(10),

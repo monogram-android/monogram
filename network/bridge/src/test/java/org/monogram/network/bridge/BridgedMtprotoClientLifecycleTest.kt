@@ -1,6 +1,7 @@
 package org.monogram.network.bridge
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
@@ -941,17 +942,23 @@ class BridgedMtprotoClientLifecycleTest {
 
     private class DurableNative : RecordingNative() {
         val drainResults = ArrayDeque<UpdateDrainDto>()
+        var drainFailure: Exception? = null
 
         /** Like the native journal: delivered batches stay until acknowledged. */
         val unacked = mutableListOf<UpdateBatchDto>()
+        var maxUnacked = 0
         val calls = mutableListOf<String>()
 
         override fun isAuthorized(handle: Long) = true
+        override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> =
+            emptyList()
         override fun drainUpdateBatches(handle: Long): UpdateDrainDto {
             calls += "drain"
+            drainFailure?.let { failure -> drainFailure = null; throw failure }
             val result =
                 drainResults.removeFirstOrNull() ?: UpdateDrainDto(emptyList(), emptyList(), false)
             unacked += result.batches
+            maxUnacked = maxOf(maxUnacked, unacked.size)
             return result
         }
 
@@ -977,6 +984,305 @@ class BridgedMtprotoClientLifecycleTest {
     private suspend fun kotlinx.coroutines.test.TestScope.settle(ms: Long = 300) {
         testScheduler.advanceTimeBy(ms)
         testScheduler.runCurrent()
+    }
+
+    @Test
+    fun catchupCompletionWaitsForDurableCommit() = runTest {
+        val native = DurableNative()
+        native.drainResults += UpdateDrainDto(
+            listOf(durableBatch(1)),
+            listOf(UpdateEventDto.SyncState(true)),
+            false
+        )
+        native.drainResults += UpdateDrainDto(
+            listOf(durableBatch(2)),
+            listOf(UpdateEventDto.SyncState(false)),
+            false
+        )
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        val release = CompletableDeferred<Unit>()
+        val committing = CompletableDeferred<Unit>()
+        val statuses = mutableListOf<Boolean>()
+        backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+            client.updates().filterIsInstance<MtprotoUpdate.SyncState>()
+                .collect { statuses += it.isSyncing }
+        }
+        client.installDurableUpdateSink { batch ->
+            if (batch.batchId == 2L) {
+                committing.complete(Unit)
+                release.await()
+            }
+            true
+        }
+        try {
+            testScheduler.runCurrent()
+            assertTrue(client.connect() is Outcome.Ok)
+            settle(100)
+            assertTrue(committing.isCompleted)
+            assertTrue(
+                "Final page is not complete while its Room commit is suspended",
+                statuses.last()
+            )
+            assertTrue(native.calls.none { it == "ack:7:2" })
+            release.complete(Unit)
+            settle(100)
+            assertEquals(false, statuses.last())
+            assertTrue(native.calls.contains("ack:7:2"))
+        } finally {
+            release.complete(Unit)
+            client.close()
+        }
+    }
+
+    @Test
+    fun lateSubscriberReceivesCurrentCatchupStatusWithoutReplayingMessages() = runTest {
+        val native = DurableNative()
+        native.drainResults += UpdateDrainDto(
+            listOf(durableBatch(1)),
+            listOf(UpdateEventDto.SyncState(true)),
+            false
+        )
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        client.installDurableUpdateSink { true }
+        val received = mutableListOf<MtprotoUpdate>()
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            settle(100)
+            backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+                client.updates().collect { received += it }
+            }
+            testScheduler.runCurrent()
+            assertEquals(listOf(MtprotoUpdate.SyncState(true)), received)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun failedFinalCommitKeepsCatchupActiveUntilReplaySucceeds() = runTest {
+        val native = DurableNative()
+        native.drainResults += UpdateDrainDto(
+            listOf(durableBatch(1)),
+            listOf(UpdateEventDto.SyncState(false)),
+            false
+        )
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        var allowCommit = false
+        var attempts = 0
+        val received = mutableListOf<MtprotoUpdate>()
+        backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+            client.updates().collect { received += it }
+        }
+        client.installDurableUpdateSink {
+            attempts++
+            allowCommit
+        }
+        try {
+            testScheduler.runCurrent()
+            assertTrue(client.connect() is Outcome.Ok)
+            settle(100)
+            assertTrue(attempts > 1)
+            assertTrue(received.filterIsInstance<MtprotoUpdate.SyncState>().last().isSyncing)
+            assertEquals(1, native.unacked.size)
+            assertTrue(native.calls.none { it.startsWith("ack") })
+            allowCommit = true
+            settle(100)
+            assertEquals(
+                false,
+                received.filterIsInstance<MtprotoUpdate.SyncState>().last().isSyncing
+            )
+            assertEquals(1, native.calls.count { it.startsWith("ack") })
+            assertEquals(1, received.filterIsInstance<MtprotoUpdate.NewMessage>().size)
+            assertTrue(native.unacked.isEmpty())
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun closingDuringDurableCommitCannotAcknowledgeDestroyedHandle() = runTest {
+        val native = DurableNative()
+        native.drainResults += UpdateDrainDto(
+            listOf(durableBatch(1)),
+            listOf(UpdateEventDto.SyncState(false)),
+            false
+        )
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        val committing = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        client.installDurableUpdateSink {
+            committing.complete(Unit)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { release.await() }
+            true
+        }
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            settle(50)
+            assertTrue(committing.isCompleted)
+            client.close()
+            release.complete(Unit)
+            testScheduler.runCurrent()
+            assertTrue(native.calls.none { it.startsWith("ack") })
+            assertEquals(1, native.unacked.size)
+        } finally {
+            release.complete(Unit)
+            client.close()
+        }
+    }
+
+    @Test
+    fun committedCatchupPagesContinueWithoutAnArtificialSleepAndYieldToHistory() = runTest {
+        val native = DurableNative()
+        repeat(16) { index ->
+            native.drainResults += UpdateDrainDto(
+                listOf(
+                    durableBatch(index + 1L).copy(
+                        events = List(64) { newMessageEvent(index * 64 + it + 1) },
+                        cursorAfter = UpdatesStateDto((index + 1) * 64, 0, 1, 1),
+                    )
+                ),
+                listOf(UpdateEventDto.SyncState(index != 15)),
+                false,
+            )
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        val publishedAt = mutableListOf<Long>()
+        val acceptedIds = mutableListOf<Int>()
+        var interactiveDrainCount = Int.MAX_VALUE
+        client.installDurableUpdateSink { batch ->
+            publishedAt += testScheduler.currentTime
+            acceptedIds += batch.updates.filterIsInstance<MtprotoUpdate.NewMessage>()
+                .map { it.message.id.id }
+            if (batch.batchId == 1L) {
+                backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+                    assertTrue(client.getHistory(PeerId(42)) is Outcome.Ok)
+                    interactiveDrainCount = native.calls.count { it == "drain" }
+                }
+            }
+            true
+        }
+        try {
+            assertTrue(client.connect() is Outcome.Ok)
+            settle(500)
+            assertEquals(16, publishedAt.size)
+            assertEquals((1..1024).toList(), acceptedIds)
+            assertEquals(1, native.maxUnacked)
+            assertEquals(16, native.calls.count { it.startsWith("ack") })
+            assertTrue(
+                "Interactive history must run before the backlog finishes: drain=$interactiveDrainCount calls=${native.calls}",
+                interactiveDrainCount < 16
+            )
+            assertEquals(
+                "Ready slices must not incur 15 fixed 25ms sleeps",
+                0L,
+                publishedAt.last() - publishedAt.first()
+            )
+            val drainsBeforeIdle = native.calls.count { it == "drain" }
+            settle(100)
+            val idleDrains = native.calls.count { it == "drain" } - drainsBeforeIdle
+            assertTrue("Idle drains retain pacing: $idleDrains", idleDrains in 3..5)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun reconnectMarksCatchupActiveUntilRecoveredPageIsCommitted() = runTest {
+        val native = DurableNative()
+        native.drainResults += UpdateDrainDto(
+            emptyList(),
+            listOf(UpdateEventDto.SyncState(false)),
+            false
+        )
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        val release = CompletableDeferred<Unit>()
+        val committing = CompletableDeferred<Unit>()
+        val statuses = mutableListOf<Boolean>()
+        backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+            client.updates().filterIsInstance<MtprotoUpdate.SyncState>()
+                .collect { statuses += it.isSyncing }
+        }
+        client.installDurableUpdateSink {
+            committing.complete(Unit)
+            release.await()
+            true
+        }
+        try {
+            testScheduler.runCurrent()
+            assertTrue(client.connect() is Outcome.Ok)
+            settle(100)
+            assertEquals(false, statuses.last())
+            native.drainFailure = MtprotoException.Message("connection closed")
+            native.drainResults += UpdateDrainDto(
+                listOf(durableBatch(1)),
+                listOf(UpdateEventDto.SyncState(false)),
+                false
+            )
+            settle(5000)
+            assertTrue(committing.isCompleted)
+            assertEquals(true, statuses.last())
+            release.complete(Unit)
+            settle(100)
+            assertEquals(false, statuses.last())
+            assertEquals(1, native.calls.count { it.startsWith("ack") })
+        } finally {
+            release.complete(Unit)
+            client.close()
+        }
+    }
+
+    @Test
+    fun retiredClientCompletionCannotClearReplacementCatchup() = runTest {
+        val oldNative = DurableNative().apply {
+            drainResults += UpdateDrainDto(
+                listOf(durableBatch(1)),
+                listOf(UpdateEventDto.SyncState(false)),
+                false
+            )
+        }
+        val nextNative = DurableNative().apply {
+            drainResults += UpdateDrainDto(
+                listOf(durableBatch(2).copy(accountGeneration = 8)),
+                listOf(UpdateEventDto.SyncState(false)),
+                false
+            )
+        }
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val old = client(oldNative, dispatcher)
+        val replacement = client(nextNative, dispatcher)
+        val oldCommit = CompletableDeferred<Unit>()
+        val nextCommit = CompletableDeferred<Unit>()
+        val statuses = mutableListOf<Boolean>()
+        old.installDurableUpdateSink {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { oldCommit.await() }
+            true
+        }
+        replacement.installDurableUpdateSink { nextCommit.await(); true }
+        backgroundScope.launch(dispatcher) {
+            replacement.updates().filterIsInstance<MtprotoUpdate.SyncState>()
+                .collect { statuses += it.isSyncing }
+        }
+        try {
+            old.connect()
+            settle(50)
+            old.close()
+            replacement.connect()
+            settle(50)
+            assertEquals(true, statuses.last())
+            oldCommit.complete(Unit)
+            settle(50)
+            assertEquals(true, statuses.last())
+            assertTrue(oldNative.calls.none { it.startsWith("ack") })
+            nextCommit.complete(Unit)
+            settle(50)
+            assertEquals(false, statuses.last())
+            assertEquals(listOf("ack:8:2"), nextNative.calls.filter { it.startsWith("ack") })
+        } finally {
+            oldCommit.complete(Unit)
+            nextCommit.complete(Unit)
+            old.close()
+            replacement.close()
+        }
     }
 
     @Test

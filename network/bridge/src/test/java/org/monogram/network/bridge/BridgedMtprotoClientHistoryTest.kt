@@ -100,7 +100,9 @@ class BridgedMtprotoClientHistoryTest {
         )
         try {
             val events = mutableListOf<MtprotoUpdate>()
-            backgroundScope.async { client.updates().toList(events) }
+            backgroundScope.async {
+                client.updates().filter { it !is MtprotoUpdate.SyncState }.toList(events)
+            }
             runCurrent()
             assertTrue(client.readHistory(PeerId(42), 18) is Outcome.Ok)
             runCurrent()
@@ -240,7 +242,7 @@ class BridgedMtprotoClientHistoryTest {
                 seen.filterIsInstance<MtprotoUpdate.ChatsChanged>().single().chats.single().title,
             )
             assertEquals(
-                listOf(true, false),
+                listOf(false, true, false),
                 seen.filterIsInstance<MtprotoUpdate.SyncState>().map { it.isSyncing },
             )
             collector.cancel()

@@ -23,6 +23,7 @@ internal class ChatsStoreFactory(
     private val notifications: NotificationLocalStore? = null,
     private val refreshMergeHook: (suspend () -> Unit)? = null,
     private val readStateHook: (suspend () -> Unit)? = null,
+    private val ioContext: kotlin.coroutines.CoroutineContext = kotlinx.coroutines.Dispatchers.IO,
 ) {
     fun create(): ChatsStore =
         object :
@@ -47,6 +48,7 @@ internal class ChatsStoreFactory(
                         notifications,
                         refreshMergeHook,
                         readStateHook,
+                        ioContext,
                     )
                 },
                 reducer = ChatsReducer,

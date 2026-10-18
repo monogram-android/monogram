@@ -11,6 +11,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -97,6 +98,15 @@ internal class SessionCore(
     internal var durableSink: DurableUpdateSink? = null
 
     internal val replayPending = AtomicBoolean(true)
+    internal val syncState = MutableStateFlow(MtprotoUpdate.SyncState(false))
+
+    internal fun publishSyncState(expectedHandle: Long, syncing: Boolean) {
+        synchronized(handleLock) {
+            if (!closed && !sessionDead && handle == expectedHandle) {
+                syncState.value = MtprotoUpdate.SyncState(syncing)
+            }
+        }
+    }
 
     /** Wakes the update loop when a handle is created, reconnected, or closed. */
     internal val updatesWake = Channel<Unit>(capacity = Channel.CONFLATED)
@@ -203,6 +213,7 @@ internal class SessionCore(
     internal fun markSessionDegraded(telegram: TelegramError, raw: String = "") {
         if (sessionDead) return
         sessionDead = true
+        syncState.value = MtprotoUpdate.SyncState(false)
         AppLog.warn("session", "degraded ${nativeFailureLogLine(telegram, raw)}")
         updatesWake.trySend(Unit)
         sessionLostFlow.tryEmit(Unit)
@@ -329,6 +340,7 @@ internal class SessionCore(
                 }
                 try {
                     if (native.isAuthorized(activeHandle)) {
+                        publishSyncState(activeHandle, true)
                         native.startUpdates(activeHandle)
                         native.updateLazySyncConfig(
                             activeHandle,
@@ -378,6 +390,7 @@ internal class SessionCore(
             val connected = rpc("connect failed") { activeHandle ->
                 refreshDcSidecar(sessionPath)
                 try {
+                    if (updatesStartedHandle == activeHandle) publishSyncState(activeHandle, true)
                     native.connect(activeHandle)
                     if (isCurrentHandle(activeHandle)) connectedHandle = activeHandle
                 } catch (e: Exception) {
@@ -707,7 +720,10 @@ internal class SessionCore(
 
     internal fun resetHandle() {
         val oldHandle = synchronized(handleLock) {
-            handle.also { handle = 0L }
+            handle.also {
+                handle = 0L
+                syncState.value = MtprotoUpdate.SyncState(false)
+            }
         }
         connectedHandle = 0L
         if (proxyState == ProxyConnectionStatus.Connected) proxyState =

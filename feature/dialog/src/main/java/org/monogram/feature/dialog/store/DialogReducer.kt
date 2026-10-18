@@ -213,7 +213,11 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         )
         is Msg.Drop -> copy(messages = messages.filterNot { it.id.id == msg.messageId })
         is Msg.PhotoCacheKey -> copy(photoCacheKey = msg.value)
-        is Msg.Anchor -> copy(anchorMessageId = msg.value, anchorAtTop = msg.atTop)
+        is Msg.Anchor -> copy(
+            anchorMessageId = msg.value,
+            anchorAtTop = msg.atTop,
+            anchorRequestId = msg.requestId,
+        )
         is Msg.SavedGifs -> copy(
             savedGifs = msg.value,
             savedGifsLoaded = true,

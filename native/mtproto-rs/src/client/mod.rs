@@ -42,6 +42,9 @@ mod lazy_sync_tests;
 #[path = "../../tests/unit/client_mgr_logout_tests.rs"]
 mod logout_tests;
 #[cfg(test)]
+#[path = "../../tests/unit/client_mgr_pfs_tests.rs"]
+mod pfs_tests;
+#[cfg(test)]
 #[path = "../../tests/unit/client_mgr_session_tests.rs"]
 mod session_tests;
 #[cfg(test)]
@@ -89,6 +92,7 @@ pub(crate) struct ClientData {
     pub(crate) seen_messages: HashSet<(i64, i32)>,
     pub(crate) logout_tokens: Vec<Vec<u8>>,
     pub(crate) new_session: Option<crate::rpc::NewSessionMetadata>,
+    pub(crate) home_snapshot: Snapshot,
     pub(crate) home_dc: i32,
     pub(crate) home_session_id: i64,
     pub(crate) home_auth_key: Option<Vec<u8>>,
@@ -165,9 +169,8 @@ pub(crate) struct ClientState {
     pub(crate) test_dc: bool,
     pub(crate) last_inline: Option<LastInlineQuery>,
     /// Set while the live snapshot uses a PFS temp key. Disk writes keep this key.
-    pub(crate) perm_auth_key: Option<Vec<u8>>,
-    pub(crate) perm_salt: i64,
-    pub(crate) perm_session_id: i64,
+    pub(crate) permanent: Option<Snapshot>,
+    pub(crate) temp_expires_at: i32,
     pub(crate) dc_auth_keys: HashMap<i32, DcAuthKey>,
     pub(crate) journal: Arc<crate::update_journal::UpdateJournal>,
 }
@@ -247,6 +250,34 @@ where
     fn for_each_entry(self, f: &mut dyn FnMut(K, V)) {
         for (key, value) in self {
             f(key, value);
+        }
+    }
+}
+
+impl MergeMap<i64, ChannelRecovery> for VecDeque<ChannelRecovery> {
+    fn contains_key(&self, key: &i64) -> bool {
+        self.iter().any(|entry| entry.chat_id == *key)
+    }
+    fn get(&self, key: &i64) -> Option<&ChannelRecovery> {
+        self.iter().find(|entry| entry.chat_id == *key)
+    }
+    fn insert(&mut self, key: i64, value: ChannelRecovery) -> Option<ChannelRecovery> {
+        if let Some(entry) = self.iter_mut().find(|entry| entry.chat_id == key) {
+            Some(std::mem::replace(entry, value))
+        } else {
+            self.push_back(value);
+            None
+        }
+    }
+    fn retain(&mut self, f: &mut dyn FnMut(&i64, &mut ChannelRecovery) -> bool) {
+        self.retain_mut(|entry| {
+            let key = entry.chat_id;
+            f(&key, entry)
+        });
+    }
+    fn for_each_entry(self, f: &mut dyn FnMut(i64, ChannelRecovery)) {
+        for entry in self {
+            f(entry.chat_id, entry);
         }
     }
 }
@@ -395,6 +426,7 @@ pub fn create_client(api_id: i32, api_hash: String, session_path: String) -> u64
                 seen_messages,
                 logout_tokens,
                 new_session,
+                home_snapshot: snapshot.clone(),
                 home_dc: snapshot.dc_id,
                 home_session_id: snapshot.session_id,
                 home_auth_key: snapshot.auth_key.clone(),
@@ -488,6 +520,7 @@ pub(crate) fn with_interactive_client_mut<T>(
 pub fn destroy_client(handle: u64) {
     let client = CLIENTS.lock().remove(&handle);
     if let Some(client) = client {
+        client.connections.begin_shutdown();
         flush_persist(&client);
         client.connections.close();
     }
@@ -566,6 +599,14 @@ pub(crate) fn with_client_mut<T>(
     handle: u64,
     f: impl FnOnce(&mut ClientState) -> Result<T, MtprotoError>,
 ) -> Result<T, MtprotoError> {
+    with_client_mut_binding(handle, f, crate::auth::bind_temp::negotiate_bound_temp)
+}
+
+pub(crate) fn with_client_mut_binding<T>(
+    handle: u64,
+    f: impl FnOnce(&mut ClientState) -> Result<T, MtprotoError>,
+    negotiate: impl FnOnce(&[u8], i32, i64) -> Result<crate::auth::bind_temp::BoundTemp, MtprotoError>,
+) -> Result<T, MtprotoError> {
     let client = get_client(handle)?;
     let _policy = crate::transfer_policy::bind(std::sync::Arc::clone(&client.policy));
     let class = scheduler::current_class();
@@ -581,6 +622,7 @@ pub(crate) fn with_client_mut<T>(
         client.main_gate.acquire(class)?
     };
     let mut io = lock_request_lane(&client.main, "lane_wait.main")?;
+    crate::auth::bind_temp::ensure_main_temp_with(&client, &mut io, false, &crate::rpc::SystemClock, negotiate)?;
     let mut state = {
         let d = client.data.lock();
         ClientState {
@@ -602,11 +644,9 @@ pub(crate) fn with_client_mut<T>(
             session_dead_reason: d.session_dead_reason.clone(),
             test_dc: d.test_dc,
             last_inline: d.last_inline.clone(),
-            perm_auth_key: (io.temp_expires_at > crate::auth::bind_temp::unix_now())
-                .then(|| d.home_auth_key.clone())
-                .flatten(),
-            perm_salt: d.home_salt,
-            perm_session_id: d.home_session_id,
+            permanent: (io.temp_expires_at != 0 || io.perm_key.is_some())
+                .then(|| d.home_snapshot.clone()),
+            temp_expires_at: io.temp_expires_at,
             dc_auth_keys: d.dc_auth_keys.clone(),
             journal: Arc::clone(&d.journal),
         }
@@ -615,6 +655,8 @@ pub(crate) fn with_client_mut<T>(
     crate::rpc::clear_new_session_metadata();
     let before_peers = state.peers.clone();
     let before_media = state.media.clone();
+    let before_channel_pts = state.channel_pts.clone();
+    let before_recovery = state.channel_recovery.clone();
     let before_user_id = state.user_id;
     let before_updates = state.updates.clone();
     let before_logout = state.logout_tokens.clone();
@@ -625,6 +667,18 @@ pub(crate) fn with_client_mut<T>(
     let mut slot = io.transport.take();
     let before_snapshot = io.snapshot.clone();
     let result = with_client_transport(&client, &mut slot, || f(&mut state));
+    let temp_failed = result.as_ref().err().is_some_and(|err| temporary_key_failure(&state, err));
+    if !temp_failed && !state.session_dead {
+        if let Err(error) = &result {
+            if kills_session(state.user_id, error) {
+                mark_session_dead(&mut state, error);
+            }
+        }
+    }
+    if temp_failed {
+        expire_temporary_lane(&client, &mut io, result.as_ref().err().unwrap());
+        state.temp_expires_at = 1;
+    }
     if let Some(metadata) = crate::rpc::take_new_session_metadata() {
         state.new_session = Some(metadata);
     }
@@ -634,7 +688,7 @@ pub(crate) fn with_client_mut<T>(
     let snapshot_changed = before_snapshot.dc_id != state.snapshot.dc_id
         || before_snapshot.auth_key != state.snapshot.auth_key
         || before_snapshot.session_id != state.snapshot.session_id;
-    io.transport = if snapshot_changed || state.session_dead {
+    io.transport = if snapshot_changed || state.session_dead || temp_failed {
         None
     } else {
         slot
@@ -652,6 +706,8 @@ pub(crate) fn with_client_mut<T>(
     }
     let dc_keys_changed = before_dc_auth_keys != state.dc_auth_keys;
     if identity_changed {
+        client.policy.bound_extra_sessions.store(0, Ordering::Release);
+        client.policy.main_session_allowance.store(-1, Ordering::Release);
         if state.user_id.is_none() || before_user_id.is_some() {
             client.policy.premium.store(false, Ordering::Relaxed);
         }
@@ -662,11 +718,19 @@ pub(crate) fn with_client_mut<T>(
     let session_meta_changed = before_new_session != state.new_session
         || before_dead != state.session_dead
         || before_test_dc != state.test_dc;
+    let home = durable_snapshot(&state);
+    if let Some(permanent) = &state.permanent {
+        io.perm_key = permanent.auth_key.clone();
+        io.temp_expires_at = state.temp_expires_at.max(1);
+    } else if state.snapshot.auth_key != before_snapshot.auth_key || state.snapshot.dc_id != before_snapshot.dc_id {
+        io.temp_expires_at = 0;
+        io.perm_key = None;
+    }
     let persist_needed;
     {
         let mut d = client.data.lock();
         d.user_id = state.user_id;
-        let maps_changed = if identity_changed {
+        let maps_changed = if before_user_id != state.user_id {
             d.peers = state.peers;
             d.media = state.media;
             d.updates = state.updates;
@@ -681,28 +745,30 @@ pub(crate) fn with_client_mut<T>(
         } else {
             let peers_changed = merge_changed_entries(&mut d.peers, &before_peers, state.peers);
             let media_changed = merge_changed_entries(&mut d.media, &before_media, state.media);
+            let channels_changed = merge_changed_entries(&mut d.channel_pts, &before_channel_pts, state.channel_pts);
+            let recovery_changed = state.channel_recovery != before_recovery
+                && merge_changed_entries(&mut d.channel_recovery, &before_recovery, state.channel_recovery);
+            let seen_before = d.seen_messages.len();
+            d.seen_messages.extend(state.seen_messages);
             d.updates = prefer_newer_cursor(d.updates.clone(), state.updates);
             d.updates_started |= state.updates_started;
-            peers_changed || media_changed || updates_changed
+            peers_changed || media_changed || channels_changed || recovery_changed || seen_before != d.seen_messages.len() || updates_changed
         };
         d.logout_tokens = state.logout_tokens;
         d.new_session = state.new_session;
-        d.session_dead = state.session_dead;
-        d.session_dead_reason = if state.session_dead {
-            state.session_dead_reason.clone()
-        } else {
-            None
-        };
-        d.home_dc = state.snapshot.dc_id;
-        d.home_time_offset = state.snapshot.time_offset_micros;
-        if state.session_dead || state.snapshot.auth_key != before_snapshot.auth_key {
-            io.temp_expires_at = 0;
+        d.session_dead = if before_dead { state.session_dead } else { d.session_dead || state.session_dead };
+        if before_dead || state.session_dead || !d.session_dead {
+            d.session_dead_reason = if state.session_dead { state.session_dead_reason.clone() } else { None };
         }
-        if io.temp_expires_at <= crate::auth::bind_temp::unix_now() {
-            d.home_session_id = state.snapshot.session_id;
-            d.home_auth_key = state.snapshot.auth_key.clone();
-            d.home_salt = state.snapshot.server_salt;
+        if d.session_dead {
+            io.transport = None;
         }
+        d.home_dc = home.dc_id;
+        d.home_time_offset = home.time_offset_micros;
+        d.home_session_id = home.session_id;
+        d.home_auth_key = home.auth_key.clone();
+        d.home_salt = home.server_salt;
+        d.home_snapshot = home;
         d.test_dc = state.test_dc;
         d.last_inline = state.last_inline;
         if dc_keys_changed {
@@ -729,7 +795,7 @@ pub(crate) fn with_client_mut<T>(
                 rpc.transport = None;
                 rpc.pending_push = Default::default();
                 rpc.last_difference = None;
-                if io.temp_expires_at <= crate::auth::bind_temp::unix_now() {
+                if io.temp_expires_at == 0 && io.perm_key.is_none() {
                     rpc.snapshot = fork_session(&io.snapshot);
                 }
             }
@@ -740,7 +806,7 @@ pub(crate) fn with_client_mut<T>(
         schedule_persist(&client, persist_id);
     }
     schedule_file_cleanup(&client);
-    result
+    if temp_failed { Err(temporary_key_retry_error()) } else { result }
 }
 
 pub(crate) fn home_fork_source(data: &ClientData) -> Option<Snapshot> {
@@ -761,6 +827,7 @@ pub(crate) fn with_read_lane<T>(
     mut f: impl FnMut(&mut ClientState) -> Result<T, MtprotoError>,
 ) -> Result<T, MtprotoError> {
     let client = get_client(handle)?;
+    let _policy = crate::transfer_policy::bind(client.policy.clone());
     // A non-media DC permits a single main session. Extra read lanes are home-DC
     // sessions, so they run only when the server granted them (`config.tmp_sessions`).
     if scheduler::extra_main_sessions() == 0 {
@@ -776,15 +843,8 @@ pub(crate) fn with_read_lane<T>(
     // Reads wait for a read lane; the `with_client_mut` paths below are authorization
     // repairs, not contention fallbacks.
     let mut io = acquire_read_lane(&client)?;
-    let now = crate::auth::bind_temp::unix_now();
-    if io.temp_expires_at > 0 && io.temp_expires_at <= now {
-        io.temp_expires_at = 0;
-        io.transport = None;
-        drop(io);
-        scheduler::set_bound_extra_sessions(0);
-        return with_client_mut(handle, f);
-    }
-    let bound_temp = io.temp_expires_at > now
+    crate::auth::bind_temp::ensure_main_temp(&client, &mut io, false)?;
+    let bound_temp = crate::auth::bind_temp::temp_key_valid(&io.snapshot, io.temp_expires_at)
         && io.snapshot.auth_key.as_ref() != home.auth_key.as_ref()
         && io.snapshot.auth_key.as_ref().map(Vec::len) == Some(256);
     if !bound_temp {
@@ -818,11 +878,9 @@ pub(crate) fn with_read_lane<T>(
                 session_dead_reason: d.session_dead_reason.clone(),
                 test_dc: d.test_dc,
                 last_inline: d.last_inline.clone(),
-                perm_auth_key: (io.temp_expires_at > crate::auth::bind_temp::unix_now())
-                    .then(|| d.home_auth_key.clone())
-                    .flatten(),
-                perm_salt: d.home_salt,
-                perm_session_id: d.home_session_id,
+                permanent: (io.temp_expires_at != 0 || io.perm_key.is_some())
+                    .then(|| d.home_snapshot.clone()),
+                temp_expires_at: io.temp_expires_at,
                 dc_auth_keys: d.dc_auth_keys.clone(),
                 journal: Arc::clone(&d.journal),
             })
@@ -840,6 +898,7 @@ pub(crate) fn with_read_lane<T>(
     let before_peers = state.peers.clone();
     let before_media = state.media.clone();
     let before_channel_pts = state.channel_pts.clone();
+    let before_recovery = state.channel_recovery.clone();
     let before_dc_auth_keys = state.dc_auth_keys.clone();
     let mut slot = io.transport.take();
     let before_snapshot = io.snapshot.clone();
@@ -859,12 +918,18 @@ pub(crate) fn with_read_lane<T>(
     if let Some(metadata) = crate::rpc::take_new_session_metadata() {
         state.new_session = Some(metadata);
     }
-    let still_temp = io.temp_expires_at > crate::auth::bind_temp::unix_now()
+    let temp_failed = result.as_ref().err().is_some_and(|err| temporary_key_failure(&state, err));
+    if temp_failed {
+        expire_temporary_lane(&client, &mut io, result.as_ref().err().unwrap());
+        return Err(temporary_key_retry_error());
+    }
+    let still_temp = (io.temp_expires_at != 0 || io.perm_key.is_some())
         && state.snapshot.auth_key.as_ref() != home_auth.as_ref();
     let diverged =
         state.snapshot.dc_id != home_dc || (state.snapshot.auth_key != home_auth && !still_temp);
     if diverged {
         io.temp_expires_at = 0;
+        io.perm_key = None;
         io.snapshot = fork_session(&home);
         io.transport = None;
         drop(io);
@@ -890,6 +955,9 @@ pub(crate) fn with_read_lane<T>(
             let _ = merge_changed_entries(&mut d.media, &before_media, state.media);
             let _ =
                 merge_changed_entries(&mut d.channel_pts, &before_channel_pts, state.channel_pts);
+            if state.channel_recovery != before_recovery {
+                merge_changed_entries(&mut d.channel_recovery, &before_recovery, state.channel_recovery);
+            }
             d.seen_messages.extend(state.seen_messages);
             d.updates = prefer_newer_cursor(d.updates.clone(), state.updates);
             d.updates_started |= state.updates_started;
@@ -897,17 +965,21 @@ pub(crate) fn with_read_lane<T>(
             if state.new_session.is_some() {
                 d.new_session = state.new_session;
             }
+            let terminal_changed = !d.session_dead && state.session_dead;
             d.session_dead |= state.session_dead;
             if state.session_dead {
                 d.session_dead_reason = state.session_dead_reason.clone();
             }
             d.last_inline = state.last_inline;
-            d.home_salt = state.snapshot.server_salt;
+            if state.permanent.is_none() && state.snapshot.auth_key == d.home_auth_key {
+                d.home_salt = state.snapshot.server_salt;
+                d.home_snapshot.server_salt = state.snapshot.server_salt;
+            }
             d.home_time_offset = state.snapshot.time_offset_micros;
             if before_dc_auth_keys != state.dc_auth_keys {
                 d.dc_auth_keys = state.dc_auth_keys.clone();
             }
-            if result.is_ok() {
+            if result.is_ok() || terminal_changed {
                 d.persist_epoch = d.persist_epoch.saturating_add(1);
             }
         }

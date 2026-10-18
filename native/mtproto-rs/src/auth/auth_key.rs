@@ -19,6 +19,7 @@ use tellers_mtproto_session::{Clock, Snapshot};
 use tellers_mtproto_transport::{Connection, Framing, PaddedIntermediate};
 
 use crate::MtprotoError;
+use zeroize::Zeroize;
 
 const PROD_RSA_PEM: &str = "-----BEGIN RSA PUBLIC KEY-----\n\
 MIIBCgKCAQEA6LszBcC1LGzyr992NzE0ieY+BSaOW622Aa9Bd4ZHLl+TuFQ4lo4g\n\
@@ -129,6 +130,15 @@ struct AuthAdapter {
     g_b: Option<Vec<u8>>,
     auth_key: Option<Vec<u8>>,
     expires_in: Option<i32>,
+    expires_at: Option<i32>,
+    time_offset_micros: Option<i64>,
+    clock: fn() -> i64,
+}
+
+impl Drop for AuthAdapter {
+    fn drop(&mut self) {
+        self.auth_key.zeroize();
+    }
 }
 
 impl AuthAdapter {
@@ -150,6 +160,9 @@ impl AuthAdapter {
             g_b: None,
             auth_key: None,
             expires_in: None,
+            expires_at: None,
+            time_offset_micros: None,
+            clock: || SystemClock.unix_micros(),
         })
     }
 }
@@ -272,6 +285,9 @@ impl AuthorizationAdapter for AuthAdapter {
         let server_nonce = self.server_nonce.clone().ok_or_else(|| {
             tellers_mtproto_engine::Error::Authorization("missing server_nonce".into())
         })?;
+        if ok.nonce != self.nonce || ok.server_nonce != server_nonce {
+            return Err(tellers_mtproto_engine::Error::Authorization("DH envelope nonce mismatch".into()));
+        }
         let new_nonce = self.new_nonce.clone().ok_or_else(|| {
             tellers_mtproto_engine::Error::Authorization("missing new_nonce".into())
         })?;
@@ -299,6 +315,18 @@ impl AuthorizationAdapter for AuthAdapter {
             ));
         };
 
+        if inner.nonce != self.nonce || inner.server_nonce != server_nonce {
+            return Err(tellers_mtproto_engine::Error::Authorization("DH inner nonce mismatch".into()));
+        }
+        let received_at = (self.clock)();
+        if inner.server_time <= 0 {
+            return Err(tellers_mtproto_engine::Error::Authorization("invalid DH server time".into()));
+        }
+        let expires_at = self.expires_in.map(|seconds| inner.server_time.checked_add(seconds)
+            .filter(|expiry| *expiry > inner.server_time)
+            .ok_or_else(|| tellers_mtproto_engine::Error::Authorization("invalid temporary key expiry".into())))
+            .transpose()?;
+
         use num_bigint::BigUint;
         let prime = BigUint::from_bytes_be(&inner.dh_prime);
         let g_a = BigUint::from_bytes_be(&inner.g_a);
@@ -310,7 +338,7 @@ impl AuthorizationAdapter for AuthAdapter {
         let prime_bytes = usize::try_from(prime.bits().div_ceil(8))
             .unwrap_or(256)
             .max(256);
-        let mut b_bytes = vec![0_u8; prime_bytes];
+        let mut b_bytes = zeroize::Zeroizing::new(vec![0_u8; prime_bytes]);
         fill_random(&mut b_bytes)
             .map_err(|e| tellers_mtproto_engine::Error::Authorization(e.to_string()))?;
         let b = BigUint::from_bytes_be(&b_bytes);
@@ -322,6 +350,8 @@ impl AuthorizationAdapter for AuthAdapter {
         let auth_key = derive_auth_key(&g_a, &b, &prime)
             .map_err(|e| tellers_mtproto_engine::Error::Authorization(e.to_string()))?;
         self.auth_key = Some(auth_key);
+        self.expires_at = expires_at;
+        self.time_offset_micros = Some((i64::from(inner.server_time) * 1_000_000).saturating_sub(received_at));
 
         let client_inner = tellers_mtproto::transport::ClientDhInnerDataConstructor {
             nonce: self.nonce.clone(),
@@ -357,7 +387,7 @@ impl AuthorizationAdapter for AuthAdapter {
     ) -> Result<(Vec<u8>, i64), tellers_mtproto_engine::Error> {
         let answer = decode_boxed::<SetClientDhParamsAnswer>(response)
             .map_err(|e| tellers_mtproto_engine::Error::Authorization(e.to_string()))?;
-        let auth_key = self.auth_key.clone().ok_or_else(|| {
+        let auth_key = self.auth_key.as_ref().ok_or_else(|| {
             tellers_mtproto_engine::Error::Authorization("missing auth_key".into())
         })?;
         let new_nonce = self.new_nonce.clone().ok_or_else(|| {
@@ -368,6 +398,9 @@ impl AuthorizationAdapter for AuthAdapter {
         })?;
         match answer {
             SetClientDhParamsAnswer::DhGenOk(ok) => {
+                if ok.nonce != self.nonce || ok.server_nonce != server_nonce {
+                    return Err(tellers_mtproto_engine::Error::Authorization("DH completion nonce mismatch".into()));
+                }
                 let expected = new_nonce_hash(&i256_to_bytes(&new_nonce), &auth_key, 1);
                 let got = i128_to_bytes(&ok.new_nonce_hash1);
                 if got != expected {
@@ -377,12 +410,16 @@ impl AuthorizationAdapter for AuthAdapter {
                 }
                 let salt =
                     initial_server_salt(&i256_to_bytes(&new_nonce), &i128_to_bytes(&server_nonce));
-                Ok((auth_key, salt))
+                Ok((self.auth_key.take().expect("validated auth key"), salt))
             }
             _ => Err(tellers_mtproto_engine::Error::Authorization(
                 "dh_gen not ok".into(),
             )),
         }
+    }
+
+    fn time_offset_micros(&self) -> Option<i64> {
+        self.time_offset_micros
     }
 }
 
@@ -418,6 +455,9 @@ fn recv_plain(
         if n == 0 {
             return Err(MtprotoError::Message("connection closed".into()));
         }
+        if input.len().saturating_add(n) > 1024 * 1024 + 4 {
+            return Err(MtprotoError::Message("authorization response exceeds size limit".into()));
+        }
         input.extend_from_slice(&buf[..n]);
         match framing.decode(&input) {
             Ok(packet) => {
@@ -446,10 +486,11 @@ pub fn create_temp_auth_key(
     framing: &mut PaddedIntermediate,
     snapshot: &mut Snapshot,
     expires_in: i32,
-) -> Result<(), MtprotoError> {
+) -> Result<i32, MtprotoError> {
     let mut adapter = AuthAdapter::with_pem(snapshot.dc_id, rsa_pem().to_string())?;
     adapter.expires_in = Some(expires_in);
-    run_exchange(adapter, conn, framing, snapshot)
+    run_exchange(adapter, conn, framing, snapshot)?
+        .ok_or_else(|| MtprotoError::Message("missing temporary key expiry".into()))
 }
 
 pub fn create_auth_key_with_pem(
@@ -459,7 +500,7 @@ pub fn create_auth_key_with_pem(
     pem: &str,
 ) -> Result<(), MtprotoError> {
     let adapter = AuthAdapter::with_pem(snapshot.dc_id, pem.to_string())?;
-    run_exchange(adapter, conn, framing, snapshot)
+    run_exchange(adapter, conn, framing, snapshot).map(|_| ())
 }
 
 fn run_exchange(
@@ -467,7 +508,7 @@ fn run_exchange(
     conn: &mut dyn Connection,
     framing: &mut PaddedIntermediate,
     snapshot: &mut Snapshot,
-) -> Result<(), MtprotoError> {
+) -> Result<Option<i32>, MtprotoError> {
     let clock = SystemClock;
     let mut auth = Authorization::new(adapter);
 
@@ -498,7 +539,7 @@ fn run_exchange(
     if next.is_some() || auth.phase() != AuthorizationPhase::Authorized {
         return Err(MtprotoError::Message("auth key not installed".into()));
     }
-    Ok(())
+    Ok(auth.into_adapter().expires_at)
 }
 
 /// Padded-intermediate returns payload + 0..=15 extra bytes. Plain envelopes

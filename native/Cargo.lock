@@ -1561,6 +1561,7 @@ dependencies = [
  "getrandom 0.4.3",
  "serde",
  "thiserror",
+ "zeroize",
 ]
 
 [[package]]

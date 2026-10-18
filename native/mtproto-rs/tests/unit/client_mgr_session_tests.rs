@@ -227,7 +227,19 @@ fn cached_connect_does_not_rewrite_session() {
     .unwrap();
     let before = std::fs::read(&path).unwrap();
     assert!(!before.is_empty());
-    connect(handle).expect("cached connect");
+    let mut issued = 0_u8;
+    connect_with_binding(handle, |permanent, dc, offset| {
+        assert!(permanent == [7; 256]);
+        issued += 1;
+        let mut snapshot = Snapshot::new(dc, &mut OsRandom).unwrap();
+        snapshot.auth_key = Some(vec![8 + issued; 256]);
+        snapshot.time_offset_micros = offset;
+        Ok(crate::auth::bind_temp::BoundTemp {
+            snapshot,
+            expires_at: crate::auth::bind_temp::unix_now() + 3600,
+        })
+    }).expect("cached connect");
+    assert_eq!(issued, 1 + crate::scheduler::UPLOAD_LANES as u8);
     let after = std::fs::read(&path).unwrap();
     assert_eq!(
         after, before,

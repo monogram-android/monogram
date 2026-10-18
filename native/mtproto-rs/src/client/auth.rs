@@ -10,6 +10,13 @@ use crate::{AuthCodeSent, AuthSignedIn, MtprotoError};
 use super::*;
 
 pub fn connect(handle: u64) -> Result<(), MtprotoError> {
+    connect_with_binding(handle, crate::auth::bind_temp::negotiate_bound_temp)
+}
+
+pub(crate) fn connect_with_binding(
+    handle: u64,
+    negotiate: impl FnMut(&[u8], i32, i64) -> Result<crate::auth::bind_temp::BoundTemp, MtprotoError>,
+) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
         if state.session_dead {
             // A server-revoked key must never be reused. Auth flow will create
@@ -54,7 +61,7 @@ pub fn connect(handle: u64) -> Result<(), MtprotoError> {
         recover_imported_user(state)?;
         Ok(())
     })?;
-    crate::auth::bind_temp::prepare_extra_main_sessions(handle);
+    crate::auth::bind_temp::prepare_extra_main_sessions(handle, negotiate)?;
     Ok(())
 }
 
@@ -83,11 +90,10 @@ fn recover_imported_user(state: &mut ClientState) -> Result<(), MtprotoError> {
 }
 
 pub fn is_authorized(handle: u64) -> Result<bool, MtprotoError> {
-    with_client_mut(handle, |state| {
-        Ok(!state.session_dead
-            && state.user_id.is_some()
-            && state.snapshot.auth_key.as_ref().map(|k| k.len()) == Some(256))
-    })
+    let client = get_client(handle)?;
+    let data = client.data.lock();
+    Ok(!data.session_dead && data.user_id.is_some()
+        && data.home_auth_key.as_ref().map(Vec::len) == Some(256))
 }
 
 pub(crate) fn is_auth_restart(err: &MtprotoError) -> bool {
@@ -112,6 +118,7 @@ pub(crate) fn apply_test_dc(
     crate::rpc::set_use_test_dc(want_test);
     state.test_dc = want_test;
     state.dc_auth_keys.clear();
+    state.permanent = None;
     state.snapshot =
         Snapshot::new(want_dc, &mut OsRandom).map_err(|e| MtprotoError::Message(e.to_string()))?;
     state.session_dead = false;
@@ -203,6 +210,15 @@ pub fn resend_auth_code(
     })
 }
 
+pub(crate) fn complete_sign_in(state: &mut ClientState, user_id: i64) -> Result<(), MtprotoError> {
+    state.user_id = Some(user_id);
+    if state.permanent.is_none() {
+        state.permanent = Some(state.snapshot.clone());
+        state.temp_expires_at = 1;
+    }
+    persist(state)
+}
+
 pub fn sign_in(
     handle: u64,
     phone: String,
@@ -232,8 +248,7 @@ pub fn sign_in(
             }
             Err(err) => return Err(err),
         };
-        state.user_id = Some(signed.user_id);
-        persist(state)?;
+        complete_sign_in(state, signed.user_id)?;
         Ok(signed)
     })?;
     drop_updates_transport(handle);
@@ -253,8 +268,7 @@ pub fn check_password(handle: u64, password: String) -> Result<AuthSignedIn, Mtp
             }
             Err(err) => return Err(err),
         };
-        state.user_id = Some(signed.user_id);
-        persist(state)?;
+        complete_sign_in(state, signed.user_id)?;
         Ok(signed)
     })?;
     drop_updates_transport(handle);
@@ -297,6 +311,7 @@ pub fn logout(handle: u64) -> Result<(), MtprotoError> {
         state.session_dead = false;
         state.new_session = None;
         state.dc_auth_keys.clear();
+        state.permanent = None;
         state.snapshot =
             Snapshot::new(dc, &mut OsRandom).map_err(|e| MtprotoError::Message(e.to_string()))?;
         if state.logout_tokens.is_empty() {

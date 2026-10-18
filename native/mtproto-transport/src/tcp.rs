@@ -12,6 +12,7 @@ static CONFIG: LazyLock<Mutex<TransportConfig>> =
 #[derive(Default)]
 pub struct ControlState {
     pub closed: bool,
+    pub closing: bool,
     pub streams: Vec<Weak<TcpStream>>,
 }
 
@@ -38,15 +39,23 @@ impl ConnectionControl {
         self.state.lock().streams.clear();
     }
     pub fn while_open<T>(&self, operation: impl FnOnce() -> T) -> Result<T, TransportError> {
+        self.while_active(false, operation)
+    }
+    pub fn while_persisting<T>(&self, operation: impl FnOnce() -> T) -> Result<T, TransportError> {
+        self.while_active(true, operation)
+    }
+    fn while_active<T>(&self, finalizing: bool, operation: impl FnOnce() -> T) -> Result<T, TransportError> {
         let _commit = self.persistence.lock();
-        if self.state.lock().closed {
+        let state = self.state.lock();
+        if state.closed || (state.closing && !finalizing) {
             return Err(closed_error());
         }
+        drop(state);
         Ok(operation())
     }
-    pub fn close(&self) {
+    pub fn begin_shutdown(&self) {
         let mut state = self.state.lock();
-        state.closed = true;
+        state.closing = true;
         for stream in state
             .streams
             .drain(..)
@@ -55,12 +64,15 @@ impl ConnectionControl {
             let _ = stream.shutdown(std::net::Shutdown::Both);
         }
         self.wake.notify_all();
-        drop(state);
+    }
+    pub fn close(&self) {
+        self.begin_shutdown();
+        self.state.lock().closed = true;
         let _commit = self.persistence.lock();
     }
     pub fn register(&self, stream: &Arc<TcpStream>) -> Result<(), TransportError> {
         let mut state = self.state.lock();
-        if state.closed {
+        if state.closed || state.closing {
             let _ = stream.shutdown(std::net::Shutdown::Both);
             return Err(closed_error());
         }
@@ -74,7 +86,7 @@ impl ConnectionControl {
     pub fn wait(&self, delay: Duration) -> Result<(), TransportError> {
         let deadline = std::time::Instant::now() + delay;
         let mut state = self.state.lock();
-        while !state.closed {
+        while !state.closed && !state.closing {
             let remaining = deadline.saturating_duration_since(std::time::Instant::now());
             if remaining.is_zero() {
                 return Ok(());

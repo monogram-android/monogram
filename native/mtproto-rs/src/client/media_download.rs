@@ -27,7 +27,7 @@ include!("media_lane.rs");
 
 
 fn home_lease_ok(state: &ClientState, home_session_id: i64) -> bool {
-    state.snapshot.session_id == home_session_id || state.perm_session_id == home_session_id
+    state.snapshot.session_id == home_session_id || state.permanent.as_ref().is_some_and(|snapshot| snapshot.session_id == home_session_id)
 }
 
 fn download_temp_ready(
@@ -36,7 +36,7 @@ fn download_temp_ready(
     dc: i32,
     home_key: Option<&[u8]>,
 ) -> bool {
-    if io.temp_expires_at <= crate::auth::bind_temp::unix_now() || io.snapshot.dc_id != dc {
+    if !crate::auth::bind_temp::temp_key_valid(&io.snapshot, io.temp_expires_at) || io.snapshot.dc_id != dc {
         return false;
     }
     let Some(lane_key) = io.snapshot.auth_key.as_deref() else {
@@ -49,41 +49,7 @@ fn download_temp_ready(
         return false;
     };
     let data = client.data.lock();
-    let master = if dc == data.home_dc {
-        data.home_auth_key.as_deref()
-    } else {
-        data.dc_auth_keys
-            .get(&dc)
-            .map(|cached| cached.key.as_slice())
-            .filter(|key| key.len() == 256)
-    };
-    master == Some(perm)
-}
-
-fn matching_temp(client: &Client, dc: i32, perm_key: &[u8]) -> Option<DcTempAuth> {
-    if perm_key.len() != 256 {
-        return None;
-    }
-    let data = client.data.lock();
-    let entry = data.dc_temp_auth.get(&dc)?;
-    if entry.temp_expires_at <= crate::auth::bind_temp::unix_now() || entry.perm_key.as_slice() != perm_key {
-        return None;
-    }
-    Some(entry.clone())
-}
-
-fn remember_temp(client: &Client, dc: i32, snapshot: &tellers_mtproto_session::Snapshot, expires: i32, perm_key: &[u8]) {
-    if perm_key.len() != 256 || expires <= crate::auth::bind_temp::unix_now() {
-        return;
-    }
-    client.data.lock().dc_temp_auth.insert(
-        dc,
-        DcTempAuth {
-            snapshot: snapshot.clone(),
-            temp_expires_at: expires,
-            perm_key: perm_key.to_vec(),
-        },
-    );
+    crate::auth::bind_temp::dc_permanent_key(&data, dc) == Some(perm)
 }
 
 fn stage_for(dest: &Path, offset: Option<i64>) -> Result<media::StagedDownload, MtprotoError> {

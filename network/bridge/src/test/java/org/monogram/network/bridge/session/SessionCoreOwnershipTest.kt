@@ -17,6 +17,17 @@ import org.monogram.mtproto.MtprotoNative
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class SessionCoreOwnershipTest {
     @Test
+    fun temporaryKeyRecoveryDoesNotRequireAccountReauthorization() {
+        val temporary = org.monogram.core.common.telegram.TelegramError.parse(
+            "connection closed: temporary authorization renewal required",
+        )
+        assertEquals(org.monogram.core.common.telegram.TelegramError.Kind.Network, temporary.kind)
+        assertFalse(temporary.requiresReauth)
+        val revoked = org.monogram.core.common.telegram.TelegramError.parse("RPC 401: SESSION_REVOKED")
+        assertTrue(revoked.requiresReauth)
+    }
+
+    @Test
     fun cancellingOneReaderKeepsTheProducerForTheRemainingReader() = runTest {
         val core = SessionCore(
             TelegramCredentials(1, "fixture"), "fixture.session", MtprotoNative.Stub,

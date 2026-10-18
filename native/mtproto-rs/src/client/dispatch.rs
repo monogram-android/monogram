@@ -616,10 +616,16 @@ pub(crate) fn save_items_with(
 ) -> Result<Vec<UploadStaging>, MtprotoError> {
     let _ = api_id;
     let _policy = crate::transfer_policy::bind(Arc::clone(&client.policy));
-    let home = client.main.lock().snapshot.clone();
+    let (home, pfs, owner) = {
+        let _gate = client.main_gate.acquire(scheduler::current_class())?;
+        let mut main = lock_request_lane(&client.main, "lane_wait.upload_home")?;
+        crate::auth::bind_temp::ensure_main_temp(client, &mut main, false)?;
+        (main.snapshot.clone(), main.temp_expires_at != 0 || main.perm_key.is_some(), client.data.lock().home_session_id)
+    };
     crate::media::check_transfer_flood(home.dc_id, crate::media::TransferClass::Upload)?;
     let mut io = super::lanes::lock_upload_lane(client);
-    if io.temp_expires_at <= crate::auth::bind_temp::unix_now()
+    crate::auth::bind_temp::ensure_main_temp(client, &mut io, pfs)?;
+    if io.temp_expires_at == 0 && io.perm_key.is_none()
         && sync_upload_snapshot(&mut io.snapshot, &home)
     {
         io.transport = None;
@@ -672,10 +678,14 @@ pub(crate) fn save_items_with(
             Ok(out)
         })
     });
+    let temporary = saved.as_ref().err().is_some_and(|error| expire_temporary_lane(client, &mut io, error));
     io.transport = if saved.is_ok() { transport } else { None };
     drop(io);
+    if !temporary && saved.as_ref().err().is_some_and(|error| mark_lane_session_dead(client, owner, error)) {
+        let _ = persist_updates_data(client, owner);
+    }
     schedule_file_cleanup(client);
-    saved
+    if temporary { Err(temporary_key_retry_error()) } else { saved }
 }
 
 pub(crate) fn send_uploaded_metadata<T>(

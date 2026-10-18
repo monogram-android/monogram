@@ -125,7 +125,7 @@ pub(crate) fn lock_media_lane(client: &Client) -> Result<LaneLease<'_>, MtprotoE
     match scheduler::family(class) {
         scheduler::LaneFamily::Media => {
             let cap = client.policy.media_lanes();
-            let waiter = client.media_gate.enqueue(class);
+            let waiter = client.media_gate.enqueue(class)?;
             loop {
                 crate::request_control::check()
                     .map_err(|e| MtprotoError::Message(e.to_string()))?;
@@ -211,10 +211,13 @@ pub(crate) fn schedule_file_cleanup(client: &Arc<Client>) {
         .spawn(move || {
             let ack_due = std::time::Instant::now() + crate::rpc::ACK_DELAY;
             loop {
-                std::thread::sleep(crate::media::DOWNLOAD_SESSION_IDLE);
                 let Some(client) = weak.upgrade() else {
                     break;
                 };
+                if client.connections.wait(crate::media::DOWNLOAD_SESSION_IDLE).is_err() {
+                    client.file_cleanup_running.store(false, Ordering::Release);
+                    break;
+                }
                 let now = std::time::Instant::now();
                 let files_pending = close_idle_file_transports(&client, now);
                 if flush_idle_main_acks(&client, now, ack_due) || files_pending {
@@ -322,10 +325,11 @@ pub(crate) fn acquire_lane_family<'a>(
         VisibleWaitGuard(false)
     };
     let wait = crate::perf::span(span);
-    let waiters: Vec<_> = order.clone().map(|index| {
+    let mut waiters = Vec::new();
+    for index in order.clone() {
         let lane = lane_at(index);
-        (lane, lane.gate.enqueue(class))
-    }).collect();
+        waiters.push((lane, lane.gate.enqueue(class)?));
+    }
     if waiters.is_empty() {
         return Err(MtprotoError::Message("no authorized request lane".into()));
     }

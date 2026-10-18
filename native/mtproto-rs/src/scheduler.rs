@@ -109,10 +109,7 @@ pub const UPLOAD_LANES: usize = 4;
 /// Most parallel main sessions we will ever open on one non-media DC.
 pub const MAX_MAIN_SESSIONS: i32 = 8;
 
-/// `-1` until `config.tmp_sessions` has been seen.
-static MAIN_SESSION_ALLOWANCE: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
-
-/// Serializes tests that mutate the process-wide allowance.
+/// Serializes tests that change unbound policy defaults.
 #[cfg(test)]
 pub(crate) static ALLOWANCE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -125,38 +122,33 @@ pub(crate) static ALLOWANCE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::
 /// <https://core.telegram.org/api/errors#406-not-acceptable>
 pub fn set_main_session_allowance(tmp_sessions: Option<i32>) -> i32 {
     let allowance = tmp_sessions.unwrap_or(1).clamp(1, MAX_MAIN_SESSIONS);
-    MAIN_SESSION_ALLOWANCE.store(allowance, std::sync::atomic::Ordering::Relaxed);
+    crate::transfer_policy::current().main_session_allowance.store(allowance, std::sync::atomic::Ordering::Relaxed);
     allowance
 }
 
 /// Parallel main sessions the server allows; unknown counts as the safe single one.
 pub fn main_session_allowance() -> i32 {
-    match MAIN_SESSION_ALLOWANCE.load(std::sync::atomic::Ordering::Relaxed) {
+    match crate::transfer_policy::current().main_session_allowance.load(std::sync::atomic::Ordering::Relaxed) {
         known if known >= 1 => known,
         _ => 1,
     }
 }
 
 pub fn main_session_allowance_known() -> bool {
-    MAIN_SESSION_ALLOWANCE.load(std::sync::atomic::Ordering::Relaxed) >= 1
+    crate::transfer_policy::current().main_session_allowance.load(std::sync::atomic::Ordering::Relaxed) >= 1
 }
-
-/// Extra main sessions that currently hold a bound temporary key.
-/// Zero until [`set_bound_extra_sessions`] records a successful bind.
-static BOUND_EXTRA_SESSIONS: std::sync::atomic::AtomicUsize =
-    std::sync::atomic::AtomicUsize::new(0);
 
 /// Records how many extra home sessions have a bound temporary key.
 ///
 /// A server allowance alone does not authorize reusing the permanent key.
 /// https://core.telegram.org/api/datacenter#parallel-sessions
 pub fn set_bound_extra_sessions(count: usize) {
-    BOUND_EXTRA_SESSIONS.store(count.min(READ_LANES), std::sync::atomic::Ordering::Relaxed);
+    crate::transfer_policy::current().bound_extra_sessions.store(count.min(READ_LANES), std::sync::atomic::Ordering::Relaxed);
 }
 
 /// Extra main sessions that may be used. Stays zero until a temp key is bound.
 pub fn extra_main_sessions() -> usize {
-    let bound = BOUND_EXTRA_SESSIONS.load(std::sync::atomic::Ordering::Relaxed);
+    let bound = crate::transfer_policy::current().bound_extra_sessions.load(std::sync::atomic::Ordering::Relaxed);
     if bound == 0 {
         return 0;
     }
@@ -236,6 +228,8 @@ impl SchedulerClock for SystemSchedulerClock {
         self.origin.elapsed().as_millis() as u64
     }
 }
+
+pub(crate) const MAX_LANE_WAITERS: usize = 256;
 
 const AGING_INTERVAL_MS: u64 = 5_000;
 
@@ -347,17 +341,20 @@ impl LaneGate {
         self.wake.notify_all();
     }
 
-    pub(crate) fn enqueue(&self, class: RequestClass) -> LaneWaiter<'_> {
+    pub(crate) fn enqueue(&self, class: RequestClass) -> Result<LaneWaiter<'_>, MtprotoError> {
         let mut state = self.state.lock();
+        if state.waiters.len() >= MAX_LANE_WAITERS {
+            return Err(MtprotoError::Message("request queue capacity exceeded".into()));
+        }
         let ticket = state.next_ticket;
-        state.next_ticket += 1;
+        state.next_ticket = ticket.checked_add(1).ok_or_else(|| MtprotoError::Message("request queue ticket exhausted".into()))?;
         state.waiters.push_back(Waiter {
             ticket,
             priority: class.priority(),
             queued_at: self.clock.now_ms(),
         });
         self.wake.notify_all();
-        LaneWaiter { gate: self, ticket }
+        Ok(LaneWaiter { gate: self, ticket })
     }
 
     #[cfg(test)]
@@ -384,35 +381,16 @@ impl LaneGate {
 
     /// Blocks until this request's class holds the lane.
     pub fn acquire(&self, class: RequestClass) -> Result<LaneGuard<'_>, MtprotoError> {
-        let priority = class.priority();
-        let ticket = {
-            let mut state = self.state.lock();
-            let ticket = state.next_ticket;
-            state.next_ticket += 1;
-            state.waiters.push_back(Waiter { ticket, priority, queued_at: self.clock.now_ms() });
-            ticket
-        };
+        let waiter = self.enqueue(class)?;
         loop {
-            if let Err(error) = crate::request_control::check() {
-                self.state
-                    .lock()
-                    .waiters
-                    .retain(|waiter| waiter.ticket != ticket);
-                self.wake.notify_all();
-                return Err(MtprotoError::Message(error.to_string()));
+            crate::request_control::check().map_err(|e| MtprotoError::Message(e.to_string()))?;
+            if let Some(promoted) = crate::request_control::promoted_class() {
+                waiter.promote(promoted);
             }
-            let mut state = self.state.lock();
-            let best = state
-                .waiters
-                .iter()
-                .min_by_key(|waiter| waiter.order_at(self.clock.now_ms()))
-                .map(|waiter| waiter.ticket);
-            if !state.busy && best == Some(ticket) {
-                state.busy = true;
-                state.waiters.retain(|waiter| waiter.ticket != ticket);
-                return Ok(LaneGuard { gate: self });
+            if let Some(guard) = waiter.try_acquire() {
+                return Ok(guard);
             }
-            self.wake.wait_for(&mut state, Duration::from_millis(5));
+            waiter.wait();
         }
     }
 }

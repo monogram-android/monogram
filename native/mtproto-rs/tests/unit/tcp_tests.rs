@@ -3,6 +3,65 @@ use std::io::Read;
 use std::net::TcpListener;
 
 #[test]
+fn malformed_http_transport_returns_without_spinning_until_the_io_deadline() {
+    use std::io::Write;
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap().to_string();
+    let peer = std::thread::spawn(move || {
+        let (mut socket, _) = listener.accept().unwrap();
+        socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        let mut head = Vec::new();
+        while !head.ends_with(b"\r\n\r\n") {
+            let mut byte = [0];
+            socket.read_exact(&mut byte).unwrap();
+            head.push(byte[0]);
+            assert!(head.len() < 16 * 1024);
+        }
+        socket.read_exact(&mut [0; 4]).unwrap();
+        socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: invalid\r\n\r\n").unwrap();
+    });
+    let control = Arc::new(ConnectionControl {
+        config: monogram_mtproto_transport::TransportConfig {
+            mode: monogram_mtproto_transport::TransportMode::Http,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    with_connection_control(&control, || {
+        let mut connection = connect_obfuscated_timeout(&address, 3).unwrap();
+        connection.send(&[1, 2, 3, 4]).unwrap();
+        let started = std::time::Instant::now();
+        let error = connection.receive(&mut [0; 64]).unwrap_err();
+        assert!(error.to_string().to_ascii_lowercase().contains("http"));
+        assert!(started.elapsed() < Duration::from_secs(2));
+    });
+    peer.join().unwrap();
+}
+
+#[test]
+fn waitable_io_distinguishes_transient_errors_from_terminal_failures() {
+    for transient in ["operation timed out", "os error 10060", "Interrupted system call (os error 4)", "resource temporarily unavailable"] {
+        assert!(is_waitable_io(transient));
+    }
+    for terminal in ["invalid HTTP content length", "connection reset by peer", "client closed", "MTProto transport error -404"] {
+        assert!(!is_waitable_io(terminal));
+    }
+}
+
+#[test]
+fn shutdown_stops_io_and_publication_before_the_final_save() {
+    let control = ConnectionControl::default();
+    control.begin_shutdown();
+    assert!(control.wait(Duration::ZERO).is_err());
+    assert!(control.while_open(|| panic!("publication during shutdown")).is_err());
+    let saved = std::cell::Cell::new(false);
+    control.while_persisting(|| saved.set(true)).unwrap();
+    assert!(saved.get());
+    control.close();
+    assert!(control.while_persisting(|| panic!("save after close")).is_err());
+}
+
+#[test]
 fn persistence_does_not_block_io_and_close_joins_active_save() {
     let control = Arc::new(ConnectionControl::default());
     let (entered_tx, entered_rx) = std::sync::mpsc::channel();

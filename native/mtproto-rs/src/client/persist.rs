@@ -54,12 +54,8 @@ thread_local! {
 }
 
 pub(crate) fn durable_snapshot(state: &ClientState) -> tellers_mtproto_session::Snapshot {
-    let mut snapshot = state.snapshot.clone();
-    if let Some(key) = &state.perm_auth_key {
-        snapshot.auth_key = Some(key.clone());
-        snapshot.server_salt = state.perm_salt;
-        snapshot.session_id = state.perm_session_id;
-    }
+    let mut snapshot = state.permanent.as_ref().unwrap_or(&state.snapshot).clone();
+    snapshot.time_offset_micros = state.snapshot.time_offset_micros;
     snapshot
 }
 
@@ -137,18 +133,21 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<b
     let (path, session, journal, epoch, generation) = {
         let main = client.main.lock();
         let mut d = client.data.lock();
-        if !session_lease_valid(&d, session_id) {
+        if d.home_session_id != session_id {
             return Err(expired_session_lease());
         }
         crate::media::bound_media_index(&mut d.media);
-        let mut snapshot = main.snapshot.clone();
-        if main.temp_expires_at > crate::auth::bind_temp::unix_now() {
-            if let Some(key) = d.home_auth_key.clone() {
-                snapshot.auth_key = Some(key);
-                snapshot.server_salt = d.home_salt;
-                snapshot.session_id = d.home_session_id;
+        let mut snapshot = if main.temp_expires_at != 0 || main.perm_key.is_some() {
+            if d.home_auth_key.is_none() || d.home_snapshot.auth_key != d.home_auth_key
+                || d.home_snapshot.session_id != d.home_session_id || d.home_snapshot.dc_id != d.home_dc
+            {
+                return Err(MtprotoError::Message("permanent session identity unavailable".into()));
             }
-        }
+            d.home_snapshot.clone()
+        } else {
+            main.snapshot.clone()
+        };
+        snapshot.time_offset_micros = main.snapshot.time_offset_micros;
         let session = ClientSession {
             snapshot,
             user_id: d.user_id,
@@ -181,7 +180,7 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<b
     let _write = PERSIST_WRITE.lock();
     {
         let d = client.data.lock();
-        if !session_lease_valid(&d, session_id) {
+        if d.home_session_id != session_id {
             return Err(expired_session_lease());
         }
         // A newer snapshot was committed while we copied. The persist loop
@@ -203,11 +202,12 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<b
         return Ok(false);
     }
     let store = FileSessionStore::new(&path);
-    tcp::with_connection_control(&client.connections, || store.save(&session))
+    client.connections.while_persisting(|| store.save_open(&session))
+        .map_err(|e| MtprotoError::Message(e.to_string()))?
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
     bump_persist_clock(&clock);
     let mut d = client.data.lock();
-    if session_lease_valid(&d, session_id) && d.persisted_epoch < epoch {
+    if d.home_session_id == session_id && d.persisted_epoch < epoch {
         d.persisted_epoch = epoch;
     }
     Ok(true)

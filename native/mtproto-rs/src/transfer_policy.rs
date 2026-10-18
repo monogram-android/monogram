@@ -17,6 +17,8 @@ use crate::upload::upload_rpc::{FILE_PART_FAST, FILE_PART_SMALL};
 pub type ProgressCallback = Arc<dyn Fn(&str, i64, i64) + Send + Sync + 'static>;
 
 pub(crate) struct TransferPolicy {
+    pub(crate) main_session_allowance: AtomicI32,
+    pub(crate) bound_extra_sessions: AtomicUsize,
     media_lanes: AtomicUsize,
     pub(crate) premium: AtomicBool,
     pub(crate) upload_parts: parking_lot::Mutex<(i32, i32)>,
@@ -41,6 +43,8 @@ pub(crate) struct TransferPolicy {
 impl TransferPolicy {
     pub(crate) fn stock() -> Self {
         Self {
+            main_session_allowance: AtomicI32::new(-1),
+            bound_extra_sessions: AtomicUsize::new(0),
             media_lanes: AtomicUsize::new(DEFAULT_MEDIA_LANES),
             premium: AtomicBool::new(false),
             upload_parts: parking_lot::Mutex::new((4_000, 8_000)),

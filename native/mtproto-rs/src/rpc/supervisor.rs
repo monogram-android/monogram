@@ -3,19 +3,7 @@ use crate::tcp;
 
 use super::live::{LiveTransport, SUPERVISING, put_live, take_live};
 
-pub(crate) fn is_waitable_io(message: &str) -> bool {
-    let lower = message.to_ascii_lowercase();
-    lower.contains("timed out")
-        || lower.contains("would block")
-        || lower.contains("try again")
-        || lower.contains("eagain")
-        || lower.contains("os error 11")
-        || lower.contains("os error 35")
-        || lower.contains("os error 60")
-        || lower.contains("os error 10060")
-        || lower.contains("wsaetimedout")
-        || lower.contains("resource temporarily unavailable")
-}
+pub(crate) use crate::tcp::is_waitable_io;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum FailureClass {

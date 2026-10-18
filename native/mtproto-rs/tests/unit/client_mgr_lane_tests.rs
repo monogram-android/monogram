@@ -364,6 +364,8 @@ fn read_does_not_wait_for_unused_secondary_lanes_without_pfs() {
 
 fn authorize_test_client(handle: u64) -> (i64, Vec<u8>) {
     let client = get_client(handle).expect("client");
+    let _policy = crate::transfer_policy::bind(client.policy.clone());
+    crate::scheduler::set_main_session_allowance(Some(3));
     let mut main = client.main.lock();
     main.snapshot.auth_key = Some(vec![7_u8; 256]);
     main.snapshot.server_salt = 99;
@@ -375,6 +377,7 @@ fn authorize_test_client(handle: u64) -> (i64, Vec<u8>) {
     data.home_session_id = home_id;
     data.home_auth_key = Some(auth.clone());
     data.home_salt = 99;
+    data.home_snapshot = main.snapshot.clone();
     (home_id, auth)
 }
 
@@ -456,6 +459,7 @@ fn bound_temp_read_lane_does_not_reuse_the_permanent_key() {
     let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
     let (home_id, home_auth) = authorize_test_client(handle);
     let client = get_client(handle).expect("client");
+    let _policy = crate::transfer_policy::bind(client.policy.clone());
     let temp_key = vec![9_u8; 256];
     let temp_id = {
         let mut io = client.rpc[0].io.lock();
@@ -464,6 +468,7 @@ fn bound_temp_read_lane_does_not_reuse_the_permanent_key() {
         snap.server_salt = 99;
         let id = snap.session_id;
         io.snapshot = snap;
+        io.perm_key = Some(home_auth.clone());
         io.temp_expires_at = crate::auth::bind_temp::unix_now().saturating_add(3600);
         io.transport = None;
         id

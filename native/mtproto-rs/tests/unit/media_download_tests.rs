@@ -1005,13 +1005,14 @@ fn one_mib_chunks_are_rejected() {
 fn overlapping_ranges_collapse_and_a_second_claim_waits() {
     let offsets = dedup_offsets(&[0, 100, 128 * 1024, 50, 128 * 1024], 128 * 1024);
     assert_eq!(offsets, vec![0, 128 * 1024]);
-    let first = claim_offsets(9, &[0, 128 * 1024]);
+    let file_id = i64::MIN + 9;
+    let first = claim_offsets(file_id, &[0, 128 * 1024]);
     assert_eq!(first, vec![0, 128 * 1024]);
-    assert!(claim_offsets(9, &[0]).is_empty());
-    assert_eq!(claim_offsets(9, &[256 * 1024]), vec![256 * 1024]);
-    release_offsets(9, &[0, 128 * 1024, 256 * 1024]);
-    assert_eq!(claim_offsets(9, &[0]), vec![0]);
-    release_offsets(9, &[0]);
+    assert!(claim_offsets(file_id, &[0]).is_empty());
+    assert_eq!(claim_offsets(file_id, &[256 * 1024]), vec![256 * 1024]);
+    release_offsets(file_id, &[0, 128 * 1024, 256 * 1024]);
+    assert_eq!(claim_offsets(file_id, &[0]), vec![0]);
+    release_offsets(file_id, &[0]);
 }
 
 #[test]

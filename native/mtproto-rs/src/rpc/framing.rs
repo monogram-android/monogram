@@ -19,6 +19,10 @@ use super::timeout::{
     is_mid_frame, recv_wait_deadline, rpc_timeout_message,
 };
 
+#[cfg(test)]
+#[path = "../../tests/unit/rpc_control_tests.rs"]
+mod control_tests;
+
 pub struct SystemClock;
 impl Clock for SystemClock {
     fn unix_micros(&self) -> i64 {
@@ -52,20 +56,35 @@ pub(crate) fn send_framed(
         .map_err(|e| MtprotoError::Message(e.to_string()))
 }
 
+fn consume_control(payload: &[u8]) -> Result<bool, MtprotoError> {
+    match tellers_mtproto_transport::payload_control(payload) {
+        Some(tellers_mtproto_transport::Control::QuickAck(_)) => Ok(true),
+        Some(tellers_mtproto_transport::Control::TransportError(code)) => {
+            Err(MtprotoError::Message(format!("MTProto transport error {code}")))
+        }
+        None => Ok(false),
+    }
+}
+
 pub(crate) fn try_decode_complete(
     framing: &mut PaddedIntermediate,
     input: &mut Vec<u8>,
 ) -> Result<Option<Vec<u8>>, MtprotoError> {
-    match framing.decode(input) {
-        Ok(packet) => {
-            let consumed = packet.consumed;
-            let payload = packet.payload;
-            input.drain(..consumed);
-            Ok(Some(payload))
+    for _ in 0..256 {
+        match framing.decode(input) {
+            Ok(packet) => {
+                let consumed = packet.consumed;
+                let payload = packet.payload;
+                input.drain(..consumed);
+                if !consume_control(&payload)? {
+                    return Ok(Some(payload));
+                }
+            }
+            Err(tellers_mtproto_transport::Error::Incomplete { .. }) => return Ok(None),
+            Err(e) => return Err(MtprotoError::Message(e.to_string())),
         }
-        Err(tellers_mtproto_transport::Error::Incomplete { .. }) => Ok(None),
-        Err(e) => Err(MtprotoError::Message(e.to_string())),
     }
+    Err(MtprotoError::Message("MTProto control frame limit".into()))
 }
 
 pub(crate) fn recv_framed(
@@ -79,6 +98,7 @@ pub(crate) fn recv_framed(
     idle_wait_ms: u64,
 ) -> Result<Vec<u8>, MtprotoError> {
     let mut buf = vec![0_u8; 64 * 1024];
+    let mut controls = 0;
     loop {
         // Decode before the deadline check. A blocking recv can return a complete
         // padded-intermediate frame after the attempt clock; timing out first is
@@ -88,6 +108,13 @@ pub(crate) fn recv_framed(
                 let consumed = packet.consumed;
                 let payload = packet.payload;
                 input.drain(..consumed);
+                if consume_control(&payload)? {
+                    controls += 1;
+                    if controls >= 256 || std::time::Instant::now() >= overall_deadline {
+                        return Err(MtprotoError::Message("MTProto control frame limit".into()));
+                    }
+                    continue;
+                }
                 return Ok(payload);
             }
             Err(tellers_mtproto_transport::Error::Incomplete {

@@ -63,6 +63,23 @@ pub(crate) fn wait_reconnect(delay: Duration) -> Result<(), TransportError> {
     }
 }
 
+pub(crate) fn is_waitable_io(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    lower.contains("timed out")
+        || lower.contains("would block")
+        || lower.contains("try again")
+        || lower.contains("interrupted")
+        || lower.contains("os error 4)")
+        || lower.contains("os error 10004)")
+        || lower.contains("eagain")
+        || lower.contains("os error 11")
+        || lower.contains("os error 35")
+        || lower.contains("os error 60")
+        || lower.contains("os error 10060")
+        || lower.contains("wsaetimedout")
+        || lower.contains("resource temporarily unavailable")
+}
+
 fn check_open() -> Result<(), TransportError> {
     wait_reconnect(Duration::ZERO)
 }
@@ -144,8 +161,7 @@ impl Connection for TcpConnection {
             check_open()?;
             match self.inner.receive(output) {
                 Ok(result) => return Ok(result),
-                Err(error) if std::time::Instant::now() < deadline => {
-                    let _ = error;
+                Err(error) if std::time::Instant::now() < deadline && is_waitable_io(&error.to_string()) => {
                     continue;
                 }
                 Err(error) => return Err(TransportError::Connection(error.to_string())),
@@ -214,8 +230,7 @@ impl Connection for ObfuscatedTcp {
                 NativeTransportConnection::Http(connection) => connection.receive(output),
             } {
                 Ok(result) => return Ok(result),
-                Err(error) if std::time::Instant::now() < deadline => {
-                    let _ = error;
+                Err(error) if std::time::Instant::now() < deadline && is_waitable_io(&error.to_string()) => {
                     continue;
                 }
                 Err(error) => return Err(TransportError::Connection(error.to_string())),

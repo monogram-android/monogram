@@ -47,6 +47,7 @@ pub(crate) fn apply_home_auth(
 ) {
     let changed = target.dc_id != dc || target.auth_key != auth;
     target.dc_id = dc;
+    target.clear_auth_key();
     target.auth_key = auth;
     target.server_salt = salt;
     target.time_offset_micros = time_offset;
@@ -111,6 +112,7 @@ pub(crate) fn copy_authorization_to_dc(
             if cached.key.len() == 256 {
                 let mut dest = fork_session(&state.snapshot);
                 dest.dc_id = target_dc;
+                dest.clear_auth_key();
                 dest.auth_key = Some(cached.key.clone());
                 dest.server_salt = cached.salt;
                 return Ok(dest);
@@ -125,7 +127,7 @@ pub(crate) fn copy_authorization_to_dc(
     let AuthExportedAuthorization::AuthExportedAuthorization(exp) = exported;
     let mut dest = fork_session(&state.snapshot);
     dest.dc_id = target_dc;
-    dest.auth_key = None;
+    dest.clear_auth_key();
     dest.server_salt = 0;
     crate::rpc::drop_live_transport();
     ensure_auth_key_on(&mut dest)?;
@@ -231,6 +233,14 @@ pub(crate) fn ensure_ready_after_migrate(
     state: &mut ClientState,
     err: MtprotoError,
 ) -> Result<(), MtprotoError> {
+    ensure_ready_after_migrate_with_binding(state, err, crate::auth::bind_temp::negotiate_bound_temp)
+}
+
+pub(crate) fn ensure_ready_after_migrate_with_binding(
+    state: &mut ClientState,
+    err: MtprotoError,
+    negotiate: impl FnOnce(&[u8], i32, i64) -> Result<crate::auth::bind_temp::BoundTemp, MtprotoError>,
+) -> Result<(), MtprotoError> {
     if let MtprotoError::Message(msg) = &err {
         if let Some(rest) = msg.strip_prefix("MIGRATE_") {
             if let Ok(dc) = rest.parse::<i32>() {
@@ -242,14 +252,41 @@ pub(crate) fn ensure_ready_after_migrate(
                     // home auth key here turns a normal USER/NETWORK_MIGRATE
                     // into an unnecessary logout and breaks all update lanes.
                     let destination = copy_authorization_to_dc(state, dc)?;
-                    state.snapshot = destination;
+                    if state.permanent.is_some() {
+                        let key = destination.auth_key.as_deref().ok_or_else(temporary_key_retry_error)?;
+                        let bound = match negotiate(key, dc, destination.time_offset_micros) {
+                            Ok(bound) => bound,
+                            Err(error) => {
+                                if is_foreign_auth_key_failure(&error) {
+                                    state.dc_auth_keys.remove(&dc);
+                                    persist(state)?;
+                                }
+                                return Err(temporary_key_retry_error());
+                            }
+                        };
+                        bound.snapshot.validate().map_err(|_| temporary_key_retry_error())?;
+                        if bound.snapshot.dc_id != dc || bound.snapshot.session_id == destination.session_id
+                            || !bound.snapshot.auth_key.as_ref().is_some_and(|temporary| temporary.len() == 256 && temporary.as_slice() != key)
+                            || !crate::auth::bind_temp::temp_key_valid(&bound.snapshot, bound.expires_at)
+                        {
+                            return Err(temporary_key_retry_error());
+                        }
+                        state.permanent = Some(destination);
+                        state.snapshot = bound.snapshot;
+                        state.temp_expires_at = bound.expires_at;
+                    } else {
+                        state.snapshot = destination;
+                        state.permanent = None;
+                        state.temp_expires_at = 0;
+                    }
                     // Authorization moved, but these are still the same
                     // account's applied update sequences.
                     state.session_dead = false;
                     return Ok(());
                 }
                 state.snapshot.dc_id = dc;
-                state.snapshot.auth_key = None;
+                state.permanent = None;
+                state.snapshot.clear_auth_key();
                 state.snapshot.server_salt = 0;
                 ensure_auth_key(state)?;
                 return Ok(());
@@ -257,6 +294,48 @@ pub(crate) fn ensure_ready_after_migrate(
         }
     }
     Err(err)
+}
+
+pub(crate) fn temporary_key_failure(state: &ClientState, err: &MtprotoError) -> bool {
+    state.permanent.is_some() && temporary_key_error(err)
+}
+
+pub(crate) fn temporary_key_error(err: &MtprotoError) -> bool {
+    let MtprotoError::Message(message) = err else { return false; };
+    if message == "MTProto transport error -404" {
+        return true;
+    }
+    let Some((prefix, token)) = message.split_once(": ") else { return false; };
+    prefix.starts_with("RPC ") && matches!(token,
+        "AUTH_KEY_UNREGISTERED" | "AUTH_KEY_INVALID" | "AUTH_KEY_DUPLICATED" | "AUTH_KEY_PERM_EMPTY")
+}
+
+pub(crate) fn temporary_key_retry_error() -> MtprotoError {
+    MtprotoError::Message("connection closed: temporary authorization renewal required".into())
+}
+
+pub(crate) fn expire_temporary_lane(client: &Client, io: &mut super::lanes::SessionIo, err: &MtprotoError) -> bool {
+    if io.perm_key.is_none() || !temporary_key_error(err) {
+        return false;
+    }
+    io.temp_expires_at = 1;
+    io.transport = None;
+    let mut data = client.data.lock();
+    if data.dc_temp_auth.get(&io.snapshot.dc_id).is_some_and(|cached| cached.snapshot.auth_key == io.snapshot.auth_key) {
+        data.dc_temp_auth.remove(&io.snapshot.dc_id);
+    }
+    true
+}
+
+pub(crate) fn mark_lane_session_dead(client: &Client, owner: i64, err: &MtprotoError) -> bool {
+    let mut data = client.data.lock();
+    if !session_lease_valid(&data, owner) || !kills_session(data.user_id, err) {
+        return false;
+    }
+    data.session_dead = true;
+    data.session_dead_reason = Some(session_dead_token(err));
+    data.persist_epoch = data.persist_epoch.saturating_add(1);
+    true
 }
 
 pub(crate) fn call_with_migrate<T>(
@@ -268,6 +347,7 @@ pub(crate) fn call_with_migrate<T>(
     let before = state.snapshot.clone();
     match op(state) {
         Ok(v) => Ok(v),
+        Err(err) if temporary_key_failure(state, &err) => Err(err),
         Err(err) if kills_session(state.user_id, &err) => {
             mark_session_dead(state, &err);
             Err(err)
@@ -285,6 +365,7 @@ pub(crate) fn call_with_migrate<T>(
             ensure_ready_after_migrate(state, err)?;
             match op(state) {
                 Ok(v) => Ok(v),
+                Err(err) if temporary_key_failure(state, &err) => Err(err),
                 Err(err) if kills_session(state.user_id, &err) => {
                     mark_session_dead(state, &err);
                     Err(err)
@@ -323,6 +404,7 @@ pub(crate) fn drop_all_transports(handle: u64) {
 
 pub(crate) fn recreate_mtproto_session(state: &mut ClientState) -> Result<(), MtprotoError> {
     let dc = state.snapshot.dc_id;
+    state.permanent = None;
     state.user_id = None;
     state.updates = None;
     state.updates_started = false;

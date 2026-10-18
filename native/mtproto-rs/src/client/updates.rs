@@ -231,7 +231,8 @@ pub fn drain_updates(handle: u64) -> Result<UpdateDrainDto, MtprotoError> {
             d.lazy_channel_updates && !d.lazy_channel_recovery.is_empty() && d.lazy_retry_at <= now,
         )
     };
-    if io.temp_expires_at <= crate::auth::bind_temp::unix_now() {
+    crate::auth::bind_temp::ensure_main_temp(&client, &mut io, false)?;
+    if io.temp_expires_at == 0 && io.perm_key.is_none() {
         apply_home_auth(
             &mut io.snapshot,
             home_dc,
@@ -587,16 +588,15 @@ pub fn drain_updates(handle: u64) -> Result<UpdateDrainDto, MtprotoError> {
             pair
         }
         Err(err) => {
+            let temporary = expire_temporary_lane(&client, &mut io, &err);
             io.transport = None;
             drop(io);
             drop(gate);
-            if is_unrecoverable_session(&err) {
-                with_client_mut(handle, |state| {
-                    if state.snapshot.session_id == session_id {
-                        mark_session_dead(state, &err);
-                    }
-                    Ok(())
-                })?;
+            if temporary {
+                return Err(temporary_key_retry_error());
+            }
+            if mark_lane_session_dead(&client, session_id, &err) {
+                let _ = persist_updates_data(&client, session_id);
             }
             return Err(err);
         }

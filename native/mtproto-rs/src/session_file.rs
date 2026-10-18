@@ -193,7 +193,7 @@ impl FileSessionStore {
             .map_err(|_| SessionError::Persistence("client closed".into()))?
     }
 
-    fn save_open(&self, session: &ClientSession) -> Result<(), SessionError> {
+    pub(crate) fn save_open(&self, session: &ClientSession) -> Result<(), SessionError> {
         session.snapshot.validate()?;
         if let Some(parent) = self.path.parent().filter(|p| !p.as_os_str().is_empty()) {
             fs::create_dir_all(parent).map_err(|e| SessionError::Persistence(e.to_string()))?;

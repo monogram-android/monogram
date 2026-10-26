@@ -41,6 +41,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.monogram.core.models.MessageSendOptions
 import org.monogram.core.models.ReplyMarkup
 import org.monogram.core.models.StyledText
 import org.monogram.core.models.TextEntities
@@ -64,10 +65,12 @@ internal fun DialogComposerDock(
     draftEntities: List<TextEntity>,
     draftPreview: StyledText?,
     draftHasMarkdown: Boolean,
+    draftUnsupported: Boolean,
     sending: Boolean,
     canView: Boolean,
     canSendPlain: Boolean,
     canSendPhotos: Boolean,
+    canSendStructured: Boolean = false,
     isChannel: Boolean,
     isGroup: Boolean = false,
     left: Boolean = false,
@@ -92,6 +95,8 @@ internal fun DialogComposerDock(
     onDismissLinkPreview: () -> Unit = {},
     onRestoreLinkPreview: () -> Unit = {},
     onPhotos: () -> Unit = {},
+    onResumeLiveLocation: (Int) -> Unit = component::onResumeLiveLocation,
+    onReplaceAttachment: (() -> Unit)? = null,
     onFile: () -> Unit = {},
     onLocation: () -> Unit = {},
     onCloseAttachAnimated: () -> Unit = {},
@@ -99,6 +104,17 @@ internal fun DialogComposerDock(
     emojiTab: String = "",
 ) {
     var value by composer
+    var showSendOptions by rememberSaveable { mutableStateOf(false) }
+    var showSchedule by rememberSaveable { mutableStateOf(false) }
+    val mediaAllowed =
+        pendingAttach.isNotEmpty() && pendingAttach.size <= 10 && (pendingAttach.all { it.kind == "photo" || it.kind == "video" } && canSendPhotos || pendingAttach.all { it.kind == "document" } && canSendPlain)
+    val sendOptionsEnabled =
+        canView && !left && !blockedByMe && !editing && !draftUnsupported && !sending && (mediaAllowed || pendingAttach.isEmpty() && canSendPlain && value.text.isNotBlank())
+    LaunchedEffect(sendOptionsEnabled) {
+        if (!sendOptionsEnabled) {
+            showSendOptions = false; showSchedule = false
+        }
+    }
     val context = LocalContext.current
     val editorSlot by component.editorSlot.subscribeAsState()
     var editorMarkdown by rememberSaveable { mutableStateOf(false) }
@@ -140,15 +156,11 @@ internal fun DialogComposerDock(
         }.distinct()
     }
     val receiveMedia: (List<Uri>, TransferableContent?) -> Unit = { uris, transferableContent ->
-        val imageUris = uris.asSequence()
-            .distinct()
-            .filter { uri ->
-                runCatching {
-                    context.contentResolver.getType(uri)?.startsWith("image/") == true
-                }.getOrDefault(false)
-            }
-            .take(10)
-            .toList()
+        val imageUris = uris.asSequence().distinct().filter { uri ->
+            runCatching {
+                context.contentResolver.getType(uri)?.startsWith("image/") == true
+            }.getOrDefault(false)
+        }.take(10).toList()
         if (!editing && canSendPhotos && imageUris.isNotEmpty()) {
             clipboardScope.launch {
                 try {
@@ -200,6 +212,11 @@ internal fun DialogComposerDock(
             }
             .blockWriteBarChatSwipe(),
     ) {
+        LiveLocationControls(component, onResumeLiveLocation)
+        if (draftUnsupported && !editing) {
+            UnsupportedDraftNotice(draft, component::onDiscardDraft)
+            return@Column
+        }
         botKeyboard?.let { keyboard ->
             BotKeyboardGrid(
                 markup = keyboard,
@@ -223,8 +240,7 @@ internal fun DialogComposerDock(
                         clipboard.setClipEntry(
                             ClipEntry(
                                 android.content.ClipData.newPlainText(
-                                    "text",
-                                    slice
+                                    "text", slice
                                 )
                             )
                         )
@@ -236,8 +252,7 @@ internal fun DialogComposerDock(
                         clipboard.setClipEntry(
                             ClipEntry(
                                 android.content.ClipData.newPlainText(
-                                    "text",
-                                    slice
+                                    "text", slice
                                 )
                             )
                         )
@@ -249,8 +264,8 @@ internal fun DialogComposerDock(
                     if (pasteText.isNotEmpty()) {
                         val lo = value.selection.min
                         val hi = value.selection.max
-                        val next = value.text.substring(0, lo) + pasteText +
-                                value.text.substring(hi)
+                        val next =
+                            value.text.substring(0, lo) + pasteText + value.text.substring(hi)
                         value = TextFieldValue(
                             text = next,
                             selection = TextRange(lo + pasteText.length),
@@ -326,6 +341,7 @@ internal fun DialogComposerDock(
                 sending = sending,
                 canSendPlain = canSendPlain,
                 canSendPhotos = canSendPhotos,
+                canSendStructured = canSendStructured,
                 isChannel = isChannel,
                 isGroup = isGroup,
                 left = left,
@@ -334,6 +350,7 @@ internal fun DialogComposerDock(
                 onReadOnlyBar = onReadOnlyBar,
                 editing = editing,
                 editingBody = editingBody,
+                onReplaceAttachment = onReplaceAttachment,
                 replyBody = replyBody,
                 pendingAttach = pendingAttach,
                 hasFailed = hasFailed,
@@ -353,6 +370,20 @@ internal fun DialogComposerDock(
                         ComposerPanels.EMOJI -> component.onToggleEmojiPanel()
                     }
                 },
+                sendMenu = {
+                    SendOptionsMenu(
+                        showSendOptions && sendOptionsEnabled,
+                        onDismiss = { showSendOptions = false },
+                        onSilent = {
+                            showSendOptions = false
+                            component.onSendWithOptions(
+                                value.text,
+                                MessageSendOptions(silent = true)
+                            )
+                        },
+                        onSchedule = { showSendOptions = false; showSchedule = true })
+                },
+                onSendLongClick = if (sendOptionsEnabled) ({ showSendOptions = true }) else null,
                 onSend = {
                     val sent = value.text
                     component.onSend(sent)
@@ -381,14 +412,22 @@ internal fun DialogComposerDock(
             )
         }
     }
+    if (showSchedule && sendOptionsEnabled) ScheduleMessageSheet(
+        onDismiss = { showSchedule = false },
+        onSchedule = { date ->
+            showSchedule = false
+            component.onSendWithOptions(
+                value.text, MessageSendOptions(scheduleDate = date)
+            )
+        },
+    )
     val editorTransition = remember { MutableTransitionState(false) }
     editorTransition.targetState = editorSlot.child != null
     if (editorTransition.currentState || editorTransition.targetState) {
         Dialog(
             onDismissRequest = component::closeMarkdownEditor,
             properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
+                usePlatformDefaultWidth = false, decorFitsSystemWindows = false
             ),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -408,9 +447,7 @@ internal fun DialogComposerDock(
                         onEntitiesChange = { editorEntities = it },
                         onValueChange = {
                             editorEntities = remapTextEntities(
-                                editorValue.text,
-                                it.text,
-                                editorEntities
+                                editorValue.text, it.text, editorEntities
                             )
                             editorValue = it
                         },

@@ -40,6 +40,7 @@ import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.INSTANT_VIEW_MEDIA_MSG_ID
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.ScheduledMessage
 import java.io.File
 import java.util.PriorityQueue
 import java.util.concurrent.ConcurrentHashMap
@@ -356,11 +357,27 @@ class MediaRepository(
         message: Message,
         priority: Int = MediaPriority.DEFAULT,
         retain: Boolean = false,
+    ): Outcome<File> = ensureMessageMedia(message, priority, retain, scheduled = false)
+
+    suspend fun ensureLocalScheduledMessageMedia(
+        scheduled: ScheduledMessage,
+        priority: Int = MediaPriority.VISIBLE,
+    ): Outcome<File> = ensureMessageMedia(
+        scheduled.message.copy(id = scheduled.mediaMessageId), priority,
+        retain = false, scheduled = true
+    )
+
+    private suspend fun ensureMessageMedia(
+        message: Message,
+        priority: Int,
+        retain: Boolean,
+        scheduled: Boolean
     ): Outcome<File> {
         val key = message.mediaCacheKey
             ?: return Outcome.Err("message has no media key")
         return ensureLocalTelegramMedia(
             key = key,
+            scheduled = scheduled,
             chatId = message.id.chatId,
             messageId = message.id.id,
             kind = MediaFetchKind.Full,
@@ -550,6 +567,21 @@ class MediaRepository(
     suspend fun ensureLocalMessageThumb(
         message: Message,
         priority: Int = MediaPriority.THUMB,
+    ): Outcome<File> = ensureMessageThumb(message, priority, scheduled = false)
+
+    suspend fun ensureLocalScheduledMessageThumb(
+        scheduled: ScheduledMessage,
+        priority: Int = MediaPriority.THUMB,
+    ): Outcome<File> = ensureMessageThumb(
+        scheduled.message.copy(id = scheduled.mediaMessageId),
+        priority,
+        scheduled = true
+    )
+
+    private suspend fun ensureMessageThumb(
+        message: Message,
+        priority: Int,
+        scheduled: Boolean
     ): Outcome<File> {
         val distinctThumb = message.thumbCacheKey?.takeUnless { it == message.mediaCacheKey }
         if (distinctThumb == null && message.mediaKind in NO_SYNTHETIC_THUMB_KINDS) {
@@ -563,6 +595,7 @@ class MediaRepository(
             chatId = message.id.chatId,
             messageId = message.id.id,
             kind = MediaFetchKind.Thumb,
+            scheduled = scheduled,
             mediaKind = message.mediaKind,
             priority = priority,
         )
@@ -735,6 +768,7 @@ class MediaRepository(
         totalBytes: Long? = null,
         retain: Boolean = false,
         consumer: MediaConsumer? = null,
+        scheduled: Boolean = false,
     ): Outcome<File> {
         val storedChatId = if (mediaKind == "gif") null else chatId.value
         if (mediaKind == "gif") cache.attribute(key, chatId = null, kind = FileCache.KIND_GIFS)
@@ -746,9 +780,8 @@ class MediaRepository(
             )
             return Outcome.Ok(if (retain) keptDownload(key) ?: it else it)
         }
-        // Negative ids other than instant-view media are not Telegram file slots.
-        // Page photos and documents are indexed as (id, -1) and must still download.
-        if (messageId < 0 && messageId != INSTANT_VIEW_MEDIA_MSG_ID) {
+        // Pending local ids must not become remote file slots. Scheduled callers use a separate encoded namespace.
+        if (messageId < 0 && messageId != INSTANT_VIEW_MEDIA_MSG_ID && !scheduled) {
             AppLog.api("media", "skip local kind=${kind.name} key=$key id=$messageId")
             return Outcome.Err("local media")
         }

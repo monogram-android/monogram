@@ -74,7 +74,9 @@ fun MediaPreviewWindow(
                 isAppearanceLightNavigationBars = false
             }
         }
-        Box(Modifier.fillMaxSize().background(background), content = content)
+        Box(Modifier
+            .fillMaxSize()
+            .background(background), content = content)
     }
 }
 
@@ -104,7 +106,8 @@ fun MediaPreviewViewer(
     val context = LocalContext.current
     val ready = file?.takeIf { it.exists() && it.length() > 0L }
     val video = forceVideo || ready?.let(::videoFile) == true
-    val presentable = video || (ready != null && !gzipFile(ready)) || (uri != null && forceVideo)
+    val presentable =
+        loading || failed || video || (ready != null && !gzipFile(ready)) || (uri != null && forceVideo)
 
     if (!presentable) {
         if (asDialog) {
@@ -112,7 +115,9 @@ fun MediaPreviewViewer(
                 UnsupportedMediaBody(fallbackTitle, failed, onRetry)
             }
         } else {
-            Box(Modifier.fillMaxSize().background(Color.Black)) {
+            Box(Modifier
+                .fillMaxSize()
+                .background(Color.Black)) {
                 UnsupportedMediaBody(fallbackTitle, failed, onRetry)
             }
         }

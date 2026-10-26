@@ -146,6 +146,13 @@ internal data class ChatListTexts(
     val voice: String,
     val link: String,
     val checklist: String,
+    val giveaway: String,
+    val giveawayResults: String,
+    val paidMedia: String,
+    val game: String,
+    val invoice: String,
+    val story: String,
+    val liveStream: String,
 ) {
     fun mediaLabel(kind: String): String? = when (kind) {
         "photo" -> photo
@@ -158,6 +165,13 @@ internal data class ChatListTexts(
         "video_note" -> video
         "webpage" -> link
         "todo" -> checklist
+        "giveaway" -> giveaway
+        "giveaway_results" -> giveawayResults
+        "paid_media" -> paidMedia
+        "game" -> game
+        "invoice" -> invoice
+        "story" -> story
+        "video_stream" -> liveStream
         else -> chatListMediaLabel(kind)
     }
 }
@@ -180,6 +194,13 @@ internal fun chatListTexts(): ChatListTexts = ChatListTexts(
     voice = stringResource(R.string.chats_preview_voice),
     link = stringResource(R.string.chats_preview_link),
     checklist = stringResource(R.string.chats_preview_checklist),
+    giveaway = stringResource(R.string.chats_preview_giveaway),
+    giveawayResults = stringResource(R.string.chats_preview_giveaway_results),
+    paidMedia = stringResource(R.string.chats_preview_paid_media),
+    game = stringResource(R.string.chats_preview_game),
+    invoice = stringResource(R.string.chats_preview_invoice),
+    story = stringResource(R.string.chats_preview_story),
+    liveStream = stringResource(R.string.chats_preview_live_stream),
 )
 
 /**
@@ -469,8 +490,9 @@ internal fun ChatRow(
                     },
                 )
             }
-            if (chat.unreadMark && unread == 0 &&
-                !showsMentionBadge(chat) && !showsReactionBadge(chat)
+            if (chat.unreadMark && unread == 0 && !showsMentionBadge(chat) && !showsReactionBadge(
+                    chat
+                )
             ) {
                 UnreadMarkDot(
                     muted = chat.muted,
@@ -830,13 +852,9 @@ private fun LastMessageThumb(
     val context = LocalContext.current
     val sizePx = with(LocalDensity.current) { ChatRowThumbSize.roundToPx() }
     AsyncImage(
-        model = ImageRequest.Builder(context)
-            .data(local)
-            .size(sizePx)
+        model = ImageRequest.Builder(context).data(local).size(sizePx)
             .memoryCacheKey("${local.absolutePath}:${local.length()}:$sizePx")
-            .diskCacheKey("${local.absolutePath}:${local.length()}")
-            .crossfade(false)
-            .build(),
+            .diskCacheKey("${local.absolutePath}:${local.length()}").crossfade(false).build(),
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = Modifier
@@ -847,11 +865,7 @@ private fun LastMessageThumb(
 
 /** Thumbnails only exist for visual media with a cached small preview. */
 private fun thumbAvailable(chat: Chat, media: ChatPreviewMedia?): Boolean =
-    (media == ChatPreviewMedia.Photo ||
-        media == ChatPreviewMedia.Video ||
-        media == ChatPreviewMedia.Gif) &&
-        chat.lastMessageId != 0 &&
-        !chat.lastMediaThumbCacheKey.isNullOrBlank()
+    (media == ChatPreviewMedia.Photo || media == ChatPreviewMedia.Video || media == ChatPreviewMedia.Gif) && chat.lastMessageId != 0 && !chat.lastMediaThumbCacheKey.isNullOrBlank()
 
 private val ChatPreviewMedia.icon: ImageVector
     get() = when (this) {

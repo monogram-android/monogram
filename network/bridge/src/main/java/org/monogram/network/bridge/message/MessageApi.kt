@@ -4,15 +4,29 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
+import org.monogram.core.models.ChecklistSendSpec
+import org.monogram.core.models.ChecklistTextEdit
+import org.monogram.core.models.CloudDraft
+import org.monogram.core.models.ContactImportMatch
+import org.monogram.core.models.ContactImportPopularity
+import org.monogram.core.models.ContactImportResult
+import org.monogram.core.models.ContactImportSpec
+import org.monogram.core.models.ContactSendSpec
 import org.monogram.core.models.DiscussionRef
+import org.monogram.core.models.GeoPlace
 import org.monogram.core.models.Message
+import org.monogram.core.models.MessageSendOptions
 import org.monogram.core.models.MessageViewer
+import org.monogram.core.models.MessageViewerPage
 import org.monogram.core.models.MessageViewers
 import org.monogram.core.models.OutboxReadState
+import org.monogram.core.models.OutgoingMessageResult
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.PollSendSpec
 import org.monogram.core.models.ReactionChoice
 import org.monogram.core.models.ReadReceiptConfig
 import org.monogram.core.models.SavedGif
+import org.monogram.core.models.ScheduledMessage
 import org.monogram.core.models.TextEntities.serialize
 import org.monogram.core.models.UploadItem
 import org.monogram.network.bridge.MtprotoUpdate
@@ -47,6 +61,23 @@ internal class MessageApi(
             )
         }
         return outcome
+    }
+
+    override suspend fun getMessage(chatId: PeerId, messageId: Int): Outcome<Message?> {
+        if (messageId <= 0) return Outcome.Err("message id required")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return withTimeoutOrNull(core.historyTimeoutMs.milliseconds) {
+            core.rpc("getMessage failed") { handle ->
+                val message = core.native.getMessage(handle, chatId.value, messageId)
+                if (message != null && (message.chatId != chatId.value || message.id != messageId)) {
+                    throw uniffi.monogram_mtproto.MtprotoException.Message("unexpected message identity")
+                }
+                message?.toModel()
+            }
+        } ?: core.fail(Exception("RPC timeout"), "getMessage failed")
     }
 
     override suspend fun getHistoryPage(
@@ -208,6 +239,42 @@ internal class MessageApi(
         return Outcome.Ok(viewers.copy(viewers = attachViewerProfiles(viewers.viewers, members)))
     }
 
+    override suspend fun getReactionUsersPage(
+        chatId: PeerId,
+        messageId: Int,
+        offset: String?
+    ): Outcome<MessageViewerPage> {
+        if (messageId <= 0) return Outcome.Err("message id required")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpc("getMessageReactionsPage failed") { handle ->
+            val page = core.native.getMessageReactionsPage(handle, chatId.value, messageId, offset)
+            MessageViewerPage(
+                page.peers.map { it.toViewer() }, page.count,
+                page.nextOffset?.takeIf { it.isNotEmpty() })
+        }
+    }
+
+    override suspend fun getPollVotersPage(
+        chatId: PeerId,
+        messageId: Int,
+        offset: String?
+    ): Outcome<MessageViewerPage> {
+        if (messageId <= 0) return Outcome.Err("message id required")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpc("getPollVotesPage failed") { handle ->
+            val page = core.native.getPollVotesPage(handle, chatId.value, messageId, offset)
+            MessageViewerPage(
+                page.voters.map { it.toViewer() }, page.count,
+                page.nextOffset?.takeIf { it.isNotEmpty() })
+        }
+    }
+
     override suspend fun getReactionUsers(
         chatId: PeerId,
         messageId: Int,
@@ -261,6 +328,256 @@ internal class MessageApi(
         }
         return core.rpcBackground("getReadReceiptConfig failed") { activeHandle ->
             core.native.getReadReceiptConfig(activeHandle).toModel()
+        }
+    }
+
+    override suspend fun getScheduledHistory(chatId: PeerId): Outcome<List<ScheduledMessage>> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpc("getScheduledHistory failed") { handle ->
+            core.native.getScheduledHistory(handle, chatId.value).map { it.toModel() }
+        }
+    }
+
+    override suspend fun getScheduledMessages(
+        chatId: PeerId,
+        ids: List<Int>
+    ): Outcome<List<ScheduledMessage>> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpc("getScheduledMessages failed") { handle ->
+            core.native.getScheduledMessages(handle, chatId.value, ids).map { it.toModel() }
+        }
+    }
+
+    override suspend fun sendScheduledMessages(chatId: PeerId, ids: List<Int>): Outcome<Unit> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("sendScheduledMessages failed") { handle ->
+            core.native.sendScheduledMessages(handle, chatId.value, ids)
+        }
+    }
+
+    override suspend fun deleteScheduledMessages(chatId: PeerId, ids: List<Int>): Outcome<Unit> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("deleteScheduledMessages failed") { handle ->
+            core.native.deleteScheduledMessages(handle, chatId.value, ids)
+        }
+    }
+
+    override suspend fun editScheduledMessage(
+        chatId: PeerId, messageId: Int, scheduleDate: Int,
+        text: String?, entitiesJson: String?, noWebpage: Boolean,
+    ): Outcome<Unit> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("editScheduledMessage failed") { handle ->
+            core.native.editScheduledMessage(
+                handle,
+                chatId.value,
+                messageId,
+                scheduleDate,
+                text,
+                entitiesJson,
+                noWebpage
+            )
+        }
+    }
+
+    override suspend fun getCloudDrafts(): Outcome<List<CloudDraft>> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcBackground("getCloudDrafts failed") { handle ->
+            core.native.getCloudDrafts(handle).map { it.toModel() }
+        }
+    }
+
+    override suspend fun saveCloudDraft(draft: CloudDraft): Outcome<Unit> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("saveCloudDraft failed") { handle ->
+            core.native.saveCloudDraft(handle, draft.toNative())
+        }
+    }
+
+    override suspend fun importContacts(contacts: List<ContactImportSpec>): Outcome<ContactImportResult> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("importContacts failed") { handle ->
+            val result = core.native.importContacts(handle, contacts.map {
+                uniffi.monogram_mtproto.ContactImportSpec(
+                    it.clientId,
+                    it.phone,
+                    it.firstName,
+                    it.lastName
+                )
+            })
+            ContactImportResult(
+                result.imported.map {
+                    ContactImportMatch(
+                        it.clientId,
+                        PeerId(it.userId)
+                    )
+                },
+                result.retryClientIds,
+                result.popular.map {
+                    ContactImportPopularity(
+                        it.clientId,
+                        it.importers
+                    )
+                })
+        }
+    }
+
+    override suspend fun sendLocationWithOptions(
+        chatId: PeerId, place: GeoPlace, randomId: Long,
+        options: MessageSendOptions, replyToMsgId: Int, topMsgId: Int
+    ): Outcome<OutgoingMessageResult> {
+        if (randomId == 0L || (!place.live && place.periodSeconds != 0) || (place.live && place.periodSeconds <= 0)) return Outcome.Err(
+            "location send identity or period invalid"
+        )
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected; is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("sendLocationWithOptions failed") { handle ->
+            core.native.sendLocationWithOptions(
+                handle, chatId.value,
+                uniffi.monogram_mtproto.LocationSendSpec(
+                    place.latitude,
+                    place.longitude,
+                    if (place.live) place.periodSeconds else 0,
+                    place.heading
+                ),
+                replyToMsgId, topMsgId, randomId, options.toNative()
+            ).toModel()
+        }
+    }
+
+    override suspend fun sendContactWithOptions(
+        chatId: PeerId, spec: ContactSendSpec, randomId: Long,
+        options: MessageSendOptions, replyToMsgId: Int, topMsgId: Int,
+    ): Outcome<OutgoingMessageResult> {
+        if (randomId == 0L) return Outcome.Err("contact send requires persisted identity")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("sendContactWithOptions failed") { handle ->
+            core.native.sendContactWithOptions(
+                handle, chatId.value,
+                uniffi.monogram_mtproto.ContactSendSpec(
+                    spec.phone,
+                    spec.firstName,
+                    spec.lastName,
+                    spec.vcard
+                ),
+                replyToMsgId, topMsgId, randomId, options.toNative()
+            ).toModel()
+        }
+    }
+
+    override suspend fun sendChecklistWithOptions(
+        chatId: PeerId, spec: ChecklistSendSpec, randomId: Long,
+        options: MessageSendOptions, replyToMsgId: Int, topMsgId: Int,
+    ): Outcome<OutgoingMessageResult> {
+        if (randomId == 0L) return Outcome.Err("checklist send requires persisted identity")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("sendChecklistWithOptions failed") { handle ->
+            core.native.sendChecklistWithOptions(
+                handle, chatId.value,
+                uniffi.monogram_mtproto.ChecklistSendSpec(
+                    spec.title,
+                    spec.items,
+                    spec.othersCanAppend,
+                    spec.othersCanComplete
+                ),
+                replyToMsgId, topMsgId, randomId, options.toNative()
+            ).toModel()
+        }
+    }
+
+    override suspend fun sendPollWithOptions(
+        chatId: PeerId, spec: PollSendSpec, randomId: Long,
+        options: MessageSendOptions, replyToMsgId: Int, topMsgId: Int,
+    ): Outcome<OutgoingMessageResult> {
+        if (randomId == 0L || spec.correctAnswer?.let { it < 0 } == true) return Outcome.Err("poll send identity or answer invalid")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("sendPollWithOptions failed") { handle ->
+            core.native.sendPollWithOptions(
+                handle, chatId.value,
+                uniffi.monogram_mtproto.PollSendSpec(
+                    spec.question, spec.answers, spec.anonymous, spec.multipleChoice,
+                    spec.quiz, spec.correctAnswer?.toUInt(), spec.solution
+                ),
+                replyToMsgId, topMsgId, randomId, options.toNative()
+            ).toModel()
+        }
+    }
+
+    override suspend fun sendDiceWithOptions(
+        chatId: PeerId, emoticon: String, randomId: Long,
+        options: MessageSendOptions, replyToMsgId: Int, topMsgId: Int,
+    ): Outcome<OutgoingMessageResult> {
+        if (randomId == 0L) return Outcome.Err("dice send requires persisted identity")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("sendDiceWithOptions failed") { handle ->
+            core.native.sendDiceWithOptions(
+                handle,
+                chatId.value,
+                emoticon,
+                replyToMsgId,
+                topMsgId,
+                randomId,
+                options.toNative()
+            ).toModel()
+        }
+    }
+
+    override suspend fun sendTextWithOptions(
+        chatId: PeerId,
+        text: String,
+        options: MessageSendOptions,
+        randomId: Long,
+        replyToMsgId: Int,
+        entitiesJson: String?,
+        topMsgId: Int,
+        webpageUrl: String?,
+    ): Outcome<OutgoingMessageResult> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("sendTextWithOptions failed") { handle ->
+            core.native.sendTextMessageWithOptions(
+                handle, chatId.value, text, replyToMsgId,
+                entitiesJson, topMsgId, webpageUrl, randomId, options.toNative()
+            ).toModel()
         }
     }
 
@@ -340,6 +657,27 @@ internal class MessageApi(
         }
     }
 
+    override suspend fun replaceUploadedMedia(
+        chatId: PeerId,
+        messageId: Int,
+        expectedKey: String,
+        item: UploadItem
+    ): Outcome<Message> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("replaceUploadedMedia failed") { handle ->
+            core.native.replaceUploadedMedia(
+                handle,
+                chatId.value,
+                messageId,
+                expectedKey,
+                item.toDto()
+            ).toModel()
+        }
+    }
+
     override suspend fun sendUploadedMedia(
         chatId: PeerId,
         item: UploadItem,
@@ -380,6 +718,41 @@ internal class MessageApi(
                 items.map { it.toDto() },
                 replyToMsgId,
                 topMsgId,
+            ).map { it.toModel() }
+        }
+    }
+
+    override suspend fun sendUploadedMediaWithOptions(
+        chatId: PeerId, item: UploadItem, options: MessageSendOptions,
+        replyToMsgId: Int, topMsgId: Int, entitiesJson: String?,
+    ): Outcome<OutgoingMessageResult> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("sendUploadedMediaWithOptions failed") { activeHandle ->
+            core.native.sendUploadedMediaWithOptions(
+                activeHandle, chatId.value, item.toDto(), replyToMsgId,
+                topMsgId, entitiesJson ?: serialize(item.captionEntities), options.toNative()
+            ).toModel()
+        }
+    }
+
+    override suspend fun sendUploadedAlbumWithOptions(
+        chatId: PeerId,
+        items: List<UploadItem>,
+        options: MessageSendOptions,
+        replyToMsgId: Int,
+        topMsgId: Int,
+    ): Outcome<List<OutgoingMessageResult>> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("sendUploadedAlbumWithOptions failed") { activeHandle ->
+            core.native.sendUploadedAlbumWithOptions(
+                activeHandle, chatId.value, items.map { it.toDto() },
+                replyToMsgId, topMsgId, options.toNative()
             ).map { it.toModel() }
         }
     }
@@ -480,6 +853,31 @@ internal class MessageApi(
         }
     }
 
+    override suspend fun editLiveLocation(
+        chatId: PeerId,
+        messageId: Int,
+        latitude: Double?,
+        longitude: Double?,
+        heading: Int?,
+        stopped: Boolean
+    ): Outcome<Unit> {
+        if (messageId <= 0) return Outcome.Err("live location message required")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected; is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("editLiveLocation failed") { handle ->
+            core.native.editLiveLocation(
+                handle,
+                chatId.value,
+                messageId,
+                latitude,
+                longitude,
+                heading,
+                stopped
+            )
+        }
+    }
+
     override suspend fun sendLocation(
         chatId: PeerId,
         latitude: Double,
@@ -501,6 +899,80 @@ internal class MessageApi(
                 livePeriodSeconds,
                 heading,
                 replyToMsgId ?: 0,
+            )
+        }
+    }
+
+    override suspend fun removeChecklistItem(
+        chatId: PeerId,
+        messageId: Int,
+        edit: ChecklistTextEdit
+    ): Outcome<Unit> {
+        if (messageId <= 0 || edit.itemId == null) return Outcome.Err("checklist item required")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected; is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("removeChecklistItem failed") { handle ->
+            core.native.removeChecklistItem(
+                handle, chatId.value, messageId, uniffi.monogram_mtproto.ChecklistTextEditDto(
+                    edit.itemId,
+                    edit.text,
+                    serialize(edit.entities),
+                    edit.expectedText,
+                    serialize(edit.expectedEntities)
+                )
+            )
+        }
+    }
+
+    override suspend fun editChecklistText(
+        chatId: PeerId,
+        messageId: Int,
+        edit: ChecklistTextEdit
+    ): Outcome<Unit> {
+        if (messageId <= 0 || edit.text.isBlank()) return Outcome.Err("checklist text required")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("editChecklistText failed") { handle ->
+            core.native.editChecklistText(
+                handle, chatId.value, messageId, uniffi.monogram_mtproto.ChecklistTextEditDto(
+                    itemId = edit.itemId,
+                    text = edit.text,
+                    entitiesJson = serialize(edit.entities),
+                    expectedText = edit.expectedText,
+                    expectedEntitiesJson = serialize(edit.expectedEntities)
+                )
+            )
+        }
+    }
+
+    override suspend fun editChecklistTitle(
+        chatId: PeerId,
+        messageId: Int,
+        title: String
+    ): Outcome<Unit> {
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("editChecklistTitle failed") { handle ->
+            core.native.editChecklistTitle(handle, chatId.value, messageId, title)
+        }
+    }
+
+    override suspend fun closePoll(chatId: PeerId, messageId: Int): Outcome<Unit> {
+        if (messageId <= 0) return Outcome.Err("message id required")
+        when (val connected = core.ensureConnected()) {
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcWrite("closePoll failed") { handle ->
+            core.native.closePoll(
+                handle,
+                chatId.value,
+                messageId
             )
         }
     }

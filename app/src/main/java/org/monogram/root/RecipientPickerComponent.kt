@@ -19,7 +19,6 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.userFacingShareText
 import org.monogram.network.bridge.MtprotoClient
-import org.monogram.network.http.MediaRepository
 
 @Serializable
 data class RecipientRequest(
@@ -30,7 +29,8 @@ data class RecipientRequest(
 ) {
     val forwarding: Boolean get() = fromChatId != null && messageIds.isNotEmpty()
     val needsPhotoSendRight: Boolean
-        get() = requiresPhotos || share?.attachments.orEmpty().any { it.kind == "photo" || it.kind == "video" }
+        get() = requiresPhotos || share?.attachments.orEmpty()
+            .any { it.kind == "photo" || it.kind == "video" }
 }
 
 data class RecipientPickerState(
@@ -63,23 +63,32 @@ class RecipientPickerComponent(
     val request: RecipientRequest,
     client: MtprotoClient,
     warmup: OfflineWarmup?,
-    val mediaRepository: MediaRepository?,
     private val close: () -> Unit,
 ) : ComponentContext by context {
     private val restored = stateKeeper.consume("recipient-progress", RecipientProgress.serializer())
-    private val sender = instanceKeeper.getOrCreate { RecipientSender(request, client, warmup, restored) }
+    private val sender =
+        instanceKeeper.getOrCreate { RecipientSender(request, client, warmup, restored) }
     val state: StateFlow<RecipientPickerState> = sender.state
     fun onComment(value: String) = sender.update { if (started) this else copy(comment = value) }
-    fun onDropAuthor(value: Boolean) = sender.update { if (started) this else copy(dropAuthor = value) }
+    fun onDropAuthor(value: Boolean) =
+        sender.update { if (started) this else copy(dropAuthor = value) }
+
     fun onToggle(id: Long) = sender.update {
         if (started) this else copy(selected = if (id in selected) selected - id else selected + id)
     }
+
     fun onSend() = sender.send()
-    fun onClose() { if (!state.value.sending) close() }
+    fun onClose() {
+        if (!state.value.sending) close()
+    }
 
     init {
-        stateKeeper.register("recipient-progress", RecipientProgress.serializer()) { sender.progress() }
-        backHandler.register(object : com.arkivanov.essenty.backhandler.BackCallback(isEnabled = true) {
+        stateKeeper.register(
+            "recipient-progress",
+            RecipientProgress.serializer()
+        ) { sender.progress() }
+        backHandler.register(object :
+            com.arkivanov.essenty.backhandler.BackCallback(isEnabled = true) {
             override fun onBack() = onClose()
         })
     }
@@ -92,20 +101,26 @@ private class RecipientSender(
     restored: RecipientProgress?,
 ) : InstanceKeeper.Instance {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val state = MutableStateFlow(RecipientPickerState(
-        comment = restored?.comment ?: userFacingShareText(request.share?.text.orEmpty()),
-        selected = restored?.selected.orEmpty(), completed = restored?.completed.orEmpty(),
-        dropAuthor = restored?.dropAuthor ?: false, started = restored?.started ?: false,
-        interrupted = restored?.inFlight ?: false, done = restored?.done ?: false,
-    ))
+    val state = MutableStateFlow(
+        RecipientPickerState(
+            comment = restored?.comment ?: userFacingShareText(request.share?.text.orEmpty()),
+            selected = restored?.selected.orEmpty(), completed = restored?.completed.orEmpty(),
+            dropAuthor = restored?.dropAuthor ?: false, started = restored?.started ?: false,
+            interrupted = restored?.inFlight ?: false, done = restored?.done ?: false,
+        )
+    )
     private val nextStep = restored?.nextStep.orEmpty().toMutableMap()
     fun progress() = state.value.let {
-        RecipientProgress(it.selected, it.completed, it.comment, it.dropAuthor, nextStep.toMap(), it.started,
-            it.sending || it.interrupted, it.done)
+        RecipientProgress(
+            it.selected, it.completed, it.comment, it.dropAuthor, nextStep.toMap(), it.started,
+            it.sending || it.interrupted, it.done
+        )
     }
 
     override fun onDestroy() = scope.cancel()
-    fun update(block: RecipientPickerState.() -> RecipientPickerState) { state.value = state.value.block() }
+    fun update(block: RecipientPickerState.() -> RecipientPickerState) {
+        state.value = state.value.block()
+    }
 
     fun send() {
         val snapshot = state.value
@@ -120,9 +135,16 @@ private class RecipientSender(
                         when (val result = operations[step]()) {
                             is Outcome.Err -> {
                                 val mapped = mappedRecipientError(result)
-                                update { copy(sending = false, error = true, errorMessage = mapped) }
+                                update {
+                                    copy(
+                                        sending = false,
+                                        error = true,
+                                        errorMessage = mapped
+                                    )
+                                }
                                 return@launch
                             }
+
                             is Outcome.Ok -> {
                                 step++
                                 nextStep[id] = step
@@ -133,22 +155,35 @@ private class RecipientSender(
                     update { copy(completed = completed + id) }
                 }
                 update { copy(sending = false, done = true) }
-            } catch (e: CancellationException) { throw e
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 update { copy(sending = false, error = true, errorMessage = null) }
             }
         }
     }
 
-    private fun operations(peer: PeerId, snapshot: RecipientPickerState): List<suspend () -> Outcome<List<Message>>> =
+    private fun operations(
+        peer: PeerId,
+        snapshot: RecipientPickerState
+    ): List<suspend () -> Outcome<List<Message>>> =
         recipientSendSteps(request, snapshot.comment, snapshot.dropAuthor).map { step ->
             when (step) {
                 is RecipientSendStep.Forward -> {
-                    { client.forwardMessages(PeerId(step.fromChatId), step.messageIds, peer, step.dropAuthor) }
+                    {
+                        client.forwardMessages(
+                            PeerId(step.fromChatId),
+                            step.messageIds,
+                            peer,
+                            step.dropAuthor
+                        )
+                    }
                 }
+
                 is RecipientSendStep.Text -> {
                     { client.sendText(peer, step.text).asMessages() }
                 }
+
                 is RecipientSendStep.Upload -> {
                     { client.sendUploadedMedia(peer, step.item).asMessages() }
                 }
@@ -165,6 +200,7 @@ internal sealed interface RecipientSendStep {
         val messageIds: List<Int>,
         val dropAuthor: Boolean,
     ) : RecipientSendStep
+
     data class Text(val text: String) : RecipientSendStep
     data class Upload(val item: UploadItem) : RecipientSendStep
 }

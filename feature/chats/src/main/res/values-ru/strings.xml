@@ -71,4 +71,11 @@
     <string name="chats_unread_mentions">Непрочитанные упоминания</string>
     <string name="chats_unread_reactions">Непрочитанные реакции</string>
     <string name="chats_proxy_status">Proxy connection status</string>
+    <string name="chats_preview_giveaway">Розыгрыш</string>
+    <string name="chats_preview_giveaway_results">Итоги розыгрыша</string>
+    <string name="chats_preview_paid_media">Платный контент</string>
+    <string name="chats_preview_game">Игра</string>
+    <string name="chats_preview_invoice">Счёт</string>
+    <string name="chats_preview_story">История</string>
+    <string name="chats_preview_live_stream">Прямая трансляция</string>
 </resources>

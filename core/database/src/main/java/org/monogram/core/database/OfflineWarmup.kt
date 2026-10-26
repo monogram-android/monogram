@@ -3,10 +3,14 @@ package org.monogram.core.database
 import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -15,17 +19,35 @@ import org.monogram.core.common.AppLog
 import org.monogram.core.common.PerfLog
 import org.monogram.core.database.dao.ChatReadState
 import org.monogram.core.database.entity.MessageHoleEntity
+import org.monogram.core.database.entity.MetaEntity
+import org.monogram.core.database.entity.OutgoingMediaBatchEntity
+import org.monogram.core.database.entity.OutgoingMediaItemEntity
+import org.monogram.core.database.entity.OutgoingMediaSend
+import org.monogram.core.database.entity.OutgoingTextSendEntity
+import org.monogram.core.database.entity.ScheduledMessageEntity
 import org.monogram.core.database.entity.UpdateBatchReceiptEntity
 import org.monogram.core.database.entity.UpdateCursorEntity
 import org.monogram.core.models.Chat
+import org.monogram.core.models.CloudDraft
+import org.monogram.core.models.CloudDraftState
+import org.monogram.core.models.ContactImportAttempt
+import org.monogram.core.models.ContactImportPhase
+import org.monogram.core.models.ContactImportSpec
+import org.monogram.core.models.ContactSendSpec
 import org.monogram.core.models.Folder
+import org.monogram.core.models.LiveLocationPhase
+import org.monogram.core.models.LiveLocationSession
 import org.monogram.core.models.Message
+import org.monogram.core.models.MessageId
+import org.monogram.core.models.OutgoingMessageResult
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
+import org.monogram.core.models.ScheduledMessage
 import org.monogram.core.models.chatListPreviewSource
 import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.mergeIncomingMessage
 import org.monogram.core.models.mergeLocalCache
+import java.util.UUID.randomUUID
 
 /**
  * Reads cached dialogs/folders/messages for UI hydration before network sync.
@@ -36,8 +58,32 @@ import org.monogram.core.models.mergeLocalCache
 open class OfflineWarmup(
     private val db: MonogramDatabase? = null,
     val recentHistory: RecentHistoryMemory = RecentHistoryMemory(),
+    val outgoingMediaFiles: OutgoingMediaFiles? = null,
 ) {
     private val cleanupMutex = Mutex()
+    val draftSync = CloudDraftSyncMonitor()
+    val outgoingSendSync = OutgoingSendSyncMonitor()
+    private val activeContactImports = mutableMapOf<Pair<Long, String>, Long>()
+    private val draftWriteMutex = Mutex()
+    private val outgoingAccountEpoch = java.util.concurrent.atomic.AtomicLong()
+
+    @Volatile
+    private var outgoingAccountActive = true
+
+    fun outgoingAccountEpoch(): Long = outgoingAccountEpoch.get()
+    fun outgoingAccountIsCurrent(epoch: Long): Boolean =
+        outgoingAccountActive && outgoingAccountEpoch.get() == epoch
+
+    suspend fun deactivateOutgoingAccount() = draftWriteMutex.withLock {
+        outgoingAccountActive = false
+        outgoingAccountEpoch.incrementAndGet()
+        Unit
+    }
+
+    suspend fun activateOutgoingAccount() = draftWriteMutex.withLock {
+        if (!outgoingAccountActive) outgoingAccountEpoch.incrementAndGet()
+        outgoingAccountActive = true
+    }
 
     @Volatile
     private var firstPaintSnapshot: OfflineWarmupSnapshot? = null
@@ -99,8 +145,12 @@ open class OfflineWarmup(
 
     open suspend fun chatsAfter(cursor: ChatCacheCursor, limit: Int): List<Chat> = roomIo {
         db?.chatDao()?.afterCursor(
-            cursor.archived, cursor.pinned, cursor.pinnedOrder,
-            cursor.lastMessageDate, cursor.id, limit
+            cursor.archived,
+            cursor.pinned,
+            cursor.pinnedOrder,
+            cursor.lastMessageDate,
+            cursor.id,
+            limit
         )?.map { it.toModel() }.orEmpty()
     }
 
@@ -159,14 +209,13 @@ open class OfflineWarmup(
         pruneOffset = if (chats.size < CACHE_PRUNE_CHATS) 0 else pruneOffset + chats.size
         for (chatId in chatsToPrune(chats, openChatId)) {
             currentCoroutineContext().ensureActive()
-            val newest = database.messageDao()
-                .newestConfirmedIds(chatId, HISTORY_CACHE_WINDOW)
-                .toSet()
+            val newest =
+                database.messageDao().newestConfirmedIds(chatId, HISTORY_CACHE_WINDOW).toSet()
             val old = database.messageDao()
                 .oldConfirmedIds(chatId, cutoffSeconds, CACHE_PRUNE_ROWS + newest.size)
             val drop = old.filter { it !in newest }.take(CACHE_PRUNE_ROWS)
-            val kept = (newest + database.messageDao()
-                .stickyIds(chatId, cutoffSeconds, 200)).distinct()
+            val kept =
+                (newest + database.messageDao().stickyIds(chatId, cutoffSeconds, 200)).distinct()
             kept.minOrNull()?.let { oldestKept ->
                 database.messageTombstoneDao().deleteBelow(chatId, oldestKept)
             }
@@ -228,20 +277,124 @@ open class OfflineWarmup(
     open fun observeReadStates(): Flow<List<ChatReadState>> =
         db?.chatDao()?.observeReadStates() ?: emptyFlow()
 
-    open suspend fun draft(chatId: PeerId, threadId: Int = 0): String = roomIo {
-        db?.metaDao()?.get(draftMetaKey(chatId.value, threadId))?.value.orEmpty()
-    }
+    open suspend fun draft(chatId: PeerId, threadId: Int = 0): String =
+        cloudDraftState(chatId, threadId).draft.text
 
-    open suspend fun setDraft(chatId: PeerId, threadId: Int = 0, text: String) = roomIo {
-        val database = db ?: return@roomIo
-        val key = draftMetaKey(chatId.value, threadId)
-        if (text.isEmpty()) {
-            database.metaDao().delete(key)
-        } else {
-            database.metaDao().upsert(
-                org.monogram.core.database.entity.MetaEntity(key, text),
+    open suspend fun setDraft(chatId: PeerId, threadId: Int = 0, text: String) {
+        editLocalCloudDraft(chatId, threadId) { current ->
+            current.copy(
+                text = text, entitiesJson = null,
+                replyToMessageId = if (text.isEmpty()) 0 else current.replyToMessageId,
+                hasUnsupportedContent = if (text.isEmpty()) false else current.hasUnsupportedContent,
             )
         }
+    }
+
+    open suspend fun cloudDraftState(chatId: PeerId, threadId: Int = 0): CloudDraftState = roomIo {
+        db?.let { readCloudDraftState(it, chatId, threadId) } ?: CloudDraftState(
+            CloudDraft(
+                chatId, threadId
+            )
+        )
+    }
+
+    open fun observeCloudDraft(chatId: PeerId, threadId: Int = 0): Flow<CloudDraftState> =
+        db?.metaDao()?.observe(cloudDraftMetaKey(chatId.value, threadId))
+            ?.map { cloudDraftState(chatId, threadId) }?.distinctUntilChanged() ?: emptyFlow()
+
+    open fun observeCloudDraftStates(): Flow<List<CloudDraftState>> =
+        db?.metaDao()?.observeLike("cloud_draft:%")?.map { cloudDraftStates() }
+            ?.distinctUntilChanged() ?: emptyFlow()
+
+    open suspend fun cloudDraftStates(): List<CloudDraftState> = roomIo {
+        val database = db ?: return@roomIo emptyList()
+        database.withTransaction {
+            val keys = database.metaDao().keysLike("cloud_draft:%") + database.metaDao()
+                .keysLike("draft:%")
+            val contexts = keys.mapNotNull(::draftContextFromMetaKey).distinct()
+            contexts.map { (chatId, threadId) -> readCloudDraftState(database, chatId, threadId) }
+        }
+    }
+
+    open suspend fun saveLocalCloudDraft(
+        draft: CloudDraft, markdown: Boolean? = null
+    ): CloudDraftState =
+        editLocalCloudDraft(draft.chatId, draft.threadId, markdown = markdown) { draft }
+
+    open suspend fun discardLocalCloudDraft(chatId: PeerId, threadId: Int = 0): CloudDraftState =
+        editLocalCloudDraft(chatId, threadId, discardUnsupported = true) {
+            CloudDraft(
+                chatId, threadId
+            )
+        }
+
+    private suspend fun editLocalCloudDraft(
+        chatId: PeerId, threadId: Int, discardUnsupported: Boolean = false,
+        markdown: Boolean? = null, edit: (CloudDraft) -> CloudDraft,
+    ): CloudDraftState = draftWriteMutex.withLock {
+        roomIo {
+            val database = db
+            if (database == null) {
+                val initial = CloudDraft(chatId, threadId)
+                return@roomIo CloudDraftState(initial).localEdit(
+                    edit(initial), discardUnsupported, markdown
+                )
+            }
+            database.withTransaction {
+                val current = readCloudDraftState(database, chatId, threadId)
+                val state = current.localEdit(edit(current.draft), discardUnsupported, markdown)
+                writeCloudDraftState(database, state)
+                state
+            }
+        }
+    }
+
+    open suspend fun applyCloudDraft(draft: CloudDraft, expectedRevision: Long? = null) = roomIo {
+        val database = db ?: return@roomIo
+        database.withTransaction {
+            val current = readCloudDraftState(database, draft.chatId, draft.threadId)
+            if (expectedRevision == null || expectedRevision == current.revision) {
+                writeCloudDraftState(database, current.mergeRemote(draft))
+            }
+        }
+    }
+
+    open suspend fun acknowledgeCloudDraft(chatId: PeerId, threadId: Int, revision: Long) = roomIo {
+        val database = db ?: return@roomIo
+        database.withTransaction {
+            val current = readCloudDraftState(database, chatId, threadId)
+            val acknowledged = current.acknowledge(revision)
+            if (acknowledged != current) writeCloudDraftState(database, acknowledged)
+        }
+    }
+
+    private suspend fun readCloudDraftState(
+        database: MonogramDatabase, chatId: PeerId, threadId: Int
+    ): CloudDraftState {
+        val stored = database.metaDao().get(cloudDraftMetaKey(chatId.value, threadId))
+        if (stored != null) {
+            val state = decodeDraftState(stored.value)
+            readStoredPayload {
+                check(state.draft.chatId == chatId && state.draft.threadId == threadId) { "Stored draft context does not match" }
+            }
+            return state
+        }
+        val legacy = database.metaDao().get(draftMetaKey(chatId.value, threadId))
+        return CloudDraftState(
+            CloudDraft(chatId, threadId, text = legacy?.value.orEmpty()),
+            revision = if (legacy == null) 0 else 1,
+            dirty = legacy != null
+        )
+    }
+
+    private suspend fun writeCloudDraftState(database: MonogramDatabase, state: CloudDraftState) {
+        database.metaDao().upsert(
+            org.monogram.core.database.entity.MetaEntity(
+                cloudDraftMetaKey(state.draft.chatId.value, state.draft.threadId),
+                encodeDraftState(state)
+            )
+        )
+        database.metaDao().delete(draftMetaKey(state.draft.chatId.value, state.draft.threadId))
     }
 
     open suspend fun discussionReadMax(chatId: PeerId, topId: Int): Int = roomIo {
@@ -253,9 +406,7 @@ open class OfflineWarmup(
         database.withTransaction {
             val confirmed = maxOf(
                 database.metaDao()
-                    .get("discussion_read:${chatId.value}:$topId")
-                    ?.value
-                    ?.toIntOrNull() ?: 0,
+                    .get("discussion_read:${chatId.value}:$topId")?.value?.toIntOrNull() ?: 0,
                 maxId,
             )
             database.metaDao().upsert(
@@ -456,9 +607,7 @@ open class OfflineWarmup(
     }
 
     open suspend fun olderMessages(
-        chatId: PeerId,
-        beforeId: Int,
-        limit: Int = HISTORY_CACHE_WINDOW
+        chatId: PeerId, beforeId: Int, limit: Int = HISTORY_CACHE_WINDOW
     ): List<Message> {
         val database = db ?: run {
             ensureStartupCleanup()
@@ -472,7 +621,9 @@ open class OfflineWarmup(
             ) return@onRoom emptyList()
             if (rows.isEmpty()) return@onRoom emptyList()
             if (database.messageHoleDao().overlaps(
-                    chatId.value, rows.minOf { it.id }, beforeId - 1,
+                    chatId.value,
+                    rows.minOf { it.id },
+                    beforeId - 1,
                     MessageHoleEntity.SOURCE_HISTORY
                 )
             ) return@onRoom emptyList()
@@ -481,9 +632,7 @@ open class OfflineWarmup(
     }
 
     open suspend fun newerMessages(
-        chatId: PeerId,
-        afterId: Int,
-        limit: Int = HISTORY_CACHE_WINDOW
+        chatId: PeerId, afterId: Int, limit: Int = HISTORY_CACHE_WINDOW
     ): List<Message> {
         val database = db ?: run {
             ensureStartupCleanup()
@@ -497,7 +646,9 @@ open class OfflineWarmup(
             ) return@onRoom emptyList()
             if (rows.isEmpty()) return@onRoom emptyList()
             if (database.messageHoleDao().overlaps(
-                    chatId.value, afterId + 1, rows.maxOf { it.id },
+                    chatId.value,
+                    afterId + 1,
+                    rows.maxOf { it.id },
                     MessageHoleEntity.SOURCE_HISTORY
                 )
             ) return@onRoom emptyList()
@@ -559,8 +710,9 @@ open class OfflineWarmup(
             val holeDao = database.messageHoleDao()
             if (database.metaDao().get(metaKey) == null) {
                 val holes = mergeHistoryHoles(
-                    holeDao.forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY) +
-                            MessageHoleEntity(chatId.value, 1, Int.MAX_VALUE)
+                    holeDao.forChat(
+                        chatId.value, MessageHoleEntity.SOURCE_HISTORY
+                    ) + MessageHoleEntity(chatId.value, 1, Int.MAX_VALUE)
                 )
                 holeDao.clearChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
                 holes.forEach { holeDao.insert(it) }
@@ -588,8 +740,9 @@ open class OfflineWarmup(
         database.withTransaction {
             val dao = database.messageHoleDao()
             val holes = mergeHistoryHoles(
-                dao.forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY) +
-                        MessageHoleEntity(chatId.value, startId, endId)
+                dao.forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY) + MessageHoleEntity(
+                    chatId.value, startId, endId
+                )
             )
             dao.clearChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
             holes.forEach { dao.insert(it) }
@@ -619,8 +772,7 @@ open class OfflineWarmup(
         }
         return DatabaseProvider.onRoom {
             ensureStartupCleanup()
-            database.messageDao()
-                .atOrBeforeDate(chatId.value, beforeDate.toLong(), limit)
+            database.messageDao().atOrBeforeDate(chatId.value, beforeDate.toLong(), limit)
                 .map { it.toModel() }
         }
     }
@@ -629,8 +781,8 @@ open class OfflineWarmup(
 
     open suspend fun applyProfileToChat(profile: Profile) {
         val stored = roomIo { db?.chatDao()?.get(profile.id.value)?.toModel() } ?: return
-        val title = profile.title.takeIf { !isPlaceholderPeerTitle(it, profile.id.value) }
-            ?: stored.title
+        val title =
+            profile.title.takeIf { !isPlaceholderPeerTitle(it, profile.id.value) } ?: stored.title
         val updated = stored.copy(
             title = title,
             isChannel = profile.kind == "channel",
@@ -676,6 +828,20 @@ open class OfflineWarmup(
             mergeMessages(messages)
             database.messageDao().deleteExcept(chatId.value, messages.map { it.id.id })
         }
+    }
+
+    suspend fun applyMessageRead(
+        expectedEpoch: Long, chatId: PeerId, messageId: Int, message: Message?
+    ): Boolean = draftWriteMutex.withLock {
+        require(messageId > 0)
+        require(message == null || message.id.chatId == chatId && message.id.id == messageId)
+        if (!outgoingAccountIsCurrent(expectedEpoch)) return@withLock false
+        if (message == null) deleteMessages(chatId, setOf(messageId)) else upsertMessages(
+            listOf(
+                message
+            )
+        )
+        true
     }
 
     open suspend fun upsertMessages(messages: List<Message>) = withContext(RoomLane.maintenance()) {
@@ -793,13 +959,12 @@ open class OfflineWarmup(
                     .isNotEmpty()
             if (mergeMessages(listOf(message)).isEmpty()) return@withTransaction
             val stored = database.chatDao().get(message.id.chatId.value)?.toModel()
-            val chat = (stored ?: placeholderChat(message.id.chatId))
-                .mergeIncomingMessage(
-                    message,
-                    alreadyStored = existed,
-                    accountGeneration = accountGeneration,
-                    acceptedOrder = acceptedOrder,
-                )
+            val chat = (stored ?: placeholderChat(message.id.chatId)).mergeIncomingMessage(
+                message,
+                alreadyStored = existed,
+                accountGeneration = accountGeneration,
+                acceptedOrder = acceptedOrder,
+            )
             database.chatDao().upsertAll(listOf(chat.toEntity()))
         }
     }
@@ -839,27 +1004,529 @@ open class OfflineWarmup(
     }
 
     /** Drops cached chats/history/peers/folders. Auth flags are [SessionMetadataStore.clearSession]. */
-    open suspend fun clearAccountCache() = roomIo {
-        recentWarmupJob?.cancel()
-        recentHistory.clear()
-        firstPaintSnapshot = null
-        recentWarmupChats = emptyList()
+    open suspend fun outgoingSendBlockedUntil(): Long = roomIo {
+        db?.metaDao()?.get("outgoing_send.blocked_until_ms")?.value?.toLongOrNull() ?: 0L
+    }
+
+    open suspend fun blockOutgoingSendsUntil(deadline: Long) = roomIo {
         val database = db ?: return@roomIo
-        database.messageDao().clearAll()
-        database.messageTombstoneDao().clear()
-        database.chatDao().clear()
-        database.folderDao().clear()
-        database.peerDao().clear()
-        database.updateCursorDao().clear()
-        database.updateCursorDao().clearReceipts()
-        database.profileTabsDao().clear()
-        database.profileMembersDao().clear()
-        database.profileMediaDao().clear()
-        database.profileCommonDao().clear()
-        database.messageHoleDao().clearAll()
-        database.metaDao().deleteLike("history_coverage:%")
-        database.metaDao().deleteLike("discussion_read:%")
-        database.metaDao().deleteLike("${DRAFT_META_PREFIX}%")
+        database.withTransaction {
+            val old =
+                database.metaDao().get("outgoing_send.blocked_until_ms")?.value?.toLongOrNull()
+                    ?: 0L
+            database.metaDao().upsert(
+                MetaEntity(
+                    "outgoing_send.blocked_until_ms", maxOf(old, deadline).toString()
+                )
+            )
+        }
+    }
+
+    open fun observeOutgoingTextSends(): Flow<List<OutgoingTextSendEntity>> =
+        db?.outgoingTextSendDao()?.observeAll() ?: flowOf(emptyList())
+
+    open suspend fun outgoingTextSends() = roomIo { db?.outgoingTextSendDao()?.all().orEmpty() }
+    open suspend fun captureOutgoingTextDraft(
+        chatId: PeerId, threadId: Int, expectedEpoch: Long
+    ): CloudDraftState = draftWriteMutex.withLock {
+        check(outgoingAccountActive && outgoingAccountEpoch.get() == expectedEpoch)
+        cloudDraftState(chatId, threadId)
+    }
+
+    /** Persists the send; returns whether its matching draft was consumed in the same transaction. */
+    open suspend fun contactImportAttempt(
+        spec: ContactSendSpec, epoch: Long
+    ): ContactImportAttempt? = draftWriteMutex.withLock {
+        check(outgoingAccountIsCurrent(epoch))
+        val key = contactImportMetaKey(spec)
+        val value = roomIo { db?.metaDao()?.get(key)?.value?.let(::decodeContactImport) }
+        if (value?.phase == ContactImportPhase.IN_FLIGHT && (epoch to key) !in activeContactImports) value.copy(
+            phase = ContactImportPhase.UNCERTAIN
+        ) else value
+    }
+
+    open suspend fun beginContactImport(
+        spec: ContactSendSpec, epoch: Long, retry: Boolean
+    ): ContactImportAttempt = draftWriteMutex.withLock {
+        check(outgoingAccountIsCurrent(epoch))
+        spec.requireValid()
+        val key = contactImportMetaKey(spec)
+        check((epoch to key) !in activeContactImports)
+        val attempt = roomIo {
+            val database = checkNotNull(db)
+            database.withTransaction {
+                val previous = database.metaDao().get(key)?.value?.let(::decodeContactImport)
+                check(
+                    previous == null || retry && previous.phase in setOf(
+                        ContactImportPhase.UNCERTAIN,
+                        ContactImportPhase.RETRY_REQUIRED,
+                        ContactImportPhase.NOT_ADDED,
+                        ContactImportPhase.IN_FLIGHT
+                    )
+                )
+                val identity = previous?.spec
+                    ?: ContactImportSpec(randomUUID().mostSignificantBits.takeIf { it != 0L } ?: 1L,
+                        spec.phone,
+                        spec.firstName,
+                        spec.lastName)
+                check(identity.phone == spec.phone && identity.firstName == spec.firstName && identity.lastName == spec.lastName)
+                ContactImportAttempt(
+                    identity, ContactImportPhase.IN_FLIGHT
+                ).also {
+                    database.metaDao().upsert(MetaEntity(key, encodeContactImport(it)))
+                }
+            }
+        }
+        activeContactImports[epoch to key] = attempt.spec.clientId
+        attempt
+    }
+
+    open suspend fun finishContactImport(
+        spec: ContactSendSpec, epoch: Long, attempt: ContactImportAttempt
+    ): Boolean = draftWriteMutex.withLock {
+        val key = contactImportMetaKey(spec)
+        try {
+            if (!outgoingAccountIsCurrent(epoch)) return@withLock false
+            require(attempt.phase != ContactImportPhase.IN_FLIGHT)
+            val encoded = encodeContactImport(attempt)
+            decodeContactImport(encoded)
+            roomIo {
+                val database = checkNotNull(db)
+                database.withTransaction {
+                    val current = database.metaDao().get(key)?.value?.let(::decodeContactImport)
+                    check(current != null && current.spec == attempt.spec && current.phase == ContactImportPhase.IN_FLIGHT)
+                    database.metaDao().upsert(MetaEntity(key, encoded))
+                }
+            }
+            true
+        } finally {
+            activeContactImports.remove(epoch to key, attempt.spec.clientId)
+        }
+    }
+
+    open suspend fun enqueueOutgoingTextSend(
+        row: OutgoingTextSendEntity,
+        expectedEpoch: Long = outgoingAccountEpoch(),
+        draftSnapshot: CloudDraftState? = null,
+        consumeDraft: Boolean = true,
+    ): Boolean = draftWriteMutex.withLock {
+        check(outgoingAccountActive && outgoingAccountEpoch.get() == expectedEpoch)
+        roomIo {
+            val database = checkNotNull(db)
+            database.withTransaction {
+                val current = draftSnapshot?.let {
+                    require(it.draft.chatId.value == row.message.chatId)
+                    readCloudDraftState(
+                        database, it.draft.chatId, it.draft.threadId
+                    ).also { state ->
+                        check(!state.draft.hasUnsupportedContent)
+                    }
+                }
+                require(database.outgoingMediaSendDao().item(row.randomId) == null)
+                database.outgoingTextSendDao().enqueue(row)
+                if (!consumeDraft || draftSnapshot == null || current == null || current.revision != draftSnapshot.revision || current.draft != draftSnapshot.draft || current.markdown != draftSnapshot.markdown) return@withTransaction false
+                writeCloudDraftState(
+                    database, current.localEdit(
+                        CloudDraft(current.draft.chatId, current.draft.threadId), markdown = false
+                    )
+                )
+                true
+            }
+        }
+    }
+
+    open fun observeOutgoingMediaSends() =
+        db?.outgoingMediaSendDao()?.observeAll() ?: flowOf(emptyList())
+
+    open suspend fun outgoingMediaSends() = roomIo { db?.outgoingMediaSendDao()?.all().orEmpty() }
+    open suspend fun claimOutgoingMediaSend(batchId: Long): Boolean =
+        roomIo { db?.outgoingMediaSendDao()?.claim(batchId) == 1 }
+
+    open suspend fun recoverInterruptedMediaSends() =
+        roomIo { db?.outgoingMediaSendDao()?.recoverInterrupted(); Unit }
+
+    open suspend fun markOutgoingMediaSendUncertain(batchId: Long) =
+        roomIo { db?.outgoingMediaSendDao()?.markUncertain(batchId); Unit }
+
+    open suspend fun markOutgoingMediaSendFailed(batchId: Long) =
+        roomIo { db?.outgoingMediaSendDao()?.markFailed(batchId); Unit }
+
+    open suspend fun retryOutgoingMediaSend(batchId: Long) = roomIo {
+        if (db?.outgoingMediaSendDao()?.retry(batchId) == 1) outgoingSendSync.requestResume()
+    }
+
+    open suspend fun enqueueOutgoingMediaSend(
+        send: OutgoingMediaSend, expectedEpoch: Long,
+        draftSnapshot: CloudDraftState? = null, consumeDraft: Boolean = true,
+    ): Boolean = draftWriteMutex.withLock {
+        check(outgoingAccountActive && outgoingAccountEpoch.get() == expectedEpoch)
+        enqueueMediaLocked(send, draftSnapshot, consumeDraft)
+    }
+
+    private suspend fun enqueueMediaLocked(
+        send: OutgoingMediaSend,
+        draftSnapshot: CloudDraftState?,
+        consumeDraft: Boolean,
+    ): Boolean = roomIo {
+        val database = checkNotNull(db)
+        database.withTransaction {
+            val current = draftSnapshot?.let {
+                require(it.draft.chatId.value == send.batch.chatId)
+                require(it.draft.threadId == (send.items.firstOrNull()?.message?.replyToTopId ?: 0))
+                readCloudDraftState(
+                    database, it.draft.chatId, it.draft.threadId
+                ).also { state -> check(!state.draft.hasUnsupportedContent) }
+            }
+            send.items.forEach { require(database.outgoingTextSendDao().get(it.randomId) == null) }
+            database.outgoingMediaSendDao().enqueue(send)
+            if (!consumeDraft || draftSnapshot == null || current == null || current.revision != draftSnapshot.revision || current.draft != draftSnapshot.draft || current.markdown != draftSnapshot.markdown) return@withTransaction false
+            writeCloudDraftState(
+                database, current.localEdit(
+                    CloudDraft(current.draft.chatId, current.draft.threadId), markdown = false
+                )
+            )
+            true
+        }
+    }
+
+    open suspend fun recoverOutgoingMediaFiles(expectedEpoch: Long) = draftWriteMutex.withLock {
+        check(outgoingAccountIsCurrent(expectedEpoch))
+        cleanupOutgoingMediaFilesLocked()
+    }
+
+    private suspend fun cleanupOutgoingMediaFilesLocked() {
+        if (outgoingMediaFiles == null) return
+        val referenced = roomIo {
+            checkNotNull(db).outgoingMediaSendDao().all().flatMap { it.items }
+                .map { it.source.name }.toSet()
+        }
+        outgoingMediaFiles.removeUnreferenced(referenced)
+    }
+
+    open suspend fun retainAndEnqueueOutgoingMedia(
+        batch: OutgoingMediaBatchEntity,
+        uploads: List<OutgoingMediaUpload>,
+        maxTotalBytes: Long,
+        expectedEpoch: Long,
+        draftSnapshot: CloudDraftState? = null,
+        consumeDraft: Boolean = true,
+    ): OutgoingMediaAdmission = draftWriteMutex.withLock {
+        check(outgoingAccountIsCurrent(expectedEpoch))
+        val files = checkNotNull(outgoingMediaFiles)
+        try {
+            val retained = files.retain(uploads.map { java.io.File(it.path) }, maxTotalBytes)
+            val items = uploads.mapIndexed { index, upload ->
+                val path = "local:" + files.retainedPath(retained[index])
+                OutgoingMediaItemEntity(
+                    checkNotNull(upload.message.randomId),
+                    batch.batchId,
+                    index,
+                    upload.mimeType,
+                    retained[index],
+                    upload.message.copy(
+                        mediaCacheKey = path, thumbCacheKey = path, fileSize = retained[index].size
+                    )
+                )
+            }
+            val send = OutgoingMediaSend(batch, items)
+            val consumed = withContext(NonCancellable) {
+                enqueueMediaLocked(
+                    send, draftSnapshot, consumeDraft
+                )
+            }
+            OutgoingMediaAdmission(send, consumed)
+        } catch (error: Throwable) {
+            withContext(NonCancellable) {
+                try {
+                    cleanupOutgoingMediaFilesLocked()
+                } catch (_: Exception) {
+                    AppLog.warn("outgoing", "retained media recovery deferred")
+                }
+            }
+            throw error
+        }
+    }
+
+    open suspend fun claimOutgoingTextSend(randomId: Long): Boolean =
+        roomIo { db?.outgoingTextSendDao()?.claim(randomId) == 1 }
+
+    open suspend fun recoverInterruptedTextSends() =
+        roomIo { db?.outgoingTextSendDao()?.recoverInterrupted(); Unit }
+
+    open suspend fun markOutgoingTextSendUncertain(randomId: Long) =
+        roomIo { db?.outgoingTextSendDao()?.markUncertain(randomId); Unit }
+
+    open suspend fun markOutgoingTextSendFailed(randomId: Long) =
+        roomIo { db?.outgoingTextSendDao()?.markFailed(randomId); Unit }
+
+    open suspend fun retryOutgoingTextSend(randomId: Long) = roomIo {
+        if (db?.outgoingTextSendDao()?.retry(randomId) == 1) outgoingSendSync.requestResume()
+    }
+
+    open suspend fun applyOutgoingMediaResults(
+        batchId: Long,
+        results: List<Pair<Long, OutgoingMessageResult>>,
+        expectedEpoch: Long,
+        accountGeneration: Long = 0,
+        acceptedOrder: Long = 0,
+    ) = roomIo {
+        // Durable batch application already owns Room; never acquire the admission mutex here.
+        check(outgoingAccountActive && outgoingAccountEpoch.get() == expectedEpoch)
+        val database = db ?: return@roomIo
+        database.withTransaction {
+            val send = database.outgoingMediaSendDao().get(batchId) ?: return@withTransaction
+            val ids = results.map { it.first }
+            require(ids.size == ids.toSet().size && ids.toSet() == send.items.map { it.randomId }
+                .toSet())
+            val messageIds = results.map { (_, result) ->
+                val message = when (result) {
+                    is OutgoingMessageResult.Sent -> result.message
+                    is OutgoingMessageResult.Scheduled -> result.message.message
+                }
+                require(message.id.chatId.value == send.batch.chatId && message.id.id > 0)
+                (result is OutgoingMessageResult.Scheduled) to message.id.id
+            }
+            require(messageIds.toSet().size == messageIds.size)
+            results.forEach { (randomId, result) ->
+                applyOutgoingResult(
+                    randomId, result, accountGeneration, acceptedOrder
+                )
+            }
+            database.outgoingMediaSendDao().acknowledge(batchId, send.batch.chatId, ids.toSet())
+        }
+    }
+
+    open suspend fun applyOutgoingResult(
+        randomId: Long, result: OutgoingMessageResult,
+        accountGeneration: Long = 0, acceptedOrder: Long = 0,
+    ) = roomIo {
+        require(randomId != 0L)
+        val database = db ?: return@roomIo
+        database.withTransaction {
+            val retained = database.outgoingTextSendDao().get(randomId)
+            when (result) {
+                is OutgoingMessageResult.Scheduled -> applyScheduledMessage(
+                    result.message.copy(message = result.message.message.copy(randomId = randomId)),
+                )
+
+                is OutgoingMessageResult.Sent -> {
+                    val message =
+                        result.message.copy(randomId = randomId, pending = false, failed = false)
+                    val pending =
+                        database.messageDao().pendingByRandomId(message.id.chatId.value, randomId)
+                    require(pending.size <= 1)
+                    if (pending.isNotEmpty()) reconcileOutgoing(
+                        pending.single().id, message, randomId
+                    )
+                    else applyIncomingMessage(message, accountGeneration, acceptedOrder)
+                    if (retained?.message?.mediaKind == "geo" && decodeLocationSend(retained.message.fileName).live) {
+                        val place = org.monogram.core.models.ServiceMedia.geo(message.fileName)
+                        if (place?.live == true && place.periodSeconds > 0) {
+                            val key = liveLocationKey(message.id)
+                            val existing = database.metaDao().get(key)
+                            if (existing == null) {
+                                val deadline =
+                                    if (place.periodSeconds == Int.MAX_VALUE) null else Math.addExact(
+                                        message.date, place.periodSeconds.toLong()
+                                    )
+                                val phase =
+                                    if (deadline != null && deadline <= System.currentTimeMillis() / 1000) LiveLocationPhase.EXPIRED
+                                    else LiveLocationPhase.ACTIVE
+                                val session = LiveLocationSession(
+                                    message.id, randomId, deadline, phase
+                                )
+                                database.metaDao()
+                                    .upsert(MetaEntity(key, encodeLiveLocation(session)))
+                            } else require(decodeLiveLocation(existing.value).randomId == randomId)
+                        }
+                    }
+                }
+            }
+            val chatId = when (result) {
+                is OutgoingMessageResult.Sent -> result.message.id.chatId.value
+                is OutgoingMessageResult.Scheduled -> result.message.message.id.chatId.value
+            }
+            database.outgoingTextSendDao().acknowledge(randomId, chatId)
+        }
+    }
+
+    open fun observeLiveLocations(): Flow<List<LiveLocationSession>> =
+        db?.metaDao()?.observeLike("live_location:%")?.map { rows ->
+            rows.map { row ->
+                decodeLiveLocation(row.value).also {
+                    readStoredPayload { require(row.key == liveLocationKey(it.messageId)) }
+                }
+            }
+        } ?: flowOf(emptyList())
+
+    open suspend fun liveLocation(
+        id: MessageId, epoch: Long
+    ): LiveLocationSession? = draftWriteMutex.withLock {
+        check(outgoingAccountIsCurrent(epoch))
+        roomIo {
+            db?.metaDao()?.get(liveLocationKey(id))?.let {
+                decodeLiveLocation(it.value).also { session ->
+                    readStoredPayload {
+                        require(session.messageId == id)
+                    }
+                }
+            }
+        }
+    }
+
+    open suspend fun transitionLiveLocation(
+        id: MessageId, revision: Long, phase: LiveLocationPhase, epoch: Long
+    ): Boolean = draftWriteMutex.withLock {
+        check(outgoingAccountIsCurrent(epoch))
+        roomIo {
+            val database = checkNotNull(db)
+            database.withTransaction {
+                val key = liveLocationKey(id)
+                val current = database.metaDao().get(key)?.let { decodeLiveLocation(it.value) }
+                    ?: return@withTransaction false
+                require(current.messageId == id)
+                if (current.revision != revision || current.revision == Long.MAX_VALUE || !current.canTransition(
+                        phase
+                    ) || (phase == LiveLocationPhase.ACTIVE && current.expired(
+                        System.currentTimeMillis() / 1000
+                    ))
+                ) return@withTransaction false
+                database.metaDao().upsert(
+                    MetaEntity(
+                        key,
+                        encodeLiveLocation(current.copy(phase = phase, revision = revision + 1))
+                    )
+                )
+                true
+            }
+        }
+    }
+
+    open suspend fun recoverLiveLocations(epoch: Long) = draftWriteMutex.withLock {
+        check(outgoingAccountIsCurrent(epoch))
+        roomIo {
+            val database = checkNotNull(db)
+            database.withTransaction {
+                for (key in database.metaDao().keysLike("live_location:%")) {
+                    val current =
+                        decodeLiveLocation(checkNotNull(database.metaDao().get(key)).value)
+                    require(key == liveLocationKey(current.messageId))
+                    val phase = when (current.phase) {
+                        LiveLocationPhase.ACTIVE -> LiveLocationPhase.PAUSED
+                        LiveLocationPhase.STOPPING -> LiveLocationPhase.UNCERTAIN_STOP
+                        else -> continue
+                    }
+                    check(current.revision < Long.MAX_VALUE)
+                    database.metaDao().upsert(
+                        MetaEntity(
+                            key, encodeLiveLocation(
+                                current.copy(
+                                    phase = phase, revision = current.revision + 1
+                                )
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    open suspend fun blockScheduledQueueUntil(deadline: Long, expectedEpoch: Long) =
+        draftWriteMutex.withLock {
+            check(outgoingAccountActive && outgoingAccountEpoch.get() == expectedEpoch)
+            blockOutgoingSendsUntil(deadline)
+        }
+
+    open fun observeScheduledMessages(chatId: PeerId): Flow<List<ScheduledMessage>> =
+        db?.scheduledMessageDao()?.observe(chatId.value)?.map { rows ->
+            rows.map {
+                ScheduledMessage(
+                    it.message.toModel(), it.hasUnsupportedContent
+                )
+            }
+        } ?: flowOf(emptyList())
+
+    open suspend fun scheduledQueueRevision(chatId: PeerId, expectedEpoch: Long): Long =
+        draftWriteMutex.withLock {
+            check(outgoingAccountActive && outgoingAccountEpoch.get() == expectedEpoch)
+            roomIo { checkNotNull(db).scheduledMessageDao().revision(chatId.value) }
+        }
+
+    open suspend fun replaceScheduledMessagesIfCurrent(
+        chatId: PeerId,
+        expectedRevision: Long,
+        messages: List<ScheduledMessage>,
+        expectedEpoch: Long,
+    ): Boolean = draftWriteMutex.withLock {
+        check(outgoingAccountActive && outgoingAccountEpoch.get() == expectedEpoch)
+        roomIo {
+            checkNotNull(db).scheduledMessageDao().replaceIfCurrent(
+                chatId.value, expectedRevision, messages.map {
+                    ScheduledMessageEntity(
+                        it.message.toEntity(), it.hasUnsupportedContent
+                    )
+                })
+        }
+    }
+
+    open suspend fun applyScheduledMessage(message: ScheduledMessage) = roomIo {
+        db?.scheduledMessageDao()?.applyMessages(
+            message.message.id.chatId.value, listOf(
+                ScheduledMessageEntity(
+                    message.message.toEntity(), message.hasUnsupportedContent
+                )
+            )
+        )
+        Unit
+    }
+
+    open suspend fun deleteScheduledMessages(chatId: PeerId, ids: List<Int>) = roomIo {
+        db?.scheduledMessageDao()?.remove(chatId.value, ids)
+        Unit
+    }
+
+    open suspend fun clearAccountCache() = draftWriteMutex.withLock {
+        outgoingAccountActive = false
+        outgoingAccountEpoch.incrementAndGet()
+        draftSync.reset()
+        outgoingSendSync.reset()
+        roomIo {
+            recentWarmupJob?.cancel()
+            recentHistory.clear()
+            firstPaintSnapshot = null
+            recentWarmupChats = emptyList()
+            val database = db ?: return@roomIo
+            database.messageDao().clearAll()
+            database.scheduledMessageDao().clear()
+            database.outgoingTextSendDao().clear()
+            database.outgoingMediaSendDao().clear()
+            database.messageTombstoneDao().clear()
+            database.chatDao().clear()
+            database.folderDao().clear()
+            database.peerDao().clear()
+            database.updateCursorDao().clear()
+            database.updateCursorDao().clearReceipts()
+            database.profileTabsDao().clear()
+            database.profileMembersDao().clear()
+            database.profileMediaDao().clear()
+            database.profileCommonDao().clear()
+            database.messageHoleDao().clearAll()
+            database.metaDao().deleteLike("history_coverage:%")
+            database.metaDao().deleteLike("discussion_read:%")
+            database.metaDao().deleteLike("${DRAFT_META_PREFIX}%")
+            database.metaDao().deleteLike("cloud_draft:%")
+            database.metaDao().deleteLike("outgoing_send.%")
+            database.metaDao().deleteLike("contact_import:%")
+            database.metaDao().deleteLike("live_location:%")
+            activeContactImports.clear()
+        }
+        try {
+            outgoingMediaFiles?.removeUnreferenced(emptySet())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            AppLog.warn("outgoing", "account media cleanup deferred")
+        }
     }
 
     open suspend fun setDialogScroll(chatId: PeerId, messageId: Int) = roomIo {

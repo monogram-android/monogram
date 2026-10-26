@@ -669,8 +669,7 @@ class FileCache(
 
     private fun peekName(key: String): String {
         diskNames[key]?.let { return it }
-        val raw = if (key.startsWith(ORPHAN_PREFIX)) key.removePrefix(ORPHAN_PREFIX) else key
-        return hash(raw)
+        return if (key.startsWith(ORPHAN_PREFIX)) key.removePrefix(ORPHAN_PREFIX) else hash(key)
     }
 
     private fun diskName(key: String): String = diskNames.computeIfAbsent(key) { raw ->

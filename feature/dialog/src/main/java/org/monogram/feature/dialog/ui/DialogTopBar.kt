@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.outlined.Forward
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,6 +40,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.monogram.core.common.Outcome
 import org.monogram.core.models.DisplayedChatAction
@@ -61,7 +63,6 @@ import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.R
 import org.monogram.network.http.MediaPriority
-import org.monogram.network.http.UserDownload
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +81,9 @@ internal fun DialogTopBar(
     onForwardSelectedMessages: () -> Unit,
     onDeleteSelectedMessages: () -> Unit,
 ) {
+    val hasScheduledMessages by component.hasScheduledMessages.collectAsStateWithLifecycle(
+        initialValue = false
+    )
     if (selectedMessageCount > 0) {
         TopAppBar(
             windowInsets = WindowInsets.statusBars,
@@ -130,152 +134,160 @@ internal fun DialogTopBar(
     CompositionLocalProvider(
         LocalDialogMedia provides component.mediaRepository,
     ) {
-    val mediaRepository = component.mediaRepository
-    val userDownloads by remember(mediaRepository) {
-        mediaRepository?.userDownloads ?: MutableStateFlow(emptyMap<String, UserDownload>())
-    }.collectAsState()
-    val downloadProgress by remember(mediaRepository) {
-        mediaRepository?.downloadProgress ?: MutableStateFlow(emptyMap())
-    }.collectAsState()
-    var showDownloads by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxWidth()) {
-    TopAppBar(
-        windowInsets = WindowInsets.statusBars,
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.clickable(onClick = component::onOpenProfile),
-            ) {
-                val cacheGeneration =
-                    component.mediaRepository?.cacheGeneration?.collectAsState()?.value ?: 0L
-                val chatAvatar = rememberEnsuredFile(
-                    generation = cacheGeneration,
-                    identity = state.chatId.value to state.photoCacheKey,
-                    resolve = {
-                        state.photoCacheKey?.let { component.mediaRepository?.cachedFile(it) }
-                            ?: component.mediaRepository?.cachedAvatar(state.chatId)
-                    },
-                    ensure = {
-                        val repo = component.mediaRepository ?: return@rememberEnsuredFile null
-                        val key = peerAvatarCacheKey(
-                            state.chatId,
-                            state.photoCacheKey,
-                        )
-                        when (
-                            val result = repo.ensureLocalAvatar(
-                                state.chatId,
-                                key,
-                                priority = MediaPriority.VISIBLE,
-                            )
-                        ) {
-                            is Outcome.Ok -> result.value
-                            is Outcome.Err -> null
-                        }
-                    },
-                )
-                if (state.inForumTopic) {
-                    TopicIcon(
-                        org.monogram.core.models.ForumTopic(
-                            id = state.threadTopId,
-                            title = title,
-                            iconColor = state.topicIconColor,
-                            iconEmojiId = state.topicIconEmojiId,
-                        ),
-                    )
-                } else {
-                    PeerAvatar(
-                        title = title,
-                        size = 38.dp,
-                        imageFile = chatAvatar,
-                        previewBytes = rememberStrippedPreview(state.chatId) {
-                            component.mediaRepository?.peerInlineThumbJpeg(state.chatId)
-                        },
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
+        val mediaRepository = component.mediaRepository
+        val userDownloads by remember(mediaRepository) {
+            mediaRepository?.userDownloads ?: MutableStateFlow(emptyMap())
+        }.collectAsState()
+        val downloadProgress by remember(mediaRepository) {
+            mediaRepository?.downloadProgress ?: MutableStateFlow(emptyMap())
+        }.collectAsState()
+        var showDownloads by remember { mutableStateOf(false) }
+        Column(modifier = Modifier.fillMaxWidth()) {
+            TopAppBar(
+                windowInsets = WindowInsets.statusBars,
+                title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.clickable(onClick = component::onOpenProfile),
                     ) {
-                        Text(
-                            text = title,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f, fill = false),
+                        val cacheGeneration =
+                            component.mediaRepository?.cacheGeneration?.collectAsState()?.value
+                                ?: 0L
+                        val chatAvatar = rememberEnsuredFile(
+                            generation = cacheGeneration,
+                            identity = state.chatId.value to state.photoCacheKey,
+                            resolve = {
+                                state.photoCacheKey?.let { component.mediaRepository?.cachedFile(it) }
+                                    ?: component.mediaRepository?.cachedAvatar(state.chatId)
+                            },
+                            ensure = {
+                                val repo =
+                                    component.mediaRepository ?: return@rememberEnsuredFile null
+                                val key = peerAvatarCacheKey(
+                                    state.chatId,
+                                    state.photoCacheKey,
+                                )
+                                when (
+                                    val result = repo.ensureLocalAvatar(
+                                        state.chatId,
+                                        key,
+                                        priority = MediaPriority.VISIBLE,
+                                    )
+                                ) {
+                                    is Outcome.Ok -> result.value
+                                    is Outcome.Err -> null
+                                }
+                            },
                         )
-                        SponsorBadge(peerId = state.chatId.value, size = 18.dp)
-                        state.emojiStatusDocumentId?.let { documentId ->
-                            CustomEmojiGlyph(
-                                documentId = documentId,
-                                size = 18.dp,
-                                onClick = { onOpenEmojiStatus(documentId) },
+                        if (state.inForumTopic) {
+                            TopicIcon(
+                                org.monogram.core.models.ForumTopic(
+                                    id = state.threadTopId,
+                                    title = title,
+                                    iconColor = state.topicIconColor,
+                                    iconEmojiId = state.topicIconEmojiId,
+                                ),
+                            )
+                        } else {
+                            PeerAvatar(
+                                title = title,
+                                size = 38.dp,
+                                imageFile = chatAvatar,
+                                previewBytes = rememberStrippedPreview(state.chatId) {
+                                    component.mediaRepository?.peerInlineThumbJpeg(state.chatId)
+                                },
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Text(
+                                    text = title,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                SponsorBadge(peerId = state.chatId.value, size = 18.dp)
+                                state.emojiStatusDocumentId?.let { documentId ->
+                                    CustomEmojiGlyph(
+                                        documentId = documentId,
+                                        size = 18.dp,
+                                        onClick = { onOpenEmojiStatus(documentId) },
+                                    )
+                                }
+                            }
+                            DialogStatusLine(
+                                chatId = state.chatId.value,
+                                enabled = !state.isSelf,
+                                status = state.peerStatus,
+                                statusAt = state.peerStatusAt,
+                                onExpired = component::onRefreshPresence,
+                                typing = displayedChatAction(
+                                    state.typingUsers.values,
+                                    named = state.isGroup || state.isChannel,
+                                ),
+                                syncLabel = syncStatus.uiLabel(),
+                                stats = chatStatsSubtitle(
+                                    isChannel = state.isChannel,
+                                    isGroup = state.isGroup,
+                                    members = state.membersCount,
+                                    online = state.onlineCount,
+                                ),
+                                channelLabel = stringResource(R.string.dialog_channel),
+                                groupLabel = stringResource(R.string.dialog_group),
+                                isChannel = state.isChannel,
+                                isGroup = state.isGroup,
                             )
                         }
                     }
-                    DialogStatusLine(
-                        chatId = state.chatId.value,
-                        enabled = !state.isSelf,
-                        status = state.peerStatus,
-                        statusAt = state.peerStatusAt,
-                        onExpired = component::onRefreshPresence,
-                        typing = displayedChatAction(
-                            state.typingUsers.values,
-                            named = state.isGroup || state.isChannel,
-                        ),
-                        syncLabel = syncStatus.uiLabel(),
-                        stats = chatStatsSubtitle(
-                            isChannel = state.isChannel,
-                            isGroup = state.isGroup,
-                            members = state.membersCount,
-                            online = state.onlineCount,
-                        ),
-                        channelLabel = stringResource(R.string.dialog_channel),
-                        groupLabel = stringResource(R.string.dialog_group),
-                        isChannel = state.isChannel,
-                        isGroup = state.isGroup,
-                    )
-                }
-            }
-        },
-        navigationIcon = {
-            if (component.showBackButton) IconButton(onClick = component::onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = stringResource(R.string.dialog_back),
-                )
-            }
-        },
-        actions = {
-            if (userDownloads.isNotEmpty()) {
-                IconButton(onClick = { showDownloads = true }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Download,
-                        contentDescription = stringResource(R.string.dialog_downloads),
-                    )
-                }
-            }
-            IconButton(
-                onClick = onToggleSearch,
-            ) {
-                Icon(
-                    imageVector = if (showSearch) Icons.Outlined.Close else Icons.Outlined.Search,
-                    contentDescription = stringResource(
-                        if (showSearch) R.string.dialog_search_close else R.string.dialog_search,
-                    ),
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-    )
-        DialogDownloadProgressBar(
-            downloads = userDownloads,
-            progress = downloadProgress,
-        )
-    }
+                },
+                navigationIcon = {
+                    if (component.showBackButton) IconButton(onClick = component::onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.dialog_back),
+                        )
+                    }
+                },
+                actions = {
+                    if (userDownloads.isNotEmpty()) {
+                        IconButton(onClick = { showDownloads = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Download,
+                                contentDescription = stringResource(R.string.dialog_downloads),
+                            )
+                        }
+                    }
+                    if (hasScheduledMessages) IconButton(onClick = component::onOpenScheduledQueue) {
+                        Icon(
+                            Icons.Outlined.Schedule,
+                            stringResource(R.string.dialog_scheduled_messages)
+                        )
+                    }
+                    IconButton(
+                        onClick = onToggleSearch,
+                    ) {
+                        Icon(
+                            imageVector = if (showSearch) Icons.Outlined.Close else Icons.Outlined.Search,
+                            contentDescription = stringResource(
+                                if (showSearch) R.string.dialog_search_close else R.string.dialog_search,
+                            ),
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+            )
+            DialogDownloadProgressBar(
+                downloads = userDownloads,
+                progress = downloadProgress,
+            )
+        }
         if (showDownloads) {
             DialogDownloadsSheet(
                 downloads = userDownloads,

@@ -67,4 +67,11 @@
     <string name="chats_unread_mentions">Չկարդացված նշումներ</string>
     <string name="chats_unread_reactions">Չկարդացված արձագանքներ</string>
     <string name="chats_proxy_status">Proxy connection status</string>
+    <string name="chats_preview_giveaway">Վիճակախաղ</string>
+    <string name="chats_preview_giveaway_results">Վիճակախաղի արդյունքներ</string>
+    <string name="chats_preview_paid_media">Վճարովի բովանդակություն</string>
+    <string name="chats_preview_game">Խաղ</string>
+    <string name="chats_preview_invoice">Հաշիվ</string>
+    <string name="chats_preview_story">Պատմություն</string>
+    <string name="chats_preview_live_stream">Ուղիղ հեռարձակում</string>
 </resources>

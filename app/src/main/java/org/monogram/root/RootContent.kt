@@ -104,6 +104,7 @@ import org.monogram.core.ui.perf.RecompositionProbe
 import org.monogram.feature.auth.ui.AuthContent
 import org.monogram.feature.chats.ui.ChatsContent
 import org.monogram.feature.dialog.DialogComponent
+import org.monogram.feature.dialog.scheduled.ScheduledQueueContent
 import org.monogram.feature.dialog.ui.AudioMessagePlaybackScope
 import org.monogram.feature.dialog.ui.DialogContent
 import org.monogram.feature.profile.ui.ProfileContent
@@ -123,9 +124,7 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
 @Composable
 @OptIn(ExperimentalDecomposeApi::class, FaultyDecomposeApi::class)
 private fun RootPlaybackContent(
-    component: RootComponent,
-    modifier: Modifier,
-    togglePlayback: () -> Unit
+    component: RootComponent, modifier: Modifier, togglePlayback: () -> Unit
 ) {
     RecompositionProbe("AppRoot")
     SideEffect { component.noteFirstFrame() }
@@ -134,12 +133,8 @@ private fun RootPlaybackContent(
     val playbackSession = remember(playbackContext) { MediaPlaybackHolder.session(playbackContext) }
     val authenticated = !currentStack.active.instance.isSignedOut()
     val rootLifecycleState = LocalLifecycleOwner.current.lifecycle.currentStateAsState().value
-    val showMessagePlayback = authenticated && playbackSession.isMessagePlayback &&
-            rootLifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) &&
-            !LocalPictureInPictureActive.current &&
-            playbackSession.surface != MediaSurface.VIEWER &&
-            playbackSession.surface != MediaSurface.PIP &&
-            currentStack.active.instance !is RootComponent.Child.Dialog
+    val showMessagePlayback =
+        authenticated && playbackSession.isMessagePlayback && rootLifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) && !LocalPictureInPictureActive.current && playbackSession.surface != MediaSurface.VIEWER && playbackSession.surface != MediaSurface.PIP && currentStack.active.instance !is RootComponent.Child.Dialog
     val openPlaybackMessage: () -> Unit = {
         val item = playbackSession.current
         val chatId = item?.sourceChatId
@@ -150,19 +145,17 @@ private fun RootPlaybackContent(
     }
     val activeDialog by rememberUpdatedState((currentStack.active.instance as? RootComponent.Child.Dialog)?.component)
     MessagePlaybackLifecycle(playbackSession)
-    val home = (currentStack.items.firstOrNull { it.instance is RootComponent.Child.Home }
-        ?.instance as? RootComponent.Child.Home)?.component
+    val home =
+        (currentStack.items.firstOrNull { it.instance is RootComponent.Child.Home }?.instance as? RootComponent.Child.Home)?.component
     // Derived once per stack change instead of two list scans on every recomposition.
     val dialog by remember {
         derivedStateOf {
-            (currentStack.items.lastOrNull { it.instance is RootComponent.Child.Dialog }
-                ?.instance as? RootComponent.Child.Dialog)?.component
+            (currentStack.items.lastOrNull { it.instance is RootComponent.Child.Dialog }?.instance as? RootComponent.Child.Dialog)?.component
         }
     }
     val selectedChatId by remember {
         derivedStateOf {
-            (currentStack.items.lastOrNull { it.configuration is RootComponent.Config.Dialog }
-                ?.configuration as? RootComponent.Config.Dialog)?.chatId
+            (currentStack.items.lastOrNull { it.configuration is RootComponent.Config.Dialog }?.configuration as? RootComponent.Config.Dialog)?.chatId
         }
     }
     val homeState = rememberSaveableStateHolder()
@@ -208,18 +201,15 @@ private fun RootPlaybackContent(
                         Direction.EXIT_BACK -> width * factor
                     }
                     alpha = alphaProgress
-                }
-            )
+                })
         }
         predictiveBackAnimation<RootComponent.Config, RootComponent.Child>(
             backHandler = backHandler,
             fallbackAnimation = stackAnimation { child, other, _ ->
                 val settingsNav =
-                    child.configuration is RootComponent.Config.Settings ||
-                            other.configuration is RootComponent.Config.Settings
+                    child.configuration is RootComponent.Config.Settings || other.configuration is RootComponent.Config.Settings
                 val proxyNav =
-                    child.configuration is RootComponent.Config.Proxy ||
-                            other.configuration is RootComponent.Config.Proxy
+                    child.configuration is RootComponent.Config.Proxy || other.configuration is RootComponent.Config.Proxy
                 if (settingsNav || proxyNav) settingsSlide else screenSlide
             },
             selector = { event, _, _ ->
@@ -257,38 +247,33 @@ private fun RootPlaybackContent(
         ) {
             val density = LocalDensity.current
             val fold = rememberFoldLayout()
-            val foldListMaxWidthDp = fold.hinge
-                ?.takeIf { fold.mode == FoldLayoutMode.VERTICAL_BOOK }
-                ?.let { (it.left / density.density).roundToInt() - 8 }
-                ?.takeIf { it >= AppearanceSettings.MIN_LIST_PANE_WIDTH }
-            val foldHingeGapDp = fold.hinge
-                ?.takeIf { fold.mode == FoldLayoutMode.VERTICAL_BOOK }
+            val foldListMaxWidthDp =
+                fold.hinge?.takeIf { fold.mode == FoldLayoutMode.VERTICAL_BOOK }
+                    ?.let { (it.left / density.density).roundToInt() - 8 }
+                    ?.takeIf { it >= AppearanceSettings.MIN_LIST_PANE_WIDTH }
+            val foldHingeGapDp = fold.hinge?.takeIf { fold.mode == FoldLayoutMode.VERTICAL_BOOK }
                 ?.let { (it.width / density.density).roundToInt().coerceAtLeast(14) }
             val tabletop = fold.mode == FoldLayoutMode.HORIZONTAL_TABLETOP && fold.hinge != null
-            val tabletopListHeightDp = fold.hinge
-                ?.takeIf { tabletop }
-                ?.let { (it.top / density.density).roundToInt() - 8 }
-                ?.takeIf { it >= 240 }
+            val tabletopListHeightDp =
+                fold.hinge?.takeIf { tabletop }?.let { (it.top / density.density).roundToInt() - 8 }
+                    ?.takeIf { it >= 240 }
             val expanded =
                 home != null && (maxWidth >= 840.dp || foldListMaxWidthDp != null || tabletopListHeightDp != null)
             val appearance by AppearanceSettings.state.collectAsState()
             val defaultListWidthDp = (maxWidth * 0.35f).value.roundToInt()
                 .coerceIn(AppearanceSettings.MIN_LIST_PANE_WIDTH, 420)
-            val maxListWidthDp = (foldListMaxWidthDp ?: AppearanceSettings.MAX_LIST_PANE_WIDTH)
-                .coerceAtMost((maxWidth.value * 0.5f).roundToInt())
+            val maxListWidthDp = (foldListMaxWidthDp
+                ?: AppearanceSettings.MAX_LIST_PANE_WIDTH).coerceAtMost((maxWidth.value * 0.5f).roundToInt())
                 .coerceAtLeast(AppearanceSettings.MIN_LIST_PANE_WIDTH)
             var dragWidthDp by remember { mutableIntStateOf(0) }
             val listWidthDp = when {
                 dragWidthDp > 0 -> dragWidthDp.coerceIn(
-                    AppearanceSettings.MIN_LIST_PANE_WIDTH,
-                    maxListWidthDp
+                    AppearanceSettings.MIN_LIST_PANE_WIDTH, maxListWidthDp
                 )
 
-                appearance.listPaneWidth > 0 ->
-                    appearance.listPaneWidth.coerceIn(
-                        AppearanceSettings.MIN_LIST_PANE_WIDTH,
-                        maxListWidthDp
-                    )
+                appearance.listPaneWidth > 0 -> appearance.listPaneWidth.coerceIn(
+                    AppearanceSettings.MIN_LIST_PANE_WIDTH, maxListWidthDp
+                )
 
                 else -> defaultListWidthDp.coerceAtMost(maxListWidthDp)
             }
@@ -349,11 +334,10 @@ private fun RootPlaybackContent(
                                         onHorizontalDrag = { change, delta ->
                                             change.consume()
                                             dragWidthDp =
-                                                (dragWidthDp + (delta / density.density).roundToInt())
-                                                    .coerceIn(
-                                                        AppearanceSettings.MIN_LIST_PANE_WIDTH,
-                                                        maxListWidthDp
-                                                    )
+                                                (dragWidthDp + (delta / density.density).roundToInt()).coerceIn(
+                                                    AppearanceSettings.MIN_LIST_PANE_WIDTH,
+                                                    maxListWidthDp
+                                                )
                                         },
                                     )
                                 },
@@ -384,15 +368,14 @@ private fun RootPlaybackContent(
                             .fillMaxSize()
                             .then(
                                 if (expanded) {
-                                    Modifier
-                                        .clip(
-                                            RoundedCornerShape(
-                                                topStart = 32.dp,
-                                                topEnd = 32.dp,
-                                                bottomStart = 32.dp,
-                                                bottomEnd = 32.dp,
-                                            )
+                                    Modifier.clip(
+                                        RoundedCornerShape(
+                                            topStart = 32.dp,
+                                            topEnd = 32.dp,
+                                            bottomStart = 32.dp,
+                                            bottomEnd = 32.dp,
                                         )
+                                    )
                                 } else {
                                     Modifier
                                 },
@@ -420,8 +403,7 @@ private fun RootPlaybackContent(
                                     prioritizeChildren = { true },
                                 ) {
                                     !expanded && when (component.stack.value.active.instance) {
-                                        is RootComponent.Child.Dialog, is RootComponent.Child.Profile,
-                                        is RootComponent.Child.Settings, is RootComponent.Child.Proxy -> true
+                                        is RootComponent.Child.Dialog, is RootComponent.Child.Profile, is RootComponent.Child.ScheduledQueue, is RootComponent.Child.Settings, is RootComponent.Child.Proxy -> true
 
                                         else -> false
                                     }
@@ -478,6 +460,10 @@ private fun RootPlaybackContent(
                                     key(instance.component) { dialogContent(instance.component) }
                                 }
 
+                                is RootComponent.Child.ScheduledQueue -> ScheduledQueueContent(
+                                    instance.component
+                                )
+
                                 is RootComponent.Child.Profile -> ProfileContent(instance.component)
                                 is RootComponent.Child.Settings -> SettingsContent(
                                     component = instance.component,
@@ -514,8 +500,7 @@ private fun RootPlaybackContent(
                             )
                         }
                         PlaybackBar(
-                            visible = recipient == null && currentStack.active.instance !is RootComponent.Child.Dialog &&
-                                    !restoreMiniPlayer,
+                            visible = recipient == null && currentStack.active.instance !is RootComponent.Child.Dialog && !restoreMiniPlayer,
                             onExpand = { restoreMiniPlayer = true },
                             modifier = Modifier.align(Alignment.BottomCenter),
                         )
@@ -610,8 +595,7 @@ private fun RootPlaybackContent(
 @Composable
 private fun EmptyDetailContent() {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxSize()
+        color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxSize()
     ) {
         Column(
             modifier = Modifier

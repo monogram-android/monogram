@@ -310,4 +310,18 @@
     <string name="media_copy_hdr_warning">Зображення скопійовано. Деякі застосунки можуть не підтримувати HDR</string>
     <string name="status_fresh_authorization">З міркувань безпеки ця дія недоступна відразу після входу. Спробуйте через 24 години або використайте старішу сесію</string>
     <string name="passkey_client_data_mismatch">Провайдер ключів підписав інші дані входу. Перевірте налаштування привілейованих застосунків для Monogram</string>
+    <string name="service_star_gift_offer">%1$s отримав(ла) пропозицію подарунка</string>
+    <string name="service_star_gift_offer_declined">Пропозицію подарунка відхилено</string>
+    <string name="service_creator_pending">%2$s стане новим власником</string>
+    <string name="service_creator_change">%2$s став(ла) новим власником</string>
+    <string name="service_noforwards_toggle">Захист вмісту змінено</string>
+    <string name="service_noforwards_request">Запитано зміну захисту вмісту</string>
+    <string name="service_poll_answer_added">До опитування додано відповідь</string>
+    <string name="service_poll_answer_removed">З опитування видалено відповідь</string>
+    <string name="service_managed_bot">Створено бота %2$s</string>
+    <string name="service_community_change">Спільноту змінено</string>
+    <string name="service_join_community">%1$s приєднався(лася) через спільноту</string>
+    <string name="service_gram_transfer">%1$s переказав(ла) Grams</string>
+    <string name="service_ton_connect">Запит TON Connect від %2$s</string>
+    <string name="service_paid_token_used">Використано токен платного повідомлення</string>
 </resources>

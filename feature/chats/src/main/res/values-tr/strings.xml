@@ -67,4 +67,11 @@
     <string name="chats_unread_mentions">Okunmamış bahsetmeler</string>
     <string name="chats_unread_reactions">Okunmamış tepkiler</string>
     <string name="chats_proxy_status">Proxy connection status</string>
+    <string name="chats_preview_giveaway">Çekiliş</string>
+    <string name="chats_preview_giveaway_results">Çekiliş sonuçları</string>
+    <string name="chats_preview_paid_media">Ücretli medya</string>
+    <string name="chats_preview_game">Oyun</string>
+    <string name="chats_preview_invoice">Fatura</string>
+    <string name="chats_preview_story">Hikâye</string>
+    <string name="chats_preview_live_stream">Canlı yayın</string>
 </resources>

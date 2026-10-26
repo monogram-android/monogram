@@ -9,6 +9,7 @@ import com.arkivanov.decompose.router.stack.navigate
 import com.arkivanov.decompose.router.stack.pop
 import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.Value
+import com.arkivanov.essenty.lifecycle.Lifecycle
 import com.arkivanov.essenty.lifecycle.doOnDestroy
 import com.arkivanov.essenty.lifecycle.doOnStart
 import com.arkivanov.essenty.lifecycle.doOnStop
@@ -33,6 +34,7 @@ import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.telegram.TelegramLink
 import org.monogram.core.common.telegram.parseTelegramLink
 import org.monogram.core.database.OfflineWarmup
+import org.monogram.core.database.RetainedMediaSource
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.database.entity.UpdateCursorEntity
 import org.monogram.core.markup.NativeMarkupParser
@@ -48,6 +50,7 @@ import org.monogram.feature.auth.AuthComponent
 import org.monogram.feature.chats.ChatsComponent
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.SelectedTargetWarmup
+import org.monogram.feature.dialog.scheduled.ScheduledQueueComponent
 import org.monogram.feature.folders.FoldersComponent
 import org.monogram.feature.profile.ProfileComponent
 import org.monogram.feature.settings.AppUpdateController
@@ -74,6 +77,7 @@ class RootComponent(
     private val onIncomingShareConsumed: () -> Unit = {},
     val appUpdate: AppUpdateController? = null,
     private val bubbleChatId: Long? = null,
+    private val liveLocations: LiveLocationRuntime? = null,
     private val onRootBack: () -> Unit = {},
 ) : ComponentContext by componentContext {
 
@@ -87,8 +91,7 @@ class RootComponent(
             val storagePressure = (mediaRepository?.inflightBytes() ?: 0L) > 32L * 1024 * 1024
             val runtime = Runtime.getRuntime()
             val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
-            storagePressure || free < 32L * 1024 * 1024 ||
-                    RuntimePressure.blocked()
+            storagePressure || free < 32L * 1024 * 1024 || RuntimePressure.blocked()
         },
         load = { peer, anchor, limit, priority ->
             val usedBefore = mediaRepository?.usedByteCount() ?: 0L
@@ -100,8 +103,7 @@ class RootComponent(
             if (page is Outcome.Ok) warmup?.cacheHistoryPage(PeerId(peer), page.value)
             val used = (mediaRepository?.usedByteCount() ?: 0L) - usedBefore
             PerfLog.event(
-                "target_warmup",
-                "priority=$priority used_bytes=$used"
+                "target_warmup", "priority=$priority used_bytes=$used"
             )
         },
     )
@@ -112,6 +114,16 @@ class RootComponent(
 
     private val navigation = StackNavigation<Config>()
     private var expiringSession = false
+    private val draftSync =
+        warmup?.let { CloudDraftSync(it, client::getCloudDrafts, client::saveCloudDraft) }
+    private val outgoingTextSync = warmup?.let { cache ->
+        OutgoingTextSync(cache, send = { row ->
+            sendRetainedMessage(client, row)
+        }, sendMedia = { row -> sendRetainedMedia(cache, client, row) })
+    }
+    private var rootForeground =
+        lifecycle.state == Lifecycle.State.STARTED || lifecycle.state == Lifecycle.State.RESUMED
+    private var draftSyncAuthorized = false
     private var accountFlagsVersion = 0L
     private var listDetailVisible = false
     private val incomingShareState = MutableStateFlow<IncomingShare?>(null)
@@ -173,11 +185,10 @@ class RootComponent(
         }
     }
 
-    fun hasIncomingShare(): Boolean = pendingIncomingShare != null ||
-            stack.value.items.any { item ->
-                (item.configuration as? Config.Dialog)?.incomingShare != null ||
-                        (item.configuration as? Config.Recipients)?.request?.share != null
-            }
+    fun hasIncomingShare(): Boolean =
+        pendingIncomingShare != null || stack.value.items.any { item ->
+            (item.configuration as? Config.Dialog)?.incomingShare != null || (item.configuration as? Config.Recipients)?.request?.share != null
+        }
 
     fun cancelIncomingShare() {
         pendingIncomingShare = null
@@ -282,11 +293,9 @@ class RootComponent(
                 }
             }
 
-            is TelegramLink.PrivateChannel ->
-                openFromNotification(link.chatId, link.messageId)
+            is TelegramLink.PrivateChannel -> openFromNotification(link.chatId, link.messageId)
 
-            is TelegramLink.Invite, is TelegramLink.Share ->
-                AppLog.api("t.me", "link type ignored")
+            is TelegramLink.Invite, is TelegramLink.Share -> AppLog.api("t.me", "link type ignored")
         }
     }
 
@@ -295,28 +304,46 @@ class RootComponent(
         if (expiringSession) return true
         val cursor = batch.cursor?.let {
             UpdateCursorEntity(
-                SessionMetadataStore.KEY_PRIMARY_CURSOR,
-                it.pts,
-                it.qts,
-                it.date,
-                it.seq
+                SessionMetadataStore.KEY_PRIMARY_CURSOR, it.pts, it.qts, it.date, it.seq
             )
         }
-        return cache.applyDurableBatch(
-            batch.accountGeneration,
-            batch.batchId,
-            cursor,
-            batch.channelCursors
+        val releasedSources = mutableListOf<RetainedMediaSource>()
+        val committed = cache.applyDurableBatch(
+            batch.accountGeneration, batch.batchId, cursor, batch.channelCursors
         ) {
+            val receipts =
+                batch.updates.filterIsInstance<MtprotoUpdate.OutgoingMessageAcknowledged>()
+            val media = cache.outgoingMediaSends()
+                .filter { send -> send.items.any { item -> receipts.any { it.randomId == item.randomId } } }
+            val mediaIds = media.flatMap { send -> send.items.map { it.randomId } }.toSet()
             batch.updates.forEach {
+                if (it is MtprotoUpdate.OutgoingMessageAcknowledged && it.randomId in mediaIds) return@forEach
                 applyDurableUpdate(
-                    cache,
-                    it,
+                    cache, it, batch.accountGeneration, batch.batchId
+                )
+            }
+            media.forEach { send ->
+                val ids = send.items.map { it.randomId }.toSet()
+                cache.applyOutgoingMediaResults(
+                    send.batch.batchId,
+                    receipts.filter { it.randomId in ids }.map { it.randomId to it.result },
+                    cache.outgoingAccountEpoch(),
                     batch.accountGeneration,
                     batch.batchId
                 )
+                releasedSources += send.items.map { it.source }
             }
         }
+        if (committed && releasedSources.isNotEmpty()) {
+            try {
+                cache.outgoingMediaFiles?.release(releasedSources)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                AppLog.warn("outgoing", "retained media cleanup deferred")
+            }
+        }
+        return committed
     }
 
     private suspend fun applyDurableUpdate(
@@ -326,37 +353,51 @@ class RootComponent(
         acceptedOrder: Long,
     ) {
         when (update) {
-            is MtprotoUpdate.NewMessage ->
-                cache.applyIncomingMessage(update.message, accountGeneration, acceptedOrder)
-
-            is MtprotoUpdate.MessageEdited -> cache.applyMessageEdit(update.message)
-            is MtprotoUpdate.MessagesDeleted -> cache.deleteMessages(
-                update.chatId,
-                update.messageIds
+            is MtprotoUpdate.NewMessage -> cache.applyIncomingMessage(
+                update.message,
+                accountGeneration,
+                acceptedOrder
             )
 
-            is MtprotoUpdate.MessageReactions ->
-                cache.applyReactions(update.chatId, update.messageId, update.reactionsJson)
+            is MtprotoUpdate.OutgoingMessageAcknowledged -> cache.applyOutgoingResult(
+                update.randomId, update.result, accountGeneration, acceptedOrder,
+            )
+
+            is MtprotoUpdate.ScheduledMessageChanged -> cache.applyScheduledMessage(update.message)
+            is MtprotoUpdate.ScheduledMessagesDeleted -> cache.deleteScheduledMessages(
+                update.chatId, update.messageIds
+            )
+
+            is MtprotoUpdate.DraftChanged -> cache.applyCloudDraft(update.draft)
+            is MtprotoUpdate.MessageEdited -> cache.applyMessageEdit(update.message)
+            is MtprotoUpdate.MessagesDeleted -> cache.deleteMessages(
+                update.chatId, update.messageIds
+            )
+
+            is MtprotoUpdate.MessageReactions -> cache.applyReactions(
+                update.chatId,
+                update.messageId,
+                update.reactionsJson
+            )
 
             is MtprotoUpdate.ReadOutbox -> cache.applyOutboxRead(update.chatId, update.maxId)
-            is MtprotoUpdate.DiscussionInbox ->
-                cache.applyDiscussionRead(update.channelId, update.topMessageId, update.readMaxId)
+            is MtprotoUpdate.DiscussionInbox -> cache.applyDiscussionRead(
+                update.channelId,
+                update.topMessageId,
+                update.readMaxId
+            )
 
             is MtprotoUpdate.ReadInbox -> cache.applyInboxRead(
-                update.chatId,
-                update.maxId,
-                update.stillUnread
+                update.chatId, update.maxId, update.stillUnread
             )
 
             is MtprotoUpdate.ChatsChanged -> cache.upsertChats(update.chats)
             is MtprotoUpdate.UnreadMentionsDelta -> cache.addUnreadMentions(
-                update.chatId,
-                update.delta
+                update.chatId, update.delta
             )
 
             is MtprotoUpdate.UnreadReactionsDelta -> cache.addUnreadReactions(
-                update.chatId,
-                update.delta
+                update.chatId, update.delta
             )
 
             else -> Unit
@@ -370,10 +411,13 @@ class RootComponent(
         stack.subscribe { childStack ->
             val dialog = childStack.active.configuration as? Config.Dialog
             pushRegistration?.onVisibleChat(
-                dialog?.chatId,
-                dialog?.threadTopMsgId?.takeIf { it > 0 })
+                dialog?.chatId, dialog?.threadTopMsgId?.takeIf { it > 0 })
         }
         lifecycle.doOnStart {
+            if (draftSyncAuthorized && !expiringSession) {
+                draftSync?.requestRefresh()
+                outgoingTextSync?.requestResume()
+            }
             if (!stack.value.active.configuration.isAuthArea()) {
                 scope.launch {
                     sessionStore?.readAuthorizedUserId()?.value?.let {
@@ -385,7 +429,10 @@ class RootComponent(
                 }
             }
         }
-        lifecycle.doOnDestroy { scope.cancel() }
+        lifecycle.doOnDestroy {
+            liveLocations?.setForeground(this@RootComponent, false)
+            scope.cancel()
+        }
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             client.sessionLost().collect { expireSession() }
         }
@@ -397,6 +444,13 @@ class RootComponent(
                 if (expiringSession) return@collect
                 try {
                     when (update) {
+                        is MtprotoUpdate.SyncState -> {
+                            if (!update.isSyncing && draftSyncAuthorized) {
+                                draftSync?.requestRefresh()
+                                outgoingTextSync?.requestResume()
+                            }
+                        }
+
                         is MtprotoUpdate.FoldersChanged -> warmup?.replaceFolders(update.folders)
                         is MtprotoUpdate.ChatsChanged -> {
                             warmup?.upsertChats(update.chats)
@@ -404,14 +458,11 @@ class RootComponent(
                         }
 
                         is MtprotoUpdate.PeerStatus -> sessionStore?.updatePeerStatus(
-                            update.userId.value,
-                            update.status,
-                            update.statusAt
+                            update.userId.value, update.status, update.statusAt
                         )
 
                         is MtprotoUpdate.PeerEmojiStatus -> sessionStore?.updatePeerEmojiStatus(
-                            update.userId.value,
-                            update.documentId
+                            update.userId.value, update.documentId
                         )
 
                         is MtprotoUpdate.ReadInbox -> {
@@ -456,6 +507,16 @@ class RootComponent(
             val bridged = client as? BridgedMtprotoClient ?: return@launch
             val result = withContext(Dispatchers.IO) { bridged.isAuthorized() }
             if (result is Outcome.Ok && result.value) {
+                if (!expiringSession) {
+                    warmup?.activateOutgoingAccount()
+                    if (expiringSession) {
+                        warmup?.deactivateOutgoingAccount(); return@launch
+                    }
+                    draftSyncAuthorized = true
+                    draftSync?.start(scope)
+                    outgoingTextSync?.start(scope)
+                    startLiveLocations()
+                }
                 if (!expiringSession && stack.value.active.configuration.isAuthArea()) {
                     navigation.replaceAll(Config.Home)
                     pendingIncomingShare?.let(::openIncomingShare)
@@ -466,11 +527,24 @@ class RootComponent(
             }
         }
         lifecycle.doOnStart {
+            rootForeground = true
+            liveLocations?.setForeground(this@RootComponent, true)
             scope.launch(Dispatchers.IO) { client.updateStatus(offline = false) }
         }
         lifecycle.doOnStop {
+            rootForeground = false
+            liveLocations?.setForeground(this@RootComponent, false)
             scope.launch(Dispatchers.IO) { client.updateStatus(offline = true) }
         }
+    }
+
+    private suspend fun startLiveLocations() {
+        liveLocations?.setForeground(this, rootForeground)
+        liveLocations?.startAuthorized()
+    }
+
+    private suspend fun stopLiveLocations() {
+        liveLocations?.stopAuthorized()
     }
 
     private suspend fun refreshAccountFlags() {
@@ -499,6 +573,11 @@ class RootComponent(
     private suspend fun expireSession() {
         if (expiringSession) return
         expiringSession = true
+        draftSyncAuthorized = false
+        warmup?.deactivateOutgoingAccount()
+        draftSync?.stop()
+        outgoingTextSync?.stop()
+        stopLiveLocations()
         accountFlagsVersion++
         accountState.isPremium = false
         // Destroy account screens and their collectors before clearing their cache.
@@ -514,7 +593,7 @@ class RootComponent(
 
     private fun child(config: Config, context: ComponentContext): Child = when (config) {
         is Config.Recipients -> Child.Recipients(
-            RecipientPickerComponent(context, config.request, client, warmup, mediaRepository) {
+            RecipientPickerComponent(context, config.request, client, warmup) {
                 navigation.pop()
             },
         )
@@ -528,6 +607,15 @@ class RootComponent(
                     expiringSession = false
                     scope.launch {
                         sessionStore?.saveAuthorized(session)
+                        if (expiringSession) return@launch
+                        warmup?.activateOutgoingAccount()
+                        if (expiringSession) {
+                            warmup?.deactivateOutgoingAccount(); return@launch
+                        }
+                        draftSyncAuthorized = true
+                        draftSync?.start(scope)
+                        outgoingTextSync?.start(scope)
+                        startLiveLocations()
                         pushRegistration?.setAccountUserId(session.userId.value)
                         refreshAccountFlags()
                         runCatching { pushRegistration?.reregister() }
@@ -559,6 +647,7 @@ class RootComponent(
 
         is Config.Dialog -> {
             targetWarmup.promote(config.chatId)
+            val liveDialogEpoch = warmup?.outgoingAccountEpoch()
             val component = DialogComponent(
                 componentContext = context,
                 storeFactory = storeFactory,
@@ -573,6 +662,18 @@ class RootComponent(
                 markup = NativeMarkupParser(),
                 isPremium = { accountState.isPremium },
                 onBack = ::onBack,
+                onOpenScheduledQueue = {
+                    navigation.navigate { uniqueStack(it, Config.ScheduledQueue(config.chatId)) }
+                },
+                onResumeLiveLocation = liveLocations?.takeIf { liveDialogEpoch != null }
+                    ?.let { runtime -> { id -> runtime.resume(id, liveDialogEpoch) } },
+                onStopLiveLocation = liveLocations?.takeIf { liveDialogEpoch != null }
+                    ?.let { runtime -> { id -> runtime.requestStop(id, liveDialogEpoch) } },
+                liveLocationErrors = liveLocations?.errors ?: kotlinx.coroutines.flow.flowOf(
+                    emptyMap()
+                ),
+                liveLocationFailure = liveLocations?.failure
+                    ?: kotlinx.coroutines.flow.flowOf(null),
                 showBackButton = config.chatId != bubbleChatId || config.threadTopMsgId != 0,
                 onOpenProfile = ::openProfile,
                 onOpenChat = { peer, jump, threadTop ->
@@ -606,6 +707,18 @@ class RootComponent(
             Child.Dialog(component)
         }
 
+        is Config.ScheduledQueue -> Child.ScheduledQueue(
+            ScheduledQueueComponent(
+                context,
+                storeFactory,
+                client,
+                warmup,
+                PeerId(config.chatId),
+                ::onBack,
+                mediaRepository,
+            ),
+        )
+
         is Config.Profile -> Child.Profile(
             ProfileComponent(
                 componentContext = context,
@@ -632,9 +745,24 @@ class RootComponent(
                 buildStamp = "${BuildConfig.BUILD_TYPE} · ${BuildConfig.GIT_COMMIT}",
                 onBack = { navigation.pop() },
                 onOpenProfile = ::openProfile,
+                onBeforeLogout = {
+                    expiringSession = true
+                    draftSyncAuthorized = false
+                    warmup?.deactivateOutgoingAccount()
+                    draftSync?.stop()
+                    outgoingTextSync?.stop()
+                    stopLiveLocations()
+                },
                 onLoggedOut = {
-                    MediaPlaybackHolder.peek()?.stop()
-                    navigation.replaceAll(Config.Auth)
+                    expiringSession = true
+                    draftSyncAuthorized = false
+                    scope.launch {
+                        draftSync?.stop()
+                        outgoingTextSync?.stop()
+                        stopLiveLocations()
+                        MediaPlaybackHolder.peek()?.stop()
+                        navigation.replaceAll(Config.Auth)
+                    }
                 },
                 pushRegistration = pushRegistration,
                 debugNotifications = BuildConfig.DEBUG,
@@ -659,6 +787,9 @@ class RootComponent(
         class Auth(val component: AuthComponent) : Child()
         object Proxy : Child()
         class Home(val component: HomeComponent) : Child()
+        class ScheduledQueue(val component: ScheduledQueueComponent) :
+            Child()
+
         class Dialog(val component: DialogComponent) : Child()
         class Profile(val component: ProfileComponent) : Child()
         class Settings(
@@ -690,6 +821,9 @@ class RootComponent(
             val incomingShareId: Long = 0L,
             val incomingShare: IncomingShare? = null,
         ) : Config
+
+        @Serializable
+        data class ScheduledQueue(val chatId: Long) : Config
 
         @Serializable
         data class Profile(val peerId: Long) : Config

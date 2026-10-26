@@ -63,6 +63,20 @@ fun serviceMessageTemplateId(kind: String): Int = when (kind) {
     "suggested_post_refund" -> R.string.service_suggested_post_refund
     "gift_ton" -> R.string.service_gift_ton
     "suggest_birthday" -> R.string.service_suggest_birthday
+    "star_gift_offer" -> R.string.service_star_gift_offer
+    "star_gift_offer_declined" -> R.string.service_star_gift_offer_declined
+    "creator_pending" -> R.string.service_creator_pending
+    "creator_change" -> R.string.service_creator_change
+    "noforwards_toggle" -> R.string.service_noforwards_toggle
+    "noforwards_request" -> R.string.service_noforwards_request
+    "poll_answer_added" -> R.string.service_poll_answer_added
+    "poll_answer_removed" -> R.string.service_poll_answer_removed
+    "managed_bot" -> R.string.service_managed_bot
+    "community_change" -> R.string.service_community_change
+    "join_community" -> R.string.service_join_community
+    "gram_transfer" -> R.string.service_gram_transfer
+    "ton_connect" -> R.string.service_ton_connect
+    "paid_token_used" -> R.string.service_paid_token_used
     else -> R.string.service_unknown
 }
 

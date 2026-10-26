@@ -241,6 +241,10 @@ class BridgedMtprotoClientHistoryTest {
                 "Patched",
                 seen.filterIsInstance<MtprotoUpdate.ChatsChanged>().single().chats.single().title,
             )
+            assertTrue(
+                seen.filterIsInstance<MtprotoUpdate.ChatsChanged>()
+                    .single().chats.single().canSendPolls
+            )
             assertEquals(
                 listOf(false, true, false),
                 seen.filterIsInstance<MtprotoUpdate.SyncState>().map { it.isSyncing },
@@ -410,6 +414,7 @@ class BridgedMtprotoClientHistoryTest {
         )
         val joinedChat = (joined.getChats() as Outcome.Ok).value.single()
         assertFalse(joinedChat.left)
+        assertFalse(joinedChat.canSendPolls)
         assertFalse(joinedChat.isGroup)
         assertEquals(2, joinedChat.unreadMentionsCount)
         assertEquals(1, joinedChat.unreadReactionsCount)
@@ -825,6 +830,132 @@ class BridgedMtprotoClientHistoryTest {
         client.close()
     }
 
+    @Test
+    fun checklistTextEditsKeepNullableItemIdentityAndEntitySnapshots() = runBlocking {
+        val captured = mutableListOf<uniffi.monogram_mtproto.ChecklistTextEditDto>()
+        val native = object : RecordingNative() {
+            override fun removeChecklistItem(
+                handle: Long,
+                chatId: Long,
+                messageId: Int,
+                edit: uniffi.monogram_mtproto.ChecklistTextEditDto
+            ) {
+                assertEquals(42L, chatId); assertEquals(37, messageId); captured += edit
+            }
+
+            override fun editChecklistText(
+                handle: Long,
+                chatId: Long,
+                messageId: Int,
+                edit: uniffi.monogram_mtproto.ChecklistTextEditDto
+            ) {
+                assertEquals(42L, chatId); assertEquals(37, messageId); captured += edit
+            }
+        }
+        val client = BridgedMtprotoClient(
+            TelegramCredentials(1, "hash"),
+            "checklist-text.session",
+            native = native,
+            refreshDcSidecar = {})
+        val entities = listOf(org.monogram.core.models.TextEntity("bold", 3, 4))
+        try {
+            for (id in listOf(null, 0, -7, Int.MAX_VALUE)) {
+                val spec = org.monogram.core.models.ChecklistTextEdit(
+                    id,
+                    "😀 task",
+                    entities,
+                    "Old",
+                    emptyList()
+                )
+                assertTrue(client.editChecklistText(PeerId(42), 37, spec) is Outcome.Ok)
+                assertEquals(
+                    uniffi.monogram_mtproto.ChecklistTextEditDto(
+                        id, "😀 task",
+                        org.monogram.core.models.TextEntities.serialize(entities), "Old", null
+                    ), captured.last()
+                )
+            }
+            assertEquals(4, captured.size)
+            for (id in listOf(0, -7, Int.MAX_VALUE)) {
+                val spec = org.monogram.core.models.ChecklistTextEdit(
+                    id,
+                    "",
+                    emptyList(),
+                    "😀 task",
+                    entities
+                )
+                assertTrue(client.removeChecklistItem(PeerId(42), 37, spec) is Outcome.Ok)
+                assertEquals(
+                    uniffi.monogram_mtproto.ChecklistTextEditDto(
+                        id, "", null, "😀 task",
+                        org.monogram.core.models.TextEntities.serialize(entities)
+                    ), captured.last()
+                )
+            }
+            assertTrue(
+                client.removeChecklistItem(
+                    PeerId(42), 37,
+                    org.monogram.core.models.ChecklistTextEdit(
+                        null,
+                        "",
+                        emptyList(),
+                        "Old",
+                        emptyList()
+                    )
+                ) is Outcome.Err
+            )
+            assertEquals(7, captured.size)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun mediaReplacementPreservesTargetAndMapsFloodWait() = runBlocking {
+        var observed: uniffi.monogram_mtproto.UploadItemDto? = null
+        val native = object : RecordingNative() {
+            override fun replaceUploadedMedia(
+                handle: Long, chatId: Long, messageId: Int, expectedKey: String,
+                item: uniffi.monogram_mtproto.UploadItemDto
+            ): uniffi.monogram_mtproto.MessageDto {
+                assertEquals(42L, chatId); assertEquals(
+                    37,
+                    messageId
+                ); assertEquals("photo:fixture", expectedKey)
+                observed = item
+                throw uniffi.monogram_mtproto.MtprotoException.Message("RPC 420: FLOOD_WAIT_60")
+            }
+        }
+        val client = BridgedMtprotoClient(
+            TelegramCredentials(1, "hash"),
+            "media-replacement.session",
+            native = native,
+            refreshDcSidecar = {})
+        try {
+            val result = client.replaceUploadedMedia(
+                PeerId(42), 37, "photo:fixture",
+                org.monogram.core.models.UploadItem(
+                    "synthetic-unused",
+                    "photo",
+                    mimeType = "image/jpeg",
+                    fileName = "fixture.jpg"
+                )
+            )
+            assertTrue(result is Outcome.Err)
+            assertEquals(60, (result as Outcome.Err).telegramError.retryAfterSeconds)
+            assertEquals("photo", observed!!.kind); assertEquals(
+                "synthetic-unused",
+                observed!!.path
+            )
+            assertEquals(
+                "",
+                observed!!.caption
+            ); org.junit.Assert.assertNull(observed!!.entitiesJson)
+        } finally {
+            client.close()
+        }
+    }
+
     private fun sampleChat(title: String) = ChatDto(
         id = 42L,
         title = title,
@@ -851,6 +982,7 @@ class BridgedMtprotoClientHistoryTest {
         canView = true,
         canSendPlain = true,
         canSendPhotos = true,
+        canSendPolls = true,
         canForward = true,
         canDeleteOthers = false,
         emojiStatusDocumentId = null,
@@ -941,6 +1073,7 @@ class BridgedMtprotoClientHistoryTest {
                     canView = true,
                     canSendPlain = true,
                     canSendPhotos = true,
+                    canSendPolls = false,
                     canForward = true,
                     canDeleteOthers = false,
                     emojiStatusDocumentId = null,

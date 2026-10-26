@@ -4,12 +4,19 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 import org.monogram.core.database.entity.MetaEntity
 
 @Dao
 interface MetaDao {
     @Query("SELECT * FROM meta WHERE key = :key LIMIT 1")
     suspend fun get(key: String): MetaEntity?
+
+    @Query("SELECT * FROM meta WHERE `key` = :key LIMIT 1")
+    fun observe(key: String): Flow<MetaEntity?>
+
+    @Query("SELECT * FROM meta WHERE `key` LIKE :pattern")
+    fun observeLike(pattern: String): Flow<List<MetaEntity>>
 
     @Query("SELECT `key` FROM meta WHERE `key` LIKE :pattern")
     suspend fun keysLike(pattern: String): List<String>

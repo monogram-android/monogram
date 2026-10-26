@@ -276,4 +276,18 @@
     <string name="media_copy_hdr_warning">Görüntü kopyalandı. Bazı uygulamalar HDR desteklemeyebilir</string>
     <string name="status_fresh_authorization">Güvenliğiniz için giriş yaptıktan hemen sonra bu işlem kullanılamaz. 24 saat sonra yeniden deneyin veya eski bir oturum kullanın</string>
     <string name="passkey_client_data_mismatch">Kimlik bilgisi sağlayıcısı farklı giriş verilerini imzaladı. Monogram için ayrıcalıklı uygulama ayarlarını kontrol edin</string>
+    <string name="service_star_gift_offer">%1$s bir hediye teklifi aldı</string>
+    <string name="service_star_gift_offer_declined">Hediye teklifi reddedildi</string>
+    <string name="service_creator_pending">%2$s yeni sahip olacak</string>
+    <string name="service_creator_change">%2$s yeni sahip oldu</string>
+    <string name="service_noforwards_toggle">İçerik koruması değişti</string>
+    <string name="service_noforwards_request">İçerik koruması değişikliği istendi</string>
+    <string name="service_poll_answer_added">Ankete yanıt eklendi</string>
+    <string name="service_poll_answer_removed">Anketten yanıt kaldırıldı</string>
+    <string name="service_managed_bot">%2$s botu oluşturuldu</string>
+    <string name="service_community_change">Topluluk değişti</string>
+    <string name="service_join_community">%1$s bir topluluk aracılığıyla katıldı</string>
+    <string name="service_gram_transfer">%1$s Gram gönderdi</string>
+    <string name="service_ton_connect">%2$s tarafından TON Connect isteği</string>
+    <string name="service_paid_token_used">Ücretli mesaj belirteci kullanıldı</string>
 </resources>

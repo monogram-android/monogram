@@ -3,6 +3,7 @@ package org.monogram.network.bridge.updates
 import org.monogram.core.common.AppLog
 import org.monogram.core.models.PeerId
 import org.monogram.network.bridge.MtprotoUpdate
+import org.monogram.network.bridge.message.toModel as toDraftModel
 import org.monogram.network.bridge.chat.toChatModels
 import uniffi.monogram_mtproto.UpdateEventDto
 import org.monogram.network.bridge.message.toModel as toMessageModel
@@ -13,6 +14,22 @@ import org.monogram.network.bridge.message.toModel as toMessageModel
  */
 internal fun UpdateEventDto.toMtprotoUpdates(): List<MtprotoUpdate> = when (val event = this) {
     is UpdateEventDto.ChatsChanged, is UpdateEventDto.FoldersChanged -> emptyList()
+
+    is UpdateEventDto.OutgoingMessageAcknowledged -> listOf(
+        MtprotoUpdate.OutgoingMessageAcknowledged(
+            event.randomId, event.result.toMessageModel(),
+        )
+    )
+
+    is UpdateEventDto.ScheduledMessageChanged -> listOf(MtprotoUpdate.ScheduledMessageChanged(event.message.toMessageModel()))
+    is UpdateEventDto.ScheduledMessagesDeleted -> listOf(
+        MtprotoUpdate.ScheduledMessagesDeleted(
+            PeerId(event.chatId), event.messageIds, event.sentMessageIds,
+        )
+    )
+
+    is UpdateEventDto.PollChanged -> listOf(MtprotoUpdate.PollChanged(event.pollId))
+    is UpdateEventDto.DraftChanged -> listOf(MtprotoUpdate.DraftChanged(event.draft.toDraftModel()))
 
     is UpdateEventDto.NewMessage -> {
         AppLog.api("updates", "newMessage chat=${event.message.chatId} id=${event.message.id}")

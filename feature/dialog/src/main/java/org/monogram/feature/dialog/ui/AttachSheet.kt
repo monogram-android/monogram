@@ -61,6 +61,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -77,7 +79,6 @@ import org.monogram.network.http.MediaRepository
 import kotlin.math.abs
 
 private val HandleTopPadding = 16.dp
-private const val SheetBackdropBlurPx = 40
 private val FabSize = 56.dp
 private const val BodyCrossfadeMs = 150
 private const val TallSheetFraction = 0.92f
@@ -122,23 +123,14 @@ internal fun AttachSheet(
     onPickVideo: () -> Unit,
     onPickFile: () -> Unit,
     onSendLocation: () -> Unit,
+    canSendLocation: Boolean = true,
+    onCreatePoll: (() -> Unit)? = null,
+    onCreateChecklist: (() -> Unit)? = null,
     onSendDocument: (Long) -> Unit,
     onDismiss: () -> Unit,
     requestHide: androidx.compose.runtime.MutableState<(() -> Unit)?>,
 ) {
     val scope = rememberCoroutineScope()
-    val sheetView = LocalView.current
-    DisposableEffect(sheetView) {
-        val window = (sheetView.parent as? DialogWindowProvider)?.window
-        if (window != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            window.setBackgroundBlurRadius(SheetBackdropBlurPx)
-        }
-        onDispose {
-            if (window != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                window.setBackgroundBlurRadius(0)
-            }
-        }
-    }
     val retryMedia = rememberUpdatedState(onRetryMedia)
     val loadMoreMedia = rememberUpdatedState(onLoadMoreMedia)
     val sheetState = rememberBottomSheetState(
@@ -217,15 +209,12 @@ internal fun AttachSheet(
                 if (wrapState) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         AttachDragHandle()
-                        NoAccessBody(
+                        if (canSendPhotos) NoAccessBody(
                             denied = accessDenied,
                             canSendPhotos = canSendPhotos,
-                            canSendFiles = canSendFiles,
                             onRequestAccess = onRequestAccess,
                             onPickPhoto = { leave(onPickPhoto) },
                             onPickVideo = { leave(onPickVideo) },
-                            onPickFile = { leave(onPickFile) },
-                            onSendLocation = { leave(onSendLocation) },
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         AttachDock(
@@ -235,11 +224,15 @@ internal fun AttachSheet(
                             onSelectGallery = { body = AttachBody.Gallery.name },
                             onPickFile = { leave(onPickFile) },
                             onSendLocation = { leave(onSendLocation) },
+                            onCreatePoll = onCreatePoll?.let { action -> { leave(action) } },
+                            canSendLocation = canSendLocation,
+                            onCreateChecklist = onCreateChecklist?.let { action -> { leave(action) } },
                         )
                     }
                     return@Crossfade
                 }
-                val dockBlock = DockTopPadding + AttachDockHeight + navBarInset()
+                var dockHeightPx by remember { mutableIntStateOf(0) }
+                val dockBlock = with(density) { dockHeightPx.toDp() }
                 val tileSizePx = with(density) {
                     ((maxWidth - TileGap * (TileColumns - 1)) / TileColumns).roundToPx()
                 }
@@ -302,8 +295,18 @@ internal fun AttachSheet(
                                 onSelectGallery = { body = AttachBody.Gallery.name },
                                 onPickFile = { leave(onPickFile) },
                                 onSendLocation = { leave(onSendLocation) },
+                                onCreatePoll = onCreatePoll?.let { action -> { leave(action) } },
+                                canSendLocation = canSendLocation,
+                                onCreateChecklist = onCreateChecklist?.let { action ->
+                                    {
+                                        leave(
+                                            action
+                                        )
+                                    }
+                                },
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
+                                    .onSizeChanged { dockHeightPx = it.height }
                                     .blockSheetDrag(),
                             )
                         }
@@ -408,6 +411,7 @@ private fun LeaveComposerClear(gap: Dp) {
             }
             window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
         }
+
         val listener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
         decor.addOnLayoutChangeListener(listener)
         decor.post { apply() }
@@ -431,9 +435,9 @@ private fun SendFab(count: Int, onClick: () -> Unit, modifier: Modifier = Modifi
     AnimatedVisibility(
         visible = count > 0,
         enter = scaleIn(animationSpec = motion.fastSpatialSpec(), initialScale = 0.8f) +
-            fadeIn(animationSpec = motion.fastEffectsSpec()),
+                fadeIn(animationSpec = motion.fastEffectsSpec()),
         exit = scaleOut(animationSpec = motion.fastSpatialSpec()) +
-            fadeOut(animationSpec = motion.fastEffectsSpec()),
+                fadeOut(animationSpec = motion.fastEffectsSpec()),
         modifier = modifier,
     ) {
         BadgedBox(badge = { Badge { Text(count.toString()) } }) {

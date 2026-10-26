@@ -98,6 +98,7 @@ class BridgeCatchupDeviceTest {
                 canView = true,
                 canSendPlain = true,
                 canSendPhotos = true,
+                canSendPolls = false,
                 canForward = true,
                 canDeleteOthers = false,
                 emojiStatusDocumentId = null,

@@ -310,4 +310,18 @@
     <string name="media_copy_hdr_warning">Obrázok skopírovaný. Niektoré aplikácie nemusia podporovať HDR</string>
     <string name="status_fresh_authorization">Z bezpečnostných dôvodov táto akcia nie je dostupná hneď po prihlásení. Skúste to po 24 hodinách alebo použite staršiu reláciu</string>
     <string name="passkey_client_data_mismatch">Poskytovateľ podpísal iné prihlasovacie údaje. Skontrolujte jeho nastavenia privilegovaných aplikácií pre Monogram</string>
+    <string name="service_star_gift_offer">%1$s dostal(a) ponuku darčeka</string>
+    <string name="service_star_gift_offer_declined">Ponuka darčeka bola odmietnutá</string>
+    <string name="service_creator_pending">%2$s sa stane novým vlastníkom</string>
+    <string name="service_creator_change">%2$s sa stal(a) novým vlastníkom</string>
+    <string name="service_noforwards_toggle">Ochrana obsahu sa zmenila</string>
+    <string name="service_noforwards_request">Požiadaná zmena ochrany obsahu</string>
+    <string name="service_poll_answer_added">Do ankety bola pridaná odpoveď</string>
+    <string name="service_poll_answer_removed">Z ankety bola odstránená odpoveď</string>
+    <string name="service_managed_bot">Bol vytvorený bot %2$s</string>
+    <string name="service_community_change">Komunita sa zmenila</string>
+    <string name="service_join_community">%1$s sa pridal(a) cez komunitu</string>
+    <string name="service_gram_transfer">%1$s previedol(a) Grams</string>
+    <string name="service_ton_connect">Žiadosť TON Connect od %2$s</string>
+    <string name="service_paid_token_used">Použitý token platenej správy</string>
 </resources>

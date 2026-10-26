@@ -71,4 +71,11 @@
     <string name="chats_unread_mentions">Непрочитані згадки</string>
     <string name="chats_unread_reactions">Непрочитані реакції</string>
     <string name="chats_proxy_status">Proxy connection status</string>
+    <string name="chats_preview_giveaway">Розіграш</string>
+    <string name="chats_preview_giveaway_results">Підсумки розіграшу</string>
+    <string name="chats_preview_paid_media">Платний контент</string>
+    <string name="chats_preview_game">Гра</string>
+    <string name="chats_preview_invoice">Рахунок</string>
+    <string name="chats_preview_story">Історія</string>
+    <string name="chats_preview_live_stream">Пряма трансляція</string>
 </resources>

@@ -50,6 +50,16 @@ import org.monogram.network.http.MediaRepository
 import org.monogram.network.http.photoDisplayCacheKey
 import java.io.File
 
+private val announcementKinds = setOf(
+    "giveaway",
+    "giveaway_results",
+    "paid_media",
+    "game",
+    "invoice",
+    "story",
+    "video_stream",
+)
+
 @Composable
 fun MessageMedia(
     message: Message,
@@ -64,7 +74,7 @@ fun MessageMedia(
 ) {
     val kind = message.mediaKind ?: return
     val animationEnabled = LocalMediaAnimationEnabled.current
-    if (kind == "unsupported") return
+    if (kind == "unsupported" || kind in announcementKinds) return
     val localFile = localOutgoingFile(message.mediaCacheKey)
         ?: localOutgoingFile(message.thumbCacheKey)
     if (localFile != null) {

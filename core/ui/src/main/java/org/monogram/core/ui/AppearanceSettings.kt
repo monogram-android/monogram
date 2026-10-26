@@ -35,13 +35,17 @@ internal fun restoreRightComposerSlot(raw: String?, legacyShowEmoji: Boolean): C
     if (raw != null) restoreComposerSlot(raw, ComposerSlotAction.Emoji)
     else if (legacyShowEmoji) ComposerSlotAction.Emoji else ComposerSlotAction.None
 
-fun ComposerSlotAction.canSend(canSendPlain: Boolean, canSendPhotos: Boolean): Boolean = when (this) {
+fun ComposerSlotAction.canSend(
+    canSendPlain: Boolean,
+    canSendPhotos: Boolean,
+    canSendStructured: Boolean = false
+): Boolean = when (this) {
     ComposerSlotAction.None -> false
     ComposerSlotAction.Emoji, ComposerSlotAction.Location -> canSendPlain
     ComposerSlotAction.Photos -> canSendPhotos
+    ComposerSlotAction.Attach -> canSendPlain || canSendPhotos || canSendStructured
     ComposerSlotAction.Stickers,
     ComposerSlotAction.Gifs,
-    ComposerSlotAction.Attach,
     ComposerSlotAction.File,
     -> canSendPlain || canSendPhotos
 }

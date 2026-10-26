@@ -1,5 +1,9 @@
 package org.monogram.core.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -8,15 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.AttachFile
@@ -41,17 +41,18 @@ import org.monogram.core.ui.ComposerSlotAction
 import org.monogram.core.ui.ComposerStyle
 import org.monogram.core.ui.loading.MonogramBusyIconButton
 
-fun composerSlotIcon(action: ComposerSlotAction, style: ComposerStyle): ImageVector = when (action) {
-    ComposerSlotAction.None -> Icons.Outlined.Block
-    ComposerSlotAction.Emoji -> Icons.Outlined.EmojiEmotions
-    ComposerSlotAction.Stickers -> Icons.Outlined.Interests
-    ComposerSlotAction.Gifs -> Icons.Outlined.GifBox
-    ComposerSlotAction.Attach ->
-        if (style == ComposerStyle.IOS) Icons.Outlined.Add else Icons.Outlined.AttachFile
-    ComposerSlotAction.Photos -> Icons.Outlined.PhotoLibrary
-    ComposerSlotAction.File -> Icons.AutoMirrored.Outlined.InsertDriveFile
-    ComposerSlotAction.Location -> Icons.Outlined.LocationOn
-}
+fun composerSlotIcon(action: ComposerSlotAction, style: ComposerStyle): ImageVector =
+    when (action) {
+        ComposerSlotAction.None -> Icons.Outlined.Block
+        ComposerSlotAction.Emoji -> Icons.Outlined.EmojiEmotions
+        ComposerSlotAction.Stickers -> Icons.Outlined.Interests
+        ComposerSlotAction.Gifs -> Icons.Outlined.GifBox
+        ComposerSlotAction.Attach -> if (style == ComposerStyle.IOS) Icons.Outlined.Add else Icons.Outlined.AttachFile
+
+        ComposerSlotAction.Photos -> Icons.Outlined.PhotoLibrary
+        ComposerSlotAction.File -> Icons.AutoMirrored.Outlined.InsertDriveFile
+        ComposerSlotAction.Location -> Icons.Outlined.LocationOn
+    }
 
 /** Shared geometry for the real composer and its settings preview. The caller owns text input. */
 @Composable
@@ -70,6 +71,9 @@ fun ChatComposerLayout(
     onLeft: () -> Unit,
     onRight: () -> Unit,
     onSend: () -> Unit,
+    onSendLongClick: (() -> Unit)? = null,
+    sendMenu: (@Composable () -> Unit)? = null,
+    sendOptionsDescription: String? = null,
     topTrailing: (@Composable BoxScope.() -> Unit)? = null,
     modifier: Modifier = Modifier,
     field: @Composable () -> Unit,
@@ -95,13 +99,17 @@ fun ChatComposerLayout(
         }
     }
     Row(
-        modifier = modifier.fillMaxWidth().animateContentSize(tween(220)),
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(tween(220)),
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         if (ios && showLeft) leftButton()
         Surface(
-            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 48.dp),
             shape = shape,
             color = animateColorAsState(
                 if (ios) scheme.surface.copy(alpha = 0.58f) else scheme.surfaceContainerHighest,
@@ -112,7 +120,9 @@ fun ChatComposerLayout(
                 Row(verticalAlignment = Alignment.Bottom) {
                     if (!ios && showLeft) leftButton()
                     Box(
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
                             .padding(
                                 start = if (ios || !showLeft) 14.dp else 0.dp,
                                 end = if (showRight) 0.dp else 12.dp,
@@ -126,29 +136,34 @@ fun ChatComposerLayout(
                 }
             }
         }
-        MonogramBusyIconButton(
-            onClick = onSend,
-            busy = sending,
-            enabled = sendEnabled,
-            modifier = Modifier.size(48.dp),
-            shape = if (style == ComposerStyle.Material) RoundedCornerShape(16.dp) else CircleShape,
-            colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
-                containerColor = sendColor,
-                contentColor = if (sendEnabled) scheme.onPrimary else scheme.onSurfaceVariant,
-                disabledContainerColor = sendColor,
-                disabledContentColor = if (sending) scheme.onPrimary else scheme.onSurfaceVariant,
-            ),
-            status = sendDescription,
-            icon = {
-                Icon(
-                    when {
-                        editing -> Icons.Outlined.Check
-                        ios -> Icons.Outlined.ArrowUpward
-                        else -> Icons.AutoMirrored.Outlined.Send
-                    },
-                    sendDescription,
-                )
-            },
-        )
+        Box {
+            MonogramBusyIconButton(
+                onClick = onSend,
+                onLongClick = onSendLongClick,
+                onLongClickLabel = sendOptionsDescription,
+                busy = sending,
+                enabled = sendEnabled,
+                modifier = Modifier.size(48.dp),
+                shape = if (style == ComposerStyle.Material) RoundedCornerShape(16.dp) else CircleShape,
+                colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                    containerColor = sendColor,
+                    contentColor = if (sendEnabled) scheme.onPrimary else scheme.onSurfaceVariant,
+                    disabledContainerColor = sendColor,
+                    disabledContentColor = if (sending) scheme.onPrimary else scheme.onSurfaceVariant,
+                ),
+                status = sendDescription,
+                icon = {
+                    Icon(
+                        when {
+                            editing -> Icons.Outlined.Check
+                            ios -> Icons.Outlined.ArrowUpward
+                            else -> Icons.AutoMirrored.Outlined.Send
+                        },
+                        sendDescription,
+                    )
+                },
+            )
+            sendMenu?.invoke()
+        }
     }
 }

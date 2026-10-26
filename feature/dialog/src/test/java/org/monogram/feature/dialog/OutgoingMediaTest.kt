@@ -59,6 +59,24 @@ class OutgoingMediaTest {
         )
         val matched = matchingPending(listOf(newer, older), incoming)
         assertEquals(-2, matched?.id?.id)
+        val pin = older.copy(mediaKind = "geo", fileName = "{\"lat\":1.0,\"long\":2.0}")
+        val second = pin.copy(id = MessageId(chat, -3), randomId = 3)
+        val receipt = pin.copy(id = MessageId(chat, 45), pending = false, randomId = null)
+        assertNull(matchingPending(listOf(pin, second), receipt))
+        assertNull(matchingPending(listOf(pin.copy(randomId = null)), receipt))
+        assertEquals(second, matchingPending(listOf(pin, second), receipt.copy(randomId = 3)))
+        assertNull(
+            matchingPending(
+                listOf(pin, second),
+                receipt.copy(randomId = 3, outgoing = false)
+            )
+        )
+        assertNull(
+            matchingPending(
+                listOf(pin, second),
+                receipt.copy(id = MessageId(PeerId(6), 45), randomId = 3)
+            )
+        )
     }
 
     @Test

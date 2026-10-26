@@ -69,6 +69,7 @@ internal class SettingsStoreFactory(
     private val appVersion: String,
     private val buildStamp: String,
     private val pushRegistration: PushRegistration?,
+    private val beforeLogout: suspend () -> Unit = {},
     private val clearKindCache: (String) -> Long = { kind ->
         mediaRepository?.clearKindCache(kind) ?: 0L
     },
@@ -185,6 +186,7 @@ internal class SettingsStoreFactory(
             dispatch(Msg.Loading(true))
             scope.launch {
                 try {
+                    beforeLogout()
                     pushRegistration?.unregisterPush()
                     when (val result = client.logout()) {
                         is Outcome.Err -> dispatch(Msg.Error(result.telegramError))

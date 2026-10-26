@@ -36,6 +36,7 @@ internal fun ChatDto.toModel(pinnedOrder: Int = Int.MAX_VALUE): Chat = Chat(
     canView = canView,
     canSendPlain = canSendPlain,
     canSendPhotos = canSendPhotos,
+    canSendPolls = canSendPolls,
     canForward = canForward,
     canDeleteOthers = canDeleteOthers,
     canManageTopics = canManageTopics,

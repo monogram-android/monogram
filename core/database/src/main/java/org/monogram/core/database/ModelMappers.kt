@@ -60,6 +60,7 @@ fun ChatEntity.toModel(): Chat = Chat(
     canDeleteOthers = canDeleteOthers,
     canManageTopics = canManageTopics,
     emojiStatusDocumentId = emojiStatusDocumentId,
+    canSendPolls = canSendPolls,
 )
 
 fun Chat.toEntity(): ChatEntity = ChatEntity(
@@ -101,6 +102,7 @@ fun Chat.toEntity(): ChatEntity = ChatEntity(
     canDeleteOthers = canDeleteOthers,
     canManageTopics = canManageTopics,
     emojiStatusDocumentId = emojiStatusDocumentId,
+    canSendPolls = canSendPolls,
 )
 
 fun FolderEntity.toModel(): Folder = Folder(

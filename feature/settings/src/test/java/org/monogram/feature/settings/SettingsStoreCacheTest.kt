@@ -119,7 +119,36 @@ class SettingsStoreCacheTest {
         }
     }
 
-    private class StubClient : MtprotoClient {
+    @Test
+    fun logoutWaitsForWorkersBeforeRpcAndCacheClearing() {
+        val steps = mutableListOf<String>()
+        val stopped = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val store = SettingsStoreFactory(
+            DefaultStoreFactory(),
+            StubClient { steps += "rpc" },
+            sessionStore = null,
+            warmup = object : org.monogram.core.database.OfflineWarmup() {
+                override suspend fun clearAccountCache() {
+                    steps += "clear"
+                }
+            },
+            mediaRepository = null,
+            appVersion = "test",
+            buildStamp = "test",
+            pushRegistration = null,
+            beforeLogout = { steps += "stop-start"; stopped.await(); steps += "stop-end" },
+        ).create()
+        try {
+            store.accept(SettingsStore.Intent.Logout)
+            assertEquals(listOf("stop-start"), steps)
+            stopped.complete(Unit)
+            assertEquals(listOf("stop-start", "stop-end", "rpc", "clear"), steps)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    private class StubClient(private val onLogout: suspend () -> Unit = {}) : MtprotoClient {
         override suspend fun connect() = Outcome.Ok(Unit)
         override suspend fun sendAuthCode(phone: String) = unused<AuthState.AwaitingCode>()
         override suspend fun signIn(phone: String, phoneCodeHash: String, code: String) = unused<AuthState>()
@@ -172,7 +201,9 @@ class SettingsStoreCacheTest {
         override fun updates(): Flow<MtprotoUpdate> = MutableSharedFlow()
         override fun sessionLost(): Flow<Unit> = emptyFlow()
         override fun libraryVersion() = "test"
-        override suspend fun logout() = Outcome.Ok(Unit)
+        override suspend fun logout(): Outcome<Unit> {
+            onLogout(); return Outcome.Ok(Unit)
+        }
         override fun close() = Unit
         private fun <T> unused(): Outcome<T> = Outcome.Err("unused")
     }

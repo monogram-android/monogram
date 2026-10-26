@@ -1,19 +1,27 @@
 package org.monogram.feature.dialog
 
+import android.os.Looper.getMainLooper
 import com.arkivanov.mvikotlin.core.store.SimpleBootstrapper
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import kotlinx.coroutines.Dispatchers
 import org.monogram.core.common.telegram.TelegramError
+import org.monogram.core.database.CloudDraftSyncStatus
 import org.monogram.core.database.OfflineWarmup
+import org.monogram.core.database.OutgoingSendSyncState
 import org.monogram.core.database.SessionMetadataStore
+import org.monogram.core.database.entity.OutgoingMediaSend
+import org.monogram.core.database.entity.OutgoingTextSendEntity
 import org.monogram.core.markup.KotlinMarkupParser
 import org.monogram.core.markup.MarkupParser
 import org.monogram.core.models.Chat
+import org.monogram.core.models.ContactImportAttempt
+import org.monogram.core.models.ContactSendSpec
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.InlineBotResults
 import org.monogram.core.models.Message
+import org.monogram.core.models.MessageSendOptions
 import org.monogram.core.models.MessageViewer
 import org.monogram.core.models.MessageViewers
 import org.monogram.core.models.OutboxReadState
@@ -34,6 +42,11 @@ import org.monogram.feature.dialog.store.DialogReducer
 import org.monogram.network.bridge.MtprotoClient
 import kotlin.coroutines.CoroutineContext
 
+data class ViewerPageState(
+    val loaded: Boolean = false, val loading: Boolean = false, val failed: Boolean = false,
+    val nextOffset: String? = null, val consumedOffsets: Set<String> = emptySet(),
+)
+
 interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
     sealed interface Intent {
         data object Refresh : Intent
@@ -48,6 +61,10 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data class SetDraftFormatting(val enabled: Boolean) : Intent
         data class SetDraftEntities(val entities: List<TextEntity>) : Intent
         data class AttachPhoto(val path: String) : Intent
+        data class ReplaceAttachment(
+            val messageId: Int, val expectedKey: String, val item: UploadItem
+        ) : Intent
+
         data class AttachMedia(val items: List<UploadItem>) : Intent
         data class AppendMedia(val items: List<UploadItem>) : Intent
         data object ClearAttach : Intent
@@ -57,7 +74,9 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data class SelectLinkPreview(val url: String) : Intent
         data class ReplyTo(val message: Message, val focusComposer: Boolean = false) : Intent
         data object ClearReply : Intent
-        data class Edit(val message: Message) : Intent
+        data object DiscardDraft : Intent
+        data object RetryDraftSync : Intent
+        data class Edit(val message: Message, val itemId: Int? = null) : Intent
         data object CancelEdit : Intent
         data class Delete(val messageId: Int, val revoke: Boolean) : Intent
         data class ForwardPick(val message: Message) : Intent
@@ -65,6 +84,31 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data class ForwardQuery(val value: String) : Intent
         data class ForwardTo(val chatId: PeerId) : Intent
         data object ClearForwardHint : Intent
+        data class LoadContactImport(val spec: ContactSendSpec) : Intent
+        data class ImportContact(
+            val spec: ContactSendSpec, val retry: Boolean
+        ) : Intent
+
+        data class SendContact(
+            val spec: ContactSendSpec, val options: MessageSendOptions = MessageSendOptions()
+        ) : Intent
+
+        data class SendChecklist(
+            val spec: org.monogram.core.models.ChecklistSendSpec,
+            val options: MessageSendOptions = MessageSendOptions()
+        ) : Intent
+
+        data class SendPoll(
+            val spec: org.monogram.core.models.PollSendSpec,
+            val options: MessageSendOptions = MessageSendOptions()
+        ) : Intent
+
+        data class SendWithOptions(
+            val text: String?, val options: MessageSendOptions
+        ) : Intent
+
+        data class RetryMediaSend(val batchId: Long) : Intent
+        data class RetryTextSend(val randomId: Long) : Intent
         data class Send(val text: String? = null) : Intent
         data object RetryFailed : Intent
         data class Search(val query: String) : Intent
@@ -125,9 +169,11 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
             val fromKeyboard: Boolean,
         ) : Intent
 
+        data class RemoveChecklistItem(val message: Message, val itemId: Int) : Intent
         data class ToggleChecklist(val messageId: Int, val itemId: Int) : Intent
 
-        /** Raw option bytes from the poll payload; the optimistic state arrives with the update. */
+        /** Raw option bytes from the poll payload. */
+        data class ClosePoll(val messageId: Int) : Intent
         data class VotePoll(val messageId: Int, val options: List<ByteArray>) : Intent
         data class AppendChecklistItems(
             val messageId: Int,
@@ -166,9 +212,23 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val senderTags: Map<PeerId, String> = emptyMap(),
         val draft: String = "",
         val draftFormatting: Boolean = false,
+        val draftReplyId: Int = 0,
+        val draftUnsupported: Boolean = false,
+        val outgoingMediaSends: List<OutgoingMediaSend> = emptyList(),
+        val contactImportAttempt: ContactImportAttempt? = null,
+        val contactImportBusy: Boolean = false,
+        val contactImportError: TelegramError? = null,
+        val contactAdmissionId: Long? = null,
+        val checklistAdmissionId: Long? = null,
+        val pollAdmissionId: Long? = null,
+        val outgoingTextSends: List<OutgoingTextSendEntity> = emptyList(),
+        val outgoingSendSync: OutgoingSendSyncState = OutgoingSendSyncState(),
+        val draftSync: CloudDraftSyncStatus = CloudDraftSyncStatus(),
         val draftEntities: List<TextEntity> = emptyList(),
         val draftPreview: StyledText? = null,
         val draftHasMarkdown: Boolean = false,
+        val attachmentRevision: Long = 0,
+        val composerRevision: Long = 0,
         val pendingAttach: List<UploadItem> = emptyList(),
         val linkPreview: WebpagePreview? = null,
         val linkPreviewUrl: String? = null,
@@ -179,6 +239,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val linkPreviewUrls: List<String> = emptyList(),
         val replyTo: Message? = null,
         val composerFocusSeq: Int = 0,
+        val editingChecklistItemId: Int? = null,
         val editing: Message? = null,
         val forwardMessage: Message? = null,
         val forwardTargets: List<Chat> = emptyList(),
@@ -188,6 +249,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val canView: Boolean = true,
         val canSendPlain: Boolean = true,
         val canSendPhotos: Boolean = true,
+        val canSendPolls: Boolean = false,
         val left: Boolean = false,
         val muted: Boolean = false,
         val blockedByMe: Boolean = false,
@@ -259,10 +321,13 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val botAlert: Boolean = false,
         val botUrl: String? = null,
         val copyText: String? = null,
-        val readReceiptConfig: ReadReceiptConfig =
-            ReadReceiptConfig.Fallback,
+        val readReceiptConfig: ReadReceiptConfig = ReadReceiptConfig.Fallback,
         val messageViewers: Map<Int, MessageViewers> = emptyMap(),
+        val reactionPages: Map<Int, ViewerPageState> = emptyMap(),
+        val pollVoterPages: Map<Int, ViewerPageState> = emptyMap(),
         val reactionUsers: Map<Int, List<MessageViewer>> = emptyMap(),
+        val checklistMutations: Set<Int> = emptySet(),
+        val pollVotesInFlight: Set<Int> = emptySet(),
         val pollVoters: Map<Int, List<MessageViewer>> = emptyMap(),
         val outboxReadStates: Map<Int, OutboxReadState> = emptyMap(),
         val keyboardDismissedKey: String? = null,
@@ -276,6 +341,9 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val mentionHasMore: Boolean = false,
         val draftMentions: List<DraftMention> = emptyList(),
     ) {
+        val canCreatePoll: Boolean get() = canView && !left && !blockedByMe && canSendPolls
+        val canCreateChecklist: Boolean
+            get() = canView && !left && !blockedByMe && !isChannel && (if (isGroup) canSendPolls else canSendPlain)
         val isCommentThread: Boolean get() = threadTopId > 0 && !isForum
         val showTopicList: Boolean get() = ForumIo.showTopicList(isForum, threadTopId)
         val inForumTopic: Boolean get() = isForum && threadTopId > 0
@@ -295,18 +363,25 @@ internal class DialogStoreFactory(
     private val markup: MarkupParser = KotlinMarkupParser(),
     private val isPremium: () -> Boolean = { false },
     private val markupContext: CoroutineContext = Dispatchers.Default,
+    private val initialChecklistEdit: ChecklistEditState? = null,
 ) {
     fun create(): DialogStore {
+        val editing = initialChecklistEdit?.message(chatId, threadTopMsgId)
+        val restored = initialChecklistEdit?.takeIf { editing != null }
         // Navigation calls this on the main thread. A blocking catalog read there
         // freezes the window (ANR) and leaves "Updating" on screen. The executor
         // hydrates the same catalogs off the main thread.
         if (!onAndroidMainThread()) warmPickerMemory(sessionStore)
-        return object :
-            DialogStore,
+        return object : DialogStore,
             Store<DialogStore.Intent, DialogStore.State, Nothing> by storeFactory.create(
                 name = "DialogStore",
                 initialState = DialogStore.State(
                     chatId = chatId,
+                    editing = editing,
+                    editingChecklistItemId = restored?.itemId,
+                    draft = restored?.draft.orEmpty(),
+                    draftEntities = org.monogram.core.models.TextEntities.parse(restored?.entitiesJson),
+                    draftFormatting = restored?.markdown == true && isPremium(),
                     loading = true,
                     pinnedMessages = PinnedBarMemory.get(chatId.value)?.messages.orEmpty(),
                     pinnedIndex = PinnedBarMemory.get(chatId.value)?.index ?: 0,
@@ -344,7 +419,7 @@ internal class DialogStoreFactory(
 }
 
 private fun onAndroidMainThread(): Boolean = try {
-    val main = android.os.Looper.getMainLooper() ?: return false
+    val main = getMainLooper() ?: return false
     android.os.Looper.myLooper() === main
 } catch (_: RuntimeException) {
     false

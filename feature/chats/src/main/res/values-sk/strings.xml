@@ -71,4 +71,11 @@
     <string name="chats_unread_mentions">Neprečítané zmienky</string>
     <string name="chats_unread_reactions">Neprečítané reakcie</string>
     <string name="chats_proxy_status">Proxy connection status</string>
+    <string name="chats_preview_giveaway">Žrebovanie</string>
+    <string name="chats_preview_giveaway_results">Výsledky žrebovania</string>
+    <string name="chats_preview_paid_media">Platený obsah</string>
+    <string name="chats_preview_game">Hra</string>
+    <string name="chats_preview_invoice">Faktúra</string>
+    <string name="chats_preview_story">Príbeh</string>
+    <string name="chats_preview_live_stream">Živé vysielanie</string>
 </resources>

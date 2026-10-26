@@ -1,9 +1,12 @@
 package org.monogram.network.bridge
 
 import org.monogram.core.models.Chat
+import org.monogram.core.models.CloudDraft
 import org.monogram.core.models.Folder
 import org.monogram.core.models.Message
+import org.monogram.core.models.OutgoingMessageResult
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.ScheduledMessage
 import org.monogram.network.bridge.chat.ChatOps
 import org.monogram.network.bridge.media.MediaOps
 import org.monogram.network.bridge.message.MessageOps
@@ -42,6 +45,17 @@ sealed class MtprotoUpdate {
         val accountGeneration: Long = 0,
         val acceptedOrder: Long = 0,
     ) : MtprotoUpdate()
+    data class OutgoingMessageAcknowledged(
+        val randomId: Long, val result: OutgoingMessageResult,
+    ) : MtprotoUpdate()
+
+    data class ScheduledMessageChanged(val message: ScheduledMessage) : MtprotoUpdate()
+    data class ScheduledMessagesDeleted(
+        val chatId: PeerId, val messageIds: List<Int>, val sentMessageIds: List<Int>?,
+    ) : MtprotoUpdate()
+
+    data class PollChanged(val pollId: Long) : MtprotoUpdate()
+    data class DraftChanged(val draft: CloudDraft) : MtprotoUpdate()
     data class MessageEdited(val message: Message) : MtprotoUpdate()
     data class MessagesDeleted(val chatId: PeerId?, val messageIds: List<Int>) : MtprotoUpdate()
     data class FoldersChanged(val folders: List<Folder>) : MtprotoUpdate()

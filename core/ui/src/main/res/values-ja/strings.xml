@@ -259,4 +259,18 @@
     <string name="media_copy_hdr_warning">画像をコピーしました。一部のアプリではHDRに対応していない場合があります</string>
     <string name="status_fresh_authorization">安全のため、ログイン直後はこの操作を行えません。24時間後に再試行するか、以前からログインしている端末を使用してください</string>
     <string name="passkey_client_data_mismatch">認証情報プロバイダが異なるログインデータに署名しました。Monogramの特権アプリ設定を確認してください</string>
+    <string name="service_star_gift_offer">%1$sさんがギフトのオファーを受け取りました</string>
+    <string name="service_star_gift_offer_declined">ギフトのオファーが辞退されました</string>
+    <string name="service_creator_pending">%2$sさんが新しい所有者になります</string>
+    <string name="service_creator_change">%2$sさんが新しい所有者になりました</string>
+    <string name="service_noforwards_toggle">コンテンツ保護が変更されました</string>
+    <string name="service_noforwards_request">コンテンツ保護の変更がリクエストされました</string>
+    <string name="service_poll_answer_added">投票に回答が追加されました</string>
+    <string name="service_poll_answer_removed">投票から回答が削除されました</string>
+    <string name="service_managed_bot">ボット「%2$s」が作成されました</string>
+    <string name="service_community_change">コミュニティが変更されました</string>
+    <string name="service_join_community">%1$sさんがコミュニティ経由で参加しました</string>
+    <string name="service_gram_transfer">%1$sさんがGramを送金しました</string>
+    <string name="service_ton_connect">%2$sからのTON Connectリクエスト</string>
+    <string name="service_paid_token_used">有料メッセージのトークンが使用されました</string>
 </resources>

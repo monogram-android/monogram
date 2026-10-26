@@ -65,4 +65,11 @@
     <string name="chats_unread_mentions">未読のメンション</string>
     <string name="chats_unread_reactions">未読のリアクション</string>
     <string name="chats_proxy_status">Proxy connection status</string>
+    <string name="chats_preview_giveaway">抽選</string>
+    <string name="chats_preview_giveaway_results">抽選結果</string>
+    <string name="chats_preview_paid_media">有料メディア</string>
+    <string name="chats_preview_game">ゲーム</string>
+    <string name="chats_preview_invoice">請求書</string>
+    <string name="chats_preview_story">ストーリー</string>
+    <string name="chats_preview_live_stream">ライブ配信</string>
 </resources>

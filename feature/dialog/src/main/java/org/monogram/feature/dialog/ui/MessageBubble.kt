@@ -1,5 +1,17 @@
 package org.monogram.feature.dialog.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateContentSize
+import androidx.compose.material.icons.outlined.MoreVert
+import org.monogram.core.ui.menu.AppMenuItem
+import org.monogram.core.ui.menu.AppMenuPopup
+import org.monogram.core.ui.menu.AppMenuSurface
+
 import android.text.format.DateFormat.getTimeFormat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -23,10 +35,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,6 +85,7 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageReaction
 import org.monogram.core.models.Profile
+import org.monogram.core.models.ReplyMarkupKind
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.localizedServiceMessage
@@ -80,7 +98,10 @@ import org.monogram.network.http.MediaRepository
 import java.text.DateFormat.getDateInstance
 import java.util.Locale
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(
+    ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+)
 @Composable
 fun MessageBubble(
     message: Message,
@@ -111,9 +132,17 @@ fun MessageBubble(
     onOpenStickerPack: ((documentId: Long, emojiPack: Boolean) -> Unit)? = null,
     onInstantView: ((org.monogram.core.models.WebpagePreview) -> Unit)? = null,
     onMarkupButton: ((org.monogram.core.models.ReplyButton) -> Unit)? = null,
+    checklistBusy: Boolean = false,
     onToggleChecklist: ((Int) -> Unit)? = null,
+    onRemoveChecklistItem: ((Int) -> Unit)? = null,
+    onEditChecklistItem: ((Int) -> Unit)? = null,
+    onClosePoll: ((Int) -> Unit)? = null,
+    pollVoting: Boolean = false,
     onPollVote: ((Int, List<ByteArray>) -> Unit)? = null,
     onAddChecklistItem: ((Int, Int) -> Unit)? = null,
+    onRetrySend: (() -> Unit)? = null,
+    sendUncertain: Boolean = false,
+    sendError: String? = null,
     hideTopicRootReply: Boolean = false,
     selectable: Boolean = false,
     selectAllNonce: Int = 0,
@@ -149,13 +178,14 @@ fun MessageBubble(
         return
     }
     val stickerOnly = isStickerOnly(message)
-    var appearancePlayed by rememberSaveable(message.id) {
+    val appearanceKey = message.randomId?.takeIf { it != 0L } ?: message.id.id.toLong()
+    var appearancePlayed by rememberSaveable(appearanceKey) {
         mutableStateOf(false)
     }
-    val appear = remember(message.id) {
+    val appear = remember(appearanceKey) {
         Animatable(if (!appearancePlayed && message.shouldPlayAppear()) 0f else 1f)
     }
-    LaunchedEffect(message.id) {
+    LaunchedEffect(appearanceKey) {
         appearancePlayed = true
         if (appear.value < 1f) {
             appear.animateTo(
@@ -167,8 +197,8 @@ fun MessageBubble(
     var spoilersVisible by remember(message.id) { mutableStateOf(false) }
     val renderedBlocks = rememberMessageBlocks(message.text.orEmpty(), message.entities)
     val hasSpoiler = renderedBlocks.containsSpoilers()
-    val senderTitle = sender?.title?.takeIf { it.isNotBlank() }
-        ?: message.senderName?.takeIf { it.isNotBlank() }
+    val senderTitle =
+        sender?.title?.takeIf { it.isNotBlank() } ?: message.senderName?.takeIf { it.isNotBlank() }
     val quote = if (quoted?.mediaKind == "service") {
         // Service payloads are deliberately compact on the wire; never expose
         // their unit separators in a reply preview.
@@ -177,16 +207,12 @@ fun MessageBubble(
             outgoing = quoted.outgoing,
         )
     } else {
-        message.replyQuote?.takeIf { it.isNotBlank() }
-            ?: quoted?.text?.takeIf { it.isNotBlank() }
+        message.replyQuote?.takeIf { it.isNotBlank() } ?: quoted?.text?.takeIf { it.isNotBlank() }
     }
-    val showReplyQuote = !hideTopicRootReply &&
-            (message.replyToMsgId != null || !quote.isNullOrBlank())
-    val bubbleHeader = (showSender && senderTitle != null) ||
-            !message.fwdFrom.isNullOrBlank() ||
-            message.fwdFromId != null ||
-            message.fwdDate != null ||
-            !message.viaBot.isNullOrBlank()
+    val showReplyQuote =
+        !hideTopicRootReply && (message.replyToMsgId != null || !quote.isNullOrBlank())
+    val bubbleHeader =
+        (showSender && senderTitle != null) || !message.fwdFrom.isNullOrBlank() || message.fwdFromId != null || message.fwdDate != null || !message.viaBot.isNullOrBlank()
     val mediaCaption = shouldShowMessageCaption(message.mediaKind, message.text, message.fileName)
     val isVisual = isVisualAlbum(album)
     val isNonVisual = isNonVisualAlbum(album)
@@ -195,11 +221,8 @@ fun MessageBubble(
     val edgeVisualMedia = singleVisualMedia || groupedAlbum
     // A picture, video, GIF or album alone in its bubble drops the bubble fill entirely.
     val hasComments = onComments != null && message.discussionPeerId != null
-    val mediaOnlyBubble = edgeVisualMedia &&
-            !mediaCaption &&
-            !bubbleHeader &&
-            !showReplyQuote &&
-            !hasComments
+    val mediaOnlyBubble =
+        edgeVisualMedia && !mediaCaption && !bubbleHeader && !showReplyQuote && !hasComments
     // Captioned or chromed media still reaches the bubble edge, over the content inset.
     val edgeMedia = edgeVisualMedia && !mediaOnlyBubble
     val mediaBleedTop = edgeMedia && !bubbleHeader && !showReplyQuote
@@ -215,9 +238,11 @@ fun MessageBubble(
     // A caption never widens a picture bubble: the bubble hugs the picture and the
     // caption wraps, so the picture stays flush with both edges.
     val mediaFrameWidth = if (singleVisualMedia) {
-        bubbleEdgeMediaDisplaySize(message.mediaKind, message.mediaWidth, message.mediaHeight)
-            .first
-            .dp
+        bubbleEdgeMediaDisplaySize(
+            message.mediaKind,
+            message.mediaWidth,
+            message.mediaHeight
+        ).first.dp
     } else {
         null
     }
@@ -389,8 +414,7 @@ fun MessageBubble(
                                 onClick = onOpenStickerPack?.let { open ->
                                     {
                                         open(
-                                            documentId,
-                                            true
+                                            documentId, true
                                         )
                                     }
                                 },
@@ -441,8 +465,7 @@ fun MessageBubble(
                                     val original = java.util.Date(date * 1_000L)
                                     getDateInstance(java.text.DateFormat.MEDIUM, locale).format(
                                         original
-                                    ) +
-                                            " " + getTimeFormat(context).format(original)
+                                    ) + " " + getTimeFormat(context).format(original)
                                 }
                             Text(
                                 text = formatted,
@@ -533,11 +556,12 @@ fun MessageBubble(
                         ServiceMediaCard(
                             message = message,
                             mediaRepository = mediaRepository,
+                            onClosePoll = onClosePoll?.let { close -> { close(message.id.id) } },
+                            pollVoting = pollVoting,
                             onPollVote = onPollVote?.let { vote ->
                                 { options ->
                                     vote(
-                                        message.id.id,
-                                        options
+                                        message.id.id, options
                                     )
                                 }
                             },
@@ -588,6 +612,214 @@ fun MessageBubble(
                         )
                     }
                 }
+                message.checklist?.let { list ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidthInBubble()
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .animateContentSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        if (list.title.isNotBlank()) {
+                            MessageText(
+                                text = list.title,
+                                entities = list.entities,
+                                textStyle = MaterialTheme.typography.titleMediumEmphasized,
+                                contentColor = onContainer,
+                                linkColor = MaterialTheme.colorScheme.primary,
+                                revealSpoilers = spoilersVisible,
+                                onSpoilerClick = { spoilersVisible = !spoilersVisible },
+                                onOpenStickerPack = onOpenStickerPack,
+                            )
+                        }
+
+                        val completed = list.items.count { it.done }
+                        val completion by androidx.compose.animation.core.animateFloatAsState(
+                            if (list.items.isEmpty()) 0f else completed.toFloat() / list.items.size,
+                            label = "checklistCompletion",
+                        )
+                        Text(
+                            stringResource(
+                                R.string.dialog_checklist_progress,
+                                completed,
+                                list.items.size
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = onContainer.copy(alpha = 0.72f)
+                        )
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { completion },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            drawStopIndicator = {},
+                        )
+                        if (checklistBusy) org.monogram.core.ui.loading.MonogramLoading()
+                        val addEnabled =
+                            onAddChecklistItem != null && (message.outgoing || list.othersCanAppend) && !message.pending && message.id.id > 0 && list.items.none { it.id == Int.MAX_VALUE }
+                        list.items.forEach { item ->
+                            androidx.compose.runtime.key(item.id) {
+                                val itemColor by androidx.compose.animation.animateColorAsState(
+                                    if (item.done) onContainer.copy(alpha = 0.65f) else onContainer,
+                                    label = "taskColor"
+                                )
+                                val enabled =
+                                    onToggleChecklist != null && !checklistBusy && !message.pending && message.id.id > 0 && (message.outgoing || list.othersCanComplete)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 48.dp)
+                                        .toggleable(
+                                            value = item.done,
+                                            enabled = enabled,
+                                            role = androidx.compose.ui.semantics.Role.Checkbox,
+                                            onValueChange = { onToggleChecklist?.invoke(item.id) }),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    TelegramRoundCheck(
+                                        checked = item.done,
+                                        color = if (item.done) MaterialTheme.colorScheme.primary else onContainer,
+                                    )
+                                    MessageText(
+                                        modifier = Modifier.weight(1f),
+                                        text = item.text,
+                                        entities = item.entities,
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                            textDecoration = if (item.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
+                                        ),
+                                        contentColor = itemColor,
+                                        linkColor = MaterialTheme.colorScheme.primary,
+                                        revealSpoilers = spoilersVisible,
+                                        onSpoilerClick = { spoilersVisible = !spoilersVisible },
+                                        onOpenStickerPack = onOpenStickerPack,
+                                    )
+                                    val canManage =
+                                        message.outgoing && !message.pending && message.id.id > 0
+                                    val canRemove =
+                                        canManage && onRemoveChecklistItem != null && list.items.size > 1
+                                    val canEdit = canManage && onEditChecklistItem != null
+                                    var confirmRemoval by rememberSaveable(
+                                        message.id,
+                                        item.id
+                                    ) { mutableStateOf(false) }
+                                    if (canRemove || canEdit) {
+                                        var menuOpen by remember { mutableStateOf(false) }
+                                        Box {
+                                            IconButton(
+                                                onClick = { menuOpen = true },
+                                                enabled = !checklistBusy,
+                                                shapes = IconButtonDefaults.shapes()
+                                            ) {
+                                                Icon(
+                                                    Icons.Outlined.MoreVert,
+                                                    contentDescription = stringResource(
+                                                        org.monogram.core.ui.R.string.media_more_actions
+                                                    )
+                                                )
+                                            }
+                                            AppMenuPopup(
+                                                menuOpen,
+                                                { menuOpen = false },
+                                                alignToAnchorEnd = true,
+                                                scrim = true
+                                            ) {
+                                                AppMenuSurface {
+                                                    Column {
+                                                        if (canEdit) AppMenuItem(
+                                                            text = stringResource(
+                                                                R.string.dialog_checklist_edit_item,
+                                                                item.text
+                                                            ),
+                                                            icon = Icons.Outlined.Edit,
+                                                            onClick = {
+                                                                menuOpen =
+                                                                    false; onEditChecklistItem?.invoke(
+                                                                item.id
+                                                            )
+                                                            },
+                                                        )
+                                                        if (canRemove) AppMenuItem(
+                                                            text = stringResource(
+                                                                R.string.dialog_checklist_remove_item,
+                                                                item.text
+                                                            ),
+                                                            icon = Icons.Outlined.Delete,
+                                                            onClick = {
+                                                                menuOpen = false; confirmRemoval =
+                                                                true
+                                                            },
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (confirmRemoval && canRemove) androidx.compose.material3.AlertDialog(
+                                        onDismissRequest = { confirmRemoval = false },
+                                        text = {
+                                            Text(
+                                                stringResource(
+                                                    R.string.dialog_checklist_remove_confirm,
+                                                    item.text
+                                                )
+                                            )
+                                        },
+                                        confirmButton = {
+                                            androidx.compose.material3.TextButton(
+                                                enabled = !checklistBusy,
+                                                onClick = {
+                                                    confirmRemoval =
+                                                        false; onRemoveChecklistItem?.invoke(item.id)
+                                                }) { Text(stringResource(R.string.dialog_delete)) }
+                                        },
+                                        dismissButton = {
+                                            androidx.compose.material3.TextButton(onClick = {
+                                                confirmRemoval = false
+                                            }) {
+                                                Text(stringResource(R.string.dialog_cancel))
+                                            }
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                        if (addEnabled) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.large)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .heightIn(min = 48.dp)
+                                    .clickable(enabled = !checklistBusy) {
+                                        val nextId =
+                                            (list.items.maxOfOrNull { it.id } ?: 0).toLong() + 1
+                                        if (nextId <= Int.MAX_VALUE) onAddChecklistItem.invoke(
+                                            message.id.id, nextId.toInt()
+                                        )
+                                    }
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(
+                                    8.dp,
+                                    Alignment.CenterHorizontally
+                                ),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(
+                                    text = stringResource(R.string.dialog_checklist_add),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+                }
                 if (message.mediaKind == "unsupported" && message.text.isNullOrEmpty()) {
                     Text(
                         text = stringResource(R.string.dialog_unsupported_message),
@@ -596,14 +828,10 @@ fun MessageBubble(
                         modifier = Modifier.padding(horizontal = edgeContentPad),
                     )
                 }
-                if (mediaCaption && !mediaOverlayMeta) {
+                if (mediaCaption && !mediaOverlayMeta && message.text != message.checklist?.title) {
                     var textLayoutInfo by remember { mutableStateOf<MessageTextLayoutInfo?>(null) }
-                    val hasWideChrome = message.replyToMsgId != null ||
-                            !quote.isNullOrBlank() ||
-                            message.mediaKind != null ||
-                            showSender ||
-                            !message.fwdFrom.isNullOrBlank() ||
-                            !message.viaBot.isNullOrBlank()
+                    val hasWideChrome =
+                        message.replyToMsgId != null || !quote.isNullOrBlank() || message.mediaKind != null || showSender || !message.fwdFrom.isNullOrBlank() || !message.viaBot.isNullOrBlank()
                     TextWithTimestampLayout(
                         textLayoutInfo = textLayoutInfo,
                         modifier = Modifier
@@ -647,6 +875,19 @@ fun MessageBubble(
                         showReadStatus = showReadStatus,
                     )
                 }
+                AnimatedVisibility(
+                    visible = onRetrySend != null,
+                    enter = fadeIn(tween(160)) + expandVertically(
+                        tween(220),
+                        expandFrom = Alignment.Top
+                    ),
+                    exit = fadeOut(tween(100)) + shrinkVertically(
+                        tween(180),
+                        shrinkTowards = Alignment.Top
+                    ),
+                ) {
+                    OutgoingBubbleFailure(sendUncertain, sendError) { onRetrySend?.invoke() }
+                }
                 if (onComments != null && message.discussionPeerId != null) {
                     CommentFooter(
                         repliesCount = message.repliesCount,
@@ -658,79 +899,8 @@ fun MessageBubble(
                     )
                 }
             }
-            message.checklist?.let { list ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidthInBubble()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    if (list.title.isNotBlank()) {
-                        Text(
-                            text = list.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = onContainer,
-                        )
-                    }
-
-                    val addEnabled = onAddChecklistItem != null &&
-                            (message.outgoing || list.othersCanAppend) && !message.pending
-                    if (addEnabled) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 36.dp)
-                                .clickable {
-                                    val nextId = (list.items.maxOfOrNull { it.id } ?: 0) + 1
-                                    onAddChecklistItem.invoke(message.id.id, nextId)
-                                },
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Text(
-                                text = stringResource(R.string.dialog_checklist_add),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                    list.items.forEach { item ->
-                        val enabled =
-                            onToggleChecklist != null && (message.outgoing || list.othersCanComplete)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 40.dp)
-                                .then(if (enabled) Modifier.clickable {
-                                    onToggleChecklist.invoke(
-                                        item.id
-                                    )
-                                } else Modifier),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            TelegramRoundCheck(
-                                checked = item.done,
-                                color = if (item.done) MaterialTheme.colorScheme.primary else onContainer,
-                            )
-                            Text(
-                                text = item.text,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (item.done) onContainer.copy(alpha = 0.72f) else onContainer,
-                            )
-                        }
-                    }
-                }
-            }
             val inlineMarkup = message.replyMarkup?.takeIf {
-                it.kind == org.monogram.core.models.ReplyMarkupKind.Inline && it.rows.isNotEmpty()
+                it.kind == ReplyMarkupKind.Inline && it.rows.isNotEmpty()
             }
             if (inlineMarkup != null && onMarkupButton != null) {
                 BotKeyboardGrid(
@@ -797,11 +967,10 @@ internal fun Modifier.bleedBubbleMedia(
     )
     val x = -hInset + (slot - placeable.width) / 2
     val y = if (bleedTop) -vInset else 0
-    val height = (
-            placeable.height -
-                    (if (bleedTop) vInset else 0) -
-                    (if (bleedBottom) vInset else 0)
-            ).coerceAtLeast(0)
+    val height =
+        (placeable.height - (if (bleedTop) vInset else 0) - (if (bleedBottom) vInset else 0)).coerceAtLeast(
+            0
+        )
     layout(constraints.maxWidth, height) {
         placeable.place(x, y)
     }

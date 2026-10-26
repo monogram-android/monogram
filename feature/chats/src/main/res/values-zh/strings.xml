@@ -65,4 +65,11 @@
     <string name="chats_unread_mentions">未读提及</string>
     <string name="chats_unread_reactions">未读表情回应</string>
     <string name="chats_proxy_status">Proxy connection status</string>
+    <string name="chats_preview_giveaway">抽奖</string>
+    <string name="chats_preview_giveaway_results">抽奖结果</string>
+    <string name="chats_preview_paid_media">付费内容</string>
+    <string name="chats_preview_game">游戏</string>
+    <string name="chats_preview_invoice">账单</string>
+    <string name="chats_preview_story">故事</string>
+    <string name="chats_preview_live_stream">直播</string>
 </resources>

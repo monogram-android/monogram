@@ -1434,6 +1434,199 @@ class BridgedMtprotoClientLifecycleTest {
         }
     }
 
+    @Test
+    fun uploadedOptionsPreserveCallerIdentityFlagsAndAuthoritativeResultModes() = runTest {
+        val native = object : RecordingNative() {
+            override fun sendUploadedMediaWithOptions(
+                handle: Long,
+                chatId: Long,
+                item: uniffi.monogram_mtproto.UploadItemDto,
+                replyToMsgId: Int,
+                topMsgId: Int,
+                entitiesJson: String?,
+                options: uniffi.monogram_mtproto.SendOptions
+            ): uniffi.monogram_mtproto.OutgoingMessageResult {
+                assertEquals(7L, chatId); assertEquals(123L, item.randomId)
+                assertEquals(8, replyToMsgId); assertEquals(9, topMsgId)
+                assertTrue(options.silent); assertEquals(0x7ffffffe, options.scheduleDate)
+                return uniffi.monogram_mtproto.OutgoingMessageResult.Scheduled(
+                    uniffi.monogram_mtproto.ScheduledMessageDto(sampleMessage(7, 37), false)
+                )
+            }
+
+            override fun sendUploadedAlbumWithOptions(
+                handle: Long, chatId: Long, items: List<uniffi.monogram_mtproto.UploadItemDto>,
+                replyToMsgId: Int, topMsgId: Int, options: uniffi.monogram_mtproto.SendOptions
+            ): List<uniffi.monogram_mtproto.OutgoingMessageResult> {
+                assertEquals(listOf(123L, 456L), items.map { it.randomId })
+                assertTrue(options.silent)
+                return listOf(
+                    uniffi.monogram_mtproto.OutgoingMessageResult.Sent(sampleMessage(7, 38)),
+                    uniffi.monogram_mtproto.OutgoingMessageResult.Scheduled(
+                        uniffi.monogram_mtproto.ScheduledMessageDto(
+                            sampleMessage(7, 39),
+                            false
+                        )
+                    )
+                )
+            }
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        val item = org.monogram.core.models.UploadItem(
+            path = "synthetic-unused",
+            kind = "photo",
+            randomId = 123
+        )
+        val options =
+            org.monogram.core.models.MessageSendOptions(silent = true, scheduleDate = 0x7ffffffe)
+        try {
+            val single =
+                client.sendUploadedMediaWithOptions(PeerId(7), item, options, 8, 9) as Outcome.Ok
+            assertTrue(single.value is org.monogram.core.models.OutgoingMessageResult.Scheduled)
+            val album = client.sendUploadedAlbumWithOptions(
+                PeerId(7),
+                listOf(item, item.copy(randomId = 456)),
+                options
+            ) as Outcome.Ok
+            assertTrue(album.value[0] is org.monogram.core.models.OutgoingMessageResult.Sent)
+            assertTrue(album.value[1] is org.monogram.core.models.OutgoingMessageResult.Scheduled)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun failedUploadedOptionsMutationIsNotAutomaticallyReplayed() = runTest {
+        var attempts = 0
+        val native = object : RecordingNative() {
+            override fun sendUploadedAlbumWithOptions(
+                handle: Long, chatId: Long, items: List<uniffi.monogram_mtproto.UploadItemDto>,
+                replyToMsgId: Int, topMsgId: Int, options: uniffi.monogram_mtproto.SendOptions
+            ): List<uniffi.monogram_mtproto.OutgoingMessageResult> {
+                attempts++
+                throw MtprotoException.Message("RPC 500: INTERNAL")
+            }
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        try {
+            val result = client.sendUploadedAlbumWithOptions(
+                PeerId(7), listOf(
+                    org.monogram.core.models.UploadItem(
+                        path = "synthetic-unused",
+                        kind = "photo",
+                        randomId = 123
+                    )
+                ),
+                org.monogram.core.models.MessageSendOptions(silent = true)
+            )
+            assertTrue(result is Outcome.Err)
+            assertEquals(1, attempts)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun viewerPageApisPreserveOpaqueCursorsCountsAndTerminalOffsets() = runTest {
+        val offsets = mutableListOf<String?>()
+        val native = object : RecordingNative() {
+            override fun getMessageReactionsPage(
+                handle: Long,
+                chatId: Long,
+                messageId: Int,
+                offset: String?
+            ): uniffi.monogram_mtproto.ReactionPeersDto {
+                offsets += offset
+                return uniffi.monogram_mtproto.ReactionPeersDto(
+                    peers = emptyList(),
+                    count = 60,
+                    nextOffset = if (offset == null) "opaque+/=cursor" else ""
+                )
+            }
+
+            override fun getPollVotesPage(
+                handle: Long,
+                chatId: Long,
+                messageId: Int,
+                offset: String?
+            ): uniffi.monogram_mtproto.PollVotersDto {
+                offsets += offset
+                return uniffi.monogram_mtproto.PollVotersDto(
+                    voters = emptyList(),
+                    count = 75,
+                    nextOffset = "poll-next"
+                )
+            }
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        try {
+            assertTrue(client.getReactionUsersPage(PeerId(7), 0, null) is Outcome.Err)
+            assertTrue(offsets.isEmpty())
+            val first = (client.getReactionUsersPage(PeerId(7), 37, null) as Outcome.Ok).value
+            assertEquals(60, first.totalCount); assertEquals("opaque+/=cursor", first.nextOffset)
+            val second =
+                (client.getReactionUsersPage(PeerId(7), 37, first.nextOffset) as Outcome.Ok).value
+            assertEquals(null, second.nextOffset)
+            val poll = (client.getPollVotersPage(PeerId(7), 37, "poll-offset") as Outcome.Ok).value
+            assertEquals(75, poll.totalCount); assertEquals("poll-next", poll.nextOffset)
+            assertEquals(listOf(null, "opaque+/=cursor", "poll-offset"), offsets)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun closePollPreservesIdentityAndDoesNotReplayUncertainMutation() = runTest {
+        var attempts = 0
+        val native = object : RecordingNative() {
+            override fun closePoll(handle: Long, chatId: Long, messageId: Int) {
+                attempts++
+                assertEquals(7L, chatId)
+                assertEquals(37, messageId)
+                throw MtprotoException.Message("RPC 500: INTERNAL")
+            }
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        try {
+            assertTrue(client.closePoll(PeerId(7), 0) is Outcome.Err)
+            assertEquals(0, attempts)
+            assertTrue(client.closePoll(PeerId(7), 37) is Outcome.Err)
+            assertEquals(1, attempts)
+        } finally {
+            client.close()
+        }
+    }
+
+    @Test
+    fun exactMessageLookupPreservesIdentityAndDeletionAndRejectsForeignResponses() = runTest {
+        var response: MessageDto? = sampleMessage(7, 37)
+        var reads = 0
+        val native = object : RecordingNative() {
+            override fun getMessage(handle: Long, chatId: Long, messageId: Int): MessageDto? {
+                reads++
+                assertEquals(7L, chatId)
+                assertEquals(37, messageId)
+                return response
+            }
+        }
+        val client = client(native, StandardTestDispatcher(testScheduler))
+        try {
+            assertTrue(client.getMessage(PeerId(7), 0) is Outcome.Err)
+            assertEquals(0, reads)
+            val found = client.getMessage(PeerId(7), 37) as Outcome.Ok
+            assertEquals(37, found.value?.id?.id)
+            assertEquals(PeerId(7), found.value?.id?.chatId)
+            response = null
+            assertEquals(null, (client.getMessage(PeerId(7), 37) as Outcome.Ok).value)
+            response = sampleMessage(8, 37)
+            assertTrue(client.getMessage(PeerId(7), 37) is Outcome.Err)
+            response = sampleMessage(7, 38)
+            assertTrue(client.getMessage(PeerId(7), 37) is Outcome.Err)
+        } finally {
+            client.close()
+        }
+    }
+
     private fun client(
         native: MtprotoNative,
         dispatcher: kotlinx.coroutines.CoroutineDispatcher,

@@ -154,6 +154,7 @@ open class MainActivity : ComponentActivity() {
                 bubbleChatId = if (this@MainActivity is BubbleActivity) {
                     intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L).takeIf { it != 0L }
                 } else null,
+                liveLocations = app.liveLocations,
                 onRootBack = { finish() },
             )
             if (pendingIncomingShare != null) {

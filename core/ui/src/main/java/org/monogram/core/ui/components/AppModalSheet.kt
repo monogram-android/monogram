@@ -25,12 +25,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -40,7 +41,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -60,7 +60,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
@@ -113,15 +112,17 @@ fun AppModalSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
     val view = LocalView.current
+    val windowBounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        (view.context.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager)
+            .currentWindowMetrics.bounds
+    } else null
     val overlayWidth = with(density) {
-        view.rootView.width.takeIf { it > 0 }?.toDp() ?: configuration.screenWidthDp.dp
+        (windowBounds?.width() ?: view.resources.displayMetrics.widthPixels).toDp()
     }
     val overlayHeight = with(density) {
-        view.rootView.height.takeIf { it > 0 }?.toDp() ?: configuration.screenHeightDp.dp
+        (windowBounds?.height() ?: view.resources.displayMetrics.heightPixels).toDp()
     }
-    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val scope = rememberCoroutineScope()
     val dismissRequest = rememberUpdatedState(onDismissRequest)
     val exit = rememberUpdatedState(exitSpec)
@@ -297,7 +298,7 @@ fun AppModalSheet(
                             0f
                         }
                         alpha = scrimColor.alpha * progress.value.coerceIn(0f, 1f) *
-                            (1f - dragged) * (1f - backProgress.coerceIn(0f, 1f))
+                                (1f - dragged) * (1f - backProgress.coerceIn(0f, 1f))
                     }
                     .background(scrimColor.copy(alpha = 1f))
                     .clickable(
@@ -312,7 +313,9 @@ fun AppModalSheet(
                     .align(if (capped) Alignment.BottomEnd else Alignment.BottomCenter)
                     .then(
                         if (capped) {
-                            Modifier.padding(end = 12.dp, bottom = 8.dp).widthIn(max = maxWidth)
+                            Modifier
+                                .padding(end = 12.dp, bottom = 8.dp)
+                                .widthIn(max = maxWidth)
                         } else {
                             Modifier
                         },
@@ -321,10 +324,10 @@ fun AppModalSheet(
                     .onSizeChanged { sheetHeightPx = it.height }
                     .graphicsLayer {
                         translationY = (
-                            (1f - progress.value) * size.height +
-                                dragOffsetY +
-                                backProgress * size.height
-                        ).coerceAtLeast(0f)
+                                (1f - progress.value) * size.height +
+                                        dragOffsetY +
+                                        backProgress * size.height
+                                ).coerceAtLeast(0f)
                         if (fadeSheet) alpha = progress.value.coerceIn(0f, 1f)
                     }
                     .clickable(
@@ -332,6 +335,7 @@ fun AppModalSheet(
                         interactionSource = remember { MutableInteractionSource() },
                         onClick = {},
                     )
+                    .windowInsetsPadding(WindowInsets.statusBars)
                     .then(modifier),
                 color = containerColor,
                 contentColor = contentColor,
@@ -348,7 +352,7 @@ fun AppModalSheet(
                         .fillMaxWidth()
                         .nestedScroll(nestedScroll)
                         .then(
-                            if (padNavigationBars) Modifier.padding(bottom = navBottom) else Modifier,
+                            if (padNavigationBars) Modifier.navigationBarsPadding() else Modifier,
                         )
                         .then(if (padIme) Modifier.imePadding() else Modifier)
                         .clipToBounds(),
@@ -448,10 +452,12 @@ fun SheetPanelHost(
 private fun TransparentPopupSystemBars() {
     val view = LocalView.current
     val lightNav = !isSystemInDarkTheme()
-    SideEffect {
+    DisposableEffect(view, lightNav) {
         val root = view.rootView
         val params = root.layoutParams as? WindowManager.LayoutParams
         if (params != null) {
+            // Compose handles IME insets; Android's default popup panning resets them on focus changes.
+            params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             params.flags = params.flags or WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 params.setFitInsetsTypes(0)
@@ -476,6 +482,7 @@ private fun TransparentPopupSystemBars() {
             }
             ctx = ctx.baseContext
         }
+        onDispose { }
     }
 }
 
